@@ -1,0 +1,13 @@
+name = "Backtest"
+uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
+Strategems = "054b7d4e-9922-5ad3-8b46-7dbe695a681f"
+Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
+TimeFrames = "51948d2b-02eb-5b28-9840-c902cc6821c9"
+TimeSeriesResampler = "209c9289-0e93-5bc3-a9c6-3b517a31ee3c"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
