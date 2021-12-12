@@ -3,6 +3,74 @@ using Tables
 using Zarr: is_zarray
 using TimeFrames: TimeFrame
 
+macro as_td()
+    tf = esc(:timeframe)
+    td = esc(:td)
+    prd = esc(:prd)
+    quote
+        $prd = tfperiod($tf)
+        $td = tfnum($prd)
+    end
+end
+
+macro zkey()
+    p = esc(:pair)
+    exn = esc(:exc_name)
+    tf = esc(:timeframe)
+    key = esc(:key)
+    quote
+        $key = joinpath($exn, $p, "ohlcv", "tf_" * $tf)
+    end
+    # joinpath("/", pair, "ohlcv", "tf_$timeframe")
+end
+
+macro as(sym, val)
+    s = esc(sym)
+    v = esc(val)
+    quote
+        $s = $v
+        true
+    end
+end
+
+macro check_td(args...)
+    local check_data
+    if !isempty(args)
+        check_data = esc(args[1])
+    else
+        check_data = esc(:za)
+    end
+    col = esc(:saved_col)
+    td = esc(:td)
+    quote
+        @assert $check_data[2, $col] - $check_data[1, $col] === $td
+    end
+end
+
+macro df(v)
+    quote
+        to_df($(esc(v)))
+    end
+end
+
+macro as_mat(data)
+    tp = esc(:type)
+    d = esc(data)
+    quote
+        # Need to convert to Matrix otherwise assignement throws dimensions mismatch...
+        # this allocates...
+        if !(typeof($d) <: Matrix{$tp})
+            $d = Matrix{$tp}($d)
+        end
+    end
+end
+
+function combine_data(prev, data)
+    df1 = DataFrame(prev, OHLCV_COLUMNS)
+    df2 = DataFrame(data, OHLCV_COLUMNS)
+    combinerows(df1, df2; idx=:timestamp)
+end
+
 @doc "(Right)Merge two dataframes on key, assuming the key is ordered and unique in both dataframes."
 function combinerows(df1, df2; idx::Symbol)
     # all columns
@@ -44,16 +112,16 @@ function combinerows(df1, df2; idx::Symbol)
     DataFrame(rows)
 end
 
-
-macro zkey()
-    p = esc(:pair)
-    tf = esc(:timeframe)
-    key = esc(:key)
-    quote
-        $key = joinpath($p, "ohlcv", "tf_" * $tf)
-    end
-    # joinpath("/", pair, "ohlcv", "tf_$timeframe")
+@doc "Convert ccxt OHLCV data to a timearray/dataframe."
+function to_df(data; fromta=false)
+    # ccxt timestamps in milliseconds
+    dates = unix2datetime.(@view(data[:, 1]) / 1e3)
+    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> DataFrame
+    DataFrame(:timestamp => dates,
+              [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
+               for n in 1:length(OHLCV_COLUMNS_TS)]...)
 end
+
 
 function tfperiod(s::AbstractString)
     # convert m for minutes to T
@@ -72,20 +140,22 @@ end
 `timeframe`: exchange timeframe (from exc.timeframes)
 `type`: Primitive type used for storing the data (Float64)
 """
-function _save(zi::ZarrInstance, pair, timeframe, data; kind="ohlcv", type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
+function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
+    @as_td
     @zkey
-    prd = tfperiod(timeframe)
-    td = tfnum(prd)
-    local za
-    local existing=true
+    _save_pair(zi, key, td, data; kwargs...)
+end
+
+function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset)
+    existing = false
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
-        if size(za, 2) !== size(data, 2)
-            if overwrite
+        if size(za, 2) !== sz[2]
+            if overwrite || reset
                 rm(joinpath(zi.store.folder, key); recursive=true)
-                za = zcreate(type, zi.store, size(data)...; path=key)
+                za = zcreate(type, zi.store, sz...; path=key, compressor)
             else
-                throw("Dimensions mismatch between stored data $(size(za)) and new data. $(size(data))")
+                throw("Dimensions mismatch between stored data $(size(za)) and new data. $(sz)")
             end
         else
             existing = true
@@ -96,8 +166,18 @@ function _save(zi::ZarrInstance, pair, timeframe, data; kind="ohlcv", type=Float
             @debug "Deleting garbage at path $p"
             rm(p; recursive=true)
         end
-        za = zcreate(type, zi.store, size(data)...; path=key)
+        za = zcreate(type, zi.store, sz...; path=key, compressor)
     end
+    (za, existing)
+end
+
+function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
+                    type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
+    local za
+    @check_td(data)
+
+    za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && size(za, 1) > 0
         local data_view
@@ -131,7 +211,7 @@ function _save(zi::ZarrInstance, pair, timeframe, data; kind="ohlcv", type=Float
             szdv = size(data_view, 1)
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
-                za[offset:end, :] = data_view[:, :]
+                za[offset:end, :] = @as_mat(data_view)[:, :]
                 @debug _contiguous_ts(za[:, saved_col], td)
             end
             @debug "Size data_view: " szdv
@@ -156,38 +236,28 @@ function _save(zi::ZarrInstance, pair, timeframe, data; kind="ohlcv", type=Float
     else
         offset = 0
         resize!(za, size(data))
-        za[:, :] = data[:, :]
+        za[:, :] = @as_mat(data)[:, :]
     end
     return za
 end
 
-macro as(sym, val)
-    s = esc(sym)
-    v = esc(val)
-    quote
-        $s = $v
-        true
-    end
+@inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
+    "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
-macro check_td()
-    za = esc(:za)
-    col = esc(:saved_col)
-    td = esc(:td)
-    quote
-        @assert $za[2, $col] - $za[1, $col] === $td
-    end
-end
-
-function _load(zi, pair, timeframe="1m"; from="", to="", saved_col=1)
+@doc "Load a pair ohlcv data from storage."
+function load_pair(zi, exc_name, pair, timeframe="1m"; kwargs...)
+    @as_td
     @zkey
-    za = zopen(zi.store, "w"; path=key)
+    _load_pair(zi, key, td; kwargs...)
+end
+
+function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false)
+    za, _ = _get_zarray(zi, key, (0, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false)
+
     if size(za, 1) === 0
         return DataFrame(Matrix(undef, 0, length(OHLCV_COLUMNS)), OHLCV_COLUMNS)
     end
-    prd = tfperiod(timeframe)
-    td = tfnum(prd)
-    @check_td
 
     @as from timefloat(from)
     @as to timefloat(to)
@@ -199,13 +269,16 @@ function _load(zi, pair, timeframe="1m"; from="", to="", saved_col=1)
     if with_from
         ts_start = max(1, (from - saved_first_ts + td) ÷ td) |> Int
     else
-        ts_start = firstindex(za, 1)
+        ts_start = firstindex(za, saved_col)
     end
     if with_to
         ts_stop = (ts_start + ((to - from) ÷ td)) |> Int
     else
-        ts_stop = lastindex(za, 1)
+        ts_stop = lastindex(za, saved_col)
     end
+
+    as_z && return za, (ts_start, ts_stop)
+
     data = za[ts_start:ts_stop, :]
 
     with_from && @assert data[begin, saved_col] >= from
@@ -246,7 +319,7 @@ function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
 end
 
 contiguous_ts(series, timeframe::AbstractString) = begin
-    @astd
+    @as_td
     _contiguous_ts(series, td)
 end
 
@@ -267,23 +340,14 @@ function _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_la
         throw("Data stored starts at $(dt(saved_first_ts)) while new data ends at $(dt(data_last_ts)). Data must be contiguous.")
 end
 
-macro astd()
-    tf = esc(:timeframe)
-    td = esc(:td)
-    prd = esc(:prd)
-    quote
-        $prd = tfperiod($tf)
-        $td = tfnum($prd)
-    end
-end
 
 struct Candle
     timestamp::DateTime
-    open::Real
-    high::Real
-    low::Real
-    close::Real
-    volume::Real
+    open::AbstractFloat
+    high::AbstractFloat
+    low::AbstractFloat
+    close::AbstractFloat
+    volume::AbstractFloat
 end
 
 using DataFramesMeta
@@ -291,12 +355,12 @@ using DataFramesMeta
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
 fill_missing_rows(df, timeframe::AbstractString; strategy=:close) = begin
-    @astd
+    @as_td
     _fill_missing_rows(df, prd; strategy, inplace=false)
 end
 
 fill_missing_rows!(df, timeframe::AbstractString; strategy=:close) = begin
-    @astd
+    @as_td
     _fill_missing_rows(df, prd; strategy, inplace=true)
 end
 
@@ -332,12 +396,12 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     df = data isa DataFrame ? data : to_df(data)
     gd = groupby(df, :timestamp; sort=true)
     df = combine(gd, :open => first, :high => maximum, :low => minimum, :close => last, :volume => maximum; renamecols=false)
-    @astd
+    @as_td
 
     if is_incomplete_candle(df[end, :], td)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
-        @info "Dropping last candle ($(last_candle[:timestamp])) because it is incomplete."
+        @info "Dropping last candle ($(last_candle[:timestamp] |> dt)) because it is incomplete."
     end
     return df
     if fill_missing !== false
@@ -353,25 +417,8 @@ function is_incomplete_candle(candle, td::AbstractFloat)
 end
 
 function is_incomplete_candle(candle, timeframe="1m")
-    @astd
+    @as_td
     is_incomplete_candle(candle, td)
 end
-
-macro df(v)
-    quote
-        to_df($(esc(v)))
-    end
-end
-
-# function apply(grp::GroupBy)
-#     apply(grp.action)
-# end
-
-# function apply(resampler::TimeArrayResampler, f::Function)
-#     dt_grouper(resampler.tf, eltype(timestamp(resampler.ta)))
-#     f_group = dt_grouper(resampler.tf, eltype(timestamp(resampler.ta)))
-#     @show f_group
-#     collapse(resampler.ta, f_group, dt -> f_group(first(dt)), f)
-# end
 
 export @df

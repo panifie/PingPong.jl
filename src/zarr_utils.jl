@@ -3,6 +3,8 @@ import Base.delete!
 
 const default_data_path = get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "Backtest.jl", "data"))")
 
+const compressor = Zarr.BloscCompressor(cname="zstd", clevel=2, shuffle=true)
+
 function delete!(g::ZGroup, key::AbstractString; force=true)
     rm(joinpath(g.storage.folder, g.path, key); force, recursive=true)
     if key ∈ keys(g.groups)
@@ -64,7 +66,7 @@ function zsave(zi::ZarrInstance, data, path::Vararg{AbstractString}; type=Float6
             za[:, :] .= mdata[:, :]
         end
     else
-        za = Zarr.zcreate(type, zg, string(name), size(data)...)
+        za = Zarr.zcreate(type, zg, string(name), size(data)...; compressor)
         za[:] = data
     end
     za, zg
