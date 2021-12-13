@@ -43,7 +43,15 @@ macro check_td(args...)
     col = esc(:saved_col)
     td = esc(:td)
     quote
-        @assert $check_data[2, $col] - $check_data[1, $col] === $td
+        if size($check_data, 1) > 1
+            timeframe_match = timefloat($check_data[2, $col] - $check_data[1, $col]) === $td
+            if !timeframe_match
+                @warn "Saved date not matching timeframe, resetting."
+                throw(TimeFrameError($check_data[1, $col] |> string,
+                                    $check_data[2, $col] |> string,
+                                    convert(Dates.Second, Dates.Millisecond($td))))
+            end
+        end
     end
 end
 
@@ -52,6 +60,11 @@ macro df(v)
         to_df($(esc(v)))
     end
 end
+
+import Base.convert
+
+# needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
+convert(::Type{T}, x::DateTime) where T <: AbstractFloat = timefloat(x)
 
 macro as_mat(data)
     tp = esc(:type)
@@ -66,8 +79,8 @@ macro as_mat(data)
 end
 
 function combine_data(prev, data)
-    df1 = DataFrame(prev, OHLCV_COLUMNS)
-    df2 = DataFrame(data, OHLCV_COLUMNS)
+    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols=false)
+    df2 = DataFrame(data, OHLCV_COLUMNS; copycols=false)
     combinerows(df1, df2; idx=:timestamp)
 end
 
@@ -109,17 +122,17 @@ function combinerows(df1, df2; idx::Symbol)
             push!(rows, merge(empty_tup1, r2))
         end
     end
-    DataFrame(rows)
+    DataFrame(rows; copycols=false)
 end
 
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
 function to_df(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
-    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> DataFrame
+    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> x-> DataFrame(x; copycols=false)
     DataFrame(:timestamp => dates,
               [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
-               for n in 1:length(OHLCV_COLUMNS_TS)]...)
+               for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols=false)
 end
 
 
@@ -130,6 +143,12 @@ end
 
 function tfnum(prd::Dates.Period)
     convert(Dates.Millisecond, prd) |> x -> convert(Float64, x.value)
+end
+
+mutable struct TimeFrameError <: Exception
+    first
+    last
+    td
 end
 
 @doc """
@@ -143,14 +162,22 @@ end
 function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
     @zkey
-    _save_pair(zi, key, td, data; kwargs...)
+    try
+        _save_pair(zi, key, td, data; kwargs...)
+    catch e
+        if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
+            _save_pair(zi, key, td, data; kwargs..., reset=true)
+        else
+            rethrow(e)
+        end
+    end
 end
 
 function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset)
     existing = false
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
-        if size(za, 2) !== sz[2]
+        if size(za, 2) !== sz[2] || reset
             if overwrite || reset
                 rm(joinpath(zi.store.folder, key); recursive=true)
                 za = zcreate(type, zi.store, sz...; path=key, compressor)
@@ -174,6 +201,7 @@ end
 function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                     type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
     local za
+    ""
     @check_td(data)
 
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
@@ -185,6 +213,7 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
         saved_last_ts = za[end, saved_col]
         data_first_ts = data[1, data_col]
         data_last_ts = data[end, data_col]
+        @show typeof(td)
         _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
         # if appending data
         if data_first_ts >= saved_first_ts
@@ -229,12 +258,11 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
             za[szd + 1:end, :] = saved_data[:, :]
-            za[begin:szd, :] = data[:, :]
+            za[begin:szd, :] = @as_mat(data)[:, :]
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
         @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(za[:, data_col], td)
     else
-        offset = 0
         resize!(za, size(data))
         za[:, :] = @as_mat(data)[:, :]
     end
@@ -245,27 +273,40 @@ end
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
-@doc "Load a pair ohlcv data from storage."
+@doc "Load a pair ohlcv data from storage.
+`as_z`: returns the ZArray
+"
 function load_pair(zi, exc_name, pair, timeframe="1m"; kwargs...)
     @as_td
     @zkey
-    _load_pair(zi, key, td; kwargs...)
+    try
+        _load_pair(zi, key, td; kwargs...)
+    catch e
+        if typeof(e) ∈ (MethodError, DivideError)
+            return [], (0, 0)
+        else
+            rethrow(e)
+        end
+    end
 end
 
 function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false)
+    @debug "Loading data for pair at $key."
     za, _ = _get_zarray(zi, key, (0, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false)
 
     if size(za, 1) === 0
-        return DataFrame(Matrix(undef, 0, length(OHLCV_COLUMNS)), OHLCV_COLUMNS)
+        as_z && return za, (0, 0)
+        return _empty_df()
     end
 
     @as from timefloat(from)
     @as to timefloat(to)
 
     saved_first_ts = za[begin, saved_col]
+    @debug "Pair first timestamp is $(saved_first_ts |> dt)"
 
-    with_from = !isnothing(from)
-    with_to = !isnothing(to)
+    with_from = !iszero(from)
+    with_to = !iszero(to)
     if with_from
         ts_start = max(1, (from - saved_first_ts + td) ÷ td) |> Int
     else
@@ -297,6 +338,10 @@ end
 
 function timefloat(time::AbstractFloat)
     time
+end
+
+function timefloat(prd::Period)
+    prd.value * 1.
 end
 
 function timefloat(time::DateTime)
@@ -359,12 +404,17 @@ fill_missing_rows(df, timeframe::AbstractString; strategy=:close) = begin
     _fill_missing_rows(df, prd; strategy, inplace=false)
 end
 
+fill_missing_rows!(df, prd::Period; strategy=:close) = begin
+    _fill_missing_rows(df, prd; strategy, inplace=true)
+end
+
 fill_missing_rows!(df, timeframe::AbstractString; strategy=:close) = begin
     @as_td
     _fill_missing_rows(df, prd; strategy, inplace=true)
 end
 
 function _fill_missing_rows(df, prd::Period; strategy, inplace)
+    size(df, 1) === 0 && return _empty_df()
     let ordered_rows = []
         # fill the row by previous close or with NaNs
         can = strategy === :close ? (x) -> [x, x, x, x, 0] : (_) -> [NaN, NaN, NaN, NaN, NaN]
@@ -393,6 +443,7 @@ using DataFrames: groupby, combine
 `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
+    size(data, 1) === 0 && return _empty_df()
     df = data isa DataFrame ? data : to_df(data)
     gd = groupby(df, :timestamp; sort=true)
     df = combine(gd, :open => first, :high => maximum, :low => minimum, :close => last, :volume => maximum; renamecols=false)
@@ -401,13 +452,22 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     if is_incomplete_candle(df[end, :], td)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
-        @info "Dropping last candle ($(last_candle[:timestamp] |> dt)) because it is incomplete."
+        @info "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
-    return df
     if fill_missing !== false
         fill_missing_rows!(df, prd; strategy=fill_missing)
     end
     df
+end
+
+function is_incomplete_candle(ts::AbstractFloat, td::AbstractFloat)
+    now = timefloat(Dates.now(Dates.UTC))
+    ts + td > now
+end
+
+function is_incomplete_candle(x::String, td::AbstractFloat)
+    ts = timefloat(x)
+    is_incomplete_candle(ts, td)
 end
 
 function is_incomplete_candle(candle, td::AbstractFloat)
@@ -416,9 +476,15 @@ function is_incomplete_candle(candle, td::AbstractFloat)
     ts + td > now
 end
 
-function is_incomplete_candle(candle, timeframe="1m")
+function is_incomplete_candle(x, timeframe="1m")
     @as_td
-    is_incomplete_candle(candle, td)
+    is_incomplete_candle(x, td)
+end
+
+function is_last_complete_candle(x, timeframe)
+    @as_td
+    ts = timefloat(x)
+    is_incomplete_candle(ts + td, td)
 end
 
 export @df

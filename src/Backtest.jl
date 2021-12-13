@@ -71,38 +71,51 @@ function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict()
     if cleanup cleanup_ohlcv_data(data, timeframe) else data end
 end
 
+function _empty_df()
+    DataFrame([Dates.DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...], OHLCV_COLUMNS; copycols=false)
+end
+
 function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::AbstractFloat, params, sleep_t)
     @as_td
+    @debug "Downloading candles for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair not in exchange markets.")
-    data = DataFrame([Float64[] for _ in OHLCV_COLUMNS], OHLCV_COLUMNS)
+    data = _empty_df()
     local cur_ts
     if from === 0.0
         # fetch the first available candles using a long (1w) timeframe
-        since = _fetch_with_delay(exc, pair, "1w";)[begin, 1]
+        since = _fetch_with_delay(exc, pair, "1w"; df=true)[begin, 1] |> timefloat
     else
-        append!(data, _fetch_with_delay(exc, pair, timeframe; since=from, params))
+        append!(data, _fetch_with_delay(exc, pair, timeframe; since=from, params, df=true))
         size(data, 1) === 0 && throw("Couldn't fetch candles for $pair from $(exc.name), too long dates? $(dt(from)).")
-        since = data[end, 1]
+        since = data[end, 1] |> timefloat
     end
     while since < to
         sleep(sleep_t)
-        fetched = _fetch_with_delay(exc, pair, timeframe; since, params)
-        append!(data, DataFrame(fetched, OHLCV_COLUMNS))
-        since === data[end, 1] && break
-        since = data[end, 1]
+        fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df=true)
+        append!(data, fetched)
+        last_ts = timefloat(data[end, 1])
+        since === last_ts && break
+        since = last_ts
         @debug "Downloaded candles for pair $pair up to $(since |> dt) from $(exc.name)."
     end
     return data
 end
 
-function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), sleep_t=0)
+function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), df=false, sleep_t=0)
     try
         data = exc.fetchOHLCV(pair, timeframe; since, params)
+        if !(typeof(data) <: Matrix)
+            sleep(sleep_t)
+            sleep_t = (sleep_t + 1) * 2
+            data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
+        end
+        data = convert(Matrix{Float64}, data)
+        df ? to_df(data) : data
     catch e
         if e isa PyError && !isnothing(match(r"429([0]+)?", string(e.val)))
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
-            _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t)
+            _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
         else
             rethrow(e)
         end
@@ -131,30 +144,44 @@ PairData(;name, tf, data, z) = PairData(name, tf, data, z)
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=nothing,
                      from="", to="", update=false, reset=false)
     exc_name = exc.name
+    local za
     if !is_timeframe_supported(timeframe, exc)
-        @error "Timeframe $timeframe not supported by exchange $exc_name"
+        @error "Timeframe $timeframe not supported by exchange $exc_name."
     end
     if update
         if !isempty(from) || !isempty(to)
             @warn "Don't set the `from` or `to` date if updating existing data."
         end
+        reset && @warn "Ignoring reset since, update flag is true."
         # this fetches the last date stored
         from_date = (pair) -> begin
             za, (_, stop) = load_pair(zi, exc_name, pair, timeframe; as_z=true)
-            za[stop, 1]
+            za, size(za, 1) > 1 ? za[stop, 1] : from
         end
     else
-        from_date = (_) -> from
+        from_date = (_) -> (nothing, from)
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
     for (name, info) in pairs
-        ohlcv =  _fetch_one_pair(exc, zi, name, timeframe; from=from_date(name), to)
-        z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset)
+        @debug "Fetching pair $name."
+        z, pair_from_date = from_date(name)
+        @debug "...from date $pair_from_date"
+        if !is_last_complete_candle(pair_from_date, timeframe)
+            ohlcv =  _fetch_one_pair(exc, zi, name, timeframe; from=pair_from_date, to)
+        else
+            ohlcv = _empty_df()
+        end
+        if size(ohlcv, 1) > 0
+            z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset)
+        elseif isnothing(z)
+            z = load_pair(zi, exc_name, name, timeframe; as_z=true)
+        end
         p = PairData(;name, tf=timeframe, data=ohlcv, z)
         data[name] = p
         @info "Fetched $(size(p.data, 1)) candles for $name from $(exc.name)"
     end
+    data
 end
 
 @doc "Print a number."
