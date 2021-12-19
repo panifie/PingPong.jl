@@ -2,6 +2,7 @@ using DataFrames
 using Tables
 using Zarr: is_zarray
 using TimeFrames: TimeFrame
+using Temporal: TS
 
 macro as_td()
     tf = esc(:timeframe)
@@ -55,7 +56,7 @@ macro check_td(args...)
     end
 end
 
-macro df(v)
+macro as_df(v)
     quote
         to_df($(esc(v)))
     end
@@ -75,6 +76,31 @@ macro as_mat(data)
         if !(typeof($d) <: Matrix{$tp})
             $d = Matrix{$tp}($d)
         end
+    end
+end
+
+macro to_mat(data, tp=nothing)
+    if tp === nothing
+        tp = esc(:type)
+    else
+        tp = esc(tp)
+    end
+    d = esc(data)
+    quote
+        # Need to convert to Matrix otherwise assignement throws dimensions mismatch...
+        # this allocates...
+        if !(typeof($d) <: Matrix{$tp})
+            Matrix{$tp}($d)
+        else
+            $d
+        end
+    end
+end
+
+macro ohlc(df, tp=Float64)
+    df = esc(:df)
+    quote
+        TS(@to_mat(@view($df[:, Backtest.OHLCV_COLUMNS_TS]), $tp), $df.timestamp, OHLCV_COLUMNS_TS)
     end
 end
 
@@ -213,7 +239,6 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
         saved_last_ts = za[end, saved_col]
         data_first_ts = data[1, data_col]
         data_last_ts = data[end, data_col]
-        @show typeof(td)
         _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
         # if appending data
         if data_first_ts >= saved_first_ts
@@ -487,4 +512,4 @@ function is_last_complete_candle(x, timeframe)
     is_incomplete_candle(ts + td, td)
 end
 
-export @df
+export @as_df, @as_mat, @to_mat
