@@ -6,7 +6,6 @@ using PyCall
 using Zarr
 using Dates:unix2datetime
 using TimeSeries:TimeArray
-using TimeSeriesResampler:resample
 using JSON
 using Format
 using DataFrames
@@ -19,11 +18,13 @@ using PyCall:PyError
 include("zarr_utils.jl")
 include("data.jl")
 include("exchanges.jl")
+include("plotting.jl")
 
 const ccxt = Ref(pyimport("os"))
 const ccxt_loaded = Ref(false)
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
+const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
@@ -196,6 +197,10 @@ function in_repl()
     exc, zi
 end
 
-export printn, obimbalance
+export printn
+
+include("explore.jl")
+include("indicators.jl")
+include("precompile.jl")
 
 end # module
