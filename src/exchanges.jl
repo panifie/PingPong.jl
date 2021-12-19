@@ -1,3 +1,5 @@
+const exc = Ref(PyObject(nothing))
+
 function init_ccxt()
     if !ccxt_loaded[]
         try
