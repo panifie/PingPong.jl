@@ -20,7 +20,7 @@ function delete!(z::ZArray, _)
 end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
-struct ZarrInstance
+mutable struct ZarrInstance
     path::AbstractString
     store::DirectoryStore
     group::ZGroup
@@ -33,6 +33,8 @@ struct ZarrInstance
         new(data_path, ds, g)
     end
 end
+
+const zi = ZarrInstance()
 
 zsave(zi::ZarrInstance, data, path::AbstractString) = zsave(zi, data, splitpath(path)...)
 
