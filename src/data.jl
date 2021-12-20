@@ -192,6 +192,7 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
         _save_pair(zi, key, td, data; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
+            @warn "Resetting local data for pair $pair." e
             _save_pair(zi, key, td, data; kwargs..., reset=true)
         else
             rethrow(e)
@@ -226,8 +227,7 @@ end
 
 function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                     type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
-    local za
-    ""
+     local za
     @check_td(data)
 
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
@@ -237,8 +237,8 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
         local data_view
         saved_first_ts = za[1, saved_col]
         saved_last_ts = za[end, saved_col]
-        data_first_ts = data[1, data_col]
-        data_last_ts = data[end, data_col]
+        data_first_ts = data[1, data_col] |> timefloat
+        data_last_ts = data[end, data_col] |> timefloat
         _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
         # if appending data
         if data_first_ts >= saved_first_ts
@@ -249,15 +249,15 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                 data_view = @view data[:, :]
                 @debug dt(data_first_ts), dt(saved_last_ts), dt(saved_last_ts + td)
                 @debug :saved, dt.(za[end, saved_col]) :data, dt.(data[1, data_col]) :saved_off, dt(za[offset, data_col])
-                @assert data[1, data_col] === za[offset, saved_col]
+                @assert timefloat(data[1, data_col]) === za[offset, saved_col]
             else
                 # when not overwriting get the index where data has new values
-                data_offset = searchsortedlast(data[:, data_col], saved_last_ts) + 1
+                data_offset = searchsortedlast(@view(data[:, data_col]), saved_last_ts) + 1
                 offset = size(za, 1) + 1
                 if data_offset <= size(data, 1)
                     data_view = @view data[data_offset:end, :]
                     @debug :saved, dt(za[end, saved_col]) :data_new, dt(data[data_offset, data_col])
-                    @assert za[end, saved_col] + td === data[data_offset, data_col]
+                    @assert za[end, saved_col] + td === timefloat(data[data_offset, data_col])
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -265,7 +265,7 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
             szdv = size(data_view, 1)
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
-                za[offset:end, :] = @as_mat(data_view)[:, :]
+                za[offset:end, :] = @to_mat(data_view)
                 @debug _contiguous_ts(za[:, saved_col], td)
             end
             @debug "Size data_view: " szdv
@@ -275,21 +275,21 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
         # fetch saved data starting after the last date of the new data
         # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = @view za[saved_offset + 1:end, :]
+            saved_data = za[saved_offset + 1:end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[szd + 1:end, :] = saved_data[:, :]
-            za[begin:szd, :] = @as_mat(data)[:, :]
+            za[szd + 1:end, :] = saved_data
+            za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
         @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(za[:, data_col], td)
     else
         resize!(za, size(data))
-        za[:, :] = @as_mat(data)[:, :]
+        za[:, :] = @to_mat(data)
     end
     return za
 end
@@ -353,6 +353,8 @@ function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false)
     return to_df(data)
 end
 
+dt(d::DateTime) = d
+
 function dt(num::Real)
     Dates.unix2datetime(num / 1e3)
 end
@@ -403,7 +405,10 @@ function _contiguous_ts(series::AbstractVector{AbstractFloat}, td::AbstractFloat
     true
 end
 
-function _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
+function _check_contiguity(data_first_ts::AbstractFloat,
+                           data_last_ts::AbstractFloat,
+                           saved_first_ts::AbstractFloat,
+                           saved_last_ts::AbstractFloat, td)
     data_first_ts > saved_last_ts + td &&
         throw("Data stored ends at $(dt(saved_last_ts)) while new data starts at $(dt(data_first_ts)). Data must be contiguous.")
     data_first_ts < saved_first_ts && data_last_ts + td < saved_first_ts &&

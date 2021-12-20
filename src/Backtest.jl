@@ -4,13 +4,13 @@ module Backtest
 using Conda
 using PyCall
 using Zarr
-using Dates:unix2datetime
+using Dates:unix2datetime, AbstractDateTime
+using Dates
 using TimeSeries:TimeArray
 using JSON
 using Format
 using DataFrames
 using StatsBase: mean, iqr
-using Dates
 using DataStructures:CircularBuffer
 using Indicators; ind = Indicators
 using PyCall:PyError
@@ -25,7 +25,7 @@ const ccxt_loaded = Ref(false)
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
-
+const DateType = Union{AbstractString, AbstractDateTime, AbstractFloat}
 
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
 
@@ -106,6 +106,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), d
     try
         data = exc.fetchOHLCV(pair, timeframe; since, params)
         if !(typeof(data) <: Matrix)
+            @debug "Downloaded data is not a matrix...retrying (since: $since)."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
@@ -114,6 +115,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), d
         df ? to_df(data) : data
     catch e
         if e isa PyError && !isnothing(match(r"429([0]+)?", string(e.val)))
+            @debug "Exchange error 429, too many requests."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
@@ -143,14 +145,14 @@ end
 PairData(;name, tf, data, z) = PairData(name, tf, data, z)
 
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=nothing,
-                     from="", to="", update=false, reset=false)
+                     from::DateType="", to::DateType="", update=false, reset=false)
     exc_name = exc.name
     local za
     if !is_timeframe_supported(timeframe, exc)
         @error "Timeframe $timeframe not supported by exchange $exc_name."
     end
     if update
-        if !isempty(from) || !isempty(to)
+        if !isempty(string(from)) || !isempty(string(to))
             @warn "Don't set the `from` or `to` date if updating existing data."
         end
         reset && @warn "Ignoring reset since, update flag is true."
@@ -164,7 +166,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=no
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    for (name, info) in pairs
+    for (name, _) in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
         @debug "...from date $pair_from_date"
