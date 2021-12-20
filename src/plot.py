@@ -1,6 +1,9 @@
 from jinja2.environment import load_extensions
 import pyecharts as pyec
 from typing import List, Sequence, Union, Tuple, Dict
+from os import getcwd
+from os.path import dirname
+from pathlib import Path
 
 from pyecharts import options as opts
 import pyecharts
@@ -35,11 +38,11 @@ def volume_bar(x, y):
             splitarea_opts=opts.SplitAreaOpts(is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)),
             axislabel_opts=opts.LabelOpts(is_show=False),
         ),
-        legend_opts=opts.LegendOpts(is_show=True),
+        legend_opts=opts.LegendOpts(is_show=True, pos_left=0),
         )
     return b
 
-def ind_bar(x, y, name="", grid_idx=1):
+def ind_bar(x, y, name="", grid_idx=1, legend_pos={}):
     b = Bar(init_opts=INIT_OPTS)
     b.add_xaxis(xaxis_data=x)
     b.add_yaxis(series_name=name,
@@ -64,12 +67,42 @@ def ind_bar(x, y, name="", grid_idx=1):
             splitarea_opts=opts.SplitAreaOpts(is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)),
             axislabel_opts=opts.LabelOpts(is_show=False),
         ),
-        legend_opts=opts.LegendOpts(is_show=True),
+        legend_opts=opts.LegendOpts(is_show=True, **legend_pos),
     )
     return b
 
+def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
+    l = Line(init_opts=INIT_OPTS)
+    l.add_xaxis(xaxis_data=x)
+    l.add_yaxis(
+        series_name=name,
+        xaxis_index=grid_idx,
+        yaxis_index=grid_idx,
+        y_axis=y,
+        is_smooth=True,
+        linestyle_opts=opts.LineStyleOpts(opacity=0.5),
+        label_opts=opts.LabelOpts(is_show=False),
+    )
+    l.set_global_opts(
+        xaxis_opts=opts.AxisOpts(
+            type_="category",
+            grid_index=grid_idx,
+            axislabel_opts=opts.LabelOpts(is_show=False),
+        ),
+        yaxis_opts=opts.AxisOpts(
+            grid_index=grid_idx,
+            split_number=3,
+            axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+            axistick_opts=opts.AxisTickOpts(is_show=False),
+            splitline_opts=opts.SplitLineOpts(is_show=False),
+            axislabel_opts=opts.LabelOpts(is_show=True),
+        ),
+        legend_opts=opts.LegendOpts(is_show=True, **legend_pos),
+    )
+    return l
 
-def kline_chart(x, y, name="", index=1):
+
+def kline_chart(x, y, name="", grid_idx=0):
     k = Kline(init_opts=opts.InitOpts(width="1980px", height="1080px"))
     k.add_xaxis(xaxis_data=x)
     k.add_yaxis(
@@ -100,11 +133,13 @@ def kline_chart(x, y, name="", index=1):
     # )
     k.set_global_opts(
         legend_opts=opts.LegendOpts(
-            is_show=False,
-            pos_bottom=10,
-            pos_left="center"),
+            is_show=True),
         title_opts=opts.TitleOpts(title=name, pos_left="0"),
+        xaxis_opts=opts.AxisOpts(
+            grid_index=grid_idx
+            ),
         yaxis_opts=opts.AxisOpts(
+            grid_index=grid_idx,
             is_scale=True,
             splitline_opts=opts.SplitLineOpts(is_show=True),
             splitarea_opts=opts.SplitAreaOpts(
@@ -146,7 +181,7 @@ def setzoom(chart, x_idx, y_idx=[]):
     if not y_idx:
         y_idx.extend(x_idx)
 
-    chart.set_global_opts(datazoom_opts=[
+    chart = chart.set_global_opts(datazoom_opts=[
         opts.DataZoomOpts(
             xaxis_index=x_idx,
             is_show=False,
@@ -178,25 +213,36 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}):
 
     iinds = inds.copy()
     del iinds["volume"]
-    # NOTE: Zoom needs to be applied before adding charts to the grid (They are copied?)
-    zoom_idx = list(range(2 + len(iinds)))
-    setzoom(k_chart, x_idx=zoom_idx)
 
+
+    ic = None
+    legend_pos = {"pos_left": 0, "pos_top": 0}
+    ind_charts = []
+    for (name, (plot_type, vec)) in iinds.items():
+        legend_pos["pos_top"] += 25
+        if plot_type == "line":
+            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=0)
+            k_chart = k_chart.overlap(ic)
+        else:
+            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=2)
+            ind_charts.append(ic)
+
+    # NOTE: Zoom needs to be applied before adding charts to the grid (They are copied?)
+    zoom_idx = [0, 1, 2] if len(ind_charts) else [0, 1]
+    setzoom(k_chart, x_idx=zoom_idx)
     # NOTE: The order is importat for correct application of global options (like zoom)
     g.add(k_chart, grid_opts=opts.GridOpts(height="49%"))
     g.add(v_bar, grid_opts=opts.GridOpts(height="9%", pos_top="70%"))
 
-    for (name, (plot_type, vec)) in iinds.items():
-        i_bar = plotsfn[plot_type](dates, vec, name, grid_idx=2)
-        g.add(i_bar, grid_opts=opts.GridOpts(height="9%", pos_top="80%"))
+    for ic in ind_charts:
+        g.add(ic, grid_opts=opts.GridOpts(height="9%", pos_top="80%"))
 
-
-
-
-    g.render()
+    chart_path = str(getcwd() / Path("render.html"))
+    print(f"Writing chart to {chart_path}")
+    g.render(chart_path)
 
 
 plotsfn = {
-    "bar": ind_bar
-    # "line": ind_line
-    }
+    "bar": ind_bar,
+    "line": ind_line
+}

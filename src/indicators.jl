@@ -21,19 +21,16 @@ macro as_ts(df, c1, cols...)
 end
 
 function maxmin(df; order=1, threshold=0.0, window=100)
-    tsr = @as_ts df :close
-    df[:, :maxima] .= NaN
-    df[:, :minima] .= NaN
+    df[!, :maxima] .= NaN
+    df[!, :minima] .= NaN
     dfv = @view df[window+2:end, :]
-    mat = @to_mat df eltype(df.close)
+    price = df.close
     # prev_window = window - 2
     @eachrow! dfv begin
         stop = row+window
         # ensure no lookahead bias
-        # @assert tsr.index[stop] < :timestamp
         @assert df.timestamp[stop] < :timestamp
-        # subts = @view(tsr.values[row:stop])
-        subts = @view(mat[row:stop, 2:end-1])
+        subts = @view(price[row:stop])
         mx = maxima(subts; order, threshold)
         local ma = mi = NaN
         for (n, x) in enumerate(mx)
@@ -55,33 +52,22 @@ function maxmin(df; order=1, threshold=0.0, window=100)
     df
 end
 
-function supres(df, window=30)
-    tsr = @ohlc(df)
-    df[!, :support] .= NaN
-    df[!, :resistance] .= NaN
-    start = window
-    w = window - 1
-    subdf = @view df[window:end, :]
-    @eachrow! subdf begin
-        # row > start && begin
-            # w_tsr = TS(@view(tsr.values[row-window:row, :]), @view(tsr.index[row-window:row]), OHLCV_COLUMNS_TS)
-        # w_tsr = TS(@view(tsr.values[row:row+w, 4]), @view(tsr.index[row:row+w]))
-        vr = df.close[row:row+w]
-        for v in Iterators.reverse(resistance(vr))
-            @show v
-            if !isnan(v)
-                :resistance = v
-                break
-            end
-        end
-        for s in Iterators.reverse(support(vr))
-            @show s
-            if !isnan(s)
-                :support = s
-                break
-            end
-        end
-        # :resistance = resistance(w_tsr).values[end-3, 1]
-        # :support = support(w_tsr).values[end-3, 1]
+function supres(df; order=1, threshold=0., window=30)
+    df[!, :sup] .= NaN
+    df[!, :res] .= NaN
+    dfv = @view df[window+2:end, :]
+    price = df.close
+    @eachrow! dfv begin
+        stop = row+window
+        # ensure no lookahead bias
+        @assert df.timestamp[stop] < :timestamp
+        subts = @view price[row:stop]
+        res = resistance(subts; order, threshold)
+        sup = support(subts; order, threshold)
+        r = findfirst(isfinite, res)
+        s = findfirst(isfinite, sup)
+        :res = isnothing(r) ? NaN : res[r]
+        :sup = isnothing(s) ? NaN : sup[s]
     end
+    df
 end

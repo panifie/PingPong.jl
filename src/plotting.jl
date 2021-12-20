@@ -72,9 +72,12 @@ macro autotail(df)
 end
 
 const chartinds = Dict()
-const charttypes = Set(["bar", "line"])
-const bar_inds = Set(["maxima", "minima", "volume"])
+const charttypes = Set()
+const bar_inds = Set()
 const line_inds = Set()
+
+bar_inds!() = (empty!(bar_inds); union!(bar_inds, ["maxima", "minima", "volume"]))
+line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res"]))
 
 macro charttypes!(type)
     quote
@@ -87,7 +90,10 @@ end
 
 macro chartinds!()
     quote
-        global charttypes
+        empty!(charttypes)
+        union!(charttypes, ["bar", "line"])
+        bar_inds!()
+        line_inds!()
 	    for tp in charttypes
             @charttypes! tp
         end
@@ -107,6 +113,5 @@ function plotgrid(df, tail=20; view=false, inds=[], inds2=[], reload=true)
 	    inds["volume"] = ("bar", df.volume)
     end
 
-    return
     cplot[].grid(dates, data; inds)
 end

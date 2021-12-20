@@ -127,7 +127,10 @@ end
 
 function fetch_pairs(exc, timeframe::AbstractString, pair::AbstractString; kwargs...)
     info = exc.markets[pair]
-    fetch_pairs(exc, timeframe, [(pair, info)]; kwargs...)
+    from = :from ∈ keys(kwargs) ? kwargs[:from] : 0
+    to = :to ∈ keys(kwargs) ? kwargs[:to] : 0
+    from, to = _from_to_dt(timeframe, from, to)
+    fetch_pairs(exc, timeframe, [(pair, info)]; kwargs..., from, to)
 end
 
 function fetch_pairs(exc, timeframe; qc::AbstractString, kwargs...)
@@ -143,6 +146,14 @@ struct PairData
 end
 
 PairData(;name, tf, data, z) = PairData(name, tf, data, z)
+
+_from_to_dt(timeframe::AbstractString, from::Int, to::Int) = begin
+    @as_td
+	from = from === 0 ? DateTime(0) : Dates.now() - abs(from) * prd
+    to = to === 0 ? Dates.now() : Dates.now() - abs(to) * prd
+    from, to
+end
+_from_to_dt(from::DateType, to::DateType) = (from, to)
 
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=nothing,
                      from::DateType="", to::DateType="", update=false, reset=false)
