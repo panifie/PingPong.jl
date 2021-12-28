@@ -15,6 +15,7 @@ using DataStructures:CircularBuffer
 using Indicators; ind = Indicators
 using PyCall:PyError
 
+include("utils.jl")
 include("zarr_utils.jl")
 include("data.jl")
 include("exchanges.jl")
@@ -25,7 +26,7 @@ const ccxt_loaded = Ref(false)
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
-const DateType = Union{AbstractString, AbstractDateTime, AbstractFloat}
+const DateType = Union{AbstractString, AbstractDateTime, AbstractFloat, Integer}
 
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
 
@@ -52,7 +53,8 @@ function get_pairlist(exc, quot="")
             push_fun(pairlist, k, v)
         end
     end
-    pairlist
+    isempty(quot) && return pairlist
+    Dict(pairlist)
 end
 
 function is_timeframe_supported(timeframe, exc)
@@ -125,17 +127,23 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), d
     end
 end
 
-function fetch_pairs(exc, timeframe::AbstractString, pair::AbstractString; kwargs...)
-    info = exc.markets[pair]
-    from = :from ∈ keys(kwargs) ? kwargs[:from] : 0
-    to = :to ∈ keys(kwargs) ? kwargs[:to] : 0
-    from, to = _from_to_dt(timeframe, from, to)
-    fetch_pairs(exc, timeframe, [(pair, info)]; kwargs..., from, to)
+const StrOrVec = Union{AbstractString, AbstractVector}
+
+function fetch_pairs(exc, timeframe, pairs::StrOrVec; kwargs...)
+    pairs = pair isa String ? [(pair, exc.markets[pair])] : pair
+    fetch_pairs(exc, timeframe, pairs; from, to, kwargs...)
 end
 
-function fetch_pairs(exc, timeframe; qc::AbstractString, kwargs...)
+function fetch_pairs(exc, timeframe::AbstractString; qc::AbstractString, kwargs...)
     pairs = get_pairlist(exc, qc)
-    fetch_pairs(exc, timeframe, pairs; kwargs...)
+    fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
+end
+
+function fetch_pairs(::Val{:ask}, args...; kwargs...)
+    display("fetch? Y/n")
+    ans = String(read(stdin, 1))
+    ans ∉ ("\n", "y", "Y") && return
+    fetch_pairs(args...; kwargs...)
 end
 
 struct PairData
@@ -147,21 +155,25 @@ end
 
 PairData(;name, tf, data, z) = PairData(name, tf, data, z)
 
-_from_to_dt(timeframe::AbstractString, from::Int, to::Int) = begin
+_from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
-	from = from === 0 ? DateTime(0) : Dates.now() - abs(from) * prd
-    to = to === 0 ? Dates.now() : Dates.now() - abs(to) * prd
+    typeof(from) <: Int && begin
+        from = from === 0 ? DateTime(0) : Dates.now() - abs(from) * prd
+    end
+    typeof(to) <: Int && begin
+        to = to === 0 ? Dates.now() : Dates.now() - abs(to) * prd
+    end
     from, to
 end
-_from_to_dt(from::DateType, to::DateType) = (from, to)
 
-function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=nothing,
+function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=nothing,
                      from::DateType="", to::DateType="", update=false, reset=false)
     exc_name = exc.name
     local za
     if !is_timeframe_supported(timeframe, exc)
         @error "Timeframe $timeframe not supported by exchange $exc_name."
     end
+    from, to = _from_to_dt(timeframe, from, to)
     if update
         if !isempty(string(from)) || !isempty(string(to))
             @warn "Don't set the `from` or `to` date if updating existing data."
@@ -177,7 +189,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=no
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    for (name, _) in pairs
+    for name in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
         @debug "...from date $pair_from_date"
@@ -198,22 +210,9 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractArray; zi=no
     data
 end
 
-@doc "Print a number."
-function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
-    println(format(n; precision, commas, kwargs...), " ", cur)
-end
-
-function in_repl()
-    exc = get_exchange(:kucoin)
-    exckeys!(exc, values(Backtest.kucoin_keys())...)
-        zi = ZarrInstance()
-    exc, zi
-end
-
-export printn
-
 include("explore.jl")
 include("indicators.jl")
 include("precompile.jl")
+include("analysis.jl")
 
 end # module

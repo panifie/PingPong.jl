@@ -76,8 +76,8 @@ const charttypes = Set()
 const bar_inds = Set()
 const line_inds = Set()
 
-bar_inds!() = (empty!(bar_inds); union!(bar_inds, ["maxima", "minima", "volume"]))
-line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res"]))
+bar_inds!() = (empty!(bar_inds); union!(bar_inds, ["maxima", "minima", "volume", "renko"]))
+line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res", "mlr", "mlr_lb", "mlr_ub"]))
 
 macro charttypes!(type)
     quote

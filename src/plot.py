@@ -80,6 +80,7 @@ def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
         yaxis_index=grid_idx,
         y_axis=y,
         is_smooth=True,
+        is_hover_animation=False,
         linestyle_opts=opts.LineStyleOpts(opacity=0.5),
         label_opts=opts.LabelOpts(is_show=False),
     )
@@ -91,7 +92,6 @@ def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
         ),
         yaxis_opts=opts.AxisOpts(
             grid_index=grid_idx,
-            split_number=3,
             axisline_opts=opts.AxisLineOpts(is_on_zero=False),
             axistick_opts=opts.AxisTickOpts(is_show=False),
             splitline_opts=opts.SplitLineOpts(is_show=False),
@@ -102,7 +102,7 @@ def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
     return l
 
 
-def kline_chart(x, y, name="", grid_idx=0):
+def kline_chart(x, y, name=""):
     k = Kline(init_opts=opts.InitOpts(width="1980px", height="1080px"))
     k.add_xaxis(xaxis_data=x)
     k.add_yaxis(
@@ -131,7 +131,13 @@ def kline_chart(x, y, name="", grid_idx=0):
     # .set_series_opts(
     #     markarea_opts=opts.MarkAreaOpts(is_silent=True, data=[])
     # )
-    k.set_global_opts(
+    return k
+
+def k_chart_global_opts(chart, name, x_idx, grid_idx=0, y_idx=[]):
+    if not y_idx:
+        y_idx.extend(x_idx)
+
+    chart.set_global_opts(
         legend_opts=opts.LegendOpts(
             is_show=True),
         title_opts=opts.TitleOpts(title=name, pos_left="0"),
@@ -147,7 +153,8 @@ def kline_chart(x, y, name="", grid_idx=0):
             ),
         ),
         tooltip_opts=opts.TooltipOpts(
-            trigger="axis", axis_pointer_type="cross",
+            trigger="axis",
+            axis_pointer_type="cross",
             background_color="rgba(245, 245, 245, 0.8)",
             border_width=1,
             border_color="#ccc",
@@ -156,7 +163,7 @@ def kline_chart(x, y, name="", grid_idx=0):
             is_show=False,
             dimension=2,
             series_index=5,
-            is_piecewise=False,
+            is_piecewise=True,
             pieces=[
                 {"value" : 1, "color" : "#00da3c"},
                 {"value" : -1, "color" : "#ec0000"},
@@ -173,15 +180,7 @@ def kline_chart(x, y, name="", grid_idx=0):
             out_of_brush={"colorAlpha" : 0.1},
             brush_type="lineX",
         ),
-    )
-    return k
-
-
-def setzoom(chart, x_idx, y_idx=[]):
-    if not y_idx:
-        y_idx.extend(x_idx)
-
-    chart = chart.set_global_opts(datazoom_opts=[
+datazoom_opts=[
         opts.DataZoomOpts(
             xaxis_index=x_idx,
             is_show=False,
@@ -197,7 +196,8 @@ def setzoom(chart, x_idx, y_idx=[]):
             range_start=98,
             range_end=100
         ),
-    ])
+    ]
+        )
 
 def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}):
     '''
@@ -227,9 +227,17 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}):
             ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=2)
             ind_charts.append(ic)
 
-    # NOTE: Zoom needs to be applied before adding charts to the grid (They are copied?)
-    zoom_idx = [0, 1, 2] if len(ind_charts) else [0, 1]
-    setzoom(k_chart, x_idx=zoom_idx)
+    k_chart.set_global_opts(
+           tooltip_opts=opts.TooltipOpts(
+            trigger="axis",
+            axis_pointer_type="cross",
+            background_color="rgba(245, 245, 245, 0.8)",
+            border_width=1,
+            border_color="#ccc",
+            textstyle_opts=opts.TextStyleOpts(color="#000") ))
+    # NOTE: Options need to be applied before adding charts to the grid (They are copied?)
+    zoom_idx = list(range(2+len(ind_charts))) if len(ind_charts) else [0, 1]
+    k_chart_global_opts(k_chart, "ohlc", x_idx=zoom_idx, grid_idx=0)
     # NOTE: The order is importat for correct application of global options (like zoom)
     g.add(k_chart, grid_opts=opts.GridOpts(height="49%"))
     g.add(v_bar, grid_opts=opts.GridOpts(height="9%", pos_top="70%"))

@@ -4,6 +4,7 @@ using Zarr: is_zarray
 using TimeFrames: TimeFrame
 using Temporal: TS
 
+
 macro as_td()
     tf = esc(:timeframe)
     td = esc(:td)
@@ -298,6 +299,18 @@ end
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
+load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
+
+function load_pairs(zi, exc, pairs, timeframe)
+    pairdata = Dict{String, PairData}()
+    exc_name = exc.name
+    for p in pairs
+        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z=true)
+        pairdata[p] = PairData(p, timeframe, pair_df, za)
+    end
+    pairdata
+end
+
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
@@ -308,19 +321,22 @@ function load_pair(zi, exc_name, pair, timeframe="1m"; kwargs...)
         _load_pair(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError)
-            return [], (0, 0)
+            :as_z ∈ keys(kwargs) && return [], (0, 0)
+            :with_z ∈ keys(kwargs) && return _empty_df(), []
+            return _empty_df()
         else
             rethrow(e)
         end
     end
 end
 
-function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false)
+function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(zi, key, (0, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false)
 
     if size(za, 1) === 0
         as_z && return za, (0, 0)
+        with_z && return (_empty_df(), za)
         return _empty_df()
     end
 
@@ -350,7 +366,8 @@ function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false)
     with_from && @assert data[begin, saved_col] >= from
     with_to && @assert data[end, saved_col] <= to
 
-    return to_df(data)
+    with_z && return (to_df(data), za)
+    to_df(data)
 end
 
 dt(d::DateTime) = d
