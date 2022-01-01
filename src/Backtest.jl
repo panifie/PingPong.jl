@@ -30,6 +30,7 @@ const DateType = Union{AbstractString, AbstractDateTime, AbstractFloat, Integer}
 
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
 
+
 @inline function sanitize_pair(pair::AbstractString)
     replace(pair, r"\.|\/|\-" => "_")
 end
@@ -143,7 +144,7 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     display("fetch? Y/n")
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
-    fetch_pairs(args...; kwargs...)
+    fetch_pairs(args...; qc, zi, update, kwargs...)
 end
 
 struct PairData

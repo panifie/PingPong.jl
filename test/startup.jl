@@ -1,5 +1,6 @@
 using Backtest
-using BenchmarkTools
+# import Pkg; Pkg.activate("test/")
+# using BenchmarkTools
 
 exc, zi = Backtest.in_repl()
 

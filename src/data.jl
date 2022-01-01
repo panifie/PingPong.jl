@@ -105,6 +105,11 @@ macro ohlc(df, tp=Float64)
     end
 end
 
+function data_td(data)
+    @debug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
+    data.timestamp[2] - data.timestamp[1]
+end
+
 function combine_data(prev, data)
     df1 = DataFrame(prev, OHLCV_COLUMNS; copycols=false)
     df2 = DataFrame(data, OHLCV_COLUMNS; copycols=false)
@@ -432,6 +437,9 @@ function _check_contiguity(data_first_ts::AbstractFloat,
         throw("Data stored starts at $(dt(saved_first_ts)) while new data ends at $(dt(data_last_ts)). Data must be contiguous.")
 end
 
+@enum CandleField cdl_ts=1 cdl_o=2 cdl_h=3 cdl_lo=4 cdl_cl=5 cdl_vol=6
+
+const CandleCol = (;timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 struct Candle
     timestamp::DateTime
