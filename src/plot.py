@@ -199,7 +199,7 @@ datazoom_opts=[
     ]
         )
 
-def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}):
+def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}, name="OHLCV"):
     '''
     `inds`: Every indicator should specify its plot type. Eg. ("bar", [...])
     '''
@@ -208,7 +208,7 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}):
     INIT_OPTS = opts.InitOpts(width="1400px", height="800px")
 
     g = Grid(init_opts=INIT_OPTS)
-    k_chart = kline_chart(dates, ohlc)
+    k_chart = kline_chart(dates, ohlc, name=name)
     v_bar = volume_bar(dates, inds["volume"][1])
 
     iinds = inds.copy()

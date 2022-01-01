@@ -102,7 +102,7 @@ end
 
 @chartinds!
 
-function plotgrid(df, tail=20; view=false, inds=[], inds2=[], reload=true)
+function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], reload=true)
     init_pyecharts(reload)
 
     @autotail df
@@ -113,5 +113,7 @@ function plotgrid(df, tail=20; view=false, inds=[], inds2=[], reload=true)
 	    inds["volume"] = ("bar", df.volume)
     end
 
-    cplot[].grid(dates, data; inds)
+    cplot[].grid(dates, data; inds, name)
 end
+
+plotgrid(pairdata::PairData, args...; kwargs...) = plotgrid(pairdata.data, args...; name=pairdata.name, kwargs...)
