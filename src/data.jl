@@ -206,6 +206,12 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     end
 end
 
+# Wrapper for global zarr instance and exchange
+function save_pair(pair, timeframe, data; kwargs...)
+    @assert pair ∈ keys(exc[].markets) "Mismatching global exchange instance and pair. Pair not in exchange markets."
+    save_pair(zi, exc[].name, pair, timeframe, data; kwargs...)
+end
+
 function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset)
     existing = false
     if is_zarray(zi.store, key)
@@ -234,7 +240,7 @@ end
 function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                     type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
      local za
-    @check_td(data)
+    !reset && @check_td(data)
 
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
 
@@ -305,6 +311,7 @@ end
 end
 
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
+load_pairs(exc::PyObject, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
 
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String, PairData}()
@@ -476,6 +483,7 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
         @with df begin
             ts_cur, ts_end = first(:timestamp) + prd, last(:timestamp)
             ts_idx = 2
+            # NOTE: we assume that ALL timestamps are multiples of the timedelta!
             while ts_cur < ts_end
                 if ts_cur !== :timestamp[ts_idx]
                     close = :close[ts_idx - 1]
@@ -500,9 +508,13 @@ using DataFrames: groupby, combine
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     size(data, 1) === 0 && return _empty_df()
     df = data isa DataFrame ? data : to_df(data)
+
+    @as_td
+    # remove rows with bad timestamps
+    delete!(df, timefloat.(df.timestamp) .% td .!== 0.)
+
     gd = groupby(df, :timestamp; sort=true)
     df = combine(gd, :open => first, :high => maximum, :low => minimum, :close => last, :volume => maximum; renamecols=false)
-    @as_td
 
     if is_incomplete_candle(df[end, :], td)
         last_candle = copy(df[end, :])
