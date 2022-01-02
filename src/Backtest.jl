@@ -18,8 +18,6 @@ using PyCall:PyError
 include("utils.jl")
 include("zarr_utils.jl")
 include("data.jl")
-include("exchanges.jl")
-include("plotting.jl")
 
 const ccxt = Ref(pyimport("os"))
 const ccxt_loaded = Ref(false)
@@ -39,29 +37,6 @@ function is_leveraged_pair(pair)
     !isnothing(match(leverage_pair_rgx, pair))
 end
 
-function get_pairlist(exc, quot="")
-    pairlist = []
-    local push_fun
-    if isempty(quot)
-        push_fun = (p, k, v) -> push!(p, (k, v))
-    else
-        push_fun = (p, k, v) -> v["quoteId"] === quot && push!(p, (k, v))
-    end
-    for (k, v) in exc.markets
-        if is_leveraged_pair(k)
-            continue
-        else
-            push_fun(pairlist, k, v)
-        end
-    end
-    isempty(quot) && return pairlist
-    Dict(pairlist)
-end
-
-function is_timeframe_supported(timeframe, exc)
-    timeframe ∈ keys(exc.timeframes)
-end
-
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
     if to === ""
@@ -72,6 +47,7 @@ function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict()
     end
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
     data = _fetch_pair(exc, zi, pair, timeframe; from, to, params, sleep_t)
+    return data
     if cleanup cleanup_ohlcv_data(data, timeframe) else data end
 end
 
@@ -82,22 +58,23 @@ end
 function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::AbstractFloat, params, sleep_t)
     @as_td
     @debug "Downloading candles for pair $pair."
-    pair ∉ keys(exc.markets) && throw("Pair not in exchange markets.")
+    pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
     data = _empty_df()
     local cur_ts
     if from === 0.0
+        long_tf = findmax(exc.timeframes)[2]
         # fetch the first available candles using a long (1w) timeframe
-        since = _fetch_with_delay(exc, pair, "1w"; df=true)[begin, 1] |> timefloat
+        since = _fetch_with_delay(exc, pair, long_tf; df=true)[begin, 1] |> timefloat |> Int
     else
-        append!(data, _fetch_with_delay(exc, pair, timeframe; since=from, params, df=true))
+        append!(data, _fetch_with_delay(exc, pair, timeframe; since=Int(from), params, df=true))
         size(data, 1) === 0 && throw("Couldn't fetch candles for $pair from $(exc.name), too long dates? $(dt(from)).")
-        since = data[end, 1] |> timefloat
+        since = data[end, 1] |> timefloat |> Int
     end
     while since < to
         sleep(sleep_t)
         fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df=true)
         append!(data, fetched)
-        last_ts = timefloat(data[end, 1])
+        last_ts = timefloat(data[end, 1]) |> Int
         since === last_ts && break
         since = last_ts
         @debug "Downloaded candles for pair $pair up to $(since |> dt) from $(exc.name)."
@@ -131,8 +108,8 @@ end
 const StrOrVec = Union{AbstractString, AbstractVector}
 
 function fetch_pairs(exc, timeframe, pairs::StrOrVec; kwargs...)
-    pairs = pair isa String ? [(pair, exc.markets[pair])] : pair
-    fetch_pairs(exc, timeframe, pairs; from, to, kwargs...)
+    pairs = pairs isa String ? [pairs] : pairs
+    fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
 function fetch_pairs(exc, timeframe::AbstractString; qc::AbstractString, kwargs...)
@@ -211,9 +188,11 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=n
     data
 end
 
+include("exchanges.jl")
 include("explore.jl")
 include("indicators.jl")
-include("precompile.jl")
 include("analysis.jl")
+include("plotting.jl")
+include("precompile.jl")
 
 end # module

@@ -2,16 +2,14 @@ import Base.filter
 
 @doc "Filters a list of pairs using a predicate function. The predicate functions must return a `Real` number which will be used for sorting."
 function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
-    flt = PairData[]
-    idx = Real[]
+    flt = Tuple{AbstractFloat, PairData}[]
     for (name, p) in pairs
         v = pred(p.data)
         if max_v > v > min_v
-            push!(idx, searchsortedfirst(idx, v))
-            push!(flt, p)
+            push!(flt, (v, p))
         end
     end
-    flt[idx]
+    sort!(flt)
 end
 
 function slopefilter(timeframe="1d"; qc="USDT", minv=10., maxv=90., window=20)
@@ -55,10 +53,21 @@ function resample(pair::PairData, timeframe; save=true)
         end
     end
     data = @view data[left:right, :]
+    size(data, 1) === 0 && return _empty_df()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
-    gb = groupby(pair.data, :sample)
+    gb = groupby(data, :sample)
     df = combine(gb, :timestamp => first, :open => first, :high => maximum, :low => minimum, :close => last, :volume => sum; renamecols=false)
-    select!(pair.data, Not(:sample))
-    return select!(df, Not(:sample))
+    select!(data, Not(:sample))
+    select!(df, Not(:sample))
+    save && save_pair(pair.name, timeframe, df)
+    df
+end
+
+function resample(mrkts::AbstractDict{String, PairData}, timeframe; save=true)
+    rs = Dict()
+    for (name, pair_data) in mrkts
+        rs[name] = resample(pair_data, timeframe; save)
+    end
+    rs
 end

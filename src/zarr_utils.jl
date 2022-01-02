@@ -14,9 +14,8 @@ function delete!(g::ZGroup, key::AbstractString; force=true)
     end
 end
 
-function delete!(z::ZArray, _)
-    zg = zopen(za.storage, dirname(z.path))
-    delete!(zg, basename(z))
+function delete!(z::ZArray, ok=true)
+    ok && rm(joinpath(z.storage.folder, z.path); force=true, recursive=true)
 end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
