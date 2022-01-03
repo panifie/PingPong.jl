@@ -55,20 +55,28 @@ function _empty_df()
     DataFrame([Dates.DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...], OHLCV_COLUMNS; copycols=false)
 end
 
+function find_since(exc, pair)
+    long_tf = findmax(exc.timeframes)[2]
+    # fetch the first available candles using a long (1w) timeframe
+    since = _fetch_with_delay(exc, pair, long_tf; df=true)[begin, 1] |> timefloat |> Int
+end
+
 function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::AbstractFloat, params, sleep_t)
     @as_td
     @debug "Downloading candles for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
     data = _empty_df()
-    local cur_ts
+    local cur_ts, since
     if from === 0.0
-        long_tf = findmax(exc.timeframes)[2]
-        # fetch the first available candles using a long (1w) timeframe
-        since = _fetch_with_delay(exc, pair, long_tf; df=true)[begin, 1] |> timefloat |> Int
+        since = find_since(exc, pair)
     else
         append!(data, _fetch_with_delay(exc, pair, timeframe; since=Int(from), params, df=true))
-        size(data, 1) === 0 && throw("Couldn't fetch candles for $pair from $(exc.name), too long dates? $(dt(from)).")
-        since = data[end, 1] |> timefloat |> Int
+        if size(data, 1) > 0
+            since = data[end, 1] |> timefloat |> Int
+        else
+            @debug "Couldn't fetch candles for $pair from $(exc.name), too long dates? $(dt(from))."
+            since = find_since(exc, pair)
+        end
     end
     while since < to
         sleep(sleep_t)
@@ -85,13 +93,18 @@ end
 function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), df=false, sleep_t=0)
     try
         data = exc.fetchOHLCV(pair, timeframe; since, params)
-        if !(typeof(data) <: Matrix)
-            @debug "Downloaded data is not a matrix...retrying (since: $since)."
+        if !(typeof(data) <: Array)
+            @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
         end
-        data = convert(Matrix{Float64}, data)
+        if data isa Matrix
+            data = convert(Matrix{Float64}, data)
+        else
+            data = convert(Array{Float64}, data)
+        end
+        size(data, 1) === 0 && return df ? _empty_df() : data
         df ? to_df(data) : data
     catch e
         if e isa PyError && !isnothing(match(r"429([0]+)?", string(e.val)))
@@ -107,12 +120,16 @@ end
 
 const StrOrVec = Union{AbstractString, AbstractVector}
 
-function fetch_pairs(exc, timeframe, pairs::StrOrVec; kwargs...)
+function fetch_pairs(exc, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
-function fetch_pairs(exc, timeframe::AbstractString; qc::AbstractString, kwargs...)
+function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
+    fetch_pairs(exc[], timeframe, pairs; kwargs...)
+end
+
+function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractString, kwargs...)
     pairs = get_pairlist(exc, qc)
     fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
 end
@@ -122,6 +139,10 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
     fetch_pairs(args...; qc, zi, update, kwargs...)
+end
+
+function fetch_pairs(timeframe::AbstractString; kwargs...)
+    fetch_pairs(exc[], timeframe; zi, qc=options["quote"], kwargs...)
 end
 
 struct PairData
@@ -144,7 +165,7 @@ _from_to_dt(timeframe::AbstractString, from, to) = begin
     from, to
 end
 
-function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=nothing,
+function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
                      from::DateType="", to::DateType="", update=false, reset=false)
     exc_name = exc.name
     local za
