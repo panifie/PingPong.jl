@@ -312,6 +312,9 @@ end
 
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
 load_pairs(exc::PyObject, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
+load_pairs(pairs, timeframe::AbstractString) = load_pairs(zi, exc[], pairs, timeframe)
+load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]), timeframe)
+load_pairs() = load_pairs(get_pairlist(options["quote"]), options["timeframe"])
 
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String, PairData}()
