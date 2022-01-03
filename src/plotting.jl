@@ -117,3 +117,15 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
 end
 
 plotgrid(pairdata::PairData, args...; kwargs...) = plotgrid(pairdata.data, args...; name=pairdata.name, kwargs...)
+
+function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
+    init_pyecharts(reload)
+
+    @autotail df
+    local data
+    cols = [x, y, z]
+    @with df begin
+	    data = [[df[n, cols]..., n] for n in 1:size(df, 1)]
+    end
+	cplot[].scatter3d(data; name, x, y, z)
+end

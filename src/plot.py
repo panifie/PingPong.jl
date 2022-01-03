@@ -12,7 +12,13 @@ from pyecharts.commons.utils import JsCode
 from pyecharts.charts import Kline, Line, Bar, Grid
 
 ECHART_OHLC_COLS = ["open", "close", "low", "high"]
+CHART_WIDTH="1920px"
+CHART_HEIGHT="1080px"
 
+def render(chart):
+    chart_path = str(getcwd() / Path("render.html"))
+    print(f"Writing chart to {chart_path}")
+    chart.render(chart_path)
 
 def volume_bar(x, y):
     b = Bar(init_opts=INIT_OPTS)
@@ -103,7 +109,7 @@ def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
 
 
 def kline_chart(x, y, name=""):
-    k = Kline(init_opts=opts.InitOpts(width="1980px", height="1080px"))
+    k = Kline(init_opts=opts.InitOpts(width=CHART_WIDTH, height=CHART_HEIGHT))
     k.add_xaxis(xaxis_data=x)
     k.add_yaxis(
         series_name=name,
@@ -245,9 +251,30 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]]= {}, name="OHLCV"):
     for ic in ind_charts:
         g.add(ic, grid_opts=opts.GridOpts(height="9%", pos_top="80%"))
 
-    chart_path = str(getcwd() / Path("render.html"))
-    print(f"Writing chart to {chart_path}")
-    g.render(chart_path)
+    render(g)
+
+def scatter3d(data: dict, name="", x_name="x", y_name="y", z_name="z"):
+    sc = pyecharts.charts.Scatter3D(init_opts=INIT_OPTS)
+    sc.add(series_name=name,
+           data=data,
+           xaxis3d_opts=opts.Axis3DOpts(
+               name=x_name,
+               type_="value"
+           ),
+           yaxis3d_opts=opts.Axis3DOpts(
+               name=y_name,
+               type_="value"
+           ),
+           zaxis3d_opts=opts.Axis3DOpts(
+               name=z_name,
+               type_="value"
+           ),
+           grid3d_opts=opts.Grid3DOpts(
+               width=100,
+               height=100,
+               depth=100
+               ))
+    render(sc)
 
 
 plotsfn = {
