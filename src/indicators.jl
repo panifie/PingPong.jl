@@ -127,6 +127,57 @@ function renkodf(df; box_size=10., use_atr=false, n=14)
     rnk_df
 end
 
+@doc "A good renko entry is determined by X candles of the opposite color after Y candles."
+function isrenkoentry(df::AbstractDataFrame; head=3, tail=1, long=true, kwargs...)
+    size(df, 1) < 1 && return false
+    rnk = renkodf(df; kwargs...)
+    @assert head > 0 && tail > 0
+    size(rnk, 1) > head + tail || return false
+    if long
+        # if long the tail (the last candles) must be red
+        tailcheck = all(rnk.close[end-n] <= rnk.open[end-n] for n in 0:tail-1)
+        tailcheck || return tailcheck
+        # since long, the trend must be green
+        headcheck = all(rnk.close[end-n] > rnk.open[end-n] for n in tail:head)
+        return headcheck
+    else
+        # opposite...
+        tailcheck = all(rnk.close[end-n] > rnk.open[end-n] for n in 0:tail-1)
+        tailcheck || return tailcheck
+        headcheck = all(rnk.close[end-n] <= rnk.open[end-n] for n in tail:head)
+        return headcheck
+    end
+end
+
+function isrenkoentry(data::AbstractDict; kwargs...)
+    out = Bool[]
+    for (_, p) in data
+        isrenkoentry(p.data; kwargs...) && push!(out, p.name)
+    end
+    out
+end
+
+function gridrenko(data::AbstractDataFrame; head_range=1:10, tail_range=1:3, n_range=10:10:200)
+    out = []
+    for head in head_range,
+        tail in tail_range,
+        n in n_range
+        if isrenkoentry(data; head, tail, n)
+            push!(out, (;head, tail, n))
+        end
+    end
+    out
+end
+
+function gridrenko(data::AbstractDict; kwargs...)
+    out = Dict()
+    for (_, p) in data
+        trials = gridrenko(p.data)
+        length(trials) > 0 && setindex!(out, trials, p.name)
+    end
+    out
+end
+
 function slopeangle(df; window=10)
     size(df, 1) > window || return false
     slope = mlr_slope(@view(df.close[end-window:end]); n=window)[end]
