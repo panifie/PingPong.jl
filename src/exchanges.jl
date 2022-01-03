@@ -8,7 +8,7 @@ macro exchange!(name)
         exc_sym = Symbol($exc_istr)
         $exc_var = (py"$(exc[]) is not None" && lowercase(exc[].name) === $exc_str) ?
             exc[] : (hasproperty($(__module__), exc_sym) ? 
-            getproperty($(__module__), exc_sym) : get_exchange(exc_sym))
+            getproperty($(__module__), exc_sym) : getexchange(exc_sym))
     end
 end
 
@@ -24,12 +24,22 @@ function init_ccxt()
     end
 end
 
-function get_exchange(name::Symbol, params=nothing)
+function getexchange(name::Symbol, params=nothing)
     init_ccxt()
     exc_cls = getproperty(ccxt[], name)
     exc = isnothing(params) ? exc_cls() : exc_cls(params)
     exc.loadMarkets()
     exc
+end
+
+function setexchange!(name, args...; kwargs...)
+    exc[] = getexchange(name, args...; kwargs...)
+    keysym = Symbol("$(name)_keys")
+    if hasproperty(@__MODULE__, keysym)
+        kf = getproperty(@__MODULE__, keysym)
+        @assert kf isa Function "Can't set exchange keys."
+        exckeys!(exc[], values(kf())...)
+    end
 end
 
 macro tickers()
@@ -150,4 +160,4 @@ macro excfilter(exc_name)
     end
 end
 
-export @excfilter, results
+export @excfilter, results, setexchange!

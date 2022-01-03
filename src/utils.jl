@@ -6,7 +6,7 @@ function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
 end
 
 function in_repl()
-    exc[] = get_exchange(:kucoin)
+    exc[] = getexchange(:kucoin)
     exckeys!(exc[], values(Backtest.kucoin_keys())...)
     zi = ZarrInstance()
     exc[], zi
