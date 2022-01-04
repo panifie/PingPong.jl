@@ -15,6 +15,7 @@ using DataStructures:CircularBuffer
 using Indicators; ind = Indicators
 using PyCall:PyError
 
+include("exceptions.jl")
 include("utils.jl")
 include("zarr_utils.jl")
 include("data.jl")

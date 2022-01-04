@@ -326,6 +326,30 @@ function load_pairs(zi, exc, pairs, timeframe)
     pairdata
 end
 
+function trim_pairs_data(data::AbstractDict{String, PairData}, from::Int)
+    for (_, p) in data
+        tmp = copy(p.data)
+        select!(p.data, [])
+        if from >= 0
+            idx = max(size(tmp, 1), from)
+            @with tmp begin
+                for col in eachcol(tmp)
+                    p.data[!, col] = @view col[begin:idx-1]
+                end
+            end
+        else
+            idx = size(tmp, 1) + from
+            if idx > 0
+                @with tmp begin
+                    for (col, name) in zip(eachcol(tmp), names(tmp))
+                        p.data[!, name] = @view col[idx+1:end]
+                    end
+                end
+            end
+        end
+    end
+end
+
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
@@ -442,9 +466,9 @@ function _check_contiguity(data_first_ts::AbstractFloat,
                            saved_first_ts::AbstractFloat,
                            saved_last_ts::AbstractFloat, td)
     data_first_ts > saved_last_ts + td &&
-        throw("Data stored ends at $(dt(saved_last_ts)) while new data starts at $(dt(data_first_ts)). Data must be contiguous.")
+        throw(RightContiguityException(dt(saved_last_ts), dt(data_first_ts)))
     data_first_ts < saved_first_ts && data_last_ts + td < saved_first_ts &&
-        throw("Data stored starts at $(dt(saved_first_ts)) while new data ends at $(dt(data_last_ts)). Data must be contiguous.")
+        throw(LeftContiguityException(dt(saved_last_ts), dt(data_first_ts)))
 end
 
 @enum CandleField cdl_ts=1 cdl_o=2 cdl_h=3 cdl_lo=4 cdl_cl=5 cdl_vol=6
