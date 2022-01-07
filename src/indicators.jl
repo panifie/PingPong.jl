@@ -1,6 +1,7 @@
 using Temporal: TS
 using Indicators
 using DataFramesMeta
+using ProgressMeter
 
 macro as_ts(df, c1, cols...)
     df = esc(df)
@@ -169,17 +170,52 @@ function gridrenko(data::AbstractDataFrame; head_range=1:10, tail_range=1:3, n_r
     out
 end
 
-function gridrenko(data::AbstractDict; kwargs...)
+function gridrenko(data::AbstractDict; as_df=false, kwargs...)
     out = Dict()
-    for (_, p) in data
-        trials = gridrenko(p.data)
+    @showprogress for (_, p) in data
+        trials = gridrenko(p.data; kwargs...)
         length(trials) > 0 && setindex!(out, trials, p.name)
     end
+    as_df && return DataFrame(vcat(values(out)...))
     out
 end
 
-function slopeangle(df; window=10)
-    size(df, 1) > window || return false
-    slope = mlr_slope(@view(df.close[end-window:end]); n=window)[end]
-    atan(slope) * (180 / π)
+function bbands(df::AbstractDataFrame; kwargs...)
+    local bb
+    bbcols = [:bb_low, :bb_mid, :bb_high]
+    @with df begin
+        bb = Indicators.bbands(:close; kwargs...)
+    end
+    if bbcols[1] ∈ getfield(df, :colindex).names
+        df[:, bbcols] = bb
+    else
+        insertcols!(df, [c => bb[n] for (n, c) in enumerate(bbcols)]...)
+    end
+    df
+end
+
+using Base.Iterators: countfrom, take
+function gridbbands(df::AbstractDataFrame; n_range=3:1000, sigma_range=collect(take(countfrom(1., 0.1), 21)), corr=true)
+    out = Dict()
+    out_df = []
+    n_range = n_range.start:min(size(df, 1) - 1, n_range.stop)
+    local postproc
+    if corr
+        postproc = n -> begin
+            vals = collect(corsp(@view(getproperty(df, col1)[n:end]),
+                                 @view(getproperty(df, col2)[n:end, :]))
+            for (col1, col2) in ((:bb_low, :low), (:bb_mid, :close), (:bb_high, :high)))
+            (;bb_low=vals[1], bb_mid=vals[2], bb_high=vals[3])
+        end
+    else
+        postproc = identity
+    end
+    @showprogress for n in n_range,
+        sigma in sigma_range
+        trials = bbands(df; n, sigma)
+        co = postproc(n)
+        push!(out_df, (;n, sigma, co...))
+        size(trials, 1) > 0 && setindex!(out, trials, (;n, sigma))
+    end
+    out, DataFrame(out_df)
 end

@@ -9,7 +9,7 @@ function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
             push!(flt, (v, p))
         end
     end
-    sort!(flt)
+    sort!(flt; by=x->x[1])
 end
 
 function slopefilter(timeframe="1d"; qc="USDT", minv=10., maxv=90., window=20)
@@ -25,6 +25,11 @@ function slopefilter(pairs::AbstractVector; minv=10., maxv=90., window=20)
     filter(pred, pairs, minv, maxv)
 end
 
+function slopeangle(df; window=10)
+    size(df, 1) > window || return false
+    slope = mlr_slope(@view(df.close[end-window:end]); n=window)[end]
+    atan(slope) * (180 / π)
+end
 
 using DataStructures: CircularDeque
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
