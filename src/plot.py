@@ -9,11 +9,13 @@ from pyecharts import options as opts
 import pyecharts
 from pyecharts.charts.chart import Chart
 from pyecharts.commons.utils import JsCode
-from pyecharts.charts import Kline, Line, Bar, Grid
+from pyecharts.charts import Kline, Line, Bar, Grid, HeatMap
+from pyecharts import faker
 
 ECHART_OHLC_COLS = ["open", "close", "low", "high"]
 CHART_WIDTH = "1920px"
 CHART_HEIGHT = "1080px"
+INIT_OPTS = opts.InitOpts(width="1400px", height="800px")
 
 
 def render(chart):
@@ -267,7 +269,7 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
     render(g)
 
 
-def scatter3d(data: dict, name="", x="x", y="y", z="z",):
+def scatter3d(data: list, name="", x="x", y="y", z="z",):
     sc = pyecharts.charts.Scatter3D(init_opts=INIT_OPTS)
     sc.add(
         series_name=name,
@@ -294,5 +296,14 @@ def scatter3d(data: dict, name="", x="x", y="y", z="z",):
     )
     render(sc)
 
+def heatmap(x, y, title="", y_name="", y_labels=""):
+    ht = HeatMap()
+    ht.add_xaxis(x)
+    ht.add_yaxis(y_name, y_labels, y)
+    ht.set_global_opts(
+        title_opts=opts.TitleOpts(title=title),
+        visualmap_opts=opts.VisualMapOpts(),
+    )
+    render(ht)
 
 plotsfn = {"bar": ind_bar, "line": ind_line}

@@ -129,3 +129,46 @@ function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
     end
 	cplot[].scatter3d(data; name, x, y, z)
 end
+
+function showhere(data::AbstractDataFrame, pred::Function, target::Symbol)
+    out = Dict()
+    @with data begin
+        for row in eachrow(data)
+            if pred(row)
+                v = row[target]
+                out[v] = get(out, v, 0) + 1
+            end
+        end
+    end
+    out
+end
+
+function countdf(data::AbstractDataFrame)
+    local bins
+    @with data begin
+        bins = Dict(col => Dict() for col in names(data))
+	    for col in keys(bins)
+            for v in data[:, col]
+                pv = get(bins[col], v, 0)
+                pv += 1
+                bins[col][v] = pv
+            end
+        end
+    end
+    bins
+end
+
+function heatmap(x, y, v, y_name="", y_labels="", reload=true)
+    init_pyecharts(reload)
+    x_col = @view df[:, x]
+    y_col = @view df[:, y]
+
+    x_axis = collect(minimum(x_col):maximum(x_col))
+    y_axis = collect(minimum(y_col):maximum(y_col))
+    data = DataFrame(Symbol(x_v) => y_axis for x_v in x_axis)
+    @eachrow df begin
+        _DF[row, x]
+    end
+    return
+    cplot[].heatmap(x_axis, y_axis; y_name, y_labels)
+end
