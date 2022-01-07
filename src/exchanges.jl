@@ -133,6 +133,8 @@ function resetoptions!()
 end
 resetoptions!()
 
+setopt!(k, v) = setindex!(options, v, k)
+
 macro ifundef(name, val, mod=__module__)
     name_var = esc(name)
     name_sym = esc(:(Symbol($(string(name)))))
@@ -153,11 +155,12 @@ macro excfilter(exc_name)
         local trg
         @info "timeframe: $(options["timeframe"]), window: $(options["window"]), quote: $(options["quote"]), min_vol: $(options["min_vol"])"
 	    @exchange! $exc_name
-        $(bt).@ifundef data (get_pairlist(options["quote"]) |> (x -> load_pairs(zi, $exc_name, x, options["timeframe"])))
-        flt = filter(x -> $(bt).slopeangle(x; window=options["window"]), data, options["min_slope"], options["max_slope"])
+        data = (get_pairlist(options["quote"]) |> (x -> load_pairs(zi, $exc_name, x, options["timeframe"])))
+        flt = $bt.filter(x -> $(bt).slopeangle(x; window=options["window"]), data, options["min_slope"], options["max_slope"])
         trg = [p[2].name for p in flt]
         results[lowercase($(exc_name).name)] = (;trg, flt, data)
+        trg
     end
 end
 
-export @excfilter, results, setexchange!
+export @excfilter, results, setexchange!, setopt!

@@ -1,4 +1,8 @@
-struct RightContiguityException <: Exception
+import Base.display
+
+abstract type ContiguityException <: Exception end
+
+struct RightContiguityException <: ContiguityException
     stored_date::AbstractDateTime
     new_date::AbstractDateTime
 end

@@ -15,6 +15,7 @@ using DataStructures:CircularBuffer
 using Indicators; ind = Indicators
 using PyCall:PyError
 
+include("types.jl")
 include("exceptions.jl")
 include("utils.jl")
 include("zarr_utils.jl")
@@ -48,7 +49,6 @@ function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict()
     end
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
     data = _fetch_pair(exc, zi, pair, timeframe; from, to, params, sleep_t)
-    return data
     if cleanup cleanup_ohlcv_data(data, timeframe) else data end
 end
 
@@ -136,32 +136,24 @@ function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractStrin
 end
 
 function fetch_pairs(::Val{:ask}, args...; kwargs...)
-    display("fetch? Y/n")
+    Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
-    fetch_pairs(args...; qc, zi, update, kwargs...)
+    fetch_pairs(args...; qc=options["quote"], zi, update, kwargs...)
 end
 
 function fetch_pairs(timeframe::AbstractString; kwargs...)
     fetch_pairs(exc[], timeframe; zi, qc=options["quote"], kwargs...)
 end
 
-struct PairData
-    name::String
-    tf::String # string
-    data::Union{Nothing, AbstractDataFrame} # in-memory data
-    z::Union{Nothing, ZArray} # reference zarray
-end
-
-PairData(;name, tf, data, z) = PairData(name, tf, data, z)
 
 _from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
     typeof(from) <: Int && begin
-        from = from === 0 ? DateTime(0) : Dates.now() - abs(from) * prd
+        from = from === 0 ? DateTime(0) : Dates.now() - (abs(from) * prd)
     end
     typeof(to) <: Int && begin
-        to = to === 0 ? Dates.now() : Dates.now() - abs(to) * prd
+        to = to === 0 ? Dates.now() : Dates.now() - (abs(to) * prd)
     end
     from, to
 end
@@ -199,7 +191,15 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
             ohlcv = _empty_df()
         end
         if size(ohlcv, 1) > 0
-            z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset)
+            try
+                z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset)
+            catch e
+                if e isa ContiguityException
+                    z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset=true)
+                else
+                    rethrow(e)
+                end
+            end
         elseif isnothing(z)
             z = load_pair(zi, exc_name, name, timeframe; as_z=true)
         end
@@ -214,6 +214,7 @@ include("exchanges.jl")
 include("explore.jl")
 include("indicators.jl")
 include("analysis.jl")
+include("corr.jl")
 include("plotting.jl")
 include("precompile.jl")
 

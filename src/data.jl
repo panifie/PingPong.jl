@@ -3,6 +3,7 @@ using Tables
 using Zarr: is_zarray
 using TimeFrames: TimeFrame
 using Temporal: TS
+using DataFramesMeta
 
 
 macro as_td()
@@ -312,9 +313,10 @@ end
 
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
 load_pairs(exc::PyObject, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
-load_pairs(pairs, timeframe::AbstractString) = load_pairs(zi, exc[], pairs, timeframe)
+load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc[], pairs, timeframe)
 load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]), timeframe)
 load_pairs() = load_pairs(get_pairlist(options["quote"]), options["timeframe"])
+load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
 
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String, PairData}()
@@ -475,15 +477,6 @@ end
 
 const CandleCol = (;timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
-struct Candle
-    timestamp::DateTime
-    open::AbstractFloat
-    high::AbstractFloat
-    low::AbstractFloat
-    close::AbstractFloat
-    volume::AbstractFloat
-end
-
 using DataFramesMeta
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
@@ -533,6 +526,7 @@ using DataFrames: groupby, combine
 `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
+    @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return _empty_df()
     df = data isa DataFrame ? data : to_df(data)
 
