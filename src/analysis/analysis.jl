@@ -1,4 +1,8 @@
+module Analysis
+
 import Base.filter
+using Backtest.Misc: @as_td, PairData
+using Backtest.Data: @to_mat
 
 @doc "Filters a list of pairs using a predicate function. The predicate functions must return a `Real` number which will be used for sorting."
 function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
@@ -31,7 +35,6 @@ function slopeangle(df; window=10)
     atan(slope) * (180 / π)
 end
 
-using DataStructures: CircularDeque
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(pair::PairData, timeframe; save=true)
     @debug @assert all(cleanup_ohlcv_data(data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
@@ -75,4 +78,8 @@ function resample(mrkts::AbstractDict{String, PairData}, timeframe; save=true)
         rs[name] = resample(pair_data, timeframe; save)
     end
     rs
+end
+
+include("indicators.jl")
+
 end

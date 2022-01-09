@@ -1,5 +1,10 @@
-using PyCall
-using Conda
+module Plotting
+
+using PyCall: pyimport, @py_str
+using Conda: pip
+using DataFramesMeta
+using DataFrames: AbstractDataFrame
+using Backtest.Misc: PairData
 
 const pyo = py"object"
 const pyec = Ref(pyo)
@@ -13,7 +18,7 @@ function init_pyecharts(reload=false)
     try
         pyec[] = pyimport("pyecharts")
     catch
-        Conda.pip("install", "pyecharts")
+        pip("install", "pyecharts")
         pyec[] = pyimport("pyecharts")
     finally
         pyec_loaded[] = true
@@ -26,7 +31,7 @@ function init_pyecharts(reload=false)
         if isnothing(match(r".*:?\.:.*", pypath))
 	        ENV["PYTHONPATH"] = ".:" * pypath
         end
-        cplot[] = pyimport("src.plot")
+        cplot[] = pyimport("src.plotting.plot")
         pyimport("importlib").reload(cplot[])
         cd(ppwd)
     end
@@ -82,7 +87,7 @@ line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res", "mlr", "mlr_
 macro charttypes!(type)
     quote
         global chartinds
-	    for ind in getproperty(Backtest, Symbol($type, :_inds))
+	    for ind in getproperty(Plotting, Symbol($type, :_inds))
             chartinds[ind] = $type
         end
     end
@@ -124,9 +129,11 @@ function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
     @autotail df
     local data
     cols = [x, y, z]
+    @info "Preparing data..."
     @with df begin
 	    data = [[df[n, cols]..., n] for n in 1:size(df, 1)]
     end
+    @info "Generating plot..."
 	cplot[].scatter3d(data; name, x, y, z)
 end
 
@@ -171,4 +178,8 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
     end
     return
     cplot[].heatmap(x_axis, y_axis; y_name, y_labels)
+end
+
+export plotscatter3d, plotgrid, heatmap
+
 end

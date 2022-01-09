@@ -15,7 +15,6 @@ function plot_trendlines(pair::AbstractString, timeframe="4h")
     plot(data)
 end
 
-
 # function plotstuff(d)
 #     @df d scatter(
 #         :timestamp,

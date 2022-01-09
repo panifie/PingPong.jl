@@ -1,4 +1,20 @@
+
+module Exchanges
+
+using PyCall: pyimport, PyObject, @py_str
+using Conda: pip
+using JSON
+using Backtest.Misc: @as_td, StrOrVec, DateType
+using Dates: Period
+
 const exc = Ref(PyObject(nothing))
+const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
+
+const ccxt = Ref(PyObject(nothing))
+const ccxt_loaded = Ref(false)
+const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
+const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
+const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -66,6 +82,15 @@ function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     f_markets
 end
 
+
+@inline function sanitize_pair(pair::AbstractString)
+    replace(pair, r"\.|\/|\-" => "_")
+end
+
+function is_leveraged_pair(pair)
+    !isnothing(match(leverage_pair_rgx, pair))
+end
+
 function get_pairlist(quot::AbstractString="", min_vol::AbstractFloat=10e4)
     get_pairlist(exc[], quot, min_vol)
 end
@@ -120,35 +145,6 @@ function poloniex_update(;timeframe="15m", quot="USDT", min_vol=10e4)
     load_pairs(zi, exc, prl, timeframe)
 end
 
-const options = Dict{String, Any}()
-
-function resetoptions!()
-    empty!(options)
-    options["window"] = 7
-    options["timeframe"] = "1d"
-    options["quote"] = "USDT"
-    options["min_vol"] = 10e4
-    options["min_slope"] = 0.
-    options["max_slope"] = 90.
-end
-resetoptions!()
-
-setopt!(k, v) = setindex!(options, v, k)
-
-macro ifundef(name, val, mod=__module__)
-    name_var = esc(name)
-    name_sym = esc(:(Symbol($(string(name)))))
-    quote
-        if isdefined($mod, $name_sym)
-            $name_var = getproperty($mod, $name_sym)
-        else
-            $name_var = $val
-        end
-    end
-end
-
-const results = Dict{String, Any}()
-
 macro excfilter(exc_name)
     bt = @__MODULE__
     quote
@@ -163,4 +159,8 @@ macro excfilter(exc_name)
     end
 end
 
-export @excfilter, results, setexchange!, setopt!
+include("fetch.jl")
+
+export exc, @excfilter, exchange!, setexchange!, exckeys!
+
+end

@@ -1,14 +1,14 @@
 using Temporal: TS
-using Indicators
+import Indicators; const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
+using Backtest: options
 
 macro as_ts(df, c1, cols...)
     df = esc(df)
     local columns
     if cols[1] isa QuoteNode
         columns = [c.value for c in cols]::Vector{Symbol}
-        @show columns
         return
     else
         @assert size(cols, 1) === 1
@@ -180,12 +180,10 @@ function gridrenko(data::AbstractDict; as_df=false, kwargs...)
     out
 end
 
-function bbands(df::AbstractDataFrame; kwargs...)
+function bbands!(df::AbstractDataFrame; kwargs...)
     local bb
     bbcols = [:bb_low, :bb_mid, :bb_high]
-    @with df begin
-        bb = Indicators.bbands(:close; kwargs...)
-    end
+    bb = bbands(df; kwargs...)
     if bbcols[1] ∈ getfield(df, :colindex).names
         df[:, bbcols] = bb
     else
@@ -194,28 +192,52 @@ function bbands(df::AbstractDataFrame; kwargs...)
     df
 end
 
+function bbands(df::AbstractDataFrame; kwargs...)
+    Indicators.bbands(df.close; kwargs...)
+end
+
 using Base.Iterators: countfrom, take
-function gridbbands(df::AbstractDataFrame; n_range=3:1000, sigma_range=collect(take(countfrom(1., 0.1), 21)), corr=true)
+using Base.Threads: @spawn
+const Float = typeof(0.)
+
+function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], corr=:corke)
     out = Dict()
     out_df = []
-    n_range = n_range.start:min(size(df, 1) - 1, n_range.stop)
+    # out_df = IdDict(n => [] for n in 1:Threads.nthreads())
+    if n_range isa UnitRange
+        n_range = n_range.start:min(size(df, 1) - 1, n_range.stop)
+    elseif n_range isa StepRange
+        n_range = n_range.start:n_range.step:min(size(df, 1) - 1, n_range.stop)
+    end
     local postproc
-    if corr
-        postproc = n -> begin
-            vals = collect(corsp(@view(getproperty(df, col1)[n:end]),
-                                 @view(getproperty(df, col2)[n:end, :]))
-            for (col1, col2) in ((:bb_low, :low), (:bb_mid, :close), (:bb_high, :high)))
-            (;bb_low=vals[1], bb_mid=vals[2], bb_high=vals[3])
+    if eval(corr) isa Function
+        corfn = getproperty(@__MODULE__, corr)
+        postproc = (n, bb) -> begin
+            vals = collect(corfn(@view(bb[:, col1][n:end]),
+                                 @view(getproperty(df, col2)[n:end]))
+            for (col1, col2) in ((1, :low), (2, :close), (2, :high)))
+            (;bb_low_corr=vals[1], bb_mid_corr=vals[2], bb_high_corr=vals[3])
         end
     else
         postproc = identity
     end
-    @showprogress for n in n_range,
+    p = Progress(length(n_range) * length(sigma_range))
+    th = []
+    l = ReentrantLock()
+    for n in n_range,
         sigma in sigma_range
-        trials = bbands(df; n, sigma)
-        co = postproc(n)
-        push!(out_df, (;n, sigma, co...))
-        size(trials, 1) > 0 && setindex!(out, trials, (;n, sigma))
+        push!(th, Threads.@spawn begin
+            bb = bbands(df; n, sigma)
+            co = postproc(n, bb)
+            lock(l)
+            push!(out_df, (;n, sigma, co...))
+            size(bb, 1) > 0 && setindex!(out, bb, (;n, sigma))
+            next!(p)
+            unlock(l)
+        end)
     end
+    for t in th wait(t) end
     out, DataFrame(out_df)
 end
+
+include("corr.jl")

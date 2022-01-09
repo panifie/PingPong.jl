@@ -1,20 +1,14 @@
-using DataFrames
-using Tables
+module Data
+
+include("zarr_utils.jl")
+
+using PyCall: PyObject
 using Zarr: is_zarray
-using TimeFrames: TimeFrame
 using Temporal: TS
 using DataFramesMeta
-
-
-macro as_td()
-    tf = esc(:timeframe)
-    td = esc(:td)
-    prd = esc(:prd)
-    quote
-        $prd = tfperiod($tf)
-        $td = tfnum($prd)
-    end
-end
+using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
+using Backtest.Misc: @as, @as_td, PairData
+using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS
 
 macro zkey()
     p = esc(:pair)
@@ -23,16 +17,6 @@ macro zkey()
     key = esc(:key)
     quote
         $key = joinpath($exn, $p, "ohlcv", "tf_" * $tf)
-    end
-    # joinpath("/", pair, "ohlcv", "tf_$timeframe")
-end
-
-macro as(sym, val)
-    s = esc(sym)
-    v = esc(val)
-    quote
-        $s = $v
-        true
     end
 end
 
@@ -52,7 +36,7 @@ macro check_td(args...)
                 @warn "Saved date not matching timeframe, resetting."
                 throw(TimeFrameError($check_data[1, $col] |> string,
                                     $check_data[2, $col] |> string,
-                                    convert(Dates.Second, Dates.Millisecond($td))))
+                                    convert(Second, Millisecond($td))))
             end
         end
     end
@@ -64,10 +48,6 @@ macro as_df(v)
     end
 end
 
-import Base.convert
-
-# needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
-convert(::Type{T}, x::DateTime) where T <: AbstractFloat = timefloat(x)
 
 macro as_mat(data)
     tp = esc(:type)
@@ -166,16 +146,6 @@ function to_df(data; fromta=false)
     DataFrame(:timestamp => dates,
               [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
                for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols=false)
-end
-
-
-function tfperiod(s::AbstractString)
-    # convert m for minutes to T
-    TimeFrame(replace(s, r"([0-9]+)m" => s"\1T")).period
-end
-
-function tfnum(prd::Dates.Period)
-    convert(Dates.Millisecond, prd) |> x -> convert(Float64, x.value)
 end
 
 mutable struct TimeFrameError <: Exception
@@ -414,11 +384,11 @@ end
 dt(d::DateTime) = d
 
 function dt(num::Real)
-    Dates.unix2datetime(num / 1e3)
+    unix2datetime(num / 1e3)
 end
 
 function dtfloat(d::DateTime)::AbstractFloat
-    Dates.datetime2unix(d) * 1e3
+    datetime2unix(d) * 1e3
 end
 
 function timefloat(time::AbstractFloat)
@@ -549,7 +519,7 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
 end
 
 function is_incomplete_candle(ts::AbstractFloat, td::AbstractFloat)
-    now = timefloat(Dates.now(Dates.UTC))
+    now = timefloat(now(UTC))
     ts + td > now
 end
 
@@ -560,7 +530,7 @@ end
 
 function is_incomplete_candle(candle, td::AbstractFloat)
     ts = timefloat(candle.timestamp)
-    now = timefloat(Dates.now(Dates.UTC))
+    now = timefloat(now(UTC))
     ts + td > now
 end
 
@@ -575,4 +545,8 @@ function is_last_complete_candle(x, timeframe)
     is_incomplete_candle(ts + td, td)
 end
 
-export @as_df, @as_mat, @to_mat
+export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs
+
+end
+
+using .Data

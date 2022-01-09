@@ -1,5 +1,7 @@
 @doc "Utilities for orderbook based strategies."
 
+using StatsBase: iqr
+
 function mon_obi(exc, pair, runs=60*5)
     imbs = Array{Real}(undef, runs)
     price = similar(imbs)
