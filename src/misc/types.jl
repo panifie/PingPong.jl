@@ -1,5 +1,5 @@
-using Dates: DateTime, AbstractDateTime, Period, Millisecond, now
-using DataFrames: AbstractDataFrame, DataFrame
+using Dates: DateTime, AbstractDateTime, Period, Millisecond, now, datetime2unix, unix2datetime
+using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
 using TimeFrames: TimeFrame
 import Base.convert
@@ -77,6 +77,33 @@ end
 
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
 convert(::Type{T}, x::DateTime) where T <: AbstractFloat = timefloat(x)
+
+dt(d::DateTime) = d
+
+function dt(num::Real)
+    unix2datetime(num / 1e3)
+end
+
+function dtfloat(d::DateTime)::AbstractFloat
+    datetime2unix(d) * 1e3
+end
+
+function timefloat(time::AbstractFloat)
+    time
+end
+
+function timefloat(prd::Period)
+    prd.value * 1.
+end
+
+function timefloat(time::DateTime)
+    dtfloat(time)
+end
+
+function timefloat(time::String)
+    time === "" && return dtfloat(dt(0))
+    DateTime(time) |> dtfloat
+end
 
 include("exceptions.jl")
 

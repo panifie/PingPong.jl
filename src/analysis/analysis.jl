@@ -80,6 +80,13 @@ function resample(mrkts::AbstractDict{String, PairData}, timeframe; save=true)
     rs
 end
 
+function explore!()
+    @eval include(joinpath(dirname(@__FILE__), "explore.jl"))
+    nothing
+end
+
 include("indicators.jl")
+
+export explore!
 
 end

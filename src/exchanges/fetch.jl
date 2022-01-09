@@ -1,8 +1,13 @@
+using PyCall: PyError
+using Backtest: options
+using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
+using Backtest.Misc: _from_to_dt, PairData
+using Dates: now
 
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
     if to === ""
-        to = Dates.now() |> timefloat
+        to = now() |> timefloat
     else
         to = timefloat(to)
         from > to && @error "End date ($(to |> dt)) must be higher than start date ($(from |> dt))."

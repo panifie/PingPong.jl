@@ -240,4 +240,10 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], co
     out, DataFrame(out_df)
 end
 
+function is_bottomed(ohlcv::DataFrame; thresh=0.05, n=26)
+    size(ohlcv, 1) > n || return false
+    bb = bbands(ohlcv; n)
+    ohlcv.close[end] / bb[end, 1] < 1 + thresh
+end
+
 include("corr.jl")

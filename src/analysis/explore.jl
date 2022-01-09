@@ -1,7 +1,12 @@
 
+find_bottomed(pairs::AbstractDict{String, PairData}) = find_bottomed(collect(values(pairs)))
+
 function find_bottomed(pairs::AbstractVector{PairData})
+    bottomed = []
     for p in pairs
+        is_bottomed(p.data) && push!(bottomed, p)
     end
+    bottomed
 end
 
 using Plots: plot
@@ -21,3 +26,5 @@ end
 #         :close,
 #     )
 # end
+
+export find_bottomed

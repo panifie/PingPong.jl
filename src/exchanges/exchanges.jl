@@ -1,11 +1,11 @@
-
 module Exchanges
 
+using Dates: Period, unix2datetime
+using DataFrames: DataFrame
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
-using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS
-using Dates: Period
+using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat
 
 const exc = Ref(PyObject(nothing))
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
@@ -26,12 +26,12 @@ macro exchange!(name)
 end
 
 function init_ccxt()
-    if !ccxt_loaded[] || ccxt[] === PyNULL()
+    if !ccxt_loaded[] || ccxt[] == PyNULL()
         try
             ccxt[] = pyimport("ccxt")
             ccxt_loaded[] = true
         catch
-            Conda.pip("install", "ccxt")
+            pip("install", "ccxt")
             ccxt[] = pyimport("ccxt")
         end
     end
@@ -52,6 +52,22 @@ function setexchange!(name, args...; kwargs...)
         kf = getproperty(@__MODULE__, keysym)
         @assert kf isa Function "Can't set exchange keys."
         exckeys!(exc[], values(kf())...)
+    end
+end
+
+@doc "Convert ccxt OHLCV data to a timearray/dataframe."
+function to_df(data; fromta=false)
+    # ccxt timestamps in milliseconds
+    dates = unix2datetime.(@view(data[:, 1]) / 1e3)
+    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> x-> DataFrame(x; copycols=false)
+    DataFrame(:timestamp => dates,
+              [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
+               for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols=false)
+end
+
+macro as_df(v)
+    quote
+        to_df($(esc(v)))
     end
 end
 
@@ -156,7 +172,9 @@ macro excfilter(exc_name)
     end
 end
 
-include("fetch.jl")
+function fetch!()
+    @eval include(joinpath(dirname(@__FILE__), "fetch.jl"))
+end
 
 export exc, @excfilter, exchange!, setexchange!, exckeys!
 

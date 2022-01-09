@@ -1,14 +1,15 @@
 module Backtest
 
-include("misc/utils.jl")
-include("exchanges/exchanges.jl")
-include("data/data.jl")
+include("misc/utils.jl"); using .Misc
+include("exchanges/exchanges.jl"); using .Exchanges
+include("data/data.jl"); using .Data
+
+# load fetch functions, that depend on `.Data`...circ deps...
+Exchanges.fetch!()
+
 include("analysis/analysis.jl")
 include("plotting/plotting.jl")
 
-using .Misc
-using .Exchanges
-using .Data
 using .Analysis
 using .Plotting
 

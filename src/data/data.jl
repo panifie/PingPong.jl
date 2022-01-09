@@ -7,7 +7,7 @@ using Zarr: is_zarray
 using Temporal: TS
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
-using Backtest.Misc: @as, @as_td, PairData, options, _empty_df
+using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat
 using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist
 
 macro zkey()
@@ -42,11 +42,6 @@ macro check_td(args...)
     end
 end
 
-macro as_df(v)
-    quote
-        to_df($(esc(v)))
-    end
-end
 
 
 macro as_mat(data)
@@ -138,15 +133,6 @@ function combinerows(df1, df2; idx::Symbol)
     DataFrame(rows; copycols=false)
 end
 
-@doc "Convert ccxt OHLCV data to a timearray/dataframe."
-function to_df(data; fromta=false)
-    # ccxt timestamps in milliseconds
-    dates = unix2datetime.(@view(data[:, 1]) / 1e3)
-    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> x-> DataFrame(x; copycols=false)
-    DataFrame(:timestamp => dates,
-              [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
-               for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols=false)
-end
 
 mutable struct TimeFrameError <: Exception
     first
@@ -381,32 +367,6 @@ function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z
     to_df(data)
 end
 
-dt(d::DateTime) = d
-
-function dt(num::Real)
-    unix2datetime(num / 1e3)
-end
-
-function dtfloat(d::DateTime)::AbstractFloat
-    datetime2unix(d) * 1e3
-end
-
-function timefloat(time::AbstractFloat)
-    time
-end
-
-function timefloat(prd::Period)
-    prd.value * 1.
-end
-
-function timefloat(time::DateTime)
-    dtfloat(time)
-end
-
-function timefloat(time::String)
-    time === "" && return dtfloat(dt(0))
-    DateTime(time) |> dtfloat
-end
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
@@ -491,7 +451,6 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
     end
 end
 
-using DataFrames: groupby, combine
 @doc """Similar to the freqtrade homonymous function.
 `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
@@ -519,8 +478,8 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
 end
 
 function is_incomplete_candle(ts::AbstractFloat, td::AbstractFloat)
-    now = timefloat(now(UTC))
-    ts + td > now
+    nw = timefloat(now(UTC))
+    ts + td > nw
 end
 
 function is_incomplete_candle(x::String, td::AbstractFloat)
@@ -530,8 +489,8 @@ end
 
 function is_incomplete_candle(candle, td::AbstractFloat)
     ts = timefloat(candle.timestamp)
-    now = timefloat(now(UTC))
-    ts + td > now
+    nw = timefloat(now(UTC))
+    ts + td > nw
 end
 
 function is_incomplete_candle(x, timeframe="1m")
@@ -545,7 +504,7 @@ function is_last_complete_candle(x, timeframe)
     is_incomplete_candle(ts + td, td)
 end
 
-export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs
+export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs, save_pair
 
 end
 
