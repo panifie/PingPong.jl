@@ -1,11 +1,15 @@
-using Dates: DateTime, AbstractDateTime, Period, Millisecond
-using DataFrames: AbstractDataFrame
+using Dates: DateTime, AbstractDateTime, Period, Millisecond, now
+using DataFrames: AbstractDataFrame, DataFrame
 using Zarr: ZArray
 using TimeFrames: TimeFrame
 import Base.convert
 
 const DateType = Union{AbstractString, AbstractDateTime, AbstractFloat, Integer}
 const StrOrVec = Union{AbstractString, AbstractVector}
+
+const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
+const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
+const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 macro as(sym, val)
     s = esc(sym)
@@ -58,17 +62,17 @@ end
 _from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
     typeof(from) <: Int && begin
-        from = from === 0 ? DateTime(0) : Dates.now() - (abs(from) * prd)
+        from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
     end
     typeof(to) <: Int && begin
-        to = to === 0 ? Dates.now() : Dates.now() - (abs(to) * prd)
+        to = to === 0 ? now() : now() - (abs(to) * prd)
     end
     from, to
 end
 
 @doc "An empty OHLCV dataframe."
 function _empty_df()
-    DataFrame([Dates.DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...], OHLCV_COLUMNS; copycols=false)
+    DataFrame([DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...], OHLCV_COLUMNS; copycols=false)
 end
 
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix

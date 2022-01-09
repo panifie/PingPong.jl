@@ -2,7 +2,7 @@ using Temporal: TS
 import Indicators; const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
-using Backtest: options
+using Backtest.Misc: options
 
 macro as_ts(df, c1, cols...)
     df = esc(df)
@@ -219,7 +219,7 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], co
             (;bb_low_corr=vals[1], bb_mid_corr=vals[2], bb_high_corr=vals[3])
         end
     else
-        postproc = identity
+        postproc = (_, _) -> (nothing, nothing, nothing)
     end
     p = Progress(length(n_range) * length(sigma_range))
     th = []

@@ -1,5 +1,6 @@
 using Base: precompile
+using DataFrames: DataFrame
 
 precompile(@in_repl, ())
-precompile(load_pair, (ZarrInstance, AbstractString, String, String))
-precompile(plotgrid, (DataFrame, Int, AbstractVector{String}))
+precompile(Backtest.Data.load_pair, (ZarrInstance, AbstractString, String, String))
+precompile(Backtest.Plotting.plotgrid, (DataFrame, Int, AbstractVector{String}))

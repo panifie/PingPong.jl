@@ -14,6 +14,6 @@ using .Plotting
 
 include("repl.jl")
 
-# include("misc/precompile.jl")
+include("misc/precompile.jl")
 
 end # module

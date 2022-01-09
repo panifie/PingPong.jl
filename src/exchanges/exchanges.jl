@@ -1,10 +1,10 @@
 
 module Exchanges
 
-using PyCall: pyimport, PyObject, @py_str
+using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
-using Backtest.Misc: @as_td, StrOrVec, DateType
+using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS
 using Dates: Period
 
 const exc = Ref(PyObject(nothing))
@@ -12,9 +12,6 @@ const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?
 
 const ccxt = Ref(PyObject(nothing))
 const ccxt_loaded = Ref(false)
-const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
-const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
-const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -29,7 +26,7 @@ macro exchange!(name)
 end
 
 function init_ccxt()
-    if !ccxt_loaded[]
+    if !ccxt_loaded[] || ccxt[] === PyNULL()
         try
             ccxt[] = pyimport("ccxt")
             ccxt_loaded[] = true
