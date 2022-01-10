@@ -8,7 +8,7 @@ using Temporal: TS
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
 using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat
-using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist
+using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df
 
 macro zkey()
     p = esc(:pair)

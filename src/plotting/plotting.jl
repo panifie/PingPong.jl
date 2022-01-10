@@ -4,7 +4,8 @@ using PyCall: pyimport, @py_str
 using Conda: pip
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Backtest.Misc: PairData
+using Backtest.Misc: PairData, infer_tf, tf_win
+using Backtest: Analysis
 
 const pyo = py"object"
 const pyec = Ref(pyo)
@@ -82,7 +83,8 @@ const bar_inds = Set()
 const line_inds = Set()
 
 bar_inds!() = (empty!(bar_inds); union!(bar_inds, ["maxima", "minima", "volume", "renko"]))
-line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res", "mlr", "mlr_lb", "mlr_ub"]))
+line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res", "mlr", "mlr_lb", "mlr_ub", "alma"]))
+const default_chart_type = "line"
 
 macro charttypes!(type)
     quote
@@ -113,9 +115,9 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
     @autotail df
     @df_dates_data
 
-    inds = Dict(ind => (chartinds[ind], getproperty(df, ind)) for ind in inds)
+    inds = Dict(ind => (get(chartinds, ind, default_chart_type), getproperty(df, ind)) for ind in inds)
     "volume" ∉ keys(inds) && begin
-	    inds["volume"] = ("bar", df.volume)
+	    inds[:volume] = ("bar", df.volume)
     end
 
     cplot[].grid(dates, data; inds, name)
@@ -178,6 +180,15 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
     end
     return
     cplot[].heatmap(x_axis, y_axis; y_name, y_labels)
+end
+
+@doc "OHLCV plot with bbands and alma indicators."
+function plotone(df)
+    _, tfname = infer_tf(df)
+    n = tf_win[tfname]
+    Analysis.bbands!(df; n)
+    df[!, :alma] = Analysis.ind.alma(df.close; n)
+    plotgrid(df, -1; name="OHLCV", inds=[:alma, :bb_low, :bb_mid, :bb_high])
 end
 
 export plotscatter3d, plotgrid, heatmap

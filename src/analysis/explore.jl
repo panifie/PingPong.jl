@@ -1,10 +1,14 @@
 
-find_bottomed(pairs::AbstractDict{String, PairData}) = find_bottomed(collect(values(pairs)))
+find_bottomed(pairs::AbstractDict{String, PairData}; kwargs...) = find_bottomed(collect(values(pairs)); kwargs...)
 
-function find_bottomed(pairs::AbstractVector{PairData})
-    bottomed = []
+function find_bottomed(pairs::AbstractVector{PairData}; bb_thresh=0.05, up_thresh=0.05, n=12)
+    bottomed = Dict()
     for p in pairs
-        is_bottomed(p.data) && push!(bottomed, p)
+        if is_bottomed(p.data; thresh=bb_thresh, n) &&
+            is_uptrend(p.data; thresh=up_thresh, n) &&
+            is_slopebetween(p.data; n)
+            bottomed[p.name] = p
+        end
     end
     bottomed
 end
