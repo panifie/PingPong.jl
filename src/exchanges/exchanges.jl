@@ -5,13 +5,11 @@ using DataFrames: DataFrame
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
-using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames
+using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames
 
-const exc = Ref(PyObject(nothing))
+const ccxt = PyNULL()
+const exc = PyNULL()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
-
-const ccxt = Ref(PyObject(nothing))
-const ccxt_loaded = Ref(false)
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -19,39 +17,27 @@ macro exchange!(name)
     exc_istr = string(name)
     quote
         exc_sym = Symbol($exc_istr)
-        $exc_var = (py"$(exc[]) is not None" && lowercase(exc[].name) === $exc_str) ?
-            exc[] : (hasproperty($(__module__), exc_sym) ? 
+        $exc_var = (py"$(exc) is not None" && lowercase(exc.name) === $exc_str) ?
+            exc : (hasproperty($(__module__), exc_sym) ?
             getproperty($(__module__), exc_sym) : getexchange(exc_sym))
     end
 end
 
-function init_ccxt()
-    if !ccxt_loaded[] || ccxt[] == PyNULL()
-        try
-            ccxt[] = pyimport("ccxt")
-            ccxt_loaded[] = true
-        catch
-            pip("install", "ccxt")
-            ccxt[] = pyimport("ccxt")
-        end
-    end
-end
-
 function getexchange(name::Symbol, params=nothing)
-    init_ccxt()
-    exc_cls = getproperty(ccxt[], name)
+    @pymodule ccxt
+    exc_cls = getproperty(ccxt, name)
     exc = isnothing(params) ? exc_cls() : exc_cls(params)
     exc.loadMarkets()
     exc
 end
 
 function setexchange!(name, args...; kwargs...)
-    exc[] = getexchange(name, args...; kwargs...)
+    copy!(exc, getexchange(name, args...; kwargs...))
     keysym = Symbol("$(name)_keys")
     if hasproperty(@__MODULE__, keysym)
         kf = getproperty(@__MODULE__, keysym)
         @assert kf isa Function "Can't set exchange keys."
-        exckeys!(exc[], values(kf())...)
+        exckeys!(exc, values(kf())...)
     end
 end
 
@@ -110,7 +96,7 @@ function is_fiat_pair(pair)
 end
 
 function get_pairlist(quot::AbstractString="", min_vol::AbstractFloat=10e4)
-    get_pairlist(exc[], quot, min_vol)
+    get_pairlist(exc, quot, min_vol)
 end
 
 function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4, skip_fiat=true)

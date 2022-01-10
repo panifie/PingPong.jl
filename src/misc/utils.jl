@@ -3,10 +3,16 @@ module Misc
 include("lists.jl")
 include("types.jl")
 
-using PyCall: PyObject
+using Conda: pip, LIBDIR, BINDIR
 
+# NOTE: Make sure conda libs precede system libs
+py_v = chomp(String(read(`$(joinpath(BINDIR, "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
+ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
-const pynone = PyObject(nothing)
+
+using PyCall: PyObject, PyNULL, pyimport
+
+const pynull = PyNULL()
 const options = Dict{String, Any}()
 const results = Dict{String, Any}()
 
@@ -19,6 +25,27 @@ macro ifundef(name, val, mod=__module__)
         else
             $name_var = $val
         end
+    end
+end
+
+macro pymodule(name, modname=nothing)
+    str_name = string(name)
+    str_mod = isnothing(modname) ? str_name : string(modname)
+    var_name = esc(name)
+    pynull = PyNULL()
+    quote
+        @eval begin
+            isdefined($__module__, Symbol($str_name)) || const $name = Ref($pynull)
+        end
+        if $var_name == $pynull
+            try
+                copy!($var_name, pyimport($str_mod))
+            catch
+                pip("install", $str_mod)
+                copy!($var_name, pyimport($str_mod))
+            end
+        end
+        $var_name
     end
 end
 

@@ -86,7 +86,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
 end
 
 function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
-    fetch_pairs(exc[], timeframe, pairs; kwargs...)
+    fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
 function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractString, kwargs...)
@@ -102,7 +102,7 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
 end
 
 function fetch_pairs(timeframe::AbstractString; kwargs...)
-    fetch_pairs(exc[], timeframe; zi, qc=options["quote"], kwargs...)
+    fetch_pairs(exc, timeframe; zi, qc=options["quote"], kwargs...)
 end
 
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=zi,

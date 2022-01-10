@@ -1,30 +1,24 @@
 module Plotting
 
-using PyCall: pyimport, @py_str
+using PyCall: pyimport, @py_str, PyNULL
 using Conda: pip
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Backtest.Misc: PairData, infer_tf, tf_win
+using Backtest.Misc: PairData, infer_tf, tf_win, options, pynull, @pymodule
 using Backtest: Analysis
 
 const pyo = py"object"
-const pyec = Ref(pyo)
-const opts = Ref(pyo)
-const pyec_loaded = Ref(false)
+const pyec = PyNULL()
+const opts = PyNULL()
+
 const echarts_ohlc_cols = (:open, :close, :low, :high)
-const cplot = Ref(pyo)
+const cplot = PyNULL()
 
 function init_pyecharts(reload=false)
-    pyec_loaded[] && !reload && return
-    try
-        pyec[] = pyimport("pyecharts")
-    catch
-        pip("install", "pyecharts")
-        pyec[] = pyimport("pyecharts")
-    finally
-        pyec_loaded[] = true
-        opts[] = pyec[].options
-    end
+    pyech != pynull && !reload && return
+    @pymodule pyech pyecharts
+    copy!(opts, pyech.options)
+
     reload && begin
         ppwd = pwd()
         cd(dirname(@__FILE__))
@@ -183,7 +177,7 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
 end
 
 @doc "OHLCV plot with bbands and alma indicators."
-function plotone(df)
+function plotone(df::AbstractDataFrame)
     _, tfname = infer_tf(df)
     n = tf_win[tfname]
     Analysis.bbands!(df; n)
@@ -191,6 +185,17 @@ function plotone(df)
     plotgrid(df, -1; name="OHLCV", inds=[:alma, :bb_low, :bb_mid, :bb_high])
 end
 
-export plotscatter3d, plotgrid, heatmap
+macro plotone(name)
+    mrkts = esc(:mrkts)
+    name_str = uppercase(string(name))
+    v = esc(name)
+    quote
+        pair = "$($name_str)/$(options["quote"])"
+        $v = $(mrkts)[pair].data
+        plotone($v)
+    end
+end
+
+export plotscatter3d, plotgrid, heatmap, plotone, @plotone
 
 end
