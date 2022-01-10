@@ -5,7 +5,7 @@ using DataFrames: DataFrame
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
-using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat
+using Backtest.Misc: @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames
 
 const exc = Ref(PyObject(nothing))
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
@@ -104,11 +104,16 @@ function is_leveraged_pair(pair)
     !isnothing(match(leverage_pair_rgx, pair))
 end
 
+function is_fiat_pair(pair)
+    p = split(pair, r"\/|\-|\_|\.")
+    p[1] ∈ fiatnames && p[2] ∈ fiatnames
+end
+
 function get_pairlist(quot::AbstractString="", min_vol::AbstractFloat=10e4)
     get_pairlist(exc[], quot, min_vol)
 end
 
-function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4)
+function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4, skip_fiat=true)
     @tickers
     pairlist = []
     local push_fun
@@ -118,7 +123,9 @@ function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4)
         push_fun = (p, k, v) -> v["quoteId"] === quot && push!(p, (k, v))
     end
     for (k, v) in exc.markets
-        if is_leveraged_pair(k) || tickers[k]["quoteVolume"] <= min_vol
+        if is_leveraged_pair(k) ||
+            tickers[k]["quoteVolume"] <= min_vol ||
+            is_fiat_pair(k)
             continue
         else
             push_fun(pairlist, k, v)

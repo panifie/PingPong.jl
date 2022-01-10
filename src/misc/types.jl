@@ -105,6 +105,14 @@ function timefloat(time::String)
     DateTime(time) |> dtfloat
 end
 
+function infer_tf(df::AbstractDataFrame)
+    td1 = df.timestamp[begin+1] - df.timestamp[begin]
+    td2 = df.timestamp[end] - df.timestamp[end-1]
+    @assert td1 === td2
+    tfname = td_tf[td1.value]
+    TimeFrame(td1), tfname
+end
+
 include("exceptions.jl")
 
 export ZarrInstance
