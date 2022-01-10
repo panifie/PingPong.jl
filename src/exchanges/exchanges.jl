@@ -1,7 +1,8 @@
 module Exchanges
 
-using Dates: Period, unix2datetime
+using Dates: Period, unix2datetime, Minute
 using DataFrames: DataFrame
+using ExpiringCaches: Cache
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
@@ -10,6 +11,7 @@ using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV
 const ccxt = PyNULL()
 const exc = PyNULL()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
+const tickers_cache = Cache{Int, T where T <: AbstractDict}(Minute(100))
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -61,8 +63,9 @@ macro tickers()
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
+        length(tickers_cache) === 1 && return tickers_cache[0]
         @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
-        $tickers = $(exc).fetchTickers()
+        tickers_cache[0] = $tickers = $(exc).fetchTickers()
     end
 end
 
@@ -95,11 +98,11 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
-function get_pairlist(quot::AbstractString="", min_vol::AbstractFloat=10e4)
-    get_pairlist(exc, quot, min_vol)
+function get_pairlist(quot::AbstractString="", min_vol::AbstractFloat=10e4; kwargs...)
+    get_pairlist(exc, quot, min_vol; kwargs...)
 end
 
-function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4, skip_fiat=true)
+function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4; skip_fiat=true, margin=false)::AbstractDict
     @tickers
     pairlist = []
     local push_fun
@@ -111,7 +114,8 @@ function get_pairlist(exc, quot::AbstractString, min_vol::AbstractFloat=10e4, sk
     for (k, v) in exc.markets
         if is_leveraged_pair(k) ||
             tickers[k]["quoteVolume"] <= min_vol ||
-            is_fiat_pair(k)
+            (skip_fiat && is_fiat_pair(k)) ||
+            (margin && !v["margin"])
             continue
         else
             push_fun(pairlist, k, v)
