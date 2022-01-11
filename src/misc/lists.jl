@@ -10,7 +10,8 @@ const fiatnames = Set([
     "EUR",
     "CEUR",
     "USDN",
-    "CUSD"
+    "CUSD",
+    "SUSD"
 ])
 
 @doc "Mapping of timeframes to default window sizes."
