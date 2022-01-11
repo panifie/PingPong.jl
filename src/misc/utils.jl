@@ -6,11 +6,19 @@ include("types.jl")
 using Conda: pip, LIBDIR, BINDIR
 
 # NOTE: Make sure conda libs precede system libs
-py_v = chomp(String(read(`$(joinpath(BINDIR, "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
-ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
+const py_v = chomp(String(read(`$(joinpath(BINDIR, "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
+ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
+using PyCall: PyObject, PyNULL, pyimport, PyVector
+const pypaths = pyimport("sys").path
 
-using PyCall: PyObject, PyNULL, pyimport
+@doc "Remove wrong python version libraries dirs from python loading path."
+function pypath!()
+    ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
+    path_list = pyimport("sys")."path" |> PyVector
+    empty!(path_list)
+    append!(path_list, pypaths)
+end
 
 const pynull = PyNULL()
 const options = Dict{String, Any}()
@@ -78,6 +86,6 @@ end
 
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
-export printn, results, options, resetoptions!, setopt!, @as_td
+export printn, results, options, resetoptions!, setopt!, @as_td, @pyinit!
 
 end

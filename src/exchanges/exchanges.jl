@@ -2,7 +2,7 @@ module Exchanges
 
 using Dates: Period, unix2datetime, Minute
 using DataFrames: DataFrame
-using ExpiringCaches: Cache
+using TimeToLive: TTL
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
@@ -11,7 +11,7 @@ using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV
 const ccxt = PyNULL()
 const exc = PyNULL()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
-const tickers_cache = Cache{Int, T where T <: AbstractDict}(Minute(100))
+const tickers_cache = TTL{Int, T where T <: AbstractDict}(Minute(100))
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -63,16 +63,22 @@ macro tickers()
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
-        isempty(tickers_cache) || begin $tickers = first(tickers_cache)[2] end
-        @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
-        tickers_cache[0] = $tickers = $(exc).fetchTickers()
+        begin
+            local $tickers
+            if isempty(tickers_cache)
+                @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
+                tickers_cache[0] = $tickers = $(exc).fetchTickers()
+            else
+                $tickers = tickers_cache[0]
+            end
+        end
     end
 end
 
 function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
-    tickers = exc.fetchTickers()
+    @tickers
     f_markets = Dict()
     for (p, info) in markets
         _, pquot = split(p, sep)
@@ -99,7 +105,7 @@ function is_fiat_pair(pair)
 end
 
 function get_pairlist(; kwargs...)
-    get_pairlist(exc, "", options["quote"]; kwargs...)
+    get_pairlist(exc, options["quote"], options["min_vol"]::T where T<: AbstractFloat; kwargs...)
 end
 
 function get_pairlist(quot::AbstractString, min_vol::AbstractFloat=10e4; kwargs...)
