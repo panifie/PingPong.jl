@@ -15,9 +15,9 @@ const echarts_ohlc_cols = (:open, :close, :low, :high)
 const cplot = PyNULL()
 
 function init_pyecharts(reload=false)
-    pyech != pynull && !reload && return
-    @pymodule pyech pyecharts
-    copy!(opts, pyech.options)
+    pyec != pynull && !reload && return
+    @pymodule pyec pyecharts
+    copy!(opts, pyec.options)
 
     reload && begin
         ppwd = pwd()
@@ -26,8 +26,8 @@ function init_pyecharts(reload=false)
         if isnothing(match(r".*:?\.:.*", pypath))
 	        ENV["PYTHONPATH"] = ".:" * pypath
         end
-        cplot[] = pyimport("src.plotting.plot")
-        pyimport("importlib").reload(cplot[])
+        copy!(cplot, pyimport("src.plotting.plot"))
+        pyimport("importlib").reload(cplot)
         cd(ppwd)
     end
 end
@@ -114,7 +114,7 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
 	    inds[:volume] = ("bar", df.volume)
     end
 
-    cplot[].grid(dates, data; inds, name)
+    cplot.grid(dates, data; inds, name)
 end
 
 plotgrid(pairdata::PairData, args...; kwargs...) = plotgrid(pairdata.data, args...; name=pairdata.name, kwargs...)
@@ -130,7 +130,7 @@ function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
 	    data = [[df[n, cols]..., n] for n in 1:size(df, 1)]
     end
     @info "Generating plot..."
-	cplot[].scatter3d(data; name, x, y, z)
+	cplot.scatter3d(data; name, x, y, z)
 end
 
 function showhere(data::AbstractDataFrame, pred::Function, target::Symbol)
@@ -173,16 +173,16 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
         _DF[row, x]
     end
     return
-    cplot[].heatmap(x_axis, y_axis; y_name, y_labels)
+    cplot.heatmap(x_axis, y_axis; y_name, y_labels)
 end
 
 @doc "OHLCV plot with bbands and alma indicators."
-function plotone(df::AbstractDataFrame)
+function plotone(df::AbstractDataFrame, name="")
     _, tfname = infer_tf(df)
     n = tf_win[tfname]
     Analysis.bbands!(df; n)
     df[!, :alma] = Analysis.ind.alma(df.close; n)
-    plotgrid(df, -1; name="OHLCV", inds=[:alma, :bb_low, :bb_mid, :bb_high])
+    plotgrid(df, -1; name=name, inds=[:alma, :bb_low, :bb_mid, :bb_high])
 end
 
 macro plotone(name)
@@ -192,7 +192,7 @@ macro plotone(name)
     quote
         pair = "$($name_str)/$(options["quote"])"
         $v = $(mrkts)[pair].data
-        plotone($v)
+        plotone($v, $name_str)
     end
 end
 
