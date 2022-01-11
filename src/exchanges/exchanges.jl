@@ -63,7 +63,7 @@ macro tickers()
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
-        length(tickers_cache) === 1 && return tickers_cache[0]
+        isempty(tickers_cache) || begin $tickers = first(tickers_cache)[2] end
         @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
         tickers_cache[0] = $tickers = $(exc).fetchTickers()
     end
