@@ -270,9 +270,9 @@ end
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
 load_pairs(exc::PyObject, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
 load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
-load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]), timeframe)
-load_pairs() = load_pairs(get_pairlist(options["quote"]), options["timeframe"])
+load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]; margin=options["margin"]), timeframe)
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
+load_pairs() = load_pairs(get_pairlist(options["quote"]), options["timeframe"])
 
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String, PairData}()

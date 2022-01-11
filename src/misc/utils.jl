@@ -54,11 +54,20 @@ function resetoptions!()
     options["window"] = 7
     options["timeframe"] = "1d"
     options["quote"] = "USDT"
+    options["margin"] = false
     options["min_vol"] = 10e4
     options["min_slope"] = 0.
     options["max_slope"] = 90.
 end
 resetoptions!()
+
+macro margin!()
+    :(options["margin"] = !options["margin"])
+end
+
+macro margin!!()
+    :(options["margin"] = true)
+end
 
 setopt!(k, v) = setindex!(options, v, k)
 
