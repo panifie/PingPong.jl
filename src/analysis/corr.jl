@@ -3,7 +3,6 @@ using StatsBase: corspearman, corkendall, corkendall!, mean
 using StatsModels: lag, lead
 using EffectSizes: effectsize, CohenD, HedgeG, GlassΔ
 import CausalityTools; const ct = CausalityTools; const di = ct.SMeasure.Distances;
-# import StatsBase: corspearman
 
 @inline _x_view(x, n_lead) = @view(x[begin:end-n_lead])
 @inline _y_view(y, n_lead, default=NaN) = @view(lead(y, n_lead; default)[begin:end-n_lead])

@@ -3,6 +3,7 @@ using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData
 using Dates: now
+using ProgressMeter
 
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
@@ -128,7 +129,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    for name in pairs
+    @showprogress for name in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
         @debug "...from date $pair_from_date"
@@ -139,10 +140,10 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
         end
         if size(ohlcv, 1) > 0
             try
-                z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset)
+                z = save_pair(zi, exc_name, name, timeframe, ohlcv; reset)
             catch e
                 if e isa ContiguityException
-                    z = save_pair(zi, exc.name, name, timeframe, ohlcv; reset=true)
+                    z = save_pair(zi, exc_name, name, timeframe, ohlcv; reset=true)
                 else
                     rethrow(e)
                 end
@@ -152,7 +153,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
         end
         p = PairData(;name, tf=timeframe, data=ohlcv, z)
         data[name] = p
-        @info "Fetched $(size(p.data, 1)) candles for $name from $(exc.name)"
+        @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
     end
     data
 end

@@ -10,8 +10,9 @@ using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV
 
 const ccxt = PyNULL()
 const exc = PyNULL()
+const exclock = ReentrantLock()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
-const tickers_cache = TTL{Int, T where T <: AbstractDict}(Minute(100))
+const tickers_cache = TTL{String, T where T <: AbstractDict}(Minute(100))
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -41,6 +42,7 @@ function setexchange!(name, args...; kwargs...)
         @assert kf isa Function "Can't set exchange keys."
         exckeys!(exc, values(kf())...)
     end
+    exc
 end
 
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
@@ -65,11 +67,13 @@ macro tickers()
     quote
         begin
             local $tickers
-            if isempty(tickers_cache)
-                @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
-                tickers_cache[0] = $tickers = $(exc).fetchTickers()
-            else
-                $tickers = tickers_cache[0]
+            let nm = $exc.name
+                if nm ∉ keys(tickers_cache)
+                    @assert $(exc).has["fetchTickers"] "Exchange doesn't provide tickers list."
+                    tickers_cache[nm] = $tickers = $(exc).fetchTickers()
+                else
+                    $tickers = tickers_cache[nm]
+                end
             end
         end
     end

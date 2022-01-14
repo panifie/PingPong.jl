@@ -14,7 +14,6 @@ function find_bottomed(pairs::AbstractVector{PairData}; bb_thresh=0.05, up_thres
 end
 
 using Plots: plot
-using StatsPlots
 
 function plot_trendlines(pair::AbstractString, timeframe="4h")
     data = load_pair(zi, exc.name, pair, timeframe)

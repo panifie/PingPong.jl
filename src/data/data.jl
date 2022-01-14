@@ -1,14 +1,19 @@
 module Data
 
+using Requires
+
 include("zarr_utils.jl")
 
 using PyCall: PyObject
 using Zarr: is_zarray
-using Temporal: TS
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
 using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat
 using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df
+
+function __init__()
+    @require Temporal="a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d" include("ts.jl")
+end
 
 macro zkey()
     p = esc(:pair)
@@ -71,13 +76,6 @@ macro to_mat(data, tp=nothing)
         else
             $d
         end
-    end
-end
-
-macro ohlc(df, tp=Float64)
-    df = esc(:df)
-    quote
-        TS(@to_mat(@view($df[:, Backtest.OHLCV_COLUMNS_TS]), $tp), $df.timestamp, OHLCV_COLUMNS_TS)
     end
 end
 
@@ -507,5 +505,3 @@ end
 export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs, save_pair
 
 end
-
-using .Data
