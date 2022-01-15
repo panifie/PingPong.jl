@@ -1,7 +1,6 @@
 macro in_repl()
     quote
         @eval begin
-            using Backtest
             Backtest.Misc.pypath!()
             an = Backtest.Analysis
             using Backtest.Plotting: plotone, @plotone
