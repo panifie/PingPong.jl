@@ -2,6 +2,8 @@ using PyCall: PyError
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData
+@debug using Backtest.Misc: dt
+using Backtest.Misc.Pbar
 using Dates: now
 using ProgressMeter
 
@@ -129,7 +131,8 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    @showprogress for name in pairs
+    @pbar! pairs
+    for name in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
         @debug "...from date $pair_from_date"
@@ -154,7 +157,9 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
         p = PairData(;name, tf=timeframe, data=ohlcv, z)
         data[name] = p
         @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
+        @pbupdate!
     end
+    @pbclose
     data
 end
 
