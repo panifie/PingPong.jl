@@ -3,6 +3,7 @@ module Pbar
 using PyCall: PyNULL, PyObject, @pyimport, ispynull
 using Dates: now, Millisecond, Second
 
+const enlighten = PyNULL()
 const emn = PyNULL()
 const pbar = PyNULL()
 const min_delta = Ref(Millisecond(0))
