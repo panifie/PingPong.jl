@@ -4,13 +4,17 @@ include("lists.jl")
 include("types.jl")
 
 using Conda: pip, LIBDIR, BINDIR
+using Requires
 
 # NOTE: Make sure conda libs precede system libs
 const py_v = chomp(String(read(`$(joinpath(BINDIR, "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
 ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
-using PyCall: PyObject, PyNULL, pyimport, PyVector
+using PyCall: PyObject, PyNULL, pyimport, @pyimport, PyVector
 const pypaths = pyimport("sys").path
+
+# After PyCall
+include("pbar.jl")
 
 @doc "Remove wrong python version libraries dirs from python loading path."
 function pypath!()

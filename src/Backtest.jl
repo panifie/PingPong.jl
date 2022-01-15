@@ -9,11 +9,11 @@ Exchanges.fetch!()
 
 # include("exchanges/feed.jl")
 
-# include("analysis/analysis.jl")
-# include("plotting/plotting.jl")
+include("analysis/analysis.jl")
+include("plotting/plotting.jl")
 
-# using .Analysis
-# using .Plotting
+using .Analysis
+using .Plotting
 
 include("repl.jl")
 
