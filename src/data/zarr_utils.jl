@@ -1,7 +1,7 @@
 using Zarr
+using Backtest.Misc: default_data_path
 import Base.delete!
 
-const default_data_path = get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "Backtest.jl", "data"))")
 
 const compressor = Zarr.BloscCompressor(cname="zstd", clevel=2, shuffle=true)
 

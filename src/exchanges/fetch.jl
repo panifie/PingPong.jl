@@ -98,9 +98,9 @@ function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractStrin
 end
 
 function fetch_pairs(timeframe::AbstractString; kwargs...)
-    qc = :qc ∈ kwargs ? kwargs[:qc] : options["quote"]
-    pairs = get_pairlist(exc, qc)
-    fetch_pairs(timeframe, collect(keys(pairs)); kwargs...)
+    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : options["quote"]
+    pairs = get_pairlist(exc, qc) |> keys |> collect
+    fetch_pairs(timeframe, pairs; filter(x -> x[1] !== :qc, kwargs)...)
 end
 
 function fetch_pairs(::Val{:ask}, args...; kwargs...)

@@ -1,18 +1,22 @@
 module Exchanges
 
-using Dates: Period, unix2datetime, Minute
+using Dates: Period, unix2datetime, Minute, Day, now
 using DataFrames: DataFrame
 using TimeToLive: TTL
 using PyCall: pyimport, PyObject, @py_str, PyNULL
 using Conda: pip
 using JSON
-using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames
+using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames, default_data_path, dt
 
 const ccxt = PyNULL()
 const exc = PyNULL()
 const exclock = ReentrantLock()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
 const tickers_cache = TTL{String, T where T <: AbstractDict}(Minute(100))
+
+function __init__()
+    mkpath(joinpath(default_data_path, "markets"))
+end
 
 macro exchange!(name)
     exc_var = esc(name)
@@ -26,11 +30,33 @@ macro exchange!(name)
     end
 end
 
+function isfileyounger(f::AbstractString, p::Period)
+    isfile(f) && dt(stat(f).mtime) < now() - p
+end
+
+function loadmarkets!(exc; cache=true, agemax=Day(1))
+    mkt = joinpath(default_data_path, exc.name, "markets.json")
+    if isfileyounger(mkt, agemax) && cache
+        @debug "Loading markets from cache at $mkt."
+        exc.markets = JSON.parse(String(read(mkt)))
+        exc.markets_by_id = exc.index_by(exc.markets, "id")
+    else
+        @debug "Loading markets from exchange and caching at $mkt."
+        exc.loadMarkets(true)
+        JSON.write(mkt, json(exc.markets))
+    end
+    nothing
+end
+
 function getexchange(name::Symbol, params=nothing)
+    @debug "Loading CCXT..."
     @pymodule ccxt
+    @debug "Instantiating Exchange $name..."
     exc_cls = getproperty(ccxt, name)
     exc = isnothing(params) ? exc_cls() : exc_cls(params)
-    exc.loadMarkets()
+    @debug "Loading Markets..."
+    loadmarkets!(exc)
+    @debug "Loaded $(length(exc.markets))."
     exc
 end
 
@@ -38,6 +64,7 @@ function setexchange!(name, args...; kwargs...)
     copy!(exc, getexchange(name, args...; kwargs...))
     keysym = Symbol("$(name)_keys")
     if hasproperty(@__MODULE__, keysym)
+        @debug "Setting exchange keys..."
         kf = getproperty(@__MODULE__, keysym)
         @assert kf isa Function "Can't set exchange keys."
         exckeys!(exc, values(kf())...)
