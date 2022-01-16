@@ -8,7 +8,7 @@ using PyCall: PyObject
 using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
-using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat
+using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat, dt
 using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df
 
 function __init__()
