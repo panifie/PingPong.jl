@@ -1,6 +1,6 @@
 module Pbar
 
-using PyCall: PyNULL, PyObject, @pyimport, ispynull
+using PyCall: PyNULL, PyObject, ispynull, pyimport
 using Dates: now, Millisecond, Second
 
 const enlighten = PyNULL()
@@ -13,14 +13,14 @@ mutable struct PbarInstance
 end
 
 function clearpbar(pb)
-    pb.pbar.close(;clear=true)
+    pb.pbar ∈ keys(emn.counters) && pb.pbar.close(;clear=true)
 end
 
 function __init__()
-    @eval @pyimport enlighten
+    copy!(enlighten, pyimport("enlighten"))
     ispynull(emn) || emn.stop()
     copy!(emn, enlighten.get_manager())
-    @info "Pbar: Loaded enlighten."
+    @debug @info "Pbar: Loaded enlighten."
 end
 
 macro pbar!(data, desc="", unit="")
@@ -55,7 +55,10 @@ macro pbupdate!(n=1, args...)
 end
 
 macro pbclose()
-    :(pb.pbar.close(;clear=true))
+    pb = esc(:pb)
+    quote
+        $pb.pbar.close(;clear=true)
+    end
 end
 
 macro pbstop()
