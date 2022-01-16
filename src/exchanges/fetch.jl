@@ -97,6 +97,11 @@ function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractStrin
     fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
 end
 
+function fetch_pairs(timeframe::AbstractString; qc::AbstractString, kwargs...)
+    pairs = get_pairlist(exc, qc)
+    fetch_pairs(timeframe, collect(keys(pairs)); kwargs...)
+end
+
 function fetch_pairs(::Val{:ask}, args...; kwargs...)
     Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
