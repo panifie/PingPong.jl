@@ -97,7 +97,8 @@ function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractStrin
     fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
 end
 
-function fetch_pairs(timeframe::AbstractString; qc::AbstractString, kwargs...)
+function fetch_pairs(timeframe::AbstractString; kwargs...)
+    qc = :qc ∈ kwargs ? kwargs[:qc] : options["quote"]
     pairs = get_pairlist(exc, qc)
     fetch_pairs(timeframe, collect(keys(pairs)); kwargs...)
 end
@@ -107,10 +108,6 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
-end
-
-function fetch_pairs(timeframe::AbstractString; kwargs...)
-    fetch_pairs(exc, timeframe; zi, qc=options["quote"], kwargs...)
 end
 
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
@@ -136,7 +133,7 @@ function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=z
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    @pbar! pairs
+    @pbar! pairs "Pairlist download progress" "pair" false
     for name in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
