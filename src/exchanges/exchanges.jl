@@ -34,16 +34,34 @@ function isfileyounger(f::AbstractString, p::Period)
     isfile(f) && dt(stat(f).mtime) < now() - p
 end
 
+function ccxt_dump_markets(file, exc)
+    py"""
+    import pickle
+    with open($file, 'wb') as f:
+        pickle.dump($(exc).markets, f)
+    """
+end
+
+function ccxt_read_markets(file, exc)
+    py"""
+    import pickle
+    with open($file, 'rb') as f:
+        $exc.markets = pickle.load(f)
+        $exc.markets_by_id = $exc.index_by($(exc).markets, "id")
+    """
+end
+
 function loadmarkets!(exc; cache=true, agemax=Day(1))
-    mkt = joinpath(default_data_path, exc.name, "markets.json")
+    mkt = joinpath(default_data_path, exc.name, "markets.pkl")
     if isfileyounger(mkt, agemax) && cache
         @debug "Loading markets from cache at $mkt."
-        exc.markets = JSON.parse(String(read(mkt)))
-        exc.markets_by_id = exc.index_by(exc.markets, "id")
+        ccxt_read_markets(mkt, exc)
+        # exc.markets = JSON.parse(String(read(mkt)))
+        # exc.markets_by_id = exc.index_by(exc.markets, "id")
     else
         @debug "Loading markets from exchange and caching at $mkt."
         exc.loadMarkets(true)
-        JSON.write(mkt, json(exc.markets))
+        ccxt_dump_markets(mkt, exc)
     end
     nothing
 end
