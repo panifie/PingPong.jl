@@ -17,6 +17,6 @@ using .Plotting
 
 include("repl.jl")
 
-# include("misc/precompile.jl")
+"SNOOP_COMPILER" ∉ keys(ENV) && include("../deps/precompiles/precompile_$(@__MODULE__).jl")
 
 end # module
