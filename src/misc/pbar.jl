@@ -7,6 +7,7 @@ const enlighten = PyNULL()
 const emn = PyNULL()
 const pbar = PyNULL()
 const min_delta = Ref(Millisecond(0))
+const queued_counter = Ref(0)
 
 mutable struct PbarInstance
     pbar::PyObject
@@ -55,8 +56,13 @@ macro pbupdate!(n=1, args...)
     pb = esc(:pb)
     quote
         let t = $now()
-            t - $plu > $min_delta[] && $pb.pbar.update($n, $args...)
-            $plu = t
+            if t - $plu > $min_delta[]
+                $pb.pbar.update($queued_counter[] + $n, $args...)
+                $plu = t
+                $queued_counter[] = 0
+            else
+                $queued_counter[] += 1
+            end
         end
     end
 end
