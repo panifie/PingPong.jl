@@ -1,23 +1,21 @@
 module Plotting
 
-using PyCall: pyimport, @py_str, PyNULL
-using Conda: pip
+using PythonCall: pyimport, pynew, pycopy!
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Backtest.Misc: PairData, infer_tf, tf_win, options, pynull, @pymodule
+using Backtest.Misc: PairData, infer_tf, tf_win, options, @pymodule
 using Backtest: Analysis
 
-const pyo = py"object"
-const pyec = PyNULL()
-const opts = PyNULL()
+const pyec = pynew()
+const opts = pynew()
 
 const echarts_ohlc_cols = (:open, :close, :low, :high)
-const cplot = PyNULL()
+const cplot = pynew()
 
 function init_pyecharts(reload=false)
     pyec != pynull && !reload && return
     @pymodule pyec pyecharts
-    copy!(opts, pyec.options)
+    pycopy!(opts, pyec.options)
 
     reload && begin
         ppwd = pwd()
@@ -26,7 +24,7 @@ function init_pyecharts(reload=false)
         if isnothing(match(r".*:?\.:.*", pypath))
 	        ENV["PYTHONPATH"] = ".:" * pypath
         end
-        copy!(cplot, pyimport("src.plotting.plot"))
+        pycopy!(cplot, pyimport("src.plotting.plot"))
         pyimport("importlib").reload(cplot)
         cd(ppwd)
     end

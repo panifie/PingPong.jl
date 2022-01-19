@@ -4,7 +4,7 @@ using Requires
 
 include("zarr_utils.jl")
 
-using PyCall: PyObject
+using PythonCall: Py
 using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
@@ -266,7 +266,7 @@ end
 end
 
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
-load_pairs(exc::PyObject, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
+load_pairs(exc::Py, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
 load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]; margin=options["margin"]), timeframe)
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)

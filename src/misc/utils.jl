@@ -3,18 +3,16 @@ module Misc
 include("lists.jl")
 include("types.jl")
 
-using Conda: pip, LIBDIR, BINDIR
+using PythonCall.C.CondaPkg: envdir, add_pip
 using Requires
 
 # NOTE: Make sure conda libs precede system libs
-const py_v = chomp(String(read(`$(joinpath(BINDIR, "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
+const py_v = chomp(String(read(`$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
-ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
-using PyCall: PyObject, PyNULL, pyimport, @pyimport, PyVector
+ENV["PYTHONPATH"] = ".:$(joinpath(envdir(), "lib"))/python$(py_v)"
+using PythonCall: Py, pynew, pyimport, PyVector, pyisnull, pycopy!
 const pypaths = pyimport("sys").path
 
-# After PyCall
-include("pbar.jl")
 
 @doc "Remove wrong python version libraries dirs from python loading path."
 function pypath!()
@@ -24,7 +22,7 @@ function pypath!()
     append!(path_list, pypaths)
 end
 
-const pynull = PyNULL()
+const pynull = pynew()
 const options = Dict{String, Any}()
 const results = Dict{String, Any}()
 
@@ -44,17 +42,16 @@ macro pymodule(name, modname=nothing)
     str_name = string(name)
     str_mod = isnothing(modname) ? str_name : string(modname)
     var_name = esc(name)
-    pynull = PyNULL()
     quote
         @eval begin
-            isdefined($__module__, Symbol($str_name)) || const $name = Ref($pynull)
+            isdefined($__module__, Symbol($str_name)) || const $name = $pynew()
         end
-        if $var_name == $pynull
+        if $pyisnull($var_name)
             try
-                copy!($var_name, pyimport($str_mod))
+                pycopy!($var_name, pyimport($str_mod))
             catch
-                pip("install", $str_mod)
-                copy!($var_name, pyimport($str_mod))
+                add_pip($str_mod)
+                pycopy!($var_name, pyimport($str_mod))
             end
         end
         $var_name
@@ -89,6 +86,8 @@ function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
 end
 
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
+
+include("pbar.jl")
 
 export printn, results, options, resetoptions!, setopt!, @as_td, @pyinit!
 

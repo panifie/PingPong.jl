@@ -1,6 +1,6 @@
 using Backtest.Misc: @pymodule
 using Backtest.Exchanges: get_pairlist
-using PyCall: pyimport, @py_str, PyDict
+using PythonCall: pyimport, @py, PyDict
 
 function cf_getfeed(;timeout=3)
     # handler = cryptofeed[].FeedHandler()

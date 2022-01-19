@@ -1,16 +1,17 @@
 module Pbar
 
-using PyCall: PyNULL, PyObject, ispynull, pyimport
+using PythonCall: pynew, Py, pyisnull, pyimport, pycopy!, pyconvert
 using Dates: now, Millisecond, Second
+using Backtest.Misc: @pymodule
 
-const enlighten = PyNULL()
-const emn = PyNULL()
-const pbar = PyNULL()
+const enlighten = pynew()
+const emn = pynew()
+const pbar = pynew()
 const min_delta = Ref(Millisecond(0))
 const queued_counter = Ref(0)
 
 mutable struct PbarInstance
-    pbar::PyObject
+    pbar::Py
     fin::Bool
 end
 
@@ -19,9 +20,10 @@ function clearpbar(pb)
 end
 
 function __init__()
-    copy!(enlighten, pyimport("enlighten"))
-    ispynull(emn) || emn.stop()
-    copy!(emn, enlighten.get_manager())
+    @pymodule enlighten
+    # pycopy!(enlighten, pyimport("enlighten"))
+    pyisnull(emn) || emn.stop()
+    pycopy!(emn, enlighten.get_manager())
     @debug @info "Pbar: Loaded enlighten."
 end
 
@@ -34,8 +36,8 @@ macro pbar!(data, desc="", unit="", use_finalizer=false)
     uf = esc(use_finalizer)
     quote
         @pbinit!
-        !$ispynull($pbar) && try $pbar.close(;clear=true) catch end
-        copy!($pbar, $emn.counter(;total=length($data), desc=$desc, unit=$unit, leave=false))
+        !$pyisnull($pbar) && try $pbar.close(;clear=true) catch end
+        pycopy!($pbar, $emn.counter(;total=length($data), desc=$desc, unit=$unit, leave=false))
         local $pb
         if $uf
             $pb = PbarInstance($pbar, true)
@@ -43,7 +45,7 @@ macro pbar!(data, desc="", unit="", use_finalizer=false)
         else
             $pb = PbarInstance($pbar, false)
         end
-        $min_delta[] = Millisecond($pbar.min_delta * 1e3)
+        $min_delta[] = Millisecond($pyconvert(Float64, $pbar.min_delta) * 1e3)
         $pbar.refresh()
         local $plu = $now()
         $pb

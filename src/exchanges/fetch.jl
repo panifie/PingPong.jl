@@ -1,4 +1,4 @@
-using PyCall: PyError
+using PythonCall: PyException, Py, pyisnull
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData
@@ -72,7 +72,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), d
         size(data, 1) === 0 && return df ? _empty_df() : data
         df ? to_df(data) : data
     catch e
-        if e isa PyError && !isnothing(match(r"429([0]+)?", string(e.val)))
+        if e isa PyException && !isnothing(match(r"429([0]+)?", string(e.val)))
             @debug "Exchange error 429, too many requests."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
@@ -83,6 +83,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), d
     end
 end
 
+# FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
 function fetch_pairs(exc, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_pairs(exc, timeframe, pairs; kwargs...)
@@ -92,7 +93,7 @@ function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
-function fetch_pairs(exc::PyObject, timeframe::AbstractString; qc::AbstractString, kwargs...)
+function fetch_pairs(exc::Py, timeframe::AbstractString; qc::AbstractString, kwargs...)
     pairs = get_pairlist(exc, qc)
     fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
 end
@@ -112,6 +113,7 @@ end
 
 function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
                      from::DateType="", to::DateType="", update=false, reset=false)
+    @assert exc.isset
     exc_name = exc.name
     local za
     if !is_timeframe_supported(timeframe, exc)
