@@ -7,3 +7,4 @@
 /**/.CondaPkg/*
 /**/deps/precompiles/*
 !/deps/precompiles/*_Backtest.jl
+/**/*.log

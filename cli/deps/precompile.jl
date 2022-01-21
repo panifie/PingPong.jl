@@ -1,4 +1,0 @@
-using BacktestCLI
-
-
-BacktestCLI.main()

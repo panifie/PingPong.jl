@@ -3,6 +3,7 @@ module BacktestCLI
 using Comonicon
 using Backtest
 using Base.Iterators: flatten
+# using Backtest.Misc
 
 """
 Fetch pairs from exchange.
@@ -26,6 +27,8 @@ Fetch pairs from exchange.
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
                exchange::AbstractString="kucoin", from="", to="", update=true, qc::AbstractString="")
+    @debug "Activateing python env..."
+
     @info "Setting Exchange"
     Backtest.setexchange!(Symbol(exchange))
     if length(pairs) === 0
@@ -40,8 +43,6 @@ Fetch pairs from exchange.
         Backtest.fetch_pairs(timeframe, pairs; from, to, update)
     end
 end
-
-using Backtest.Misc: Py
 
 """
 Backtest CLI
