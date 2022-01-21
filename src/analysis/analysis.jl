@@ -2,9 +2,10 @@ module Analysis
 
 using Requires
 import Base.filter
-using Backtest.Misc: @as_td, PairData, timefloat
+using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
 using Backtest.Data: @to_mat, data_td, save_pair
 using DataFrames: groupby, combine, Not, select!
+using ProgressMeter
 
 function __init__()
     ## InformationMeasures.jl ...
@@ -55,6 +56,7 @@ end
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(pair::PairData, timeframe; save=true)
     @debug @assert all(cleanup_ohlcv_data(data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
+    size(pair.data, 1) > 0 || return _empty_df()
 
     @as_td
     src_prd = data_td(pair.data)
@@ -91,12 +93,14 @@ end
 
 function resample(mrkts::AbstractDict{String, PairData}, timeframe; save=true)
     rs = Dict()
+    @pbar! "Pairs" false
     for (name, pair_data) in mrkts
         rs[name] = resample(pair_data, timeframe; save)
+        @pbupdate!
     end
+    @pbclose
     rs
 end
-
 
 
 export explore!
