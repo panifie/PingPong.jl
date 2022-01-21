@@ -1,0 +1,10 @@
+name = "BacktestCLI"
+uuid = "dd3f7155-34c1-473d-a171-ef1e8dc6f388"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Backtest = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+Comonicon = "863f3e99-da2a-4334-8734-de3dacbe5542"
+SnoopCompileCore = "e2b509da-e806-4183-be48-004708413034"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
