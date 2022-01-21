@@ -4,3 +4,6 @@
 /.dir-locals.el
 /render.html
 /**/__pycache__/*
+/.CondaPkg/
+/deps/precompiles/*
+!/deps/precompiles/*_Backtest.jl
