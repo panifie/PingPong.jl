@@ -3,7 +3,6 @@ module BacktestCLI
 using Comonicon
 using Backtest
 using Base.Iterators: flatten
-# using Backtest.Misc
 
 """
 Fetch pairs from exchange.

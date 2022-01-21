@@ -6,5 +6,5 @@
 /**/__pycache__/*
 /**/.CondaPkg/*
 /**/deps/precompiles/*
-!/deps/precompiles/*_Backtest.jl
+!/**/deps/precompiles/*_Backtest*.jl
 /**/*.log
