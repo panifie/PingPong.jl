@@ -467,7 +467,7 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     if is_incomplete_candle(df[end, :], td)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
-        @info "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
+        @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
     if fill_missing !== false
         fill_missing_rows!(df, prd; strategy=fill_missing)
