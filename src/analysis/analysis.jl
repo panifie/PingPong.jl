@@ -2,8 +2,9 @@ module Analysis
 
 using Requires
 import Base.filter
-using Backtest.Misc: @as_td, PairData
-using Backtest.Data: @to_mat
+using Backtest.Misc: @as_td, PairData, timefloat
+using Backtest.Data: @to_mat, data_td, save_pair
+using DataFrames: groupby, combine, Not, select!
 
 function __init__()
     ## InformationMeasures.jl ...
