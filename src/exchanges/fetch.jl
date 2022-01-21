@@ -1,4 +1,4 @@
-using PythonCall: PyException, Py, pyisnull
+using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData
@@ -7,7 +7,7 @@ using Backtest.Misc.Pbar
 using Dates: now
 using ProgressMeter
 
-function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=Dict(), sleep_t=1, cleanup=true)
+function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
     if to === ""
         to = now() |> timefloat
@@ -55,24 +55,28 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     return data
 end
 
-function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=Dict(), df=false, sleep_t=0)
+function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0)
     try
+        @debug "Calling into ccxt to fetch OHLCV data: $pair, $timeframe $since, $params"
         data = exc.fetchOHLCV(pair, timeframe; since, params)
-        if !(typeof(data) <: Array)
+        dpl = Bool(@py data isa PyList)
+        if !dpl
             @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
         end
-        if data isa Matrix
-            data = convert(Matrix{Float64}, data)
+        if dpl
+            data = reduce(hcat,
+                          pyconvert(Vector{<:Vector}, data)) |> permutedims
         else
-            data = convert(Array{Float64}, data)
+            data = []
         end
         size(data, 1) === 0 && return df ? _empty_df() : data
+        @debug "Returning converted ohlcv data."
         df ? to_df(data) : data
     catch e
-        if e isa PyException && !isnothing(match(r"429([0]+)?", string(e.val)))
+        if e isa PyException && !isnothing(match(r"429([0]+)?", string(e._v)))
             @debug "Exchange error 429, too many requests."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2

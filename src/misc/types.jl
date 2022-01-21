@@ -80,6 +80,8 @@ end
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
 convert(::Type{T}, x::DateTime) where T <: AbstractFloat = timefloat(x)
 
+dt(::Nothing) = :nothing
+
 dt(d::DateTime) = d
 
 function dt(num::Real)

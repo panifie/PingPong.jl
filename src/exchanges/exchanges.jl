@@ -20,19 +20,22 @@ OptionsDict = Dict{String, Dict{String, Any}}
 mutable struct Exchange
     py::Py
     isset::Bool
-    timeframes::Set{String}
+    timeframes::Dict{String, String}
     name::String
     markets::OptionsDict
     Exchange(x::Py) = if pyisnull(x)
-        new(x, false, Set(), "", OptionsDict())
+        new(x, false, Dict(), "", OptionsDict())
     elseif pyissubclass(pytype(x), ccxt.Exchange)
-        new(x, true, Set(x.timeframes), string(x.name), OptionsDict(PyDict(exc.markets)))
+        new(x, true,
+            pyconvert(Dict{String, String}, x.timeframes),
+            string(x.name), OptionsDict(PyDict(exc.markets)))
     else
         throw("Object provided to exchange constructor is not an ccxt exchange or None.")
     end
     Exchange(x::Symbol) = begin
-        e = getexchange(x)
-        new(e, true, e.timeframes, string(e.name), OptionsDict(PyDict(e.markets)))
+        e = pyexchange(x)
+        Exchange(e)
+        # new(e, true, e.timeframes, string(e.name), OptionsDict(PyDict(e.markets)))
     end
 end
 
@@ -59,7 +62,7 @@ macro exchange!(name)
         exc_sym = Symbol($exc_istr)
         $exc_var = (exc.isset[] && lowercase(exc.name) === $exc_str) ?
             exc : (hasproperty($(__module__), exc_sym) ?
-            getproperty($(__module__), exc_sym) : getexchange(exc_sym))
+            getproperty($(__module__), exc_sym) : pyexchange(exc_sym))
     end
 end
 
@@ -86,15 +89,12 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     nothing
 end
 
-function getexchange(name::Symbol, params=nothing; markets=true)
+function pyexchange(name::Symbol, params=nothing; markets=true)
     @debug "Loading CCXT..."
     @pymodule ccxt
     @debug "Instantiating Exchange $name..."
     exc_cls = getproperty(ccxt, name)
     exc = isnothing(params) ? exc_cls() : exc_cls(params)
-    @debug "Loading Markets..."
-    markets && loadmarkets!(exc)
-    @debug "Loaded $(length(exc.markets))."
     exc
 end
 
@@ -102,12 +102,15 @@ function setexchange!(name::Symbol, args...; kwargs...)
     setexchange!(exc, name, args...; kwargs...)
 end
 
-function setexchange!(exc::Exchange, name::Symbol, args...; kwargs...)
-    pycopy!(exc.py, getexchange(name, args...; kwargs...))
+function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs...)
+    pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
     empty!(exc.timeframes)
-    push!(exc.timeframes, pyconvert(Vector{String}, exc.py.timeframes)...)
+    merge!(exc.timeframes, pyconvert(Dict{String, String}, exc.py.timeframes))
     exc.name = string(exc.py.name)
+    @debug "Loading Markets..."
+    markets && loadmarkets!(exc)
+    @debug "Loaded $(length(exc.markets))."
 
     keysym = Symbol("$(name)_keys")
     if hasproperty(@__MODULE__, keysym)
@@ -214,7 +217,7 @@ function get_pairlist(exc, quot::String, min_vol::Float64=10e4; skip_fiat=true, 
 end
 
 function is_timeframe_supported(timeframe, exc)
-    timeframe ∈ exc.timeframes
+    timeframe ∈ keys(exc.timeframes)
 end
 
 function exckeys!(exc, key, secret, pass)
