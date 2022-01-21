@@ -82,6 +82,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
         @debug "Loading markets from exchange and caching at $mkt."
         exc.loadMarkets(true)
         pd = pyconvert(OptionsDict, exc.py.markets)
+        mkt |> dirname |> mkpath
         serialize(mkt, pd)
         merge!(exc.markets, pd)
     end
