@@ -5,7 +5,6 @@ version = "0.2.0"
 
 [deps]
 Caching = "68ad905a-5087-500a-aae7-0fd6acda2eb1"
-Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"

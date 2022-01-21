@@ -5,7 +5,6 @@ using Dates: Period, unix2datetime, Minute, Day, now
 using DataFrames: DataFrame
 using TimeToLive: TTL
 using PythonCall: Py, @py, pynew, pyexec, pycopy!, pytype, pyissubclass, pyisnull, PyDict, pyconvert, pydict
-using Conda: pip
 using JSON
 using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames, default_data_path, dt
 using Serialization: serialize, deserialize

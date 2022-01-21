@@ -21,7 +21,7 @@ end
 
 function __init__()
     @pymodule enlighten
-    # pycopy!(enlighten, pyimport("enlighten"))
+    pycopy!(enlighten, pyimport("enlighten"))
     pyisnull(emn) || emn.stop()
     pycopy!(emn, enlighten.get_manager())
     @debug @info "Pbar: Loaded enlighten."

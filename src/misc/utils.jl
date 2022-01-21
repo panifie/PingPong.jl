@@ -43,9 +43,7 @@ macro pymodule(name, modname=nothing)
     str_mod = isnothing(modname) ? str_name : string(modname)
     var_name = esc(name)
     quote
-        @eval begin
-            isdefined($__module__, Symbol($str_name)) || const $name = $pynew()
-        end
+        @assert isdefined($__module__, Symbol($str_name)) "Var name given for pyimport not found in module scope."
         if $pyisnull($var_name)
             try
                 pycopy!($var_name, pyimport($str_mod))
