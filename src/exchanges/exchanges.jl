@@ -190,7 +190,7 @@ function get_pairlist(; kwargs...)
 end
 
 function get_pairlist(quot::AbstractString, min_vol::AbstractFloat=10e4; kwargs...)
-    get_pairlist(exc, quot, min_vol; kwargs...)
+    get_pairlist(exc, string(quot), min_vol; kwargs...)
 end
 
 function get_pairlist(exc, quot::String, min_vol::Float64=10e4; skip_fiat=true, margin=false)::Dict
