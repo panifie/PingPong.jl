@@ -3,9 +3,9 @@ module Analysis
 using Requires
 import Base.filter
 using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
+using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using DataFrames: groupby, combine, Not, select!
-using ProgressMeter
 
 function __init__()
     ## InformationMeasures.jl ...
