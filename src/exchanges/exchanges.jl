@@ -177,22 +177,18 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
-function get_pairlist(; kwargs...)
-    get_pairlist(exc, options["quote"], options["min_vol"]::T where T<: AbstractFloat; kwargs...)
-end
+get_pairlist(exc::Exchange, quot=options["quote"], min_vol=options["min_vol"]::T where T<: AbstractFloat; kwargs...) = get_pairlist(exc, quot, min_vol; kwargs...)
+get_pairlist(; kwargs...) = get_pairlist(exc, args...; kwargs...)
+get_pairlist(quot::AbstractString, min_vol::AbstractFloat=10e4; kwargs...) = get_pairlist(exc, string(quot), min_vol; kwargs...)
 
-function get_pairlist(quot::AbstractString, min_vol::AbstractFloat=10e4; kwargs...)
-    get_pairlist(exc, string(quot), min_vol; kwargs...)
-end
-
-function get_pairlist(exc, quot::String, min_vol::Float64=10e4; skip_fiat=true, margin=false)::Dict
+function get_pairlist(exc::Exchange, quot::String, min_vol::Float64=10e4; skip_fiat=true, margin=false)::Dict
     @tickers
     pairlist = []
     local push_fun
     if isempty(quot)
         push_fun = (p, k, v) -> push!(p, (k, v))
     else
-        push_fun = (p, k, v) -> string(v["quoteId"]) === quot && push!(p, (k, v))
+        push_fun = (p, k, v) -> v["quoteId"] === quot && push!(p, (k, v))
     end
     for (k, v) in exc.markets
         if is_leveraged_pair(k) ||

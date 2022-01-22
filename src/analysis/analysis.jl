@@ -5,6 +5,7 @@ import Base.filter
 using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
+using Backtest.Exchanges: Exchange
 using DataFrames: groupby, combine, Not, select!
 
 function __init__()
@@ -53,8 +54,10 @@ function slopeangle(df; window=10)
     atan(slope) * (180 / π)
 end
 
+resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
+
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(pair::PairData, timeframe; save=true)
+function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     @debug @assert all(cleanup_ohlcv_data(data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
     size(pair.data, 1) > 0 || return _empty_df()
 
@@ -87,18 +90,20 @@ function resample(pair::PairData, timeframe; save=true)
     df = combine(gb, :timestamp => first, :open => first, :high => maximum, :low => minimum, :close => last, :volume => sum; renamecols=false)
     select!(data, Not(:sample))
     select!(df, Not(:sample))
-    save && save_pair(pair.name, timeframe, df)
+    save && save_pair(exc, pair.name, timeframe, df)
     df
 end
 
-function resample(mrkts::AbstractDict{String, PairData}, timeframe; save=true)
+resample(mrkts::AbstractDict{String, PairData}, timeframe; kwargs...) = resample(exc, mrkts, timeframe; kwargs...)
+
+function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timeframe; save=true, progress=true)
     rs = Dict()
-    @pbar! "Pairs" false
+    progress && @pbar! "Pairs" false
     for (name, pair_data) in mrkts
-        rs[name] = resample(pair_data, timeframe; save)
-        @pbupdate!
+        rs[name] = resample(exc, pair_data, timeframe; save)
+        progress && @pbupdate!
     end
-    @pbclose
+    progress && @pbclose
     rs
 end
 

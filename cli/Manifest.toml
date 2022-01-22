@@ -22,7 +22,7 @@ uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Backtest]]
-deps = ["Caching", "DataFrames", "DataFramesMeta", "Dates", "JSON", "ProgressMeter", "PythonCall", "Requires", "Serialization", "SnoopCompileCore", "TimeFrames", "TimeToLive", "Zarr"]
+deps = ["Caching", "DataFrames", "DataFramesMeta", "Dates", "Distributed", "JSON", "ProgressMeter", "PythonCall", "Requires", "Serialization", "SnoopCompileCore", "TimeFrames", "TimeToLive", "Zarr"]
 path = ".."
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 version = "0.2.0"

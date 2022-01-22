@@ -6,14 +6,14 @@ quiet = false
 compile = "yes"
 optimize = 2
 
-[sysimg]
-path = "~/.julia"
-incremental = true
-filter_stdlibs = false
-cpu_target = "native"
+# [sysimg]
+# path = "~/.julia"
+# incremental = true
+# filter_stdlibs = false
+# cpu_target = "native"
 
-[sysimg.precompile]
-execution_file = ["deps/SnoopCompile/script.jl"]
+# [sysimg.precompile]
+# execution_file = ["deps/SnoopCompile/script.jl"]
 
 # [application]
 # incremental=false

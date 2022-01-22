@@ -9,7 +9,7 @@ using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
 using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat, dt
-using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df
+using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df, Exchange
 
 function __init__()
     @require Temporal="a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d" include("ts.jl")
@@ -161,11 +161,12 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     end
 end
 
-# Wrapper for global zarr instance and exchange
 function save_pair(pair, timeframe, data; kwargs...)
     @assert pair ∈ keys(exc.markets) "Mismatching global exchange instance and pair. Pair not in exchange markets."
     save_pair(zi, exc.name, pair, timeframe, data; kwargs...)
 end
+
+save_pair(exc::Exchange, args...; kwargs...) = save_pair(zi, exc.name, args...; kwargs...)
 
 function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset)
     existing = false
@@ -266,7 +267,9 @@ end
 end
 
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
-load_pairs(exc::Py, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
+load_pairs(exc::Exchange, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
+load_pairs(exc::Exchange, pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
+load_pairs(exc::Exchange, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]; margin=options["margin"]), timeframe)
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)

@@ -21,11 +21,20 @@ macro choosepairs()
     end
 end
 
-macro setexchange!()
-    exchange = esc(:exchange)
+# macro setexchange!()
+#     exchange = esc(:exchange)
+#     quote
+#         @info "Setting Exchange"
+#         Backtest.setexchange!(Symbol($exchange))
+#     end
+# end
+
+macro splitexchanges!()
+    exchanges = esc(:exchanges)
+    ev = esc(:exchanges_vec)
     quote
-        @info "Setting Exchange"
-        Backtest.setexchange!(Symbol($exchange))
+        $ev = map(x -> Backtest.Exchanges.Exchange(Symbol(x)), split($exchanges, ','; keepempty=false))
+        @info "Executing command on $(length($ev)) exchanges..."
     end
 end
 
@@ -50,14 +59,14 @@ Fetch pairs from exchange.
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchange::AbstractString="kucoin", from="", to="", update=true, qc::AbstractString="")
+               exchanges::AbstractString="kucoin", from="", to="", update=true, qc::AbstractString="")
     @debug "Activating python env..."
 
-    @setexchange!
+    @splitexchanges!
 
     @choosepairs
 
-    Backtest.fetch_pairs(timeframe, pairs; from, to, update)
+    Backtest.fetch_pairs(exchanges_vec, timeframe, pairs; from, to, update)
 end
 
 """
@@ -69,7 +78,7 @@ Fetch pairs from exchange.
 
 # Options
 
-- `-e, --exchange`: Exchange name, e.g. 'Binance'.
+- `-e, --exchange`: Exchange name(s), e.g. 'Binance'.
 - `-f, --from-trimeframe`: Source timeframe to downsample.
 - `-t, --target-timeframe`: Timeframe in which data will be converted to and saved.
 - `-q, --qc`: Choose pairs with base currencies matching specified quote.
@@ -79,16 +88,18 @@ Fetch pairs from exchange.
 """
 @cast function resample(pairs...; from_timeframe::AbstractString="1h",
                         target_timeframe::AbstractString="1d",
-                        exchange::AbstractString="kucoin",
+                        exchanges::AbstractString="kucoin",
                         qc::AbstractString="")
-    @setexchange!
+    @splitexchanges!
 
     @choosepairs
 
-    @info "Loading pairs with $from_timeframe candles..."
-    data = Backtest.Data.load_pairs(pairs, from_timeframe)
-    @info "Resampling $(length(data)) pairs to $target_timeframe..."
-    Backtest.Analysis.resample(data, target_timeframe)
+    for e in exchanges_vec
+        @info "Loading pairs with $from_timeframe candles from $(e.name)..."
+        data = Backtest.Data.load_pairs(e, pairs, from_timeframe)
+        @info "Resampling $(length(data)) pairs to $target_timeframe..."
+        Backtest.Analysis.resample(e, data, target_timeframe;)
+    end
     @info "Resampling successful."
 end
 
