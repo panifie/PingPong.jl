@@ -2,6 +2,7 @@ using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData
+using Backtest.Exchanges: Exchange
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
 using Dates: now
@@ -21,7 +22,7 @@ function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict
 end
 
 function find_since(exc, pair)
-    long_tf = findmax(exc.timeframes)[2]
+    long_tf = findmax(collect(exc.timeframes))[1]
     # fetch the first available candles using a long (1w) timeframe
     _fetch_with_delay(exc, pair, long_tf; df=true)[begin, 1] |> timefloat |> Int
 end
@@ -88,7 +89,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
 end
 
 # FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
-function fetch_pairs(exc, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
+function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
@@ -97,7 +98,8 @@ function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
-function fetch_pairs(exc::Py, timeframe::AbstractString; qc::AbstractString, kwargs...)
+function fetch_pairs(exc::Exchange, timeframe::AbstractString; kwargs...)
+    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : options["quote"]
     pairs = get_pairlist(exc, qc)
     fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
 end
@@ -115,7 +117,15 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
 end
 
-function fetch_pairs(exc, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
+using Distributed: @distributed
+function fetch_pairs(excs::Vector{Symbol}, args...; kwargs...)
+    exchanges = [Exchange(e) for e in excs]
+    @distributed for e in exchanges
+        fetch_pairs(e, args...; kwargs...)
+    end
+end
+
+function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
                      from::DateType="", to::DateType="", update=false, reset=false)
     @assert exc.isset
     exc_name = exc.name

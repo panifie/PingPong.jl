@@ -19,23 +19,15 @@ OptionsDict = Dict{String, Dict{String, Any}}
 mutable struct Exchange
     py::Py
     isset::Bool
-    timeframes::Dict{String, String}
+    timeframes::Set{String}
     name::String
     markets::OptionsDict
-    Exchange(x::Py) = if pyisnull(x)
-        new(x, false, Dict(), "", OptionsDict())
-    elseif pyissubclass(pytype(x), ccxt.Exchange)
-        new(x, true,
-            pyconvert(Dict{String, String}, x.timeframes),
-            string(x.name), OptionsDict(PyDict(exc.markets)))
-    else
-        throw("Object provided to exchange constructor is not an ccxt exchange or None.")
-    end
+    Exchange() = new(pynew())
     Exchange(x::Symbol) = begin
-        e = pyexchange(x)
-        Exchange(e)
-        # new(e, true, e.timeframes, string(e.name), OptionsDict(PyDict(e.markets)))
+        e = pyexchange(x) |> Exchange
+        setexchange!(e, x)
     end
+    Exchange(x::Py) = new(x, false, Set(), "", Dict())
 end
 
 const exc = Exchange(pynew())
@@ -106,7 +98,7 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs
     pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
     empty!(exc.timeframes)
-    merge!(exc.timeframes, pyconvert(Dict{String, String}, exc.py.timeframes))
+    push!(exc.timeframes, pyconvert(Set{String}, exc.py.timeframes.keys())...)
     exc.name = string(exc.py.name)
     @debug "Loading Markets..."
     markets && loadmarkets!(exc)
@@ -217,7 +209,7 @@ function get_pairlist(exc, quot::String, min_vol::Float64=10e4; skip_fiat=true, 
 end
 
 function is_timeframe_supported(timeframe, exc)
-    timeframe ∈ keys(exc.timeframes)
+    timeframe ∈ exc.timeframes
 end
 
 function exckeys!(exc, key, secret, pass)
