@@ -6,7 +6,7 @@ using Backtest.Exchanges: Exchange
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
 using Dates: now
-using ProgressMeter
+using Distributed: @distributed
 
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
@@ -117,16 +117,15 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
 end
 
-using Distributed: @distributed
 function fetch_pairs(excs::Vector{Symbol}, args...; kwargs...)
     exchanges = [Exchange(e) for e in excs]
     @distributed for e in exchanges
-        fetch_pairs(e, args...; kwargs...)
+        fetch_pairs(e, args...; kwargs..., progress=false)
     end
 end
 
 function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
-                     from::DateType="", to::DateType="", update=false, reset=false)
+                     from::DateType="", to::DateType="", update=false, reset=false, progress=true)
     @assert exc.isset
     exc_name = exc.name
     local za
@@ -149,7 +148,7 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
     end
     data = Dict{String, PairData}()
     @info "Downloading data for $(length(pairs)) pairs."
-    @pbar! pairs "Pairlist download progress" "pair" false
+    progress && @pbar! pairs "Pairlist download progress" "pair" false
     for name in pairs
         @debug "Fetching pair $name."
         z, pair_from_date = from_date(name)
@@ -175,9 +174,9 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
         p = PairData(;name, tf=timeframe, data=ohlcv, z)
         data[name] = p
         @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
-        @pbupdate!
+        progress && @pbupdate!
     end
-    @pbclose
+    progress && @pbclose
     data
 end
 
