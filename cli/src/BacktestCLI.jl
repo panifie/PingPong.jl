@@ -85,7 +85,7 @@ Fetch pairs from exchange.
 # Options
 
 - `-e, --exchanges`: Exchange name(s), e.g. 'Binance'.
-- `-f, --from-trimeframe`: Source timeframe to downsample.
+- `-f, --from-timeframe`: Source timeframe to downsample.
 - `-t, --target-timeframe`: Timeframe in which data will be converted to and saved.
 - `-q, --qc`: Choose pairs with base currencies matching specified quote.
 
@@ -101,11 +101,11 @@ Fetch pairs from exchange.
 
     @choosepairs
 
-    for e in exchanges_vec
-        @info "Loading pairs with $from_timeframe candles from $(e.name)..."
-        data = Backtest.Data.load_pairs(e, pairs, from_timeframe)
+    for (exc, prs) in pairs
+        @info "Loading pairs with $from_timeframe candles from $(exc.name)..."
+        data = Backtest.Data.load_pairs(exc, prs, from_timeframe)
         @info "Resampling $(length(data)) pairs to $target_timeframe..."
-        Backtest.Analysis.resample(e, data, target_timeframe;)
+        Backtest.Analysis.resample(exc, data, target_timeframe;)
     end
     @info "Resampling successful."
 end
