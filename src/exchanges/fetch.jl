@@ -98,10 +98,9 @@ function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
-function fetch_pairs(exc::Exchange, timeframe::AbstractString; kwargs...)
-    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : options["quote"]
-    pairs = get_pairlist(exc, qc)
-    fetch_pairs(exc, timeframe, collect(keys(pairs)); kwargs...)
+function fetch_pairs(exc::Exchange, timeframe::AbstractString; qc, kwargs...)
+    pairs = get_pairlist(exc, qc; as_vec=true)
+    fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
 function fetch_pairs(timeframe::AbstractString; kwargs...)
@@ -124,17 +123,21 @@ It accepts:
       and pairlist will be composed according to quote currency and min_volume from `Backtest.options`.
 """
 function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
-    exchanges = eltype(excs) === Symbol ?
-        [(exc = Exchange(e); exc => get_pairlist(exc; as_vec=true)) for e in excs] :
-        excs
-    out_file = joinpath(default_data_path, "out.log")
-    err_file = joinpath(default_data_path, "err.log")
+    # out_file = joinpath(default_data_path, "out.log")
+    # err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
-    t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-        @distributed for (e, pl) in exchanges
-            fetch_pairs(e, timeframe, pl; kwargs...)
-        end
+    # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
+    # NOTE: The pyuthon classes have to be instatiated inside the worker processes
+    if eltype(excs) === Symbol
+        e_pl = s -> (ex = Exchange(s); (ex, get_pairlist(ex; as_vec=true)))
+    else
+        e_pl = s -> (s[1], s[2])
     end
+    t = @distributed for s in excs
+        ex, pl = e_pl(s)
+        fetch_pairs(ex, timeframe, pl; kwargs...)
+    end
+    # end
     wait_task && wait(t)
     t
 end
