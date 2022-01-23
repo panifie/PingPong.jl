@@ -3,9 +3,9 @@ module Misc
 include("lists.jl")
 include("types.jl")
 
-using PythonCall.C.CondaPkg: envdir, add_pip
+using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 using Requires
-using Distributed: @everywhere
+using Distributed: @everywhere, workers
 using Pkg: project
 
 # NOTE: Make sure conda libs precede system libs
@@ -87,12 +87,17 @@ end
 
 const workers_setup = Ref(false)
 
-function _instantiate_workers(mod::String, proj_path=project().path)
-    if !workers_setup[]
+function _instantiate_workers(mod, proj_path=project().path; force=false)
+    if !workers_setup[] || force
+        # Resolve CondaPkg env before intantiating workers
+        # to avoid possible duplicate parallel instantiations
+        resolve()
+        @info "Instantiating $(length(workers())) workers."
         @everywhere begin
-            @eval import Pkg
-            Pkg.activate($proj_path)
-            eval("using $mod")
+            @eval begin
+                push!(LOAD_PATH, $proj_path)
+                @eval using $mod
+            end
         end
         workers_setup[] = true
     end

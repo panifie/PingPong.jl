@@ -116,6 +116,8 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
 end
 
+using Distributed
+
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
 It accepts:
     - a mapping of exchange instances to pairlists.
@@ -127,7 +129,7 @@ function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
     # err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    _instantiate_workers("Backtest")
+    _instantiate_workers(:Backtest)
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
         e_pl = s -> (ex = Exchange(s); (ex, get_pairlist(ex; as_vec=true)))
