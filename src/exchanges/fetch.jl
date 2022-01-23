@@ -2,7 +2,7 @@ using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData, default_data_path
-using Backtest.Exchanges: Exchange
+using Backtest.Exchanges: Exchange, get_pairlist
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
 using Dates: now
@@ -117,14 +117,20 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
 end
 
-function fetch_pairs(excs::Vector{Symbol}, args...; kwargs...)
-    exchanges = [Exchange(e) for e in excs]
+@doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
+It accepts:
+    - a mapping of exchange instances to pairlists.
+    - a vector of symbols for which an exchange instance will be instantiated for each element,
+      and pairlist will be composed according to quote currency and min_volume from `Backtest.options`.
+"""
+function fetch_pairs(excs::Union{Dict{Exchange, Vector{String}}, Vector{Symbol}}, timeframe; kwargs...)
+    exchanges = excs isa Dict ? excs : Dict((exc = Exchange(e); exc => get_pairlist(exc)) for e in excs)
     out_file = joinpath(default_data_path, "out.log")
     err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     redirect_stdio(; stdout=out_file, stderr=err_file) do
-        @distributed for e in exchanges
-            fetch_pairs(e, args...; kwargs..., progress=false)
+        @distributed for (e, pl) in exchanges
+            fetch_pairs(e, timeframe, pl; kwargs...)
         end
     end
 end

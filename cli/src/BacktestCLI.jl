@@ -7,16 +7,19 @@ using Base.Iterators: flatten
 macro choosepairs()
     pairs = esc(:pairs)
     qc = esc(:qc)
+    ev = esc(:exchanges_vec)
     quote
         if length($pairs) === 0
             if $qc === ""
                 $qc = Backtest.options["quote"]
                 @info "Using default quote currency $($qc)."
             end
-            $pairs = Backtest.Exchanges.get_pairlist($qc) |> keys |> collect
+            $pairs = Dict(e => Backtest.Exchanges.get_pairlist(e, $qc) |> keys |> collect
+                          for e in $ev)
         else
             $qc !== "" && @warn "Ignoring quote: $qc since pairs were supplied."
-            $pairs = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
+            pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
+            $pairs = Dict(e => pl for e in $ev)
         end
     end
 end
@@ -43,11 +46,11 @@ Fetch pairs from exchange.
 
 # Arguments
 
-- `p`: pairs to fetch.
+- `pairs`: pairs to fetch.
 
 # Options
 
-- `-e, --exchange`: Exchange name, e.g. 'Binance'.
+- `-e, --exchanges`: Exchange name, e.g. 'Binance'.
 - `-t, --timeframe`: Target timeframe, e.g. '1h'.
 - `-q, --qc`: Choose pairs with base currencies matching specified quote..
 - `--from`: Start downloading from this date (string) or last X candles (Integer).
@@ -55,18 +58,20 @@ Fetch pairs from exchange.
 
 # Flags
 
-- `-u, --update`: If set data will be downloaded starting from the last stored timestamp up to now.
+- `--update`: If set data will be downloaded starting from the last stored timestamp up to now.
+- `--progress`: Show progress.
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchanges::AbstractString="kucoin", from="", to="", update=true, qc::AbstractString="")
+               exchanges::AbstractString="kucoin", from="", to="", update::Bool=true, qc::AbstractString="", progress::Bool=false)
     @debug "Activating python env..."
 
+    @show exchanges, split(exchanges, ','; keepempty=false)
     @splitexchanges!
 
     @choosepairs
 
-    Backtest.fetch_pairs(exchanges_vec, timeframe, pairs; from, to, update)
+    Backtest.fetch_pairs(pairs, timeframe; from, to, update, progress)
 end
 
 """
@@ -74,11 +79,11 @@ Fetch pairs from exchange.
 
 # Arguments
 
-- `p`: pairs to fetch.
+- `pairs`: pairs to fetch.
 
 # Options
 
-- `-e, --exchange`: Exchange name(s), e.g. 'Binance'.
+- `-e, --exchanges`: Exchange name(s), e.g. 'Binance'.
 - `-f, --from-trimeframe`: Source timeframe to downsample.
 - `-t, --target-timeframe`: Timeframe in which data will be converted to and saved.
 - `-q, --qc`: Choose pairs with base currencies matching specified quote.
