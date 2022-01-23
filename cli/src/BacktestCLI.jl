@@ -31,11 +31,12 @@ end
 #     end
 # end
 
-macro splitexchanges!()
+macro splitexchanges!(keep=true)
     exchanges = esc(:exchanges)
     ev = esc(:exchanges_vec)
+    conv = keep ? Symbol : x -> Backtest.Exchanges.Exchange(Symbol(x))
     quote
-        $ev = map(x -> Backtest.Exchanges.Exchange(Symbol(x)), split($exchanges, ','; keepempty=false))
+        $ev = map($conv, split($exchanges, ','; keepempty=false))
         @info "Executing command on $(length($ev)) exchanges..."
     end
 end
@@ -65,7 +66,9 @@ Fetch pairs from exchange.
                exchanges::AbstractString="kucoin", from="", to="", noupdate::Bool=false, qc::AbstractString="", progress::Bool=false)
     @debug "Activating python env..."
 
-    @splitexchanges!
+    # NOTE: don't create exchange classes since multiple exchanges uses @distributed
+    # and the (python) class is create on the worker process
+    @splitexchanges! false
 
     @choosepairs
 

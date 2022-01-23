@@ -6,7 +6,6 @@ include("types.jl")
 using PythonCall.C.CondaPkg: envdir, add_pip
 using Requires
 using Distributed: @everywhere, workers, addprocs, rmprocs, RemoteChannel
-using Pkg: project
 
 # NOTE: Make sure conda libs precede system libs
 const py_v = chomp(String(read(`$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
