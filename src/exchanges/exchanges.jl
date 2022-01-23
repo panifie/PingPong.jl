@@ -200,6 +200,7 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64=10e4; skip_f
             push_fun(pairlist, k, v)
         end
     end
+    isempty(pairlist) && @warn "No pairs found, check quote currency ($quot) and min volume parameters ($min_vol)."
     isempty(quot) && return pairlist
     Dict(pairlist)
 end
