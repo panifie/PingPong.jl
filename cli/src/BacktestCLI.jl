@@ -31,7 +31,7 @@ end
 #     end
 # end
 
-macro splitexchanges!(keep=true)
+macro splitexchanges!(keep=false)
     exchanges = esc(:exchanges)
     ev = esc(:exchanges_vec)
     conv = keep ? Symbol : x -> Backtest.Exchanges.Exchange(Symbol(x))
@@ -68,7 +68,7 @@ Fetch pairs from exchange.
 
     # NOTE: don't create exchange classes since multiple exchanges uses @distributed
     # and the (python) class is create on the worker process
-    @splitexchanges! false
+    @splitexchanges!
 
     @choosepairs
 

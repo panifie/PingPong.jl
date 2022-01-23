@@ -84,7 +84,7 @@ function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
     println(format(n; precision, commas, kwargs...), " ", cur)
 end
 
-const workers_setup = Ref(false)
+const workers_setup = Ref(0)
 # @everywhere push!(LOAD_PATH, $())
 #
 function _find_module(sym)
@@ -94,13 +94,15 @@ function _find_module(sym)
     nothing
 end
 
+@doc "Instantiate new workers if the current number mismatches the requested one."
 function _instantiate_workers(mod; force=false, num=4)
-    if !workers_setup[] || force
+    if workers_setup[] !== num || force
         length(workers()) > 1 && rmprocs(workers())
+
         m = _find_module(mod)
-        pa = pathof(m)
         exeflags = "--project=$(pkgdir(m))"
         addprocs(num; exeflags)
+
         @info "Instantiating $(length(workers())) workers."
         # Instantiate one at a time
         # to avoid possible duplicate parallel instantiations of CondaPkg
@@ -111,7 +113,7 @@ function _instantiate_workers(mod; force=false, num=4)
             using $mod
             put!($c, true)
         end
-        workers_setup[] = true
+        workers_setup[] = num
     end
 end
 

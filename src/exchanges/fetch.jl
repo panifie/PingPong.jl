@@ -127,12 +127,12 @@ function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
     # err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    _instantiate_workers(:Backtest)
+    _instantiate_workers(:Backtest; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
         e_pl = s -> (ex = Exchange(s); (ex, get_pairlist(ex; as_vec=true)))
     else
-        e_pl = s -> (s[1], s[2])
+        e_pl = s -> (Exchange(Symbol(lowercase(s[1].name))), s[2])
     end
     t = @distributed for s in excs
         ex, pl = e_pl(s)
