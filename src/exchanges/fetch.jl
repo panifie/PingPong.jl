@@ -124,7 +124,7 @@ It accepts:
       and pairlist will be composed according to quote currency and min_volume from `Backtest.options`.
 """
 function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
-    exchanges = eltype(excs) isa Symbol ?
+    exchanges = eltype(excs) === Symbol ?
         [(exc = Exchange(e); exc => get_pairlist(exc; as_vec=true)) for e in excs] :
         excs
     out_file = joinpath(default_data_path, "out.log")
