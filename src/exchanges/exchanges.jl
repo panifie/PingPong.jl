@@ -177,19 +177,23 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
-get_pairlist(exc::Exchange, quot=options["quote"], min_vol=options["min_vol"]::T where T<: AbstractFloat; kwargs...) = get_pairlist(exc, quot, min_vol; kwargs...)
-get_pairlist(; kwargs...) = get_pairlist(exc, args...; kwargs...)
-get_pairlist(quot::AbstractString, min_vol::AbstractFloat=10e4; kwargs...) = get_pairlist(exc, string(quot), min_vol; kwargs...)
+get_pairlist(exc::Exchange=exc,
+             quot::AbstractString=options["quote"],
+             min_vol::T where T<: AbstractFloat=options["min_vol"];
+             kwargs...) = get_pairlist(exc,
+                                       convert(String, quot),
+                                       convert(Float64, min_vol);
+                                       kwargs...)
 
-function get_pairlist(exc::Exchange, quot::String, min_vol::Float64=10e4; skip_fiat=true, margin=false)::Dict
+function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=true, margin=false, as_vec=false)::Union{Dict, Vector}
     @tickers
     pairlist = []
-    local push_fun
-    if isempty(quot)
-        push_fun = (p, k, v) -> push!(p, (k, v))
-    else
-        push_fun = (p, k, v) -> v["quoteId"] === quot && push!(p, (k, v))
-    end
+
+    tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
+    push_fun = isempty(quot) ?
+        (p, k, v) -> push!(p, tup_fun(k, v)) :
+        (p, k, v) -> v["quoteId"] === quot && push!(p, tup_fun(k, v))
+
     for (k, v) in exc.markets
         if is_leveraged_pair(k) ||
             tickers[k]["quoteVolume"] <= min_vol ||
@@ -202,6 +206,7 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64=10e4; skip_f
     end
     isempty(pairlist) && @warn "No pairs found, check quote currency ($quot) and min volume parameters ($min_vol)."
     isempty(quot) && return pairlist
+    as_vec && return pairlist
     Dict(pairlist)
 end
 

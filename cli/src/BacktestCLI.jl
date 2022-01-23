@@ -14,8 +14,7 @@ macro choosepairs()
                 $qc = Backtest.options["quote"]
                 @info "Using default quote currency $($qc)."
             end
-            $pairs = Dict(e => Backtest.Exchanges.get_pairlist(e, $qc) |> keys |> collect
-                          for e in $ev)
+            $pairs = [e => Backtest.Exchanges.get_pairlist(e, $qc; as_vec=true) for e in $ev]
         else
             $qc !== "" && @warn "Ignoring quote: $qc since pairs were supplied."
             pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
@@ -58,20 +57,19 @@ Fetch pairs from exchange.
 
 # Flags
 
-- `--update`: If set data will be downloaded starting from the last stored timestamp up to now.
-- `--progress`: Show progress.
+- `-n, --noupdate`: If set data will be downloaded starting from the last stored timestamp up to now.
+- `-p, --progress`: Show progress.
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchanges::AbstractString="kucoin", from="", to="", update::Bool=true, qc::AbstractString="", progress::Bool=false)
+               exchanges::AbstractString="kucoin", from="", to="", noupdate::Bool=false, qc::AbstractString="", progress::Bool=false)
     @debug "Activating python env..."
 
-    @show exchanges, split(exchanges, ','; keepempty=false)
     @splitexchanges!
 
     @choosepairs
 
-    Backtest.fetch_pairs(pairs, timeframe; from, to, update, progress)
+    Backtest.fetch_pairs(pairs, timeframe; wait_task=true, from, to, update=(!noupdate), progress)
 end
 
 """
@@ -89,12 +87,13 @@ Fetch pairs from exchange.
 - `-q, --qc`: Choose pairs with base currencies matching specified quote.
 
 # Flags
+- `-p, --progress`: Show Progress
 
 """
 @cast function resample(pairs...; from_timeframe::AbstractString="1h",
                         target_timeframe::AbstractString="1d",
                         exchanges::AbstractString="kucoin",
-                        qc::AbstractString="")
+                        qc::AbstractString="", progress::Bool=false)
     @splitexchanges!
 
     @choosepairs

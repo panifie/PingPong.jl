@@ -123,16 +123,20 @@ It accepts:
     - a vector of symbols for which an exchange instance will be instantiated for each element,
       and pairlist will be composed according to quote currency and min_volume from `Backtest.options`.
 """
-function fetch_pairs(excs::Union{Dict{Exchange, Vector{String}}, Vector{Symbol}}, timeframe; kwargs...)
-    exchanges = excs isa Dict ? excs : Dict((exc = Exchange(e); exc => get_pairlist(exc)) for e in excs)
+function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
+    exchanges = eltype(excs) isa Symbol ?
+        [(exc = Exchange(e); exc => get_pairlist(exc; as_vec=true)) for e in excs] :
+        excs
     out_file = joinpath(default_data_path, "out.log")
     err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
-    redirect_stdio(; stdout=out_file, stderr=err_file) do
+    t = redirect_stdio(; stdout=out_file, stderr=err_file) do
         @distributed for (e, pl) in exchanges
             fetch_pairs(e, timeframe, pl; kwargs...)
         end
     end
+    wait_task && wait(t)
+    t
 end
 
 function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
