@@ -1,7 +1,7 @@
 using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: options
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
-using Backtest.Misc: _from_to_dt, PairData, default_data_path
+using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers
 using Backtest.Exchanges: Exchange, get_pairlist
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
@@ -127,7 +127,8 @@ function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
     # err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    # NOTE: The pyuthon classes have to be instatiated inside the worker processes
+    _instantiate_workers("Backtest")
+    # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
         e_pl = s -> (ex = Exchange(s); (ex, get_pairlist(ex; as_vec=true)))
     else

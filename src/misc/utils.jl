@@ -5,6 +5,8 @@ include("types.jl")
 
 using PythonCall.C.CondaPkg: envdir, add_pip
 using Requires
+using Distributed: @everywhere
+using Pkg: project
 
 # NOTE: Make sure conda libs precede system libs
 const py_v = chomp(String(read(`$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
@@ -81,6 +83,19 @@ setopt!(k, v) = setindex!(options, v, k)
 @doc "Print a number."
 function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
     println(format(n; precision, commas, kwargs...), " ", cur)
+end
+
+const workers_setup = Ref(false)
+
+function _instantiate_workers(mod::String, proj_path=project().path)
+    if !workers_setup[]
+        @everywhere begin
+            @eval import Pkg
+            Pkg.activate($proj_path)
+            eval("using $mod")
+        end
+        workers_setup[] = true
+    end
 end
 
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
