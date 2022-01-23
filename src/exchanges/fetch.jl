@@ -116,8 +116,6 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
 end
 
-using Distributed
-
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
 It accepts:
     - a mapping of exchange instances to pairlists.

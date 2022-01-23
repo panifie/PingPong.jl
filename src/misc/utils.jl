@@ -5,7 +5,7 @@ include("types.jl")
 
 using PythonCall.C.CondaPkg: envdir, add_pip
 using Requires
-using Distributed: @everywhere, workers, @spawnat
+using Distributed: @everywhere, workers, addprocs, rmprocs, RemoteChannel
 using Pkg: project
 
 # NOTE: Make sure conda libs precede system libs
@@ -86,18 +86,31 @@ function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
 end
 
 const workers_setup = Ref(false)
+# @everywhere push!(LOAD_PATH, $())
+#
+function _find_module(sym)
+    hasproperty(@__MODULE__, sym) && return getproperty(@__MODULE__, sym)
+    hasproperty(Main, sym) && return getproperty(Main, sym)
+    try return @eval (using $sym; $sym) catch end
+    nothing
+end
 
-function _instantiate_workers(mod, proj_path=dirname(project().path); force=false)
+function _instantiate_workers(mod; force=false, num=4)
     if !workers_setup[] || force
+        length(workers()) > 1 && rmprocs(workers())
+        m = _find_module(mod)
+        pa = pathof(m)
+        exeflags = "--project=$(pkgdir(m))"
+        addprocs(num; exeflags)
         @info "Instantiating $(length(workers())) workers."
         # Instantiate one at a time
         # to avoid possible duplicate parallel instantiations of CondaPkg
-        ev = quote
-            push!(LOAD_PATH, $proj_path)
+        c = RemoteChannel(1)
+        put!(c, true)
+        @eval @everywhere begin
+            take!($c)
             using $mod
-        end
-        for v in workers()
-            fetch(@spawnat v eval(ev))
+            put!($c, true)
         end
         workers_setup[] = true
     end
