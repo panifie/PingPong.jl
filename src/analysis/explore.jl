@@ -13,14 +13,11 @@ function find_bottomed(pairs::AbstractVector{PairData}; bb_thresh=0.05, up_thres
     bottomed
 end
 
-using Plots: plot
-
 function plot_trendlines(pair::AbstractString, timeframe="4h")
     data = load_pair(zi, exc.name, pair, timeframe)
     tsr = TS(convert(Matrix{Float64}, data, data.timestamp, OHLCV_COLUMNS))
     maxi = maxima(tsr)
     mini = minima(tsr)
-    plot(data)
 end
 
 # function plotstuff(d)

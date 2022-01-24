@@ -8,18 +8,21 @@ using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange
 using DataFrames: groupby, combine, Not, select!
 
+function explore!()
+    let mod_dir = dirname(@__FILE__)
+        include(joinpath(mod_dir, "indicators.jl"))
+        include(joinpath(mod_dir, "explore.jl"))
+    end
+end
+
+
 function __init__()
     ## InformationMeasures.jl ...
     @require Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd" begin
-        @require EffectSizes = "e248de7e-9197-5860-972e-353a2af44d75" nothing
-        @require CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7" nothing
-        @require StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91" nothing
-        @require StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d" function explore!()
-            let mod_dir = dirname(@__FILE__)
-                include(joinpath(mod_dir, indicators.jl),
-                    joinpath(mod_dir, "explore.jl"),)
-            end
-        end
+        @require EffectSizes = "e248de7e-9197-5860-972e-353a2af44d75" :()
+        @require CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7" :()
+        @require StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91" :()
+        @require StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d" :()
     end
 end
 
