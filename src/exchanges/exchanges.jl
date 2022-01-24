@@ -177,6 +177,7 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
+get_pairlist(quot::AbstractString, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(exc::Exchange=exc,
              quot::AbstractString=options["quote"],
              min_vol::T where T<: AbstractFloat=options["min_vol"];
