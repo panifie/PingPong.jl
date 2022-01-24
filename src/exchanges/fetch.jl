@@ -116,30 +116,43 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     fetch_pairs(args...; qc=config.qc, zi, kwargs...)
 end
 
+macro parallel(flag, body)
+    b = esc(body)
+    db = esc(:(@distributed $body))
+    quote
+        if $(esc(flag))
+            $db
+        else
+            $b
+        end
+    end
+end
+
+
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
 It accepts:
     - a mapping of exchange instances to pairlists.
     - a vector of symbols for which an exchange instance will be instantiated for each element,
       and pairlist will be composed according to quote currency and min_volume from `Backtest.config`.
 """
-function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
+function fetch_pairs(excs::Vector, timeframe; parallel=false, wait_task=false, kwargs...)
     # out_file = joinpath(default_data_path, "out.log")
     # err_file = joinpath(default_data_path, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    _instantiate_workers(:Backtest; num=length(excs))
+    # parallel && _instantiate_workers(:Backtest; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
         e_pl = s -> (ex = Exchange(s); (ex, get_pairlist(ex; as_vec=true)))
     else
         e_pl = s -> (Exchange(Symbol(lowercase(s[1].name))), s[2])
     end
-    t = @distributed for s in excs
+    t = @parallel parallel for s in excs
         ex, pl = e_pl(s)
         fetch_pairs(ex, timeframe, pl; kwargs...)
     end
     # end
-    wait_task && wait(t)
+    parallel && wait_task && wait(t)
     t
 end
 

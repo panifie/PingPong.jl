@@ -11,7 +11,7 @@ macro choosepairs()
     quote
         if length($pairs) === 0
             if $qc === ""
-                $qc = Backtest.options["quote"]
+                $qc = Backtest.config.qc
                 @info "Using default quote currency $($qc)."
             end
             $pairs = [e => Backtest.Exchanges.get_pairlist(e, $qc; as_vec=true) for e in $ev]
@@ -42,7 +42,7 @@ macro splitexchanges!(keep=false)
 end
 
 """
-Fetch pairs from exchange.
+Fetch pairs from exchanges.
 
 # Arguments
 
@@ -60,10 +60,13 @@ Fetch pairs from exchange.
 
 - `-n, --noupdate`: If set data will be downloaded starting from the last stored timestamp up to now.
 - `-p, --progress`: Show progress.
+- `-m, --multiprocess`: Fetch from multiple exchanges using one process per exchange. (High memory usage)
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchanges::AbstractString="kucoin", from="", to="", noupdate::Bool=false, qc::AbstractString="", progress::Bool=false)
+               exchanges::AbstractString="kucoin", from="", to="",
+                     noupdate::Bool=false, qc::AbstractString="", progress::Bool=false,
+                     multiprocess::Bool=false)
     @debug "Activating python env..."
 
     # NOTE: don't create exchange classes since multiple exchanges uses @distributed
@@ -72,11 +75,12 @@ Fetch pairs from exchange.
 
     @choosepairs
 
-    Backtest.fetch_pairs(pairs, timeframe; wait_task=true, from, to, update=(!noupdate), progress)
+    Backtest.fetch_pairs(pairs, timeframe; wait_task=true, parallel=multiprocess,
+                         from, to, update=(!noupdate), progress)
 end
 
 """
-Fetch pairs from exchange.
+Downsamples ohlcv data from a timeframe to another.
 
 # Arguments
 

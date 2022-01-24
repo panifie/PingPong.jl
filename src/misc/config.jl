@@ -6,7 +6,7 @@ using Base: @kwdef
     qc::String = "USDT"
     margin::Bool = false
     vol_min::Float64 = 10e4
-    slope_min::Flaot64 = 0.
+    slope_min::Float64= 0.
     slope_max::Float64 = 90.
     ct::Dict{Symbol, NamedTuple} = Dict()
     attrs::Dict{Any, Any} = Dict()
