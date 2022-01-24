@@ -1,7 +1,7 @@
 import Indicators; const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
-using Backtest.Misc: options
+using Backtest.Misc: config
 
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN
@@ -243,3 +243,4 @@ function is_lowvol(ohlcv::DataFrame; thresh=0.05, n=3)
 end
 
 include("corr.jl")
+include("slope.jl")

@@ -3,7 +3,7 @@ module Plotting
 using PythonCall: pyimport, pynew, pycopy!
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Backtest.Misc: PairData, infer_tf, tf_win, options, @pymodule
+using Backtest.Misc: PairData, infer_tf, tf_win, config, @pymodule
 using Backtest: Analysis
 
 const pyec = pynew()
@@ -188,7 +188,7 @@ macro plotone(name)
     name_str = uppercase(string(name))
     v = esc(name)
     quote
-        pair = "$($name_str)/$(options["quote"])"
+        pair = "$($name_str)/$(config.qc)"
         $v = $(mrkts)[pair].data
         plotone($v, $name_str)
     end

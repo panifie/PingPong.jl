@@ -17,8 +17,8 @@ using .Plotting
 
 include("repl.jl")
 
-"SNOOP_COMPILER" ∉ keys(ENV) && include("$(@__FILE__)/../../deps/precompiles/precompile_$(@__MODULE__).jl")
+export load_pairs, Exchange, explore!, user!
 
-export load_pairs, Exchange, explore!
+"SNOOP_COMPILER" ∉ keys(ENV) && include("$(@__FILE__)/../../deps/precompiles/precompile_$(@__MODULE__).jl")
 
 end # module

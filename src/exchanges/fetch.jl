@@ -1,5 +1,5 @@
 using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
-using Backtest: options
+using Backtest: config
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers
 using Backtest.Exchanges: Exchange, get_pairlist
@@ -104,7 +104,7 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString; qc, kwargs...)
 end
 
 function fetch_pairs(timeframe::AbstractString; kwargs...)
-    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : options["quote"]
+    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : config.qc
     pairs = get_pairlist(exc, qc) |> keys |> collect
     fetch_pairs(timeframe, pairs; filter(x -> x[1] !== :qc, kwargs)...)
 end
@@ -113,14 +113,14 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
-    fetch_pairs(args...; qc=options["quote"], zi, kwargs...)
+    fetch_pairs(args...; qc=config.qc, zi, kwargs...)
 end
 
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
 It accepts:
     - a mapping of exchange instances to pairlists.
     - a vector of symbols for which an exchange instance will be instantiated for each element,
-      and pairlist will be composed according to quote currency and min_volume from `Backtest.options`.
+      and pairlist will be composed according to quote currency and min_volume from `Backtest.config`.
 """
 function fetch_pairs(excs::Vector, timeframe; wait_task=false, kwargs...)
     # out_file = joinpath(default_data_path, "out.log")

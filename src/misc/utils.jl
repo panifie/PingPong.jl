@@ -24,7 +24,6 @@ function pypath!()
 end
 
 const pynull = pynew()
-const options = Dict{String, Any}()
 const results = Dict{String, Any}()
 
 macro ifundef(name, val, mod=__module__)
@@ -56,28 +55,6 @@ macro pymodule(name, modname=nothing)
         $var_name
     end
 end
-
-function resetoptions!()
-    empty!(options)
-    options["window"] = 7
-    options["timeframe"] = "1d"
-    options["quote"] = "USDT"
-    options["margin"] = false
-    options["min_vol"] = 10e4
-    options["min_slope"] = 0.
-    options["max_slope"] = 90.
-end
-resetoptions!()
-
-macro margin!()
-    :(options["margin"] = !options["margin"])
-end
-
-macro margin!!()
-    :(options["margin"] = true)
-end
-
-setopt!(k, v) = setindex!(options, v, k)
 
 @doc "Print a number."
 function printn(n, cur="USDT"; precision=2, commas=true, kwargs...)
@@ -119,8 +96,9 @@ end
 
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
+include("config.jl")
 include("pbar.jl")
 
-export printn, results, options, resetoptions!, setopt!, @as_td, @pyinit!
+export printn, results, config, resetconfig!, setopt!, @as_td, @pyinit!
 
 end

@@ -15,7 +15,6 @@ function explore!()
     end
 end
 
-
 function __init__()
     ## InformationMeasures.jl ...
     @require Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd" begin
@@ -36,25 +35,6 @@ function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
         end
     end
     sort!(flt; by=x->x[1])
-end
-
-function slopefilter(timeframe="1d"; qc="USDT", minv=10., maxv=90., window=20)
-    exc == pynull && throw("Global exchange variable is not set.")
-    pairs = get_pairlist(exc, qc)
-    pairs = load_pairs(zi, exc, pairs, timeframe)
-    pred = x -> slopeangle(x; window)
-    filter(pred, pairs, minv, maxv)
-end
-
-function slopefilter(pairs::AbstractVector; minv=10., maxv=90., window=20)
-    pred = x -> slopeangle(x; window)
-    filter(pred, pairs, minv, maxv)
-end
-
-function slopeangle(df; window=10)
-    size(df, 1) > window || return false
-    slope = mlr_slope(@view(df.close[end-window:end]); n=window)[end]
-    atan(slope) * (180 / π)
 end
 
 resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
@@ -111,6 +91,6 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
 end
 
 
-export explore!
+export explore!, slopefilter
 
 end

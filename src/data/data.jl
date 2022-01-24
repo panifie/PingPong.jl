@@ -8,7 +8,7 @@ using PythonCall: Py
 using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
-using Backtest.Misc: @as, @as_td, PairData, options, _empty_df, timefloat, dt, Candle
+using Backtest.Misc: @as, @as_td, PairData, config, _empty_df, timefloat, dt, Candle
 using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df, Exchange
 
 function __init__()
@@ -271,9 +271,9 @@ load_pairs(exc::Exchange, pair::AbstractString, timeframe) = load_pairs(zi, exc,
 load_pairs(exc::Exchange, pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(exc::Exchange, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
-load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(options["quote"]; as_vec=true, margin=options["margin"]), timeframe)
+load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(config.qc; as_vec=true, margin=config.margin), timeframe)
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
-load_pairs() = load_pairs(get_pairlist(options["quote"]), options["timeframe"])
+load_pairs() = load_pairs(get_pairlist(config.qc), config.timeframe)
 
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String, PairData}()

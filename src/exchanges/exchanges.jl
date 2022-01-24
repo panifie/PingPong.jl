@@ -51,9 +51,9 @@ macro exchange!(name)
     exc_istr = string(name)
     quote
         exc_sym = Symbol($exc_istr)
-        $exc_var = (exc.isset[] && lowercase(exc.name) === $exc_str) ?
+        $exc_var = (exc.isset && lowercase(exc.name) === $exc_str) ?
             exc : (hasproperty($(__module__), exc_sym) ?
-            getproperty($(__module__), exc_sym) : pyexchange(exc_sym))
+            getproperty($(__module__), exc_sym) : Exchange(exc_sym))
     end
 end
 
@@ -179,8 +179,8 @@ end
 
 get_pairlist(quot::AbstractString, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(exc::Exchange=exc,
-             quot::AbstractString=options["quote"],
-             min_vol::T where T<: AbstractFloat=options["min_vol"];
+             quot::AbstractString=config.qc,
+             min_vol::T where T<: AbstractFloat=config.vol_min;
              kwargs...) = get_pairlist(exc,
                                        convert(String, quot),
                                        convert(Float64, min_vol);
@@ -223,42 +223,11 @@ function exckeys!(exc, key, secret, pass)
     nothing
 end
 
-function kucoin_keys()
-    cfg = Dict()
-    open(joinpath(ENV["HOME"], "dev", "Backtest.jl", "cfg", "kucoin.json")) do f
-        cfg = JSON.parse(f)
-    end
-        key = cfg["apiKey"]
-    secret = cfg["secret"]
-    password = cfg["password"]
-    Dict("key" => key, "secret" => secret, "pass" => password)
-end
-
-function poloniex_update(;timeframe="15m", quot="USDT", min_vol=10e4)
-    @exchange! poloniex
-    fetch_pairs(poloniex, timeframe; qc=quot, zi, update=true)
-    prl = get_pairlist(poloniex, quot, min_vol)
-    load_pairs(zi, exc, prl, timeframe)
-end
-
-macro excfilter(exc_name)
-    bt = @__MODULE__
-    quote
-        local trg
-        @info "timeframe: $(options["timeframe"]), window: $(options["window"]), quote: $(options["quote"]), min_vol: $(options["min_vol"])"
-	    @exchange! $exc_name
-        data = (get_pairlist(options["quote"]) |> (x -> load_pairs(zi, $exc_name, x, options["timeframe"])))
-        flt = $bt.filter(x -> $(bt).slopeangle(x; window=options["window"]), data, options["min_slope"], options["max_slope"])
-        trg = [p[2].name for p in flt]
-        results[lowercase($(exc_name).name)] = (;trg, flt, data)
-        trg
-    end
-end
 
 function fetch!()
     @eval include(joinpath(dirname(@__FILE__), "fetch.jl"))
 end
 
-export exc, @excfilter, exchange!, setexchange!, exckeys!
+export exc, @excfilter, @exchange!, setexchange!, exckeys!
 
 end
