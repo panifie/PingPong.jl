@@ -18,7 +18,7 @@ macro choosepairs()
         else
             $qc !== "" && @warn "Ignoring quote: " * $qc " since pairs were supplied."
             pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
-            $pairs = Dict(e => pl for e in $ev)
+            $pairs = [e => pl for e in $ev]
         end
     end
 end
