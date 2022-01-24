@@ -16,7 +16,7 @@ macro choosepairs()
             end
             $pairs = [e => Backtest.Exchanges.get_pairlist(e, $qc; as_vec=true) for e in $ev]
         else
-            $qc !== "" && @warn "Ignoring quote: $qc since pairs were supplied."
+            $qc !== "" && @warn "Ignoring quote: " * $qc " since pairs were supplied."
             pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
             $pairs = Dict(e => pl for e in $ev)
         end
@@ -75,7 +75,7 @@ Fetch pairs from exchanges.
 
     @choosepairs
 
-    Backtest.fetch_pairs(pairs, timeframe; wait_task=true, parallel=multiprocess,
+    Backtest.fetch_pairs(pairs, timeframe; parallel=multiprocess, wait_task=true,
                          from, to, update=(!noupdate), progress)
 end
 
