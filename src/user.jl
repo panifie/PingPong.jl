@@ -18,20 +18,59 @@ function poloniex_update(;timeframe="15m", quot="USDT", min_vol=10e4)
     load_pairs(zi, exc, prl, timeframe)
 end
 
+@doc "Given a price, output price at given ratios."
+function price_ranges(price::Number; ranges=(0.9, 0.95, 0.975, 1.2))
+    (price, -price * ranges[1], -price * ranges[2], -price * ranges[3], price * ranges[4])
+end
+
+function price_ranges(mrkts::AbstractDict; kwargs...)
+    r = []
+    for p in values(mrkts)
+        push!(r, (p.name, price_ranges(p.data.close[end]; kwargs...)))
+    end
+    r
+end
+
+function price_ranges(pass::AbstractVector, mrkts::AbstractDict; kwargs...)
+    r = []
+    for (name, _) in pass
+        push!(r, (name, price_ranges(mrkts[name].data.close[end]; kwargs...)))
+    end
+    r
+end
+
+function price_ranges(pair::AbstractString)
+    tkrs = Backtest.Exchanges.@tickers true
+    price_ranges(tkrs[pair]["last"])
+end
+# functinopranges(pair)
+#     mrkts = esc(:mrkts)
+#     tkrs = esc(:tickers)
+#     quote
+#         Backtest.Exchanges.@tickers true
+#         price_ranges($tkrs[$pair]["last"])
+#     end
+# end
+
+
 macro excfilter(exc_name)
-    @eval using Backtest.Analysis
+    @eval begin
+        using Backtest.Analysis
+        explore!()
+    end
     bt = Backtest
     quote
         local trg
         @info "timeframe: $(config.timeframe), window: $(config.window), quote: $(config.qc), min_vol: $(config.vol_min)"
 	    @exchange! $exc_name
+        pred = x -> $bt.Analysis.slopeangle(x; window=config.window)
         data = ($bt.Exchanges.get_pairlist($exc_name, config.qc) |> (x -> $bt.load_pairs($bt.Data.zi, $exc_name, x, config.timeframe)))
-        flt = $bt.filter(x -> $bt.Analysis.slopeangle(x; window=config.window), data, config.slope_min, config.slope_max)
-        trg = [p[2].name for p in flt]
+        flt = $bt.filter(pred, data, config.slope_min, config.slope_max)
+        trg = DataFrame([(p[2].name, p[1], price_ranges(p[2].close[end])) for p in flt])
         results[lowercase($(exc_name).name)] = (;trg, flt, data)
         $(esc(:res)) = results[lowercase($(exc_name).name)]
         trg
     end
 end
 
-export @excfilter
+export @excfilter, price_ranges, @pranges
