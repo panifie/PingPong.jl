@@ -5,7 +5,7 @@ import Base.filter
 using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
-using Backtest.Exchanges: Exchange
+using Backtest.Exchanges: Exchange, exc
 using DataFrames: groupby, combine, Not, select!
 using Logging: NullLogger, with_logger
 

@@ -130,14 +130,15 @@ macro as_df(v)
     end
 end
 
-macro tickers()
+@doc "Fetch and cache tickers data."
+macro tickers(force)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
         begin
             local $tickers
             let nm = $exc.name
-                if nm ∉ keys(tickers_cache)
+                if $force || nm ∉ keys(tickers_cache)
                     @assert Bool($(exc).has["fetchTickers"]) "Exchange doesn't provide tickers list."
                     tickers_cache[nm] = $tickers = pyconvert(Dict{String, Dict{String, Any}}, $(exc).fetchTickers())
                 else
