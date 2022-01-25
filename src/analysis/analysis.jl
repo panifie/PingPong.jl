@@ -7,12 +7,24 @@ using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange
 using DataFrames: groupby, combine, Not, select!
+using Logging: NullLogger, with_logger
+
+macro evalmod(files...)
+    quote
+        with_logger(NullLogger()) do
+            for f in $files
+                eval(:(include(joinpath(@__DIR__, $f))))
+            end
+        end
+    end
+end
 
 function explore!()
-    let mod_dir = dirname(@__FILE__)
-        include(joinpath(mod_dir, "indicators.jl"))
-        include(joinpath(mod_dir, "explore.jl"))
-    end
+    @evalmod "indicators.jl" "explore.jl"
+end
+
+function mvp!()
+    @evalmod "mvp.jl"
 end
 
 function __init__()
@@ -28,7 +40,7 @@ end
 @doc "Filters a list of pairs using a predicate function. The predicate functions must return a `Real` number which will be used for sorting."
 function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
     flt = Tuple{AbstractFloat, PairData}[]
-    for (name, p) in pairs
+    for (_, p) in pairs
         v = pred(p.data)
         if max_v > v > min_v
             push!(flt, (v, p))
@@ -36,6 +48,13 @@ function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
     end
     sort!(flt; by=x->x[1])
 end
+
+@doc "Return the summary of a filtered vector of pairdata."
+function fltsummary(flt::AbstractVector{Tuple{AbstractFloat, PairData}})
+    [(x[1], x[2].name) for x in flt]
+end
+
+fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 
 resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 
@@ -91,6 +110,6 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
 end
 
 
-export explore!, slopefilter
+export explore!, mvp!, slopefilter, filter, fltsummary
 
 end
