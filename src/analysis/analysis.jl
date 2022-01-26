@@ -27,6 +27,10 @@ function mvp!()
     @evalmod "mvp.jl"
 end
 
+function violations!()
+    @evalmod "violations.jl"
+end
+
 function __init__()
     ## InformationMeasures.jl ...
     @require Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd" begin
@@ -110,6 +114,6 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
 end
 
 
-export explore!, mvp!, slopefilter, filter, fltsummary
+export explore!, mvp!, violations!, slopefilter, filter, fltsummary, @evalmod
 
 end
