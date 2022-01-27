@@ -104,6 +104,8 @@ end
 fullret(df::AbstractDataFrame; gain=0.1) = fullret(df.open, df.high, df.close; gain)
 
 function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1)
+    @debug @assert size(df, 1) > window2
+
     dfv = @view df[end-window:end, :]
     dfv2 = @view df[end-window2:end, :]
     # Low In High Out
@@ -116,12 +118,15 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
     (;lowhigh, llows, down, b20, b50, retrace)
 end
 
-function violations(mrkts::AbstractDict; kwargs...)
-    [(pair=p.name, violations(p.data; kwargs...)...) for (_, p) in mrkts] |>
+function violations(mrkts::AbstractDict; window=20, window2=50, kwargs...)
+    maxw = max(window, window2)
+    [(pair=p.name, violations(p.data; kwargs...)...) for (_, p) in mrkts if size(p.data, 1) > maxw] |>
         DataFrame
 end
 
 # NOTE: "Good closes and bad closes" is not considered as a metric. It requires assessing
 # if the last candles of a window moved too sharply in one direction or the other
+
+export violations
 
 end
