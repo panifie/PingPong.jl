@@ -17,7 +17,7 @@ function fthrough(high, low, close; br = mustd, min_follow::Int = 1)
     # use high for finding breakouts
     br_lvl = br(high, low, close)
     br_idx = last_breakout(high, br_lvl)
-    if iszero(br_idx)
+    if iszero(br_idx) || br_idx === lastindex(high)
         nothing
     else
         @assert min_follow >= 1 "Follow through candles have to be at least 1."
