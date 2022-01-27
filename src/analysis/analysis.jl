@@ -27,8 +27,9 @@ function mvp!()
     @evalmod "mvp.jl"
 end
 
-function violations!()
+function pairtraits!()
     @evalmod "violations.jl"
+    @evalmod "considerations.jl"
 end
 
 function __init__()
@@ -114,6 +115,6 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
 end
 
 
-export explore!, mvp!, violations!, slopefilter, filter, fltsummary, @evalmod
+export explore!, mvp!, pairtraits!, slopefilter, filter, fltsummary, @evalmod
 
 end

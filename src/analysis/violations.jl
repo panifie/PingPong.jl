@@ -6,8 +6,10 @@ using DataFrames: DataFrame, AbstractDataFrame, index
 using DataFramesMeta
 using Backtest.Misc: PairData
 
-@doc """ Breakout level. Mean plus std. """
-mustd(high, _, _) = std(high) + mean(high)
+@doc """Breakout level. Mean with std."""
+function mustd(price::AbstractVector, args...; op=+)
+    op(std(price), mean(price))
+end
 
 @views function highout(volume, idx, rt)
     # breakout absolute index is idx
@@ -142,7 +144,6 @@ isnorz(syms...) = all(_isnorz(s) for s in syms)
 
 function noviolations(args...; kwargs...)
     v = violations(args...; kwargs...)
-    f = []
     @rsubset! v begin
         isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
     end
