@@ -2,7 +2,8 @@
 module Violations
 
 using Statistics: std, mean
-using DataFrames: DataFrame, AbstractDataFrame
+using DataFrames: DataFrame, AbstractDataFrame, index
+using DataFramesMeta
 using Backtest.Misc: PairData
 
 @doc """ Breakout level. Mean plus std. """
@@ -119,9 +120,32 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
 end
 
 function violations(mrkts::AbstractDict; window=20, window2=50, kwargs...)
-    maxw = max(window, window2)
+    valtype(mrkts) <: PairData && return _violations_pd(mrkts; window, window2, kwargs...)
+    valtype(mrkts) <: AbstractDataFrame && return _violations_df(mrkts; window, window2, kwargs...)
+    Dict()
+end
+
+function _violations_pd(mrkts::AbstractDict{String, PairData}; kwargs...)
+    maxw = max(kwargs[:window], kwargs[:window2])
     [(pair=p.name, violations(p.data; kwargs...)...) for (_, p) in mrkts if size(p.data, 1) > maxw] |>
         DataFrame
+end
+
+function _violations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
+    maxw = max(kwargs[:window], kwargs[:window2])
+    [(pair=k, violations(p; kwargs...)...) for (k, p) in mrkts if size(p, 1) > maxw] |>
+        DataFrame
+end
+
+_isnorz(sym) = isnothing(sym) || iszero(sym)
+isnorz(syms...) = all(_isnorz(s) for s in syms)
+
+function noviolations(args...; kwargs...)
+    v = violations(args...; kwargs...)
+    f = []
+    @rsubset! v begin
+        isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
+    end
 end
 
 # NOTE: "Good closes and bad closes" is not considered as a metric. It requires assessing

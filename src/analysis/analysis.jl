@@ -6,7 +6,7 @@ using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange, exc
-using DataFrames: groupby, combine, Not, select!
+using DataFrames: DataFrame, groupby, combine, Not, select!
 using Logging: NullLogger, with_logger
 
 macro evalmod(files...)
@@ -103,7 +103,7 @@ end
 resample(mrkts::AbstractDict{String, PairData}, timeframe; kwargs...) = resample(exc, mrkts, timeframe; kwargs...)
 
 function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timeframe; save=true, progress=true)
-    rs = Dict()
+    rs = Dict{String, DataFrame}()
     progress && @pbar! "Pairs" false
     for (name, pair_data) in mrkts
         rs[name] = resample(exc, pair_data, timeframe; save)
