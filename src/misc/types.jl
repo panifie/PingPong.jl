@@ -64,13 +64,17 @@ end
 _from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
 
-    from = something(tryparse(Int, from), tryparse(DateTime, from), from)
-    typeof(from) <: Int && begin
-        from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
+    if from !== ""
+        from = something(tryparse(Int, from), tryparse(DateTime, from), from)
+        typeof(from) <: Int && begin
+            from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
+        end
     end
-    to = something(tryparse(Int, to), tryparse(DateTime, to), to)
-    typeof(to) <: Int && begin
-        to = to === 0 ? now() : now() - (abs(to) * prd)
+    if to !== ""
+        to = something(tryparse(Int, to), tryparse(DateTime, to), to)
+        typeof(to) <: Int && begin
+            to = to === 0 ? now() : now() - (abs(to) * prd)
+        end
     end
     from, to
 end
