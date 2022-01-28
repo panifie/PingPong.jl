@@ -138,7 +138,8 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
     retrace = fullret(df; gain)
 
     vars = (;lowhigh, llows, down, b20, b50, retrace)
-    (; vars..., score=_score_sum(vars; weights))
+    # NOTE: negate the score since violations are bad...
+    (; vars..., score=-_score_sum(vars; weights))
 end
 
 function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwargs...)

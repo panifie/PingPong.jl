@@ -1,6 +1,8 @@
 @doc "User functions."
 
 using DataFrames
+using DataFramesMeta
+using Backtest.Misc: @margin!, @lev!
 
 function kucoin_keys()
     cfg = Dict()
@@ -77,4 +79,18 @@ macro excfilter(exc_name)
     end
 end
 
-export @excfilter, price_ranges, @pranges
+function vcons(args...; cargs=(), vargs=(), c_num=5)
+    @eval !(isdefined(Main, :an)) && begin
+        using Backtest.Analysis;
+        an = Analysis
+        an.@pairtraits!
+    end
+    c = an.Considerations.considerations(args...; cargs...)
+    v = an.Violations.violations(args...; vargs...)
+    sk = length(args) > 1 ? :score_sum : :score
+    v[!, sk] += @view(c[:, sk])
+    sort!(v, sk)
+    v
+end
+
+export @excfilter, price_ranges, @pranges, vcons

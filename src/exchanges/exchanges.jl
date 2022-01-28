@@ -187,7 +187,8 @@ get_pairlist(exc::Exchange=exc,
                                        convert(Float64, min_vol);
                                        kwargs...)
 
-function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=true, margin=false, as_vec=false)::Union{Dict, Vector}
+function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=true, margin=config.margin,
+                      noleveraged=!config.leverage, as_vec=false)::Union{Dict, Vector}
     @tickers
     pairlist = []
 
@@ -197,7 +198,7 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=t
         (p, k, v) -> v["quoteId"] === quot && push!(p, tup_fun(k, v))
 
     for (k, v) in exc.markets
-        if is_leveraged_pair(k) ||
+        if (noleveraged && is_leveraged_pair(k)) ||
             (k ∈ keys(tickers) && tickers[k]["quoteVolume"] <= min_vol) ||
             (skip_fiat && is_fiat_pair(k)) ||
             (margin && "margin" ∈ v && !Bool(v["margin"]))

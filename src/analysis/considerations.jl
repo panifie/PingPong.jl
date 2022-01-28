@@ -65,7 +65,7 @@ istennisball(df::AbstractDataFrame; kwargs...) = istennisball(df.low; kwargs...)
 cweights = (
     ft = 0.2,
     up = 0.1,
-    bvol = 0.3
+    bvol = 0.3,
     tball = 0.4
 )
 
