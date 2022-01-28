@@ -17,9 +17,8 @@ const config = Config()
 
 function resetconfig!()
     default = Config()
-    for (k, v) in zip(fieldnames(Config),
-                      values(default))
-        setproperty!(config, k, v)
+    for k in fieldnames(Config)
+        setproperty!(config, k, getproperty(default, k))
     end
 end
 

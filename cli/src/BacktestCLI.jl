@@ -7,6 +7,7 @@ using Base.Iterators: flatten
 macro choosepairs()
     pairs = esc(:pairs)
     qc = esc(:qc)
+    vol = esc(:vol)
     ev = esc(:exchanges_vec)
     quote
         if length($pairs) === 0
@@ -14,7 +15,7 @@ macro choosepairs()
                 $qc = Backtest.config.qc
                 @info "Using default quote currency $($qc)."
             end
-            $pairs = [e => Backtest.Exchanges.get_pairlist(e, $qc; as_vec=true) for e in $ev]
+            $pairs = [e => Backtest.Exchanges.get_pairlist(e, $qc, $vol; as_vec=true) for e in $ev]
         else
             $qc !== "" && @warn "Ignoring quote: " * $qc " since pairs were supplied."
             pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
@@ -52,7 +53,8 @@ Fetch pairs from exchanges.
 
 - `-e, --exchanges`: Exchange name, e.g. 'Binance'.
 - `-t, --timeframe`: Target timeframe, e.g. '1h'.
-- `-q, --qc`: Choose pairs with base currencies matching specified quote..
+- `-q, --qc`: Choose pairs with base currencies matching specified quote.
+- `-v, --vol`: Minimum volume for pairs.
 - `--from`: Start downloading from this date (string) or last X candles (Integer).
 - `--to`: Download up to this date or relative candle.
 
@@ -64,7 +66,7 @@ Fetch pairs from exchanges.
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchanges::AbstractString="kucoin", from="", to="",
+               exchanges::AbstractString="kucoin", from="", to="", vol::Float64=1e4,
                      noupdate::Bool=false, qc::AbstractString="", progress::Bool=false,
                      multiprocess::Bool=false)
     @debug "Activating python env..."
@@ -103,6 +105,7 @@ Downsamples ohlcv data from a timeframe to another.
                         qc::AbstractString="", progress::Bool=false)
     @splitexchanges!
 
+    vol = Backtest.config.vol_min
     @choosepairs
 
     for (exc, prs) in pairs
