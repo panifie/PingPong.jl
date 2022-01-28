@@ -2,7 +2,8 @@
 module Considerations
 
 using Backtest.Analysis.Violations: mustd, isdcandles, PairData, AbstractDataFrame, DataFrame, std, mean, _score_sum
-using Backtest.Analysis: resample
+using Backtest.Analysis: @pairtraits!
+using Backtest.Analysis: maptf
 using DataFramesMeta
 
 function last_breakout(price, br_lvl; op = >)
@@ -49,6 +50,7 @@ isbuyvol(df::AbstractDataFrame; kwargs...) = isbuyvol(df.open, df.close, df.volu
 `snapack`: The number of candles to consider for snapback action. """
 function istennisball(low; snapback = 3, br = x -> mustd(x; op = -))
     low_br_lvl = br(low)
+    # low_br_lvl = Main.an.Violations.mustd(low; op=-)
     br_idx = last_breakout(low, low_br_lvl; op = <)
     if iszero(br_idx)
         nothing
@@ -108,17 +110,7 @@ function _considerations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
 end
 
 @doc "Evaluate traits on multiple timeframes."
-function considerations(mrkts, tfs::Vector{String}; kwargs...)
-    cons = []
-    for tf in tfs
-        data = resample(mrkts, tf; save=false, progress=false)
-        c = considerations(data; kwargs...)
-        c[!, :timeframe] .= tf
-        push!(cons, c)
-    end
-    df = vcat(cons...)
-    sort!(df, :pair)
-end
+considerations(mrkts, tfs::Vector{String}; kwargs...) = maptf(tfs, mrkts, considerations; kwargs...)
 
 export considerations
 

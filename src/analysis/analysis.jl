@@ -6,7 +6,7 @@ using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange, exc
-using DataFrames: DataFrame, groupby, combine, Not, select!
+using DataFrames: DataFrame, groupby, combine, Not, select!, index
 using Logging: NullLogger, with_logger
 
 macro evalmod(files...)
@@ -116,7 +116,25 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
     rs
 end
 
+@doc "Apply a function over data, resampling data to each timeframe in `tfs`.
+`f`: signature is (data; kwargs...)::DataFrame"
+function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; kwargs...)
+    res = []
+    for tf in tfs
+        data_r = resample(data, tf; save=false, progress=false)
+        d = f(data_r; kwargs...)
+        d[!, :timeframe] .= tf
+        push!(res, d)
+    end
+    df = vcat(res...)
+    if :pair ∈ index(df).names
+        g = groupby(df, :pair)
+        df = combine(g, :score => sum)
+        sort!(df, :score_sum)
+    end
+    df
+end
 
-export explore!, mvp!, pairtraits!, slopefilter, filter, fltsummary, @evalmod
+export explore!, slopefilter, filter, fltsummary, @evalmod, @pairtraits!
 
 end

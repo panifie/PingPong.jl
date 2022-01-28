@@ -5,10 +5,11 @@ using Statistics: std, mean
 using DataFrames: DataFrame, AbstractDataFrame, index
 using DataFramesMeta
 using Backtest.Misc: PairData
+using Backtest.Analysis: maptf
 
 @doc """Breakout level. Mean with std."""
 function mustd(price::AbstractVector, args...; op=+)
-    op(std(price), mean(price))
+    op(mean(price), std(price))
 end
 
 @views function highout(volume, idx, rt)
@@ -158,6 +159,8 @@ function _violations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
     [(pair=k, violations(p; kwargs...)...) for (k, p) in mrkts if size(p, 1) > maxw] |>
         DataFrame
 end
+
+violations(mrkts, tfs::Vector{String}; kwargs...) = maptf(tfs, mrkts, violations; kwargs...)
 
 _isnorz(sym) = isnothing(sym) || iszero(sym)
 isnorz(syms...) = all(_isnorz(s) for s in syms)
