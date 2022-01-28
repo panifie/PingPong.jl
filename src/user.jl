@@ -1,5 +1,7 @@
 @doc "User functions."
 
+using DataFrames
+
 function kucoin_keys()
     cfg = Dict()
     open(joinpath(ENV["HOME"], "dev", "Backtest.jl", "cfg", "kucoin.json")) do f
@@ -19,8 +21,10 @@ function poloniex_update(;timeframe="15m", quot="USDT", min_vol=10e4)
 end
 
 @doc "Given a price, output price at given ratios."
-function price_ranges(price::Number; ranges=(0.9, 0.95, 0.975, 1.2))
-    (price, -price * ranges[1], -price * ranges[2], -price * ranges[3], price * ranges[4])
+function price_ranges(price::Number; ranges=(0.8, 0.9, 0.95, 0.975, 1.025, 1.05, 1.1, 1.2))
+    DataFrame(Dict(:price => price,
+                   [Symbol(r) => price * r for r in ranges]...))
+    # (price, -price * ranges[1], -price * ranges[2], -price * ranges[3], price * ranges[4])
 end
 
 function price_ranges(mrkts::AbstractDict; kwargs...)
