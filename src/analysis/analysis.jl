@@ -23,13 +23,15 @@ function explore!()
     @evalmod "indicators.jl" "explore.jl"
 end
 
-function mvp!()
-    @evalmod "mvp.jl"
-end
-
-function pairtraits!()
-    @evalmod "violations.jl"
-    @evalmod "considerations.jl"
+macro pairtraits!()
+    m = @__MODULE__
+    quote
+        @show $(m)
+        @evalmod "mvp.jl"
+        @evalmod "violations.jl"
+        @evalmod "considerations.jl"
+        @eval using Backtest.Analysis.MVP, Backtest.Analysis.Violations, Backtest.Analysis.Considerations
+    end
 end
 
 function __init__()

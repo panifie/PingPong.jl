@@ -106,6 +106,14 @@ function fullret(open, high, close; gain=0.1)::Union{Nothing, Bool}
 end
 fullret(df::AbstractDataFrame; gain=0.1) = fullret(df.open, df.high, df.close; gain)
 
+function _score_sum(args...)
+    s = 0
+    for a in args
+        s += something(a, 0)
+    end
+    s
+end
+
 function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1)
     @debug @assert size(df, 1) > window2
 
@@ -118,13 +126,25 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
     b20 = isbelow20(dfv)
     b50 = isbelow50(dfv2)
     retrace = fullret(df; gain)
-    (;lowhigh, llows, down, b20, b50, retrace)
+    (;lowhigh, llows, down, b20, b50, retrace, score=_score_sum(lowhigh, llows, down, b20, b50, retrace))
 end
 
-function violations(mrkts::AbstractDict; window=20, window2=50, kwargs...)
-    valtype(mrkts) <: PairData && return _violations_pd(mrkts; window, window2, kwargs...)
-    valtype(mrkts) <: AbstractDataFrame && return _violations_df(mrkts; window, window2, kwargs...)
-    Dict()
+function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwargs...)
+    local df
+    if valtype(mrkts) <: PairData
+        df = _violations_pd(mrkts; window, window2, kwargs...)
+    elseif valtype(mrkts) <: AbstractDataFrame
+        df = _violations_df(mrkts; window, window2, kwargs...)
+    else
+        df = DataFrame()
+    end
+    if rev
+        @rsubset! df begin
+            isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
+        end
+    end
+    sort!(df, :score)
+    df
 end
 
 function _violations_pd(mrkts::AbstractDict{String, PairData}; kwargs...)
@@ -141,13 +161,6 @@ end
 
 _isnorz(sym) = isnothing(sym) || iszero(sym)
 isnorz(syms...) = all(_isnorz(s) for s in syms)
-
-function noviolations(args...; kwargs...)
-    v = violations(args...; kwargs...)
-    @rsubset! v begin
-        isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
-    end
-end
 
 # NOTE: "Good closes and bad closes" is not considered as a metric. It requires assessing
 # if the last candles of a window moved too sharply in one direction or the other

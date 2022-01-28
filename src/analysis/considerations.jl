@@ -1,7 +1,8 @@
 @doc "Predicates that signal increased chances of success (The opposite of violations)."
 module Considerations
 
-using Backtest.Analysis.Violations: mustd, isdcandles, PairData, AbstractDataFrame, DataFrame, std, mean
+using Backtest.Analysis.Violations: mustd, isdcandles, PairData, AbstractDataFrame, DataFrame, std, mean, _score_sum
+using Backtest.Analysis: resample
 using DataFramesMeta
 
 function last_breakout(price, br_lvl; op = >)
@@ -59,6 +60,7 @@ end
 
 istennisball(df::AbstractDataFrame; kwargs...) = istennisball(df.low; kwargs...)
 
+@doc "Evaluate trais for a single pair."
 function considerations(df::AbstractDataFrame; window=20, window2=50, min_follow::Int=1, vol_thresh=0.1, snapback=3)
     @debug @assert size(df, 1) > window2
 
@@ -70,13 +72,27 @@ function considerations(df::AbstractDataFrame; window=20, window2=50, min_follow
     bvol = isbuyvol(dfv2; threshold=vol_thresh)
     tball = istennisball(dfv; snapback)
 
-    (;ft, up, bvol, tball)
+    (;ft, up, bvol, tball, score=_score_sum(ft, up, bvol, tball))
 end
 
-function considerations(mrkts::AbstractDict; window=20, window2=50, kwargs...)
-    valtype(mrkts) <: PairData && return _considerations_pd(mrkts; window, window2, kwargs...)
-    valtype(mrkts) <: AbstractDataFrame && return _considerations_df(mrkts; window, window2, kwargs...)
-    Dict()
+_trueish(syms...) = all(isnothing(sym) || sym for sym in syms)
+
+@doc "Evaluate traits for a collection of pairs."
+function considerations(mrkts::AbstractDict; all=false, window=20, window2=50, kwargs...)
+    local df
+    kargs = (;window, window2, kwargs...)
+    if valtype(mrkts) <: PairData
+        df = _considerations_pd(mrkts; kargs...)
+    elseif valtype(mrkts) <: AbstractDataFrame
+        df = _considerations_df(mrkts; kargs...)
+    else
+        df = DataFrame()
+    end
+    all && @rsubset! df begin
+        _trueish(:ft, :up, :bvol, :tball)
+    end
+    sort!(df, :score)
+    df
 end
 
 function _considerations_pd(mrkts::AbstractDict{String, PairData}; kwargs...)
@@ -91,15 +107,19 @@ function _considerations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
         DataFrame
 end
 
-_trueish(syms...) = all(isnothing(sym) || sym for sym in syms)
-
-function allcons(mrkts; kwargs...)
-    cons = considerations(mrkts; kwargs...)
-    @rsubset! cons begin
-        _trueish(:ft, :up, :bvol, :tball)
+@doc "Evaluate traits on multiple timeframes."
+function considerations(mrkts, tfs::Vector{String}; kwargs...)
+    cons = []
+    for tf in tfs
+        data = resample(mrkts, tf; save=false, progress=false)
+        c = considerations(data; kwargs...)
+        c[!, :timeframe] .= tf
+        push!(cons, c)
     end
+    df = vcat(cons...)
+    sort!(df, :pair)
 end
 
-export considerations, allcons
+export considerations
 
 end
