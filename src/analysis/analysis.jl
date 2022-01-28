@@ -24,9 +24,7 @@ function explore!()
 end
 
 macro pairtraits!()
-    m = @__MODULE__
     quote
-        @show $(m)
         @evalmod "mvp.jl"
         @evalmod "violations.jl"
         @evalmod "considerations.jl"
