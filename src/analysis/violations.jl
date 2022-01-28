@@ -133,28 +133,17 @@ end
 function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwargs...)
     local df
     if valtype(mrkts) <: PairData
-        df = _violations_pd(mrkts; window, window2, kwargs...)
-    elseif valtype(mrkts) <: AbstractDataFrame
-        df = _violations_df(mrkts; window, window2, kwargs...)
-    else
-        df = DataFrame()
+        mrkts = Dict(p.name => p.data for p in values(mrkts))
     end
-    if rev
-        @rsubset! df begin
-            isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
-        end
+    df = _violations(mrkts; kargs...)
+    rev && @rsubset! df begin
+        isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
     end
     sort!(df, :score)
     df
 end
 
-function _violations_pd(mrkts::AbstractDict{String, PairData}; kwargs...)
-    maxw = max(kwargs[:window], kwargs[:window2])
-    [(pair=p.name, violations(p.data; kwargs...)...) for (_, p) in mrkts if size(p.data, 1) > maxw] |>
-        DataFrame
-end
-
-function _violations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
+function _violations(mrkts::AbstractDict{String, DataFrame}; kwargs...)
     maxw = max(kwargs[:window], kwargs[:window2])
     [(pair=k, violations(p; kwargs...)...) for (k, p) in mrkts if size(p, 1) > maxw] |>
         DataFrame

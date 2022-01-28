@@ -56,7 +56,7 @@ function istennisball(low; snapback = 3, br = x -> mustd(x; op = -))
         nothing
     else
         @assert snapback >= 1 "Snapback candles have to be at least 1."
-        low[br_idx+snapback] > low_br_lvl
+        low[min(lastindex(low), br_idx+snapback)] > low_br_lvl
     end
 end
 
@@ -84,29 +84,21 @@ function considerations(mrkts::AbstractDict; all=false, window=20, window2=50, k
     local df
     kargs = (;window, window2, kwargs...)
     if valtype(mrkts) <: PairData
-        df = _considerations_pd(mrkts; kargs...)
-    elseif valtype(mrkts) <: AbstractDataFrame
-        df = _considerations_df(mrkts; kargs...)
-    else
-        df = DataFrame()
+        mrkts = Dict(p.name => p.data for p in values(mrkts))
     end
+    df = _considerations(mrkts; kargs...)
     all && @rsubset! df begin
         _trueish(:ft, :up, :bvol, :tball)
     end
     sort!(df, :score)
-    df
 end
 
-function _considerations_pd(mrkts::AbstractDict{String, PairData}; kwargs...)
+function _considerations(mrkts::AbstractDict{String, DataFrame}; kwargs...)
     maxw = max(kwargs[:window], kwargs[:window2])
-    [(pair=p.name, considerations(p.data; kwargs...)...) for (_, p) in mrkts if size(p.data, 1) > maxw] |>
-        DataFrame
-end
-
-function _considerations_df(mrkts::AbstractDict{String, DataFrame}; kwargs...)
-    maxw = max(kwargs[:window], kwargs[:window2])
-    [(pair=k, considerations(p; kwargs...)...) for (k, p) in mrkts if size(p, 1) > maxw] |>
-        DataFrame
+    [(pair=k, considerations(p; kwargs...)...)
+     for (k, p) in mrkts
+         if size(p, 1) > maxw] |>
+             DataFrame
 end
 
 @doc "Evaluate traits on multiple timeframes."
