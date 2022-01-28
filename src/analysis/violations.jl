@@ -107,15 +107,24 @@ function fullret(open, high, close; gain=0.1)::Union{Nothing, Bool}
 end
 fullret(df::AbstractDataFrame; gain=0.1) = fullret(df.open, df.high, df.close; gain)
 
-function _score_sum(args...)
+function _score_sum(nmtup; weights)
     s = 0
-    for a in args
-        s += something(a, 0)
+    for (k, v) in zip(keys(nmtup), nmtup)
+        s += something(v, 0) * weights[k]
     end
     s
 end
 
-function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1)
+const vweights =  (
+    lowhigh = 0.2,
+    llows = 0.3,
+    down = 0.05,
+    b20 = 0.15,
+    b50 = 0.25,
+    retrace = 0.05
+)
+
+function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1, weights=vweights)
     @debug @assert size(df, 1) > window2
 
     dfv = @view df[end-window:end, :]
@@ -127,11 +136,14 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
     b20 = isbelow20(dfv)
     b50 = isbelow50(dfv2)
     retrace = fullret(df; gain)
-    (;lowhigh, llows, down, b20, b50, retrace, score=_score_sum(lowhigh, llows, down, b20, b50, retrace))
+
+    vars = (;lowhigh, llows, down, b20, b50, retrace)
+    (; vars..., score=_score_sum(vars; weights))
 end
 
 function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwargs...)
     local df
+    kargs = (;window, window2, kwargs...)
     if valtype(mrkts) <: PairData
         mrkts = Dict(p.name => p.data for p in values(mrkts))
     end

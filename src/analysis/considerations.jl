@@ -62,8 +62,16 @@ end
 
 istennisball(df::AbstractDataFrame; kwargs...) = istennisball(df.low; kwargs...)
 
+cweights = (
+    ft = 0.2,
+    up = 0.1,
+    bvol = 0.3
+    tball = 0.4
+)
+
 @doc "Evaluate trais for a single pair."
-function considerations(df::AbstractDataFrame; window=20, window2=50, min_follow::Int=1, vol_thresh=0.1, snapback=3)
+function considerations(df::AbstractDataFrame; window=20, window2=50,
+                        min_follow::Int=1, vol_thresh=0.1, snapback=3, weights=cweights)
     @debug @assert size(df, 1) > window2
 
     dfv = @view df[end-window:end, :]
@@ -74,7 +82,8 @@ function considerations(df::AbstractDataFrame; window=20, window2=50, min_follow
     bvol = isbuyvol(dfv2; threshold=vol_thresh)
     tball = istennisball(dfv; snapback)
 
-    (;ft, up, bvol, tball, score=_score_sum(ft, up, bvol, tball))
+    vars = (;ft, up, bvol, tball)
+    (; vars..., score=_score_sum(vars; weights))
 end
 
 _trueish(syms...) = all(isnothing(sym) || sym for sym in syms)
