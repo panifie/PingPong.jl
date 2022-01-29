@@ -3,6 +3,7 @@
 using DataFrames
 using DataFramesMeta
 using Backtest.Misc: @margin!, @lev!
+export @margin!, @lev!
 
 function kucoin_keys()
     cfg = Dict()
@@ -90,7 +91,9 @@ function vcons(args...; cargs=(), vargs=(), c_num=5)
     sk = length(args) > 1 ? :score_sum : :score
     v[!, sk] += @view(c[:, sk])
     sort!(v, sk)
-    v
+    edges = vcat((@views v[1:10, :], v[end-10:end, :])...)
+    display(edges)
+    edges, v
 end
 
 export @excfilter, price_ranges, @pranges, vcons

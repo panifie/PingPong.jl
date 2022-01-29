@@ -201,7 +201,7 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=t
         if (noleveraged && is_leveraged_pair(k)) ||
             (k ∈ keys(tickers) && tickers[k]["quoteVolume"] <= min_vol) ||
             (skip_fiat && is_fiat_pair(k)) ||
-            (margin && "margin" ∈ v && !Bool(v["margin"]))
+            (margin && "margin" ∈ keys(v) && !Bool(v["margin"]))
             continue
         else
             push_fun(pairlist, k, v)
@@ -230,6 +230,6 @@ function fetch!()
     @eval include(joinpath(dirname(@__FILE__), "fetch.jl"))
 end
 
-export exc, @excfilter, @exchange!, setexchange!, exckeys!
+export exc, @excfilter, @exchange!, setexchange!, exckeys!, get_pairlist
 
 end
