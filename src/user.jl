@@ -80,9 +80,9 @@ macro excfilter(exc_name)
 end
 
 function vcons(args...; cargs=(), vargs=(), c_num=5)
-    @eval !(isdefined(Main, :an)) && begin
+    global an
+    !isdefined(@__MODULE__, :an) && @eval begin
         using Backtest.Analysis;
-        an = Analysis
         an.@pairtraits!
     end
     c = an.Considerations.considerations(args...; cargs...)
