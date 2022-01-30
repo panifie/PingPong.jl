@@ -2,29 +2,33 @@
 module MVP
 
 using Statistics: mean
-using DataFrames: AbstractDataFrame
+using DataFrames: AbstractDataFrame, DataFrame
 using Backtest.Misc: PairData
+using Backtest.Analysis: maptf
 using Base: @kwdef
 
-@doc "Ratio is the minimum number of green candles required. Window is how many previous candles to consider."
-function momentum(close::AbstractVector; window=15)
+@doc "Ratio is the minimum number of green candles required."
+function momentum(close::AbstractVector)
     green = 0
-    for w in 1:window
-        close[end-w] < close[end-w+1] && begin green += 1 end
+    len = length(close)
+    for c in 1:len-1
+        close[c] < close[c+1] && begin green += 1 end
     end
-    @debug "Green candles ratio: $(green / window)"
-    green / window
+    @debug "Green candles ratio: $(green / len)"
+    green / len
 end
 
-@doc "Ratio is the minimum percent increment of volume during the window period."
-function volume(vol::AbstractVector; window=15)
-    @views rel = sum(vol[end-window:end]) / sum(vol[end-window*2-1:end-window-1])
+@doc "Ratio is the minimum percent increment of volume from the first half of the series."
+function volume(vol::AbstractVector; split=2)
+    window = length(vol) ÷ split
+    @views rel = sum(vol[end-window:end]) / sum(vol[end-window*2:end-window-1])
     @debug "Volume ratio between the last $window candles and the $(window) candles before those: $rel"
     rel
 end
 
-function price(close::AbstractVector; window=15)
-    @views rel = mean(close[end-window:end]) / mean(close[end-window*2-1:end-window-1])
+function price(close::AbstractVector; split=2)
+    window = length(close) ÷ split
+    @views rel = mean(close[end-window:end]) / mean(close[end-window*2:end-window-1])
     @debug "Price ratio between the last $window candles and the $(window) candles before those: $rel"
     rel
 end
@@ -37,14 +41,19 @@ end
 
 @doc "Returns the mvp-ness of a pair as a sum of each condition ratio weighted by `weights`. If `real=false` it will return a `Bool`
 indicating if the pair passes the given `ratios`."
-function is_mvp(close::AbstractVector, vol::AbstractVector; window=15, ratios=MVPRatios(),
+function is_mvp(cl::AbstractVector, vol::AbstractVector; split=2,ratios=MVPRatios(),
                 real=true, weights=(m=0.4, v=0.4, p=0.2))
-    length(close) < window * 2 + 2 && return (real ? 0. : (false, (;m=0., v=0., p=0.)))
-    m = momentum(close; window)
-    v = volume(vol; window)
-    p = price(close; window)
+    m = momentum(cl)
+    v = volume(vol; split)
+    p = price(cl; split)
     real && return m * weights.m + v * weights.v + p * weights.p
     (m >= ratios.m && v >= ratios.v && p >= ratios.p, (;m, v, p))
+end
+
+function is_mvp(close, vol, window; kwargs...)
+    length(close) < window * 2 + 2 && return (real ? 0. : (false, (;m=0., v=0., p=0.)))
+    cl, vol = @views close[end-window+1:end], vol[end-window+1:end]
+    is_mvp(cl, vol; kwargs...)
 end
 
 is_mvp(df::AbstractDataFrame; kwargs...) = is_mvp(df.close, df.volume; kwargs...)
@@ -60,7 +69,7 @@ function discrete_mvp(data::AbstractDict{String,PairData}; atleast = 3, window =
         empty!(pass)
         for p in values(data)
             b, r = is_mvp(p.data; window, real = false, ratios)
-            b && push!(pass, (p.name, r))
+            b && push!(pass, (pair=p.name, r...))
         end
         ratios.m *= step
         ratios.v *= step

@@ -213,7 +213,7 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], co
     out, DataFrame(out_df)
 end
 
-macro checksize()
+macro checksize(data)
     ohlcv = esc(:ohlcv)
     n = esc(:n)
     quote
@@ -230,13 +230,6 @@ end
 function is_uptrend(ohlcv::DataFrame; thresh=0.05, n=26)
     @checksize
     ind.momentum(@view(ohlcv.close[end-n:end]); n)[end] > thresh
-end
-
-function is_slopebetween(ohlcv::DataFrame; mn=5, mx=90, n=26)
-    @checksize
-    slope = ind.mlr_slope(@view(ohlcv.close[end-n:end]); n)[end]
-    angle = atan(slope) * (180 / π)
-    mx > angle > mn
 end
 
 function is_lowvol(ohlcv::DataFrame; thresh=0.05, n=3)

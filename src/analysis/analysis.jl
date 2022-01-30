@@ -67,7 +67,8 @@ resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     @debug @assert all(cleanup_ohlcv_data(data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
-    size(pair.data, 1) > 0 || return _empty_df()
+    # NOTE: need at least 2 points
+    size(pair.data, 1) > 1 || return _empty_df()
 
     @as_td
     src_prd = data_td(pair.data)
