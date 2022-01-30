@@ -25,6 +25,7 @@ end
 
 macro pairtraits!()
     quote
+        @evalmod "slope.jl"
         @evalmod "mvp.jl"
         @evalmod "violations.jl"
         @evalmod "considerations.jl"
@@ -133,6 +134,6 @@ function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; kwar
     df
 end
 
-export explore!, slopefilter, filter, fltsummary, @evalmod, @pairtraits!
+export explore!, filter, fltsummary, @evalmod, @pairtraits!
 
 end
