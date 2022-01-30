@@ -4,7 +4,7 @@ import Base.getproperty
 using Dates: Period, unix2datetime, Minute, Day, now
 using DataFrames: DataFrame
 using TimeToLive: TTL
-using PythonCall: Py, @py, pynew, pyexec, pycopy!, pytype, pyissubclass, pyisnull, PyDict, pyconvert, pydict
+using PythonCall: Py, @py, pynew, pyexec, pycopy!, pytype, pyissubclass, pyisnull, PyDict, pyconvert, pydict, pyclass
 using JSON
 using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames, default_data_path, dt
 using Serialization: serialize, deserialize
@@ -13,6 +13,7 @@ const ccxt = pynew()
 const exclock = ReentrantLock()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
 const tickers_cache = TTL{String, T where T <: AbstractDict}(Minute(100))
+const exchange_err = string(pyclass("ccxt.base.errors.ExchangeError"))
 
 OptionsDict = Dict{String, Dict{String, Any}}
 
@@ -187,8 +188,16 @@ get_pairlist(exc::Exchange=exc,
                                        convert(Float64, min_vol);
                                        kwargs...)
 
+@doc """Get the exchange pairlist.
+`quot`: Only choose pairs where the quot currency equals `quot`.
+`min_vol`: The minimum volume of each pair.
+`skip_fiat`: Ignore fiat/fiat pairs.
+`margin`: Only choose pairs enabled for margin trading.
+`leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
+`as_vec`: Returns the pairlist as a Vector instead of as a Dict.
+"""
 function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=true, margin=config.margin,
-                      noleveraged=!config.leverage, as_vec=false)::Union{Dict, Vector}
+                      leveraged=config.leverage, as_vec=false)::Union{Dict, Vector}
     @tickers
     pairlist = []
 
@@ -198,7 +207,9 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=t
         (p, k, v) -> v["quoteId"] === quot && push!(p, tup_fun(k, v))
 
     for (k, v) in exc.markets
-        if (noleveraged && is_leveraged_pair(k)) ||
+        lev = is_leveraged_pair(k)
+        if (leveraged === :no && lev) ||
+            (leveraged === :only && !lev)
             (k ∈ keys(tickers) && tickers[k]["quoteVolume"] <= min_vol) ||
             (skip_fiat && is_fiat_pair(k)) ||
             (margin && "margin" ∈ keys(v) && !Bool(v["margin"]))
