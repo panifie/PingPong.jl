@@ -77,11 +77,18 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
         @debug "Returning converted ohlcv data."
         df ? to_df(data) : data
     catch e
-        if e isa PyException && !isnothing(match(r"429([0]+)?", string(e._v)))
-            @debug "Exchange error 429, too many requests."
-            sleep(sleep_t)
-            sleep_t = (sleep_t + 1) * 2
-            _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
+        if e isa PyException
+            if !isnothing(match(r"429([0]+)?", string(e._v)))
+                @debug "Exchange error 429, too many requests."
+                sleep(sleep_t)
+                sleep_t = (sleep_t + 1) * 2
+                _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
+            elseif string(pytype(e)) == exchange_err
+                @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
+                return _empty_df()
+            else
+                rethrow(e)
+            end
         else
             rethrow(e)
         end
