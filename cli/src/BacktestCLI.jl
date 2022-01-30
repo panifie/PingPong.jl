@@ -63,12 +63,13 @@ Fetch pairs from exchanges.
 - `-n, --noupdate`: If set data will be downloaded starting from the last stored timestamp up to now.
 - `-p, --progress`: Show progress.
 - `-m, --multiprocess`: Fetch from multiple exchanges using one process per exchange. (High memory usage)
+- `-r, --reset`: Reset saved data.
 
 """
 @cast function fetch(pairs...; timeframe::AbstractString="1h",
                exchanges::AbstractString="kucoin", from="", to="", vol::Float64=1e4,
                      noupdate::Bool=false, qc::AbstractString="", progress::Bool=false,
-                     multiprocess::Bool=false)
+                     multiprocess::Bool=false, reset::Bool=false)
     @debug "Activating python env..."
 
     # NOTE: don't create exchange classes since multiple exchanges uses @distributed
@@ -78,7 +79,7 @@ Fetch pairs from exchanges.
     @choosepairs
 
     Backtest.fetch_pairs(pairs, timeframe; parallel=multiprocess, wait_task=true,
-                         from, to, update=(!noupdate), progress)
+                         from, to, update=(!noupdate), progress, reset)
 end
 
 """
