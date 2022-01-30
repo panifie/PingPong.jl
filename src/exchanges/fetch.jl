@@ -24,7 +24,9 @@ end
 function find_since(exc, pair)
     long_tf = findmax(collect(exc.timeframes))[1]
     # fetch the first available candles using a long (1w) timeframe
-    _fetch_with_delay(exc, pair, long_tf; df=true)[begin, 1] |> timefloat |> Int
+    data = _fetch_with_delay(exc, pair, long_tf; df=true)
+    isempty(data) && return 0
+    data[begin, 1] |> timefloat |> Int
 end
 
 function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::AbstractFloat, params, sleep_t)
@@ -47,6 +49,7 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     while since < to
         sleep(sleep_t)
         fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df=true)
+        size(fetched, 1) === 0 && break
         append!(data, fetched)
         last_ts = timefloat(data[end, 1]) |> Int
         since === last_ts && break
@@ -85,7 +88,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
                 _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
             elseif string(pytype(e)) == exchange_err
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
-                return _empty_df()
+                return df ? _empty_df() : []
             else
                 rethrow(e)
             end
@@ -208,7 +211,7 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
                 end
             end
         elseif isnothing(z)
-            z = load_pair(zi, exc_name, name, timeframe; as_z=true)
+            z, _ = load_pair(zi, exc_name, name, timeframe; as_z=true)
         end
         p = PairData(;name, tf=timeframe, data=ohlcv, z)
         data[name] = p
