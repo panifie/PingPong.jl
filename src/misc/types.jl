@@ -65,13 +65,15 @@ _from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
 
     if from !== ""
-        from = something(tryparse(Int, from), tryparse(DateTime, from), from)
+        from = typeof(from) <: Int ? from :
+            something(tryparse(Int, from), tryparse(DateTime, from), from)
         typeof(from) <: Int && begin
             from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
         end
     end
     if to !== ""
-        to = something(tryparse(Int, to), tryparse(DateTime, to), to)
+        to = typeof(to) <: Int ? to :
+            something(tryparse(Int, to), tryparse(DateTime, to), to)
         typeof(to) <: Int && begin
             to = to === 0 ? now() : now() - (abs(to) * prd)
         end
@@ -122,6 +124,16 @@ function infer_tf(df::AbstractDataFrame)
     @assert td1 === td2
     tfname = td_tf[td1.value]
     TimeFrame(td1), tfname
+end
+
+macro as_dfdict(data, skipempty=true)
+    data = esc(data)
+    mrkts = esc(:mrkts)
+    quote
+        if valtype($data) <: PairData
+            $mrkts = Dict(p.name => p.data for p in values($data) if size(p.data, 1) > 0)
+        end
+    end
 end
 
 include("exceptions.jl")
