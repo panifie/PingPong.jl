@@ -8,7 +8,7 @@ using PythonCall: Py
 using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
-using Backtest.Misc: @as, @as_td, PairData, config, _empty_df, timefloat, dt, Candle
+using Backtest.Misc: @as, @as_td, PairData, config, _empty_df, timefloat, dt, Candle, LeftContiguityException, RightContiguityException
 using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df, Exchange
 
 function __init__()
@@ -384,7 +384,7 @@ contiguous_ts(series, timeframe::AbstractString) = begin
     _contiguous_ts(series, td)
 end
 
-function _contiguous_ts(series::AbstractVector{AbstractFloat}, td::AbstractFloat)
+function _contiguous_ts(series::AbstractVector{Float64}, td::Float64)
     pv = series[1]
     for i in 2:length(series)
         nv = series[i]

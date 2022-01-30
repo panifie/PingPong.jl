@@ -1,7 +1,7 @@
 using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: config
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
-using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers
+using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException
 using Backtest.Exchanges: Exchange, get_pairlist
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
@@ -22,7 +22,8 @@ function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict
 end
 
 function find_since(exc, pair)
-    long_tf = findmax(collect(exc.timeframes))[1]
+    tfs = collect(exc.timeframes)
+    long_tf = tfs[findmax(tfperiod.(tfs))[2]]
     # fetch the first available candles using a long (1w) timeframe
     data = _fetch_with_delay(exc, pair, long_tf; df=true)
     isempty(data) && return 0
@@ -59,18 +60,18 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     return data
 end
 
-function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0)
+function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0, limit=20000)
     try
         @debug "Calling into ccxt to fetch OHLCV data: $pair, $timeframe $since, $params"
-        data = exc.fetchOHLCV(pair, timeframe; since, params)
+        data = exc.fetchOHLCV(pair, timeframe; since, limit, params)
         dpl = Bool(@py data isa PyList)
         if !dpl
             @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
-            data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
+            data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit=(limit ÷ 2))
         end
-        if dpl
+        if dpl && !isempty(data)
             data = reduce(hcat,
                           pyconvert(Vector{<:Vector}, data)) |> permutedims
         else
@@ -85,7 +86,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
                 @debug "Exchange error 429, too many requests."
                 sleep(sleep_t)
                 sleep_t = (sleep_t + 1) * 2
-                _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df)
+                _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit=(limit ÷ 2))
             elseif string(pytype(e)) == exchange_err
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
                 return df ? _empty_df() : []
