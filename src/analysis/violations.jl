@@ -115,16 +115,16 @@ function _score_sum(nmtup; weights)
     s
 end
 
-const vweights =  (
+const vweights =  Ref((
     lowhigh = 0.2,
     llows = 0.3,
     down = 0.05,
     b20 = 0.15,
     b50 = 0.25,
     retrace = 0.05
-)
+))
 
-function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1, weights=vweights)
+function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1, weights=vweights[])
     @debug @assert size(df, 1) > window2
 
     dfv = @view df[end-window:end, :]
@@ -142,7 +142,7 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
     (; vars..., score=-_score_sum(vars; weights))
 end
 
-function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwargs...)
+function violations(mrkts::AbstractDict; window=20, window2=50, sorted=true, rev=false, kwargs...)
     local df
     kargs = (;window, window2, kwargs...)
     if valtype(mrkts) <: PairData
@@ -152,7 +152,7 @@ function violations(mrkts::AbstractDict; window=20, window2=50, rev=false, kwarg
     rev && @rsubset! df begin
         isnorz(:lowhigh, :llows, :down, :b20, :b50, :retrace)
     end
-    sort!(df, :score)
+    sorted && !isempty(df) && sort!(df, :score)
     df
 end
 
