@@ -2,7 +2,7 @@ module Analysis
 
 using Requires
 import Base.filter
-using Backtest.Misc: @as_td, PairData, timefloat, _empty_df
+using Backtest.Misc: @as_td, PairData, timefloat, _empty_df, td_tf
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange, exc
@@ -66,7 +66,7 @@ resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; 
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(exc::Exchange, pair::PairData, timeframe; save=true)
-    @debug @assert all(cleanup_ohlcv_data(data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
+    @debug @assert all(cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     size(pair.data, 1) > 1 || return _empty_df()
 
@@ -74,8 +74,8 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     src_prd = data_td(pair.data)
     src_td = timefloat(src_prd)
 
-    @assert td > src_td "Upsampling not supported."
-    td === src_td && return pair
+    @assert td >= src_td "Upsampling not supported. (from $(td_tf[src_td]) to $(td_tf[td]))"
+    td === src_td && return pair.data
     frame_size::Integer = td ÷ src_td
 
     data = pair.data
@@ -105,11 +105,14 @@ end
 
 resample(mrkts::AbstractDict{String, PairData}, timeframe; kwargs...) = resample(exc, mrkts, timeframe; kwargs...)
 
-function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timeframe; save=true, progress=true)
-    rs = Dict{String, DataFrame}()
+function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timeframe; save=true, progress=false)
+    rs = Dict{String, PairData}()
     progress && @pbar! "Pairs" false
     for (name, pair_data) in mrkts
-        rs[name] = resample(exc, pair_data, timeframe; save)
+        rs[name] = PairData(name,
+                            timeframe,
+                            resample(exc, pair_data, timeframe; save),
+                            nothing)
         progress && @pbupdate!
     end
     progress && @pbclose
