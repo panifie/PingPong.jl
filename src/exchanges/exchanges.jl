@@ -4,7 +4,7 @@ import Base.getproperty
 using Dates: Period, unix2datetime, Minute, Day, now
 using DataFrames: DataFrame
 using TimeToLive: TTL
-using PythonCall: Py, @py, pynew, pyexec, pycopy!, pytype, pyissubclass, pyisnull, PyDict, pyconvert, pydict, pyclass
+using PythonCall: Py, @py, pynew, pyexec, pycopy!, pytype, pyissubclass, pyisnull, PyDict, pyconvert, pydict, pyclass, pyisnone
 using JSON
 using Backtest.Misc: @pymodule, @as_td, StrOrVec, DateType, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, _empty_df, timefloat, fiatnames, default_data_path, dt
 using Serialization: serialize, deserialize
@@ -99,7 +99,8 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs
     pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
     empty!(exc.timeframes)
-    push!(exc.timeframes, pyconvert(Set{String}, exc.py.timeframes.keys())...)
+    tfkeys = pyisnone(exc.py.timeframes) ? Set{String}() : pyconvert(Set{String}, exc.py.timeframes.keys())
+    isempty(tfkeys) || push!(exc.timeframes, tfkeys...)
     exc.name = string(exc.py.name)
     @debug "Loading Markets..."
     markets && loadmarkets!(exc)
@@ -179,6 +180,20 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
+@inline is_qmatch(qid, q) = lowercase(qid) === q
+
+function aprice(t)
+    something(t["average"], t["last"], t["bid"])
+end
+
+function qvol(t::AbstractDict)
+    v1 = t["quoteVolume"]
+    isnothing(v1) || return v1
+    v2 = t["baseVolume"]
+    isnothing(v2) || return v2 * aprice(t)
+    0
+end
+
 get_pairlist(quot::AbstractString, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(exc::Exchange=exc,
              quot::AbstractString=config.qc,
@@ -200,19 +215,20 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=t
                       leveraged=config.leverage, as_vec=false)::Union{Dict, Vector}
     @tickers
     pairlist = []
+    lquot = lowercase(quot)
 
     tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
     push_fun = isempty(quot) ?
         (p, k, v) -> push!(p, tup_fun(k, v)) :
-        (p, k, v) -> v["quoteId"] === quot && push!(p, tup_fun(k, v))
+        (p, k, v) -> is_qmatch(v["quoteId"], lquot) && push!(p, tup_fun(k, v))
 
     for (k, v) in exc.markets
         lev = is_leveraged_pair(k)
         if (leveraged === :no && lev) ||
             (leveraged === :only && !lev) ||
-            (k ∈ keys(tickers) && tickers[k]["quoteVolume"] <= min_vol) ||
+            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
             (skip_fiat && is_fiat_pair(k)) ||
-            (margin && "margin" ∈ keys(v) && !Bool(v["margin"]))
+            (margin && "margin" ∈ keys(v) && !v["margin"])
             continue
         else
             push_fun(pairlist, k, v)
