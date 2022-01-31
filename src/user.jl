@@ -80,20 +80,28 @@ macro excfilter(exc_name)
     end
 end
 
-function vcons(args...; cargs=(), vargs=(), c_num=5)
-    global an
+function vcons(args...; cargs=(), vargs=(), sargs=(), c_num=5)
     !isdefined(@__MODULE__, :an) && @eval begin
+        @info "Loading Analysis..."
         using Backtest.Analysis;
-        an.@pairtraits!
+        Analysis.@pairtraits!
     end
-    c = an.Considerations.considerations(args...; cargs...)
-    v = an.Violations.violations(args...; vargs...)
+    c = an.Considerations.considerations(args...; cargs..., sorted=false)
+    s = an.Considerations.stage2(args...; sargs..., sorted=false)
+    v = an.Violations.violations(args...; vargs..., sorted=false)
+    # sort based on pair to align scores for summing
+    sort!(c, :pair)
+    sort!(v, :pair)
+    sort!(s, :pair)
+
     sk = length(args) > 1 ? :score_sum : :score
-    v[!, sk] += @view(c[:, sk])
-    sort!(v, sk)
-    edges = vcat((@views v[1:10, :], v[end-10:end, :])...)
+    t = vcat(c, v, s)
+    gb = groupby(t, :pair)
+    res = combine(gb, sk => sum; renamecols=false)
+    sort!(res, sk)
+    edges = vcat((@views res[1:10, :], res[end-10:end, :])...)
     display(edges)
-    edges, v
+    edges, res
 end
 
 export @excfilter, price_ranges, @pranges, vcons
