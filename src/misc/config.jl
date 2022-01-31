@@ -5,7 +5,7 @@ using Base: @kwdef
     timeframe::String = "1d"
     qc::String = "USDT"
     margin::Bool = false
-    leverage::Bool = true
+    leverage::Symbol = :no
     vol_min::Float64 = 10e4
     slope_min::Float64= 0.
     slope_max::Float64 = 90.

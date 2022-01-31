@@ -209,7 +209,7 @@ function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=t
     for (k, v) in exc.markets
         lev = is_leveraged_pair(k)
         if (leveraged === :no && lev) ||
-            (leveraged === :only && !lev)
+            (leveraged === :only && !lev) ||
             (k ∈ keys(tickers) && tickers[k]["quoteVolume"] <= min_vol) ||
             (skip_fiat && is_fiat_pair(k)) ||
             (margin && "margin" ∈ keys(v) && !Bool(v["margin"]))
