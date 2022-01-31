@@ -1,9 +1,10 @@
 using Dates:
-    DateTime, AbstractDateTime, Period, Millisecond, now, datetime2unix, unix2datetime
+    DateTime, AbstractDateTime, Period, Millisecond, now, datetime2unix, unix2datetime, Week, Month
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
 using TimeFrames: TimeFrame
 import Base.convert
+import Base.isless
 
 const DateType = Union{AbstractString,AbstractDateTime,AbstractFloat,Integer}
 const StrOrVec = Union{AbstractString,AbstractVector}
@@ -23,6 +24,8 @@ macro as(sym, val)
         true
     end
 end
+
+isless(w::Week, m::Month) = w.value * 4 < m.value * 30
 
 function tfperiod(s::AbstractString)
     # convert m for minutes to T

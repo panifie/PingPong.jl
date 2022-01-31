@@ -1,7 +1,7 @@
 using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: config
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
-using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException
+using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException, isless
 using Backtest.Exchanges: Exchange, get_pairlist
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
