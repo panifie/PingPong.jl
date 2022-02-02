@@ -204,7 +204,7 @@ Stage 2 template.
     isclosehigh = price > maximum(year_high) * 0.75
     # 7
     pair_rs, _, rs_ts = relative_strength(pair, mrkts; norm_roc)
-    is_uptrend_rs = (slopeangle(rs_ts[end-84-1:end], n=42) .> 0) |> all
+    is_uptrend_rs = (slopeangle(rs_ts[end-84-1:end], n = 42) .> 0) |> all
     rel_str = pair_rs > 0.8 && is_uptrend_rs
     # 8
     days50 = close[end-50+1:end]
@@ -228,10 +228,12 @@ function _stage2(mrkts::AbstractDict{String,DataFrame}; kwargs...)
     for (k, p) in mrkts
         size(p, 1) > 365 || delete!(mrkts, k)
     end
-    [(pair = k,
+    data = [(pair = k,
         stage2(k, p.high, p.low, p.close, mrkts; kwargs...)...)
      for (k, p) in mrkts
-     if size(p, 1) > 365] |> DataFrame
+     if size(p, 1) > 365]
+    isempty(data) ? DataFrame(:pair=>[], :score => [], (k => [] for k in keys(s2_weights[]))...) :
+        DataFrame(data)
 end
 
 stage2(mrkts, tfs::Vector{String}; kwargs...) = maptf(tfs, mrkts, stage2; kwargs...)
@@ -267,7 +269,7 @@ end
 _trueish(syms...) = all(isnothing(sym) || sym for sym in syms)
 
 @doc "Evaluate traits for a collection of pairs."
-function considerations(mrkts::AbstractDict; all = false, sorted=true, window = 20, window2 = 50, kwargs...)
+function considerations(mrkts::AbstractDict; all = false, sorted = true, window = 20, window2 = 50, kwargs...)
     local df
     kargs = (; window, window2, kwargs...)
     if valtype(mrkts) <: PairData
@@ -285,8 +287,7 @@ function _considerations(mrkts::AbstractDict{String,DataFrame}; kwargs...)
     maxw = max(kwargs[:window], kwargs[:window2])
     [(pair = k, considerations(p; kwargs...)...)
      for (k, p) in mrkts
-     if size(p, 1) > maxw] |>
-    DataFrame
+     if size(p, 1) > maxw] |> DataFrame
 end
 
 @doc "Evaluate traits on multiple timeframes."
