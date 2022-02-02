@@ -1,11 +1,11 @@
 using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: config
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
-using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException, isless
+using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException, isless, ohlcv_limits
 using Backtest.Exchanges: Exchange, get_pairlist
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
-using Dates: now
+using Dates: now, Year, Millisecond
 using Distributed: @distributed
 
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true)
@@ -24,8 +24,9 @@ end
 function find_since(exc, pair)
     tfs = collect(exc.timeframes)
     long_tf = tfs[findmax(tfperiod.(tfs))[2]]
+    old_ts = Day(365) |> Millisecond |> timefloat |> Int
     # fetch the first available candles using a long (1w) timeframe
-    data = _fetch_with_delay(exc, pair, long_tf; df=true)
+    data = _fetch_with_delay(exc, pair, long_tf; since=old_ts, df=true)
     isempty(data) && return 0
     data[begin, 1] |> timefloat |> Int
 end
@@ -60,9 +61,10 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     return data
 end
 
-function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0, limit=20000)
+function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0, limit=nothing)
     try
         @debug "Calling into ccxt to fetch OHLCV data: $pair, $timeframe $since, $params"
+        if isnothing(limit) limit = ohlcv_limits[Symbol(lowercase(string(exc.name)))] end
         data = exc.fetchOHLCV(pair, timeframe; since, limit, params)
         dpl = Bool(@py data isa PyList)
         if !dpl

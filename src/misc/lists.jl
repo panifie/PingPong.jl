@@ -17,7 +17,7 @@ const fiatnames = Set([
 ])
 
 @doc "Mapping of timeframes to default window sizes."
-const tf_win = Dict(
+const tf_win = IdDict(
     "1m"   =>  20,  #  20m
     "5m"   =>  12,  #  1h
     "15m"  =>  16,  #  4h
@@ -30,7 +30,7 @@ const tf_win = Dict(
 )
 
 @doc "Reverse mapping of timedeltas (milliseconds) to timeframes."
-const td_tf = Dict(
+const td_tf = IdDict(
     60000 => "1m",
     300000 => "5m",
     900000 => "15m",
@@ -40,4 +40,12 @@ const td_tf = Dict(
     14400000 => "4h",
     28800000 => "8h",
     86400000 => "1d"
+)
+
+@doc "Exchange ohlcv candles limits."
+const ohlcv_limits = IdDict(
+    :lbank => 2000,
+    :poloniex => 20000,
+    :kucoin => nothing,
+    :binance => 20000
 )
