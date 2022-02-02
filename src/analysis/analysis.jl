@@ -75,7 +75,7 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     src_prd = data_td(pair.data)
     src_td = timefloat(src_prd)
 
-    @assert td >= src_td "Upsampling not supported. (from $(td_tf[src_td]) to $(td_tf[td]))"
+    @assert td >= src_td "Upsampling not supported. (from $((td_tf[src_td])) to $(td_tf[td]))"
     td === src_td && return pair.data
     frame_size::Integer = td ÷ src_td
     sz >= frame_size || return _empty_df()
