@@ -68,7 +68,8 @@ resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; 
 function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     @debug @assert all(cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
-    size(pair.data, 1) > 1 || return _empty_df()
+    sz = size(pair.data, 1)
+    sz > 1 || return _empty_df()
 
     @as_td
     src_prd = data_td(pair.data)
@@ -77,8 +78,10 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=true)
     @assert td >= src_td "Upsampling not supported. (from $(td_tf[src_td]) to $(td_tf[td]))"
     td === src_td && return pair.data
     frame_size::Integer = td ÷ src_td
+    sz >= frame_size || return _empty_df()
 
     data = pair.data
+
 
     # remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
     left = 1
