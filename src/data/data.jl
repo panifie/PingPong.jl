@@ -461,8 +461,18 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     df = data isa DataFrame ? data : to_df(data)
 
     @as_td
+
+    # For when for example 1d candles start at hours other than 00
+    ts_float = timefloat.(df.timestamp)
+    ts_offset = ts_float .% td
+    if all(ts_offset .== ts_offset[begin])
+        @debug "Offsetting timestamps for $(ts_offset[begin])."
+        df.timestamp .= (ts_float .- ts_offset[begin]) .|> dt
+    end
+
     # remove rows with bad timestamps
-    delete!(df, timefloat.(df.timestamp) .% td .!== 0.)
+    # delete!(df, timefloat.(df.timestamp) .% td .!== 0.)
+    # @debug "DataFrame without bad timestamp size: $(size(df, 1))"
 
     gd = groupby(df, :timestamp; sort=true)
     df = combine(gd, :open => first, :high => maximum, :low => minimum, :close => last, :volume => maximum; renamecols=false)
