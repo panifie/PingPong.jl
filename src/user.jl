@@ -84,8 +84,8 @@ function vcons(args...; cargs=(), vargs=(), sargs=(), c_num=5)
     !isdefined(@__MODULE__, :an) && @eval begin
         @info "Loading Analysis..."
         using Backtest.Analysis;
-        Analysis.@pairtraits!
     end
+    an = @eval Backtest.Analysis
     c = an.Considerations.considerations(args...; cargs..., sorted=false)
     s = an.Considerations.stage2(args...; sargs..., sorted=false)
     v = an.Violations.violations(args...; vargs..., sorted=false)
@@ -93,7 +93,6 @@ function vcons(args...; cargs=(), vargs=(), sargs=(), c_num=5)
     sort!(c, :pair)
     sort!(v, :pair)
     sort!(s, :pair)
-
     sk = length(args) > 1 ? :score_sum : :score
     t = vcat(c, v, s)
     gb = groupby(t, :pair)

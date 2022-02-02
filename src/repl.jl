@@ -14,4 +14,6 @@ function user!()
     @eval include(joinpath(@__DIR__, "user.jl"))
     @eval using .Misc: config
     @eval export results, exc, config
+    @eval an = Analysis
+    nothing
 end
