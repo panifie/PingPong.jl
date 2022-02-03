@@ -49,5 +49,6 @@ const ohlcv_limits = IdDict(
     :lbank => 2000,
     :poloniex => 20000,
     :kucoin => nothing,
-    :binance => 20000
+    :binance => 20000,
+    :bybit => 20000
 )

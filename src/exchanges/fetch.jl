@@ -64,7 +64,7 @@ end
 function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0, limit=nothing)
     try
         @debug "Calling into ccxt to fetch OHLCV data: $pair, $timeframe $since, $params"
-        if isnothing(limit) limit = ohlcv_limits[Symbol(lowercase(string(exc.name)))] end
+        if isnothing(limit) limit = get(ohlcv_limits, Symbol(lowercase(string(exc.name))), 1000) end
         data = exc.fetchOHLCV(pair, timeframe; since, limit, params)
         dpl = Bool(@py data isa PyList)
         if !dpl
