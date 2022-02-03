@@ -12,10 +12,10 @@ using Serialization: serialize, deserialize
 const ccxt = pynew()
 const exclock = ReentrantLock()
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
-const tickers_cache = TTL{String, T where T <: AbstractDict}(Minute(100))
+const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
 const exchange_err = string(pyclass("ccxt.base.errors.ExchangeError"))
 
-OptionsDict = Dict{String, Dict{String, Any}}
+OptionsDict = Dict{String,Dict{String,Any}}
 
 mutable struct Exchange
     py::Py
@@ -53,8 +53,8 @@ macro exchange!(name)
     quote
         exc_sym = Symbol($exc_istr)
         $exc_var = (exc.isset && lowercase(exc.name) === $exc_str) ?
-            exc : (hasproperty($(__module__), exc_sym) ?
-            getproperty($(__module__), exc_sym) : Exchange(exc_sym))
+                   exc : (hasproperty($(__module__), exc_sym) ?
+                    getproperty($(__module__), exc_sym) : Exchange(exc_sym))
     end
 end
 
@@ -62,7 +62,7 @@ function isfileyounger(f::AbstractString, p::Period)
     isfile(f) && dt(stat(f).mtime) < now() - p
 end
 
-function loadmarkets!(exc; cache=true, agemax=Day(1))
+function loadmarkets!(exc; cache = true, agemax = Day(1))
     mkt = joinpath(default_data_path, exc.name, "markets.jlz")
     empty!(exc.markets)
     if isfileyounger(mkt, agemax) && cache
@@ -82,7 +82,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     nothing
 end
 
-function pyexchange(name::Symbol, params=nothing; markets=true)
+function pyexchange(name::Symbol, params = nothing; markets = true)
     @debug "Loading CCXT..."
     @pymodule ccxt
     @debug "Instantiating Exchange $name..."
@@ -95,7 +95,7 @@ function setexchange!(name::Symbol, args...; kwargs...)
     setexchange!(exc, name, args...; kwargs...)
 end
 
-function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs...)
+function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwargs...)
     pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
     empty!(exc.timeframes)
@@ -117,13 +117,13 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs
 end
 
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
-function to_df(data; fromta=false)
+function to_df(data; fromta = false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
-    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> x-> DataFrame(x; copycols=false)
+    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |> x -> DataFrame(x; copycols = false)
     DataFrame(:timestamp => dates,
-              [OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1])
-               for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols=false)
+        [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1])
+         for n in 1:length(OHLCV_COLUMNS_TS)]...; copycols = false)
 end
 
 macro as_df(v)
@@ -133,7 +133,7 @@ macro as_df(v)
 end
 
 @doc "Fetch and cache tickers data."
-macro tickers(force=false)
+macro tickers(force = false)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
@@ -142,7 +142,7 @@ macro tickers(force=false)
             let nm = $exc.name
                 if $force || nm ∉ keys(tickers_cache)
                     @assert Bool($(exc).has["fetchTickers"]) "Exchange doesn't provide tickers list."
-                    tickers_cache[nm] = $tickers = pyconvert(Dict{String, Dict{String, Any}}, $(exc).fetchTickers())
+                    tickers_cache[nm] = $tickers = pyconvert(Dict{String,Dict{String,Any}}, $(exc).fetchTickers())
                 else
                     $tickers = tickers_cache[nm]
                 end
@@ -151,7 +151,7 @@ macro tickers(force=false)
     end
 end
 
-function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
+function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers
@@ -180,7 +180,14 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
-@inline is_qmatch(qid, q) = lowercase(qid) === q
+@inline function qid(v)
+    k = keys(v)
+    "quoteId" ∈ k ? v["quoteId"] :
+    "quote" ∈ k ? v["quote"] :
+    false
+end
+
+@inline is_qmatch(id, q) = lowercase(id) === q
 
 function aprice(t)
     something(t["average"], t["last"], t["bid"])
@@ -195,13 +202,13 @@ function qvol(t::AbstractDict)
 end
 
 get_pairlist(quot::AbstractString, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
-get_pairlist(exc::Exchange=exc,
-             quot::AbstractString=config.qc,
-             min_vol::T where T<: AbstractFloat=config.vol_min;
-             kwargs...) = get_pairlist(exc,
-                                       convert(String, quot),
-                                       convert(Float64, min_vol);
-                                       kwargs...)
+get_pairlist(exc::Exchange = exc,
+    quot::AbstractString = config.qc,
+    min_vol::T where {T<:AbstractFloat} = config.vol_min;
+    kwargs...) = get_pairlist(exc,
+    convert(String, quot),
+    convert(Float64, min_vol);
+    kwargs...)
 
 @doc """Get the exchange pairlist.
 `quot`: Only choose pairs where the quot currency equals `quot`.
@@ -211,24 +218,24 @@ get_pairlist(exc::Exchange=exc,
 `leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
 `as_vec`: Returns the pairlist as a Vector instead of as a Dict.
 """
-function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat=true, margin=config.margin,
-                      leveraged=config.leverage, as_vec=false)::Union{Dict, Vector}
+function get_pairlist(exc::Exchange, quot::String, min_vol::Float64; skip_fiat = true, margin = config.margin,
+    leveraged = config.leverage, as_vec = false)::Union{Dict,Vector}
     @tickers
     pairlist = []
     lquot = lowercase(quot)
 
     tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
     push_fun = isempty(quot) ?
-        (p, k, v) -> push!(p, tup_fun(k, v)) :
-        (p, k, v) -> is_qmatch(v["quoteId"], lquot) && push!(p, tup_fun(k, v))
+               (p, k, v) -> push!(p, tup_fun(k, v)) :
+               (p, k, v) -> is_qmatch(qid(v), lquot) && push!(p, tup_fun(k, v))
 
     for (k, v) in exc.markets
         lev = is_leveraged_pair(k)
         if (leveraged === :no && lev) ||
-            (leveraged === :only && !lev) ||
-            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
-            (skip_fiat && is_fiat_pair(k)) ||
-            (margin && "margin" ∈ keys(v) && !v["margin"])
+           (leveraged === :only && !lev) ||
+           (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
+           (skip_fiat && is_fiat_pair(k)) ||
+           (margin && "margin" ∈ keys(v) && !v["margin"])
             continue
         else
             push_fun(pairlist, k, v)
@@ -247,8 +254,8 @@ end
 function exckeys!(exc, key, secret, pass)
     name = uppercase(exc.name)
     exc.apiKey = key
-        exc.secret = secret
-        exc.password = pass
+    exc.secret = secret
+    exc.password = pass
     nothing
 end
 
