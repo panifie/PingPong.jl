@@ -1,6 +1,6 @@
 module Plotting
 
-using PythonCall: pyimport, pynew, pycopy!
+using PythonCall: pyimport, pynew, pycopy!, pyisnull
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
 using Backtest.Misc: PairData, infer_tf, tf_win, config, @pymodule
@@ -13,7 +13,7 @@ const echarts_ohlc_cols = (:open, :close, :low, :high)
 const cplot = pynew()
 
 function init_pyecharts(reload=false)
-    pyec != pynull && !reload && return
+    !pyisnull(pyec) && !reload && return
     @pymodule pyec pyecharts
     pycopy!(opts, pyec.options)
 

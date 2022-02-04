@@ -3,7 +3,7 @@ module Misc
 include("lists.jl")
 include("types.jl")
 
-using PythonCall.C.CondaPkg: envdir, add_pip
+using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 using Requires
 using Distributed: @everywhere, workers, addprocs, rmprocs, RemoteChannel
 
@@ -49,6 +49,7 @@ macro pymodule(name, modname=nothing)
                 pycopy!($var_name, pyimport($str_mod))
             catch
                 add_pip($str_mod)
+                resolve()
                 pycopy!($var_name, pyimport($str_mod))
             end
         end

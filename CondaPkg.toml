@@ -2,3 +2,4 @@
 [pip.deps]
 enlighten = ""
 ccxt = ""
+pyecharts = ""
