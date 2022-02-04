@@ -11,16 +11,20 @@ using Distributed: @everywhere, workers, addprocs, rmprocs, RemoteChannel
 const py_v = chomp(String(read(`$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`)))
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
 ENV["PYTHONPATH"] = ".:$(joinpath(envdir(), "lib"))/python$(py_v)"
-using PythonCall: Py, pynew, pyimport, PyVector, pyisnull, pycopy!
-const pypaths = pyimport("sys").path
+using PythonCall: Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
+const pypaths = Vector{String}()
 
 
 @doc "Remove wrong python version libraries dirs from python loading path."
 function pypath!()
-    ENV["PYTHONPATH"] = ".:$(LIBDIR)/python$(py_v)"
-    path_list = pyimport("sys")."path" |> PyVector
+    isempty(pypaths) && append!(pypaths, pyimport("sys").path |>
+        x -> pyconvert(Vector{String}, x))
+    ENV["PYTHONPATH"] = ".:$(envdir())/python$(py_v)"
+
+    path_list = pyimport("sys")."path" |> PyList
+    gpaths = [pystr(x) for x in pypaths]
     empty!(path_list)
-    append!(path_list, pypaths)
+    @py append!(path_list, gpaths)
 end
 
 const pynull = pynew()
