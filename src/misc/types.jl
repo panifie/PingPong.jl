@@ -25,16 +25,12 @@ macro as(sym, val)
     end
 end
 
+# stdlib doesn't have this function
 isless(w::Week, m::Month) = w.value * 4 < m.value * 30
-
-function tfperiod(s::AbstractString)
-    # convert m for minutes to T
-    TimeFrame(replace(s, r"([0-9]+)m" => s"\1T")).period
-end
-
-function tfnum(prd::Period)
-    convert(Millisecond, prd) |> x -> convert(Float64, x.value)
-end
+# convert m for minutes to T, since ccxt uses lowercase "m" for minutes
+tfperiod(s::AbstractString) = TimeFrame(replace(s, r"([0-9]+)m" => s"\1T")).period
+# ccxt always uses milliseconds in timestamps
+tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
 macro as_td()
     tf = esc(:timeframe)
@@ -106,33 +102,20 @@ end
 convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 
 dt(::Nothing) = :nothing
-
 dt(d::DateTime) = d
+dt(num::Real) = unix2datetime(num / 1e3)
+dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 
-function dt(num::Real)
-    unix2datetime(num / 1e3)
-end
-
-function dtfloat(d::DateTime)::AbstractFloat
-    datetime2unix(d) * 1e3
-end
-
-function timefloat(time::AbstractFloat)
-    time
-end
-
-function timefloat(prd::Period)
-    prd.value * 1.0
-end
-
-function timefloat(time::DateTime)
-    dtfloat(time)
-end
+timefloat(time::Float64) = time
+timefloat(prd::Period) = prd.value * 1.0
+timefloat(time::DateTime) = dtfloat(time)
 
 function timefloat(time::String)
     time === "" && return dtfloat(dt(0))
     DateTime(time) |> dtfloat
 end
+
+timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
 
 function infer_tf(df::AbstractDataFrame)
     td1 = df.timestamp[begin+1] - df.timestamp[begin]
