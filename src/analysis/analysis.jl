@@ -6,8 +6,9 @@ using Backtest.Misc: @as_td, PairData, timefloat, _empty_df, td_tf
 using Backtest.Misc.Pbar
 using Backtest.Data: @to_mat, data_td, save_pair
 using Backtest.Exchanges: Exchange, exc
-using DataFrames: DataFrame, groupby, combine, Not, select!, index
+using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
+using StatsBase: transform!, transform, fit, ZScoreTransform, UnitRangeTransform
 
 macro evalmod(files...)
     quote
@@ -122,21 +123,42 @@ function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timefram
     rs
 end
 
+normalize!(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = true)
+normalize(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = false)
+
+function _normalize(arr::AbstractArray; unit = false, dims = ndims(arr), copy = false)
+    t = copy ? transform! : transform
+    fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims) |>
+    x -> t(x, arr)
+end
+
 @doc "Apply a function over data, resampling data to each timeframe in `tfs`.
-`f`: signature is (data; kwargs...)::DataFrame"
-function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; kwargs...)
+`f`: signature is (data; kwargs...)::DataFrame
+`tfsum`: sum the scores across multiple timeframes for every pair."
+function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; tfsum=true, kwargs...)
     res = []
-    for tf in tfs
+    # sort timeframes
+    tfs_idx = tfs .|> Symbol .|> timefloat |> sortperm
+    permute!(tfs, tfs_idx)
+    unique!(tfs)
+    # apply an ordinal 2x weighting formula and normalize it
+    tf_weights = [n * 2. for (n, _) in enumerate(tfs)]
+    tf_weights ./= sum(tf_weights)
+
+    for (n, tf) in enumerate(tfs)
         data_r = resample(data, tf; save=false, progress=false)
         d = f(data_r; kwargs...)
-        d[!, :timeframe] .= tf
+        tfsum || (d[!, :timeframe] .= tf)
+        d[!, :score] = d.score .* tf_weights[n]
         push!(res, d)
     end
     df = vcat(res...)
-    if :pair ∈ index(df).names
+    if tfsum && length(tfs) > 1 && :pair ∈ index(df).names
         g = groupby(df, :pair)
         df = combine(g, :score => sum)
         sort!(df, :score_sum)
+    else
+        rename!(df, :score => :score_sum)
     end
     df
 end
