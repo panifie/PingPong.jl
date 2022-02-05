@@ -88,7 +88,8 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
                 @debug "Exchange error 429, too many requests."
                 sleep(sleep_t)
                 sleep_t = (sleep_t + 1) * 2
-                _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit=(limit ÷ 2))
+                limit = isnothing(limit) ? limit : limit ÷ 2
+                _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit)
             elseif string(pytype(e)) == exchange_err
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
                 return df ? _empty_df() : []
