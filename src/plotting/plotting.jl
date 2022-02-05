@@ -1,6 +1,6 @@
 module Plotting
 
-using PythonCall: pyimport, pynew, pycopy!, pyisnull
+using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
 using Backtest.Misc: PairData, infer_tf, tf_win, config, @pymodule
@@ -12,20 +12,21 @@ const opts = pynew()
 const echarts_ohlc_cols = (:open, :close, :low, :high)
 const cplot = pynew()
 
-function init_pyecharts(reload=false)
+function init_pyecharts(reload = false)
     !pyisnull(pyec) && !reload && return
     @pymodule pyec pyecharts
     pycopy!(opts, pyec.options)
 
-    reload && begin
-        ppwd = pwd()
+    ppwd = pwd()
+    reload && try
         cd(dirname(@__FILE__))
         pypath = ENV["PYTHONPATH"]
         if isnothing(match(r".*:?\.:.*", pypath))
-	        ENV["PYTHONPATH"] = ".:" * pypath
+            ENV["PYTHONPATH"] = ".:" * pypath
         end
         pycopy!(cplot, pyimport("src.plotting.plot"))
         pyimport("importlib").reload(cplot)
+    finally
         cd(ppwd)
     end
 end
@@ -107,12 +108,14 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
     @autotail df
     @df_dates_data
 
-    inds = Dict(ind => (get(chartinds, ind, default_chart_type), getproperty(df, ind)) for ind in inds)
+    inds = PyDict(Py(ind) => (Py(get(chartinds, ind, default_chart_type)), getproperty(df, ind)) for ind in inds)
     "volume" ∉ keys(inds) && begin
-	    inds[:volume] = ("bar", df.volume)
+	    @py inds["volume"] = ("bar", df.volume)
     end
 
+    @info "Plotting..."
     cplot.grid(dates, data; inds, name)
+    nothing
 end
 
 plotgrid(pairdata::PairData, args...; kwargs...) = plotgrid(pairdata.data, args...; name=pairdata.name, kwargs...)
