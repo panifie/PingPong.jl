@@ -159,6 +159,7 @@ function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; tfsu
         sort!(df, :score_sum)
     else
         rename!(df, :score => :score_sum)
+        select!(df, [:pair, :score_sum])
     end
     df
 end
