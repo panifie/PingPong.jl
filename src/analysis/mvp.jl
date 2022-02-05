@@ -50,10 +50,10 @@ function is_mvp(cl::AbstractVector, vol::AbstractVector; split=2,ratios=MVPRatio
     (m >= ratios.m && v >= ratios.v && p >= ratios.p, (;m, v, p))
 end
 
-function is_mvp(close, vol, window; kwargs...)
+function is_mvp(close, vol, window; real=false, kwargs...)
     length(close) < window * 2 + 2 && return (real ? 0. : (false, (;m=0., v=0., p=0.)))
     cl, vol = @views close[end-window+1:end], vol[end-window+1:end]
-    is_mvp(cl, vol; kwargs...)
+    is_mvp(cl, vol; real, kwargs...)
 end
 
 is_mvp(df::AbstractDataFrame; kwargs...) = is_mvp(df.close, df.volume; kwargs...)
@@ -68,7 +68,7 @@ function discrete_mvp(data::AbstractDict{String,PairData}; atleast = 3, window =
     while length(pass) < atleast && ratios.m > 0.01
         empty!(pass)
         for p in values(data)
-            b, r = is_mvp(p.data; window, real = false, ratios)
+            b, r = is_mvp(p.data.close, p.data.volume, window; real=false, ratios)
             b && push!(pass, (pair=p.name, r...))
         end
         ratios.m *= step
