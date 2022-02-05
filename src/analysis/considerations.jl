@@ -2,12 +2,11 @@
 module Considerations
 
 using Backtest.Analysis.Violations: mustd, isdcandles, PairData, AbstractDataFrame, DataFrame, std, mean, _score_sum
-using Backtest.Analysis: @pairtraits!, maptf, slopeangle
+using Backtest.Analysis: @pairtraits!, maptf, slopeangle, normalize!, normalize
 using Backtest.Misc: @as_dfdict
 using Backtest.Data: @to_mat
 using DataFramesMeta
 using Backtest.Analysis.MVP
-using StatsBase: transform!, transform, fit, ZScoreTransform, UnitRangeTransform
 using StatsModels: lag
 import Indicators
 const ind = Indicators
@@ -71,16 +70,7 @@ istennisball(df::AbstractDataFrame; kwargs...) = istennisball(df.low; kwargs...)
 # STAGE2
 
 @doc "Since relative strength computes the score for the whole set, it is useful to cache it when querying elements from the same set."
-const rs_cache = Ref(hash(0) => (DataFrame(), Matrix{Float64}(undef, 0, 0)))
-
-normalize!(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = true)
-normalize(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = false)
-
-function _normalize(arr::AbstractArray; unit = false, dims = ndims(arr), copy = false)
-    t = copy ? transform! : transform
-    fit(unit ? ZScoreTransform : UnitRangeTransform, arr; dims) |>
-    x -> t(x, arr)
-end
+const rs_cache = Ref(hash(0) => (DataFrame(), (Vector{String}(), Matrix{Float64}(undef, 0, 0))))
 
 @doc """
 Given a collection of price timeseries (1D), calculate the _relative strength_ of each series
@@ -96,9 +86,8 @@ as the summation of the rate of change at each timestep _t_.
     norm_roc && normalize!(roc; dims = 2)
     # # weighting by the historically normalized pair volume
     roc .*= norm_vol
-    # rel_str = norm_vol
-    # cumsum!(rel_str, roc; dims = 1)
-    rel_str = cumsum(roc; dims = 1)
+    rel_str = norm_vol
+    cumsum!(rel_str, roc; dims = 1)
     rel_str
 end
 
@@ -119,20 +108,22 @@ function relative_strength(pair::AbstractString, mrkts::AbstractDict; sorted = t
     local df
     if rs_cache[][1] === mk
         df = rs_cache[][2][1]
-        rs = rs_cache[][2][2]
+        (pairs, rs) = rs_cache[][2][2]
     else
         price_mat, vol_mat, pairs = pair_matrix(mrkts)
         rs = relative_strength(price_mat, vol_mat; norm_roc)
         last_rs = reshape(@view(rs[end, :]), size(rs, 2))
-        mn, mx = extrema(last_rs)
-        last_rs[:] = (last_rs .- mn) ./ (mx - mn)
+        normalize!(last_rs; unit=true)
         data = hcat(pairs, last_rs)
         df = DataFrame(data, [:pair, :rs])
         sorted && sort!(df, :rs)
-        rs_cache[] = mk => (df, rs)
+        rs_cache[] = mk => (df, (pairs, rs))
     end
-    pair_idx = firststring(pair, df.pair)
-    (df[pair_idx, :rs], df, @view(rs[:, pair_idx]))
+    df_pair_idx = firststring(pair, df.pair)
+    # the rs series of the requested pair is NOT sorted
+    # therefore the correct index of the pair is in the `pairs` variable
+    rs_pair_idx = firststring(pair, pairs)
+    (df[df_pair_idx, :rs], df, @view(rs[:, rs_pair_idx]))
 end
 
 function firststring(str, arr)
@@ -143,7 +134,7 @@ end
 
 @doc "Given a dict of dataframes (ohlcv) returns a tuple of matrices, where high and volume are respectively concatenated."
 @views function pair_matrix(mrkts::AbstractDict)
-    order = Array{String}(undef, length(mrkts))
+    order = Vector{String}(undef, length(mrkts))
 
     min_len = typemax(Int)
     for (n, (k, p)) in enumerate(mrkts)
@@ -220,7 +211,7 @@ end
 function stage2(mrkts::AbstractDict; sorted = true, kwargs...)
     @as_dfdict mrkts
     df = _stage2(mrkts; kwargs...)
-    sorted && !isempty!(df) && sort!(df, :score)
+    sorted && !isempty(df) && sort!(df, :score)
     df
 end
 
