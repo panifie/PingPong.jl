@@ -27,6 +27,10 @@ function find_since(exc, pair)
     old_ts = Day(365) |> Millisecond |> timefloat |> Int
     # fetch the first available candles using a long (1w) timeframe
     data = _fetch_with_delay(exc, pair, long_tf; since=old_ts, df=true)
+    if isempty(data)
+        # try without `since` arg
+        data = _fetch_with_delay(exc, pair, long_tf; df=true)
+    end
     isempty(data) && return 0
     data[begin, 1] |> timefloat |> Int
 end
@@ -48,6 +52,7 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
             since = find_since(exc, pair)
         end
     end
+    @debug "Starting from $(dt(since)) - to: $(dt(to))."
     while since < to
         sleep(sleep_t)
         fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df=true)
