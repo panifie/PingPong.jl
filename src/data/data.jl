@@ -8,11 +8,22 @@ using PythonCall: Py
 using Zarr: is_zarray
 using DataFramesMeta
 using Dates: Period, Millisecond, Second, unix2datetime, datetime2unix, now, UTC, DateTime
-using Backtest.Misc: @as, @as_td, PairData, config, _empty_df, timefloat, dt, Candle, LeftContiguityException, RightContiguityException
-using Backtest.Exchanges: exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df, Exchange
+using Backtest.Misc:
+    @as,
+    @as_td,
+    PairData,
+    config,
+    _empty_df,
+    timefloat,
+    dt,
+    Candle,
+    LeftContiguityException,
+    RightContiguityException
+using Backtest.Exchanges:
+    exc, OHLCV_COLUMNS, OHLCV_COLUMNS_TS, get_pairlist, to_df, Exchange
 
 function __init__()
-    @require Temporal="a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d" include("ts.jl")
+    @require Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d" include("ts.jl")
 end
 
 macro zkey()
@@ -39,9 +50,13 @@ macro check_td(args...)
             timeframe_match = timefloat($check_data[2, $col] - $check_data[1, $col]) === $td
             if !timeframe_match
                 @warn "Saved date not matching timeframe, resetting."
-                throw(TimeFrameError($check_data[1, $col] |> string,
-                                    $check_data[2, $col] |> string,
-                                    convert(Second, Millisecond($td))))
+                throw(
+                    TimeFrameError(
+                        $check_data[1, $col] |> string,
+                        $check_data[2, $col] |> string,
+                        convert(Second, Millisecond($td)),
+                    ),
+                )
             end
         end
     end
@@ -61,7 +76,7 @@ macro as_mat(data)
     end
 end
 
-macro to_mat(data, tp=nothing)
+macro to_mat(data, tp = nothing)
     if tp === nothing
         tp = esc(:type)
     else
@@ -85,16 +100,16 @@ function data_td(data)
 end
 
 function combine_data(prev, data)
-    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols=false)
-    df2 = DataFrame(data, OHLCV_COLUMNS; copycols=false)
-    combinerows(df1, df2; idx=:timestamp)
+    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols = false)
+    df2 = DataFrame(data, OHLCV_COLUMNS; copycols = false)
+    combinerows(df1, df2; idx = :timestamp)
 end
 
 @doc "(Right)Merge two dataframes on key, assuming the key is ordered and unique in both dataframes."
 function combinerows(df1, df2; idx::Symbol)
     # all columns
     columns = union(names(df1), names(df2))
-    empty_tup2 = (;zip(Symbol.(names(df2)), Array{Missing}(missing, size(df2)[2]))...)
+    empty_tup2 = (; zip(Symbol.(names(df2)), Array{Missing}(missing, size(df2)[2]))...)
     l2 = size(df2)[1]
 
     c2 = 1
@@ -123,19 +138,19 @@ function combinerows(df1, df2; idx::Symbol)
     end
     # merge the rest of df2
     if c2 < l2
-        empty_tup1 = (;zip(Symbol.(names(df1)), Array{Missing}(missing, size(df1)[2]))...)
+        empty_tup1 = (; zip(Symbol.(names(df1)), Array{Missing}(missing, size(df1)[2]))...)
         for r2 in Tables.namedtupleiterator(df2[c2:end, :])
             push!(rows, merge(empty_tup1, r2))
         end
     end
-    DataFrame(rows; copycols=false)
+    DataFrame(rows; copycols = false)
 end
 
 
 mutable struct TimeFrameError <: Exception
-    first
-    last
-    td
+    first::Any
+    last::Any
+    td::Any
 end
 
 @doc """
@@ -154,7 +169,7 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
             @warn "Resetting local data for pair $pair." e
-            _save_pair(zi, key, td, data; kwargs..., reset=true)
+            _save_pair(zi, key, td, data; kwargs..., reset = true)
         else
             rethrow(e)
         end
@@ -168,16 +183,25 @@ end
 
 save_pair(exc::Exchange, args...; kwargs...) = save_pair(zi, exc.name, args...; kwargs...)
 
-function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset)
+function _get_zarray(
+    zi::ZarrInstance,
+    key::AbstractString,
+    sz::Tuple;
+    type,
+    overwrite,
+    reset,
+)
     existing = false
     if is_zarray(zi.store, key)
-        za = zopen(zi.store, "w"; path=key)
+        za = zopen(zi.store, "w"; path = key)
         if size(za, 2) !== sz[2] || reset
             if overwrite || reset
-                rm(joinpath(zi.store.folder, key); recursive=true)
-                za = zcreate(type, zi.store, sz...; path=key, compressor)
+                rm(joinpath(zi.store.folder, key); recursive = true)
+                za = zcreate(type, zi.store, sz...; path = key, compressor)
             else
-                throw("Dimensions mismatch between stored data $(size(za)) and new data. $(sz)")
+                throw(
+                    "Dimensions mismatch between stored data $(size(za)) and new data. $(sz)",
+                )
             end
         else
             existing = true
@@ -186,16 +210,26 @@ function _get_zarray(zi::ZarrInstance, key::AbstractString, sz::Tuple; type, ove
         if !Zarr.isemptysub(zi.store, key)
             p = joinpath(zi.store.folder, key)
             @debug "Deleting garbage at path $p"
-            rm(p; recursive=true)
+            rm(p; recursive = true)
         end
-        za = zcreate(type, zi.store, sz...; path=key, compressor)
+        za = zcreate(type, zi.store, sz...; path = key, compressor)
     end
     (za, existing)
 end
 
-function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
-                    type=Float64, data_col=1, saved_col=1, overwrite=true, reset=false)
-     local za
+function _save_pair(
+    zi::ZarrInstance,
+    key,
+    td,
+    data;
+    kind = "ohlcv",
+    type = Float64,
+    data_col = 1,
+    saved_col = 1,
+    overwrite = true,
+    reset = false,
+)
+    local za
     !reset && @check_td(data)
 
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
@@ -216,7 +250,8 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                 offset = convert(Int, ((data_first_ts - saved_first_ts + td) ÷ td))
                 data_view = @view data[:, :]
                 @debug dt(data_first_ts), dt(saved_last_ts), dt(saved_last_ts + td)
-                @debug :saved, dt.(za[end, saved_col]) :data, dt.(data[1, data_col]) :saved_off, dt(za[offset, data_col])
+                @debug :saved, dt.(za[end, saved_col]) :data, dt.(data[1, data_col]) :saved_off,
+                dt(za[offset, data_col])
                 @assert timefloat(data[1, data_col]) === za[offset, saved_col]
             else
                 # when not overwriting get the index where data has new values
@@ -224,8 +259,10 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                 offset = size(za, 1) + 1
                 if data_offset <= size(data, 1)
                     data_view = @view data[data_offset:end, :]
-                    @debug :saved, dt(za[end, saved_col]) :data_new, dt(data[data_offset, data_col])
-                    @assert za[end, saved_col] + td === timefloat(data[data_offset, data_col])
+                    @debug :saved, dt(za[end, saved_col]) :data_new,
+                    dt(data[data_offset, data_col])
+                    @assert za[end, saved_col] + td ===
+                            timefloat(data[data_offset, data_col])
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -237,24 +274,27 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
                 @debug _contiguous_ts(za[:, saved_col], td)
             end
             @debug "Size data_view: " szdv
-        # inserting requires overwrite
+            # inserting requires overwrite
         else
-        # fetch the saved data and combine with new one
-        # fetch saved data starting after the last date of the new data
-        # which has to be >= saved_first_date because we checked for contig
+            # fetch the saved data and combine with new one
+            # fetch saved data starting after the last date of the new data
+            # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[saved_offset + 1:end, :]
+            saved_data = za[saved_offset+1:end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[szd + 1:end, :] = saved_data
+            za[szd+1:end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
-        @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(za[:, data_col], td)
+        @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(
+            za[:, data_col],
+            td,
+        )
     else
         resize!(za, size(data))
         za[:, :] = @to_mat(data)
@@ -262,30 +302,38 @@ function _save_pair(zi::ZarrInstance, key, td, data; kind="ohlcv",
     return za
 end
 
-@inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
+@inline function pair_key(exc_name, pair, timeframe; kind = "ohlcv")
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
-load_pairs(zi, exc, pairs::AbstractDict, timeframe) = load_pairs(zi, exc, keys(pairs), timeframe)
-load_pairs(exc::Exchange, pair::AbstractString, timeframe) = load_pairs(zi, exc, [pair], timeframe)
-load_pairs(exc::Exchange, pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
+load_pairs(zi, exc, pairs::AbstractDict, timeframe) =
+    load_pairs(zi, exc, keys(pairs), timeframe)
+load_pairs(exc::Exchange, pair::AbstractString, timeframe) =
+    load_pairs(zi, exc, [pair], timeframe)
+load_pairs(
+    exc::Exchange,
+    pairs::Union{AbstractArray,AbstractDict},
+    timeframe::AbstractString,
+) = load_pairs(zi, exc, pairs, timeframe)
 load_pairs(exc::Exchange, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
-load_pairs(pairs::Union{AbstractArray, AbstractDict}, timeframe::AbstractString) = load_pairs(zi, exc, pairs, timeframe)
-load_pairs(timeframe::AbstractString) = load_pairs(get_pairlist(config.qc; as_vec=true, margin=config.margin), timeframe)
+load_pairs(pairs::Union{AbstractArray,AbstractDict}, timeframe::AbstractString) =
+    load_pairs(zi, exc, pairs, timeframe)
+load_pairs(timeframe::AbstractString) =
+    load_pairs(get_pairlist(config.qc; as_vec = true, margin = config.margin), timeframe)
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
 load_pairs() = load_pairs(get_pairlist(config.qc), config.timeframe)
 
 function load_pairs(zi, exc, pairs, timeframe)
-    pairdata = Dict{String, PairData}()
+    pairdata = Dict{String,PairData}()
     exc_name = exc.name
     for p in pairs
-        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z=true)
+        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z = true)
         pairdata[p] = PairData(p, timeframe, pair_df, za)
     end
     pairdata
 end
 
-function trim_pairs_data(data::AbstractDict{String, PairData}, from::Int)
+function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     for (_, p) in data
         tmp = copy(p.data)
         select!(p.data, [])
@@ -312,7 +360,7 @@ end
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load_pair(zi, exc_name, pair, timeframe="1m"; kwargs...)
+function load_pair(zi, exc_name, pair, timeframe = "1m"; kwargs...)
     @as_td
     @zkey
     try
@@ -328,9 +376,25 @@ function load_pair(zi, exc_name, pair, timeframe="1m"; kwargs...)
     end
 end
 
-function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
+function _load_pair(
+    zi,
+    key,
+    td;
+    from = "",
+    to = "",
+    saved_col = 1,
+    as_z = false,
+    with_z = false,
+)
     @debug "Loading data for pair at $key."
-    za, _ = _get_zarray(zi, key, (0, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false)
+    za, _ = _get_zarray(
+        zi,
+        key,
+        (0, length(OHLCV_COLUMNS));
+        overwrite = true,
+        type = Float64,
+        reset = false,
+    )
 
     if size(za, 1) === 0
         as_z && return za, (0, 0)
@@ -371,7 +435,7 @@ end
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
-    for i in 2:length(series)
+    for i = 2:length(series)
         nv = dtfloat(series[i])
         nv - pv !== td && throw("Time series is not contiguous at index $i.")
         pv = nv
@@ -386,7 +450,7 @@ end
 
 function _contiguous_ts(series::AbstractVector{Float64}, td::Float64)
     pv = series[1]
-    for i in 2:length(series)
+    for i = 2:length(series)
         nv = series[i]
         nv - pv !== td && throw("Time series is not contiguous at index $i.")
         pv = nv
@@ -394,50 +458,55 @@ function _contiguous_ts(series::AbstractVector{Float64}, td::Float64)
     true
 end
 
-function _check_contiguity(data_first_ts::AbstractFloat,
-                           data_last_ts::AbstractFloat,
-                           saved_first_ts::AbstractFloat,
-                           saved_last_ts::AbstractFloat, td)
+function _check_contiguity(
+    data_first_ts::AbstractFloat,
+    data_last_ts::AbstractFloat,
+    saved_first_ts::AbstractFloat,
+    saved_last_ts::AbstractFloat,
+    td,
+)
     data_first_ts > saved_last_ts + td &&
         throw(RightContiguityException(dt(saved_last_ts), dt(data_first_ts)))
-    data_first_ts < saved_first_ts && data_last_ts + td < saved_first_ts &&
+    data_first_ts < saved_first_ts &&
+        data_last_ts + td < saved_first_ts &&
         throw(LeftContiguityException(dt(saved_last_ts), dt(data_first_ts)))
 end
 
-@enum CandleField cdl_ts=1 cdl_o=2 cdl_h=3 cdl_lo=4 cdl_cl=5 cdl_vol=6
+@enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
 
-const CandleCol = (;timestamp=1, open=2, high=3, low=4, close=5, volume=6)
+const CandleCol = (; timestamp = 1, open = 2, high = 3, low = 4, close = 5, volume = 6)
 
 using DataFramesMeta
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
-fill_missing_rows(df, timeframe::AbstractString; strategy=:close) = begin
+fill_missing_rows(df, timeframe::AbstractString; strategy = :close) = begin
     @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=false)
+    _fill_missing_rows(df, prd; strategy, inplace = false)
 end
 
-fill_missing_rows!(df, prd::Period; strategy=:close) = begin
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+fill_missing_rows!(df, prd::Period; strategy = :close) = begin
+    _fill_missing_rows(df, prd; strategy, inplace = true)
 end
 
-fill_missing_rows!(df, timeframe::AbstractString; strategy=:close) = begin
+fill_missing_rows!(df, timeframe::AbstractString; strategy = :close) = begin
     @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+    _fill_missing_rows(df, prd; strategy, inplace = true)
 end
 
 function _fill_missing_rows(df, prd::Period; strategy, inplace)
     size(df, 1) === 0 && return _empty_df()
     let ordered_rows = []
         # fill the row by previous close or with NaNs
-        can = strategy === :close ? (x) -> [x, x, x, x, 0] : (_) -> [NaN, NaN, NaN, NaN, NaN]
+        can =
+            strategy === :close ? (x) -> [x, x, x, x, 0] : (_) -> [NaN, NaN, NaN, NaN, NaN]
         @with df begin
             ts_cur, ts_end = first(:timestamp) + prd, last(:timestamp)
             ts_idx = 2
             # NOTE: we assume that ALL timestamps are multiples of the timedelta!
             while ts_cur < ts_end
                 if ts_cur !== :timestamp[ts_idx]
-                    close = :close[ts_idx - 1]
+                    close = :close[ts_idx-1]
                     push!(ordered_rows, Candle(ts_cur, can(close)...))
                 else
                     ts_idx += 1
@@ -455,7 +524,7 @@ end
 @doc """Similar to the freqtrade homonymous function.
 `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
-function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
+function cleanup_ohlcv_data(data, timeframe; col = 1, fill_missing = :close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return _empty_df()
     df = data isa DataFrame ? data : to_df(data)
@@ -474,8 +543,16 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     # delete!(df, timefloat.(df.timestamp) .% td .!== 0.)
     # @debug "DataFrame without bad timestamp size: $(size(df, 1))"
 
-    gd = groupby(df, :timestamp; sort=true)
-    df = combine(gd, :open => first, :high => maximum, :low => minimum, :close => last, :volume => maximum; renamecols=false)
+    gd = groupby(df, :timestamp; sort = true)
+    df = combine(
+        gd,
+        :open => first,
+        :high => maximum,
+        :low => minimum,
+        :close => last,
+        :volume => maximum;
+        renamecols = false,
+    )
 
     if is_incomplete_candle(df[end, :], td)
         last_candle = copy(df[end, :])
@@ -483,7 +560,7 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
     if fill_missing !== false
-        fill_missing_rows!(df, prd; strategy=fill_missing)
+        fill_missing_rows!(df, prd; strategy = fill_missing)
     end
     df
 end
@@ -504,7 +581,7 @@ function is_incomplete_candle(candle, td::AbstractFloat)
     ts + td > nw
 end
 
-function is_incomplete_candle(x, timeframe="1m")
+function is_incomplete_candle(x, timeframe = "1m")
     @as_td
     is_incomplete_candle(x, td)
 end
