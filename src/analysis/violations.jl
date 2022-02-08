@@ -124,7 +124,7 @@ const vweights =  Ref((
     retrace = 0.05
 ))
 
-function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1, weights=vweights[])
+function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, gain=0.1, neg=true, weights=vweights[])
     @debug @assert size(df, 1) > window2
 
     dfv = @view df[end-window:end, :]
@@ -139,7 +139,8 @@ function violations(df::AbstractDataFrame; window=20, window2=50, min_lows=3, ga
 
     vars = (;lowhigh, llows, down, b20, b50, retrace)
     # NOTE: negate the score since violations are bad...
-    (; vars..., score=-_score_sum(vars; weights))
+    score = _score_sum(vars; weights)
+    (; vars..., score=(neg ? -score : score))
 end
 
 function violations(mrkts::AbstractDict; window=20, window2=50, sorted=true, rev=false, kwargs...)
