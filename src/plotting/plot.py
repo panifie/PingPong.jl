@@ -218,7 +218,6 @@ def k_chart_global_opts(chart, name, x_idx, grid_idx=0, y_idx=[]):
         ],
     )
 
-
 def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
     """
     `inds`: Every indicator should specify its plot type. Eg. ("bar", [...])
@@ -226,7 +225,6 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
 
     global INIT_OPTS
     INIT_OPTS = opts.InitOpts(width="1400px", height="800px")
-
     g = Grid(init_opts=INIT_OPTS)
     k_chart = kline_chart(dates, ohlc, name=name)
     v_bar = volume_bar(dates, inds["volume"][1])

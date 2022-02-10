@@ -8,6 +8,7 @@ using Backtest: Analysis
 
 const pyec = pynew()
 const opts = pynew()
+const np = pynew()
 
 const echarts_ohlc_cols = (:open, :close, :low, :high)
 const cplot = pynew()
@@ -15,6 +16,7 @@ const cplot = pynew()
 function init_pyecharts(reload = false)
     !pyisnull(pyec) && !reload && return
     @pymodule pyec pyecharts
+    @pymodule np numpy
     pycopy!(opts, pyec.options)
 
     ppwd = pwd()
@@ -102,19 +104,22 @@ end
 
 @chartinds!
 
+using PythonCall
 function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], reload=true)
     init_pyecharts(reload)
 
     @autotail df
     @df_dates_data
 
-    inds = PyDict(Py(ind) => (Py(get(chartinds, ind, default_chart_type)), getproperty(df, ind)) for ind in inds)
+    inds = PyDict(Py(ind) => (Py(get(chartinds, ind, default_chart_type)),
+                              PyList(getproperty(df, ind))) for ind in inds)
     "volume" ∉ keys(inds) && begin
-	    @py inds["volume"] = ("bar", df.volume)
+	    @py inds["volume"] = ("bar", PyList(df.volume))
     end
 
     @info "Plotting..."
-    cplot.grid(dates, data; inds, name)
+    data = PyList(PyList(@view(data[n, :])) for n in 1:size(data, 1))
+    cplot.grid(PyList(dates), data; inds, name)
     nothing
 end
 
