@@ -1,6 +1,6 @@
 module Plotting
 
-using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py
+using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py, pystr, PyList
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
 using Backtest.Misc: PairData, infer_tf, tf_win, config, @pymodule
@@ -104,14 +104,13 @@ end
 
 @chartinds!
 
-using PythonCall
 function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], reload=true)
     init_pyecharts(reload)
 
     @autotail df
     @df_dates_data
 
-    inds = PyDict(Py(ind) => (Py(get(chartinds, ind, default_chart_type)),
+    inds = PyDict(pystr(ind) => (get(chartinds, ind, default_chart_type),
                               PyList(getproperty(df, ind))) for ind in inds)
     "volume" ∉ keys(inds) && begin
 	    @py inds["volume"] = ("bar", PyList(df.volume))
@@ -123,7 +122,10 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
     nothing
 end
 
-plotgrid(pairdata::PairData, args...; kwargs...) = plotgrid(pairdata.data, args...; name=pairdata.name, kwargs...)
+function plotgrid(pairdata::PairData, args...; timeframe="15m", kwargs...)
+    data = Analysis.resample(pairdata, timeframe)
+    plotgrid(data, args...; name=pairdata.name, kwargs...)
+end
 
 function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
     init_pyecharts(reload)
@@ -182,23 +184,29 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
     cplot.heatmap(x_axis, y_axis; y_name, y_labels)
 end
 
-@doc "OHLCV plot with bbands and alma indicators."
-function plotone(df::AbstractDataFrame, name="")
-    _, tfname = infer_tf(df)
-    n = tf_win[tfname]
-    Analysis.bbands!(df; n)
-    df[!, :alma] = Analysis.ind.alma(df.close; n)
-    plotgrid(df, -1; name=name, inds=[:alma, :bb_low, :bb_mid, :bb_high])
+plotone(args...; kwargs...) = begin
+    isdefined(Analysis, :bbands!) || Analysis.explore!()
+    _plotone(args...; kwargs...)
 end
 
-macro plotone(name)
+@doc "OHLCV plot with bbands and alma indicators."
+function _plotone(pair::PairData; timeframe="15m", n_bb=nothing, n_mul=100)
+    df = Analysis.resample(pair, timeframe)
+    _, tfname = infer_tf(df)
+    n = isnothing(n_bb) ? tf_win[tfname] : n_bb
+    @info "Bbands with window $n..."
+    Analysis.bbands!(df; n)
+    df[!, :alma] = Analysis.ind.alma(df.close; n)
+    plotgrid(df, size(df, 1) -1; name=pair.name, inds=[:alma, :bb_low, :bb_mid, :bb_high])
+end
+
+macro plotone(name, bb_args...)
     mrkts = esc(:mrkts)
     name_str = uppercase(string(name))
-    v = esc(name)
+    kwargs = passkwargs(bb_args...)
     quote
         pair = "$($name_str)/$(config.qc)"
-        $v = $(mrkts)[pair].data
-        plotone($v, $name_str)
+        plotone($(mrkts)[pair]; $(kwargs...))
     end
 end
 

@@ -24,13 +24,13 @@ def render(chart):
     chart.render(chart_path)
 
 
-def volume_bar(x, y):
+def volume_bar(x, y, grid_idx=1):
     b = Bar(init_opts=INIT_OPTS)
     b.add_xaxis(xaxis_data=x)
     b.add_yaxis(
         series_name="",
-        # xaxis_index=1,
-        # yaxis_index=1,
+        xaxis_index=grid_idx,
+        yaxis_index=grid_idx,
         y_axis=y,
         label_opts=opts.LabelOpts(is_show=False),
     )
@@ -43,7 +43,7 @@ def volume_bar(x, y):
             axistick_opts=opts.AxisTickOpts(is_show=False),
             splitline_opts=opts.SplitLineOpts(is_show=False),
             split_number=10,
-            # grid_index=0,
+            grid_index=grid_idx,
         ),
         yaxis_opts=opts.AxisOpts(
             is_scale=True,
@@ -51,6 +51,7 @@ def volume_bar(x, y):
                 is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)
             ),
             axislabel_opts=opts.LabelOpts(is_show=False),
+            grid_index=grid_idx,
         ),
         legend_opts=opts.LegendOpts(is_show=True, pos_left=0),
     )
@@ -122,12 +123,14 @@ def ind_line(x, y, name="", grid_idx=1, legend_pos={}):
     return l
 
 
-def kline_chart(x, y, name=""):
+def kline_chart(x, y, name="", grid_idx=0):
     k = Kline(init_opts=opts.InitOpts(width=CHART_WIDTH, height=CHART_HEIGHT))
     k.add_xaxis(xaxis_data=x)
     k.add_yaxis(
         series_name=name,
         y_axis=y,
+        xaxis_index=grid_idx,
+        yaxis_index=grid_idx,
         itemstyle_opts=opts.ItemStyleOpts(
             color="#14b143",
             color0="#ef232a",
@@ -154,7 +157,7 @@ def kline_chart(x, y, name=""):
     return k
 
 
-def k_chart_global_opts(chart, name, x_idx, grid_idx=0, y_idx=[]):
+def global_opts(chart, name, x_idx, grid_idx=0, y_idx=[]):
     if not y_idx:
         y_idx.extend(x_idx)
 
@@ -226,8 +229,9 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
     global INIT_OPTS
     INIT_OPTS = opts.InitOpts(width="1400px", height="800px")
     g = Grid(init_opts=INIT_OPTS)
+    k_chart_idx = 0
     k_chart = kline_chart(dates, ohlc, name=name)
-    v_bar = volume_bar(dates, inds["volume"][1])
+    v_bar = volume_bar(dates, inds["volume"][1], grid_idx=k_chart_idx)
 
     iinds = inds.copy()
     del iinds["volume"]
@@ -238,10 +242,10 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
     for (name, (plot_type, vec)) in iinds.items():
         legend_pos["pos_top"] += 25
         if plot_type == "line":
-            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=0)
+            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=k_chart_idx)
             k_chart = k_chart.overlap(ic)
         else:
-            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=2)
+            ic = plotsfn[plot_type](dates, vec, name, legend_pos=legend_pos, grid_idx=k_chart_idx+1)
             ind_charts.append(ic)
 
     k_chart.set_global_opts(
@@ -256,14 +260,17 @@ def grid(dates, ohlc, inds: Dict[str, Tuple[str, List]] = {}, name="OHLCV"):
     )
     # NOTE: Options need to be applied before adding charts to the grid (They are copied?)
     zoom_idx = list(range(2 + len(ind_charts))) if len(ind_charts) else [0, 1]
-    k_chart_global_opts(k_chart, "ohlc", x_idx=zoom_idx, grid_idx=0)
+    global_opts(k_chart, "ohlc", x_idx=zoom_idx, grid_idx=k_chart_idx)
+    global_opts(v_bar, "ohlc", x_idx=zoom_idx, grid_idx=k_chart_idx)
     # NOTE: The order is importat for correct application of global options (like zoom)
-    g.add(k_chart, grid_opts=opts.GridOpts(height="49%"))
-    g.add(v_bar, grid_opts=opts.GridOpts(height="9%", pos_top="70%"))
+    g.add(v_bar, grid_opts=opts.GridOpts(height="9%", pos_top="70%"), grid_index=k_chart_idx)
+    g.add(k_chart, grid_opts=opts.GridOpts(height="49%", pos_top="0%"), grid_index=k_chart_idx)
 
     for ic in ind_charts:
         g.add(ic, grid_opts=opts.GridOpts(height="9%", pos_top="80%"))
 
+    # import json
+    # js = json.loads(g.dump_options())
     render(g)
 
 

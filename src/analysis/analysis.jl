@@ -66,7 +66,7 @@ fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(exc::Exchange, pair::PairData, timeframe; save=true)
+function resample(exc::Exchange, pair::PairData, timeframe; save=false)
     @debug @assert all(cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(pair.data, 1)
@@ -95,7 +95,9 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=true)
             right -= 1
         end
     end
-    data = @view data[left:right, :]
+
+    # Create a new dataframe to keep thread safety
+    data = DataFrame(@view(data[left:right, :]); copycols=false)
     size(data, 1) === 0 && return _empty_df()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td

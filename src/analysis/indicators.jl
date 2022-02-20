@@ -158,9 +158,9 @@ function bbands!(df::AbstractDataFrame; kwargs...)
     bbcols = [:bb_low, :bb_mid, :bb_high]
     bb = bbands(df; kwargs...)
     if bbcols[1] ∈ getfield(df, :colindex).names
-        df[:, bbcols] = bb
+        df[!, bbcols] = bb
     else
-        insertcols!(df, [c => bb[n] for (n, c) in enumerate(bbcols)]...)
+        insertcols!(df, [c => @view(bb[:, n]) for (n, c) in enumerate(bbcols)]...; copycols=false)
     end
     df
 end
@@ -213,17 +213,33 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], co
     out, DataFrame(out_df)
 end
 
-macro checksize(data)
-    ohlcv = esc(:ohlcv)
+macro checksize(data=nothing)
+    ohlcv = isnothing(data) ? esc(:ohlcv) : esc(data)
     n = esc(:n)
     quote
         size($ohlcv, 1) <= $n && return false
     end
 end
 
+function is_peaked(ohlcv::DataFrame; thresh=0.05, n=26)
+    @checksize
+    bb = bbands(ohlcv; n)
+    ohlcv.close[end] / bb[end, 3] > 1 + thresh
+end
+
+function is_peaked(ohlcv::DataFrame, bb::AbstractArray; thresh=0.05)
+    @checksize
+    ohlcv.close[end] / bb[end, 3] > 1 + thresh
+end
+
 function is_bottomed(ohlcv::DataFrame; thresh=0.05, n=26)
     @checksize
     bb = bbands(ohlcv; n)
+    ohlcv.close[end] / bb[end, 1] < 1 + thresh
+end
+
+function is_bottomed(ohlcv::DataFrame, bb::AbstractArray; thresh=0.05)
+    @checksize
     ohlcv.close[end] / bb[end, 1] < 1 + thresh
 end
 
