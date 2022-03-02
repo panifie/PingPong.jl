@@ -2,7 +2,7 @@ using PythonCall: PyException, Py, pyisnull, PyDict, PyList, pyconvert
 using Backtest: config
 using Backtest.Data: zi, load_pair, is_last_complete_candle, save_pair, cleanup_ohlcv_data
 using Backtest.Misc: _from_to_dt, PairData, default_data_path, _instantiate_workers, tfperiod, ContiguityException, isless, ohlcv_limits
-using Backtest.Exchanges: Exchange, get_pairlist
+using Backtest.Exchanges: Exchange, get_pairlist, py_except_name
 @debug using Backtest.Misc: dt
 using Backtest.Misc.Pbar
 using Dates: now, Year, Millisecond
@@ -95,7 +95,7 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
                 sleep_t = (sleep_t + 1) * 2
                 limit = isnothing(limit) ? limit : limit ÷ 2
                 _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit)
-            elseif string(pytype(e)) == exchange_err
+            elseif py_except_name(e) ∈ ccxt_errors
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
                 return df ? _empty_df() : []
             else
