@@ -20,7 +20,8 @@ using PythonCall:
     pyisnone,
     pygetattr,
     pyimport,
-    pydir
+    pydir,
+    PyException
 using JSON
 using Backtest.Misc:
     @pymodule,
