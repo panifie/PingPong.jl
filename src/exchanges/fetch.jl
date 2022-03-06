@@ -215,6 +215,9 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
             catch e
                 if e isa ContiguityException
                     z = save_pair(zi, exc_name, name, timeframe, ohlcv; reset=true)
+                elseif e isa AssertionError
+                    display(e)
+                    @warn "Could not fetch data for pair $name, check integrity of saved data."
                 else
                     rethrow(e)
                 end
