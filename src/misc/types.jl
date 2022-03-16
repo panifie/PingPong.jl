@@ -3,6 +3,7 @@ using Dates:
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
 using TimeFrames: TimeFrame
+using Base.Meta: parse
 import Base.convert
 import Base.isless
 
@@ -28,7 +29,21 @@ end
 # stdlib doesn't have this function
 isless(w::Week, m::Month) = w.value * 4 < m.value * 30
 # convert m for minutes to T, since ccxt uses lowercase "m" for minutes
-tfperiod(s::AbstractString) = TimeFrame(replace(s, r"([0-9]+)m" => s"\1T")).period
+function tfperiod(s::AbstractString)
+    m = match(r"([0-9]+)([a-zA-Z])", s)
+    n = m[1]
+    t = lowercase(m[2])
+    tt = ""
+    if t == "m"
+        tt = "T"
+    elseif t == "y"
+        tt = "d"
+        n = parse(n) * 365
+    end
+    # TimeFrame(replace(s, [r"([0-9]+)m" => s"\1T")))
+    TimeFrame("$n$tt")
+end
+
 # ccxt always uses milliseconds in timestamps
 tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
