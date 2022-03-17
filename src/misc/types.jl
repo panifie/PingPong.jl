@@ -33,15 +33,13 @@ function tfperiod(s::AbstractString)
     m = match(r"([0-9]+)([a-zA-Z])", s)
     n = m[1]
     t = lowercase(m[2])
-    tt = ""
     if t == "m"
-        tt = "T"
+        t = "T"
     elseif t == "y"
-        tt = "d"
+        t = "d"
         n = parse(n) * 365
     end
-    # TimeFrame(replace(s, [r"([0-9]+)m" => s"\1T")))
-    TimeFrame("$n$tt")
+    TimeFrame("$n$t").period
 end
 
 # ccxt always uses milliseconds in timestamps
