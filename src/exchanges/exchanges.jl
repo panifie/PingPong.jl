@@ -16,7 +16,6 @@ using PythonCall:
     PyDict,
     pyconvert,
     pydict,
-    pyclass,
     pyisnone,
     pygetattr,
     pyimport,
