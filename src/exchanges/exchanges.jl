@@ -282,7 +282,7 @@ function get_pairlist(
            (leveraged === :only && !lev) ||
            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
            (skip_fiat && is_fiat_pair(k)) ||
-           (margin && "margin" ∈ keys(v) && !v["margin"])
+           (margin && !isnothing(get(v, "margin", nothing)) && !v["margin"])
             continue
         else
             push_fun(pairlist, k, v)
