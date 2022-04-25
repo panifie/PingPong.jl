@@ -136,10 +136,11 @@ function vcons(data, tfs = []; cargs = (), vargs = (), sargs = (), onevi = false
 end
 
 @doc "Filter pairs in `hs` that are bottomed longs."
-function cbot(hs::AbstractDataFrame, mrkts; n::StepRange=30:-3:3, min_n=5, sort_col=:score_sum)
+function cbot(hs::AbstractDataFrame, mrkts; n::StepRange=30:-3:3, min_n=16, sort_col=:score_sum, fb_kwargs=(up_thresh=0, mn=5., mx=45.))
+    @assert :n ∉ fb_kwargs "Don't pass the n arg to `find_bottomed`."
     bottomed = []
     for r in n
-        append!(bottomed, an.find_bottomed(mrkts; n=r) |> keys)
+        append!(bottomed, an.find_bottomed(mrkts; n=r, fb_kwargs...) |> keys)
         length(bottomed) < min_n || break
     end
     mask = [p ∈ bottomed for p in hs.pair]
@@ -182,15 +183,29 @@ function average_roc(mrkts)
     DataFrame(:positive => mpos, :negative => mneg, :ratio => mpos / abs(mneg))
 end
 
+@doc "The last day price change."
+function last_day_roc(r, mrkts)
+    roc = []
+    for pair in r.pair
+        oneday = an.resample(mrkts[pair], "1d"; save=false)
+        push!(roc, mrkts[pair].data.close[end] - oneday.close[end])
+    end
+    df = hcat(r, roc)
+    sort!(df, :x1)
+end
+
 macro setup(exc)
     a = esc(:an)
     m = esc(:mrkts)
     mr = esc(:mrkts_r)
+    mvp = esc(:mvp)
     quote
         $a = an
         Backtest.setexchange!($exc)
+        an.@pairtraits!
         $m = load_pairs("15m")
         $mr = an.resample($m, "1d"; save=false)
+        $mvp = smvp($m)
     end
 end
 
@@ -201,4 +216,4 @@ macro otime()
     end
 end
 
-export @excfilter, price_ranges, @bbranges, vcons, gprofit, smvp, cbot, cpek, @otime, @setup
+export @excfilter, price_ranges, @bbranges, vcons, gprofit, smvp, cbot, cpek, @otime, @setup, last_day_roc
