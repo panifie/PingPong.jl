@@ -23,15 +23,25 @@ end
 
 function find_since(exc, pair)
     tfs = collect(exc.timeframes)
-    long_tf = tfs[findmax(tfperiod.(tfs))[2]]
-    old_ts = Day(365) |> Millisecond |> timefloat |> Int
-    # fetch the first available candles using a long (1w) timeframe
-    data = _fetch_with_delay(exc, pair, long_tf; since=old_ts, df=true)
+    periods = tfperiod.(tfs)
+    order = sortperm(periods, rev=true)
+    periods = @view periods[order]
+    tfs = @view tfs[order]
+    data = []
+    for (t, p) in zip(tfs, periods)
+        old_ts = p |> Millisecond |> timefloat |> Int
+        # fetch the first available candles using a long (1w) timeframe
+        data = _fetch_with_delay(exc, pair, t; since=old_ts, df=true)
+        if !isempty(data)
+            break
+        end
+    end
     if isempty(data)
         # try without `since` arg
-        data = _fetch_with_delay(exc, pair, long_tf; df=true)
+        data = _fetch_with_delay(exc, pair, tfs[begin]; df=true)
     end
-    isempty(data) && return 0
+    # default to 1 day
+    isempty(data) && return now() - Day(1) |> timefloat |> Int
     data[begin, 1] |> timefloat |> Int
 end
 
@@ -43,6 +53,7 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     local since
     if from === 0.0
         since = find_since(exc, pair)
+        @show "since? ", since
     else
         append!(data, _fetch_with_delay(exc, pair, timeframe; since=Int(from), params, df=true))
         if size(data, 1) > 0
