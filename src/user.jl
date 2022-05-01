@@ -24,8 +24,8 @@ end
 
 const pranges_risky=(0.9, 0.95, 0.955, 1.045, 1.05, 1.1)
 const pranges_bal=(0.94, 0.95, 0.955, 1.045, 1.05, 1.06)
-const pranges_tight=(0.94, 0.98, 0.985, 1.025, 1.02, 1.06)
-const pranges_expa=(0.7, 0.8, 0.9, 0.98, 0.985, 1.025, 1.02, 1.1, 1.2, 1.3)
+const pranges_tight=(0.94, 0.98, 0.985, 1.015, 1.02, 1.06)
+const pranges_expa=(0.7, 0.8, 0.9, 0.98, 0.985, 1.015, 1.02, 1.1, 1.2, 1.3)
 
 @doc "Given a price, output price at given ratios."
 function price_ranges(price::Number, ranges=:expa)
