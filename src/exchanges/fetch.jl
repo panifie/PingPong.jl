@@ -53,7 +53,7 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     local since
     if from === 0.0
         since = find_since(exc, pair)
-        @show "since? ", since
+        @debug "since time: ", since
     else
         append!(data, _fetch_with_delay(exc, pair, timeframe; since=Int(from), params, df=true))
         if size(data, 1) > 0

@@ -6,6 +6,7 @@ using Base: @kwdef
     qc::String = "USDT"
     margin::Bool = false
     leverage::Symbol = :no
+    futures::Bool = false
     vol_min::Float64 = 10e4
     slope_min::Float64= 0.
     slope_max::Float64 = 90.

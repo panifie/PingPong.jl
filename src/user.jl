@@ -148,10 +148,10 @@ function cbot(hs::AbstractDataFrame, mrkts; n::StepRange=30:-3:3, min_n=16, sort
 end
 
 @doc "Filter pairs in `hs` that are peaked shorts."
-function cpek(hs::AbstractDataFrame, mrkts; n::StepRange=30:-3:3, min_n=5, sort_col=:score_sum)
+function cpek(hs::AbstractDataFrame, mrkts; n::StepRange=30:-3:3, min_n=5, sort_col=:score_sum, fb_kwargs=(up_thresh=0, mn=5., mx=45.))
     peaked = []
     for r in n
-        append!(peaked, an.find_peaked(mrkts; n=r) |> keys)
+        append!(peaked, an.find_peaked(mrkts; n=r, fb_kwargs...) |> keys)
         length(peaked) < min_n || break
     end
     mask = [p ∈ peaked for p in hs.pair]

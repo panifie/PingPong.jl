@@ -33,13 +33,14 @@ using Backtest.Misc:
     timefloat,
     fiatnames,
     default_data_path,
-    dt
+    dt,
+    futures_exchange
 using Serialization: serialize, deserialize
 
 const ccxt = pynew()
 const exclock = ReentrantLock()
 const leverage_pair_rgx =
-    r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|([0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))[\/\-\_\.]"
+    r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
 const ccxt_errors = Set(string.(pydir(pyimport("ccxt.base.errors"))))
 
@@ -50,13 +51,14 @@ mutable struct Exchange
     isset::Bool
     timeframes::Set{String}
     name::String
+    sym::Symbol
     markets::OptionsDict
     Exchange() = new(pynew())
     Exchange(x::Symbol) = begin
         e = pyexchange(x) |> Exchange
         setexchange!(e, x)
     end
-    Exchange(x::Py) = new(x, false, Set(), "", Dict())
+    Exchange(x::Py) = new(x, false, Set(), "", Symbol(), Dict())
 end
 
 const exc = Exchange(pynew())
@@ -139,6 +141,7 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwar
         pyconvert(Set{String}, exc.py.timeframes.keys())
     isempty(tfkeys) || push!(exc.timeframes, tfkeys...)
     exc.name = string(exc.py.name)
+    exc.sym = Symbol(exc.py.__class__.__name__)
     @debug "Loading Markets..."
     markets && loadmarkets!(exc)
     @debug "Loaded $(length(exc.markets))."
@@ -158,11 +161,11 @@ function to_df(data; fromta = false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
     fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
-           x -> DataFrame(x; copycols = false)
+                     x -> DataFrame(x; copycols = false)
     DataFrame(
         :timestamp => dates,
         [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n = 1:length(OHLCV_COLUMNS_TS)]...;
-        copycols = false,
+        copycols = false
     )
 end
 
@@ -172,6 +175,10 @@ macro as_df(v)
     end
 end
 
+@inline function hastickers(exc::Exchange)
+    Bool(exc.has["fetchTickers"])
+end
+
 @doc "Fetch and cache tickers data."
 macro tickers(force = false)
     exc = esc(:exc)
@@ -179,9 +186,9 @@ macro tickers(force = false)
     quote
         begin
             local $tickers
-            let nm = $exc.name
+            let nm = $(exc).name
                 if $force || nm ∉ keys(tickers_cache)
-                    @assert Bool($(exc).has["fetchTickers"]) "Exchange doesn't provide tickers list."
+                    @assert hastickers($exc) "Exchange doesn't provide tickers list."
                     tickers_cache[nm] =
                         $tickers =
                             pyconvert(Dict{String,Dict{String,Any}}, $(exc).fetchTickers())
@@ -217,6 +224,17 @@ function is_leveraged_pair(pair)
     !isnothing(match(leverage_pair_rgx, pair))
 end
 
+function deleverage_pair(pair)
+    dlv = replace(pair, leverage_pair_rgx => s"\1" )
+    # HACK: assume that BEAR/BULL represent BTC
+    pair = split(dlv, r"\/|\-|\_|\.")
+    if pair[1] |> isempty
+        "BTC" * dlv
+    else
+        dlv
+    end
+end
+
 function is_fiat_pair(pair)
     p = split(pair, r"\/|\-|\_|\.")
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
@@ -241,13 +259,22 @@ function qvol(t::AbstractDict)
     0
 end
 
+@doc "Trims the settlement currency in futures."
+@inline function as_spot_ticker(k, v)
+    if "quote" ∈ keys(v)
+        "$(v["base"])/$(v["quote"])"
+    else
+        split(k, ":")[1]
+    end
+end
+
 get_pairlist(quot::AbstractString, args...; kwargs...) =
     get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(
     exc::Exchange = exc,
     quot::AbstractString = config.qc,
     min_vol::T where {T<:AbstractFloat} = config.vol_min;
-    kwargs...,
+    kwargs...
 ) = get_pairlist(exc, convert(String, quot), convert(Float64, min_vol); kwargs...)
 
 @doc """Get the exchange pairlist.
@@ -264,22 +291,51 @@ function get_pairlist(
     min_vol::Float64;
     skip_fiat = true,
     margin = config.margin,
+    futures = config.futures,
     leveraged = config.leverage,
-    as_vec = false,
+    as_vec = false
 )::Union{Dict,Vector}
+    # swap exchange in case of futures
     @tickers
     pairlist = []
     lquot = lowercase(quot)
+
+    if futures
+        futures_sym = get(futures_exchange, exc.sym, exc.sym)
+        if futures_sym !== exc.sym
+            exc = Exchange(futures_sym)
+        end
+    end
 
     tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
     push_fun =
         isempty(quot) ? (p, k, v) -> push!(p, tup_fun(k, v)) :
         (p, k, v) -> is_qmatch(qid(v), lquot) && push!(p, tup_fun(k, v))
+    # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
+    # they have a leveraged counterpart
+    local hasleverage
+    if leveraged === :from
+        if futures
+            @warn "Filtering by leveraged when futures markets are enabled, are you sure?"
+        end
+        pairs_with_leverage = Set()
+        for k in keys(exc.markets)
+            dlv = deleverage_pair(k)
+            if k !== dlv
+                push!(pairs_with_leverage, dlv)
+            end
+        end
+        hasleverage = (k) -> (!is_leveraged_pair(k) && k ∈ pairs_with_leverage)
+    else
+        hasleverage = (_) -> true
+    end
 
     for (k, v) in exc.markets
+        k = as_spot_ticker(k, v)
         lev = is_leveraged_pair(k)
         if (leveraged === :no && lev) ||
            (leveraged === :only && !lev) ||
+           !hasleverage(k) ||
            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
            (skip_fiat && is_fiat_pair(k)) ||
            (margin && !isnothing(get(v, "margin", nothing)) && !v["margin"])
