@@ -390,7 +390,7 @@ function _load_pair(
     za, _ = _get_zarray(
         zi,
         key,
-        (0, length(OHLCV_COLUMNS));
+        (1, length(OHLCV_COLUMNS));
         overwrite = true,
         type = Float64,
         reset = false,
