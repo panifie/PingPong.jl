@@ -2,17 +2,19 @@ using Backtest.Misc: config
 using StatsBase: corspearman, corkendall, corkendall!, mean
 using StatsModels: lag, lead
 using EffectSizes: effectsize, CohenD, HedgeG, GlassΔ
-import CausalityTools;
-const ct = CausalityTools;
-const di = ct.SMeasure.Distances;
+import CausalityTools
+const ct = CausalityTools
+const di = ct.SMeasure.Distances
 
 @inline _x_view(x, n_lead) = @view(x[begin:end-n_lead])
-@inline _y_view(y, n_lead, default = NaN) = @view(lead(y, n_lead; default)[begin:end-n_lead])
+@inline _y_view(y, n_lead, default = NaN) =
+    @view(lead(y, n_lead; default)[begin:end-n_lead])
 
 macro _wrap_df_fun(name)
     name = esc(name)
     quote
-        $name(x, data::AbstractDataFrame; col = :close, kwargs...) = $name(x, getproperty(data, col); kwargs...)
+        $name(x, data::AbstractDataFrame; col = :close, kwargs...) =
+            $name(x, getproperty(data, col); kwargs...)
     end
 end
 
@@ -68,14 +70,12 @@ config.ct = Dict(
     :pai => (; d = 2, τ = 1, w = 2),
     :cross => (; d = 1, τ = 1),
     :smeas => (; k = 2),
-    :joindd => (; dm = di.SqEuclidean(), B = 2, D = 2, τ = 1)
+    :joindd => (; dm = di.SqEuclidean(), B = 2, D = 2, τ = 1),
 )
 
 function tentr(x::AbstractArray, y::AbstractArray, args...)
     opt = config.ct[:tentr]
-    ct.transferentropy(x, y, opt.est;
-        base = opt.base,
-        q = opt.q)
+    ct.transferentropy(x, y, opt.est; base = opt.base, q = opt.q)
 end
 
 function muten(x::AbstractArray, y::AbstractArray, args...)
@@ -112,7 +112,21 @@ end
 
 macro _wrap_funcs()
     quote
-        for f in [:corsp, :corke, :cohen, :hedge, :glass, :qcorr, :tentr, :muten, :predas, :cross, :pai, :smeas, :joindd]
+        for f in [
+            :corsp,
+            :corke,
+            :cohen,
+            :hedge,
+            :glass,
+            :qcorr,
+            :tentr,
+            :muten,
+            :predas,
+            :cross,
+            :pai,
+            :smeas,
+            :joindd,
+        ]
             @_wrap_df_fun f
         end
     end

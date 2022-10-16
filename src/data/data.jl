@@ -367,8 +367,9 @@ function load_pair(zi, exc_name, pair, timeframe = "1m"; kwargs...)
         _load_pair(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError)
-            :as_z ∈ keys(kwargs) && return [], (0, 0)
-            :with_z ∈ keys(kwargs) && return _empty_df(), []
+            emptyz = zcreate(Float64, zi.store, 1, length(OHLCV_COLUMNS); path = key, compressor)
+            :as_z ∈ keys(kwargs) && return emptyz, (0, 0)
+            :with_z ∈ keys(kwargs) && return _empty_df(), emptyz
             return _empty_df()
         else
             rethrow(e)
@@ -396,7 +397,7 @@ function _load_pair(
         reset = false,
     )
 
-    if size(za, 1) === 0
+    if size(za, 1) < 2
         as_z && return za, (0, 0)
         with_z && return (_empty_df(), za)
         return _empty_df()

@@ -13,12 +13,17 @@ function slopefilter(pairs::AbstractDict; minv=10., maxv=90., window=20)
     filter(pred, pairs, minv, maxv)
 end
 
+
+slopeangle(data::AbstractDataFrame; kwargs...) = slopeangle(data.close; kwargs...)
+
 function slopeangle(arr; n=10)
-    length(arr) >= n || return nothing
+    size(arr)[1] >= n || return [missing]
     ind.mlr_slope(arr; n) .|> slopetoangle
 end
 
-slopetoangle(s) = atan(s) * (180 / π)
+slopetoangle(s) = begin
+    atan(s) * (180 / π)
+end
 
 function is_slopebetween(ohlcv::DataFrame; mn=5, mx=90, n=26)
     slope = ind.mlr_slope(@view(ohlcv.close[end-n:end]); n)[end]

@@ -9,6 +9,7 @@ using Backtest.Exchanges: Exchange, exc
 using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
 using StatsBase: transform!, transform, fit, ZScoreTransform, UnitRangeTransform
+using LegibleLambdas
 
 macro evalmod(files...)
     quote
@@ -21,7 +22,7 @@ macro evalmod(files...)
 end
 
 function explore!()
-    @evalmod "indicators.jl" "explore.jl"
+    @evalmod "metrics.jl" "explore.jl"
 end
 
 macro pairtraits!()
@@ -30,7 +31,8 @@ macro pairtraits!()
         @evalmod "mvp.jl"
         @evalmod "violations.jl"
         @evalmod "considerations.jl"
-        @eval using Backtest.Analysis.MVP, Backtest.Analysis.Violations, Backtest.Analysis.Considerations
+        @eval using Backtest.Analysis.MVP,
+            Backtest.Analysis.Violations, Backtest.Analysis.Considerations
     end
 end
 
@@ -46,18 +48,18 @@ end
 
 @doc "Filters a list of pairs using a predicate function. The predicate functions must return a `Real` number which will be used for sorting."
 function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
-    flt = Tuple{AbstractFloat, PairData}[]
+    flt = Tuple{AbstractFloat,PairData}[]
     for (_, p) in pairs
         v = pred(p.data)
-        if max_v > v > min_v
+        if !ismissing(v) && max_v > v > min_v
             push!(flt, (v, p))
         end
     end
-    sort!(flt; by=x->x[1])
+    sort!(flt; by = @λ(x -> x[1]))
 end
 
 @doc "Return the summary of a filtered vector of pairdata."
-function fltsummary(flt::AbstractVector{Tuple{AbstractFloat, PairData}})
+function fltsummary(flt::AbstractVector{Tuple{AbstractFloat,PairData}})
     [(x[1], x[2].name) for x in flt]
 end
 
@@ -66,8 +68,10 @@ fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(exc::Exchange, pair::PairData, timeframe; save=false)
-    @debug @assert all(cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
+function resample(exc::Exchange, pair::PairData, timeframe; save = false)
+    @debug @assert all(
+        cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp,
+    ) "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(pair.data, 1)
     sz > 1 || return _empty_df()
@@ -86,7 +90,7 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=false)
 
     # remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
     left = 1
-    while (data.timestamp[left] |> timefloat) % td !== 0.
+    while (data.timestamp[left] |> timefloat) % td !== 0.0
         left += 1
     end
     right = size(data, 1)
@@ -97,28 +101,42 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=false)
     end
 
     # Create a new dataframe to keep thread safety
-    data = DataFrame(@view(data[left:right, :]); copycols=false)
+    data = DataFrame(@view(data[left:right, :]); copycols = false)
     size(data, 1) === 0 && return _empty_df()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
     gb = groupby(data, :sample)
-    df = combine(gb, :timestamp => first, :open => first, :high => maximum, :low => minimum, :close => last, :volume => sum; renamecols=false)
+    df = combine(
+        gb,
+        :timestamp => first,
+        :open => first,
+        :high => maximum,
+        :low => minimum,
+        :close => last,
+        :volume => sum;
+        renamecols = false,
+    )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
     save && save_pair(exc, pair.name, timeframe, df)
     df
 end
 
-resample(mrkts::AbstractDict{String, PairData}, timeframe; kwargs...) = resample(exc, mrkts, timeframe; kwargs...)
+resample(mrkts::AbstractDict{String,PairData}, timeframe; kwargs...) =
+    resample(exc, mrkts, timeframe; kwargs...)
 
-function resample(exc::Exchange, mrkts::AbstractDict{String, PairData}, timeframe; save=true, progress=false)
-    rs = Dict{String, PairData}()
+function resample(
+    exc::Exchange,
+    mrkts::AbstractDict{String,PairData},
+    timeframe;
+    save = true,
+    progress = false,
+)
+    rs = Dict{String,PairData}()
     progress && @pbar! "Pairs" false
     for (name, pair_data) in mrkts
-        rs[name] = PairData(name,
-                            timeframe,
-                            resample(exc, pair_data, timeframe; save),
-                            nothing)
+        rs[name] =
+            PairData(name, timeframe, resample(exc, pair_data, timeframe; save), nothing)
         progress && @pbupdate!
     end
     progress && @pbclose
@@ -130,25 +148,30 @@ normalize(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, co
 
 function _normalize(arr::AbstractArray; unit = false, dims = ndims(arr), copy = false)
     t = copy ? transform! : transform
-    fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims) |>
-    x -> t(x, arr)
+    fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims) |> x -> t(x, arr)
 end
 
 @doc "Apply a function over data, resampling data to each timeframe in `tfs`.
 `f`: signature is (data; kwargs...)::DataFrame
 `tfsum`: sum the scores across multiple timeframes for every pair."
-function maptf(tfs::AbstractVector{T} where T <: String, data, f::Function; tfsum=true, kwargs...)
+function maptf(
+    tfs::AbstractVector{T} where {T<:String},
+    data,
+    f::Function;
+    tfsum = true,
+    kwargs...,
+)
     res = []
     # sort timeframes
     tfs_idx = tfs .|> Symbol .|> timefloat |> sortperm
     permute!(tfs, tfs_idx)
     unique!(tfs)
     # apply an ordinal 2x weighting formula and normalize it
-    tf_weights = [n * 2. for (n, _) in enumerate(tfs)]
+    tf_weights = [n * 2.0 for (n, _) in enumerate(tfs)]
     tf_weights ./= sum(tf_weights)
 
     for (n, tf) in enumerate(tfs)
-        data_r = resample(data, tf; save=false, progress=false)
+        data_r = resample(data, tf; save = false, progress = false)
         d = f(data_r; kwargs...)
         tfsum || (d[!, :timeframe] .= tf)
         d[!, :score] = d.score .* tf_weights[n]

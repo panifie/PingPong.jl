@@ -14,7 +14,6 @@ include("plotting/plotting.jl")
 
 using .Analysis
 using .Plotting
-
 include("repl.jl")
 
 export get_pairlist, load_pairs, Exchange, explore!, user!

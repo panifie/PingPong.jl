@@ -32,3 +32,11 @@ macro as_ts(df, c1, cols...)
         end
     end
 end
+
+@doc "Get the last date of loaded data (in `mrkts` variable)."
+macro otime()
+    m = esc(:mrkts)
+    quote
+        first($m).second.data[end, :timestamp]
+    end
+end

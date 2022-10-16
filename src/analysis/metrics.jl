@@ -2,6 +2,8 @@ import Indicators; const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
 using Backtest.Misc: config
+using Backtest.Data: @to_mat
+using Backtest.Misc: PairData
 
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN

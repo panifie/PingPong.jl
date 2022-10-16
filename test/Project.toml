@@ -2,6 +2,7 @@ name = "Testing"
 
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Backtest = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
 CompileBot = "877fb49a-56b0-480a-9049-319c0c353852"
