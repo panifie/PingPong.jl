@@ -1,0 +1,29 @@
+name = "Cli"
+
+[install]
+completion = false
+quiet = false
+compile = "yes"
+optimize = 2
+
+# [sysimg]
+# path = "~/.julia"
+# incremental = true
+# filter_stdlibs = false
+# cpu_target = "native"
+
+# [sysimg.precompile]
+# execution_file = ["deps/SnoopCompile/script.jl"]
+
+# [application]
+# incremental=false
+# filter_stdlibs=true
+# assets = []
+
+# [application.precompile]
+# execution_file = [ "precompile.jl"]
+
+# [download]
+# host="github.com"
+# user="Roger-luo"
+# repo="Foo.jl"

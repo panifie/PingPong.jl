@@ -1,0 +1,15 @@
+name = "Cli"
+uuid = "dd3f7155-34c1-473d-a171-ef1e8dc6f388"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Comonicon = "863f3e99-da2a-4334-8734-de3dacbe5542"
+Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
+Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
+Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
+Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+SnoopCompileCore = "e2b509da-e806-4183-be48-004708413034"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"

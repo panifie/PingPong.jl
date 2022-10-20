@@ -2,9 +2,9 @@ name = "Testing"
 
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-Backtest = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
+Cli = "dd3f7155-34c1-473d-a171-ef1e8dc6f388"
 CompileBot = "877fb49a-56b0-480a-9049-319c0c353852"
 DebuggingUtilities = "5a34b05b-6094-51df-87c5-5e0368a91250"
 EffectSizes = "e248de7e-9197-5860-972e-353a2af44d75"

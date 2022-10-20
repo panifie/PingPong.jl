@@ -1,0 +1,10 @@
+name = "Long"
+uuid = "4332194b-c649-4273-a126-4843709b406e"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
+Short = "669a2027-c4b8-428d-ba58-693007de5487"

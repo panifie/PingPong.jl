@@ -8,4 +8,5 @@ using Backtest: @in_repl
 exc, zi = @in_repl()
 Revise.revise(Backtest)
 
+using Fetch
 Backtest.fetch_pairs(Val(:ask), exc,"4h"; qc="USDT", zi, update=true)
