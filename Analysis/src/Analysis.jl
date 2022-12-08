@@ -10,10 +10,6 @@ using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
 using LegibleLambdas
 
-function explore!()
-    @evalmod "metrics.jl" "explore.jl"
-end
-
 function __init__()
     ## InformationMeasures.jl ...
     @require Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd" begin
@@ -21,6 +17,8 @@ function __init__()
         @require CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7" :()
         @require StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91" :()
         @require StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d" :()
+        include("metrics.jl")
+        include("explore.jl")
     end
 end
 
@@ -43,6 +41,15 @@ end
 
 fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 
-export explore!, filter, fltsummary
+@doc "Loads the Mark module."
+function mark!()
+    dir = @__DIR__
+    modpath = joinpath(dir |> dirname, "Mark")
+    if modpath ∉ Base.LOAD_PATH
+        push!(Base.LOAD_PATH, modpath)
+    end
+end
+
+export explore!, filter, fltsummary, mark!
 
 end

@@ -1,4 +1,5 @@
 using Distributed: @distributed
+using Logging: with_logger, NullLogger
 
 macro evalmod(files...)
     quote

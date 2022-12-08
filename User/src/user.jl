@@ -4,12 +4,12 @@ using DataFrames
 using LegibleLambdas
 using DataFrames: index
 using DataFramesMeta
-using Backtest.Misc: @margin!, @lev!
+using Misc: @margin!, @lev!
 using Statistics: mean
 export @margin!, @lev!
 
 if !isdefined(@__MODULE__, :an)
-    const an = Backtest.Analysis
+    const an = Analysis
 end
 
 macro setup(exc)
@@ -18,9 +18,9 @@ macro setup(exc)
     mr = esc(:mrkts_r)
     mvp = esc(:mvp)
     quote
-        Backtest.Misc.loadconfig($exc)
+        Misc.loadconfig($exc)
         $a = an
-        Backtest.setexchange!($exc)
+        setexchange!($exc)
         an.@pairtraits!
         $m = load_pairs("15m")
         $mr = an.resample($m, "1d"; save = false)

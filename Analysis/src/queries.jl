@@ -1,4 +1,5 @@
 module Query
+include("slope.jl")
 
 @doc "Given a (non-prefixed) exchange name, do the following:
  - load its CCXT instance (if not loaded)
@@ -12,19 +13,18 @@ module Query
 "
 macro excfilter(exc_name)
     @eval begin
-        using Backtest.Analysis
-        using Backtest.Exchanges
-        using Backtest.Misc
-        explore!()
+        include("slope.jl")
+        # using .Exchanges
+        # using .Misc
+        # explore!()
     end
-    bt = Backtest
     quote
         local trg
         @info "timeframe: $(config.timeframe), window: $(config.window), quote: $(config.qc), min_vol: $(config.vol_min)"
         @exchange! $exc_name
 
         # How should we filter the pairs?
-        pred = @λ(x -> $bt.Analysis.slopeangle(x; n = config.window)[end])
+        pred = @λ(x -> slopeangle(x; n = config.window)[end])
         # load the data from exchange with the quote currency and timeframe from config
         data = (
             $bt.Exchanges.get_pairlist($exc_name, config.qc) |>
@@ -41,44 +41,6 @@ macro excfilter(exc_name)
         $(esc(:res)) = results[lowercase($(exc_name).name)]
         trg
     end
-end
-
-@doc "Calculate metrics based on:
-- Considerations: positive score
-- Stage 2: stage 2 calculation only (still positive)
-- Violations: negative score.
-- After Calculation, their normalization is summed together to obtain a net balance.
-- Display the tail and the head of the sorted pairlist with its score.
-- Return the edges (head, tail) and the full results as a tuple."
-function vcons(data, tfs = []; cargs = (), vargs = (), sargs = (), onevi = false)
-    !isdefined(Main, :an) && @eval begin
-        @info "Loading Analysis..."
-        using Backtest.Analysis
-        Analysis.@pairtraits!
-    end
-    an = @eval Backtest.Analysis
-    datargs = isempty(tfs) ? (data,) : (data, tfs)
-    @info "Considerations..."
-    c_t = @async an.Considerations.considerations(datargs...; cargs..., sorted = false)
-    @info "Stage 2..."
-    s_t = @async an.Considerations.stage2(datargs...; sargs..., sorted = false)
-    @info "Violations..."
-    onevi && (datargs = isempty(tfs) ? (data,) : (data, tfs[end:end]))
-    v_t = @async an.Violations.violations(datargs...; vargs..., sorted = false)
-
-    c = (wait(c_t); c_t.result)
-    s = (wait(s_t); s_t.result)
-    v = (wait(v_t); v_t.result)
-
-    @info "Merging..."
-    sk = length(datargs) > 1 ? :score_sum : :score
-    t = vcat(c, s, v)
-    gb = groupby(t, :pair)
-    res = combine(gb, sk => sum; renamecols = false)
-    sort!(res, sk)
-    edges = vcat((@views res[1:10, :], res[end-10:end, :])...)
-    display(edges)
-    edges, res
 end
 
 @doc "Filter pairs in `hs` that are bottomed longs."

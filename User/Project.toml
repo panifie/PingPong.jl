@@ -6,6 +6,7 @@ version = "0.2.0"
 [deps]
 Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Backtest = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Caching = "68ad905a-5087-500a-aae7-0fd6acda2eb1"
 CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"

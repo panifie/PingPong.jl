@@ -5,9 +5,9 @@ import Indicators
 const ind = Indicators
 
 using Processing:  maptf, normalize!, normalize
-using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
-using Analysis: slopeangle
 using Misc: @as_dfdict, PairData
+using DataFramesMeta: @rsubset!
+using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
 using MVP
 
 function last_breakout(price, br_lvl; op = >)
@@ -54,7 +54,7 @@ isbuyvol(df::AbstractDataFrame; kwargs...) = isbuyvol(df.open, df.close, df.volu
 `snapback`: The number of candles to consider for snapback action. """
 function istennisball(low; snapback = 3, br = x -> mustd(x; op = -))
     low_br_lvl = br(low)
-    # low_br_lvl = Main.an.Violations.mustd(low; op=-)
+    # low_br_lvl = mustd(low; op=-)
     br_idx = last_breakout(low, low_br_lvl; op = <)
     if iszero(br_idx)
         nothing

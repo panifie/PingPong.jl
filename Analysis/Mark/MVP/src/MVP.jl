@@ -3,8 +3,7 @@ module MVP
 
 using Statistics: mean
 using DataFrames: AbstractDataFrame, DataFrame
-using Backtest.Misc: PairData
-using Backtest.Analysis: maptf
+using Misc: PairData
 using Base: @kwdef
 
 @doc "Ratio is the minimum number of green candles required."

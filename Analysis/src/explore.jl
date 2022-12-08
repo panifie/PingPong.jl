@@ -1,4 +1,4 @@
-using Backtest.Misc: PairData
+using Misc: PairData
 
 find_bottomed(pairs::AbstractDict{String,PairData}; kwargs...) =
     find_bottomed(collect(values(pairs)); kwargs...)

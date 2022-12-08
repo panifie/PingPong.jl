@@ -1,4 +1,5 @@
 using Indicators; const ind = Indicators
+using DataFrames: DataFrame, AbstractDataFrame
 
 function slopefilter(timeframe=config.timeframe; qc=config.qc, minv=10., maxv=90., window=20)
     @assert exc.issset "Global exchange variable is not set."

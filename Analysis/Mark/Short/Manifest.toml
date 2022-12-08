@@ -2,7 +2,7 @@
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "66eaa78cee5183b8930507f7b40f1a0be6e5b323"
+project_hash = "f0bea164d6dac1423da78e71c9113b4607756057"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -344,7 +344,7 @@ version = "0.1.12"
 
 [[deps.Misc]]
 deps = ["DataFrames", "Dates", "Distributed", "Pkg", "PythonCall", "TOML", "TimeFrames", "Zarr"]
-path = "../../Misc"
+path = "../../../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
 
@@ -437,6 +437,12 @@ version = "2.2.2"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[deps.Processing]]
+deps = ["DataFramesMeta", "Dates", "Misc", "StatsBase"]
+path = "../../Processing"
+uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
+version = "0.1.0"
 
 [[deps.PythonCall]]
 deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Pkg", "REPL", "Requires", "Serialization", "Tables", "UnsafePointers"]
