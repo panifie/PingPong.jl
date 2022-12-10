@@ -40,6 +40,7 @@ function __init__()
     mkpath(joinpath(default_data_path, "markets"))
 end
 
+@doc "Define an exchange variable set to its matching exchange instance."
 macro exchange!(name)
     exc_var = esc(name)
     exc_str = lowercase(string(name))
@@ -63,6 +64,9 @@ function py_except_name(e::PyException)
     pygetattr(pytype(e), "__name__") |> string
 end
 
+@doc "Load exchange markets:
+- `cache`: rely on storage cache
+- `agemax`: max cache valid period [1 day]."
 function loadmarkets!(exc; cache = true, agemax = Day(1))
     mkt = joinpath(default_data_path, exc.name, "markets.jlz")
     empty!(exc.markets)
@@ -84,6 +88,7 @@ function loadmarkets!(exc; cache = true, agemax = Day(1))
 end
 
 
+@doc ""
 function pyexchange(name::Symbol, params = nothing; markets = true)
     @debug "Loading CCXT..."
     @debug "Instantiating Exchange $name..."
@@ -96,7 +101,12 @@ function setexchange!(name::Symbol, args...; kwargs...)
     setexchange!(exc, name, args...; kwargs...)
 end
 
-
+@doc "Instantiate an exchange struct. it sets:
+- The matching ccxt class.
+- Pre-emptively loads the markets.
+- Sets the exchange timeframes.
+- Sets exchange api keys.
+"
 function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwargs...)
     pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
@@ -121,6 +131,7 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwar
     exc
 end
 
+@doc "Get ccxt exchange by symbol."
 function getexchange(x::Symbol)
     e = pyexchange(x) |> Exchange
     setexchange!(e, x)
@@ -133,6 +144,7 @@ macro as_df(v)
     end
 end
 
+@doc "Check if exchange has tickers list."
 @inline function hastickers(exc::Exchange)
     Bool(exc.has["fetchTickers"])
 end
@@ -158,6 +170,8 @@ macro tickers(force = false)
     end
 end
 
+@doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
+"
 function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
@@ -174,14 +188,17 @@ function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
 end
 
 
+@doc "Normalizes or special characthers separators to `_`."
 @inline function sanitize_pair(pair::AbstractString)
     replace(pair, r"\.|\/|\-" => "_")
 end
 
+@doc "Test if pair has leveraged naming."
 function is_leveraged_pair(pair)
     !isnothing(match(leverage_pair_rgx, pair))
 end
 
+@doc "Remove leveraged pair pre/suffixes from base currency."
 function deleverage_pair(pair)
     dlv = replace(pair, leverage_pair_rgx => s"\1" )
     # HACK: assume that BEAR/BULL represent BTC
@@ -193,6 +210,7 @@ function deleverage_pair(pair)
     end
 end
 
+@doc "Check if both base and quote are fiat currencies."
 function is_fiat_pair(pair)
     p = split(pair, r"\/|\-|\_|\.")
     p[1] ∈ fiatnames && p[2] ∈ fiatnames

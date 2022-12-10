@@ -2,3 +2,11 @@ name = "Plotting"
 uuid = "8ada5bfb-e60b-44be-8979-616e14670061"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
+
+[deps]
+Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
+Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"

@@ -2,7 +2,7 @@
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "6d10f613f30f8b246e8b4f742b7fdb9a0958a215"
+project_hash = "e1b603428d1173e162d7cb538261403122fd2b60"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -349,7 +349,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "Pkg", "PythonCall", "TOML", "TimeFrames", "Zarr"]
+deps = ["DataFrames", "Dates", "Distributed", "Logging", "Pkg", "PythonCall", "TOML", "TimeFrames", "Zarr"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -410,6 +410,12 @@ deps = ["Dates", "SnoopPrecompile"]
 git-tree-sha1 = "b64719e8b4504983c7fca6cc9db3ebc8acc2a4d6"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
+
+[[deps.Pbar]]
+deps = ["Dates", "Misc", "PythonCall"]
+path = "../Misc/Pbar"
+uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
+version = "0.1.0"
 
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]

@@ -1,6 +1,0 @@
-
-[pip.deps]
-enlighten = ""
-ccxt = ""
-numpy = ""
-pyecharts = ""

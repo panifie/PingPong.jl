@@ -2,7 +2,7 @@
 
 julia_version = "1.8.2"
 manifest_format = "2.0"
-project_hash = "dc1a94301a415741082915597737dcc5e1d30aba"
+project_hash = "ac587612e7842fdca282e89d4f0482caf24ac185"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -366,7 +366,7 @@ uuid = "90fa49ef-747e-5e6f-a989-263ba693cf1a"
 version = "0.5.2"
 
 [[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Pbar", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -834,6 +834,12 @@ git-tree-sha1 = "b64719e8b4504983c7fca6cc9db3ebc8acc2a4d6"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
+[[deps.Pbar]]
+deps = ["Dates", "Misc", "PythonCall"]
+path = "../Misc/Pbar"
+uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
+version = "0.1.0"
+
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]
 git-tree-sha1 = "2d8aaf8ee10df53d0dfb9b8ee44ae7c04ced2b03"
@@ -892,7 +898,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["DataFramesMeta", "Dates", "Misc", "StatsBase"]
+deps = ["DataFramesMeta", "Dates", "Misc", "Pbar", "StatsBase"]
 path = "Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
@@ -997,9 +1003,9 @@ version = "0.1.0"
 
 [[deps.SciMLBase]]
 deps = ["ArrayInterfaceCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "Preferences", "RecipesBase", "RecursiveArrayTools", "RuntimeGeneratedFunctions", "StaticArraysCore", "Statistics", "Tables"]
-git-tree-sha1 = "6a5c8e335e82b0c674bf74f7b45f005175b0cc5f"
+git-tree-sha1 = "fadd9fd005c8fc57939ef9a59a00686fa811f645"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.77.0"
+version = "1.77.1"
 
 [[deps.Scratch]]
 deps = ["Dates"]

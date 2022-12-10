@@ -50,6 +50,7 @@ end
 
 
 
+@doc "Redefines given variable to a Matrix with type of the underlying container type."
 macro as_mat(data)
     tp = esc(:type)
     d = esc(data)
@@ -62,6 +63,7 @@ macro as_mat(data)
     end
 end
 
+@doc "Same as `as_mat` but returns the new matrix."
 macro to_mat(data, tp = nothing)
     if tp === nothing
         tp = esc(:type)
@@ -80,11 +82,13 @@ macro to_mat(data, tp = nothing)
     end
 end
 
+@doc "The time interval of the dataframe, guesses from the difference between the first two rows."
 function data_td(data)
     @debug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
     data.timestamp[2] - data.timestamp[1]
 end
 
+@doc "`combinerows` of two (OHLCV) dataframes over using `:timestamp` column as index."
 function combine_data(prev, data)
     df1 = DataFrame(prev, OHLCV_COLUMNS; copycols = false)
     df2 = DataFrame(data, OHLCV_COLUMNS; copycols = false)
@@ -282,12 +286,14 @@ function _save_pair(
     return za
 end
 
+@doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
 @inline function pair_key(exc_name, pair, timeframe; kind = "ohlcv")
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
 load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
 
+@doc "Load data from given zarr instance, exchange, pairs list and timeframe."
 function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String,PairData}()
     exc_name = exc.name
@@ -422,6 +428,7 @@ function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     true
 end
 
+@doc "Checks if a timeseries has any intervals not conforming to the given timeframe."
 contiguous_ts(series, timeframe::AbstractString) = begin
     @as_td
     _contiguous_ts(series, td)

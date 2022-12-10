@@ -14,13 +14,15 @@ const py_v = chomp(
     ),
 )
 ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
-ENV["PYTHONPATH"] = ".:$(joinpath(envdir(), "lib"))/python$(py_v)"
+const PYTHONPATH = ".:$(joinpath(envdir(), "lib"))/python$(py_v)"
+setpypath!() = ENV["PYTHONPATH"] = PYTHONPATH
+setpypath!()
 using PythonCall: Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
 const pypaths = Vector{String}()
 
 
 @doc "Remove wrong python version libraries dirs from python loading path."
-function pypath!()
+function clearpypath!()
     isempty(pypaths) &&
         append!(pypaths, pyimport("sys").path |> x -> pyconvert(Vector{String}, x))
     ENV["PYTHONPATH"] = ".:$(envdir())/python$(py_v)"
@@ -31,10 +33,16 @@ function pypath!()
     @py append!(path_list, gpaths)
 end
 
+function __init__()
+    clearpypath!()
+end
 const pynull = pynew()
+@doc "Holds recently evaluated statements."
 const results = Dict{String,Any}()
 
+@doc "Define a new symbol with given value if it is not already defined."
 macro ifundef(name, val, mod = __module__)
+
     name_var = esc(name)
     name_sym = esc(:(Symbol($(string(name)))))
     quote
@@ -46,6 +54,7 @@ macro ifundef(name, val, mod = __module__)
     end
 end
 
+@doc "Import a python module over a variable defined in global scope."
 macro pymodule(name, modname = nothing)
     str_name = string(name)
     str_mod = isnothing(modname) ? str_name : string(modname)
@@ -65,14 +74,12 @@ macro pymodule(name, modname = nothing)
     end
 end
 
-@doc "Print a number."
+@doc "Print a (currency) number."
 function printn(n, cur = "USDT"; precision = 2, commas = true, kwargs...)
     println(format(n; precision, commas, kwargs...), " ", cur)
 end
 
 const workers_setup = Ref(0)
-# @everywhere push!(LOAD_PATH, $())
-#
 function _find_module(sym)
     hasproperty(@__MODULE__, sym) && return getproperty(@__MODULE__, sym)
     hasproperty(Main, sym) && return getproperty(Main, sym)
@@ -109,7 +116,6 @@ end
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
 include("config.jl")
-include("pbar.jl")
 include("lang.jl")
 
 export printn, results, config, resetconfig!, @as_td, timefloat

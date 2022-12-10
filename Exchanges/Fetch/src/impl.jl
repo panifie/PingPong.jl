@@ -5,7 +5,7 @@ using Misc: @as_td, @distributed, @parallel, ContiguityException, DateType, Pair
     ohlcv_limits, tfperiod, timefloat, _empty_df
 using PythonCall: @py, Py, PyDict, PyException, PyList, pyconvert, pyisnull
 @debug using Backtest.Misc: dt
-using Misc.Pbar
+using Pbar
 using Dates: now, Year, Millisecond
 using Processing: is_last_complete_candle, cleanup_ohlcv_data
 

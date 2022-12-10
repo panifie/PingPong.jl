@@ -1,5 +1,6 @@
 using Temporal: TS
 
+@doc "Converts ohlcv dataframe to timeseries type."
 macro ohlc(df, tp=Float64)
     df = esc(:df)
     quote
@@ -7,6 +8,7 @@ macro ohlc(df, tp=Float64)
     end
 end
 
+@doc "Converts a subset of columns to timeseries."
 macro as_ts(df, c1, cols...)
     df = esc(df)
     local columns

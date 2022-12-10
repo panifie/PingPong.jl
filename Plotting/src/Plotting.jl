@@ -1,5 +1,5 @@
 module Plotting
 
-greet() = print("Hello World!")
+include("plotting.jl")
 
 end # module Plotting

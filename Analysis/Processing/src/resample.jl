@@ -1,4 +1,4 @@
-using Misc.Pbar
+using Pbar
 using Misc: Exchange, PairData
 
 resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)

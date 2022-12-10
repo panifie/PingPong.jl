@@ -1,10 +1,8 @@
-module Plotting
-
 using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py, pystr, PyList
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Backtest.Misc: PairData, infer_tf, tf_win, config, @pymodule
-using Backtest: Analysis
+using Misc: PairData, infer_tf, tf_win, config, @pymodule
+using Analysis
 
 const pyec = pynew()
 const opts = pynew()
@@ -13,6 +11,11 @@ const np = pynew()
 const echarts_ohlc_cols = (:open, :close, :low, :high)
 const cplot = pynew()
 
+# function __init__()
+#     init_pyecharts()
+# end
+
+@doc "Loads pyecharts python module."
 function init_pyecharts(reload = false)
     !pyisnull(pyec) && !reload && return
     @pymodule pyec pyecharts
@@ -104,6 +107,7 @@ end
 
 @chartinds!
 
+@doc "Plots ohlcv data overlaying indicators `inds` and `inds2`."
 function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], reload=true)
     init_pyecharts(reload)
 
@@ -127,6 +131,7 @@ function plotgrid(pairdata::PairData, args...; timeframe="15m", kwargs...)
     plotgrid(data, args...; name=pairdata.name, kwargs...)
 end
 
+@doc "Scatter plot only the end of a dataframe given from `tail`."
 function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
     init_pyecharts(reload)
 
@@ -154,6 +159,7 @@ function showhere(data::AbstractDataFrame, pred::Function, target::Symbol)
     out
 end
 
+@doc "Bincount dataframe"
 function countdf(data::AbstractDataFrame)
     local bins
     @with data begin
@@ -169,6 +175,7 @@ function countdf(data::AbstractDataFrame)
     bins
 end
 
+@doc "Heatmap of between two series."
 function heatmap(x, y, v, y_name="", y_labels="", reload=true)
     init_pyecharts(reload)
     x_col = @view df[:, x]
@@ -211,5 +218,3 @@ macro plotone(name, bb_args...)
 end
 
 export plotscatter3d, plotgrid, heatmap, plotone, @plotone
-
-end
