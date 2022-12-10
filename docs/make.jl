@@ -12,10 +12,15 @@ using Pbar
 project_path = Pkg.project().path |> dirname
 function use(name, args...)
     path = joinpath(project_path, args...)
-    path ∉ LOAD_PATH && push!(LOAD_PATH, path)
-    eval(Base.Meta.parse("using $(name)"))
+    if endswith(args[end], ".jl")
+        include(path)
+        @eval using .$name
+    else
+        path ∉ LOAD_PATH && push!(LOAD_PATH, path)
+        @eval using $name
+    end
 end
-use(:Prices, "Data", "src")
+use(:Prices, "Data", "src", "prices.jl")
 use(:Fetch, "Exchanges", "Fetch")
 use(:Short, "Analysis", "Mark", "Short")
 use(:Long, "Analysis", "Mark", "Long")

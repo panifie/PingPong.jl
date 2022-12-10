@@ -18,7 +18,7 @@ function last_breakout(price, br_lvl; op = >)
 end
 
 @doc """Follow through price action.
-`min_follow`: Minimum number of upward candles that have to follow after breakout."""
+- `min_follow`: Minimum number of upward candles that have to follow after breakout."""
 function fthrough(high, low, close; br = mustd, min_follow::Int = 1)
     # use high for finding breakouts
     br_lvl = br(high, low, close)
@@ -51,7 +51,7 @@ end
 isbuyvol(df::AbstractDataFrame; kwargs...) = isbuyvol(df.open, df.close, df.volume; kwargs...)
 
 @doc """Tennis ball action, resilient price snapback after a pullback.
-`snapback`: The number of candles to consider for snapback action. """
+- `snapback`: The number of candles to consider for snapback action. """
 function istennisball(low; snapback = 3, br = x -> mustd(x; op = -))
     low_br_lvl = br(low)
     # low_br_lvl = mustd(low; op=-)
@@ -97,8 +97,8 @@ function mrkts_key(mrkts::AbstractDict; kwargs...)
 end
 
 @doc """Computes the relative strength of a collection (dict) of pairs. Returning the queried one, and the rest.
-`sorted`: Sort the matrix of all relative strengths.
-`norm_roc`: Smooths the ranking by normalizing the rate of change at each candle.
+- `sorted`: Sort the matrix of all relative strengths.
+- `norm_roc`: Smooths the ranking by normalizing the rate of change at each candle.
 """
 function relative_strength(pair::AbstractString, mrkts::AbstractDict; sorted = true, norm_roc = false)
     @assert pair ∈ keys(mrkts) "Pair not present in data dict."
@@ -163,8 +163,8 @@ const s2_weights = Ref((
 
 @doc """
 Stage 2 template.
-`base°` is the maximum angle allowed for a pattern to be considered a base (above which would be uptrending).
-`baseσ` is the window considered at the last step, for regressing the base formation.
+- `base°` is the maximum angle allowed for a pattern to be considered a base (above which would be uptrending).
+- `baseσ` is the window considered at the last step, for regressing the base formation.
 """
 @views function stage2(pair::AbstractString,
     high::AbstractVector,
@@ -173,6 +173,7 @@ Stage 2 template.
     mrkts::AbstractDict;
     base° = 5, baseσ = 30, norm_roc = false)
     @assert length(close) > 365 "Stage 2 indicator needs at least 365 candles."
+
     price = close[end]
     μ150 = mean(close[end-150+1:end])
     μ200 = mean(close[end-200+1:end])
