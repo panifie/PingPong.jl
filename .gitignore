@@ -8,3 +8,4 @@
 !/**/deps/precompiles/*_Backtest*.jl
 /**/*.log
 /**/CondaPkg.toml
+/docs/build/
