@@ -1,5 +1,0 @@
-# Processing
-
-```@autodocs
-Modules = [Processing]
-```
