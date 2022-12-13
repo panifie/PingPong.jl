@@ -45,7 +45,7 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
     end
 end
 @doc """Similar to the freqtrade homonymous function.
-`fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
+- `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
 function cleanup_ohlcv_data(data, timeframe; col = 1, fill_missing = :close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
@@ -88,6 +88,7 @@ function cleanup_ohlcv_data(data, timeframe; col = 1, fill_missing = :close)
     df
 end
 
+@doc "Checks if a candle timestamp is too new."
 function is_incomplete_candle(ts::AbstractFloat, td::AbstractFloat)
     nw = timefloat(now(UTC))
     ts + td > nw
@@ -109,6 +110,7 @@ function is_incomplete_candle(x, timeframe = "1m")
     is_incomplete_candle(x, td)
 end
 
+@doc "Checks if a timestamp belongs to the newest possible candle of given timeframe."
 function is_last_complete_candle(x, timeframe)
     @as_td
     ts = timefloat(x)
