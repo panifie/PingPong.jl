@@ -5,13 +5,25 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      JULIA_VERSION: 1.5
 
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      id: julia-cache
+      run: sudo apt-get install -y xvfb xauth
+      with:
+        path: $HOME/.julia
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
+          ${{ runner.os }}-
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
-        julia-version: 1.8
+        julia-version: ${{ env.JULIA_VERSION }}
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
     - name: Install dependencies
