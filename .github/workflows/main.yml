@@ -13,7 +13,7 @@ jobs:
       with:
         julia-version: 1.8
     - name: Install dependencies
-      run: julia -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"])'
+      run: julia -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.instantiate()'
     - name: Build docs
       run: julia --project=. docs/make.jl
 
