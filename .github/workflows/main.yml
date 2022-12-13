@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Julia
-      uses: actions/setup-julia@v1
+      uses: julia-actions/setup-julia@v1
       with:
         julia-version: 1.8
     - name: Install dependencies
