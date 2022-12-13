@@ -1,0 +1,52 @@
+name: build-docs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      JULIA_VERSION: 1.5
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      id: julia-cache
+      run: sudo apt-get install -y xvfb xauth
+      with:
+        path: |
+          $HOME/.julia
+          ./.CondaPkg
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
+          ${{ runner.os }}-
+    - name: Set up Julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        julia-version: ${{ env.JULIA_VERSION }}
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    - name: Install dependencies
+      run: xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
+      run: xvfb-run julia --project=. -e 'import Pkg; Pkg.instantiate(); Pkg.add(["Documenter", "DocStringExtensions"]);'
+    - name: Build docs
+      run: julia --project=. docs/make.jl
+    - name: Checkout gh-pages branch
+      uses: actions/checkout@v2
+      with:
+        ref: gh-pages
+        path: docs
+    - name: Deploy docs
+      run: |
+        mv docs/build ./
+        cd docs
+        rm -rf ./*
+        cp -r ../build/* .
+        git add .
+        git config --local user.email "github-actions@users.noreply.github.com"
+        git config --local user.name "GitHub Actions"
+        git commit -m "Update documentation"
+        git push origin gh-pages

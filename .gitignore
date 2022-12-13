@@ -1,5 +1,4 @@
 /cfg/
-/Manifest.toml
 /src/__pycache__/
 /.dir-locals.el
 /render.html
