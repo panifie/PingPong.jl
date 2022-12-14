@@ -36,8 +36,6 @@ function maxmin(df; order=1, threshold=0.0, window=100)
     df
 end
 
-isdown(threshold) = !isup(threshold)
-
 @doc "Calculate successrate of given column against next candle.
 `direction`: `true` is buy, `false` is sell."
 function up_successrate(df, bcol::Union{Symbol, String}; threshold=0.05)

@@ -74,11 +74,6 @@ macro pymodule(name, modname = nothing)
     end
 end
 
-@doc "Print a (currency) number."
-function printn(n, cur = "USDT"; precision = 2, commas = true, kwargs...)
-    println(format(n; precision, commas, kwargs...), " ", cur)
-end
-
 const workers_setup = Ref(0)
 function _find_module(sym)
     hasproperty(@__MODULE__, sym) && return getproperty(@__MODULE__, sym)
@@ -118,6 +113,6 @@ end
 include("config.jl")
 include("lang.jl")
 
-export printn, results, config, resetconfig!, @as_td, timefloat
+export results, config, resetconfig!, @as_td, timefloat
 
 end

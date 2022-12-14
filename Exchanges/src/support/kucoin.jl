@@ -1,6 +1,7 @@
 module Kucoin
 
 using Misc
+import JSON
 
 const kucoin_config = joinpath(ENV["HOME"], "dev", "Backtest.jl", "cfg", "kucoin.json")
 

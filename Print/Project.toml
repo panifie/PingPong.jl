@@ -1,0 +1,7 @@
+name = "Print"
+uuid = "b5e31675-dc83-46eb-b32b-c56aab95c3cc"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Formatting = "59287772-0a20-5a39-b81b-1366585eb4c0"

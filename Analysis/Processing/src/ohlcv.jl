@@ -1,6 +1,7 @@
 using DataFramesMeta
 using Dates: Period, now, UTC
-using Misc: @as_td, dt
+using Misc: @as_td, dt, Candle
+using Data: to_df
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """

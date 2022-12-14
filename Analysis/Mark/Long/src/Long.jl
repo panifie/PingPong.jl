@@ -6,7 +6,8 @@ const ind = Indicators
 
 using Processing:  maptf, normalize!, normalize
 using Misc: @as_dfdict, PairData
-using DataFramesMeta: @rsubset!
+using DataFrames: AbstractDataFrame, DataFrame
+using DataFramesMeta: @rsubsetj
 using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
 using MVP
 

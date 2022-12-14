@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.2"
+julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "ce7fcbc6ef5a2bc7a78272303595db8f005f9efb"
+project_hash = "b953c840150e51faf4137ba8af4a9c2facb3292d"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -100,6 +100,12 @@ git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
 uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
+[[deps.Data]]
+deps = ["DataFramesMeta", "Dates", "Misc", "PythonCall", "Requires", "Temporal", "Zarr"]
+path = "../../Data"
+uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
+version = "0.1.1"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "e08915633fcb3ea83bf9d6126292e5bc5c739922"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -191,9 +197,9 @@ version = "5.8.1"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "e1acc37ed078d99a714ed8376446f92a5535ca65"
+git-tree-sha1 = "97b6c88f4df0ff821a6d93dbdcdf9642e66fa718"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.5.5"
+version = "1.6.1"
 
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
@@ -286,9 +292,9 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
+git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+1"
+version = "1.16.1+2"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "libblastrampoline_jll"]
@@ -458,6 +464,12 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[[deps.RecipesBase]]
+deps = ["SnoopPrecompile"]
+git-tree-sha1 = "18c35ed630d7229c5584b945641a73ca83fb5213"
+uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+version = "1.3.2"
+
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
@@ -570,6 +582,14 @@ version = "1.10.0"
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 version = "1.10.1"
+
+[[deps.Temporal]]
+deps = ["Dates", "HTTP", "JSON", "Pkg", "Printf", "Random", "RecipesBase", "Statistics", "Test"]
+git-tree-sha1 = "eb4f515ab4b9190b323d3735d900b10ee81e752c"
+repo-rev = "master"
+repo-url = "https://github.com/untoreh/Temporal.jl"
+uuid = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
+version = "0.8.2"
 
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]

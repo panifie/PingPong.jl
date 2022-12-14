@@ -1,0 +1,18 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.8.3"
+manifest_format = "2.0"
+project_hash = "0f694c69fbcb6632c9212d919cb48ebe10bf5fe6"
+
+[[deps.Formatting]]
+deps = ["Printf"]
+git-tree-sha1 = "8339d61043228fdd3eb658d86c926cb282ae72a8"
+uuid = "59287772-0a20-5a39-b81b-1366585eb4c0"
+version = "0.4.2"
+
+[[deps.Printf]]
+deps = ["Unicode"]
+uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[deps.Unicode]]
+uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"

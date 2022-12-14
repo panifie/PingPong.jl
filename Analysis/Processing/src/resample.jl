@@ -1,10 +1,10 @@
 using Pbar
-using Misc: Exchange, PairData
+using Misc: Exchange, PairData, passkwargs, _empty_df, td_tf
+using Data: data_td, save_pair
 
-resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(exc::Exchange, pair::PairData, timeframe; save=false)
+function resample(exc::Exchange, pair::PairData, timeframe; save = false)
     @debug @assert all(
         cleanup_ohlcv_data(pair.data, pair.tf).timestamp .== pair.data.timestamp,
     ) "Resampling assumptions are not met, expecting cleaned data."
@@ -37,7 +37,7 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=false)
     end
 
     # Create a new dataframe to keep thread safety
-    data = DataFrame(@view(data[left:right, :]); copycols=false)
+    data = DataFrame(@view(data[left:right, :]); copycols = false)
     size(data, 1) === 0 && return _empty_df()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
@@ -50,7 +50,7 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=false)
         :low => minimum,
         :close => last,
         :volume => sum;
-        renamecols=false
+        renamecols = false,
     )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
@@ -58,15 +58,13 @@ function resample(exc::Exchange, pair::PairData, timeframe; save=false)
     df
 end
 
-resample(mrkts::AbstractDict{String,PairData}, timeframe; kwargs...) =
-    resample(exc, mrkts, timeframe; kwargs...)
 
 function resample(
     exc::Exchange,
     mrkts::AbstractDict{String,PairData},
     timeframe;
-    save=true,
-    progress=false
+    save = true,
+    progress = false,
 )
     rs = Dict{String,PairData}()
     progress && @pbar! "Pairs" false
@@ -78,3 +76,17 @@ function resample(
     progress && @pbclose
     rs
 end
+
+# resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
+# macro resample(mrkts::AbstractDict{String,PairData}, timeframe::String, args...)
+macro resample(params, mrkts, timeframe, args...)
+    e = esc(:Exchanges)
+    kwargs = passkwargs(args...)
+    m = esc(mrkts)
+    quote
+        resample($(e).exc, $m, $timeframe; $(kwargs...))
+    end
+end
+
+
+export resample, @resample

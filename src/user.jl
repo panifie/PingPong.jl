@@ -1,10 +1,11 @@
 @doc "User module, use only to import and export preferred functions inside the repl."
 
 using DataFrames
-using LegibleLambdas
 using DataFrames: index
 using DataFramesMeta
-using Misc: @margin!, @lev!
+using LegibleLambdas
+using Misc: @lev!, @margin!
+using Processing
 using Statistics: mean
 export @margin!, @lev!
 
@@ -21,9 +22,8 @@ macro setup(exc)
         Misc.loadconfig($exc)
         $a = an
         setexchange!($exc)
-        an.@pairtraits!
         $m = load_pairs("15m")
-        $mr = an.resample($m, "1d"; save = false)
+        $mr = @resample($m, "1d"; save = false)
     end
 end
 

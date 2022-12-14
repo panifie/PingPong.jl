@@ -6,7 +6,7 @@ using Dates: Day, Minute, Period, now, unix2datetime
 using JSON
 using Misc: @as_td, @pymodule, DateType, Exchange, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
     OptionsDict, StrOrVec, _empty_df, default_data_path, dt, fiatnames, futures_exchange,
-    timefloat
+    timefloat, exc
 using PythonCall: @py, Py, PyDict, PyException, pyconvert, pycopy!, pydict, pydir, pyexec,
     pygetattr, pyimport, pyisnone, pyisnull, pyissubclass, pynew, pytype
 using Serialization: deserialize, serialize
@@ -19,7 +19,6 @@ const leverage_pair_rgx =
     r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
 
-const exc = Exchange(pynew())
 
 function getproperty(e::Exchange, k::Symbol)
     if hasfield(Exchange, k)
@@ -286,7 +285,7 @@ function get_pairlist(
     if futures
         futures_sym = get(futures_exchange, exc.sym, exc.sym)
         if futures_sym !== exc.sym
-            exc = Exchange(futures_sym)
+            exc = getexchange(futures_sym)
         end
     end
 

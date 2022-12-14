@@ -40,6 +40,9 @@ end
 @doc "Global configuration instance."
 const config = Config()
 
+@doc "Global Exchange instance."
+const exc = Exchange(pynew())
+
 @doc "Parses the toml file and populates the global `config`."
 function loadconfig(exc)
     if !isfile(config.path)

@@ -2,7 +2,7 @@ module Analysis
 
 using Requires
 import Base.filter
-using Misc: @evalmod, @as_td, PairData, timefloat, _empty_df, td_tf
+using Misc: @as_td, PairData, timefloat, _empty_df, td_tf
 using Pbar
 using Data: @to_mat, data_td, save_pair
 using Exchanges: Exchange, exc
@@ -50,6 +50,6 @@ function mark!()
     end
 end
 
-export explore!, filter, fltsummary, mark!
+export filter, fltsummary, mark!
 
 end

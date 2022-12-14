@@ -328,20 +328,31 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     end
 end
 
+@doc "Delete directory for a zarr group key from underlying directory store."
+function clear_key(zi::ZarrInstance, key)
+    path = joinpath(zi.path, key)
+    isdir(path) && rm(path; recursive = true)
+end
+
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load_pair(zi, exc_name, pair, timeframe = "1m"; kwargs...)
+function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe = "1m"; kwargs...)
     @as_td
     @zkey
     try
         _load_pair(zi, key, td; kwargs...)
     catch e
-        if typeof(e) ∈ (MethodError, DivideError)
-            emptyz = zcreate(Float64, zi[].store, 1, length(OHLCV_COLUMNS); path = key, compressor)
-            :as_z ∈ keys(kwargs) && return emptyz, (0, 0)
-            :with_z ∈ keys(kwargs) && return _empty_df(), emptyz
-            return _empty_df()
+        if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
+            clear_key(zi[], key) # ensure path does not exist
+            emptyz = zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path = key, compressor)
+            if :as_z ∈ keys(kwargs)
+                return emptyz, (0, 0)
+            elseif :with_z ∈ keys(kwargs)
+                return _empty_df(), emptyz
+            else
+                return _empty_df()
+            end
         else
             rethrow(e)
         end
