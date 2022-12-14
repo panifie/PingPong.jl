@@ -1,13 +1,14 @@
 using Data: load_pair, to_df, zi
-using Exchanges: Exchange, get_pairlist, getexchange, is_timeframe_supported, py_except_name, save_pair
+using Exchanges: Exchange, ccxt_errors, get_pairlist, getexchange, is_timeframe_supported,
+    py_except_name, save_pair
 using Misc: @as_td, @distributed, @parallel, ContiguityException, DateType, PairData,
-    StrOrVec, _from_to_dt, _instantiate_workers, config, default_data_path, isless,
-    ohlcv_limits, tfperiod, timefloat, _empty_df
+    StrOrVec, _empty_df, _from_to_dt, _instantiate_workers, config, default_data_path,
+    isless, ohlcv_limits, tfperiod, timefloat
 using PythonCall: @py, Py, PyDict, PyException, PyList, pyconvert, pyisnull
 @debug using Backtest.Misc: dt
+using Dates: Millisecond, Year, now
 using Pbar
-using Dates: now, Year, Millisecond
-using Processing: is_last_complete_candle, cleanup_ohlcv_data
+using Processing: cleanup_ohlcv_data, is_last_complete_candle
 
 function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true)
     from = timefloat(from)
