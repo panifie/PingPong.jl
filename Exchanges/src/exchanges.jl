@@ -5,8 +5,9 @@ using DataFrames: DataFrame
 using Dates: Day, Minute, Period, now, unix2datetime
 using JSON
 using Misc: @as_td, @pymodule, DateType, Exchange, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
-    OptionsDict, StrOrVec, _empty_df, default_data_path, dt, fiatnames, futures_exchange,
+    OptionsDict, StrOrVec, _empty_df, default_data_path, dt, futures_exchange,
     timefloat, exc
+using Pairs
 using PythonCall: @py, Py, PyDict, PyException, pyconvert, pycopy!, pydict, pydir, pyexec,
     pygetattr, pyimport, pyisnone, pyisnull, pyissubclass, pynew, pytype
 using Serialization: deserialize, serialize
@@ -15,10 +16,7 @@ using TimeToLive: TTL
 const ccxt = pynew()
 const ccxt_errors = Set{String}()
 const exclock = ReentrantLock()
-const leverage_pair_rgx =
-    r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
-
 
 function getproperty(e::Exchange, k::Symbol)
     if hasfield(Exchange, k)
@@ -184,35 +182,6 @@ function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
         end
     end
     f_markets
-end
-
-
-@doc "Normalizes or special characthers separators to `_`."
-@inline function sanitize_pair(pair::AbstractString)
-    replace(pair, r"\.|\/|\-" => "_")
-end
-
-@doc "Test if pair has leveraged naming."
-function is_leveraged_pair(pair)
-    !isnothing(match(leverage_pair_rgx, pair))
-end
-
-@doc "Remove leveraged pair pre/suffixes from base currency."
-function deleverage_pair(pair)
-    dlv = replace(pair, leverage_pair_rgx => s"\1" )
-    # HACK: assume that BEAR/BULL represent BTC
-    pair = split(dlv, r"\/|\-|\_|\.")
-    if pair[1] |> isempty
-        "BTC" * dlv
-    else
-        dlv
-    end
-end
-
-@doc "Check if both base and quote are fiat currencies."
-function is_fiat_pair(pair)
-    p = split(pair, r"\/|\-|\_|\.")
-    p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
 @inline function qid(v)

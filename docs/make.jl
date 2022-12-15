@@ -26,6 +26,6 @@ use(:Short, "Analysis", "Mark", "Short")
 use(:Long, "Analysis", "Mark", "Long")
 use(:MVP, "Analysis", "Mark", "MVP")
 use(:Processing, "Analysis", "Processing")
+use(:Pairs, "Pairs")
 
-# using User.Misc: fiatnames, tf_win, td_tf, ohlcv_limits, futures_exchange
 makedocs(sitename="Backtest.jl")

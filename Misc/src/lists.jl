@@ -1,21 +1,3 @@
-@doc "A list of fiat and fiat-like assets names."
-const fiatnames = Set([
-    "USD",
-    "USDT",
-    "OUSD",
-    "PAX",
-    "BUSD",
-    "USDC",
-    "DAI",
-    "EUR",
-    "CEUR",
-    "USDN",
-    "CUSD",
-    "SUSD",
-    "TUSD",
-    "USDJ"
-])
-
 @doc "Mapping of timeframes to default window sizes."
 const tf_win = IdDict(
     "1m"   =>  20,  #  20m
