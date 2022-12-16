@@ -1,21 +1,18 @@
 module Pairs
 
 using Misc: PairData
-using StaticStrings: StaticString
 
-@doc "A string checked to be a valid pair."
-const Pair = StaticString
-@doc "A string checked to be a valid quote currency."
-const QuoteCurrency = StaticString
-@doc "A string checked to be a valid base currency."
-const BaseCurrency = StaticString
+@doc "A symbol checked to be a valid quote currency."
+const QuoteCurrency = Symbol
+@doc "A symbol checked to be a valid base currency."
+const BaseCurrency = Symbol
 
 include("consts.jl")
 
 has_punct(s::AbstractString) = !isnothing(match(r"[[:punct:]]", s))
 
-struct Asset
-    pair::Pair
+struct Asset{B,Q}
+    raw::SubString
     bc::BaseCurrency
     qc::QuoteCurrency
     Asset(s::AbstractString) = begin
@@ -23,13 +20,14 @@ struct Asset
         if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
             throw(InexactError(:Asset, Asset, s))
         end
-        new(
-            StaticString(pair),
-            StaticString(pair[1]),
-            StaticString(pair[2]),
-        )
+        B = Symbol(pair[1])
+        Q = Symbol(pair[2])
+        new{B,Q}(SubString(s, 1, length(s)), B, Q)
     end
 end
+
+Base.hash(a::Asset, h::UInt) = Base.hash((a.bc, a.qc), h)
+display(a::Asset) = display(a.bc * "/" * q.qc)
 
 
 const leverage_pair_rgx =
@@ -60,6 +58,6 @@ function is_fiat_pair(pair)
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 end
 
-export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair
+export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, display, hash
 
 end # module Pairs
