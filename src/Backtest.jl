@@ -1,5 +1,9 @@
 module Backtest
 
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@compiler_options"))
+    @eval Base.Experimental.@compiler_options optimize=0 compile=min
+end
+
 using Requires
 using Misc
 
@@ -15,8 +19,8 @@ include("repl.jl")
 
 using Exchanges: Exchange
 
-using Engine
+import Engine
 
-export get_pairlist, load_pairs, Exchange, user!
+export Engine, get_pairlist, load_pairs, Exchange, user!, getexchange!, setexchange!, portfolio
 
 end # module

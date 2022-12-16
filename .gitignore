@@ -1,6 +1,5 @@
 /cfg/
 /src/__pycache__/
-/.dir-locals.el
 /render.html
 /**/__pycache__/*
 /**/.CondaPkg/*
