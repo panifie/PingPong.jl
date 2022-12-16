@@ -1,5 +1,5 @@
 using Data: load_pair, to_df, zi
-using Exchanges: Exchange, ccxt_errors, get_pairlist, getexchange, is_timeframe_supported,
+using Exchanges: Exchange, ccxt_errors, get_pairlist, getexchange!, is_timeframe_supported,
     py_except_name, save_pair
 using Misc: @as_td, @distributed, @parallel, ContiguityException, DateType, PairData,
     StrOrVec, _empty_df, _from_to_dt, _instantiate_workers, config, default_data_path,
@@ -168,9 +168,9 @@ function fetch_pairs(excs::Vector, timeframe; parallel=false, wait_task=false, k
     parallel && _instantiate_workers(:Backtest; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
-        e_pl = s -> (ex = getexchange(s); (ex, get_pairlist(ex; as_vec=true)))
+        e_pl = s -> (ex = getexchange!(s); (ex, get_pairlist(ex; as_vec=true)))
     else
-        e_pl = s -> (getexchange(Symbol(lowercase(s[1].name))), s[2])
+        e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name))), s[2])
     end
     t = @parallel parallel for s in excs
         ex, pl = e_pl(s)

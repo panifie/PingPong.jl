@@ -6,7 +6,7 @@ using Dates: Day, Minute, Period, now, unix2datetime
 using JSON
 using Misc: @as_td, @pymodule, DateType, Exchange, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
     OptionsDict, StrOrVec, _empty_df, default_data_path, dt, futures_exchange,
-    timefloat, exc
+    timefloat, exc, exchanges
 using Pairs
 using PythonCall: @py, Py, PyDict, PyException, pyconvert, pycopy!, pydict, pydir, pyexec,
     pygetattr, pyimport, pyisnone, pyisnull, pyissubclass, pynew, pytype
@@ -30,10 +30,10 @@ end
 function __init__()
     @pymodule ccxt
     pyimport("ccxt.base.errors") |>
-        pydir .|>
-        string |>
-        Set |>
-        errors -> union(ccxt_errors, errors)
+    pydir .|>
+    string |>
+    Set |>
+    errors -> union(ccxt_errors, errors)
     mkpath(joinpath(default_data_path, "markets"))
 end
 
@@ -64,7 +64,7 @@ end
 @doc "Load exchange markets:
 - `cache`: rely on storage cache
 - `agemax`: max cache valid period [1 day]."
-function loadmarkets!(exc; cache = true, agemax = Day(1))
+function loadmarkets!(exc; cache=true, agemax=Day(1))
     mkt = joinpath(default_data_path, exc.name, "markets.jlz")
     empty!(exc.markets)
     if isfileyounger(mkt, agemax) && cache
@@ -86,8 +86,7 @@ end
 
 
 @doc ""
-function pyexchange(name::Symbol, params = nothing; markets = true)
-    @debug "Loading CCXT..."
+function pyexchange(name::Symbol, params=nothing; markets=true)
     @debug "Instantiating Exchange $name..."
     exc_cls = getproperty(ccxt, name)
     exc = isnothing(params) ? exc_cls() : exc_cls(params)
@@ -104,7 +103,7 @@ end
 - Sets the exchange timeframes.
 - Sets exchange api keys.
 "
-function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwargs...)
+function setexchange!(exc::Exchange, name::Symbol, args...; markets=true, kwargs...)
     pycopy!(exc.py, pyexchange(name, args...; kwargs...))
     exc.isset = true
     empty!(exc.timeframes)
@@ -128,10 +127,12 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwar
     exc
 end
 
-@doc "Get ccxt exchange by symbol."
-function getexchange(x::Symbol)
-    e = pyexchange(x) |> Exchange
-    setexchange!(e, x)
+@doc "Get ccxt exchange by symbol either from cache or anew."
+function getexchange!(x::Symbol)
+    get!(exchanges, x, begin
+        e = pyexchange(x) |> Exchange
+        setexchange!(e, x)
+    end)
 end
 
 
@@ -147,7 +148,7 @@ end
 end
 
 @doc "Fetch and cache tickers data."
-macro tickers(force = false)
+macro tickers(force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
@@ -169,7 +170,7 @@ end
 
 @doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
 "
-function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
+function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers
@@ -222,9 +223,9 @@ end
 get_pairlist(quot::AbstractString, args...; kwargs...) =
     get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(
-    exc::Exchange = exc,
-    quot::AbstractString = config.qc,
-    min_vol::T where {T<:AbstractFloat} = config.vol_min;
+    exc::Exchange=exc,
+    quot::AbstractString=config.qc,
+    min_vol::T where {T<:AbstractFloat}=config.vol_min;
     kwargs...
 ) = get_pairlist(exc, convert(String, quot), convert(Float64, min_vol); kwargs...)
 
@@ -240,11 +241,11 @@ function get_pairlist(
     exc::Exchange,
     quot::String,
     min_vol::Float64;
-    skip_fiat = true,
-    margin = config.margin,
-    futures = config.futures,
-    leveraged = config.leverage,
-    as_vec = false
+    skip_fiat=true,
+    margin=config.margin,
+    futures=config.futures,
+    leveraged=config.leverage,
+    as_vec=false
 )::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers
@@ -254,7 +255,7 @@ function get_pairlist(
     if futures
         futures_sym = get(futures_exchange, exc.sym, exc.sym)
         if futures_sym !== exc.sym
-            exc = getexchange(futures_sym)
+            exc = getexchange!(futures_sym)
         end
     end
 
@@ -317,4 +318,4 @@ end
 
 include("data.jl")
 
-export exc, @exchange!, setexchange!, getexchange, exckeys!, get_pairlist, Exchange
+export exc, @exchange!, setexchange!, getexchange!, exckeys!, get_pairlist, Exchange

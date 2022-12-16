@@ -40,8 +40,10 @@ end
 @doc "Global configuration instance."
 const config = Config()
 
-@doc "Global Exchange instance."
+@doc "Global implicit exchange instance."
 const exc = Exchange(pynew())
+@doc "Global holding Exchange instances to avoid dups."
+const exchanges = Dict{Symbol, Exchange}()
 
 @doc "Parses the toml file and populates the global `config`."
 function loadconfig(exc)
