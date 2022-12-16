@@ -7,14 +7,14 @@ Backtest.jl is not in the julia registry, to install do the following:
 
 - Clone the repository:
 ```bash
-git clone https://github.com/untoreh/Backtest.jl backtest
+git clone --recurse-submodules https://github.com/untoreh/Backtest.jl backtest
 ```
 Activate the project:
 ```bash
 cd backtest
 julia --project=.
 ```
-Build download and dependencies:
+Download and build dependencies:
 ```bash
 import Pkg; Pkg.instantiate()
 ```

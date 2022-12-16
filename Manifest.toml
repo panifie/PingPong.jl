@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "facd81a6dc5a1f1d225b997b39a2594910817688"
+project_hash = "80870a71aba78e9b5d0f0315b5353cfdea957db4"
 
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -486,7 +486,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Aqua", "BenchmarkTools", "CausalityTools", "EffectSizes", "MarketTechnicals", "Misc", "Processing", "ProfileView", "Revise", "SnoopCompile", "SnoopCompileCore", "StatsBase", "StatsModels", "TimeSeries", "Zarr"]
+deps = ["Aqua", "BenchmarkTools", "CausalityTools", "Data", "DataFrames", "Dates", "EffectSizes", "Exchanges", "MarketTechnicals", "Misc", "Pairs", "Processing", "ProfileView", "Revise", "SnoopCompile", "SnoopCompileCore", "StaticStrings", "StatsBase", "StatsModels", "Temporal", "TimeFrames", "TimeSeries", "Zarr"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -508,7 +508,7 @@ uuid = "90fa49ef-747e-5e6f-a989-263ba693cf1a"
 version = "0.5.2"
 
 [[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Pbar", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Pairs", "Pbar", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
 path = "./Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -723,9 +723,9 @@ version = "1.2.5"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "97b6c88f4df0ff821a6d93dbdcdf9642e66fa718"
+git-tree-sha1 = "2e13c9956c82f5ae8cbdb8335327e63badb8c4ff"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.6.1"
+version = "1.6.2"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -842,9 +842,9 @@ version = "1.0.0"
 
 [[deps.JET]]
 deps = ["InteractiveUtils", "JuliaInterpreter", "LoweredCodeUtils", "MacroTools", "Pkg", "Revise", "Test"]
-git-tree-sha1 = "8cc9d5f6ed9383120b069d3e331d88e2973f2a6c"
+git-tree-sha1 = "60b6bc7ae5b6b0027d4f9112dd6e675504fc4dd8"
 uuid = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
-version = "0.6.19"
+version = "0.6.20"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -1233,6 +1233,12 @@ git-tree-sha1 = "cf494dca75a69712a72b80bc48f59dcf3dea63ec"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.16"
 
+[[deps.Pairs]]
+deps = ["Misc"]
+path = "Pairs"
+uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
+version = "0.1.0"
+
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "84a314e3926ba9ec66ac097e3635e270986b0f10"
@@ -1247,9 +1253,9 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates", "SnoopPrecompile"]
-git-tree-sha1 = "b64719e8b4504983c7fca6cc9db3ebc8acc2a4d6"
+git-tree-sha1 = "6466e524967496866901a78fca3f2e9ea445a559"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.5.1"
+version = "2.5.2"
 
 [[deps.Pbar]]
 deps = ["Dates", "Misc", "PythonCall"]
@@ -1580,6 +1586,12 @@ git-tree-sha1 = "7f1cf5afeadf128b32a225be64097e04e96e1eab"
 uuid = "81625895-6c0f-48fc-b932-11a18313743c"
 version = "0.4.6"
 
+[[deps.StaticStrings]]
+deps = ["Compat"]
+git-tree-sha1 = "387f38b600b6edea72fc1add8b5e2d7113402ddf"
+uuid = "4db0a0c5-418a-4e1d-8806-cb305fe13294"
+version = "0.2.2"
+
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -1660,9 +1672,7 @@ version = "1.10.1"
 
 [[deps.Temporal]]
 deps = ["Dates", "HTTP", "JSON", "Pkg", "Printf", "Random", "RecipesBase", "Statistics", "Test"]
-git-tree-sha1 = "eb4f515ab4b9190b323d3735d900b10ee81e752c"
-repo-rev = "master"
-repo-url = "https://github.com/untoreh/Temporal.jl"
+path = "vendor/Temporal"
 uuid = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
 version = "0.8.2"
 

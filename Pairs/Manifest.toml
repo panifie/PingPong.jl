@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "2290f55fd9bce6487734e1064f27a98093594c0b"
+project_hash = "c5cf5f7474ac055e603406cbecea0654e29f1515"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -463,12 +463,6 @@ version = "1.1.0"
 [[deps.SparseArrays]]
 deps = ["LinearAlgebra", "Random"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.StaticStrings]]
-deps = ["Compat"]
-git-tree-sha1 = "387f38b600b6edea72fc1add8b5e2d7113402ddf"
-uuid = "4db0a0c5-418a-4e1d-8806-cb305fe13294"
-version = "0.2.2"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]

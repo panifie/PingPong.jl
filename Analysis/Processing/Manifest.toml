@@ -585,9 +585,7 @@ version = "1.10.1"
 
 [[deps.Temporal]]
 deps = ["Dates", "HTTP", "JSON", "Pkg", "Printf", "Random", "RecipesBase", "Statistics", "Test"]
-git-tree-sha1 = "eb4f515ab4b9190b323d3735d900b10ee81e752c"
-repo-rev = "master"
-repo-url = "https://github.com/untoreh/Temporal.jl"
+path = "../../vendor/Temporal"
 uuid = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
 version = "0.8.2"
 

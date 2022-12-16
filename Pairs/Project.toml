@@ -5,4 +5,3 @@ version = "0.1.0"
 
 [deps]
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-StaticStrings = "4db0a0c5-418a-4e1d-8806-cb305fe13294"

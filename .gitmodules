@@ -1,0 +1,6 @@
+[submodule "vendor"]
+	path = vendor/Temporal
+	url = https://github.com/untoreh/Temporal.jl
+[submodule "vendor/Temporal"]
+	path = vendor/Temporal
+	url = https://github.com/untoreh/Temporal.jl
