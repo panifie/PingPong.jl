@@ -1,5 +1,18 @@
 using Dates:
-    DateTime, AbstractDateTime, Period, Millisecond, now, datetime2unix, unix2datetime, Week, Month
+    DateTime,
+    AbstractDateTime,
+    Period,
+    now,
+    datetime2unix,
+    unix2datetime,
+    Millisecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Year
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
 using TimeFrames: TimeFrame
@@ -28,30 +41,57 @@ macro as(sym, val)
 end
 
 # stdlib doesn't have this function
-isless(w::Week, m::Month) = w.value * 4 < m.value * 30
-# convert m for minutes to T, since ccxt uses lowercase "m" for minutes
-function tfperiod(s::AbstractString)
+@doc "A week should be less than a month."
+isless(w::Week, m::Month) = w.value * 7 < m.value * 30
+
+@doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature."
+function convert(::Type{TimeFrame}, s::AbstractString)::TimeFrame
     m = match(r"([0-9]+)([a-zA-Z])", s)
     n = m[1]
     t = lowercase(m[2])
+    # convert m for minutes to T, since ccxt uses lowercase "m" for minutes
     if t == "m"
         t = "T"
     elseif t == "y"
         t = "d"
         n = parse(n) * 365
     end
-    TimeFrame("$n$t").period
+    TimeFrame("$n$t")
+end
+
+@inline tfperiod(s::AbstractString) = convert(TimeFrame, s).period
+function convert(::Type{String}, tf::T) where {T<:TimeFrame}
+    tostring(unit::String) = "$(tf.period.value)$(unit)"
+    prd = tf.period
+    if prd isa Second
+        "s"
+    elseif prd isa Minute
+        "m"
+    elseif prd isa Hour
+        "h"
+    elseif prd isa Day
+        "d"
+    elseif prd isa Week
+        "w"
+    elseif prd isa Month
+        "M"
+    else
+        "y"
+    end |> tostring
 end
 
 # ccxt always uses milliseconds in timestamps
 tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
+@doc "Binds period `prd` and time delta `td` variables from a string `timeframe` variable."
 macro as_td()
-    tf = esc(:timeframe)
+    tfs = esc(:timeframe)
+    tf = esc(:tf)
     td = esc(:td)
     prd = esc(:prd)
     quote
-        $prd = tfperiod($tf)
+        $tf = convert(TimeFrame, $tfs)
+        $prd = tf.period
         $td = tfnum($prd)
     end
 end
@@ -120,7 +160,7 @@ function _empty_df()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
-        copycols=false
+        copycols = false,
     )
 end
 
@@ -143,6 +183,7 @@ end
 
 timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
 
+@doc "Given a dataframe, infer the timeframe by looking at the first two and the last two candles timestamp."
 function infer_tf(df::AbstractDataFrame)
     td1 = df.timestamp[begin+1] - df.timestamp[begin]
     td2 = df.timestamp[end] - df.timestamp[end-1]
@@ -151,7 +192,9 @@ function infer_tf(df::AbstractDataFrame)
     TimeFrame(td1), tfname
 end
 
-macro as_dfdict(data, skipempty=true)
+@doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
+where the keys are the pairs names and the data is the OHLCV data of the pair."
+macro as_dfdict(data, skipempty = true)
     data = esc(data)
     mrkts = esc(:mrkts)
     quote
@@ -163,4 +206,4 @@ end
 
 include("exceptions.jl")
 
-export ZarrInstance
+export ZarrInstance, Candle
