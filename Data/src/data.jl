@@ -1,4 +1,3 @@
-
 using Requires
 
 include("zarr_utils.jl")
@@ -6,7 +5,7 @@ include("zarr_utils.jl")
 using DataFramesMeta
 using Dates: DateTime, Millisecond, Period, Second, UTC, datetime2unix, now, unix2datetime
 using Misc: @as, @as_td, Candle, LeftContiguityException, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
-    PairData, RightContiguityException, _empty_df, config, dt, timefloat
+    PairData, RightContiguityException, _empty_df, config, dt, timefloat, TimeFrame, tfnum
 
 using PythonCall: Py
 using Zarr: is_zarray
@@ -64,7 +63,7 @@ macro as_mat(data)
 end
 
 @doc "Same as `as_mat` but returns the new matrix."
-macro to_mat(data, tp = nothing)
+macro to_mat(data, tp=nothing)
     if tp === nothing
         tp = esc(:type)
     else
@@ -90,9 +89,9 @@ end
 
 @doc "`combinerows` of two (OHLCV) dataframes over using `:timestamp` column as index."
 function combine_data(prev, data)
-    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols = false)
-    df2 = DataFrame(data, OHLCV_COLUMNS; copycols = false)
-    combinerows(df1, df2; idx = :timestamp)
+    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols=false)
+    df2 = DataFrame(data, OHLCV_COLUMNS; copycols=false)
+    combinerows(df1, df2; idx=:timestamp)
 end
 
 @doc "(Right)Merge two dataframes on key, assuming the key is ordered and unique in both dataframes."
@@ -133,7 +132,7 @@ function combinerows(df1, df2; idx::Symbol)
             push!(rows, merge(empty_tup1, r2))
         end
     end
-    DataFrame(rows; copycols = false)
+    DataFrame(rows; copycols=false)
 end
 
 
@@ -159,7 +158,7 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
             @warn "Resetting local data for pair $pair." e
-            _save_pair(zi, key, td, data; kwargs..., reset = true)
+            _save_pair(zi, key, td, data; kwargs..., reset=true)
         else
             rethrow(e)
         end
@@ -173,15 +172,15 @@ function _get_zarray(
     sz::Tuple;
     type,
     overwrite,
-    reset,
+    reset
 )
     existing = false
     if is_zarray(zi.store, key)
-        za = zopen(zi.store, "w"; path = key)
+        za = zopen(zi.store, "w"; path=key)
         if size(za, 2) !== sz[2] || reset
             if overwrite || reset
-                rm(joinpath(zi.store.folder, key); recursive = true)
-                za = zcreate(type, zi.store, sz...; path = key, compressor)
+                rm(joinpath(zi.store.folder, key); recursive=true)
+                za = zcreate(type, zi.store, sz...; path=key, compressor)
             else
                 throw(
                     "Dimensions mismatch between stored data $(size(za)) and new data. $(sz)",
@@ -194,9 +193,9 @@ function _get_zarray(
         if !Zarr.isemptysub(zi.store, key)
             p = joinpath(zi.store.folder, key)
             @debug "Deleting garbage at path $p"
-            rm(p; recursive = true)
+            rm(p; recursive=true)
         end
-        za = zcreate(type, zi.store, sz...; path = key, compressor)
+        za = zcreate(type, zi.store, sz...; path=key, compressor)
     end
     (za, existing)
 end
@@ -206,12 +205,12 @@ function _save_pair(
     key,
     td,
     data;
-    kind = "ohlcv",
-    type = Float64,
-    data_col = 1,
-    saved_col = 1,
-    overwrite = true,
-    reset = false,
+    kind="ohlcv",
+    type=Float64,
+    data_col=1,
+    saved_col=1,
+    overwrite=true,
+    reset=false
 )
     local za
     !reset && @check_td(data)
@@ -286,8 +285,13 @@ function _save_pair(
     return za
 end
 
+@doc "Normalizes or special characthers separators to `_`."
+@inline function sanitize_pair(pair::AbstractString)
+    replace(pair, r"\.|\/|\-" => "_")
+end
+
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
-@inline function pair_key(exc_name, pair, timeframe; kind = "ohlcv")
+@inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
@@ -298,7 +302,7 @@ function load_pairs(zi, exc, pairs, timeframe)
     pairdata = Dict{String,PairData}()
     exc_name = exc.name
     for p in pairs
-        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z = true)
+        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z=true)
         pairdata[p] = PairData(p, timeframe, pair_df, za)
     end
     pairdata
@@ -331,21 +335,16 @@ end
 @doc "Delete directory for a zarr group key from underlying directory store."
 function clear_key(zi::ZarrInstance, key)
     path = joinpath(zi.path, key)
-    isdir(path) && rm(path; recursive = true)
+    isdir(path) && rm(path; recursive=true)
 end
 
-@doc "Load a pair ohlcv data from storage.
-`as_z`: returns the ZArray
-"
-function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe = "1m"; kwargs...)
-    @as_td
-    @zkey
+function _wrap_load_pair(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
     try
         _load_pair(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
             clear_key(zi[], key) # ensure path does not exist
-            emptyz = zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path = key, compressor)
+            emptyz = zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor)
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
             elseif :with_z ∈ keys(kwargs)
@@ -359,16 +358,31 @@ function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe = "1m"; kwar
     end
 end
 
+@doc "Load a pair ohlcv data from storage.
+`as_z`: returns the ZArray
+"
+function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, tf::TimeFrame; kwargs...)
+    timeframe = convert(String, tf)
+    @zkey
+    _wrap_load_pair(zi, key, tfnum(tf.period); kwargs...)
+end
+
+function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; kwargs...)
+    @as_td
+    @zkey
+    _wrap_load_pair(zi, key, td; kwargs...)
+end
+
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
-function to_df(data; fromta = false)
+function to_df(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
     fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
-                     x -> DataFrame(x; copycols = false)
+                     x -> DataFrame(x; copycols=false)
     DataFrame(
         :timestamp => dates,
         [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n = 1:length(OHLCV_COLUMNS_TS)]...;
-        copycols = false
+        copycols=false
     )
 end
 
@@ -376,20 +390,20 @@ function _load_pair(
     zi,
     key,
     td;
-    from = "",
-    to = "",
-    saved_col = 1,
-    as_z = false,
-    with_z = false,
+    from="",
+    to="",
+    saved_col=1,
+    as_z=false,
+    with_z=false
 )
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(
         zi[],
         key,
         (1, length(OHLCV_COLUMNS));
-        overwrite = true,
-        type = Float64,
-        reset = false,
+        overwrite=true,
+        type=Float64,
+        reset=false
     )
 
     if size(za, 1) < 2
@@ -471,7 +485,6 @@ end
 
 @enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
 
-const CandleCol = (; timestamp = 1, open = 2, high = 3, low = 4, close = 5, volume = 6)
+const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs, save_pair
-
