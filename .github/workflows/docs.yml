@@ -13,7 +13,6 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/cache@v3
       id: julia-cache
-      run: sudo apt-get install -y xvfb xauth
       with:
         path: |
           $HOME/.julia
@@ -30,8 +29,9 @@ jobs:
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
     - name: Install dependencies
-      run: xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
-      run: xvfb-run julia --project=. -e 'import Pkg; Pkg.instantiate(); Pkg.add(["Documenter", "DocStringExtensions"]);'
+      run: |
+        sudo apt-get install -y xvfb xauth
+        xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
     - name: Build docs
       run: julia --project=. docs/make.jl
     - name: Checkout gh-pages branch
