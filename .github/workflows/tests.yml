@@ -1,0 +1,36 @@
+name: build-docs
+
+on:
+  [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      JULIA_VERSION: 1.8
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      id: julia-cache
+      with:
+        path: |
+          $HOME/.julia
+          ./.CondaPkg
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
+          ${{ runner.os }}-
+    - name: Set up Julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        julia-version: ${{ env.JULIA_VERSION }}
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    - name: Install dependencies
+      run: |
+        which xvfb-run || sudo apt-get install -y xvfb xauth
+        xvfb-run julia --project=. -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
+    - name: run tests
+      run: julia --project=. -e 'import Pkg; Pkg.test()'
