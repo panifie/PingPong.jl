@@ -19,7 +19,7 @@ include("repl.jl")
 
 using Exchanges: Exchange
 
-import Engine
+using Engine
 
 export Engine, get_pairlist, load_pairs, Exchange, user!, getexchange!, setexchange!, portfolio
 

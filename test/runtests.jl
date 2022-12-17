@@ -1,18 +1,22 @@
 using Backtest
-using Test
 using Aqua
+using Test
 
-pkg = Backtest
-# Aqua.test_ambiguities(pkg)
-Aqua.test_stale_deps(pkg; ignore=[:Aqua])
-Aqua.test_unbound_args(pkg)
-Aqua.test_project_toml_formatting(pkg)
-Aqua.test_undefined_exports(pkg)
+@testset "Aqua" begin
+    pkg = Backtest
+    # Aqua.test_ambiguities(pkg) skip=true
+    # Aqua.test_stale_deps(pkg; ignore=[:Aqua]) skip=true
+    Aqua.test_unbound_args(pkg)
+    Aqua.test_project_toml_formatting(pkg)
+    Aqua.test_undefined_exports(pkg)
+end
 
-@test setexchange!(:kucoin).name == "KuCoin"
-@test begin
-    getexchange!(:kucoin)
-    :kucoin ∈ Backtest.Misc.exchanges
+@testset "Exchanges" begin
+    @test setexchange!(:kucoin).name == "KuCoin"
+    @test begin
+        getexchange!(:kucoin)
+        :kucoin ∈ keys(Backtest.Misc.exchanges)
+    end
 end
 # @test begin
 # end
