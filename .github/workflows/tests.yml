@@ -1,13 +1,18 @@
 name: run-tests
 
 on:
-  [push, workflow_dispatch]
-
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
 jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.8
+      JULIA_VERSION: 1
 
     steps:
     - uses: actions/checkout@v2
@@ -31,6 +36,7 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
       run: |
+        git submodule init; git submodule update
         which xvfb-run || sudo apt-get install -y xvfb xauth
         xvfb-run julia --project=. -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
     - name: run tests
