@@ -26,8 +26,9 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         julia-version: ${{ env.JULIA_VERSION }}
-    # - name: Setup tmate session
-    #   uses: mxschmitt/action-tmate@v3
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
       run: |
         which xvfb-run || sudo apt-get install -y xvfb xauth
