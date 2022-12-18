@@ -1,5 +1,5 @@
 using Zarr
-using Misc: default_data_path
+using Misc: DATA_PATH
 import Base.delete!
 
 
@@ -23,7 +23,7 @@ mutable struct ZarrInstance
     path::AbstractString
     store::DirectoryStore
     group::ZGroup
-    function ZarrInstance(data_path=default_data_path)
+    function ZarrInstance(data_path=DATA_PATH)
         ds = DirectoryStore(data_path)
         if !Zarr.is_zgroup(ds, "")
             zgroup(ds, "")

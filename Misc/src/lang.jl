@@ -34,3 +34,30 @@ macro passkwargs(args...)
 end
 
 export passkwargs, @passkwargs
+
+macro lget!(dict, k, expr)
+    quote
+        try
+            $dict[$k]
+        catch error
+            v = expr
+            $dict[$k] = v
+            v
+        end
+    end
+end
+
+
+@doc "Define a new symbol with given value if it is not already defined."
+macro ifundef(name, val, mod = __module__)
+
+    name_var = esc(name)
+    name_sym = esc(:(Symbol($(string(name)))))
+    quote
+        if isdefined($mod, $name_sym)
+            $name_var = getproperty($mod, $name_sym)
+        else
+            $name_var = $val
+        end
+    end
+end

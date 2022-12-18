@@ -4,11 +4,13 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
+Ccxt = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
 Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 Pbar = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
-PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"

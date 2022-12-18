@@ -3,9 +3,8 @@ module Analysis
 using Requires
 import Base.filter
 using Misc: @as_td, PairData, timefloat, _empty_df, td_tf
-using Pbar
 using Data: @to_mat, data_td, save_pair
-using Exchanges: Exchange, exc
+using ExchangeTypes: Exchange, exc
 using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
 using LegibleLambdas

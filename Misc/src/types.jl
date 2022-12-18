@@ -19,7 +19,6 @@ using TimeFrames: TimeFrame
 using Base.Meta: parse
 import Base.convert
 import Base.isless
-using PythonCall: Py
 
 const DateType = Union{AbstractString,AbstractDateTime,AbstractFloat,Integer}
 const StrOrVec = Union{AbstractString,AbstractVector}
@@ -28,7 +27,7 @@ const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
-const default_data_path =
+const DATA_PATH =
     get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "Backtest.jl", "data"))")
 
 macro as(sym, val)
@@ -83,6 +82,7 @@ end
 # ccxt always uses milliseconds in timestamps
 tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
+const tf_map = Dict{String, Tuple{TimeFrame, Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
 @doc "Binds period `prd` and time delta `td` variables from a string `timeframe` variable."
 macro as_td()
     tfs = esc(:timeframe)
@@ -90,9 +90,11 @@ macro as_td()
     td = esc(:td)
     prd = esc(:prd)
     quote
-        $tf = convert(TimeFrame, $tfs)
-        $prd = tf.period
-        $td = tfnum($prd)
+        ($tf, $td) = @lget! $tf_map $tfs begin
+            tf = convert(TimeFrame, $tfs)
+            (tf, tfnum(tf.period))
+        end
+        $prd = $tf.period
     end
 end
 
@@ -110,18 +112,6 @@ convert(
 ) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame} =
     Dict(p.name => p.data for p in values(d))
 
-OptionsDict = Dict{String,Dict{String,Any}}
-mutable struct Exchange
-    py::Py
-    isset::Bool
-    timeframes::Set{String}
-    name::String
-    sym::Symbol
-    markets::OptionsDict
-    Exchange() = new(pynew())
-    Exchange(x::Py) = new(x, false, Set(), "", Symbol(), Dict())
-end
-
 struct Candle
     timestamp::DateTime
     open::AbstractFloat
@@ -130,7 +120,6 @@ struct Candle
     close::AbstractFloat
     volume::AbstractFloat
 end
-
 
 @doc "Converts integers to relative datetimes according to timeframe duration."
 _from_to_dt(timeframe::AbstractString, from, to) = begin
@@ -206,4 +195,4 @@ end
 
 include("exceptions.jl")
 
-export ZarrInstance, Candle
+export Candle, Exchange, convert

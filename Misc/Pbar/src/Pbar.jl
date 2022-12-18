@@ -1,9 +1,9 @@
 @doc "Python enlighten progressbar wrapper."
 module Pbar
 
-using PythonCall: pynew, Py, pyisnull, pyimport, pycopy!, pyconvert
+using Python
+using Python.PythonCall: pynew, keys, pyisnull, pycopy!
 using Dates: now, Millisecond, Second
-using Misc: @pymodule, clearpypath!
 
 const min_delta = Ref(Millisecond(0))
 const queued_counter = Ref(0)
@@ -17,7 +17,6 @@ mutable struct PbarInstance
     fin::Bool
 end
 
-using PythonCall: keys
 function clearpbar(pb)
     pb.pbar ∈ emn.counters.keys() && pbclose(pb)
 end

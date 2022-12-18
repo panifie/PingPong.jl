@@ -1,0 +1,8 @@
+name = "Python"
+uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"

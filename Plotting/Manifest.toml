@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "9544cce195cd79f4d65e0d318c989684f6789d63"
+project_hash = "c28e22fb8dade5af11f196f6473e1690efc01707"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -138,6 +138,12 @@ deps = ["ChaosTools", "DelayEmbeddings", "Distances", "Distributions", "Dynamica
 git-tree-sha1 = "21fd5dc1fc3df780b78a87953a1f91fa6e016d95"
 uuid = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
 version = "1.5.0"
+
+[[deps.Ccxt]]
+deps = ["Misc", "Python"]
+path = "../Ccxt"
+uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
+version = "0.1.0"
 
 [[deps.Chain]]
 git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
@@ -371,8 +377,14 @@ git-tree-sha1 = "d6863c556f1142a061532e79f611aa46be201686"
 uuid = "90fa49ef-747e-5e6f-a989-263ba693cf1a"
 version = "0.5.2"
 
+[[deps.ExchangeTypes]]
+deps = ["Ccxt", "FunctionalCollections", "Python"]
+path = "../ExchangeTypes"
+uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
+version = "0.1.0"
+
 [[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Pairs", "Pbar", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Misc", "Pairs", "Pbar", "Processing", "Python", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -455,6 +467,12 @@ deps = ["FunctionWrappers"]
 git-tree-sha1 = "a5e6e7f12607e90d71b09e6ce2c965e41b337968"
 uuid = "77dc65aa-8811-40c2-897b-53d922fa7daf"
 version = "0.1.1"
+
+[[deps.FunctionalCollections]]
+deps = ["Test"]
+git-tree-sha1 = "04cb9cfaa6ba5311973994fe3496ddec19b6292a"
+uuid = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
+version = "0.5.0"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -847,7 +865,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "PythonCall"]
+deps = ["Dates", "Misc", "Python"]
 path = "../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"
@@ -920,6 +938,12 @@ deps = ["Distributed", "Printf"]
 git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
+
+[[deps.Python]]
+deps = ["PythonCall", "Reexport"]
+path = "../Python"
+uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+version = "0.1.0"
 
 [[deps.PythonCall]]
 deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Pkg", "REPL", "Requires", "Serialization", "Tables", "UnsafePointers"]

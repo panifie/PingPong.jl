@@ -20,7 +20,7 @@
           - call buy function
             
 ### Notes
-- The strategy determins the trade-ability of a pair.
+- The strategy determines the trade-ability of a pair.
 - The buy and sell functions simply receive the current candle. 
 - ...Which means that the strategy effectively holds all the state, the engine is just a candle feeder.
 - For simplicity, trades are all market orders, not limit orders.

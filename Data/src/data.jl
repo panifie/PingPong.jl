@@ -361,16 +361,10 @@ end
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, tf::TimeFrame; kwargs...)
-    timeframe = convert(String, tf)
-    @zkey
-    _wrap_load_pair(zi, key, tfnum(tf.period); kwargs...)
-end
-
 function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; kwargs...)
     @as_td
     @zkey
-    _wrap_load_pair(zi, key, td; kwargs...)
+    _wrap_load_pair(zi, key, tfnum(tf.period); kwargs...)
 end
 
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
@@ -385,6 +379,12 @@ function to_df(data; fromta=false)
         copycols=false
     )
 end
+
+# macro as_df(v)
+#     quote
+#         to_df($(esc(v)))
+#     end
+# end
 
 function _load_pair(
     zi,

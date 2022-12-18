@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "4aefb8717b55cff201c4ff1822d39d9e89895512"
+project_hash = "396cac3a21a21328a0a19bfe6a4e5f203a8cb63a"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -54,6 +54,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Lz4_jll", "Pkg", "Zlib_jll", "Zstd
 git-tree-sha1 = "91d6baa911283650df649d0aea7c28639273ae7b"
 uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
 version = "1.21.1+0"
+
+[[deps.Ccxt]]
+deps = ["Misc", "Python"]
+path = "../../Ccxt"
+uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
+version = "0.1.0"
 
 [[deps.Chain]]
 git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
@@ -159,8 +165,14 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
+[[deps.ExchangeTypes]]
+deps = ["Ccxt", "FunctionalCollections", "Python"]
+path = "../../ExchangeTypes"
+uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
+version = "0.1.0"
+
 [[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Pairs", "Pbar", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Misc", "Pairs", "Pbar", "Processing", "Python", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
 path = ".."
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -190,6 +202,12 @@ deps = ["Printf"]
 git-tree-sha1 = "8339d61043228fdd3eb658d86c926cb282ae72a8"
 uuid = "59287772-0a20-5a39-b81b-1366585eb4c0"
 version = "0.4.2"
+
+[[deps.FunctionalCollections]]
+deps = ["Test"]
+git-tree-sha1 = "04cb9cfaa6ba5311973994fe3496ddec19b6292a"
+uuid = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
+version = "0.5.0"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -424,7 +442,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "PythonCall"]
+deps = ["Dates", "Misc", "Python"]
 path = "../../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"
@@ -463,9 +481,15 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "DataFramesMeta", "Dates", "Misc", "Pbar", "StatsBase", "Temporal"]
+deps = ["Data", "DataFramesMeta", "Dates", "ExchangeTypes", "Misc", "Pbar", "StatsBase", "Temporal"]
 path = "../../Analysis/Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
+version = "0.1.0"
+
+[[deps.Python]]
+deps = ["PythonCall", "Reexport"]
+path = "../../Python"
+uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
 
 [[deps.PythonCall]]

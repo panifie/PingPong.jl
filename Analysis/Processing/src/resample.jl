@@ -1,5 +1,6 @@
 using Pbar
-using Misc: Exchange, PairData, passkwargs, _empty_df, td_tf
+using ExchangeTypes: Exchange
+using Misc: PairData, passkwargs, _empty_df, td_tf
 using Data: data_td, save_pair
 
 

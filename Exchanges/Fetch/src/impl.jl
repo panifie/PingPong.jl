@@ -1,22 +1,50 @@
 using Data: load_pair, to_df, zi
-using Exchanges: Exchange, ccxt_errors, get_pairlist, getexchange!, is_timeframe_supported,
-    py_except_name, save_pair
-using Misc: @as_td, @distributed, @parallel, ContiguityException, DateType, PairData,
-    StrOrVec, _empty_df, _from_to_dt, _instantiate_workers, config, default_data_path,
-    isless, ohlcv_limits, tfperiod, timefloat
-using PythonCall: @py, Py, PyDict, PyException, PyList, pyconvert, pyisnull
-@debug using Backtest.Misc: dt
-using Dates: Millisecond, Year, now
+using Ccxt
+using Python
+using ExchangeTypes: Exchange
+using Exchanges:
+    get_pairlist, getexchange!, is_timeframe_supported, py_except_name, save_pair
+using Misc:
+    @as_td,
+    @distributed,
+    @parallel,
+    ContiguityException,
+    DateType,
+    PairData,
+    StrOrVec,
+    _empty_df,
+    _from_to_dt,
+    _instantiate_workers,
+    config,
+    DATA_PATH,
+    isless,
+    ohlcv_limits,
+    tfperiod,
+    timefloat
+using Python
+@debug using Misc: dt
+using Dates: Millisecond, now
 using Pbar
 using Processing: cleanup_ohlcv_data, is_last_complete_candle
 
-function _fetch_one_pair(exc, zi, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true)
+function _fetch_one_pair(
+    exc,
+    zi,
+    pair,
+    timeframe;
+    from = "",
+    to = "",
+    params = PyDict(),
+    sleep_t = 1,
+    cleanup = true,
+)
     from = timefloat(from)
     if to === ""
         to = now() |> timefloat
     else
         to = timefloat(to)
-        from > to && @error "End date ($(to |> dt)) must be higher than start date ($(from |> dt))."
+        from > to &&
+            @error "End date ($(to |> dt)) must be higher than start date ($(from |> dt))."
     end
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
     data = _fetch_pair(exc, zi, pair, timeframe; from, to, params, sleep_t)
@@ -30,28 +58,37 @@ end
 function find_since(exc, pair)
     tfs = collect(exc.timeframes)
     periods = tfperiod.(tfs)
-    order = sortperm(periods, rev=true)
+    order = sortperm(periods, rev = true)
     periods = @view periods[order]
     tfs = @view tfs[order]
     data = []
     for (t, p) in zip(tfs, periods)
         old_ts = p |> Millisecond |> timefloat |> Int
         # fetch the first available candles using a long (1w) timeframe
-        data = _fetch_with_delay(exc, pair, t; since=old_ts, df=true)
+        data = _fetch_with_delay(exc, pair, t; since = old_ts, df = true)
         if !isempty(data)
             break
         end
     end
     if isempty(data)
         # try without `since` arg
-        data = _fetch_with_delay(exc, pair, tfs[begin]; df=true)
+        data = _fetch_with_delay(exc, pair, tfs[begin]; df = true)
     end
     # default to 1 day
     isempty(data) && return now() - Day(1) |> timefloat |> Int
     data[begin, 1] |> timefloat |> Int
 end
 
-function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::AbstractFloat, params, sleep_t)
+function _fetch_pair(
+    exc,
+    zi,
+    pair,
+    timeframe;
+    from::AbstractFloat,
+    to::AbstractFloat,
+    params,
+    sleep_t,
+)
     @as_td
     @debug "Downloading candles for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
@@ -61,7 +98,10 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
         since = find_since(exc, pair)
         @debug "since time: ", since
     else
-        append!(data, _fetch_with_delay(exc, pair, timeframe; since=Int(from), params, df=true))
+        append!(
+            data,
+            _fetch_with_delay(exc, pair, timeframe; since = Int(from), params, df = true),
+        )
         if size(data, 1) > 0
             since = data[end, 1] |> timefloat |> Int
         else
@@ -72,7 +112,7 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     while since < to
         sleep(sleep_t)
-        fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df=true)
+        fetched = _fetch_with_delay(exc, pair, timeframe; since, params, df = true)
         size(fetched, 1) === 0 && break
         append!(data, fetched)
         last_ts = timefloat(data[end, 1]) |> Int
@@ -83,7 +123,16 @@ function _fetch_pair(exc, zi, pair, timeframe; from::AbstractFloat, to::Abstract
     return data
 end
 
-function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(), df=false, sleep_t=0, limit=nothing)
+function _fetch_with_delay(
+    exc,
+    pair,
+    timeframe;
+    since = nothing,
+    params = PyDict(),
+    df = false,
+    sleep_t = 0,
+    limit = nothing,
+)
     try
         @debug "Calling into ccxt to fetch OHLCV data: $pair, $timeframe $since, $params"
         if isnothing(limit)
@@ -95,11 +144,19 @@ function _fetch_with_delay(exc, pair, timeframe; since=nothing, params=PyDict(),
             @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
-            data = _fetch_with_delay(exc, pair, timeframe; since, params, sleep_t, df, limit=(limit ÷ 2))
+            data = _fetch_with_delay(
+                exc,
+                pair,
+                timeframe;
+                since,
+                params,
+                sleep_t,
+                df,
+                limit = (limit ÷ 2),
+            )
         end
         if dpl && !isempty(data)
-            data = reduce(hcat,
-                pyconvert(Vector{<:Vector}, data)) |> permutedims
+            data = reduce(hcat, pyconvert(Vector{<:Vector}, data)) |> permutedims
         else
             data = []
         end
@@ -137,7 +194,7 @@ function fetch_pairs(timeframe::AbstractString, pairs::StrOrVec; kwargs...)
 end
 
 function fetch_pairs(exc::Exchange, timeframe::AbstractString; qc, kwargs...)
-    pairs = get_pairlist(exc, qc; as_vec=true)
+    pairs = get_pairlist(exc, qc; as_vec = true)
     fetch_pairs(exc, timeframe, pairs; kwargs...)
 end
 
@@ -151,7 +208,7 @@ function fetch_pairs(::Val{:ask}, args...; kwargs...)
     Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
     ans ∉ ("\n", "y", "Y") && return
-    fetch_pairs(args...; qc=config.qc, zi, kwargs...)
+    fetch_pairs(args...; qc = config.qc, zi, kwargs...)
 end
 
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
@@ -160,15 +217,21 @@ It accepts:
     - a vector of symbols for which an exchange instance will be instantiated for each element,
       and pairlist will be composed according to quote currency and min_volume from `Backtest.config`.
 """
-function fetch_pairs(excs::Vector, timeframe; parallel=false, wait_task=false, kwargs...)
-    # out_file = joinpath(default_data_path, "out.log")
-    # err_file = joinpath(default_data_path, "err.log")
+function fetch_pairs(
+    excs::Vector,
+    timeframe;
+    parallel = false,
+    wait_task = false,
+    kwargs...,
+)
+    # out_file = joinpath(DATA_PATH, "out.log")
+    # err_file = joinpath(DATA_PATH, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    parallel && _instantiate_workers(:Backtest; num=length(excs))
+    parallel && _instantiate_workers(:Backtest; num = length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
-        e_pl = s -> (ex = getexchange!(s); (ex, get_pairlist(ex; as_vec=true)))
+        e_pl = s -> (ex = getexchange!(s); (ex, get_pairlist(ex; as_vec = true)))
     else
         e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name))), s[2])
     end
@@ -181,8 +244,17 @@ function fetch_pairs(excs::Vector, timeframe; parallel=false, wait_task=false, k
     t
 end
 
-function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVector; zi=zi,
-    from::DateType="", to::DateType="", update=false, reset=false, progress=true)
+function fetch_pairs(
+    exc::Exchange,
+    timeframe::AbstractString,
+    pairs::AbstractVector;
+    zi = zi,
+    from::DateType = "",
+    to::DateType = "",
+    update = false,
+    reset = false,
+    progress = true,
+)
     @assert exc.isset
     exc_name = exc.name
     local za
@@ -196,10 +268,11 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
         end
         reset && @warn "Ignoring reset since, update flag is true."
         # this fetches the last date stored
-        from_date = (pair) -> begin
-            za, (_, stop) = load_pair(zi, exc_name, pair, timeframe; as_z=true)
-            za, size(za, 1) > 1 ? za[stop, 1] : from
-        end
+        from_date =
+            (pair) -> begin
+                za, (_, stop) = load_pair(zi, exc_name, pair, timeframe; as_z = true)
+                za, size(za, 1) > 1 ? za[stop, 1] : from
+            end
     else
         from_date = (_) -> (nothing, from)
     end
@@ -211,7 +284,7 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
         z, pair_from_date = from_date(name)
         @debug "...from date $pair_from_date"
         if !is_last_complete_candle(pair_from_date, timeframe)
-            ohlcv = _fetch_one_pair(exc, zi, name, timeframe; from=pair_from_date, to)
+            ohlcv = _fetch_one_pair(exc, zi, name, timeframe; from = pair_from_date, to)
         else
             ohlcv = _empty_df()
         end
@@ -220,7 +293,7 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
                 z = save_pair(zi[], exc_name, name, timeframe, ohlcv; reset)
             catch e
                 if e isa ContiguityException
-                    z = save_pair(zi[], exc_name, name, timeframe, ohlcv; reset=true)
+                    z = save_pair(zi[], exc_name, name, timeframe, ohlcv; reset = true)
                 elseif e isa AssertionError
                     display(e)
                     @warn "Could not fetch data for pair $name, check integrity of saved data."
@@ -229,9 +302,9 @@ function fetch_pairs(exc::Exchange, timeframe::AbstractString, pairs::AbstractVe
                 end
             end
         elseif isnothing(z)
-            z, _ = load_pair(zi, exc_name, name, timeframe; as_z=true)
+            z, _ = load_pair(zi, exc_name, name, timeframe; as_z = true)
         end
-        p = PairData(; name, tf=timeframe, data=ohlcv, z)
+        p = PairData(; name, tf = timeframe, data = ohlcv, z)
         data[name] = p
         @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
         progress && @pbupdate!

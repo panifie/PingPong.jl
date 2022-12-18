@@ -1,7 +1,9 @@
-using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py, pystr, PyList
+# using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py, pystr, PyList
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Misc: PairData, infer_tf, tf_win, config, @pymodule
+using Misc: PairData, infer_tf, tf_win, config
+using Python
+using Python.PythonCall: pyisnull, pynew
 using Analysis
 
 const pyec = pynew()

@@ -1,4 +1,5 @@
 using Backtest
+using Backtest.ExchangeTypes
 using Aqua
 using Test
 
@@ -15,7 +16,7 @@ end
     @test setexchange!(:kucoin).name == "KuCoin"
     @test begin
         getexchange!(:kucoin)
-        :kucoin ∈ keys(Backtest.Misc.exchanges)
+        :kucoin ∈ keys(ExchangeTypes.exchanges)
     end
 end
 # @test begin

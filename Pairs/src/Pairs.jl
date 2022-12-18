@@ -15,6 +15,9 @@ struct Asset{B,Q}
     raw::SubString
     bc::BaseCurrency
     qc::QuoteCurrency
+    fiat::Bool
+    leveraged::Bool
+    unleveraged_bc::BaseCurrency
     Asset(s::AbstractString) = begin
         pair = split_pair(s)
         if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
@@ -22,7 +25,10 @@ struct Asset{B,Q}
         end
         B = Symbol(pair[1])
         Q = Symbol(pair[2])
-        new{B,Q}(SubString(s, 1, length(s)), B, Q)
+        fiat = is_fiat_pair(pair)
+        lev = is_leveraged_pair(s)
+        unlev = deleverage_pair(pair)
+        new{B,Q}(SubString(s, 1, length(s)), B, Q, fiat, lev, Symbol(unlev))
     end
 end
 
@@ -34,29 +40,35 @@ const leverage_pair_rgx =
     r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
-function is_leveraged_pair(pair)
+@inline function is_leveraged_pair(pair)
     !isnothing(match(leverage_pair_rgx, pair))
 end
 
 @inline split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
 
 @doc "Remove leveraged pair pre/suffixes from base currency."
-function deleverage_pair(pair)
-    dlv = replace(pair, leverage_pair_rgx => s"\1")
+@inline function deleverage_pair(dlv::Vector{T}, split = false) where {T<:AbstractString}
     # HACK: assume that BEAR/BULL represent BTC
-    pair = split_pair(dlv)
-    if pair[1] |> isempty
-        "BTC" * dlv
-    else
-        dlv
+    if isempty(dlv[1])
+        @warn "Deleveraging pair $pair failed, assuming pair is BTC."
+        dlv[1] = "BTC"
     end
+    split && dlv || join(dlv, "")
 end
 
-@doc "Check if both base and quote are fiat currencies."
-function is_fiat_pair(pair)
-    p = split_pair(pair)
-    p[1] ∈ fiatnames && p[2] ∈ fiatnames
+function deleverage_pair(pair::AbstractString; kwargs...)
+    dlv = replace(pair, leverage_pair_rgx => s"\1")
+    deleverage_pair(dlv; kwargs...)
 end
+
+@inline deleverage_qc(dlv::Vector{T}) where {T<:AbstractString} =
+    deleverage_pair(dlv; split = true)[1]
+deleverage_qc(pair::AbstractString) = deleverage_pair(pair; split = true)[1]
+
+@doc "Check if both base and quote are fiat currencies."
+@inline is_fiat_pair(p::Vector{T}) where {T<:AbstractString} =
+    p[1] ∈ fiatnames && p[2] ∈ fiatnames
+is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
 
 export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, display, hash
 
