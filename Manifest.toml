@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "e1da092d3a068f5a945d6619f6cbb3bb1945e2ac"
+project_hash = "e328221688f03a0b2d3fe4e06560f527acb0ec31"
 
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -439,7 +439,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Data", "DataFrames", "Dates", "ExchangeTypes", "Exchanges", "Misc", "Pairs", "Processing", "Temporal", "TimeFrames", "Zarr"]
+deps = ["Data", "DataFrames", "DataFramesMeta", "Dates", "ExchangeTypes", "Exchanges", "Misc", "Pairs", "Processing", "Temporal", "TimeFrames", "Zarr"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"

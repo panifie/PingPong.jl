@@ -2,7 +2,7 @@
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "6a755903aded55a1782dce6a7fd696d8fad58ab1"
+project_hash = "0823660488fee81dc63b422286430b5cabb8a014"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -172,7 +172,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Misc", "Pairs", "Pbar", "Processing", "Python", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Misc", "Pairs", "Pbar", "Processing", "Python", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
