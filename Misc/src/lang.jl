@@ -36,13 +36,20 @@ end
 export passkwargs, @passkwargs
 
 macro lget!(dict, k, expr)
+    dict = esc(dict)
+    expr = esc(expr)
+    k = esc(k)
     quote
         try
             $dict[$k]
-        catch error
-            v = expr
-            $dict[$k] = v
-            v
+        catch e
+            if e isa KeyError
+                v = $expr
+                $dict[$k] = v
+                v
+            else
+                rethrow(error)
+            end
         end
     end
 end

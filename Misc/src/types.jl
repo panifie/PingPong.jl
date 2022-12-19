@@ -85,13 +85,13 @@ tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 const tf_map = Dict{String, Tuple{TimeFrame, Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
 @doc "Binds period `prd` and time delta `td` variables from a string `timeframe` variable."
 macro as_td()
-    tfs = esc(:timeframe)
+    timeframe = esc(:timeframe)
     tf = esc(:tf)
     td = esc(:td)
     prd = esc(:prd)
     quote
-        ($tf, $td) = @lget! $tf_map $tfs begin
-            tf = convert(TimeFrame, $tfs)
+        ($tf, $td) = @lget! $tf_map $timeframe begin
+            tf = convert(TimeFrame, $timeframe)
             (tf, tfnum(tf.period))
         end
         $prd = $tf.period
