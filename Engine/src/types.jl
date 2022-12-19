@@ -4,14 +4,21 @@ using Misc: Candle, PairData, TimeFrame, convert
 using Pairs: Asset
 using ExchangeTypes
 using Exchanges:
-    load_pairs, getexchange!, is_pair_active, pair_fees, pair_min_size, pair_precision
+    load_pairs,
+    getexchange!,
+    is_pair_active,
+    pair_fees,
+    pair_min_size,
+    pair_precision,
+    get_pairs
 using Data: load_pair, zi
 using DataFrames: DataFrame
 
 include("consts.jl")
 include("funcs.jl")
 
-const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
+const Iterable10 = Union{AbstractVector{T},AbstractSet{T}} where {T}
+Iterable = Iterable10
 
 @enum BuySignal begin
     Buy
@@ -32,7 +39,6 @@ end
 @doc "An type to specify the reason why a buy or sell event has happened."
 const Signal = Union{BuySignal,SellSignal}
 
-
 @doc """The configuration against which a strategy is tested.
 - `spread`: affects the weight of the spread calculation (based on ohlcv)."
 - `slippage`: affects the weight of the spread calculation (based on volume and trade size).
@@ -47,7 +53,6 @@ struct Context3
     end
 end
 Context = Context3
-
 
 @doc "Buy or Sell? And how much?"
 const Order = @NamedTuple{signal::Signal, amount::Float64}
@@ -67,11 +72,10 @@ struct Trade{T<:Asset}
 end
 
 function create_trade(candle::Candle, sig::Signal, price, amount)
-    Trade(candle = candle, signal = sig, price = price, amount = amount)
+    Trade(; candle=candle, signal=sig, price=price, amount=amount)
 end
 
 export create_trade
-
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -109,14 +113,14 @@ end
 AssetInstance = AssetInstance11
 
 isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
-getproperty(a::AssetInstance, f::Symbol) = begin
+Base.getproperty(a::AssetInstance, f::Symbol) = begin
     if f == :cash
         getfield(a, :cash)[1]
     else
         getfield(a, f)
     end
 end
-setproperty!(a::AssetInstance, f::Symbol, v) = begin
+Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
     if f == :cash
         getfield(a, :cash)[1] = v
     else
@@ -125,47 +129,26 @@ setproperty!(a::AssetInstance, f::Symbol, v) = begin
 end
 export getproperty, setproperty!
 
-@doc "A collection of assets instances."
-const Portfolio = Dict{Asset,AssetInstance}
-
-function portfolio(instances::Iterable{<:AssetInstance})::Portfolio
-    Portfolio(a.asset => a for a in instances)
-end
-
-function portfolio(
-    assets::Union{Iterable{String},Iterable{<:Asset}};
-    timeframe = "15m",
-    exc::Exchange = exc,
-)::Portfolio
-    pf = Portfolio()
-    if eltype(assets) == String
-        assets = [Asset(name) for name in assets]
-    end
-    for ast in assets
-        tf = convert(TimeFrame, timeframe)
-        data = Dict(tf => load_pair(zi, exc.name, ast.raw, tf))
-        pf[ast] = AssetInstance(ast, data, exc)
-    end
-    pf
-end
-
-export Portfolio, portfolio
+include("portfolio.jl")
 
 @doc """The strategy is the core type of the framework.
 - buyfn: (Cursor, Data) -> Order
 - sellfn: Same as buyfn but for selling
 - base_amount: The minimum size of an order
 """
-struct Strategy2
+struct Strategy5
     buyfn::Function
     sellfn::Function
-    portfolio::Portfolio
+    pf::Portfolio
     base_amount::Float64
-    Strategy(assets::Iterable{String}) = begin
-        pf = portfolio(assets)
+    Strategy5(assets::Iterable{String}) = begin
+        pf = Portfolio(assets)
         new(x -> false, x -> false, pf, 10.0)
     end
+    Strategy5() = begin
+        Strategy5(get_pairs())
+    end
 end
-Strategy = Strategy2
+Strategy = Strategy5
 
-export Strategy
+export AssetInstance, Strategy

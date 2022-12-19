@@ -6,7 +6,7 @@ using Ccxt: ccxt
 
 struct ExchangeID
     sym::Symbol
-    ExchangeID(sym::Symbol = Symbol()) = begin
+    ExchangeID(sym::Symbol=Symbol()) = begin
         sym == Symbol() && return new(sym)
         if !isdefined(@__MODULE__, :exchangeIds)
             @eval begin
@@ -26,6 +26,19 @@ struct ExchangeID
         ExchangeID(pyconvert(Symbol, s))
     end
 end
+Base.display(id::ExchangeID) = Base.display(id.sym)
+Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
+Base.string(id::ExchangeID) = string(id.sym)
+function Base.display(ids::T) where {T<:Union{AbstractVector{ExchangeID},AbstractSet{ExchangeID}}}
+    s = String[]
+    for id in ids
+        push!(s, string(id.sym))
+    end
+    Base.display(s)
+end
+Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
+import Base.==
+==(e::ExchangeID, s::Symbol) = Base.isequal(e.sym, s)
 
 const OptionsDict = Dict{String,Dict{String,Any}}
 mutable struct Exchange

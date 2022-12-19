@@ -7,7 +7,6 @@ using Dates: DateTime, Millisecond, Period, Second, UTC, datetime2unix, now, uni
 using Misc: @as, @as_td, Candle, LeftContiguityException, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
     PairData, RightContiguityException, _empty_df, config, dt, timefloat, TimeFrame, tfnum
 
-using PythonCall: Py
 using Zarr: is_zarray
 
 

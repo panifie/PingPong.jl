@@ -29,7 +29,7 @@ export Engine,
     user!,
     getexchange!,
     setexchange!,
-    portfolio,
+    Portfolio,
     config,
     Strategy,
     exc

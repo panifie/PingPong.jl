@@ -1,5 +1,7 @@
 module Python
+pop!(ENV, "PYTHONPATH")
 using PythonCall.C.CondaPkg: envdir, add_pip, resolve
+
 # NOTE: Make sure conda libs precede system libs
 const py_v = chomp(
     String(
