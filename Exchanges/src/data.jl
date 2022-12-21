@@ -14,7 +14,7 @@ load_pairs(
     timeframe::AbstractString,
 ) = load_pairs(zi, exc, pairs, timeframe)
 @doc "Load all pairs from exchange according to config quote currency and timeframe."
-load_pairs() = load_pairs(get_pairlist(config.qc), config.timeframe)
+load_pairs() = load_pairs(get_pairlist(config.qc), convert(String, config.timeframe))
 load_pairs(zi, exc, pairs::AbstractDict, timeframe) =
     load_pairs(zi, exc, keys(pairs), timeframe)
 load_pairs(pairs::Union{AbstractArray,AbstractDict}, timeframe::AbstractString) =
