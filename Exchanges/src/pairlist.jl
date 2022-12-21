@@ -1,17 +1,21 @@
+using Misc: config
+
 @inline function qid(v)
     k = keys(v)
     "quoteId" ∈ k ? v["quoteId"] : "quote" ∈ k ? v["quote"] : false
 end
 @inline is_qmatch(id, q) = lowercase(id) === q
 get_pairs(args...; kwargs...) = keys(get_pairlist(args...; kwargs...))
-get_pairlist(quot::AbstractString, args...; kwargs...) =
+get_pairlist(quot::Symbol, args...; kwargs...) =
     get_pairlist(exc, quot, args...; kwargs...)
 get_pairlist(
     exc::Exchange=exc,
-    quot::AbstractString=config.qc,
+    quot::Symbol=config.qc,
     min_vol::T where {T<:AbstractFloat}=config.vol_min;
     kwargs...
-) = get_pairlist(exc, convert(String, quot), convert(Float64, min_vol); kwargs...)
+) = begin
+    get_pairlist(exc, string(quot), convert(Float64, min_vol); kwargs...)
+end
 
 @doc """Get the exchange pairlist.
 `quot`: Only choose pairs where the quot currency equals `quot`.
@@ -87,7 +91,7 @@ function get_pairlist(
     Dict(pairlist)
 end
 
-using PythonCall: pystr
+using Python.PythonCall: pystr
 const pyCached = Dict{String,Py}()
 macro pystr(k)
     quote
