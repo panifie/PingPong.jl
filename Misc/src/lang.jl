@@ -23,14 +23,11 @@ macro parallel(flag, body)
     end
 end
 
-
-function passkwargs(args...)
-    return [Expr(:kw, a.args[1], a.args[2]) for a in args]
-end
+passkwargs(args...) = [Expr(:kw, a.args[1], a.args[2]) for a in args]
 
 macro passkwargs(args...)
     kwargs = [Expr(:kw, a.args[1], a.args[2]) for a in args]
-    return esc( :( $(kwargs...) ) )
+    return esc(:($(kwargs...)))
 end
 
 export passkwargs, @passkwargs
@@ -54,10 +51,8 @@ macro lget!(dict, k, expr)
     end
 end
 
-
 @doc "Define a new symbol with given value if it is not already defined."
-macro ifundef(name, val, mod = __module__)
-
+macro ifundef(name, val, mod=__module__)
     name_var = esc(name)
     name_sym = esc(:(Symbol($(string(name)))))
     quote
@@ -67,4 +62,33 @@ macro ifundef(name, val, mod = __module__)
             $name_var = $val
         end
     end
+end
+
+@doc "Export all instances of an enum type."
+macro exportenum(enums...)
+    expr = quote end
+    for enum in enums
+        push!(
+            expr.args,
+            :(Core.eval(
+                $__module__,
+                Expr(:export, map(Symbol, instances($(esc(enum))))...),
+            )),
+        )
+    end
+    expr
+end
+
+@doc "Import all instances of an enum type."
+macro importenum(T)
+    ex = quote end
+    mod = T.args[1]
+    for val in instances(Core.eval(__module__, T))
+        str = Meta.parse("import $mod.$val")
+        ex = quote
+            Core.eval($__module__, $str)
+            $ex
+        end
+    end
+    return ex
 end
