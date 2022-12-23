@@ -11,4 +11,5 @@
 !/**/deps/precompiles/*_Backtest*.jl
 /**/*.log
 /**/CondaPkg.toml
+/**/.JuliaFormatter.toml
 /docs/build/
