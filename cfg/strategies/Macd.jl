@@ -1,22 +1,31 @@
-module Macd
+module MacdStrategy
 using Engine
 using Pairs
 using ExchangeTypes
+using Misc: config
 
+const name = :Macd
+const S = Strategy{name}
+
+@doc "Module initialization."
 function __init__()
 end
 
-function process(Strategy::Strategy{:Macd})
-    @show "wow"
+function process(Strategy::S, idx, cdl)
+    Order()
 end
 
-function assets(::Type{Strategy{:Macd}})
+function get_pairs(::Type{S})
+    ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
+end
+
+function assets(_::S)
     exc = ExchangeID(:kucoin)
     Dict{Asset,ExchangeID}(
         Asset(a) => exc
-        for a in ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
+        for a in pairs(S)
     )
 end
 
-export process, assets
+export name, process, assets, get_pairs
 end
