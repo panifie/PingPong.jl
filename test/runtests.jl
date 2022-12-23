@@ -60,16 +60,25 @@ test_portfolio() = @testset "Portfolio" begin
 end
 
 test_strategy() = @testset "Strategy" begin
-    @test !isnothing(Strategy())
+    @test begin
+        @eval s = Strategy()
+        !isnothing(s)
+    end
+    @test begin
+        @eval using Backtest.Engine
+        cfg = loadconfig!(Symbol(exc.sym); cfg=Config())
+        s = loadstrategy!(:Macd, cfg=cfg)
+        [k.raw for k in keys(s.assets)] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
+    end
 end
-# @test begin end
-#
-
+test_backtest() = @testset "Backtest" begin
+end
 test_map = Dict(
     :qqua => [test_aqua],
     :exchanges => [test_exchanges],
     :portfolio => [test_exch, test_portfolio],
     :strategy => [test_exch, test_strategy],
+    :backtest => [test_exch, test_backtest]
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS
