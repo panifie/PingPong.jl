@@ -1,0 +1,6 @@
+[kucoin]
+futures = true
+[binance]
+leveraged = "from"
+[sources]
+Macd = "cfg/strategies/Macd.jl" # the name of the module

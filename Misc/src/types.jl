@@ -15,10 +15,9 @@ using Dates:
     Year
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
-using TimeFrames: TimeFrame
+using TimeFrames: TimeFrame, @tf_str
 using Base.Meta: parse
-import Base.convert
-import Base.isless
+import Base: convert, isless, ==
 
 const DateType = Union{AbstractString,AbstractDateTime,AbstractFloat,Integer}
 const StrOrVec = Union{AbstractString,AbstractVector}
@@ -29,6 +28,8 @@ const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 const DATA_PATH =
     get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "Backtest.jl", "data"))")
+
+const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
 
 macro as(sym, val)
     s = esc(sym)
@@ -42,18 +43,32 @@ end
 # stdlib doesn't have this function
 @doc "A week should be less than a month."
 isless(w::Week, m::Month) = w.value * 7 < m.value * 30
+==(w::Week, m::Month) = w.value * 7 == m.value * 30
 
-@doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature."
+@doc "Comparison between timeframes"
+isless(t1::TimeFrame, t2::TimeFrame) = isless(t1.period, t2.period)
+==(t1::TimeFrame, t2::TimeFrame) = t1.period == t2.period
+
+@doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature.
+Units bigger than days are converted to the equivalent number of days days."
 function convert(::Type{TimeFrame}, s::AbstractString)::TimeFrame
+    mul = 0
     m = match(r"([0-9]+)([a-zA-Z])", s)
     n = m[1]
-    t = lowercase(m[2])
+    t = m[2]
     # convert m for minutes to T, since ccxt uses lowercase "m" for minutes
     if t == "m"
         t = "T"
+    elseif t == "w" # Weeks
+        mul = 7
+    elseif t == "M" # Months
+        mul = 30
     elseif t == "y"
+        mul = 365
+    end
+    if mul > 0
         t = "d"
-        n = parse(n) * 365
+        n = parse(n) * mul
     end
     TimeFrame("$n$t")
 end
@@ -82,7 +97,7 @@ end
 # ccxt always uses milliseconds in timestamps
 tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
-const tf_map = Dict{String, Tuple{TimeFrame, Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
+const tf_map = Dict{String,Tuple{TimeFrame,Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
 @doc "Binds period `prd` and time delta `td` variables from a string `timeframe` variable."
 macro as_td()
     timeframe = esc(:timeframe)
@@ -126,17 +141,21 @@ _from_to_dt(timeframe::AbstractString, from, to) = begin
     @as_td
 
     if from !== ""
-        from =
-            typeof(from) <: Int ? from :
+        from = if typeof(from) <: Int
+            from
+        else
             something(tryparse(Int, from), tryparse(DateTime, from), from)
+        end
         typeof(from) <: Int && begin
             from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
         end
     end
     if to !== ""
-        to =
-            typeof(to) <: Int ? to :
+        to = if typeof(to) <: Int
+            to
+        else
             something(tryparse(Int, to), tryparse(DateTime, to), to)
+        end
         typeof(to) <: Int && begin
             to = to === 0 ? now() : now() - (abs(to) * prd)
         end
@@ -149,7 +168,7 @@ function _empty_df()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
-        copycols = false,
+        copycols=false,
     )
 end
 
@@ -183,7 +202,7 @@ end
 
 @doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
 where the keys are the pairs names and the data is the OHLCV data of the pair."
-macro as_dfdict(data, skipempty = true)
+macro as_dfdict(data, skipempty=true)
     data = esc(data)
     mrkts = esc(:mrkts)
     quote
@@ -195,4 +214,4 @@ end
 
 include("exceptions.jl")
 
-export Candle, Exchange, convert
+export Candle, Iterable, @tf_str
