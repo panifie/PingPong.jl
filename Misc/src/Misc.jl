@@ -48,6 +48,6 @@ end
 
 include("config.jl")
 
-export results, config, resetconfig!, @as_td, timefloat
+export results, config, resetconfig!, @as_td, timefloat, TimeFrame
 
 end
