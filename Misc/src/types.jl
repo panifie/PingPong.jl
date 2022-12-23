@@ -1,21 +1,7 @@
-using Dates:
-    DateTime,
-    AbstractDateTime,
-    Period,
-    now,
-    datetime2unix,
-    unix2datetime,
-    Millisecond,
-    Second,
-    Minute,
-    Hour,
-    Day,
-    Week,
-    Month,
-    Year
+using Dates
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
-using TimeFrames: TimeFrame, @tf_str
+using TimeFrames: TimeFrame, apply
 using Base.Meta: parse
 import Base: convert, isless, ==
 
@@ -214,4 +200,16 @@ end
 
 include("exceptions.jl")
 
-export Candle, Iterable, @tf_str
+@doc "Convert to timeframes, strings prefixed with 'tf' diffrent from the one in TimeFrames."
+macro tf_str(s)
+    convert(TimeFrame, s)
+end
+
+@doc "Convert to datetime, strings prefixed with 'd'."
+macro dt_str(s)
+    DateTime(s, ISODateFormat)
+end
+
+Base.Broadcast.broadcastable(tf::TimeFrame) = Ref(tf)
+
+export Candle, Iterable, @tf_str, apply, @dt_str
