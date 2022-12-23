@@ -1,7 +1,6 @@
 module Analysis
 
 using Requires
-import Base.filter
 using Misc: @as_td, PairData, timefloat, _empty_df, td_tf
 using Data: @to_mat, data_td, save_pair
 using ExchangeTypes: Exchange, exc
@@ -22,7 +21,7 @@ function __init__()
 end
 
 @doc "Filters a list of pairs using a predicate function. The predicate functions must return a `Real` number which will be used for sorting."
-function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
+function Base.filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
     flt = Tuple{AbstractFloat,PairData}[]
     for (_, p) in pairs
         v = pred(p.data)
@@ -30,7 +29,7 @@ function filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
             push!(flt, (v, p))
         end
     end
-    sort!(flt; by = @λ(x -> x[1]))
+    sort!(flt; by=@λ(x -> x[1]))
 end
 
 @doc "Return the summary of a filtered vector of pairdata."
@@ -49,6 +48,6 @@ function mark!()
     end
 end
 
-export filter, fltsummary, mark!
+export fltsummary, mark!
 
 end
