@@ -18,7 +18,7 @@ struct Asset{B,Q}
     fiat::Bool
     leveraged::Bool
     unleveraged_bc::BaseCurrency
-    Asset(s::AbstractString) = begin
+    Asset(s::T) where {T<:AbstractString} = begin
         pair = split_pair(s)
         if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
             throw(InexactError(:Asset, Asset, s))
@@ -62,9 +62,7 @@ const leverage_pair_rgx =
     r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
-@inline function is_leveraged_pair(pair)
-    !isnothing(match(leverage_pair_rgx, pair))
-end
+@inline is_leveraged_pair(pair) = !isnothing(match(leverage_pair_rgx, pair))
 
 @inline split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
 
