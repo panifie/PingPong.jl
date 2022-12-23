@@ -10,6 +10,10 @@ macro in_repl()
     end
 end
 
+function analyze!()
+    @eval using Analysis, Plotting
+end
+
 function user!()
     @eval include(joinpath(@__DIR__, "user.jl"))
     @eval using Misc: config

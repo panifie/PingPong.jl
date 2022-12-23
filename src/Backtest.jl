@@ -1,26 +1,25 @@
 module Backtest
 
-if isdefined(Base, :Experimental) &&
-   isdefined(Base.Experimental, Symbol("@compiler_options"))
-    @eval Base.Experimental.@compiler_options optimize = 1 compile = min
-end
+Base.Experimental.@compiler_options optimize = 1 compile = min
 
 using Requires
 using Misc
-
 using Data
+using ExchangeTypes
 using Exchanges
 
 # include("exchanges/feed.jl")
-
-using Analysis
-using Plotting
-
 include("repl.jl")
 
-using ExchangeTypes
-
 using Engine
+
+function __init__()
+    if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
+        exc = Symbol(get!(ENV, "JULIA_BACKTEST_EXC", :kucoin))
+        loadconfig!(exc)
+        setexchange!(exc)
+    end
+end
 
 export Engine,
     get_pairs,
@@ -32,6 +31,9 @@ export Engine,
     Portfolio,
     config,
     Strategy,
+    loadstrategy!,
+    loadconfig!,
+    Config,
     exc
 
 end # module
