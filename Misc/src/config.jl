@@ -1,11 +1,22 @@
 using Base: @kwdef
+using Dates: Period
 using TOML
-import Pkg
+using TimeFrames: TimeFrame
+using Pkg: Pkg
+using FunctionalCollections: PersistentHashMap
+# TODO: move config to own pkg
 
 @doc "The config path (TOML), relative to the current project directory."
 function config_path()
     ppath = Pkg.project().path
-    joinpath(dirname(ppath), "cfg", "backtest.toml")
+    cfg_dir = joinpath(dirname(ppath), "cfg")
+    path = joinpath(cfg_dir, "backtest.toml")
+    if !ispath(path)
+        @warn "Config file not found at $path, creating anew."
+        mkpath(cfg_dir)
+        touch(path)
+    end
+    path
 end
 
 @doc """The config main structure:
@@ -18,41 +29,70 @@ end
     - `:only` : ONLY leveraged will not be filtered.
     - `:from` : Selects non leveraged pairs, that also have a leveraged siblings.
 - `futures`: Selects the futures version of an Exchange.
-- `slope/min/max`: Used in Analysios/slope.
-- `ct`: Used in Analysis/corr.
 - `attrs`: Generic metadata container.
+- `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config
-    path = config_path()
-    window::Int = 7
-    timeframe::String = "1d"
-    qc::String = "USDT"
+@kwdef mutable struct Config8
+    path::String = ""
+    window::Period = Day(7)
+    timeframe::TimeFrame = TimeFrame("1d")
+    qc::Symbol = :USDT
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
     futures::Bool = false
     vol_min::Float64 = 10e4
-    slope_min::Float64= 0.
-    slope_max::Float64 = 90.
-    ct::Dict{Symbol, NamedTuple} = Dict()
-    attrs::Dict{Any, Any} = Dict()
+    # - `slope/min/max`: Used in Analysios/slope.
+    # - `ct`: Used in Analysis/corr.
+    # slope_min::Float64= 0.
+    # slope_max::Float64 = 90.
+    # ct::Dict{Symbol, NamedTuple} = Dict()
+    sources::Dict{Symbol,String} = Dict()
+    attrs::Dict{Any,Any} = Dict()
+    toml = nothing
 end
+Config = Config8
 
 @doc "Global configuration instance."
 const config = Config()
+const SourcesDict = Dict{Symbol,String}
 
 @doc "Parses the toml file and populates the global `config`."
-function loadconfig(exc)
-    if !isfile(config.path)
+function loadconfig!(
+    name::T;
+    path::String=config_path(),
+    cfg::Config=config,
+) where {T<:Symbol}
+    name = convert(Symbol, name)
+    if !isfile(path)
         throw("Config file not found at path $(config.path)")
+    else
+        cfg.path = path
     end
-    exc = string(exc)
-    cfg = TOML.parsefile(config.path)
-    if exc ∉ keys(cfg)
-        throw("Exchange config not found among possible exchanges $(keys(cfg))")
+    name = string(name)
+    cfg.toml = PersistentHashMap(k => v for (k, v) in TOML.parsefile(config.path))
+    if name ∉ keys(cfg.toml)
+        throw(
+            "Config section [$name] not found in the configuration read from $(config.path)",
+        )
     end
-    for (opt, val) in cfg[exc]
-        setcfg!(Symbol(opt), val)
+    kwargs = Dict{Symbol,Any}()
+    options = fieldnames(Config)
+    for (opt, val) in cfg.toml[name]
+        sym = Symbol(opt)
+        if sym ∈ options
+            kwargs[sym] = val
+        else
+            cfg.attrs[opt] = val
+        end
+        # setcfg!(Symbol(opt), val)
     end
+    for (k, v) in cfg.toml["sources"]
+        cfg.sources[Symbol(k)] = v
+    end
+    for k in setdiff(keys(cfg.toml), Set([name, "sources"]))
+        cfg.attrs[k] = cfg.toml[k]
+    end
+    cfg
 end
 
 @doc "Reset global config to default values."
@@ -78,4 +118,4 @@ setcfg!(k, v) = setproperty!(config, k, v)
 
 resetconfig!()
 
-export loadconfig
+export Config, loadconfig!, resetconfig!
