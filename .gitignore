@@ -1,4 +1,8 @@
-/cfg/
+/cfg/*
+/cfg/strategies/*
+!cfg/backtest.toml
+!cfg/strategies
+!cfg/strategies/Macd.jl
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
