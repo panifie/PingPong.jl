@@ -3,7 +3,7 @@ module Kucoin
 using Misc
 import JSON
 
-const kucoin_config = joinpath(ENV["HOME"], "dev", "Backtest.jl", "cfg", "kucoin.json")
+const kucoin_config = joinpath(ENV["HOME"], "dev", "JuBot.jl", "cfg", "kucoin.json")
 
 function kucoin_keys()
     cfg = Dict()

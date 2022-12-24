@@ -1,13 +1,13 @@
-[![build-status](https://github.com/untoreh/Backtest.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/Backtest.jl)
+[![build-status](https://github.com/untoreh/JuBot.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/JuBot.jl)
 
 Currently not really a backtest framework. Mostly data.
 
 ## Install
-Backtest.jl is not in the julia registry, to install do the following:
+JuBot.jl is not in the julia registry, to install do the following:
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/untoreh/Backtest.jl backtest
+git clone --recurse-submodules https://github.com/untoreh/JuBot.jl backtest
 ```
 - Activate the project:
 ```bash

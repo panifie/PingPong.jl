@@ -1,4 +1,4 @@
-name = "Backtest"
+name = "JuBot"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.2.0"

@@ -1,4 +1,4 @@
-module Backtest
+module JuBot
 
 Base.Experimental.@compiler_options optimize = 1 compile = min
 

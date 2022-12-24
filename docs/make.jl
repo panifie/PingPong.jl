@@ -28,4 +28,4 @@ use(:MVP, "Analysis", "Mark", "MVP")
 use(:Processing, "Analysis", "Processing")
 use(:Pairs, "Pairs")
 
-makedocs(sitename="Backtest.jl")
+makedocs(sitename="JuBot.jl")
