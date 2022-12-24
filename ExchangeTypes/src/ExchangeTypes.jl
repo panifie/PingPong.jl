@@ -28,7 +28,7 @@ struct ExchangeID
 end
 Base.display(id::ExchangeID) = Base.display(id.sym)
 Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
-Base.convert(::Symbol, id::ExchangeID) = id.sym
+Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
 function Base.display(ids::T) where {T<:Union{AbstractVector{ExchangeID},AbstractSet{ExchangeID}}}
     s = String[]
