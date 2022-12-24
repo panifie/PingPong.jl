@@ -50,7 +50,7 @@ function find_path(file, cfg)
             @notfound file
         end
     end
-    file
+    realpath(file)
 end
 
 function loadstrategy!(src::Symbol, cfg=config)
