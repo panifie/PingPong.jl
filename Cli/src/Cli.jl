@@ -33,7 +33,7 @@ end
 #     exchange = esc(:exchange)
 #     quote
 #         @info "Setting Exchange"
-#         Backtest.setexchange!(Symbol($exchange))
+#         JuBot.setexchange!(Symbol($exchange))
 #     end
 # end
 
@@ -124,7 +124,7 @@ Downsamples ohlcv data from a timeframe to another.
 end
 
 """
-Backtest CLI
+JuBot CLI
 """
 @main
 

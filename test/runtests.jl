@@ -11,17 +11,17 @@ if NO_TMP
         root = ".."
     end
     Pkg.activate(root)
-    @assert Pkg.project().name == "Backtest"
+    @assert Pkg.project().name == "JuBot"
     if ispath(joinpath(root, ".CondaPkg", "env"))
-        ENV["JULIA_CONDAPKG_OFFLINE"] = :yes
+        ENV["JULIA_CONDAPKG_OFFLINE"] = "yes"
     end
 end
-using Backtest
-using Backtest.ExchangeTypes
+using JuBot
+using JuBot.ExchangeTypes
 all = "all" ∈ ARGS || length(ARGS) == 0
 
 test_aqua() = @testset "Aqua" begin
-    pkg = Backtest
+    pkg = JuBot
     # Aqua.test_ambiguities(pkg) skip=true
     # Aqua.test_stale_deps(pkg; ignore=[:Aqua]) skip=true
     Aqua.test_unbound_args(pkg)
@@ -38,6 +38,7 @@ test_exchanges() = @testset "Exchanges" begin
         :kucoin ∈ keys(ExchangeTypes.exchanges)
     end
     @test begin
+        @eval using JuBot.Exchanges: get_pairs
         @eval prs = get_pairs()
         length(prs) > 0
     end
@@ -61,17 +62,13 @@ end
 
 test_strategy() = @testset "Strategy" begin
     @test begin
-        @eval s = Strategy()
-        !isnothing(s)
-    end
-    @test begin
-        @eval using Backtest.Engine
-        cfg = loadconfig!(Symbol(exc.sym); cfg=Config())
-        s = loadstrategy!(:Macd, cfg=cfg)
-        [k.raw for k in keys(s.assets)] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
+        @eval using JuBot.Engine
+        cfg::Config = loadconfig!(Symbol(exc.sym); cfg=Config())
+        s = loadstrategy!(:MacdStrategy, cfg)
+        [k.raw for k in s.universe.data.asset] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
     end
 end
-test_backtest() = @testset "Backtest" begin
+test_backtest() = @testset "JuBot" begin
 end
 test_map = Dict(
     :qqua => [test_aqua],

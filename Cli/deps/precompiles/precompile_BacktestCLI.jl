@@ -15,7 +15,7 @@ end
 
 function _precompile_()
     ccall(:jl_generating_output, Cint, ()) == 1 || return nothing
-    isdefined(BacktestCLI, Symbol("##fetch#1")) && precompile(Tuple{BacktestCLI.var"##fetch#1", String, String, String, String, Bool, String, typeof(BacktestCLI.fetch), String, Vararg{String}})
-    isdefined(BacktestCLI, Symbol("#fetch##kw")) && precompile(Tuple{BacktestCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(BacktestCLI.fetch), String, Vararg{String}})
-    isdefined(BacktestCLI, Symbol("#fetch##kw")) && precompile(Tuple{BacktestCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(BacktestCLI.fetch), String})
+    isdefined(JuBotCLI, Symbol("##fetch#1")) && precompile(Tuple{JuBotCLI.var"##fetch#1", String, String, String, String, Bool, String, typeof(JuBotCLI.fetch), String, Vararg{String}})
+    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(Tuple{JuBotCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(JuBotCLI.fetch), String, Vararg{String}})
+    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(Tuple{JuBotCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(JuBotCLI.fetch), String})
 end

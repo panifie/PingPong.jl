@@ -1,0 +1,8 @@
+name = "Lang"
+uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

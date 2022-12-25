@@ -1,6 +1,6 @@
-using Backtest
-using Backtest.Engine
-using Backtest.Engine: Strategies
+using JuBot
+using JuBot.Engine
+using JuBot.Engine: Strategies
 
 setexchange!(:kucoin)
 cfg = loadconfig!(exc.sym.sym)

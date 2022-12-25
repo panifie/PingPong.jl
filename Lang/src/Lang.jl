@@ -1,3 +1,5 @@
+module Lang
+
 using Distributed: @distributed
 using Logging: with_logger, NullLogger
 
@@ -91,4 +93,17 @@ macro importenum(T)
         end
     end
     return ex
+end
+
+macro as(sym, val)
+    s = esc(sym)
+    v = esc(val)
+    quote
+        $s = $v
+        true
+    end
+end
+
+export @lget!, passkwargs, @exportenum, @as
+
 end

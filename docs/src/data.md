@@ -1,7 +1,7 @@
 # Data
 
 ```@autodocs
-Modules = [Backtest.Data]
+Modules = [JuBot.Data]
 ```
 
 # Prices

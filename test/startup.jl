@@ -1,12 +1,12 @@
 using Revise
 
-using Backtest: @in_repl
+using JuBot: @in_repl
 
 # import Pkg; Pkg.activate("test/")
 # using BenchmarkTools
 
 exc, zi = @in_repl()
-Revise.revise(Backtest)
+Revise.revise(JuBot)
 
 using Fetch
-Backtest.fetch_pairs(Val(:ask), exc,"4h"; qc="USDT", zi, update=true)
+JuBot.fetch_pairs(Val(:ask), exc,"4h"; qc="USDT", zi, update=true)

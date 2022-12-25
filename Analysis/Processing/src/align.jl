@@ -3,6 +3,7 @@ using Dates
 using DataStructures
 using DataFrames
 using Misc
+using TimeTicks
 
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 
@@ -66,9 +67,10 @@ function _trim_1(data::AbstractDict{K,V}, tail::Bool) where {K,V}
         trim_to!.(dfs, common, tf, tail)
     end
 end
+
 @doc "Ensures all the ohlcv frames start from the same timestamp.
 tail: also trims the end."
-function trim!(data::AbstractDict{TimeFrame,Vector{DataFrame}}; tail=false)
+function trim!(data::AbstractDict; tail=false)
     @debug @assert begin
         (bigger_tf, bigger_ohlcv) = last(data)
         all(
@@ -82,17 +84,22 @@ function trim!(data::AbstractDict{TimeFrame,Vector{DataFrame}}; tail=false)
     nothing
 end
 
-function check_alignment(data::AbstractDict)
+function check_alignment(data::AbstractDict; raise=false)
     first_ts = first(data)[2][1][begin, :timestamp]
     last_ts = first(data)[2][1][end, :timestamp]
-    for dfs in values(data)
-        @assert all(
+    for (tf, dfs) in data
+        check = all(
             df[begin, :timestamp] == first_ts && df[end, :timestamp] == last_ts for
             df in dfs
         )
+        if !check
+            raise && throw(AssertionError("Wrong alignment for data at timeframe $tf."))
+            return false
+        end
     end
+    return true
 end
 
-export trim!
+export trim!, check_alignment
 
 end

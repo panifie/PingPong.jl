@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.2"
+julia_version = "1.8.4"
 manifest_format = "2.0"
-project_hash = "38ee30eb8198088fd259c234f675d7c7c136f06d"
+project_hash = "d133bb3297c06300fdeaa2b3c091a2b2c7db1305"
 
 [[deps.AWSCore]]
 deps = ["Base64", "Dates", "HTTP", "IniFile", "JSON", "LazyJSON", "MbedTLS", "Mocking", "OrderedCollections", "Retry", "Sockets", "SymDict", "UUIDs", "XMLDict"]
@@ -21,12 +21,6 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "195c5505521008abea5aee4f96930717958eac6f"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.4.0"
-
-[[deps.Analysis]]
-deps = ["Data", "DataFrames", "Exchanges", "Indicators", "LegibleLambdas", "Logging", "Misc", "Requires", "Temporal"]
-path = ".."
-uuid = "d4fe19c2-883d-48d3-92d7-80b36677371b"
-version = "0.1.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -49,6 +43,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Lz4_jll", "Pkg", "Zlib_jll", "Zstd
 git-tree-sha1 = "91d6baa911283650df649d0aea7c28639273ae7b"
 uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
 version = "1.21.1+0"
+
+[[deps.Ccxt]]
+deps = ["Misc", "Python"]
+path = "../../Ccxt"
+uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
+version = "0.1.0"
 
 [[deps.Chain]]
 git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
@@ -82,7 +82,7 @@ version = "4.5.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.2+0"
+version = "1.0.1+0"
 
 [[deps.CondaPkg]]
 deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "TOML"]
@@ -96,7 +96,7 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.Data]]
-deps = ["DataFramesMeta", "Dates", "Misc", "PythonCall", "Requires", "Temporal", "Zarr"]
+deps = ["DataFramesMeta", "Dates", "Misc", "Requires", "Temporal", "Zarr"]
 path = "../../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -153,10 +153,10 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
-[[deps.Exchanges]]
-deps = ["Data", "DataFrames", "Dates", "JSON", "Misc", "Processing", "PythonCall", "Serialization", "Temporal", "TimeToLive", "Zarr"]
-path = "../../Exchanges"
-uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+[[deps.ExchangeTypes]]
+deps = ["Ccxt", "FunctionalCollections", "Python"]
+path = "../../ExchangeTypes"
+uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.ExprTools]]
@@ -178,6 +178,12 @@ deps = ["Printf"]
 git-tree-sha1 = "8339d61043228fdd3eb658d86c926cb282ae72a8"
 uuid = "59287772-0a20-5a39-b81b-1366585eb4c0"
 version = "0.4.2"
+
+[[deps.FunctionalCollections]]
+deps = ["Test"]
+git-tree-sha1 = "04cb9cfaa6ba5311973994fe3496ddec19b6292a"
+uuid = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
+version = "0.5.0"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -253,6 +259,12 @@ git-tree-sha1 = "f2355693d6778a178ade15952b7ac47a4ff97996"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
+[[deps.Lang]]
+deps = ["Distributed", "Logging"]
+path = "../../Lang"
+uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+version = "0.1.0"
+
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
@@ -262,12 +274,6 @@ deps = ["JSON", "OrderedCollections", "PropertyDicts"]
 git-tree-sha1 = "ce08411caa70e0c9e780f142f59debd89a971738"
 uuid = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
 version = "0.2.2"
-
-[[deps.LegibleLambdas]]
-deps = ["MacroTools"]
-git-tree-sha1 = "7946db4829eb8de47c399f92c19790f9cc0bbd07"
-uuid = "f1f30506-32fe-5131-bd72-7c197988f9e5"
-version = "0.3.0"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -293,9 +299,9 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
+git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+1"
+version = "1.16.1+2"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "libblastrampoline_jll"]
@@ -356,7 +362,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "Logging", "Pkg", "PythonCall", "TOML", "TimeFrames", "Zarr"]
+deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "Logging", "Pkg", "TOML", "TimeTicks", "Zarr"]
 path = "../../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -406,6 +412,12 @@ git-tree-sha1 = "b64719e8b4504983c7fca6cc9db3ebc8acc2a4d6"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
+[[deps.Pbar]]
+deps = ["Dates", "Misc", "Python"]
+path = "../../Misc/Pbar"
+uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
+version = "0.1.0"
+
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]
 git-tree-sha1 = "2d8aaf8ee10df53d0dfb9b8ee44ae7c04ced2b03"
@@ -440,7 +452,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["DataFramesMeta", "Dates", "Misc", "StatsBase"]
+deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
 path = "../Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
@@ -449,6 +461,12 @@ version = "0.1.0"
 git-tree-sha1 = "8cf3b5cea994cfa9f238e19c3946a39cf051896c"
 uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
 version = "0.1.2"
+
+[[deps.Python]]
+deps = ["PythonCall", "Reexport"]
+path = "../../Python"
+uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+version = "0.1.0"
 
 [[deps.PythonCall]]
 deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Pkg", "REPL", "Requires", "Serialization", "Tables", "UnsafePointers"]
@@ -596,11 +614,11 @@ git-tree-sha1 = "168631df303a1b26c7d33db6a463f8a9da3a3fdf"
 uuid = "51948d2b-02eb-5b28-9840-c902cc6821c9"
 version = "0.2.0"
 
-[[deps.TimeToLive]]
-deps = ["Dates"]
-git-tree-sha1 = "1f1389007d16385ec02e497bef6c2caffba99b65"
-uuid = "37f0c46e-897f-50ef-b453-b26c3eed3d6c"
-version = "0.3.0"
+[[deps.TimeTicks]]
+deps = ["Lang", "TimeFrames"]
+path = "../../TimeTicks"
+uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+version = "0.1.0"
 
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]

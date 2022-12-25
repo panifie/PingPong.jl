@@ -103,7 +103,7 @@ macro pystr(k)
     end
 end
 
-using Misc: @lget!
+using Lang: @lget!
 const marketsCache1Min = TTL{String,Py}(Minute(1))
 const tickersCache1MIn = TTL{String,Py}(Minute(1))
 const activeCache1Min = TTL{String,Bool}(Minute(1))

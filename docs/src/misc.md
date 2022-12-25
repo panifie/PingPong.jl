@@ -1,7 +1,7 @@
 # Misc
 
 ```@autodocs
-Modules = [Backtest.Misc]
+Modules = [JuBot.Misc]
 ```
 
 ## Progress bar

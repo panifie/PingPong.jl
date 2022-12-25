@@ -1,6 +1,8 @@
 using Pbar
 using ExchangeTypes: Exchange
-using Misc: PairData, passkwargs, _empty_df, td_tf
+using Lang: passkwargs
+using TimeTicks: td_tf
+using Misc: PairData, _empty_df
 using Data: data_td, save_pair
 using DataFrames: DataFrame
 

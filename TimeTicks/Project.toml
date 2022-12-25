@@ -1,0 +1,9 @@
+name = "TimeTicks"
+uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+TimeFrames = "51948d2b-02eb-5b28-9840-c902cc6821c9"

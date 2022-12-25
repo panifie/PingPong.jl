@@ -1,5 +1,5 @@
 # Engine
 
 ```@autodocs
-Modules = [Backtest.Engine]
+Modules = [JuBot.Engine]
 ```

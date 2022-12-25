@@ -1,7 +1,7 @@
 using Base: @kwdef
 using Dates: Period
 using TOML
-using TimeFrames: TimeFrame
+using TimeTicks
 using Pkg: Pkg
 using FunctionalCollections: PersistentHashMap
 # TODO: move config to own pkg
@@ -32,10 +32,11 @@ end
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config8
+@kwdef mutable struct Config9
     path::String = ""
     window::Period = Day(7)
     timeframe::TimeFrame = TimeFrame("1d")
+    timeframes::Vector{TimeFrame} = [TimeFrame(t) for t in ("1m", "15m", "1h", "1d")]
     qc::Symbol = :USDT
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
@@ -50,7 +51,7 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config8
+Config = Config9
 
 @doc "Global configuration instance."
 const config = Config()
@@ -69,10 +70,10 @@ function loadconfig!(
         cfg.path = path
     end
     name = string(name)
-    cfg.toml = PersistentHashMap(k => v for (k, v) in TOML.parsefile(config.path))
+    cfg.toml = PersistentHashMap(k => v for (k, v) in TOML.parsefile(cfg.path))
     if name ∉ keys(cfg.toml)
         throw(
-            "Config section [$name] not found in the configuration read from $(config.path)",
+            "Config section [$name] not found in the configuration read from $(cfg.path)",
         )
     end
     kwargs = Dict{Symbol,Any}()

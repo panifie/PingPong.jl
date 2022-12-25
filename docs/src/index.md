@@ -1,4 +1,4 @@
-# Backtest docs
+# JuBot docs
 
 This backtest framework is comprised of different modules:
 

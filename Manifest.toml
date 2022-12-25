@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.3"
+julia_version = "1.8.4"
 manifest_format = "2.0"
-project_hash = "c82e11ba86d72d20c7c259827a65a58eb3d7f37d"
+project_hash = "82eb61d63f1ffedc3111205f1a6902f1247492b9"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -211,7 +211,7 @@ version = "4.5.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.2+0"
+version = "1.0.1+0"
 
 [[deps.CondaPkg]]
 deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "TOML"]
@@ -243,7 +243,7 @@ uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.7.8"
 
 [[deps.Data]]
-deps = ["DataFramesMeta", "Dates", "Misc", "Requires", "Temporal", "Zarr"]
+deps = ["DataFramesMeta", "Dates", "Lang", "Misc", "Requires", "Temporal", "TimeTicks", "Zarr"]
 path = "./Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -362,7 +362,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Exchanges", "Misc", "OrderedCollections", "Pairs", "Pkg", "Processing", "Reexport", "Temporal", "TimeFrames", "Zarr"]
+deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Exchanges", "LRUCache", "Lang", "Misc", "OrderedCollections", "Pairs", "Pkg", "Processing", "Reexport", "Temporal", "TimeFrames", "TimeTicks", "Zarr"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -390,7 +390,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Misc", "Pairs", "Pbar", "Processing", "Python", "Serialization", "Temporal", "TimeToLive", "Zarr"]
+deps = ["Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Serialization", "Temporal", "TimeTicks", "TimeToLive", "Zarr"]
 path = "./Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -636,6 +636,12 @@ git-tree-sha1 = "dae002226b59701dbafd7e2dd757df1bd83442fd"
 uuid = "2ee39098-c373-598a-b85f-a56591580800"
 version = "1.12.5"
 
+[[deps.Lang]]
+deps = ["Distributed", "Logging"]
+path = "Lang"
+uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+version = "0.1.0"
+
 [[deps.LayoutPointers]]
 deps = ["ArrayInterface", "ArrayInterfaceOffsetArrays", "ArrayInterfaceStaticArrays", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static"]
 git-tree-sha1 = "7e34177793212f6d64d045ee47d2883f09fffacc"
@@ -756,7 +762,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "Logging", "Pkg", "TOML", "TimeFrames", "Zarr"]
+deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "Logging", "Pkg", "TOML", "TimeTicks", "Zarr"]
 path = "Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -946,7 +952,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Misc", "Pbar", "StatsBase", "Temporal"]
+deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
 path = "Analysis/Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
@@ -1264,6 +1270,12 @@ deps = ["Dates", "Test"]
 git-tree-sha1 = "168631df303a1b26c7d33db6a463f8a9da3a3fdf"
 uuid = "51948d2b-02eb-5b28-9840-c902cc6821c9"
 version = "0.2.0"
+
+[[deps.TimeTicks]]
+deps = ["Dates", "Lang", "TimeFrames"]
+path = "TimeTicks"
+uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+version = "0.1.0"
 
 [[deps.TimeToLive]]
 deps = ["Dates"]

@@ -1,7 +1,7 @@
 # Exchanges
 
 ```@autodocs
-Modules = [Backtest.Exchanges]
+Modules = [JuBot.Exchanges]
 Pages = ["exchanges.jl", "-data.jl"]
 ```
 
@@ -10,7 +10,7 @@ Pages = ["exchanges.jl", "-data.jl"]
 Extensions for the top level [Data](./data.md) module.
 
 ```@autodocs
-Modules = [Backtest.Exchanges]
+Modules = [JuBot.Exchanges]
 Pages = ["data.jl"]
 ```
 

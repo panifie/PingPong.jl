@@ -7,7 +7,7 @@ end
 using Documenter, DocStringExtensions
 
 # Modules
-using Backtest
+using JuBot
 using Pbar
 project_path = Pkg.project().path |> dirname
 function use(name, args...)

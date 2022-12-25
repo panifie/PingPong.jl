@@ -4,11 +4,19 @@ include("zarr_utils.jl")
 
 using DataFramesMeta
 using Dates: DateTime, Millisecond, Period, Second, UTC, datetime2unix, now, unix2datetime
-using Misc: @as, @as_td, Candle, LeftContiguityException, OHLCV_COLUMNS, OHLCV_COLUMNS_TS,
-    PairData, RightContiguityException, _empty_df, config, dt, timefloat, TimeFrame, tfnum
+using TimeTicks
+using Lang: @as
+using Misc:
+    Candle,
+    LeftContiguityException,
+    OHLCV_COLUMNS,
+    OHLCV_COLUMNS_TS,
+    PairData,
+    RightContiguityException,
+    _empty_df,
+    config
 
 using Zarr: is_zarray
-
 
 macro zkey()
     p = esc(:pair)
@@ -45,8 +53,6 @@ macro check_td(args...)
         end
     end
 end
-
-
 
 @doc "Redefines given variable to a Matrix with type of the underlying container type."
 macro as_mat(data)
@@ -134,7 +140,6 @@ function combinerows(df1, df2; idx::Symbol)
     DataFrame(rows; copycols=false)
 end
 
-
 mutable struct TimeFrameError <: Exception
     first::Any
     last::Any
@@ -164,14 +169,13 @@ function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     end
 end
 
-
 function _get_zarray(
     zi::ZarrInstance,
     key::AbstractString,
     sz::Tuple;
     type,
     overwrite,
-    reset
+    reset,
 )
     existing = false
     if is_zarray(zi.store, key)
@@ -209,7 +213,7 @@ function _save_pair(
     data_col=1,
     saved_col=1,
     overwrite=true,
-    reset=false
+    reset=false,
 )
     local za
     !reset && @check_td(data)
@@ -285,9 +289,7 @@ function _save_pair(
 end
 
 @doc "Normalizes or special characthers separators to `_`."
-@inline function sanitize_pair(pair::AbstractString)
-    replace(pair, r"\.|\/|\-" => "_")
-end
+@inline sanitize_pair(pair::AbstractString) = replace(pair, r"\.|\/|\-" => "_")
 
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
 @inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
@@ -343,7 +345,8 @@ function _wrap_load_pair(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
             clear_key(zi[], key) # ensure path does not exist
-            emptyz = zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor)
+            emptyz =
+                zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor)
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
             elseif :with_z ∈ keys(kwargs)
@@ -360,7 +363,13 @@ end
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load_pair(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; kwargs...)
+function load_pair(
+    zi::Ref{ZarrInstance},
+    exc_name,
+    pair,
+    timeframe::AbstractString;
+    kwargs...,
+)
     @as_td
     @zkey
     _wrap_load_pair(zi, key, tfnum(tf.period); kwargs...)
@@ -371,11 +380,11 @@ function to_df(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
     fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
-                     x -> DataFrame(x; copycols=false)
+           x -> DataFrame(x; copycols=false)
     DataFrame(
         :timestamp => dates,
-        [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n = 1:length(OHLCV_COLUMNS_TS)]...;
-        copycols=false
+        [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n in 1:length(OHLCV_COLUMNS_TS)]...;
+        copycols=false,
     )
 end
 
@@ -385,16 +394,7 @@ end
 #     end
 # end
 
-function _load_pair(
-    zi,
-    key,
-    td;
-    from="",
-    to="",
-    saved_col=1,
-    as_z=false,
-    with_z=false
-)
+function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(
         zi[],
@@ -402,7 +402,7 @@ function _load_pair(
         (1, length(OHLCV_COLUMNS));
         overwrite=true,
         type=Float64,
-        reset=false
+        reset=false,
     )
 
     if size(za, 1) < 2
@@ -441,10 +441,9 @@ function _load_pair(
     to_df(data)
 end
 
-
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
-    for i = 2:length(series)
+    for i in 2:length(series)
         nv = dtfloat(series[i])
         nv - pv !== td && throw("Time series is not contiguous at index $i.")
         pv = nv
@@ -460,7 +459,7 @@ end
 
 function _contiguous_ts(series::AbstractVector{Float64}, td::Float64)
     pv = series[1]
-    for i = 2:length(series)
+    for i in 2:length(series)
         nv = series[i]
         nv - pv !== td && throw("Time series is not contiguous at index $i.")
         pv = nv

@@ -1,5 +1,4 @@
 module Misc
-include("lang.jl")
 include("lists.jl")
 include("types.jl")
 
