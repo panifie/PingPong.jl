@@ -1,4 +1,4 @@
-import Base: length, iterate, collect
+import Base: length, iterate, collect, reset
 const OptDate = Union{Nothing,DateTime}
 struct DateRange12
     current_date::Vector{OptDate}
@@ -46,6 +46,8 @@ collect(dr::DateRange) = begin
     end
     out
 end
+
+reset(dr::DateRange) = dr.current_date[1] = dr.start
 
 @doc """Create a `DateRange` using notation `FROM..TO;STEP`.
 

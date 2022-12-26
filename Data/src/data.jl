@@ -388,12 +388,12 @@ function to_df(data; fromta=false)
     )
 end
 
-# macro as_df(v)
-#     quote
-#         to_df($(esc(v)))
-#     end
-# end
-
+@doc """ Load ohlcv pair data from zarr instance.
+`zi`: The zarr instance to use
+`key`: the name of the array to load from the zarr instance (in the format exchange/timeframe/pair)
+`td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
+`from`, `to`:
+"""
 function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(

@@ -1,6 +1,7 @@
 using Dates
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
 using Zarr: ZArray
+using TimeTicks: td_tf
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 
@@ -43,15 +44,6 @@ function _empty_df()
         OHLCV_COLUMNS;
         copycols=false,
     )
-end
-
-@doc "Given a dataframe, infer the timeframe by looking at the first two and the last two candles timestamp."
-function infer_tf(df::AbstractDataFrame)
-    td1 = df.timestamp[begin+1] - df.timestamp[begin]
-    td2 = df.timestamp[end] - df.timestamp[end-1]
-    @assert td1 === td2
-    tfname = td_tf[td1.value]
-    TimeFrame(td1), tfname
 end
 
 @doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
