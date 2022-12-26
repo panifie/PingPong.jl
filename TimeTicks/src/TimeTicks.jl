@@ -110,7 +110,11 @@ convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 function convert(::Type{String}, tf::T) where {T<:TimeFrame}
     tostring(unit::String) = "$(tf.period.value)$(unit)"
     prd = tf.period
-    if prd isa Second
+    if prd isa Nanosecond
+        "ns"
+    elseif prd isa Millisecond
+        "ms"
+    elseif prd isa Second
         "s"
     elseif prd isa Minute
         "m"
@@ -143,9 +147,22 @@ end
 
 timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
 
-export @as_td,
-    @tf_str, @dt_str, TimeFrame, apply, dt, timefloat, tfperiod, from_to_dt, tfnum
+@doc "Given a container, infer the timeframe by looking at the first two \
+ and the last two elements timestamp."
+macro infertf(data, field = :timestamp)
+    quote
+        begin
+            arr = getproperty($(esc(data)), $(QuoteNode(field)))
+            td1 = arr[begin+1] - arr[begin]
+            td2 = arr[end] - arr[end-1]
+            @assert td1 === td2
+            $TimeFrame(td1)
+        end
+    end
+end
 
-include("daterange.jl")
+export @as_td, @tf_str, @dt_str, TimeFrame, apply, dt, timefloat, tfperiod, from_to_dt, tfnum, @infertf
+
+include("daterange.jl")         #
 
 end # module TimeTicks

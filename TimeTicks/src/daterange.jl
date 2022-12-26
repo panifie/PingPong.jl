@@ -1,27 +1,29 @@
 import Base: length, iterate, collect
-struct DateRange11
-    current_date::Vector{DateTime}
-    start::DateTime
-    stop::DateTime
-    step::Period
-    function DateRange11(start::DateTime, stop::DateTime, step=Day(1))
+const OptDate = Union{Nothing,DateTime}
+struct DateRange12
+    current_date::Vector{OptDate}
+    start::OptDate
+    stop::OptDate
+    step::Union{Nothing,Period}
+    function DateRange12(start::OptDate, stop::OptDate, step=nothing)
         begin
             new([start], start, stop, step)
         end
     end
-    function DateRange11(start::DateTime, stop::DateTime, tf::TimeFrame)
+    function DateRange12(start::OptDate, stop::OptDate, tf::TimeFrame)
         begin
             new([start], start, stop, tf.period)
         end
     end
 end
-DateRange = DateRange11
+DateRange = DateRange12
 
 Base.show(dr::DateRange) = begin
     Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)")
 end
 Base.display(dr::DateRange) = Base.show(dr)
 iterate(dr::DateRange) = begin
+    @assert !isnothing(dr.start) && !isnothing(dr.stop)
     dr.current_date[1] = dr.start + dr.step
     (dr.start, dr)
 end
@@ -53,9 +55,26 @@ example:
 1999-12-01T12..2000-02-01T10;1d
 """
 macro dtr_str(s::String)
+    local to = step = ""
     (from, tostep) = split(s, "..")
-    (to, step) = split(tostep, ";")
-    dr = DateRange(todatetime(from), todatetime(to), convert(TimeFrame, step))
+    if !isempty(tostep)
+        try
+            (to, step) = split(tostep, ";")
+        catch error
+            if error isa BoundsError
+                to = tostep
+                step = ""
+            else
+                rethrow(error)
+            end
+        end
+    end
+    args = [isempty(from) ? nothing : todatetime(from),
+        isempty(to) ? nothing : todatetime(to)]
+    if !isempty(step)
+        push!(args, convert(TimeFrame, step))
+    end
+    dr = DateRange(args...)
     :($dr)
 end
 
