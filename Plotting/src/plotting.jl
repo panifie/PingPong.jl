@@ -1,7 +1,8 @@
 # using PythonCall: pyimport, pynew, pycopy!, pyisnull, PyDict, @py, Py, pystr, PyList
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
-using Misc: PairData, infer_tf, tf_win, config
+using TimeTicks
+using Misc: PairData, tf_win, config
 using Python
 using Python.PythonCall: pyisnull, pynew
 using Analysis
@@ -201,8 +202,9 @@ end
 @doc "OHLCV plot with bbands and alma indicators."
 function _plotone(pair::PairData; timeframe="15m", n_bb=nothing, n_mul=100)
     df = Analysis.resample(pair, timeframe)
-    _, tfname = infer_tf(df)
-    n = isnothing(n_bb) ? tf_win[tfname] : n_bb
+    # FIXME
+    tf = @infertf(df)
+    n = isnothing(n_bb) ? tf_win[td_tf[tf.period]] : n_bb
     @info "Bbands with window $n..."
     Analysis.bbands!(df; n)
     df[!, :alma] = Analysis.ind.alma(df.close; n)
