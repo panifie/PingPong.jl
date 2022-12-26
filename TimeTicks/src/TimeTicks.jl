@@ -44,12 +44,18 @@ isless(w::Week, m::Month) = w.value * 7 < m.value * 30
 
 @doc "Convert to timeframes, strings prefixed with 'tf' diffrent from the one in TimeFrames."
 macro tf_str(s)
-    convert(TimeFrame, s)
+    quote
+        $(convert(TimeFrame, s))
+    end
 end
+
+@inline todatetime(s::AbstractString) = DateTime(s, ISODateTimeFormat)
 
 @doc "Convert to datetime, strings prefixed with 'dt'."
 macro dt_str(s)
-    DateTime(s, ISODateFormat)
+    quote
+        $(todatetime(s))
+    end
 end
 
 const tf_map = Dict{String,Tuple{TimeFrame,Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
@@ -137,6 +143,9 @@ end
 
 timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
 
-export @as_td, @tf_str, @dt_str, TimeFrame, apply, dt, timefloat, tfperiod, from_to_dt, tfnum
+export @as_td,
+    @tf_str, @dt_str, TimeFrame, apply, dt, timefloat, tfperiod, from_to_dt, tfnum
+
+include("daterange.jl")
 
 end # module TimeTicks
