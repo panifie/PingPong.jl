@@ -5,10 +5,10 @@ using DataFrames
 using TimeTicks
 import Base: getindex
 
-firstdate(df::DataFrame) = df.timestamp[begin]
-lastdate(df::DataFrame) = df.timestamp[end]
+@inline firstdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[begin]
+@inline lastdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[end]
 
-timeframe(df::DataFrame)::TimeFrame = begin
+timeframe(df::T where {T<:AbstractDataFrame})::TimeFrame = begin
     try
         colmetadata(df, :timestamp, "timeframe")
     catch error
@@ -20,18 +20,23 @@ timeframe(df::DataFrame)::TimeFrame = begin
         end
     end
 end
-timeframe!(df::DataFrame, t::TimeFrame) = colmetadata!(df, :timestamp, "timeframe", t)
-timeframe!(df::DataFrame) = timeframe!(df, @infertf(df))
+@inline timeframe!(df::T where {T<:AbstractDataFrame}, t::TimeFrame) = colmetadata!(df, :timestamp, "timeframe", t)
+@inline timeframe!(df::T where {T<:AbstractDataFrame}) = timeframe!(df, @infertf(df))
+
+@doc "Get the position of date in the `:timestamp` column of the dataframe."
+dateindex(df::T where {T<:AbstractDataFrame}, date::DateTime) = begin
+    (date - firstdate(df)) ÷ timeframe(df).period + 1
+end
 
 # NOTE: We should subtype an abstract dataframe...arr
 @doc "While indexing ohlcv data we have to consider the *time of arrival* of a candle. In general candles collect the price *up to* its timestamp. E.g. the candle at time `2000-01-01` would have tracked time from `1999-12-31T00:00:00` to `2000-01-01T00:00:00`. Therefore what we return is always the *left adjacent* timestamp of the queried one."
-getindex(df::DataFrame, idx::DateTime, cols) = begin
+getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime, cols) = begin
     tf = timeframe(df)
     @debug @assert @infertf(df) == tf
     start = firstdate(df)
-    stop = lastdate(df)
-    start <= idx <= stop || throw(ArgumentError("$idx not found in dataframe."))
+    start <= idx || throw(ArgumentError("$idx not found in dataframe."))
     int_idx = (idx - start) ÷ tf.period + 1
+    int_idx > size(df)[1] && throw(ArgumentError("$idx not found in dataframe."))
     @debug @assert df.timestamp[int_idx] == idx
     @view df[int_idx, cols]
 end
@@ -43,7 +48,7 @@ df[dtr"1999-.."] # Starting from 1999 up to the end
 df[dtr"..1999-"] # From the beginning up to 1999
 df[dtr"1999-..2000-"] # The Year 1999
 """
-getindex(df::DataFrame, dr::DateRange, cols) = begin
+getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols) = begin
     tf = timeframe(df)
     @debug @assert @infertf(df) == tf
     start = firstdate(df)
@@ -63,9 +68,9 @@ getindex(df::DataFrame, dr::DateRange, cols) = begin
     @view df[start_idx:stop_idx, cols]
 end
 
-getindex(df::DataFrame, idx::DateTime) = getindex(df, idx, Symbol.(names(df)))
-getindex(df::DataFrame, idx::DateRange) = getindex(df, idx, Symbol.(names(df)))
+getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime) = getindex(df, idx, Symbol.(names(df)))
+getindex(df::T where {T<:AbstractDataFrame}, idx::DateRange) = getindex(df, idx, Symbol.(names(df)))
 
-export firstdate, lastdate, timeframe, timeframe!
+export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex
 
 end
