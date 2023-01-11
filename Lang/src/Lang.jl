@@ -3,6 +3,8 @@ module Lang
 using Distributed: @distributed
 using Logging: with_logger, NullLogger
 
+const Option{T} = Union{Nothing, T} where T
+
 macro evalmod(files...)
     quote
         with_logger(NullLogger()) do
@@ -104,6 +106,15 @@ macro as(sym, val)
     end
 end
 
-export @lget!, passkwargs, @exportenum, @as
+# FIXME: untested
+@doc "Unroll expression `exp` for every element in `fields` assign each element to symbol defined by `asn`.
+
+`exp` must use the name defined by `asn`(default to `el`) as the variable name of the loop."
+macro unroll(exp, fields, asn=:el)
+    ex = esc(exp)
+    Expr(:block, (:($(esc(asn)) = $el; $ex) for el in fields.args)...)
+end
+
+export @lget!, passkwargs, @exportenum, @as, Option
 
 end
