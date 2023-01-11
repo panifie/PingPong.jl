@@ -90,6 +90,10 @@ deleverage_qc(pair::AbstractString) = deleverage_pair(pair; split=true)[1]
     p[1] ∈ fiatnames && p[2] ∈ fiatnames
 is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
 
-export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair
+macro a_str(pair)
+    :($(Asset(pair)))
+end
+
+export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
 
 end # module Pairs
