@@ -1,4 +1,4 @@
-
+using Reexport
 using Misc: config, PairData
 using Dates: DateTime
 
@@ -6,22 +6,54 @@ using Dates: DateTime
 # include("funcs.jl")
 include("types/types.jl")
 include("live/live.jl")
-using .Strategies
+include("strategies/strategies.jl");
+include("sim/sim.jl")
 
-function backtest!(strat::Strategy{T}, context::Context) where {T}
-    for dt in enumerate(context.from_date:context.to_date)
+@reexport using .Strategies;
+using .Strategies
+using .Collections
+using .Trades
+using .Orders
+using Misc
+using Processing.Alignments
+
+@doc "Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe."
+function backtest!(strat::Strategy, ctx::Context; trim_universe=false)
+    # ensure that universe data start at the same time
+    if trim_universe
+        local data = flatten(strat.universe)
+        !check_alignment(data) && trim!(data)
+    end
+    reset(ctx)
+    for date in ctx
         while true
-            strat.universe[:]
-            process(strat, universe)
+            orders::Vector{LiveOrder} = process(strat, date)
+            length(orders) == 0 && break
         end
         for pair in strat.universe
             for (signal, amount) in signals
                 if signal < 0
-                    sell(pair, portfolio, candle, amount, context)
+                    sell(pair, portfolio, candle, amount, ctx)
                 elseif signal > 0
-                    buy(pair, portfolio, candle, amount, context)
+                    buy(pair, portfolio, candle, amount, ctx)
                 end
             end
         end
     end
 end
+
+@doc "Backtest passing a context arguments as a tuple."
+backtest!(strat; ctx, kwargs...) = begin
+    ctx = Context(ctx...)
+    backtest!(strat, ctx; kwargs...)
+end
+
+include("sim/spread.jl")
+using .Sim
+execute(strat::Strategy, orders::Vector{LiveOrder}) =
+    for o in orders
+        cdl =
+        spread = Sim.spread()
+    end
+
+export backtest!

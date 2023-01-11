@@ -6,7 +6,8 @@ using Data: load_pair, zi
 using OrderedCollections: OrderedDict
 using DataFramesMeta
 using DataStructures: SortedDict
-using Misc: Iterable, TimeFrame
+using TimeTicks
+using Misc: Iterable
 using ExchangeTypes
 using Pairs
 using ..Instances
@@ -120,6 +121,8 @@ function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
     end
     out
 end
+
+Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instance).data)[2]
 
 export AssetCollection, flatten
 

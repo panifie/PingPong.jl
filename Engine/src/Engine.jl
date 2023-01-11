@@ -1,6 +1,6 @@
 module Engine
-using Misc
+import Temporal
 
 include("engine.jl")
 include("precompile_includer.jl")
-end # module Backtest
+end # module JuBot
