@@ -3,7 +3,7 @@ module Instances
 using ExchangeTypes
 using Exchanges: pair_fees, pair_min_size, pair_precision, is_pair_active, getexchange!
 using Data: load_pair, zi
-using Misc: TimeFrame
+using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
 using Pairs
@@ -44,6 +44,14 @@ struct AssetInstance12{T<:Asset}
 end
 AssetInstance = AssetInstance12
 
+@doc "Load ohlcv data of asset instance."
+load!(a::AssetInstance; reset=true) = begin
+    for (tf, df) in a.data
+        reset && empty!(df)
+        loaded = load_pair(zi, a.exchange.name, a.raw, tf)
+        append!(df, loaded)
+    end
+end
 isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
 Base.getproperty(a::AssetInstance, f::Symbol) = begin
     if f == :cash
@@ -59,5 +67,5 @@ Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
         setfield!(a, f, v)
     end
 end
-export AssetInstance, isactive
+export AssetInstance, isactive, load!
 end

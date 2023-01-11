@@ -1,6 +1,7 @@
 module Trades
 using Dates
-using Misc: Candle, convert, @exportenum
+using Lang: @exportenum
+using Misc: Candle, convert
 using Pairs
 
 @enum BuySignal begin
