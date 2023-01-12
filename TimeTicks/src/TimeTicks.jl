@@ -1,6 +1,8 @@
 module TimeTicks
-using Dates
-using TimeFrames: TimeFrames, TimeFrame, apply
+using Base: AbstractCmd
+using Reexport
+@reexport using Dates
+using TimeFrames: TimeFrames, TimeFrame, apply, TimePeriodFrame
 using Lang: @lget!
 import Base: convert, isless, ==
 using Base.Meta: parse
@@ -14,11 +16,13 @@ tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 Units bigger than days are converted to the equivalent number of days days."
 function convert(::Type{TimeFrame}, s::AbstractString)::TimeFrame
     mul = 0
-    m = match(r"([0-9]+)([a-zA-Z])", s)
+    m = match(r"([0-9]+)([a-zA-Z]+)", s)
     n = m[1]
     t = m[2]
     # convert m for minutes to T, since ccxt uses lowercase "m" for minutes
-    if t == "m"
+    if t == "ms"
+        return TimeFrame(Millisecond(parse(n)))
+    elseif t == "m"
         t = "T"
     elseif t == "w" # Weeks
         mul = 7
@@ -131,6 +135,13 @@ function convert(::Type{String}, tf::T) where {T<:TimeFrame}
     end |> tostring
 end
 
+const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
+function name(tf::TimeFrame)
+    @lget! tf_name_map tf.period begin
+        convert(String, tf)
+    end
+end
+
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d
 dt(num::Real) = unix2datetime(num / 1e3)
@@ -149,19 +160,46 @@ timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
 
 @doc "Given a container, infer the timeframe by looking at the first two \
  and the last two elements timestamp."
-macro infertf(data, field = :timestamp)
+macro infertf(data, field=:timestamp)
     quote
         begin
             arr = getproperty($(esc(data)), $(QuoteNode(field)))
             td1 = arr[begin+1] - arr[begin]
             td2 = arr[end] - arr[end-1]
-            @assert td1 === td2
+            @assert td1 === td2 """mismatch in dataframe dates found!
+            1: $(arr[begin])
+            2: $(arr[begin+1])
+            -2: $(arr[end-1])
+            -1: $(arr[end])"""
             $TimeFrame(td1)
         end
     end
 end
 
-export @as_td, @tf_str, @dt_str, TimeFrame, apply, dt, timefloat, tfperiod, from_to_dt, tfnum, @infertf
+import Base.convert
+
+const tf_conv_map = Dict{Period,TimeFrame}()
+@inline convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond}) = begin
+    @lget! tf_conv_map v.period begin
+        TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))
+    end
+end
+@inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Day) = tf"1440m"
+@inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
+@inline convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
+
+export @as_td,
+    @tf_str,
+    @dt_str,
+    TimeFrame,
+    apply,
+    dt,
+    timefloat,
+    tfperiod,
+    from_to_dt,
+    tfnum,
+    @infertf,
+    name
 
 include("daterange.jl")         #
 
