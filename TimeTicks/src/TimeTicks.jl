@@ -199,6 +199,7 @@ export @as_td,
     from_to_dt,
     tfnum,
     @infertf,
+    dtfloat,
     name
 
 include("daterange.jl")         #
