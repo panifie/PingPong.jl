@@ -19,7 +19,7 @@ end
 DateRange = DateRange12
 
 Base.show(dr::DateRange) = begin
-    Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)")
+    Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
 end
 Base.display(dr::DateRange) = Base.show(dr)
 iterate(dr::DateRange) = begin
@@ -48,6 +48,8 @@ collect(dr::DateRange) = begin
 end
 
 reset(dr::DateRange) = dr.current_date[1] = dr.start
+Base.isequal(dr1::DateRange, dr2::DateRange) =
+    dr1.start === dr2.start && dr1.stop === dr2.stop
 
 @doc """Create a `DateRange` using notation `FROM..TO;STEP`.
 
@@ -71,8 +73,8 @@ macro dtr_str(s::String)
             end
         end
     end
-    args = [isempty(from) ? nothing : todatetime(from),
-        isempty(to) ? nothing : todatetime(to)]
+    args =
+        [isempty(from) ? nothing : todatetime(from), isempty(to) ? nothing : todatetime(to)]
     if !isempty(step)
         push!(args, convert(TimeFrame, step))
     end
