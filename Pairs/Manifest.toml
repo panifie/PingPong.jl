@@ -472,7 +472,7 @@ uuid = "51948d2b-02eb-5b28-9840-c902cc6821c9"
 version = "0.2.0"
 
 [[deps.TimeTicks]]
-deps = ["Lang", "TimeFrames"]
+deps = ["Dates", "Lang", "Reexport", "TimeFrames"]
 path = "../TimeTicks"
 uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 version = "0.1.0"
