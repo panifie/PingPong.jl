@@ -36,7 +36,7 @@ end
     path::String = ""
     window::Period = Day(7)
     timeframe::TimeFrame = TimeFrame("1d")
-    timeframes::Vector{TimeFrame} = [TimeFrame(t) for t in ("1m", "15m", "1h", "1d")]
+    timeframes::Vector{TimeFrame} = [convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")]
     qc::Symbol = :USDT
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
