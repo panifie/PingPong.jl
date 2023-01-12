@@ -1,25 +1,27 @@
 using Pbar
 using ExchangeTypes: Exchange
 using Lang: passkwargs
-using TimeTicks: td_tf
+using TimeTicks
 using Misc: PairData, _empty_df
 using Data: data_td, save_pair
-using DataFrames: DataFrame
+using Data.DFUtils
+using DataFrames
 
 resample(exc::Exchange, pair::PairData, to_tf; kwargs...) = begin
     resample(exc, pair.name, pair.data, pair.tf, to_tf; kwargs...)
 end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(exc::Exchange, name::String, data::DataFrame, from_tf, to_tf; save=false)
+function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     @debug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
                    "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(data, 1)
     sz > 1 || return _empty_df()
 
-    @as_td
-    src_prd = data_td(data)
+    td = tfnum(to_tf.period)
+    # src_prd = data_td(data)
+    src_prd = timeframe(data).period
     src_td = timefloat(src_prd)
 
     @assert td >= src_td "Upsampling not supported. (from $((td_tf[src_td])) to $(td_tf[td]))"
@@ -57,7 +59,7 @@ function resample(exc::Exchange, name::String, data::DataFrame, from_tf, to_tf; 
     )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
-    save && save_pair(exc, pair.name, to_tf, df)
+    save && size(df)[1] > 0 && save_pair(exc, pairname, name(to_tf), df)
     df
 end
 
