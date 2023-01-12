@@ -60,6 +60,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     select!(data, Not(:sample))
     select!(df, Not(:sample))
     save && size(df)[1] > 0 && save_pair(exc, pairname, name(to_tf), df)
+    @debug @show "last 2 candles: " df[end-1, :timestamp] df[end, :timestamp]
     df
 end
 
