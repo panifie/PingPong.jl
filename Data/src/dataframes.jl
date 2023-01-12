@@ -1,5 +1,6 @@
 @doc "Utilities for DataFrames.jl, prominently timeframe based indexing."
 module DFUtils
+using Dates: AbstractDateTime
 using Dates
 using DataFrames
 using TimeTicks
@@ -8,7 +9,7 @@ import Base: getindex
 @inline firstdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[begin]
 @inline lastdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[end]
 
-timeframe(df::T where {T<:AbstractDataFrame})::TimeFrame = begin
+timeframe(df::T where {T<:AbstractDataFrame})::F where {F<:TimeFrame} = begin
     try
         colmetadata(df, :timestamp, "timeframe")
     catch error
@@ -20,8 +21,12 @@ timeframe(df::T where {T<:AbstractDataFrame})::TimeFrame = begin
         end
     end
 end
-@inline timeframe!(df::T where {T<:AbstractDataFrame}, t::TimeFrame) = colmetadata!(df, :timestamp, "timeframe", t)
-@inline timeframe!(df::T where {T<:AbstractDataFrame}) = timeframe!(df, @infertf(df))
+@inline timeframe!(df::T, t::F) where {T<:AbstractDataFrame,F<:TimeFrame} =
+    colmetadata!(df, :timestamp, "timeframe", t)
+@inline timeframe!(df::T where {T<:AbstractDataFrame}) = begin
+    timeframe!(df, @infertf(df))
+end
+
 
 @doc "Get the position of date in the `:timestamp` column of the dataframe."
 dateindex(df::T where {T<:AbstractDataFrame}, date::DateTime) = begin
@@ -53,24 +58,39 @@ getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols) = begin
     @debug @assert @infertf(df) == tf
     start = firstdate(df)
     stop = lastdate(df)
-    if (!isnothing(dr.start) && dr.start < start) ||
-       (!isnothing(dr.stop) && dr.stop > stop)
-        throw(ArgumentError("Dates ($(dr.start) : $(dr.stop)) out of range for dataframe ($start : $stop)."))
+    if (!isnothing(dr.start) && dr.start < start) || (!isnothing(dr.stop) && dr.stop > stop)
+        throw(
+            ArgumentError(
+                "Dates ($(dr.start) : $(dr.stop)) out of range for dataframe ($start : $stop).",
+            ),
+        )
     end
     # arithmetic indexing although slower for smaller arrays, has complexity O(1)ish
-    start_idx = isnothing(dr.start) ? firstindex(df.timestamp) :
-                (dr.start - start) ÷ tf.period + 1
-    stop_idx = isnothing(dr.stop) ? lastindex(df.timestamp) :
-               start_idx + (dr.stop - dr.start) ÷ tf.period
+    start_idx = if isnothing(dr.start)
+        firstindex(df.timestamp)
+    else
+        (dr.start - start) ÷ tf.period + 1
+    end
+    stop_idx = if isnothing(dr.stop)
+        lastindex(df.timestamp)
+    else
+        start_idx + (dr.stop - dr.start) ÷ tf.period
+    end
     # start_idx = searchsortedfirst(df.timestamp, dr.start)
     # stop_idx = start_idx + searchsortedfirst(@view(df.timestamp[start_idx+1:end]), dr.stop)
     @debug @assert df.timestamp[start_idx] == dr.start && df.timestamp[stop_idx] == dr.stop
     @view df[start_idx:stop_idx, cols]
 end
 
-getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime) = getindex(df, idx, Symbol.(names(df)))
-getindex(df::T where {T<:AbstractDataFrame}, idx::DateRange) = getindex(df, idx, Symbol.(names(df)))
+getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime) =
+    getindex(df, idx, Symbol.(names(df)))
+getindex(df::T where {T<:AbstractDataFrame}, idx::DateRange) =
+    getindex(df, idx, Symbol.(names(df)))
 
-export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex
+function daterange(df::T where {T<:AbstractDataFrame})
+    DateRange(df.timestamp[begin], df.timestamp[end], timeframe(df))
+end
+
+export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex, daterange
 
 end
