@@ -175,7 +175,7 @@ function _get_zarray(
     sz::Tuple;
     type,
     overwrite,
-    reset,
+    reset
 )
     existing = false
     if is_zarray(zi.store, key)
@@ -213,7 +213,7 @@ function _save_pair(
     data_col=1,
     saved_col=1,
     overwrite=true,
-    reset=false,
+    reset=false
 )
     local za
     !reset && @check_td(data)
@@ -368,7 +368,7 @@ function load_pair(
     exc_name,
     pair,
     timeframe::AbstractString;
-    kwargs...,
+    kwargs...
 )
     @as_td
     @zkey
@@ -380,11 +380,11 @@ function to_df(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
     fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
-           x -> DataFrame(x; copycols=false)
+                     x -> DataFrame(x; copycols=false)
     DataFrame(
         :timestamp => dates,
         [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n in 1:length(OHLCV_COLUMNS_TS)]...;
-        copycols=false,
+        copycols=false
     )
 end
 
@@ -402,7 +402,7 @@ function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z
         (1, length(OHLCV_COLUMNS));
         overwrite=true,
         type=Float64,
-        reset=false,
+        reset=false
     )
 
     if size(za, 1) < 2
@@ -420,12 +420,14 @@ function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z
     with_from = !iszero(from)
     with_to = !iszero(to)
     if with_from
-        ts_start = max(1, (from - saved_first_ts + td) ÷ td) |> Int
+        ts_start = max(firstindex(za, saved_col),
+                       (from - saved_first_ts + td) ÷ td) |> Int
     else
         ts_start = firstindex(za, saved_col)
     end
     if with_to
-        ts_stop = (ts_start + ((to - from) ÷ td)) |> Int
+        ts_stop = min(lastindex(za, saved_col),
+                      (ts_start + ((to - from) ÷ td))) |> Int
     else
         ts_stop = lastindex(za, saved_col)
     end
