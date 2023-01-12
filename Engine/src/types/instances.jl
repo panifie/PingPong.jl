@@ -1,13 +1,17 @@
 module Instances
 
+using TimeFrames: AbstractTimePeriodFrame
+using TimeTicks: TimeFrames
 using ExchangeTypes
 using Exchanges: pair_fees, pair_min_size, pair_precision, is_pair_active, getexchange!
 using Data: load_pair, zi
+using Data.DFUtils: daterange, timeframe
 using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
 using Pairs
 using ..Trades
+using Processing
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -67,5 +71,45 @@ Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
         setfield!(a, f, v)
     end
 end
-export AssetInstance, isactive, load!
+
+@doc "Get the last available candle strictly lower than `apply(tf, date)`"
+function last_candle(i::AssetInstance, tf::TimeFrame, date::DateTime)::DateTime
+    didx = apply(tf, date) - tf.period
+    i.data[tf][didx]
+end
+
+@inline function last_candle(i::AssetInstance, date::DateTime)::DateTime
+    tf = keys(i.data) |> first
+    last_candle(i, tf, date)
+end
+
+@doc "[Fills](@id instance_fill) pulls data from storage, or resample from the shortest timeframe available."
+function Base.fill!(i::AssetInstance, tfs...)
+    current_tfs = Set(keys(i.data))
+    (from_tf, from_data) = first(i.data)
+    s_tfs = sort([t for t in tfs])
+    sort!(s_tfs)
+    if tfs[begin] < from_tf
+        throw(
+            ArgumentError(
+                "Timeframe $(tfs[begin]) is shorter than the shortest available.",
+            ),
+        )
+    end
+    exc = i.exchange[]
+    pairname = i.asset.raw
+    dr = daterange(from_data)
+    for to_tf in tfs
+        if to_tf ∉ current_tfs
+            from_sto = load_pair(zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop)
+            i.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
+                from_sto
+            else
+                resample(exc, pairname, from_data, from_tf, to_tf; save=true)
+            end
+        end
+    end
+end
+
+export AssetInstance, isactive, load!, last_candle
 end

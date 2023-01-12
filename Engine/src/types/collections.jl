@@ -124,6 +124,14 @@ end
 
 Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instance).data)[2]
 
+@doc "[Fills](@ref instance_fill) all the instances with given timeframes data..."
+Base.fill!(ac::AssetCollection, tfs...) = begin
+    @eachrow ac.data begin
+        fill!(:instance, tfs...)
+    end
+end
+
+
 export AssetCollection, flatten
 
 end
