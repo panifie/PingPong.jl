@@ -2,6 +2,21 @@ module Pairs
 
 using Misc: PairData
 
+@doc "A variable quantity of some currency."
+struct Cash{T}
+    name::Symbol
+    value::Vector{Float64}
+    Cash(s::Symbol, val::Real) = new{s}(s, [val])
+end
+Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
+Base.getproperty(c::Cash, s::Symbol) = begin
+    if s === :value
+        getfield(c, :value)[1]
+    else
+        getfield(c, :name)
+    end
+end
+
 @doc "A symbol checked to be a valid quote currency."
 const QuoteCurrency = Symbol
 @doc "A symbol checked to be a valid base currency."
@@ -94,6 +109,6 @@ macro a_str(pair)
     :($(Asset(pair)))
 end
 
-export Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
+export Cash, Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
 
 end # module Pairs
