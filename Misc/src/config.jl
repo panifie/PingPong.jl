@@ -32,16 +32,19 @@ end
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config9
+@kwdef mutable struct Config12
     path::String = ""
     window::Period = Day(7)
-    timeframe::TimeFrame = TimeFrame("1d")
+    timeframe::TimeFrame = TimeFrame(Day(1))
     timeframes::Vector{TimeFrame} = [convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")]
+    exchange::Symbol = Symbol()
     qc::Symbol = :USDT
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
     futures::Bool = false
     vol_min::Float64 = 10e4
+    initial_cash::Float64 = 100.
+    base_amount::Float64 = 10.
     # - `slope/min/max`: Used in Analysios/slope.
     # - `ct`: Used in Analysis/corr.
     # slope_min::Float64= 0.
@@ -51,7 +54,7 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config9
+Config = Config12
 
 @doc "Global configuration instance."
 const config = Config()
@@ -62,7 +65,7 @@ function loadconfig!(
     name::T;
     path::String=config_path(),
     cfg::Config=config,
-) where {T<:Symbol}
+) where {T<:Union{Symbol,String}}
     name = convert(Symbol, name)
     if !isfile(path)
         throw("Config file not found at path $(config.path)")
