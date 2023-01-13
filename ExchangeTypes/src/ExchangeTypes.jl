@@ -4,10 +4,9 @@ using Python: pynew, pyisnull
 using FunctionalCollections
 using Ccxt: ccxt
 
-struct ExchangeID
-    sym::Symbol
+struct ExchangeID{I}
     ExchangeID(sym::Symbol=Symbol()) = begin
-        sym == Symbol() && return new(sym)
+        sym == Symbol() && return new{sym}()
         if !isdefined(@__MODULE__, :exchangeIds)
             @eval begin
                 @doc "All possible exchanges that can be instantiated by ccxt."
@@ -19,18 +18,25 @@ struct ExchangeID
         else
             @assert sym ∈ exchangeIds
         end
-        new(sym)
+        new{sym}()
     end
     ExchangeID(py::Py) = begin
-        s = pyisnull(py) ? "" : (pyhasattr(py, "__name__") ? py.__name__ : py.__class__.__name__)
+        s = if pyisnull(py)
+            ""
+        else
+            (pyhasattr(py, "__name__") ? py.__name__ : py.__class__.__name__)
+        end
         ExchangeID(pyconvert(Symbol, s))
     end
 end
+Base.nameof(::T) where {T<:ExchangeID} = T.parameters[1]
 Base.display(id::ExchangeID) = Base.display(id.sym)
 Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
 Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
-function Base.display(ids::T) where {T<:Union{AbstractVector{ExchangeID},AbstractSet{ExchangeID}}}
+function Base.display(
+    ids::T,
+) where {T<:Union{AbstractVector{ExchangeID},AbstractSet{ExchangeID}}}
     s = String[]
     for id in ids
         push!(s, string(id.sym))
@@ -42,29 +48,36 @@ import Base.==
 ==(e::ExchangeID, s::Symbol) = Base.isequal(e.sym, s)
 
 const OptionsDict = Dict{String,Dict{String,Any}}
-mutable struct Exchange
+struct Exchange3{I<:ExchangeID}
     py::Py
-    isset::Bool
     timeframes::Set{String}
     name::String
-    sym::ExchangeID
+    id::I
     markets::OptionsDict
-    Exchange() = new(pynew()) # FIXME: this should be None
-    Exchange(x::Py) = sym = new(x, false, Set(), "", ExchangeID(x), Dict())
+    Exchange3() = new{typeof(ExchangeID())}(pynew()) # FIXME: this should be None
+    Exchange3(x::Py) = begin
+        id = ExchangeID(x)
+        name = pyisnull(x) ? "" : pyconvert(String, pygetattr(x, "name"))
+        new{typeof(id)}(x, Set(), name, id, Dict())
+    end
 end
+Exchange = Exchange3
+
+Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
+
 @doc "The hash of an exchange object is reduced to its symbol (the function used to instantiate the object from ccxt)."
-Base.hash(e::Exchange, u::UInt) = Base.hash(e.sym, u)
+Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
 function Base.getproperty(e::Exchange, k::Symbol)
     if hasfield(Exchange, k)
         getfield(e, k)
     else
-        getfield(e, :isset) || throw("Can't access non instantiated exchange object.")
+        !isempty(e) || throw("Can't access non instantiated exchange object.")
         getproperty(getfield(e, :py), k)
     end
 end
 
 @doc "Global implicit exchange instance."
-const exc = Exchange(pynew())
+exc = Exchange(pynew())
 @doc "Global holding Exchange instances to avoid dups."
 const exchanges = Dict{Symbol,Exchange}()
 
@@ -84,6 +97,5 @@ Base.display(exc::Exchange) = begin
     end
 end
 
-
-export Exchange, ExchangeID, exc, exchanges
+export Exchange, ExchangeID, exchanges
 end # module ExchangeTypes

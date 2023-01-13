@@ -41,8 +41,8 @@ function get_pairlist(
     lquot = lowercase(quot)
 
     if futures
-        futures_sym = get(futures_exchange, exc.sym, exc.sym)
-        if futures_sym !== exc.sym
+        futures_sym = get(futures_exchange, exc.id, exc.id)
+        if futures_sym !== exc.id
             exc = getexchange!(futures_sym)
         end
     end

@@ -12,6 +12,7 @@ using Python
 using Python.PythonCall: pycopy!, pyisnone
 using Serialization: deserialize, serialize
 using TimeToLive: TTL
+using Accessors
 
 const exclock = ReentrantLock()
 const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
@@ -23,12 +24,17 @@ macro exchange!(name)
     exc_istr = string(name)
     quote
         exc_sym = Symbol($exc_istr)
-        $exc_var =
-            (exc.isset && lowercase(exc.name) === $exc_str) ? exc :
+        $exc_var = if (exc.isset && lowercase(exc.name) === $exc_str)
+            exc
+        else
             (
-                hasproperty($(__module__), exc_sym) ? getproperty($(__module__), exc_sym) :
+            if hasproperty($(__module__), exc_sym)
+                getproperty($(__module__), exc_sym)
+            else
                 Exchange(exc_sym)
-            )
+            end
+        )
+        end
     end
 end
 
@@ -43,7 +49,7 @@ end
 @doc "Load exchange markets:
 - `cache`: rely on storage cache
 - `agemax`: max cache valid period [1 day]."
-function loadmarkets!(exc; cache = true, agemax = Day(1))
+function loadmarkets!(exc; cache=true, agemax=Day(1))
     mkt = joinpath(DATA_PATH, exc.name, "markets.jlz")
     empty!(exc.markets)
     if isfileyounger(mkt, agemax) && cache
@@ -63,8 +69,15 @@ function loadmarkets!(exc; cache = true, agemax = Day(1))
     nothing
 end
 
-function setexchange!(name::Symbol, args...; kwargs...)
-    setexchange!(exc, name, args...; kwargs...)
+getexchange() = exc
+
+@doc "Get ccxt exchange by symbol either from cache or anew."
+function getexchange!(x::Symbol, args...; kwargs...)
+    get!(exchanges, x, begin
+        py = ccxt_exchange(x, args...; kwargs...)
+        e = Exchange(py)
+        setexchange!(e)
+    end)
 end
 
 @doc "Instantiate an exchange struct. it sets:
@@ -73,21 +86,19 @@ end
 - Sets the exchange timeframes.
 - Sets exchange api keys.
 "
-function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwargs...)
-    pycopy!(exc.py, ccxt_exchange(name, args...; kwargs...))
-    exc.isset = true
+function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     empty!(exc.timeframes)
-    tfkeys =
-        pyisnone(exc.py.timeframes) ? Set{String}() :
+    tfkeys = if pyisnone(exc.py.timeframes)
+        Set{String}()
+    else
         pyconvert(Set{String}, exc.py.timeframes.keys())
+    end
     isempty(tfkeys) || push!(exc.timeframes, tfkeys...)
-    exc.name = string(exc.py.name)
-    exc.sym = ExchangeID(exc.py)
     @debug "Loading Markets..."
     markets && loadmarkets!(exc)
     @debug "Loaded $(length(exc.markets))."
 
-    keysym = Symbol("$(name)_keys")
+    keysym = Symbol("$(exc.name)_keys")
     if hasproperty(@__MODULE__, keysym)
         @debug "Setting exchange keys..."
         kf = getproperty(@__MODULE__, keysym)
@@ -97,12 +108,10 @@ function setexchange!(exc::Exchange, name::Symbol, args...; markets = true, kwar
     exc
 end
 
-@doc "Get ccxt exchange by symbol either from cache or anew."
-function getexchange!(x::Symbol)
-    get!(exchanges, x, begin
-        e = ccxt_exchange(x) |> Exchange
-        setexchange!(e, x)
-    end)
+function setexchange!(x::Symbol, args...; kwargs...)
+    global exc
+    exc = getexchange!(x, args...; kwargs...)
+    setexchange!(exc, args...; kwargs...)
 end
 
 @doc "Check if exchange has tickers list."
@@ -111,7 +120,7 @@ end
 end
 
 @doc "Fetch and cache tickers data."
-macro tickers(force = false)
+macro tickers(force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
@@ -133,7 +142,7 @@ end
 
 @doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
 "
-function get_markets(exc; min_volume = 10e4, quot = "USDT", sep = '/')
+function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers
@@ -189,7 +198,6 @@ function exckeys!(exc, key, secret, pass)
     exc.password = pass
     nothing
 end
-
 
 include("pairlist.jl")
 include("data.jl")
