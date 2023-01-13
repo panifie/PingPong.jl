@@ -188,6 +188,9 @@ end
 @inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
 @inline convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
 
+@doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
+available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
+
 export @as_td,
     @tf_str,
     @dt_str,
@@ -200,7 +203,8 @@ export @as_td,
     tfnum,
     @infertf,
     dtfloat,
-    name
+    name,
+    available
 
 include("daterange.jl")         #
 
