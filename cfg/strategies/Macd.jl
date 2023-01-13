@@ -6,6 +6,7 @@ using Misc: config
 
 const name = :Macd
 const S = Strategy{name}
+const exc = :kucoin
 
 @doc "Module initialization."
 function __init__()
