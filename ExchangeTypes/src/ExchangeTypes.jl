@@ -68,5 +68,22 @@ const exc = Exchange(pynew())
 @doc "Global holding Exchange instances to avoid dups."
 const exchanges = Dict{Symbol,Exchange}()
 
+Base.display(exc::Exchange) = begin
+    out = IOBuffer()
+    try
+        write(out, "Exchange: ")
+        write(out, exc.name)
+        write(out, " | ")
+        write(out, "$(length(exc.markets)) markets")
+        write(out, " | ")
+        tfs = collect(exc.timeframes)
+        write(out, "$(length(tfs)) timeframes")
+        Base.print(String(take!(out)))
+    finally
+        close(out)
+    end
+end
+
+
 export Exchange, ExchangeID, exc, exchanges
 end # module ExchangeTypes
