@@ -5,7 +5,7 @@ using ExchangeTypes: Exchange
 using Exchanges:
     get_pairlist, getexchange!, is_timeframe_supported, py_except_name, save_pair
 using TimeTicks
-using Lang: @parallel
+using Lang: @distributed, @parallel
 using Misc
 using Misc: _empty_df, _instantiate_workers, config, DATA_PATH, ohlcv_limits
 using Python
