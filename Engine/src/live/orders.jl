@@ -2,6 +2,8 @@ module Orders
 using Dates: DateTime, Period
 using ..Trades: Order, Signal
 using ..Instances: AssetInstance
+using TimeTicks
+using Lang
 
 @doc """A live order tracks in flight trades.
 
@@ -25,18 +27,18 @@ using ..Instances: AssetInstance
  `delay`: how much time has passed since the order request \
           and the exchange execution of the order (to account for api issues).
  """
-struct LiveOrder1{I<:AssetInstance}
+mutable struct LiveOrder2{I<:AssetInstance}
     signal::Signal
     amount::Float64
     asset::Ref{I}
     date::DateTime
-    delay::Period
-    LiveOrder(a::T, o::Order) where {T<:AssetInstance} = begin
-        new{T}(o.signal, o.amount, a)
+    delay::Millisecond
+    LiveOrder2(a::I, o::Order; date=nothing, delay=Millisecond(0)) where {I<:AssetInstance} = begin
+        new{I}(o.signal, o.amount, a, date, delay)
     end
 end
 
-LiveOrder = LiveOrder1
+LiveOrder = LiveOrder2
 
 export LiveOrder
 
