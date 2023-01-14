@@ -127,6 +127,6 @@ Base.display(strat::Strategy) = begin
     end
 end
 
-export Strategy, loadstrategy!, process, assets, get_pairs
+export Strategy, loadstrategy!, process, assets
 
 end

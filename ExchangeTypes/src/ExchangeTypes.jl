@@ -77,6 +77,13 @@ function Base.getproperty(e::Exchange, k::Symbol)
     end
 end
 
+globalexchange!(new::Exchange) = begin
+    global exc
+    exc = new
+    exc
+end
+
+
 @doc "Global implicit exchange instance."
 exc = Exchange(pynew())
 @doc "Global holding Exchange instances to avoid dups."
@@ -98,5 +105,5 @@ Base.display(exc::Exchange) = begin
     end
 end
 
-export Exchange, ExchangeID, exchanges
+export Exchange, ExchangeID, exchanges, globalexchange!
 end # module ExchangeTypes

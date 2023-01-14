@@ -30,7 +30,7 @@ struct AssetCollection2
     function AssetCollection2(
         assets::Union{Iterable{String},Iterable{<:Asset}};
         timeframe="15m",
-        exc::Exchange=exc,
+        exc::Exchange=ExchangeTypes.exc,
     )
         if eltype(assets) == String
             assets = [Asset(name) for name in assets]

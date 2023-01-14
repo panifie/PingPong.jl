@@ -4,7 +4,7 @@ using DataFrames: DataFrame
 using Dates: Day, Minute, Period, now
 using Ccxt
 using ExchangeTypes
-using ExchangeTypes: OptionsDict
+using ExchangeTypes: OptionsDict, exc
 using JSON
 using Misc: DATA_PATH, dt, futures_exchange
 using Pairs
@@ -109,9 +109,9 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
 end
 
 function setexchange!(x::Symbol, args...; kwargs...)
-    global exc
     exc = getexchange!(x, args...; kwargs...)
     setexchange!(exc, args...; kwargs...)
+    globalexchange!(exc)
 end
 
 @doc "Check if exchange has tickers list."

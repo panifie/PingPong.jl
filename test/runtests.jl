@@ -38,32 +38,21 @@ test_exchanges() = @testset "Exchanges" begin
         :kucoin ∈ keys(ExchangeTypes.exchanges)
     end
     @test begin
-        @eval using JuBot.Exchanges: get_pairs
-        @eval prs = get_pairs()
+        @eval begin
+            using JuBot.Exchanges: get_pairs
+            const getpairs = JuBot.Exchanges.get_pairs
+            prs = getpairs()
+        end
         length(prs) > 0
     end
 end
 
-# TODO: add some stub data
-test_portfolio() = @testset "Portfolio" begin
-    @test begin
-        if !isdefined(@__MODULE__, :prs)
-            @eval prs = get_pairs()
-        end
-        @eval pf = Portfolio(prs)
-        size(pf.data)[1] == length(prs)
-    end
-    @test !isnothing(pf[q=:USDT])
-    @test !isnothing(pf[b=:BTC])
-    @test !isnothing(pf[e=:kucoin])
-    @test !isnothing(pf[b=:BTC, q=:USDT])
-    @test !isnothing(pf[b=:BTC, q=:USDT, e=:kucoin])
-end
+include("test_collections.jl")
 
 test_strategy() = @testset "Strategy" begin
     @test begin
         @eval using JuBot.Engine
-        cfg::Config = loadconfig!(Symbol(exc.sym); cfg=Config())
+        cfg::Config = loadconfig!(Symbol(exc.id); cfg=Config())
         s = loadstrategy!(:MacdStrategy, cfg)
         [k.raw for k in s.universe.data.asset] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
     end
@@ -71,9 +60,9 @@ end
 test_backtest() = @testset "JuBot" begin
 end
 test_map = Dict(
-    :qqua => [test_aqua],
+    :aqua => [test_aqua],
     :exchanges => [test_exchanges],
-    :portfolio => [test_exch, test_portfolio],
+    :assets => [test_exch, test_assetcollection],
     :strategy => [test_exch, test_strategy],
     :backtest => [test_exch, test_backtest]
 )

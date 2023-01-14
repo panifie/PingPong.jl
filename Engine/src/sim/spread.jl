@@ -37,7 +37,6 @@ end
 #
 macro foreach(expr, args, el=:el)
     out = :()
-    @show args
     for el in eval(args)
         push!(out.args, @macroexpand1 expr)
     end
