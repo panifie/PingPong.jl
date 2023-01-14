@@ -22,31 +22,31 @@ using Processing
 - `minsize`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance12{T<:Asset}
+struct AssetInstance20{T<:Asset, E<:ExchangeID}
     asset::T
     data::SortedDict{<:TimeFrame,DataFrame}
     history::Vector{Trade{T}}
     cash::Vector{Float64}
-    exchange::Ref{Exchange}
+    exchange::Ref{Exchange{E}}
     minsize::NamedTuple{(:b, :q),NTuple{2,Float64}}
     precision::NamedTuple{(:b, :q),NTuple{2,UInt8}}
     fees::Float64
-    AssetInstance12(a::T, data, e::Exchange) where {T<:Asset} = begin
+    AssetInstance20(a::T, data, e::Exchange) where {T<:Asset} = begin
         minsize = pair_min_size(a.raw, e)
         precision = pair_precision(a.raw, e)
         fees = pair_fees(a.raw, e)
-        new{typeof(a)}(a, data, Trade{T}[], Float64[0], e, minsize, precision, fees)
+        new{typeof(a), typeof(e.id)}(a, data, Trade{T}[], Float64[0], e, minsize, precision, fees)
     end
-    AssetInstance12(s::S, t::S, e::S) where {S<:AbstractString} = begin
+    AssetInstance20(s::S, t::S, e::S) where {S<:AbstractString} = begin
         a = Asset(s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load_pair(zi, exc.name, a.raw, t))
-        AssetInstance12(a, data, exc)
+        AssetInstance20(a, data, exc)
     end
-    AssetInstance12(s, t) = AssetInstance12(s, t, exc)
+    AssetInstance20(s, t) = AssetInstance20(s, t, exc)
 end
-AssetInstance = AssetInstance12
+AssetInstance = AssetInstance20
 
 @doc "Load ohlcv data of asset instance."
 load!(a::AssetInstance; reset=true) = begin
@@ -73,17 +73,16 @@ Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
 end
 
 @doc "Get the last available candle strictly lower than `apply(tf, date)`"
-function last_candle(i::AssetInstance, tf::TimeFrame, date::DateTime)::DateTime
-    didx = apply(tf, date) - tf.period
-    i.data[tf][didx]
+function last_candle(i::AssetInstance, tf::TimeFrame, date::DateTime)
+    i.data[tf][available(tf, date)]
 end
 
-@inline function last_candle(i::AssetInstance, date::DateTime)::DateTime
+@inline function last_candle(i::AssetInstance, date::DateTime)
     tf = keys(i.data) |> first
     last_candle(i, tf, date)
 end
 
-@doc "[Fills](@id instance_fill) pulls data from storage, or resample from the shortest timeframe available."
+@doc "Pulls data from storage, or resample from the shortest timeframe available."
 function Base.fill!(i::AssetInstance, tfs...)
     current_tfs = Set(keys(i.data))
     (from_tf, from_data) = first(i.data)

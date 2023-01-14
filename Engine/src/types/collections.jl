@@ -13,21 +13,21 @@ using Pairs
 using ..Instances
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
-struct AssetCollection1
+struct AssetCollection2
     data::DataFrame
-    function AssetCollection1(
+    function AssetCollection2(
         df=DataFrame(; exchange=ExchangeID[], asset=Asset[], instance=AssetInstance[]),
     )
         new(df)
     end
-    function AssetCollection1(instances::Iterable{<:AssetInstance})
+    function AssetCollection2(instances::Iterable{<:AssetInstance})
         DataFrame(
-            (; exchange=inst.exchange[].sym, asset=inst.asset, instance=inst) for
+            (; exchange=inst.exchange[].id, asset=inst.asset, instance=inst) for
             inst in instances;
             copycols=false,
-        ) |> AssetCollection1
+        ) |> AssetCollection2
     end
-    function AssetCollection1(
+    function AssetCollection2(
         assets::Union{Iterable{String},Iterable{<:Asset}};
         timeframe="15m",
         exc::Exchange=exc,
@@ -41,10 +41,10 @@ struct AssetCollection1
             AssetInstance(ast, data, exc)
         end
         instances = [getInstance(ast) for ast in assets]
-        AssetCollection1(instances)
+        AssetCollection2(instances)
     end
 end
-AssetCollection = AssetCollection1
+AssetCollection = AssetCollection2
 
 @enum AssetCollectionColumn exchange = 1 asset = 2 instance = 3
 const AssetCollectionTypes =
@@ -99,7 +99,7 @@ function prettydf(pf::AssetCollection; full=false)
     DataFrame(
         begin
             row = @view pf.data[n, :]
-            (; cash=row.instance.cash, name=row.asset.raw, exchange=row.exchange.sym)
+            (; cash=row.instance.cash, name=row.asset.raw, exchange=row.exchange.id)
         end for n in 1:limit
     )
 end
@@ -124,7 +124,7 @@ end
 
 Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instance).data)[2]
 
-@doc "[Fills](@ref instance_fill) all the instances with given timeframes data..."
+@doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = begin
     @eachrow ac.data begin
         fill!(:instance, tfs...)

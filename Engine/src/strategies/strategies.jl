@@ -2,33 +2,46 @@ module Strategies
 using Pkg: Pkg
 using Dates: DateTime
 using ExchangeTypes
+using Exchanges: getexchange!
 using Misc: Config, config, Iterable, Candle, TimeFrame
-using Pairs: Asset
+using Pairs: Asset, Cash
 using ..Collections
 using ..Trades
 using ..Instances
 using ..Orders
+using Pairs
+using TimeTicks
 
 @doc """The strategy is the core type of the framework.
+
+The strategy type is concrete according to:
+- Name (Symbol)
+- Exchange (ExchangeID), read from config
+- Quote cash (Symbol), read from config
+The exchange and the quote cash should be specified from the config, or the strategy module.
+
 - universe: All the assets that the strategy knows about
 - portfolio: assets with open orders or >0 balance.
 - orders: all active orders
-- base_amount: The minimum size of an order
+- cash: the quote currency used for trades
 """
-struct Strategy15{M,N}
+struct Strategy37{M,E,C}
     universe::AssetCollection
-    portfolio::Dict{ExchangeID,Dict{Asset,Ref{AssetInstance}}}
-    orders::Dict{ExchangeID,Dict{Asset,Ref{AssetInstance}}}
-    timeframes::NTuple{N,TimeFrame}
-    base_amount::Float64
+    portfolio::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
+    orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
+    cash::Cash{C}
     config::Config
-    Strategy15(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
-        uni = AssetCollection(assets)
-        n_timeframes = length(config.timeframes)
-        new{src,n_timeframes}(uni, Dict(), Dict(), (config.timeframes...,), 10.0, config)
+    Strategy37(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
+        exc = getexchange!(config.exchange)
+        uni = AssetCollection(assets; exc)
+        ca = Cash(config.qc, config.initial_cash)
+        eid = typeof(exc.id)
+        pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+        orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+        new{src,exc.id,config.qc}(uni, pf, orders, ca, config,)
     end
 end
-Strategy = Strategy15
+Strategy = Strategy37
 
 @doc "Clears all orders history from strategy."
 clearorders!(strat::Strategy) = begin
@@ -86,6 +99,10 @@ function loadstrategy!(src::Symbol, cfg=config)
         end
         $src
     end
+    # The strategy can have a default exchange symbol
+    if cfg.exchange == Symbol()
+        cfg.exchange = mod.exc
+    end
     @assert isdefined(mod, :name) && mod.name isa Symbol "Source $src does not define a strategy name."
     pairs = Base.invokelatest(mod.get_pairs, Strategy{mod.name})
     Strategy(mod.name, pairs, cfg)
@@ -95,7 +112,7 @@ Base.display(strat::Strategy) = begin
     out = IOBuffer()
     try
         write(out, "Strategy name: $(typeof(strat))\n")
-        write(out, "Base Amount: $(strat.base_amount)\n")
+        write(out, "Base Amount: $(strat.config.base_amount)\n")
         write(out, "Universe:\n")
         write(out, string(Collections.prettydf(strat.universe)))
         write(out, "\n")
