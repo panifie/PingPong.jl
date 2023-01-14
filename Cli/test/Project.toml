@@ -1,6 +1,0 @@
-[deps]
-CompileBot = "877fb49a-56b0-480a-9049-319c0c353852"
-ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
-SnoopCompile = "aa65fe97-06da-5843-b5b1-d5d13cad87d2"
-SnoopCompileCore = "e2b509da-e806-4183-be48-004708413034"

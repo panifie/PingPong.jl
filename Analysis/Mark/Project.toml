@@ -1,9 +1,0 @@
-name = "Mark"
-uuid = "673258bb-eb8e-492c-a9bb-a993ffb0b6a8"
-authors = ["untoreh <francesco.giannelli@yahoo.it>"]
-version = "0.1.0"
-
-[deps]
-Long = "4332194b-c649-4273-a126-4843709b406e"
-MVP = "979b01cd-db89-4249-a98e-f526d6a7ff63"
-Short = "669a2027-c4b8-428d-ba58-693007de5487"
