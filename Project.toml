@@ -4,6 +4,7 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.2.0"
 
 [deps]
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
