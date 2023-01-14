@@ -41,7 +41,9 @@ jobs:
         sudo apt-get install -y xvfb xauth
         xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
     - name: Build docs
-      run: julia --project=. docs/make.jl
+      run: |
+        [ -e ~/.cache/JuBot.jl/data ] && rm -r ~/.cache/JuBot.jl/data # FIXME
+        julia --project=. docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v2
       with:
