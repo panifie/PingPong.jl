@@ -1,5 +1,5 @@
 # Engine
 
 ```@autodocs
-Modules = [JuBot.Engine]
+Modules = [JuBot.Engine, JuBot.Engine.Instances, JuBot.Engine.Collections]
 ```
