@@ -29,6 +29,7 @@ struct ExchangeID{I}
         ExchangeID(pyconvert(Symbol, s))
     end
 end
+Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
 Base.nameof(::T) where {T<:ExchangeID} = T.parameters[1]
 Base.display(id::ExchangeID) = Base.display(id.sym)
 Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
@@ -45,7 +46,7 @@ function Base.display(
 end
 Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
 import Base.==
-==(e::ExchangeID, s::Symbol) = Base.isequal(e.sym, s)
+==(id::ExchangeID, s::Symbol) = Base.isequal(id.sym, s)
 
 const OptionsDict = Dict{String,Dict{String,Any}}
 struct Exchange3{I<:ExchangeID}
