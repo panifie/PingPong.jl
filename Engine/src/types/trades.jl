@@ -4,24 +4,17 @@ using Lang: @exportenum
 using Misc: Candle, convert
 using Pairs
 
-@enum BuySignal begin
-    Buy
-    LadderBuy
-    RebalanceBuy
-end
-
-@enum SellSignal begin
-    Sell
-    StopLoss
-    TakeProfit
-    TrailingStop
-    TrailingProfit
-    LadderSell
-    RebalanceSell
+@enum SignalDirection Buy Sell
+@enum SignalKind begin
+    Take
+    Stop
+    Trailing
+    Ladder
+    Rebalance
 end
 
 @doc "An type to specify the reason why a buy or sell event has happened."
-const Signal = Union{BuySignal,SellSignal}
+const Signal = Tuple{SignalKind,SignalDirection}
 
 @doc "Buy or Sell? And how much?"
 const Order = @NamedTuple{signal::Signal, amount::Float64}
@@ -58,6 +51,6 @@ struct Trade{T<:Asset}
     )
 end
 
-@exportenum BuySignal SellSignal
+@exportenum SignalDirection SignalKind
 export Signal, Order, Trade
 end
