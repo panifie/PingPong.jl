@@ -1,11 +1,11 @@
 using Reexport
 
 include("context.jl")
-include("trades.jl")
+include("orders.jl")
 include("instances.jl")
 include("collections.jl")
 
-for m in (:Trades, :Instances, :Collections)
+for m in (:Orders, :Instances, :Collections)
     @eval @reexport using .$m
 end
 export Context

@@ -12,8 +12,8 @@ include("sim/sim.jl")
 @reexport using .Strategies;
 using .Strategies
 using .Collections
-using .Trades
 using .Orders
+using .LiveOrders
 using Misc
 using Processing.Alignments
 using .Sim
@@ -75,5 +75,6 @@ execute(strat::Strategy, orders::Vector{LiveOrder}) =
         cdl = last_candle(o.asset, o.date)
         spread = Sim.spread(cdl.high, cdl.low, cdl.close)
     end
+
 
 export backtest!

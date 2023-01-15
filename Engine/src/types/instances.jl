@@ -10,8 +10,10 @@ using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
 using Pairs
-using ..Trades
 using Processing
+using Reexport
+using ..Orders
+
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -25,7 +27,7 @@ using Processing
 struct AssetInstance20{T<:Asset, E<:ExchangeID}
     asset::T
     data::SortedDict{<:TimeFrame,DataFrame}
-    history::Vector{Trade{T}}
+    history::Vector{Trade{Order{T, E}}}
     cash::Vector{Float64}
     exchange::Ref{Exchange{E}}
     minsize::NamedTuple{(:b, :q),NTuple{2,Float64}}

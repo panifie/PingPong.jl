@@ -1,2 +1,2 @@
-# using Backtest
+# using JuBot
 @show ENV

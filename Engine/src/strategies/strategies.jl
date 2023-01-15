@@ -3,12 +3,12 @@ using Pkg: Pkg
 using Dates: DateTime
 using ExchangeTypes
 using Exchanges: getexchange!
-using Misc: Config, config, Iterable, Candle, TimeFrame
+using Misc: Config, config, Iterable, Candle
 using Pairs: Asset, Cash
 using ..Collections
-using ..Trades
 using ..Instances
 using ..Orders
+using ..LiveOrders
 using Pairs
 using TimeTicks
 
@@ -21,7 +21,7 @@ The strategy type is concrete according to:
 The exchange and the quote cash should be specified from the config, or the strategy module.
 
 - universe: All the assets that the strategy knows about
-- portfolio: assets with open orders or >0 balance.
+- portfolio: assets with open orders or non zero balance.
 - orders: all active orders
 - cash: the quote currency used for trades
 """

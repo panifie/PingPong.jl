@@ -1,44 +1,35 @@
-module Orders
+module LiveOrders
 using Dates: DateTime, Period
-using ..Trades: Order, Signal
+using Misc: Candle
+using ExchangeTypes
 using ..Instances: AssetInstance
 using TimeTicks
-using Lang
+using Pairs
+using ..Orders
 
-@doc """A live order tracks in flight trades.
+@doc """ Live orders can hold additional info about live execution. They are short lived
 
- `date`: the time at which the strategy requested the order.
-         The strategy is assumed to have *knowledge* of the ohlcv data \
-         strictly lower than the timeframe adjusted date.
-         Example:
-        ```julia
-        ts = dt"2020-05-24T02:34:00" # the date of the order request
-        tf = @infertf ohlcv # get the timeframe (15m)
-        start_date = ohlcv.timestamp[begin]
-        stop_date = apply(tf, ts) # normalize date to timeframe
-        stop_date -= tf.period # scale down by one timeframe step
-        # At this point the stop date would be `2020-05-24T02:30:00`
-        # which covers the period between ...02:30:00..02:45:00...
-        # Therefore the strategy can only have access to data < 02:30:00
-        avail_ohlcv = ohlcv[DateRange(start_date, stop_date), :]
-        @assert isless(avail_ohlcv.timestamp[end], dt"2020-05-24T02:30:00")
-        @assert isequal(avail_ohlcv.timestamp[end] + tf.period, dt"2020-05-24T02:30:00")
-        ```
- `delay`: how much time has passed since the order request \
+`delay`: how much time has passed since the order request \
           and the exchange execution of the order (to account for api issues).
- """
-mutable struct LiveOrder2{I<:AssetInstance}
-    signal::Signal
-    amount::Float64
-    asset::Ref{I}
-    date::DateTime
+"""
+mutable struct LiveOrder4{A<:Asset,E<:ExchangeID}
+    asset::Ref{AssetInstance{A,E}}
+    order::Order{A,E,OrderKind}
     delay::Millisecond
-    LiveOrder2(a::I, o::Order; date=nothing, delay=Millisecond(0)) where {I<:AssetInstance} = begin
-        new{I}(o.signal, o.amount, a, date, delay)
+    LiveOrder4(
+        i::AssetInstance{A,E},
+        o::Order{A,E};
+        delay=Millisecond(0),
+    ) where {A<:Asset,E<:ExchangeID} = begin
+        new{A,E}(i, o, date, delay)
+    end
+    LiveOrder4(a::AssetInstance, kind::OrderKind, amt::Float64; kwargs...) = begin
+        order = Order(a.asset, a.exc.id, kind, amt)
+        LiveOrder4(order, kwargs...)
     end
 end
 
-LiveOrder = LiveOrder2
+LiveOrder = LiveOrder4
 
 export LiveOrder
 
