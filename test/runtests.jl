@@ -59,12 +59,14 @@ test_strategy() = @testset "Strategy" begin
 end
 test_backtest() = @testset "JuBot" begin
 end
+include("test_derivatives.jl")
 test_map = Dict(
     :aqua => [test_aqua],
     :exchanges => [test_exchanges],
     :assets => [test_exch, test_assetcollection],
     :strategy => [test_exch, test_strategy],
-    :backtest => [test_exch, test_backtest]
+    :backtest => [test_exch, test_backtest],
+    :derivatives => [test_derivatives]
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS
