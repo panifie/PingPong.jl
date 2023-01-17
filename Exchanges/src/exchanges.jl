@@ -57,7 +57,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
         cached_dict = deserialize(mkt)
         merge!(exc.markets, cached_dict)
         exc.py.markets = pydict(cached_dict)
-        exc.py.markets_by_id = exc.index_by(exc.py.markets, "id")
+        exc.py.markets_by_id = exc.py.index_by(exc.py.markets, "id")
     else
         @debug "Loading markets from exchange and caching at $mkt."
         exc.loadMarkets(true)
@@ -97,6 +97,10 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     @debug "Loading Markets..."
     markets && loadmarkets!(exc)
     @debug "Loaded $(length(exc.markets))."
+    precision = getfield(exc, :precision)
+    precision[1] = exc.py.precisionMode |>
+        x -> pyconvert(Int, x) |>
+        ExcPrecisionMode
 
     keysym = Symbol("$(exc.name)_keys")
     if hasproperty(@__MODULE__, keysym)

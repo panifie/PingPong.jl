@@ -3,6 +3,7 @@ using Python
 using Python: pynew, pyisnull
 using FunctionalCollections
 using Ccxt: ccxt
+using Lang: Option
 
 struct ExchangeID{I}
     ExchangeID(sym::Symbol=Symbol()) = begin
@@ -46,23 +47,26 @@ function Base.display(
 end
 Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
 import Base.==
-==(id::ExchangeID, s::Symbol) = Base.isequal(id.sym, s)
+==(id::ExchangeID, s::Symbol) = Base.isequal(nameof(id), s)
+
+@enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
 
 const OptionsDict = Dict{String,Dict{String,Any}}
-struct Exchange3{I<:ExchangeID}
+struct Exchange8{I<:ExchangeID}
     py::Py
-    timeframes::Set{String}
-    name::String
     id::I
+    name::String
+    precision::Vector{ExcPrecisionMode}
+    timeframes::Set{String}
     markets::OptionsDict
-    Exchange3() = new{typeof(ExchangeID())}(pynew()) # FIXME: this should be None
-    Exchange3(x::Py) = begin
+    Exchange8() = new{typeof(ExchangeID())}(pynew()) # FIXME: this should be None
+    Exchange8(x::Py) = begin
         id = ExchangeID(x)
         name = pyisnull(x) ? "" : pyconvert(String, pygetattr(x, "name"))
-        new{typeof(id)}(x, Set(), name, id, Dict())
+        new{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
     end
 end
-Exchange = Exchange3
+Exchange = Exchange8
 
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
 
@@ -70,7 +74,11 @@ Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
 Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
 function Base.getproperty(e::Exchange, k::Symbol)
     if hasfield(Exchange, k)
-        getfield(e, k)
+        if k == :precision
+            getfield(e, k)[1]
+        else
+            getfield(e, k)
+        end
     else
         !isempty(e) || throw("Can't access non instantiated exchange object.")
         getproperty(getfield(e, :py), k)
@@ -105,5 +113,5 @@ Base.display(exc::Exchange) = begin
     end
 end
 
-export Exchange, ExchangeID, exchanges, globalexchange!
+export Exchange, ExchangeID, ExcPrecisionMode, exchanges, globalexchange!
 end # module ExchangeTypes
