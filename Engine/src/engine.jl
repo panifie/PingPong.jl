@@ -1,5 +1,6 @@
 using Reexport
-using Misc: config, PairData
+using Misc: config
+using Data: PairData
 using Dates: DateTime
 
 # include("consts.jl")

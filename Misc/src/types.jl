@@ -1,6 +1,5 @@
 using Dates
 using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
-using Zarr: ZArray
 using TimeTicks: td_tf
 
 const StrOrVec = Union{AbstractString,AbstractVector}
@@ -13,20 +12,6 @@ const DATA_PATH =
     get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "JuBot.jl", "data"))")
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
-
-struct PairData
-    name::String
-    tf::String # string
-    data::Union{Nothing,AbstractDataFrame} # in-memory data
-    z::Union{Nothing,ZArray} # reference zarray
-end
-
-PairData(; name, tf, data, z) = PairData(name, tf, data, z)
-Base.convert(
-    ::Type{T},
-    d::AbstractDict{String,PairData},
-) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame} =
-    Dict(p.name => p.data for p in values(d))
 
 struct Candle
     timestamp::DateTime
@@ -60,4 +45,4 @@ end
 
 include("exceptions.jl")
 
-export Candle, Iterable, StrOrVec, ContiguityException, PairData
+export Candle, Iterable, StrOrVec, ContiguityException

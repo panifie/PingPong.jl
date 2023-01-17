@@ -2,7 +2,8 @@
 using DataFramesMeta
 using DataFrames: AbstractDataFrame
 using TimeTicks: TimeTicks, tf_win, @infertf
-using Misc: PairData, config
+using Misc: config
+using Data: PairData
 using Python
 using Python.PythonCall: pyisnull, pynew
 using Analysis

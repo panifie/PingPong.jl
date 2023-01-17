@@ -1,6 +1,6 @@
-using Misc: PairData, exc
+using ExchangeTypes: exc
 using Temporal: TS
-using Data: load_pair, zi
+using Data: load_pair, zi, PairData
 
 include("metrics.jl")
 

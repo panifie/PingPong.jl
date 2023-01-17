@@ -1,8 +1,8 @@
 import Indicators; const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
-using Misc: config, PairData
-using Data: @to_mat
+using Misc: config
+using Data: @to_mat, PairData
 
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN

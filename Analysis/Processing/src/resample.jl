@@ -2,8 +2,8 @@ using Pbar
 using ExchangeTypes: Exchange
 using Lang: passkwargs
 using TimeTicks
-using Misc: PairData, _empty_df
-using Data: data_td, save_pair
+using Misc:_empty_df
+using Data: data_td, save_pair, PairData
 using Data.DFUtils
 using DataFrames
 

@@ -4,7 +4,7 @@ module Short
 using Statistics: std, mean
 using DataFrames: DataFrame, AbstractDataFrame, index
 using DataFramesMeta
-using Misc: PairData
+using Data: PairData
 using Processing: maptf
 
 @doc """Breakout level. Mean with std."""

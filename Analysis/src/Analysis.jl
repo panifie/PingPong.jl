@@ -1,8 +1,9 @@
 module Analysis
 
 using Requires
-using Misc: @as_td, PairData, timefloat, _empty_df, td_tf
-using Data: @to_mat, data_td, save_pair
+using Misc: empty_df
+using TimeTicks: td_tf, timefloat, @as_td
+using Data: @to_mat, data_td, save_pair, PairData
 using ExchangeTypes: Exchange, exc
 using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger

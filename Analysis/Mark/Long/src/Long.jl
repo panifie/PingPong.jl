@@ -5,7 +5,8 @@ import Indicators
 const ind = Indicators
 
 using Processing:  maptf, normalize!, normalize
-using Misc: @as_dfdict, PairData
+using Misc: @as_dfdict
+using Data: PairData
 using DataFramesMeta: @rsubset!
 using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
 using MVP

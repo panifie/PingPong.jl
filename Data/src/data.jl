@@ -11,12 +11,25 @@ using Misc:
     LeftContiguityException,
     OHLCV_COLUMNS,
     OHLCV_COLUMNS_TS,
-    PairData,
     RightContiguityException,
     _empty_df,
     config
 
 using Zarr: is_zarray
+
+struct PairData
+    name::String
+    tf::String # string
+    data::Union{Nothing,AbstractDataFrame} # in-memory data
+    z::Union{Nothing,ZArray} # reference zarray
+end
+
+PairData(; name, tf, data, z) = PairData(name, tf, data, z)
+Base.convert(
+    ::Type{T},
+    d::AbstractDict{String,PairData},
+) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame} =
+    Dict(p.name => p.data for p in values(d))
 
 macro zkey()
     p = esc(:pair)
@@ -486,5 +499,6 @@ end
 @enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
 
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
+
 
 export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs, save_pair
