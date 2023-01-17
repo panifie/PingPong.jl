@@ -1,7 +1,7 @@
 import Pkg
 
 @doc "Recursively resolves all julia projects in a directory."
-function recurse_projects(path=".")
+function recurse_projects(path="."; top = true)
     path = realpath(path)
     for subpath in readdir(path)
         fullpath = joinpath(path, subpath)
@@ -11,8 +11,9 @@ function recurse_projects(path=".")
             Pkg.resolve()
         elseif isdir(fullpath)
             if !startswith(fullpath, ".") && !endswith(fullpath, "test")
-                recurse_projects(fullpath)
+                recurse_projects(fullpath; top=false)
             end
         end
     end
+    top && Pkg.activate(pwd())
 end
