@@ -1,7 +1,7 @@
 margin=92
 remove_extra_newlines=true
 always_for_in=true
-import_to_using=true
+import_to_using=false
 pipe_to_function_call=false
 short_to_long_function_def=false
 long_to_short_function_def=false

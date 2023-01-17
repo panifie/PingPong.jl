@@ -6,4 +6,5 @@ version = "0.1.0"
 [deps]
 Ccxt = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 FunctionalCollections = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
+Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
