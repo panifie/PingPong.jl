@@ -14,8 +14,14 @@ function delete!(g::ZGroup, key::AbstractString; force=true)
     end
 end
 
-function delete!(z::ZArray, ok=true)
-    ok && rm(joinpath(z.storage.folder, z.path); force=true, recursive=true)
+function delete!(z::ZArray, ok=true; kind=:directory)
+    ok && begin
+        if kind == :directory
+            rm(joinpath(z.storage.folder, z.path); force=true, recursive=true)
+        elseif kind == :lmdbdict
+            delete!(z.storage.a, z.path)
+        end
+    end
 end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
@@ -35,3 +41,4 @@ mutable struct ZarrInstance
 end
 
 const zi = Ref{ZarrInstance}()
+
