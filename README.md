@@ -7,11 +7,13 @@ JuBot.jl is not in the julia registry, to install do the following:
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/untoreh/JuBot.jl backtest
+git clone --recurse-submodules https://github.com/untoreh/JuBot.jl jubot
 ```
 - Activate the project:
 ```bash
-cd backtest
+cd jubot
+git submodule init
+git submodule update
 julia --project=.
 ```
 - Download and build dependencies:
