@@ -73,8 +73,7 @@ macro dtr_str(s::String)
             end
         end
     end
-    args =
-        [isempty(from) ? nothing : todatetime(from), isempty(to) ? nothing : todatetime(to)]
+    args::Vector{Any} = [isempty(v) ? nothing : todatetime(v) for v in (from, to)]
     if !isempty(step)
         push!(args, convert(TimeFrame, step))
     end

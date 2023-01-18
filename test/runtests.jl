@@ -20,7 +20,7 @@ using JuBot
 using JuBot.ExchangeTypes
 all = "all" ∈ ARGS || length(ARGS) == 0
 
-test_aqua() = @testset "Aqua" begin
+test_aqua() = @testset "aqua" begin
     pkg = JuBot
     # Aqua.test_ambiguities(pkg) skip=true
     # Aqua.test_stale_deps(pkg; ignore=[:Aqua]) skip=true
@@ -31,7 +31,7 @@ end
 
 test_exch() = @test setexchange!(:kucoin).name == "KuCoin"
 
-test_exchanges() = @testset "Exchanges" begin
+test_exchanges() = @testset "exchanges" begin
     test_exch()
     @test begin
         getexchange!(:kucoin)
@@ -49,7 +49,7 @@ end
 
 include("test_collections.jl")
 
-test_strategy() = @testset "Strategy" begin
+test_strategy() = @testset "strategy" begin
     @test begin
         @eval using JuBot.Engine
         cfg::Config = loadconfig!(Symbol(exc.id); cfg=Config())
@@ -57,16 +57,20 @@ test_strategy() = @testset "Strategy" begin
         [k.raw for k in s.universe.data.asset] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
     end
 end
-test_backtest() = @testset "JuBot" begin
+test_backtest() = @testset "backtest" begin
 end
 include("test_derivatives.jl")
+include("test_time.jl")
+include("test_ohlcv.jl")
 test_map = Dict(
     :aqua => [test_aqua],
     :exchanges => [test_exchanges],
     :assets => [test_exch, test_assetcollection],
     :strategy => [test_exch, test_strategy],
     :backtest => [test_exch, test_backtest],
-    :derivatives => [test_derivatives]
+    :derivatives => [test_derivatives],
+    :time => [test_time],
+    :ohlcv => [test_ohlcv]
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS

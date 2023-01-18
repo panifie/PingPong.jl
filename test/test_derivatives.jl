@@ -1,7 +1,7 @@
 using Test
 example = "ETH/USDT:USDT-210625-5000-C"
 
-_test_1() = begin
+_test_derivatives_1() = begin
     @eval using JuBot.Engine.Collections.Pairs.Derivatives
     d = Derivative(example)
     @assert d.bc == :ETH &&
@@ -12,6 +12,6 @@ _test_1() = begin
         d.kind == Derivatives.Call string(d)
 end
 
-test_derivatives() = @testset "Derivative" begin
-    @test begin _test1() end
+test_derivatives() = @testset "derivative" begin
+    @test begin _test_derivatives_1() end
 end
