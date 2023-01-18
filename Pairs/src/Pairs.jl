@@ -23,8 +23,9 @@ const BaseCurrency = Symbol
 include("consts.jl")
 
 has_punct(s::AbstractString) = !isnothing(match(r"[[:punct:]]", s))
+abstract type AbstractAsset end
 
-struct Asset{B,Q}
+struct Asset{B,Q} <: AbstractAsset
     raw::SubString
     bc::BaseCurrency
     qc::QuoteCurrency
@@ -70,6 +71,7 @@ Base.in(a::Asset, t::BaseTuple) = Base.isequal(a.bc, t.b)
 Base.in(a::Asset, t::BaseQuoteTuple) = Base.isequal(a.bc, t.b) && Base.isequal(a.qc, t.q)
 import Base.==
 ==(a::Asset, s::String) = Base.isequal(a.raw, s)
+==(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
 
 @inline isbase(a::Asset, b::Symbol) = a.bc == b
 @inline isquote(a::Asset, q::Symbol) = a.qc == q
@@ -108,7 +110,7 @@ macro a_str(pair)
     :($(Asset(pair)))
 end
 
-export Cash, Asset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
+export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
 include("derivatives.jl")
 
 end # module Pairs
