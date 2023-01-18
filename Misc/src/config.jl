@@ -1,15 +1,20 @@
 using Base: @kwdef
 using Dates: Period
 using TOML
+using JSON
 using TimeTicks
 using Pkg: Pkg
 using FunctionalCollections: PersistentHashMap
 # TODO: move config to own pkg
 
+_config_dir() = begin
+    ppath = Pkg.project().path
+    joinpath(dirname(ppath), "cfg")
+end
+
 @doc "The config path (TOML), relative to the current project directory."
 function config_path()
-    ppath = Pkg.project().path
-    cfg_dir = joinpath(dirname(ppath), "cfg")
+    cfg_dir = _config_dir()
     path = joinpath(cfg_dir, "backtest.toml")
     if !ispath(path)
         @warn "Config file not found at $path, creating anew."
@@ -17,6 +22,25 @@ function config_path()
         touch(path)
     end
     path
+end
+
+function keys_path(exc_name::AbstractString)
+    cfg_dir = _config_dir()
+    file = (replace(exc_name, ".json" => "") * ".json") |> lowercase
+    joinpath(cfg_dir, file)
+end
+
+function exchange_keys(name)::Dict{String, Any}
+    try
+        local cfg
+        name = string(name)
+        open(keys_path(name)) do f
+            cfg = JSON.parse(f)
+        end
+        Dict(k => get(cfg, k, "") for k in ("apiKey", "secret", "password"))
+    catch
+        Dict()
+    end
 end
 
 @doc """The config main structure:
@@ -36,15 +60,16 @@ end
     path::String = ""
     window::Period = Day(7)
     timeframe::TimeFrame = TimeFrame(Day(1))
-    timeframes::Vector{TimeFrame} = [convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")]
+    timeframes::Vector{TimeFrame} =
+        [convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")]
     exchange::Symbol = Symbol()
     qc::Symbol = :USDT
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
     futures::Bool = false
     vol_min::Float64 = 10e4
-    initial_cash::Float64 = 100.
-    base_amount::Float64 = 10.
+    initial_cash::Float64 = 100.0
+    base_amount::Float64 = 10.0
     # - `slope/min/max`: Used in Analysios/slope.
     # - `ct`: Used in Analysis/corr.
     # slope_min::Float64= 0.
@@ -75,9 +100,7 @@ function loadconfig!(
     name = string(name)
     cfg.toml = PersistentHashMap(k => v for (k, v) in TOML.parsefile(cfg.path))
     if name ∉ keys(cfg.toml)
-        throw(
-            "Config section [$name] not found in the configuration read from $(cfg.path)",
-        )
+        throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end
     kwargs = Dict{Symbol,Any}()
     options = fieldnames(Config)
@@ -122,4 +145,4 @@ setcfg!(k, v) = setproperty!(config, k, v)
 
 resetconfig!()
 
-export Config, loadconfig!, resetconfig!
+export Config, loadconfig!, resetconfig!, exchange_keys
