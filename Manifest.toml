@@ -461,8 +461,8 @@ uuid = "fa42c844-2597-5d31-933b-ebd51ab2693f"
 version = "0.3.1"
 
 [[deps.Fetch]]
-deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
-path = "./Exchanges/Fetch"
+deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
+path = "Exchanges/Fetch"
 uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 version = "0.1.0"
 
@@ -798,7 +798,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "Logging", "Pkg", "TOML", "TimeTicks"]
+deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "JSON", "Logging", "Pkg", "TOML", "TimeTicks"]
 path = "Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
