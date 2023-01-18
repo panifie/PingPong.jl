@@ -44,13 +44,10 @@ macro pbar!(data, desc="", unit="", use_finalizer=false)
     pb = esc(:pb)
     uf = esc(use_finalizer)
     quote
-        display("pbar.jl:44")
         @pbinit!
-        display("pbar.jl:46")
         !$pyisnull($pbar) && try
             $pbar.close(; clear=true)
         catch
-            display("pbar.jl:50")
         end
         pycopy!($pbar, $emn.counter(; total=length($data), desc=$desc, unit=$unit, leave=false))
         local $pb
