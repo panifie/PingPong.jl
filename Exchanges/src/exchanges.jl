@@ -6,7 +6,7 @@ using Ccxt
 using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc
 using JSON
-using Misc: DATA_PATH, dt, futures_exchange
+using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
 using Pairs
 using Python
 using Python.PythonCall: pycopy!, pyisnone
@@ -102,12 +102,10 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
         x -> pyconvert(Int, x) |>
         ExcPrecisionMode
 
-    keysym = Symbol("$(exc.name)_keys")
-    if hasproperty(@__MODULE__, keysym)
+    exc_keys = exchange_keys(exc.name)
+    if !isempty(exc_keys)
         @debug "Setting exchange keys..."
-        kf = getproperty(@__MODULE__, keysym)
-        @assert kf isa Function "Can't set exchange keys."
-        exckeys!(exc, values(kf())...)
+        exckeys!(exc, values(exc_keys)...)
     end
     exc
 end
@@ -197,9 +195,9 @@ end
 @doc "Set exchange api keys."
 function exckeys!(exc, key, secret, pass)
     name = uppercase(exc.name)
-    exc.apiKey = key
-    exc.secret = secret
-    exc.password = pass
+    exc.py.apiKey = key
+    exc.py.secret = secret
+    exc.py.password = pass
     nothing
 end
 
