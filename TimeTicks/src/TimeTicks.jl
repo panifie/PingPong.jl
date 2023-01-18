@@ -78,10 +78,8 @@ macro as_td()
     end
 end
 
-@doc "Converts integers to relative datetimes according to timeframe duration."
-from_to_dt(timeframe::AbstractString, from, to) = begin
-    @as_td
-
+@doc "Converts integers to relative datetimes according to given period."
+from_to_dt(prd::Period, from, to) = begin
     if from !== ""
         from = if typeof(from) <: Int
             from
@@ -104,6 +102,11 @@ from_to_dt(timeframe::AbstractString, from, to) = begin
     end
     from, to
 end
+from_to_dt(timeframe::AbstractString, args...) = begin
+    @as_td
+    from_to_dt(prd, args...)
+end
+from_to_dt(tf::TimeFrame, args...) = from_to_dt(tf.period, args...)
 
 Base.Broadcast.broadcastable(tf::TimeFrame) = Ref(tf)
 convert(::Type{DateTime}, s::T where {T<:AbstractString}) = DateTime(s, ISODateFormat)
