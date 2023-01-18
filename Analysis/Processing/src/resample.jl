@@ -2,7 +2,7 @@ using Pbar
 using ExchangeTypes: Exchange
 using Lang: passkwargs
 using TimeTicks
-using Misc:_empty_df
+using Misc: _empty_df
 using Data: data_td, save_pair, PairData
 using Data.DFUtils
 using DataFrames
@@ -73,12 +73,19 @@ function resample(
 )
     rs = Dict{String,PairData}()
     progress && @pbar! "Pairs" false
-    for (name, pair_data) in mrkts
-        rs[name] =
-            PairData(name, timeframe, resample(exc, pair_data, timeframe; save), nothing)
-        progress && @pbupdate!
+    try
+        for (name, pair_data) in mrkts
+            rs[name] = PairData(
+                name,
+                timeframe,
+                resample(exc, pair_data, timeframe; save),
+                nothing,
+            )
+            progress && @pbupdate!
+        end
+    finally
+        progress && @pbclose
     end
-    progress && @pbclose
     rs
 end
 
