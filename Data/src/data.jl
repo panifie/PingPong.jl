@@ -309,14 +309,14 @@ end
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
 end
 
-load_pairs(pair::AbstractString, args...) = load_pairs([pair], args...)
+load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)
 
 @doc "Load data from given zarr instance, exchange, pairs list and timeframe."
-function load_pairs(zi, exc, pairs, timeframe)
+function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe)
     pairdata = Dict{String,PairData}()
     exc_name = exc.name
     for p in pairs
-        (pair_df, za) = load_pair(zi, exc_name, p, timeframe; with_z=true)
+        (pair_df, za) = load(zi, exc_name, p, timeframe; with_z=true)
         pairdata[p] = PairData(p, timeframe, pair_df, za)
     end
     pairdata
@@ -352,9 +352,9 @@ function clear_key(zi::ZarrInstance, key)
     isdir(path) && rm(path; recursive=true)
 end
 
-function _wrap_load_pair(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
+function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
     try
-        _load_pair(zi, key, td; kwargs...)
+        _load(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
             clear_key(zi[], key) # ensure path does not exist
@@ -376,7 +376,7 @@ end
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load_pair(
+function load(
     zi::Ref{ZarrInstance},
     exc_name,
     pair,
@@ -385,7 +385,7 @@ function load_pair(
 )
     @as_td
     @zkey
-    _wrap_load_pair(zi, key, tfnum(tf.period); kwargs...)
+    _wrap_load(zi, key, tfnum(tf.period); kwargs...)
 end
 
 @doc "Convert ccxt OHLCV data to a timearray/dataframe."
@@ -407,7 +407,7 @@ end
 `td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
 `from`, `to`:
 """
-function _load_pair(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
+function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(
         zi[],
@@ -501,4 +501,4 @@ end
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 
-export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_pairs, save_pair
+export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_ohlcv, save_pair
