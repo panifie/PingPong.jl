@@ -28,12 +28,12 @@ macro exchange!(name)
             exc
         else
             (
-            if hasproperty($(__module__), exc_sym)
-                getproperty($(__module__), exc_sym)
-            else
-                Exchange(exc_sym)
-            end
-        )
+                if hasproperty($(__module__), exc_sym)
+                    getproperty($(__module__), exc_sym)
+                else
+                    Exchange(exc_sym)
+                end
+            )
         end
     end
 end
@@ -52,19 +52,26 @@ end
 function loadmarkets!(exc; cache=true, agemax=Day(1))
     mkt = joinpath(DATA_PATH, exc.name, "markets.jlz")
     empty!(exc.markets)
-    if isfileyounger(mkt, agemax) && cache
-        @debug "Loading markets from cache at $mkt."
-        cached_dict = deserialize(mkt)
-        merge!(exc.markets, cached_dict)
-        exc.py.markets = pydict(cached_dict)
-        exc.py.markets_by_id = exc.py.index_by(exc.py.markets, "id")
-    else
+    function force_load()
         @debug "Loading markets from exchange and caching at $mkt."
         exc.loadMarkets(true)
         pd = pyconvert(OptionsDict, exc.py.markets)
         mkt |> dirname |> mkpath
-        serialize(mkt, pd)
+        serialize(mkt, PyDict(pd))
         merge!(exc.markets, pd)
+    end
+    if isfileyounger(mkt, agemax) && cache
+        try
+            cached_dict = deserialize(mkt) # this should be a PyDict
+            merge!(exc.markets, pyconvert(OptionsDict, cached_dict))
+            exc.py.markets = pydict(cached_dict)
+            exc.py.markets_by_id = exc.py.index_by(exc.markets, "id")
+        catch error
+            @warn error
+            force_load()
+        end
+    else
+        force_load()
     end
     nothing
 end
@@ -99,8 +106,8 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     @debug "Loaded $(length(exc.markets))."
     precision = getfield(exc, :precision)
     precision[1] = exc.py.precisionMode |>
-        x -> pyconvert(Int, x) |>
-        ExcPrecisionMode
+                   x -> pyconvert(Int, x) |>
+                        ExcPrecisionMode
 
     exc_keys = exchange_keys(exc.name)
     if !isempty(exc_keys)
@@ -204,5 +211,4 @@ end
 include("pairlist.jl")
 include("data.jl")
 
-export exc,
-    @exchange!, setexchange!, getexchange!, exckeys!, get_pairlist, get_pairs, Exchange
+export exc, @exchange!, setexchange!, getexchange!, exckeys!, loadmarkets!, get_pairlist, get_pairs, Exchange
