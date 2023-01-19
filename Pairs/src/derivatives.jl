@@ -48,6 +48,8 @@ end
 is_settled(d::Derivative) = d.sc != Symbol()
 has_strike(d::Derivative) = d.strike != 0.0
 expires(d::Derivative) = !isempty(d.id)
+# FIXME: `is_future` doesn't make sense. If anything it should be `is_derivative`. But we could also
+# raise an error inside the `Derivative` constructor when we can't parse the settlement currency.
 is_future(d::Derivative) = is_settled(d) && !has_strike(d) && d.kind == Unkn
 is_perp(d::Derivative) = is_future(d) && !expires(d.id)
 is_spot(d::Derivative) = !is_settled(d)

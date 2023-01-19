@@ -149,13 +149,15 @@ function _fetch_with_delay(
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             data = _fetch_with_delay(
-                fetch_func, pair; since, df, sleep_t, limit=(limit ÷ 2)
+                fetch_func, pair; since, df, sleep_t, limit=(limit ÷ 2), converter
             )
         end
+        data = converter(data)
         # Apply conversion to fetched data
-        data = dpl && !isempty(data) ? converter(data) : []
-        size(data, 1) === 0 && return df ? _empty_df() : data
-        @debug "Returning converted ohlcv data."
+        if isempty(data) || size(data, 1) == 0
+            return data isa DataFrame ? data : _empty_df()
+        end
+        # @debug "Returning converted ohlcv data."
         (df && !(data isa DataFrame)) ? to_ohlcv(data) : data
     catch e
         if e isa PyException
@@ -164,7 +166,7 @@ function _fetch_with_delay(
                 sleep(sleep_t)
                 sleep_t = (sleep_t + 1) * 2
                 limit = isnothing(limit) ? limit : limit ÷ 2
-                _fetch_with_delay(fetch_func, pair, since, df, sleep_t, limit)
+                _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
             elseif py_except_name(e) ∈ ccxt_errors
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
                 return df ? _empty_df() : []
@@ -182,7 +184,8 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
     limit = fetch_limit(exc, limit)
     timeframe = get(kwargs, :timeframe, config.timeframe)
     params = get(kwargs, :params, PyDict())
-    fetc_func = (pair, since, limit) -> exc.py.fetchOHLCV(pair; since, limit, timeframe, params)
+    fetc_func =
+        (pair, since, limit) -> exc.py.fetchOHLCV(pair; since, limit, timeframe, params)
     kwargs = collect((k, v) for (k, v) in kwargs if k ∉ (:params, :timeframe, :limit))
     _fetch_with_delay(fetc_func, args...; limit, kwargs...)
 end

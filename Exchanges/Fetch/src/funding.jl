@@ -30,35 +30,54 @@ function extract_futures_data(data::Py)
 end
 
 const futures_limits = IdDict(:binance => 1000)
+const FUNDING_PERIOD = Hour(8)
 @doc "Fetch funding rate history from exchange for a list of `Derivative` pairs."
 function funding(
     exc::Exchange,
-    timeframe::AbstractString,
-    assets::Vector{Derivative};
+    assets::Vector;
     from::DateType="",
     to::DateType="",
     params=PyDict(),
     sleep_t=1,
     limit=nothing,
 )
-    from, to = from_to_dt(timeframe, from, to)
+    from, to = from_to_dt("8h", from, to)
     (from, to) = _check_from_to(from, to)
-    ff = (pair, since, limit) -> exc.py.fetchFundingRateHistory(pair; since, limit, params)
+    ff =
+        (pair, since, limit) -> begin
+            try
+                exc.py.fetchFundingRateHistory(pair; since, limit, params)
+            catch err
+                # HACK: `since` is supposed to be the timestamp of the beginning of the
+                # period to fetch. However if it considered invalid, use a negative value
+                # representing the milliseconds that have passed since the start date.
+                if occursin("Time Is Invalid", string(err))
+                    delta = -Int(timefloat(now() - dt(since)))
+                    exc.py.fetchFundingRateHistory(pair; since=delta, limit, params)
+                else
+                    throw(err)
+                end
+            end
+        end
     if isnothing(limit)
         limit = get(futures_limits, nameof(exc.id), nothing)
     end
-    out = DataFrame([DateTime[], String[], Float64[]], FUNDING_RATE_COLS; copycols=false)
     Dict(
-        a => _fetch_loop(
-            ff,
-            exc,
-            a.raw;
-            from,
-            to,
-            sleep_t,
-            converter=extract_futures_data,
-            limit,
-            out,
-        ) for a in assets
+        begin
+            out = DataFrame(
+                [DateTime[], String[], Float64[]], FUNDING_RATE_COLS; copycols=false
+            )
+            a => _fetch_loop(
+                ff,
+                exc,
+                a.raw;
+                from,
+                to,
+                sleep_t,
+                converter=extract_futures_data,
+                limit,
+                out,
+            )
+        end for a in assets
     )
 end

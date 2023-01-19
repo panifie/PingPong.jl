@@ -3,6 +3,9 @@ n_pairs = ["BTC/USDT", "ADA/USDT"]
 timeframe = "1d"
 
 function _test_funding_exc()
+    @eval using Fetch
+    fu = Fetch.funding(exc, [d"BTC/USDT:USDT", d"ETH/USDT:USDT"]; from="2022-06-")
+    @assert all(size(v)[1] > 0 for v in values(fu))
 end
 
 _test_funding() = begin
