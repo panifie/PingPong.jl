@@ -2,7 +2,7 @@ module Cli
 
 using Base.Iterators: flatten
 using Comonicon
-using Data: load_pairs
+using Data: load_ohlcv
 using Exchanges
 using Exchanges: get_pairlist
 using Fetch
@@ -83,7 +83,7 @@ Fetch pairs from exchanges.
 
     @choosepairs
 
-    fetch_pairs(pairs, timeframe; parallel=multiprocess, wait_task=true,
+    fetch_ohlcv(pairs, timeframe; parallel=multiprocess, wait_task=true,
                          from, to, update=(!noupdate), progress, reset)
 end
 
@@ -116,7 +116,7 @@ Downsamples ohlcv data from a timeframe to another.
 
     for (exc, prs) in pairs
         @info "Loading pairs with $from_timeframe candles from $(exc.name)..."
-        data = load_pairs(exc, prs, from_timeframe)
+        data = load_ohlcv(exc, prs, from_timeframe)
         @info "Resampling $(length(data)) pairs to $target_timeframe..."
         resample(exc, data, target_timeframe;)
     end

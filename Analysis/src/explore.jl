@@ -1,6 +1,6 @@
 using ExchangeTypes: exc
 using Temporal: TS
-using Data: load_pair, zi, PairData
+using Data: load, zi, PairData
 
 include("metrics.jl")
 
@@ -51,7 +51,7 @@ function find_peaked(
 end
 
 function plot_trendlines(pair::AbstractString, timeframe = "4h")
-    data = load_pair(zi, exc.name, pair, timeframe)
+    data = load(zi, exc.name, pair, timeframe)
     tsr = TS(convert(Matrix{Float64}, data, data.timestamp, OHLCV_COLUMNS))
     maxi = maxima(tsr)
     mini = minima(tsr)

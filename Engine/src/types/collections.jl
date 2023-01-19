@@ -2,7 +2,7 @@ module Collections
 
 using Base.Enums: namemap
 using DataFrames, DataFramesMeta
-using Data: load_pair, zi
+using Data: load, zi
 using OrderedCollections: OrderedDict
 using DataFramesMeta
 using DataStructures: SortedDict
@@ -37,7 +37,7 @@ struct AssetCollection2
         end
         tf = convert(TimeFrame, timeframe)
         getInstance(ast::Asset) = begin
-            data = SortedDict(tf => load_pair(zi, exc.name, ast.raw, timeframe))
+            data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
             AssetInstance(ast, data, exc)
         end
         instances = [getInstance(ast) for ast in assets]

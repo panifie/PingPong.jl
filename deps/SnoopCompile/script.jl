@@ -7,8 +7,8 @@ end
 using JuBot
 using JuBot.Exchanges: fetch!
 
-fetch!() # load fetch_pairs func
+fetch!() # load fetch_ohlcv func
 JuBot.setexchange!(:kucoin)
-JuBot.load_pairs("15m")
-# User.fetch_pairs("1h", ["BTC/USDT", "ETH/USDT"]; update=true)
-# User.fetch_pairs("1d", "BTC/USDT")
+JuBot.load_ohlcv("15m")
+# User.fetch_ohlcv("1h", ["BTC/USDT", "ETH/USDT"]; update=true)
+# User.fetch_ohlcv("1d", "BTC/USDT")

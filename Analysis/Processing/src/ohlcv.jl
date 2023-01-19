@@ -2,7 +2,7 @@ using DataFramesMeta
 using Dates: Period, now, UTC
 using TimeTicks
 using Misc: Candle
-using Data: to_df
+using Data: to_ohlcv
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
@@ -52,7 +52,7 @@ end
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return _empty_df()
-    df = data isa DataFrame ? data : to_df(data)
+    df = data isa DataFrame ? data : to_ohlcv(data)
 
     @as_td
 

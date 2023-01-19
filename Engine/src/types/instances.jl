@@ -4,7 +4,7 @@ using TimeFrames: AbstractTimePeriodFrame
 using TimeTicks: TimeFrames
 using ExchangeTypes
 using Exchanges: pair_fees, pair_min_size, pair_precision, is_pair_active, getexchange!
-using Data: load_pair, zi
+using Data: load, zi
 using Data.DFUtils: daterange, timeframe
 using TimeTicks
 using DataFrames: DataFrame
@@ -43,7 +43,7 @@ struct AssetInstance20{T<:Asset, E<:ExchangeID}
         a = Asset(s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
-        data = Dict(tf => load_pair(zi, exc.name, a.raw, t))
+        data = Dict(tf => load(zi, exc.name, a.raw, t))
         AssetInstance20(a, data, exc)
     end
     AssetInstance20(s, t) = AssetInstance20(s, t, exc)
@@ -54,7 +54,7 @@ AssetInstance = AssetInstance20
 load!(a::AssetInstance; reset=true) = begin
     for (tf, df) in a.data
         reset && empty!(df)
-        loaded = load_pair(zi, a.exchange.name, a.raw, tf)
+        loaded = load(zi, a.exchange.name, a.raw, tf)
         append!(df, loaded)
     end
 end
@@ -102,7 +102,7 @@ function Base.fill!(i::AssetInstance, tfs...)
     dr = daterange(from_data)
     for to_tf in tfs
         if to_tf ∉ current_tfs
-            from_sto = load_pair(zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop)
+            from_sto = load(zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop)
             i.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
                 from_sto
             else

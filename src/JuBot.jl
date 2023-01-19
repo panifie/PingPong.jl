@@ -24,7 +24,7 @@ end
 export Engine,
     get_pairs,
     get_pairlist,
-    load_pairs,
+    load_ohlcv,
     user!,
     getexchange!,
     setexchange!,

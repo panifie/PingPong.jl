@@ -24,8 +24,8 @@ end
 
 _test_ohlcv() = begin
     # if one exchange does not succeeds try on other exchanges
-    # until one succeds
-    for e in (:kucoin, :kucoin, :binance)
+    # until one succeeds
+    for e in (:kucoin, :bybit, :binance)
         try
             setexchange!(e)
             _test_ohlcv_exc()

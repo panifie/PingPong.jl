@@ -22,7 +22,7 @@ macro setup(exc)
         Misc.loadconfig($exc)
         $a = an
         setexchange!($exc)
-        $m = load_pairs("15m")
+        $m = load_ohlcv("15m")
         $mr = @resample($m, "1d"; save = false)
     end
 end

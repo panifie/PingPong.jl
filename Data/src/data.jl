@@ -167,15 +167,15 @@ end
 `timeframe`: exchange timeframe (from exc.timeframes)
 `type`: Primitive type used for storing the data (Float64)
 """
-function save_pair(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
+function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
     @zkey
     try
-        _save_pair(zi, key, td, data; kwargs...)
+        _save_ohlcv(zi, key, td, data; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
             @warn "Resetting local data for pair $pair." e
-            _save_pair(zi, key, td, data; kwargs..., reset=true)
+            _save_ohlcv(zi, key, td, data; kwargs..., reset=true)
         else
             rethrow(e)
         end
@@ -216,7 +216,7 @@ function _get_zarray(
     (za, existing)
 end
 
-function _save_pair(
+function _save_ohlcv(
     zi::ZarrInstance,
     key,
     td,
@@ -388,8 +388,8 @@ function load(
     _wrap_load(zi, key, tfnum(tf.period); kwargs...)
 end
 
-@doc "Convert ccxt OHLCV data to a timearray/dataframe."
-function to_df(data; fromta=false)
+@doc "Convert raw ccxt OHLCV data to a timearray/dataframe."
+function to_ohlcv(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
     fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
@@ -452,8 +452,8 @@ function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=fals
     with_from && @assert data[begin, saved_col] >= from
     with_to && @assert data[end, saved_col] <= to
 
-    with_z && return (to_df(data), za)
-    to_df(data)
+    with_z && return (to_ohlcv(data), za)
+    to_ohlcv(data)
 end
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
@@ -501,4 +501,4 @@ end
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 
-export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_ohlcv, save_pair
+export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv

@@ -3,7 +3,7 @@ using ExchangeTypes: Exchange
 using Lang: passkwargs
 using TimeTicks
 using Misc: _empty_df
-using Data: data_td, save_pair, PairData
+using Data: data_td, save_ohlcv, PairData
 using Data.DFUtils
 using DataFrames
 
@@ -59,7 +59,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
-    save && size(df)[1] > 0 && save_pair(exc, pairname, name(to_tf), df)
+    save && size(df)[1] > 0 && save_ohlcv(exc, pairname, name(to_tf), df)
     @debug @show "last 2 candles: " df[end-1, :timestamp] df[end, :timestamp]
     df
 end
