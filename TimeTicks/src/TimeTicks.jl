@@ -87,7 +87,15 @@ from_to_dt(prd::Period, from, to) = begin
             something(tryparse(Int, from), tryparse(DateTime, from), from)
         end
         typeof(from) <: Int && begin
-            from = from === 0 ? DateTime(0) : now() - (abs(from) * prd)
+            if from === 0
+                DateTime(0)
+            else
+                if prd.value === 0
+                    from
+                else
+                    now() - (abs(from) * prd)
+                end
+            end
         end
     end
     if to !== ""
@@ -97,7 +105,15 @@ from_to_dt(prd::Period, from, to) = begin
             something(tryparse(Int, to), tryparse(DateTime, to), to)
         end
         typeof(to) <: Int && begin
-            to = to === 0 ? now() : now() - (abs(to) * prd)
+            if to === 0
+                now()
+            else
+                if prd.value === 0
+                    to
+                else
+                    now() - (abs(to) * prd)
+                end
+            end
         end
     end
     from, to
