@@ -10,5 +10,7 @@ const ohlcv_limits = IdDict(
 
 @doc "Some exchanges are split into different classes in ccxt."
 const futures_exchange = IdDict(
-    :kucoin => :kucoinfutures
+    :kucoin => :kucoinfutures,
+    :binance => :binanceusdm,
+    :bybit => :bybit
 )

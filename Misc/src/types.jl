@@ -43,6 +43,8 @@ macro as_dfdict(data, skipempty=true)
     end
 end
 
+drop(nt::NamedTuple, keys::NTuple{N,Symbol}) where {N} = Base.structdiff(nt, NamedTuple{keys})
+
 include("exceptions.jl")
 
 export Candle, Iterable, StrOrVec, ContiguityException

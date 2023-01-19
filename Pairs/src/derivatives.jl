@@ -44,20 +44,24 @@ function getproperty(d::Derivative, s::Symbol)
     getfield(d, s)
 end
 
-@inline begin
-    @doc "Predicates according to [OctoBot](https://github.com/Drakkar-Software/OctoBot-Commons/blob/master/octobot_commons/symbols/symbol.py)"
-    is_settled(d::Derivative) = d.sc != Symbol()
-    has_strike(d::Derivative) = d.strike != 0.0
-    expires(d::Derivative) = !isempty(d.id)
-    is_future(d::Derivative) = is_settled(d) && !has_strike(d) && d.kind == Unkn
-    is_perp(d::Derivative) = is_future(d) && !expires(d.id)
-    is_spot(d::Derivative) = !is_settled(d)
-    is_option(d::Derivative) =
-        d.kind != Unkn && is_settled(d) && has_strike(d) && expires(d)
-    is_linear(d::Derivative) = is_settled(d) ? d.qc == d.sc : true
-    is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
+@doc "Predicates according to [OctoBot](https://github.com/Drakkar-Software/OctoBot-Commons/blob/master/octobot_commons/symbols/symbol.py)"
+is_settled(d::Derivative) = d.sc != Symbol()
+has_strike(d::Derivative) = d.strike != 0.0
+expires(d::Derivative) = !isempty(d.id)
+is_future(d::Derivative) = is_settled(d) && !has_strike(d) && d.kind == Unkn
+is_perp(d::Derivative) = is_future(d) && !expires(d.id)
+is_spot(d::Derivative) = !is_settled(d)
+is_option(d::Derivative) =
+    d.kind != Unkn && is_settled(d) && has_strike(d) && expires(d)
+is_linear(d::Derivative) = is_settled(d) ? d.qc == d.sc : true
+is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
+
+macro d_str(s)
+    quote
+        $(Derivative(s))
+    end
 end
 
-export Derivative, DerivativeKind
+export Derivative, DerivativeKind, @d_str
 
 end

@@ -1,4 +1,4 @@
-using Data: load_pair, to_df, zi, PairData
+using Data: load, to_ohlcv, zi, PairData, DataFrame
 using Ccxt
 using Python
 using ExchangeTypes: Exchange
@@ -8,11 +8,11 @@ using Exchanges:
     getexchange!,
     is_timeframe_supported,
     py_except_name,
-    save_pair
+    save_ohlcv
 using TimeTicks
-using Lang: @distributed, @parallel
+using Lang: @distributed, @parallel, Option
 using Misc
-using Misc: _empty_df, _instantiate_workers, config, DATA_PATH, ohlcv_limits
+using Misc: _empty_df, _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop
 using Python
 using TimeTicks
 @debug using TimeTicks: dt
@@ -20,32 +20,29 @@ using Dates: Millisecond, now
 using Pbar
 using Processing: cleanup_ohlcv_data, is_last_complete_candle
 
-@doc "Ensure a `to` date is set, before fetching."
-function _fetch_ohlcv_1(
-    exc::Exchange,
-    pair,
-    timeframe;
-    from="",
-    to="",
-    params=PyDict(),
-    sleep_t=1,
-    cleanup=true,
-)
+function _check_from_to(from::F, to::T) where {F,T<:DateType}
     from = timefloat(from)
     if to === ""
-        to = now() |> timefloat
+        to = timefloat(now())
     else
         to = timefloat(to)
         from > to &&
             @error "End date ($(to |> dt)) must be higher than start date ($(from |> dt))."
     end
+    (from, to)
+end
+
+@doc "Ensure a `to` date is set, before fetching."
+function _fetch_ohlcv_1(
+    exc::Exchange, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true
+)
+    (from, to) = _check_from_to(from, to)
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
-    data = _fetch_ohlcv_loop(exc, pair, timeframe; from, to, params, sleep_t)
-    if cleanup
-        cleanup_ohlcv_data(data, timeframe)
-    else
-        data
-    end
+    fetch_func =
+        (pair, since, limit) -> exc.py.fetchOHLCV(pair; timeframe, since, limit, params)
+    limit = fetch_limit(exc, nothing)
+    data = _fetch_loop(fetch_func, exc, pair; from, to, sleep_t, limit)
+    cleanup ? cleanup_ohlcv_data(data, timeframe) : data
 end
 
 @doc "Should return the oldest possible timestamp for a pair, or something close to it."
@@ -57,109 +54,109 @@ function find_since(exc::Exchange, pair)
     tfs = @view tfs[order]
     data = []
     for (t, p) in zip(tfs, periods)
-        old_ts = p |> Millisecond |> timefloat |> Int
+        old_ts = Int(timefloat(Millisecond(p)))
         # fetch the first available candles using a long (1w) timeframe
-        data = _fetch_ohlcv_with_delay(exc, pair, t; since=old_ts, df=true)
+        data = _fetch_ohlcv_with_delay(exc, pair; timeframe=t, since=old_ts, df=true)
         if !isempty(data)
             break
         end
     end
     if isempty(data)
         # try without `since` arg
-        data = _fetch_ohlcv_with_delay(exc, pair, tfs[begin]; df=true)
+        data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
     end
     # default to 1 day
-    isempty(data) && return now() - Day(1) |> timefloat |> Int
-    data[begin, 1] |> timefloat |> Int
+    isempty(data) && return Int(timefloat(now() - Day(1)))
+    Int(timefloat(data[begin, 1]))
 end
 
-@doc "Calls the fetcher iteratively until the full dates range has been downloaded.
+function fetch_limit(exc::Exchange, limit::Option{Int})
+    if isnothing(limit)
+        get(ohlcv_limits, Symbol(lowercase(string(exc.name))), 1000)
+    end
+end
+
+@doc "Calls the fetc_func iteratively until the full dates range has been downloaded.
 NOTE: The returned data won't be exactly the number of candles expected by e.g. `length(DateRange(from, to))`"
-function _fetch_ohlcv_loop(
+function _fetch_loop(
+    fetch_func::Function,
     exc::Exchange,
-    pair,
-    timeframe;
+    pair;
     from::F,
     to::F,
-    params,
     sleep_t,
+    out=_empty_df(),
+    converter::Function=pylist_to_matrix,
+    limit=nothing,
 ) where {F<:AbstractFloat}
-    @as_td
-    @debug "Downloading candles for pair $pair."
+    @debug "Downloading data for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
-    data = _empty_df()
     local since
     if from === 0.0
         since = find_since(exc, pair)
         @debug "since time: ", since
     else
         append!(
-            data,
-            _fetch_ohlcv_with_delay(exc, pair, timeframe; since=Int(from), params, df=true),
+            out,
+            _fetch_with_delay(fetch_func, pair; since=Int(from), df=true, limit, converter),
         )
-        if size(data, 1) > 0
-            since = data[end, 1] |> timefloat |> Int
+        if size(out, 1) > 0
+            since = Int(timefloat(out[end, 1]))
         else
-            @debug "Couldn't fetch candles for $pair from $(exc.name), too long dates? $(dt(from))."
+            @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
             since = find_since(exc, pair)
         end
     end
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     while since < to
         sleep(sleep_t)
-        fetched = _fetch_ohlcv_with_delay(exc, pair, timeframe; since, params, df=true)
+        fetched = _fetch_with_delay(fetch_func, pair; since, df=true, limit, converter)
         size(fetched, 1) === 0 && break
-        append!(data, fetched)
-        last_ts = timefloat(data[end, 1]) |> Int
+        append!(out, fetched)
+        last_ts = Int(timefloat(out[end, 1]))
         since === last_ts && break
         since = last_ts
-        @debug "Downloaded candles for pair $pair up to $(since |> dt) from $(exc.name)."
+        @debug "Downloaded data for pair $pair up to $(since |> dt) from $(exc.name)."
     end
-    return data
+    return out
 end
 
+function pylist_to_matrix(data::Py)
+    permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
+end
+
+@doc """
+Wraps a fetching function around error handling and backoff delay.
+`fetch_func` signature:
+(pair::String, since::Float, limit::Float) -> PyList
+The `converter` function has to tabulate the data such that the first column is the timestamp
+"""
 function _fetch_with_delay(
-    fetch_func::Union{Function,Py},
-    exc::Exchange,
-    pair,
-    timeframe;
+    fetch_func::Function,
+    pair;
     since=nothing,
-    params=PyDict(),
     df=false,
     sleep_t=0,
     limit=nothing,
+    converter=pylist_to_matrix,
 )
     try
-        @debug "Calling into ccxt to fetch data: $pair, $timeframe $since, $params"
-        if isnothing(limit)
-            limit = get(ohlcv_limits, Symbol(lowercase(string(exc.name))), 1000)
-        end
-        data = fetch_func(pair, timeframe; since, limit, params)
-        dpl = Bool(@py data isa PyList)
+        @debug "Calling into ccxt to fetch data: $pair since $since"
+        data = fetch_func(pair, since, limit)
+        dpl = pyisinstance(data, @py(list))
         if !dpl
             @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             data = _fetch_with_delay(
-                fetch_func,
-                exc,
-                pair,
-                timeframe;
-                since,
-                params,
-                sleep_t,
-                df,
-                limit=(limit ÷ 2),
+                fetch_func, pair; since, df, sleep_t, limit=(limit ÷ 2)
             )
         end
-        if dpl && !isempty(data)
-            data = reduce(hcat, pyconvert(Vector{<:Vector}, data)) |> permutedims
-        else
-            data = []
-        end
+        # Apply conversion to fetched data
+        data = dpl && !isempty(data) ? converter(data) : []
         size(data, 1) === 0 && return df ? _empty_df() : data
         @debug "Returning converted ohlcv data."
-        df ? to_df(data) : data
+        (df && !(data isa DataFrame)) ? to_ohlcv(data) : data
     catch e
         if e isa PyException
             if !isnothing(match(r"429([0]+)?", string(e._v)))
@@ -167,17 +164,7 @@ function _fetch_with_delay(
                 sleep(sleep_t)
                 sleep_t = (sleep_t + 1) * 2
                 limit = isnothing(limit) ? limit : limit ÷ 2
-                _fetch_with_delay(
-                    fetch_func,
-                    exc,
-                    pair,
-                    timeframe;
-                    since,
-                    params,
-                    sleep_t,
-                    df,
-                    limit,
-                )
+                _fetch_with_delay(fetch_func, pair, since, df, sleep_t, limit)
             elseif py_except_name(e) ∈ ccxt_errors
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
                 return df ? _empty_df() : []
@@ -190,8 +177,15 @@ function _fetch_with_delay(
     end
 end
 
-@inline _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...) =
-    _fetch_with_delay(exc.fetchOHLCV, exc, args...; kwargs...)
+function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
+    limit = get(kwargs, :limit, nothing)
+    limit = fetch_limit(exc, limit)
+    timeframe = get(kwargs, :timeframe, config.timeframe)
+    params = get(kwargs, :params, PyDict())
+    fetc_func = (pair, since, limit) -> exc.py.fetchOHLCV(pair; since, limit, timeframe, params)
+    kwargs = collect((k, v) for (k, v) in kwargs if k ∉ (:params, :timeframe, :limit))
+    _fetch_with_delay(fetc_func, args...; limit, kwargs...)
+end
 # FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
 function fetch_ohlcv(exc::Exchange, timeframe::AbstractString, pairs::StrOrVec; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
@@ -206,14 +200,14 @@ function fetch_ohlcv(exc::Exchange, timeframe::AbstractString; qc, kwargs...)
 end
 function fetch_ohlcv(timeframe::AbstractString; kwargs...)
     qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : config.qc
-    pairs = get_pairlist(exc, qc) |> keys |> collect
+    pairs = collect(keys(get_pairlist(exc, qc)))
     fetch_ohlcv(timeframe, pairs; filter(x -> x[1] !== :qc, kwargs)...)
 end
 
 function fetch_ohlcv(::Val{:ask}, args...; kwargs...)
     Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
-    ans ∉ ("\n", "y", "Y") && return
+    ans ∉ ("\n", "y", "Y") && return nothing
     fetch_ohlcv(args...; qc=config.qc, zi, kwargs...)
 end
 
@@ -224,11 +218,7 @@ It accepts:
       and pairlist will be composed according to quote currency and min_volume from `JuBot.config`.
 """
 function fetch_ohlcv(
-    excs::Vector{Exchange},
-    timeframe;
-    parallel=false,
-    wait_task=false,
-    kwargs...,
+    excs::Vector{Exchange}, timeframe; parallel=false, wait_task=false, kwargs...
 )
     # out_file = joinpath(DATA_PATH, "out.log")
     # err_file = joinpath(DATA_PATH, "err.log")
@@ -276,7 +266,7 @@ function fetch_ohlcv(
         # this fetches the last date stored
         from_date =
             (pair) -> begin
-                za, (_, stop) = load_pair(zi, exc_name, pair, timeframe; as_z=true)
+                za, (_, stop) = load(zi, exc_name, pair, timeframe; as_z=true)
                 za, size(za, 1) > 1 ? za[stop, 1] : from
             end
     else
@@ -297,10 +287,10 @@ function fetch_ohlcv(
             end
             if size(ohlcv, 1) > 0
                 try
-                    z = save_pair(zi[], exc_name, name, timeframe, ohlcv; reset)
+                    z = save_ohlcv(zi[], exc_name, name, timeframe, ohlcv; reset)
                 catch e
                     if e isa ContiguityException
-                        z = save_pair(zi[], exc_name, name, timeframe, ohlcv; reset=true)
+                        z = save_ohlcv(zi[], exc_name, name, timeframe, ohlcv; reset=true)
                     elseif e isa AssertionError
                         display(e)
                         @warn "Could not fetch data for pair $name, check integrity of saved data."
@@ -309,7 +299,7 @@ function fetch_ohlcv(
                     end
                 end
             elseif isnothing(z)
-                z, _ = load_pair(zi, exc_name, name, timeframe; as_z=true)
+                z, _ = load(zi, exc_name, name, timeframe; as_z=true)
             end
             p = PairData(; name, tf=timeframe, data=ohlcv, z)
             data[name] = p
