@@ -1,9 +1,10 @@
 import Base.getproperty
 
+using Reexport
 using DataFrames: DataFrame
 using Dates: Day, Minute, Period, now
 using Ccxt
-using ExchangeTypes
+@reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc
 using JSON
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
@@ -221,7 +222,17 @@ function exckeys!(exc)
     end
 end
 
+@doc "Enable sandbox mode for exchange"
+sandbox!(exc::Exchange=exc, flag=true) = exc.py.setSandboxMode(flag)
+@doc "Check if sandbox mode is enabled for exchange."
+issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.urls["api"])
+
+@doc "Enable or disable rate limit."
+ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
+
 include("pairlist.jl")
 include("data.jl")
 
-export exc, @exchange!, setexchange!, getexchange!, exckeys!, loadmarkets!, get_pairlist, get_pairs, Exchange
+export exc, @exchange!, setexchange!, getexchange!, exckeys!
+export loadmarkets!, get_pairlist, get_pairs
+export sandbox!, issandbox, ratelimit!
