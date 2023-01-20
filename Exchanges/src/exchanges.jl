@@ -78,7 +78,7 @@ end
 
 getexchange() = exc
 
-@doc "Get ccxt exchange by symbol either from cache or anew."
+@doc """getexchage!: ccxt exchange by symbol either from cache or anew. """
 function getexchange!(x::Symbol, args...; kwargs...)
     get!(exchanges, x, begin
         py = ccxt_exchange(x, args...; kwargs...)
@@ -108,12 +108,7 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     precision[1] = exc.py.precisionMode |>
                    x -> pyconvert(Int, x) |>
                         ExcPrecisionMode
-
-    exc_keys = exchange_keys(exc.name)
-    if !isempty(exc_keys)
-        @debug "Setting exchange keys..."
-        exckeys!(exc, values(exc_keys)...)
-    end
+    exckeys!(exc)
     exc
 end
 
@@ -202,10 +197,28 @@ end
 @doc "Set exchange api keys."
 function exckeys!(exc, key, secret, pass)
     name = uppercase(exc.name)
+    # FIXME: ccxt key/secret naming is swapped for kucoin apparently
+    if nameof(exc.id) ∈ (:kucoin, :kucoinfutures)
+        (key, secret) = secret, key
+    end
     exc.py.apiKey = key
     exc.py.secret = secret
     exc.py.password = pass
     nothing
+end
+
+function exckeys!(exc)
+    exc_keys = exchange_keys(exc.id)
+    # Check the exchange->futures mapping to re-use keys
+    if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
+        sym = Symbol(exc.id)
+        id = argmax(x->x[2]==sym, futures_exchange)
+        merge!(exc_keys, exchange_keys(id.first))
+    end
+    if !isempty(exc_keys)
+        @debug "Setting exchange keys..."
+        exckeys!(exc, values(exc_keys)...)
+    end
 end
 
 include("pairlist.jl")
