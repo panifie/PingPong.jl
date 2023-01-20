@@ -3,16 +3,24 @@ using Pairs.Derivatives
 using ExchangeTypes: exc
 using Python: PyDict
 
-function funding(exc::Exchange, s::AbstractString, syms...)
-    fr = exc.fetchFundingRate(s)
+@doc """Retrieves all funding data return by exchange for symbol, or a subset.
+```julia
+funding_data(exc, "BTC/USDT:USDT")
+funding_data(exc, "BTC/USDT:USDT", :fundingRate, :markPrice)
+```
+"""
+function funding_data(exc::Exchange, s::AbstractString, syms...)
+    fr = exc.fetchFundingRate(s)[s]
     syms[1] == :all && return pyconvert(Dict, fr)
     Dict(s => fr[string(s)] for s in syms)
 end
-function funding(exc::Exchange, s::AbstractString)
-    pyconvert(Float64, exc.fetchFundingRate(s)["fundingRate"])
+funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
+funding_data(v, args...) = funding_data(exc, v, args...)
+function funding_rate(exc::Exchange, s::AbstractString)
+    pyconvert(Float64, exc.fetchFundingRate(s)[s]["fundingRate"])
 end
-funding(exc::Exchange, a::Derivative, args...) = funding(exc, a.raw, args...)
-funding(v, args...) = funding(exc, v, args...)
+funding_rate(exc, a::Derivative) = funding_rate(exc, a.raw)
+funding_rate(v) = funding_rate(exc, v)
 
 const FUNDING_RATE_COLUMNS = (:timestamp, :pair, :rate)
 const FUNDING_RATE_COLS = [FUNDING_RATE_COLUMNS...]
@@ -31,8 +39,10 @@ end
 
 const futures_limits = IdDict(:binance => 1000)
 const FUNDING_PERIOD = Hour(8)
-@doc "Fetch funding rate history from exchange for a list of `Derivative` pairs."
-function funding(
+@doc "Fetch funding rate history from exchange for a list of `Derivative` pairs.
+
+- `from`, `to`: specify date period to fetch candles for."
+function fetch_funding(
     exc::Exchange,
     assets::Vector;
     from::DateType="",
@@ -41,7 +51,7 @@ function funding(
     sleep_t=1,
     limit=nothing,
 )
-    from, to = from_to_dt("8h", from, to)
+    from, to = from_to_dt(FUNDING_PERIOD, from, to)
     (from, to) = _check_from_to(from, to)
     ff =
         (pair, since, limit) -> begin
