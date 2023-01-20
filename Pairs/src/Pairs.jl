@@ -14,6 +14,20 @@ getproperty(c::C, s::Symbol) where C<:Cash = begin
         getfield(c, s) ## throws
     end
 end
+@doc """Macro to instantiate `Cash` statically.
+
+Don't put spaces between the id and the value.
+
+```julia
+> ca = c"USDT"1000
+USDT: 1000.0
+```
+"""
+macro c_str(sym, val=0)
+    :($(Cash(Symbol(sym), val)))
+end
+Base.print(c::Cash) = print("$(c.name): $(c.value)")
+Base.display(c::Cash) = print(c)
 
 @doc "A symbol checked to be a valid quote currency."
 const QuoteCurrency = Symbol
