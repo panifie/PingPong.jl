@@ -63,7 +63,7 @@ end
 map_estimators!()
 
 # @show CausalityTools.SymbolicWeightedPermutation(;m=3)
-config.ct = Dict(
+config.attrs[:ct] = Dict(
     :tentr => (; est = est[:vf], base = 2, q = 1.0),
     :muten => (; est = est[:vf]),
     :predas => (; est = est[:to], ηs = 2),
@@ -74,39 +74,39 @@ config.ct = Dict(
 )
 
 function tentr(x::AbstractArray, y::AbstractArray, args...)
-    opt = config.ct[:tentr]
+    opt = config.attrs[:ct][:tentr]
     ct.transferentropy(x, y, opt.est; base = opt.base, q = opt.q)
 end
 
 function muten(x::AbstractArray, y::AbstractArray, args...)
-    opt = config.ct[:muten]
+    opt = config.attrs[:ct][:muten]
     ct.mutualinfo(x, y, opt.est;)
 end
 
 function predas(x::AbstractArray, y::AbstractArray, args...)
-    opt = config.ct[:predas]
+    opt = config.attrs[:ct][:predas]
     ct.predictive_asymmetry(y, x, opt.est, opt.ηs)
 end
 
 function cross(x::AbstractArray, y::AbstractArray, n_lead = 1, default = NaN)
-    opt = config.ct[:cross]
+    opt = config.attrs[:ct][:cross]
     ct.CrossMappings.pai(x, y, opt.d, opt.τ)
 end
 
 function pai(x::AbstractArray, y::AbstractArray, args...)
-    opt = config.ct[:pai]
+    opt = config.attrs[:ct][:pai]
     ct.CrossMappings.pai(x, y, opt.d, opt.τ, :segment) |> mean
 end
 
 function smeas(x::AbstractArray, y::AbstractArray, n_lead = 1, default = NaN)
-    opt = config.ct[:smeas]
+    opt = config.attrs[:ct][:smeas]
     # FIXME: providing k as kwarg, has wrong method signature and doesn't dispatch
     ct.s_measure(_x_view(x, n_lead), _y_view(y, n_lead, default); metric = di.CosineDist())
 end
 
 # NOTE: this is heavy
 function joindd(x::AbstractArray, y::AbstractArray, args...)
-    opt = config.ct[:joindd]
+    opt = config.attrs[:ct][:joindd]
     ct.jdd(x, y; distance_metric = opt.dm, B = opt.B, D = opt.D, τ = opt.τ) |> mean
 end
 
