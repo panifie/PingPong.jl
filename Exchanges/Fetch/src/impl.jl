@@ -12,7 +12,7 @@ using Exchanges:
 using TimeTicks
 using Lang: @distributed, @parallel, Option
 using Misc
-using Misc: _empty_df, _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop
+using Misc: empty_ohlcv, _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop
 using Python
 using TimeTicks
 @debug using TimeTicks: dt
@@ -85,7 +85,7 @@ function _fetch_loop(
     from::F,
     to::F,
     sleep_t,
-    out=_empty_df(),
+    out=empty_ohlcv(),
     converter::Function=pylist_to_matrix,
     limit=nothing,
 ) where {F<:AbstractFloat}
@@ -155,7 +155,7 @@ function _fetch_with_delay(
         data = converter(data)
         # Apply conversion to fetched data
         if isempty(data) || size(data, 1) == 0
-            return data isa DataFrame ? data : _empty_df()
+            return data isa DataFrame ? data : empty_ohlcv()
         end
         # @debug "Returning converted ohlcv data."
         (df && !(data isa DataFrame)) ? to_ohlcv(data) : data
@@ -169,7 +169,7 @@ function _fetch_with_delay(
                 _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
             elseif py_except_name(e) ∈ ccxt_errors
                 @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
-                return df ? _empty_df() : []
+                return df ? empty_ohlcv() : []
             else
                 rethrow(e)
             end
@@ -286,7 +286,7 @@ function fetch_ohlcv(
             if !is_last_complete_candle(pair_from_date, timeframe)
                 ohlcv = _fetch_ohlcv_1(exc, name, timeframe; from=pair_from_date, to)
             else
-                ohlcv = _empty_df()
+                ohlcv = empty_ohlcv()
             end
             if size(ohlcv, 1) > 0
                 try

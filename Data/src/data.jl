@@ -12,7 +12,7 @@ using Misc:
     OHLCV_COLUMNS,
     OHLCV_COLUMNS_TS,
     RightContiguityException,
-    _empty_df,
+    empty_ohlcv,
     config
 
 using Zarr: is_zarray
@@ -363,9 +363,9 @@ function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
             elseif :with_z ∈ keys(kwargs)
-                return _empty_df(), emptyz
+                return empty_ohlcv(), emptyz
             else
-                return _empty_df()
+                return empty_ohlcv()
             end
         else
             rethrow(e)
@@ -420,8 +420,8 @@ function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=fals
 
     if size(za, 1) < 2
         as_z && return za, (0, 0)
-        with_z && return (_empty_df(), za)
-        return _empty_df()
+        with_z && return (empty_ohlcv(), za)
+        return empty_ohlcv()
     end
 
     @as from timefloat(from)

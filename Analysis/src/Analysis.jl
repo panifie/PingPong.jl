@@ -1,7 +1,7 @@
 module Analysis
 
 using Requires
-using Misc: empty_df
+using Misc: empty_ohlcv
 using TimeTicks: td_tf, timefloat, @as_td
 using Data: @to_mat, data_td, save_ohlcv, PairData
 using ExchangeTypes: Exchange, exc

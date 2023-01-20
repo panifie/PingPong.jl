@@ -23,7 +23,7 @@ struct Candle
 end
 
 @doc "An empty OHLCV dataframe."
-function _empty_df()
+function empty_ohlcv()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
@@ -47,4 +47,4 @@ drop(nt::NamedTuple, keys::NTuple{N,Symbol}) where {N} = Base.structdiff(nt, Nam
 
 include("exceptions.jl")
 
-export Candle, Iterable, StrOrVec, ContiguityException
+export Candle, Iterable, StrOrVec, ContiguityException, empty_ohlcv

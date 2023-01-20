@@ -21,7 +21,7 @@ fill_missing_rows!(df, timeframe::AbstractString; strategy=:close) = begin
 end
 
 function _fill_missing_rows(df, prd::Period; strategy, inplace)
-    size(df, 1) === 0 && return _empty_df()
+    size(df, 1) === 0 && return empty_ohlcv()
     let ordered_rows = []
         # fill the row by previous close or with NaNs
         can =
@@ -51,7 +51,7 @@ end
 """
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
-    size(data, 1) === 0 && return _empty_df()
+    size(data, 1) === 0 && return empty_ohlcv()
     df = data isa DataFrame ? data : to_ohlcv(data)
 
     @as_td

@@ -2,7 +2,7 @@ using Pbar
 using ExchangeTypes: Exchange
 using Lang: passkwargs
 using TimeTicks
-using Misc: _empty_df
+using Misc: empty_ohlcv
 using Data: data_td, save_ohlcv, PairData
 using Data.DFUtils
 using DataFrames
@@ -17,7 +17,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
                    "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(data, 1)
-    sz > 1 || return _empty_df()
+    sz > 1 || return empty_ohlcv()
 
     td = tfnum(to_tf.period)
     # src_prd = data_td(data)
@@ -27,7 +27,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     @assert td >= src_td "Upsampling not supported. (from $((td_tf[src_td])) to $(td_tf[td]))"
     td === src_td && return data
     frame_size::Integer = td ÷ src_td
-    sz >= frame_size || return _empty_df()
+    sz >= frame_size || return empty_ohlcv()
 
     # remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
     left = 1
@@ -43,7 +43,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
 
     # Create a new dataframe to keep thread safety
     data = DataFrame(@view(data[left:right, :]); copycols=false)
-    size(data, 1) === 0 && return _empty_df()
+    size(data, 1) === 0 && return empty_ohlcv()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
     gb = groupby(data, :sample)
