@@ -1,17 +1,17 @@
 module Pairs
 
-@doc "A variable quantity of some currency."
-struct Cash{T}
-    name::Symbol
+struct Cash3{T}
     value::Vector{Float64}
-    Cash(s::Symbol, val::Real) = new{s}(s, [val])
+    Cash3(s::Symbol, val::Real) = new{s}([val])
 end
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
-Base.getproperty(c::Cash, s::Symbol) = begin
+getproperty(c::C, s::Symbol) where C<:Cash = begin
     if s === :value
         getfield(c, :value)[1]
+    elseif s === :id
+        C.parameters[1]
     else
-        getfield(c, :name)
+        getfield(c, s) ## throws
     end
 end
 
