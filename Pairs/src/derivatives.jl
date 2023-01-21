@@ -14,16 +14,16 @@ end
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
 
 @doc """Derivative parsed accordingly to [`Pairs.FULL_SYMBOL_GROUPS_REGEX`](@ref)."""
-struct Derivative1{A<:Asset}
+struct Derivative2{A<:Asset} <: AbstractAsset
     asset::A
     sc::SettlementCurrency
     id::SubString
     strike::Float64
     kind::DerivativeKind
-    Derivative1(a::A, args...; kwargs...) where {A<:Asset} = begin
+    Derivative2(a::A, args...; kwargs...) where {A<:Asset} = begin
         new{A}(a, args...; kwargs...)
     end
-    Derivative1(s::AbstractString) = begin
+    Derivative2(s::AbstractString) = begin
         m = match(FULL_SYMBOL_GROUPS_REGEX, s)
         @assert !isnothing(m) _derivative_error(s)
         m = m.captures
@@ -33,10 +33,10 @@ struct Derivative1{A<:Asset}
         id = isnothing(m[4]) ? SubString("") : m[4]
         strike = isnothing(m[5]) || isempty(m[5]) ? 0.0 : parse(Float64, m[5])
         kind = isnothing(m[6]) || isempty(m[6]) ? Unkn : parse_option(m[6])
-        Derivative1(asset, S, id, strike, kind)
+        Derivative2(asset, S, id, strike, kind)
     end
 end
-Derivative = Derivative1
+Derivative = Derivative2
 
 import Base.getproperty
 function getproperty(d::Derivative, s::Symbol)
