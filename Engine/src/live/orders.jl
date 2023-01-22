@@ -14,7 +14,7 @@ using ..Orders
 """
 mutable struct LiveOrder4{A<:Asset,E<:ExchangeID}
     asset::Ref{AssetInstance{A,E}}
-    order::Order{A,E,OrderKind}
+    order::Order{A,E}
     delay::Millisecond
     LiveOrder4(
         i::AssetInstance{A,E},
