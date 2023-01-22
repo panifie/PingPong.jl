@@ -1,8 +1,15 @@
 # Exchanges
 
+## Exchange Types
+Basic exchange types, and global exchange vars.
 ```@autodocs
-Modules = [JuBot.Exchanges]
-Pages = ["exchanges.jl", "-data.jl"]
+Modules = [Exchanges.ExchangeTypes]
+Pages = ["ExchangeTypes.jl"]
+```
+## Exchange functions
+```@autodocs
+Modules = [Exchanges]
+Pages = ["exchanges.jl", "pairlist.jl", "-data.jl"]
 ```
 
 ## Data

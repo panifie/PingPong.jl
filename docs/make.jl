@@ -27,5 +27,27 @@ use(:Long, "Analysis", "Mark", "Long")
 use(:MVP, "Analysis", "Mark", "MVP")
 use(:Processing, "Analysis", "Processing")
 use(:Pairs, "Pairs")
+use(:Exchanges, "Exchanges")
+use(:Plotting, "Plotting")
+use(:Analysis, "Analysis")
 
-makedocs(sitename="JuBot.jl")
+function filter_strategy(t)
+    if startswith(string(nameof(t)), "Strategy")
+        false
+    else
+        true
+    end
+end
+
+makedocs(sitename="JuBot.jl", pages= [
+    "index.md",
+    "strategy.md",
+    "engine/engine.md",
+    "exchanges.md",
+    "data.md",
+    "processing.md",
+    "misc.md",
+    "plotting.md",
+    "analysis.md"
+
+])
