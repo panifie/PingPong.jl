@@ -1,4 +1,4 @@
-using Dates
+using TimeTicks
 using DataFrames: AbstractDataFrame
 const DF = Union{DateTime,Float64}
 const PricePair = NamedTuple{(:prev, :next),Tuple{DF,DF}}
