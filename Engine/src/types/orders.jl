@@ -2,7 +2,7 @@ module Orders
 using Misc: Candle, config
 using TimeTicks
 using Instruments
-using ExchangeTypes
+using Exchanges
 using Lang: Lang, @exportenum
 
 @doc "A type to specify the reason why a buy or sell event has happened."

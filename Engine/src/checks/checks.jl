@@ -4,26 +4,35 @@ using ..Orders
 using Accessors: setproperties
 using Lang: Option
 
-@doc "Ensures the order respect the minimum limits (not the maximum!) and precision for the market."
-function sanitize_order(inst::AssetInstance, o::Order)::Option{Order}
-    amount = if inst.limits.amount.min > 0 && o.amount < inst.limits.amount.min
+function sanitize_price_amount(inst::AssetInstance, price, amount)
+    sanitized_price = if inst.limits.price.min > 0 && price < inst.limits.price.min
+        inst.limits.price.min
+    else
+        round(price; digits=inst.precision.price)
+    end
+    sanitized_amount = if inst.limits.amount.min > 0 && amount < inst.limits.amount.min
         inst.limits.amount.min
     else
         if inst.precision.amount < 0 # has to be a multiple of 10
-            amt = Int(o.amount)
+            amt = Int(amount)
             max(amt - mod(amt, 10), inst.limits.amount.min)
         else
-            round(o.amount; digits=inst.precision.amount)
+            round(amount; digits=inst.precision.amount)
         end
     end
-    price = if inst.limits.price.min > 0 && o.price < inst.limits.price.min
-        inst.limits.price.min
-    else
-        round(o.price; digits=inst.precision.price)
-    end
-    o = setproperties(o; price, amount)
-    @assert o.price * o.amount >= inst.limits.cost.min "The cost of the order ($(o.asset)) \
+    return (sanitized_price, sanitized_amount)
+end
+
+function check_cost(inst::AssetInstance, price, amount)
+    @assert price * amount >= inst.limits.cost.min "The cost of the order ($(inst.asset)) \
         is below market minimum of $(inst.limits.cost.min)"
+end
+
+@doc "Ensures the order respect the minimum limits (not the maximum!) and precision for the market."
+function sanitize_order(inst::AssetInstance{A, E}, o::Order{A, E})::Option{Order{A, E}} where {A, E}
+    (price, amount) = sanitize_price_amount(inst, o.price, o.amount)
+    o = setproperties(o; price, amount)
+    check_cost(inst, o.price, o.amount)
     return o
 end
 

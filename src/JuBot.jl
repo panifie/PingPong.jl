@@ -7,6 +7,7 @@ using Python
     @async eval(:(using $m))
 end
 include("repl.jl")
+include("orders.jl")
 
 function __init__()
     if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
