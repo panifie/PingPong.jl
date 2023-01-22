@@ -39,11 +39,13 @@ jobs:
       run: |
         git submodule init; git submodule update
         sudo apt-get install -y xvfb xauth
-        # FIXME: this has to be done before precompilation
+        # FIXME
         [ -e ~/.cache/JuBot.jl/data ] && rm -r ~/.cache/JuBot.jl/data
         xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
     - name: Build docs
       run: |
+        # FIXME
+        [ -e ~/.cache/JuBot.jl/data ] && rm -r ~/.cache/JuBot.jl/data
         julia --project=. docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v2
