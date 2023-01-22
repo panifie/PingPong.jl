@@ -40,6 +40,7 @@ struct Order1{A<:Asset,E<:ExchangeID,OrderKind}
     asset::A
     exc::ExchangeID
     kind::OrderKind
+    price::Float64
     amount::Float64
     date::DateTime
     Order1(a::A, e::E, k::OrderKind, amount) where {A<:Asset,E<:ExchangeID} = begin

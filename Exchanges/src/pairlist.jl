@@ -115,25 +115,29 @@ ticker!(pair::AbstractString, exc::Exchange) =
     @lget! tickersCache1Min pair exc.py.fetchTicker(pair)
 
 @doc "Precision of the (base, quote) currencies of the market."
-function pair_precision(pair::AbstractString, exc::Exchange=exc)
-    info = exc.markets[pair]["info"]
-    base_str = pyconvert(String, info[@pystr("baseIncrement")])
-    quot_str = pyconvert(String, info[@pystr("quoteIncrement")])
-    baseNum = split(base_str, ".")[2] |> length |> UInt8
-    quotNum = split(quot_str, ".")[2] |> length |> UInt8
-    (; b=baseNum, q=quotNum)
+function market_precision(pair::AbstractString, exc::Exchange=exc)
+    mkt = exc.markets[pair]["precision"]
+    p_amount = pyconvert(Int, @py mkt["amount"])
+    p_price = pyconvert(Int, @py mkt["price"])
+    (; amount=p_amount, price=p_price)
 end
 
-@inline function py_str_to_float(py::Py)
-    pyconvert(String, py) |> x -> Base.parse(Float64, x)
+py_str_to_float(n::Real) = n
+function py_str_to_float(py::Py)
+    (x -> Base.parse(Float64, x))(pyconvert(String, py))
 end
 
-@doc "Minimum order size of the (base, quote) currencies of the market."
-function pair_min_size(pair::AbstractString, exc::Exchange=exc)
-    info = exc.markets[pair]["info"]
-    base = py_str_to_float(info[@pystr("baseMinSize")])
-    quot = py_str_to_float(info[@pystr("quoteMinSize")])
-    (; b=base, q=quot)
+@doc "Minimum order size of the of the market."
+function market_limits(pair::AbstractString, exc::Exchange=exc)
+    mkt = exc.markets[pair]["limits"]
+    (;
+        (
+            Symbol(l) => (;
+                min=pyconvert(Float64, (@py get(mkt[l], "min", 0.0))),
+                max=pyconvert(Float64, (@py get(mkt[l], "max", 0.0))),
+            ) for l in ("leverage", "amount", "price", "cost")
+        )...
+    )
 end
 
 function is_pair_active(pair::AbstractString, exc::Exchange=exc)
