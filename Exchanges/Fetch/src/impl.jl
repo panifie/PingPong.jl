@@ -16,7 +16,6 @@ using Misc: empty_ohlcv, _instantiate_workers, config, DATA_PATH, ohlcv_limits, 
 using Python
 using TimeTicks
 @debug using TimeTicks: dt
-using Dates: Millisecond, now
 using Pbar
 using Processing: cleanup_ohlcv_data, is_last_complete_candle
 
@@ -215,10 +214,11 @@ function fetch_ohlcv(::Val{:ask}, args...; kwargs...)
 end
 
 @doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
+
 It accepts:
-    - a mapping of exchange instances to pairlists.
-    - a vector of symbols for which an exchange instance will be instantiated for each element,
-      and pairlist will be composed according to quote currency and min_volume from `JuBot.config`.
+- a mapping of exchange instances to pairlists.
+- a vector of symbols for which an exchange instance will be instantiated for each element,
+    and pairlist will be composed according to quote currency and min_volume from `JuBot.config`.
 """
 function fetch_ohlcv(
     excs::Vector{Exchange}, timeframe; parallel=false, wait_task=false, kwargs...
@@ -243,6 +243,12 @@ function fetch_ohlcv(
     t
 end
 
+@doc """Fetch ohlcv data from exchange for a list of pairs.
+- `from`, `to`: Can represent a date. A negative `from` number implies fetching the last N=`from` candles.
+- `update`: If true, will check for cached data, and fetch only missing candles. (`false`)
+- `progress`: if true, show a progress bar. (`true`)
+- `reset`: if true, will remove cached data before fetching. (`false`)
+"""
 function fetch_ohlcv(
     exc::Exchange,
     timeframe::AbstractString,

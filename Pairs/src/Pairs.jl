@@ -4,6 +4,16 @@ struct Cash3{T}
     value::Vector{Float64}
     Cash3(s::Symbol, val::Real) = new{s}([val])
 end
+
+@doc """A variable quantity of some currency.
+
+> ca = c"USDT"
+> typeof(ca)
+Pairs.Cash{:USDT}
+
+"""
+Cash = Cash3
+Base.hash(c::Cash, h::UInt) = hash(c.name, h)
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
 getproperty(c::C, s::Symbol) where C<:Cash = begin
     if s === :value
@@ -39,6 +49,21 @@ include("consts.jl")
 has_punct(s::AbstractString) = !isnothing(match(r"[[:punct:]]", s))
 abstract type AbstractAsset end
 
+@doc """An `Asset` represents a parsed raw (usually ccxt) pair of base and quote currency.
+
+- `raw`: The raw underlying string e.g. 'BTC/USDT'
+- `bc`: base currency (Symbol)
+- `qc`: quote currency (Symbol)
+- `fiat`: if both the base and quote currencies match a known fiat symbol e.g. 'USDT/USDC'
+- `leveraged`: if parsing matched a leveraged token e.g. 'ETH3L/USDT' or 'ETH3S/USDT'
+- `unleveraged_bc`: a leveraged token with the `mod` removed, e.g. `ETH3L` => `ETH`
+
+```julia
+> asset = a"BTC/USDT"
+> typeof(asset)
+Asset{:BTC, :USDT}
+end
+"""
 struct Asset{B,Q} <: AbstractAsset
     raw::SubString
     bc::BaseCurrency
@@ -124,7 +149,7 @@ macro a_str(pair)
     :($(Asset(pair)))
 end
 
-export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str
+export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str
 include("derivatives.jl")
 
 end # module Pairs

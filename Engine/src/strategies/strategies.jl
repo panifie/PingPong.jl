@@ -12,6 +12,22 @@ using ..LiveOrders
 using Pairs
 using TimeTicks
 
+struct Strategy42{M,E,C}
+    universe::AssetCollection
+    balances::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
+    orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
+    cash::Cash{C}
+    config::Config
+    Strategy42(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
+        exc = getexchange!(config.exchange)
+        uni = AssetCollection(assets; exc)
+        ca = Cash(config.qc, config.initial_cash)
+        eid = typeof(exc.id)
+        pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+        orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+        new{src,exc.id, config.qc}(uni, pf, orders, ca, config,)
+    end
+end
 @doc """The strategy is the core type of the framework.
 
 The strategy type is concrete according to:
@@ -20,28 +36,12 @@ The strategy type is concrete according to:
 - Quote cash (Symbol), read from config
 The exchange and the quote cash should be specified from the config, or the strategy module.
 
-- universe: All the assets that the strategy knows about
-- portfolio: assets with open orders or non zero balance.
-- orders: all active orders
-- cash: the quote currency used for trades
+- `universe`: All the assets that the strategy knows about
+- `balances`: assets with open orders or non zero balance.
+- `orders`: all active orders
+- `cash`: the quote currency used for trades
 """
-struct Strategy37{M,E,C}
-    universe::AssetCollection
-    portfolio::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
-    orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
-    cash::Cash{C}
-    config::Config
-    Strategy37(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
-        exc = getexchange!(config.exchange)
-        uni = AssetCollection(assets; exc)
-        ca = Cash(config.qc, config.initial_cash)
-        eid = typeof(exc.id)
-        pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-        orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-        new{src,exc.id,config.qc}(uni, pf, orders, ca, config,)
-    end
-end
-Strategy = Strategy37
+Strategy = Strategy42
 
 @doc "Clears all orders history from strategy."
 clearorders!(strat::Strategy) = begin
@@ -116,8 +116,8 @@ Base.display(strat::Strategy) = begin
         write(out, "Universe:\n")
         write(out, string(Collections.prettydf(strat.universe)))
         write(out, "\n")
-        write(out, "Portfolio:\n")
-        write(out, string(strat.portfolio))
+        write(out, "Balances:\n")
+        write(out, string(strat.balances))
         write(out, "\n")
         write(out, "Orders:\n")
         write(out, string(strat.orders))
