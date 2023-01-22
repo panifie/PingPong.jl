@@ -2,28 +2,35 @@ using Misc: config
 
 @inline function qid(v)
     k = keys(v)
-    "quoteId" ∈ k ? v["quoteId"] : "quote" ∈ k ? v["quote"] : false
+    if "quoteId" ∈ k
+        v["quoteId"]
+    elseif "quote" ∈ k
+        v["quote"]
+    else
+        false
+    end
 end
 @inline is_qmatch(id, q) = lowercase(id) === q
 get_pairs(args...; kwargs...) = keys(get_pairlist(args...; kwargs...))
-get_pairlist(quot::Symbol, args...; kwargs...) =
-    get_pairlist(exc, quot, args...; kwargs...)
-get_pairlist(
+get_pairlist(quot::Symbol, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
+function get_pairlist(
     exc::Exchange=exc,
     quot::Symbol=config.qc,
     min_vol::T where {T<:AbstractFloat}=config.vol_min;
-    kwargs...
-) = begin
-    get_pairlist(exc, string(quot), convert(Float64, min_vol); kwargs...)
+    kwargs...,
+)
+    begin
+        get_pairlist(exc, string(quot), convert(Float64, min_vol); kwargs...)
+    end
 end
 
 @doc """Get the exchange pairlist.
-`quot`: Only choose pairs where the quot currency equals `quot`.
-`min_vol`: The minimum volume of each pair.
-`skip_fiat`: Ignore fiat/fiat pairs.
-`margin`: Only choose pairs enabled for margin trading.
-`leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
-`as_vec`: Returns the pairlist as a Vector instead of as a Dict.
+- `quot`: Only choose pairs where the quot currency equals `quot`.
+- `min_vol`: The minimum volume of each pair.
+- `skip_fiat`: Ignore fiat/fiat pairs.
+- `margin`: Only choose pairs enabled for margin trading.
+- `leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
+- `as_vec`: Returns the pairlist as a Vector instead of as a Dict.
 """
 function get_pairlist(
     exc::Exchange,
@@ -33,7 +40,7 @@ function get_pairlist(
     margin=config.margin,
     futures=config.futures,
     leveraged=config.leverage,
-    as_vec=false
+    as_vec=false,
 )::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers
@@ -48,9 +55,11 @@ function get_pairlist(
     end
 
     tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
-    push_fun =
-        isempty(quot) ? (p, k, v) -> push!(p, tup_fun(k, v)) :
+    push_fun = if isempty(quot)
+        (p, k, v) -> push!(p, tup_fun(k, v))
+    else
         (p, k, v) -> is_qmatch(qid(v), lquot) && push!(p, tup_fun(k, v))
+    end
     # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
     # they have a leveraged counterpart
     local hasleverage
@@ -74,11 +83,11 @@ function get_pairlist(
         k = as_spot_ticker(k, v)
         lev = is_leveraged_pair(k)
         if (leveraged === :no && lev) ||
-           (leveraged === :only && !lev) ||
-           !hasleverage(k) ||
-           (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
-           (skip_fiat && is_fiat_pair(k)) ||
-           (margin && !isnothing(get(v, "margin", nothing)) && !v["margin"])
+            (leveraged === :only && !lev) ||
+            !hasleverage(k) ||
+            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
+            (skip_fiat && is_fiat_pair(k)) ||
+            (margin && !isnothing(get(v, "margin", nothing)) && !v["margin"])
             continue
         else
             push_fun(pairlist, k, v)
@@ -108,11 +117,13 @@ const marketsCache1Min = TTL{String,Py}(Minute(1))
 const tickersCache1MIn = TTL{String,Py}(Minute(1))
 const activeCache1Min = TTL{String,Bool}(Minute(1))
 @doc "Retrieves a cached market (1minute) or fetches it from exchange."
-market!(pair::AbstractString, exc::Exchange=exc) =
+function market!(pair::AbstractString, exc::Exchange=exc)
     @lget! marketsCache1Min pair exc.py.market(pair)
+end
 
-ticker!(pair::AbstractString, exc::Exchange) =
+function ticker!(pair::AbstractString, exc::Exchange)
     @lget! tickersCache1Min pair exc.py.fetchTicker(pair)
+end
 
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange=exc)
@@ -140,10 +151,12 @@ function market_limits(pair::AbstractString, exc::Exchange=exc)
     )
 end
 
+@doc ""
 function is_pair_active(pair::AbstractString, exc::Exchange=exc)
     @lget! activeCache1Min pair begin
         pyconvert(Bool, market!(pair)["active"])
     end
 end
 
-pair_fees(pair::AbstractString, exc::Exchange=exc) = exc.markets[pair]["taker"]::Float64
+@doc "Taker fees for market."
+market_fees(pair::AbstractString, exc::Exchange=exc) = exc.markets[pair]["taker"]::Float64
