@@ -1,4 +1,4 @@
-module Pairs
+module Instruments
 
 struct Cash3{T}
     value::Vector{Float64}
@@ -9,7 +9,7 @@ end
 
 > ca = c"USDT"
 > typeof(ca)
-Pairs.Cash{:USDT}
+Instruments.Cash{:USDT}
 
 """
 Cash = Cash3
@@ -152,4 +152,4 @@ end
 export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str
 include("derivatives.jl")
 
-end # module Pairs
+end # module Instruments

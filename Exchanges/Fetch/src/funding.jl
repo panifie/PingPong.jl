@@ -1,6 +1,6 @@
-using Pairs
+using Instruments
 using TimeTicks
-using Pairs.Derivatives
+using Instruments.Derivatives
 using ExchangeTypes: exc
 using Python: PyDict
 

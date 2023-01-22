@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "d313bd3debf8746575439f09f7dd995d9f000e32"
+project_hash = "94e55fd542bbb6cc1bfebe83cc6039f567d92692"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -246,6 +246,12 @@ git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 version = "0.5.1"
 
+[[deps.Instruments]]
+deps = ["Misc"]
+path = "../Instruments"
+uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
+version = "0.1.0"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -462,12 +468,6 @@ version = "1.1.19+0"
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
-
-[[deps.Pairs]]
-deps = ["Misc"]
-path = "../Pairs"
-uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-version = "0.1.0"
 
 [[deps.Parsers]]
 deps = ["Dates", "SnoopPrecompile"]

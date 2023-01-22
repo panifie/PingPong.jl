@@ -1,7 +1,7 @@
 module Orders
 using Misc: Candle, config
 using TimeTicks
-using Pairs
+using Instruments
 using ExchangeTypes
 using Lang: Lang, @exportenum
 

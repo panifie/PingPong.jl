@@ -7,7 +7,7 @@ using TimeTicks
 # using ..Collections
 using ..Instances
 using Data.DFUtils
-using Pairs
+using Instruments
 using Data.DFUtils
 
 @doc """ A Simple Estimation of Bid Ask spread

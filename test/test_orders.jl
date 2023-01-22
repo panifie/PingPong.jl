@@ -2,7 +2,7 @@ using Test
 
 function _test_orders_1()
     @eval setexchange!(:kucoinfutures)
-    @eval using Pairs
+    @eval using Instruments
     @eval using JuBot.Engine: Orders, Instances
     @eval using JuBot.Exchanges
     @eval using .Orders;

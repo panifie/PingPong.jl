@@ -9,7 +9,7 @@ using DataStructures: SortedDict
 using TimeTicks
 using Misc: Iterable
 using ExchangeTypes
-using Pairs
+using Instruments
 using ..Instances
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
@@ -54,7 +54,7 @@ AssetCollectionColumns = AssetCollectionColumns4
 const AssetCollectionRow =
     @NamedTuple{exchange::ExchangeID, asset::Asset, instance::AssetInstance}
 
-using Pairs: isbase, isquote
+using Instruments: isbase, isquote
 Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange.==i, :]
 Base.getindex(pf::AssetCollection, i::Asset) = @view pf.data[pf.data.asset.==i, :]
 Base.getindex(pf::AssetCollection, i::String) = @view pf.data[pf.data.asset.==i, :]

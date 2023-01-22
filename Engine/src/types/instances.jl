@@ -9,7 +9,7 @@ using Data.DFUtils: daterange, timeframe
 using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
-using Pairs
+using Instruments
 using Misc: config
 using Processing
 using Reexport

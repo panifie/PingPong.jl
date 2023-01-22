@@ -8,7 +8,7 @@ using Ccxt
 using ExchangeTypes: OptionsDict, exc
 using JSON
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
-using Pairs
+using Instruments
 using Python
 using Python.PythonCall: pycopy!, pyisnone
 using Serialization: deserialize, serialize

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "2b2bb5b12193265e1e309ae830980cc4eb81d3bc"
+project_hash = "218b3e4527a5492e80f97fc3637185a30348ba16"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -392,7 +392,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Exchanges", "LRUCache", "Lang", "Misc", "OrderedCollections", "Pairs", "Pkg", "Processing", "Reexport", "Temporal", "TimeFrames", "TimeTicks"]
+deps = ["Accessors", "Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Exchanges", "Instruments", "LRUCache", "Lang", "Misc", "OrderedCollections", "Pkg", "Processing", "Reexport", "Temporal", "TimeFrames", "TimeTicks"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -420,7 +420,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
+deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
 path = "./Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -461,7 +461,7 @@ uuid = "fa42c844-2597-5d31-933b-ebd51ab2693f"
 version = "0.3.1"
 
 [[deps.Fetch]]
-deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
+deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Instruments", "Lang", "Misc", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
 path = "Exchanges/Fetch"
 uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 version = "0.1.0"
@@ -559,6 +559,12 @@ version = "0.8.2"
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 version = "0.5.1"
+
+[[deps.Instruments]]
+deps = ["Misc"]
+path = "Instruments"
+uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
+version = "0.1.0"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -881,12 +887,6 @@ deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
 git-tree-sha1 = "cf494dca75a69712a72b80bc48f59dcf3dea63ec"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.16"
-
-[[deps.Pairs]]
-deps = ["Misc"]
-path = "Pairs"
-uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-version = "0.1.0"
 
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]

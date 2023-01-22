@@ -4,12 +4,12 @@ using Dates: DateTime
 using ExchangeTypes
 using Exchanges: getexchange!
 using Misc: Config, config, Iterable, Candle
-using Pairs: Asset, Cash
+using Instruments: Asset, Cash
 using ..Collections
 using ..Instances
 using ..Orders
 using ..LiveOrders
-using Pairs
+using Instruments
 using TimeTicks
 
 struct Strategy42{M,E,C}

@@ -1,6 +1,6 @@
 module MacdStrategy
 using Engine
-using Pairs
+using Instruments
 using ExchangeTypes
 using Misc: config
 

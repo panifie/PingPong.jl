@@ -4,7 +4,7 @@ using Misc: Candle
 using ExchangeTypes
 using ..Instances: AssetInstance
 using TimeTicks
-using Pairs
+using Instruments
 using ..Orders
 
 @doc """ Live orders can hold additional info about live execution. They are short lived

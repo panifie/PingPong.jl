@@ -206,7 +206,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
+deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Instruments", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -228,7 +228,7 @@ uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 version = "1.1.0"
 
 [[deps.Fetch]]
-deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
+deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Instruments", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
 path = "../Exchanges/Fetch"
 uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 version = "0.1.0"
@@ -498,9 +498,9 @@ git-tree-sha1 = "68cd7e4e645fbfe72a906fdafd6838b308e4d148"
 uuid = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 version = "2.1.2"
 
-[[deps.Pairs]]
+[[deps.Instruments]]
 deps = ["Misc"]
-path = "../Pairs"
+path = "../Instruments"
 uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 version = "0.1.0"
 

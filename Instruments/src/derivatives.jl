@@ -1,6 +1,6 @@
 module Derivatives
-using ..Pairs
-using ..Pairs: FULL_SYMBOL_GROUPS_REGEX
+using ..Instruments
+using ..Instruments: FULL_SYMBOL_GROUPS_REGEX
 
 @doc "A symbol parsed as settlement currency."
 const SettlementCurrency = Symbol
@@ -13,7 +13,7 @@ end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
 
-@doc """Derivative parsed accordingly to [`Pairs.FULL_SYMBOL_GROUPS_REGEX`](@ref)."""
+@doc """Derivative parsed accordingly to [`Instruments.FULL_SYMBOL_GROUPS_REGEX`](@ref)."""
 struct Derivative2{A<:Asset} <: AbstractAsset
     asset::A
     sc::SettlementCurrency

@@ -2,16 +2,11 @@ module JuBot
 
 Base.Experimental.@compiler_options optimize = 1 compile = min
 
-using Requires
-using Misc
-using Data
-using ExchangeTypes
-using Exchanges
-
-# include("exchanges/feed.jl")
+using Python
+@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine).args
+    @async eval(:(using $m))
+end
 include("repl.jl")
-
-using Engine
 
 function __init__()
     if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
