@@ -29,24 +29,7 @@ test_aqua() = @testset "aqua" begin
     Aqua.test_undefined_exports(pkg)
 end
 
-test_exch() = @test setexchange!(:kucoin).name == "KuCoin"
-
-test_exchanges() = @testset "exchanges" begin
-    test_exch()
-    @test begin
-        getexchange!(:kucoin)
-        :kucoin ∈ keys(ExchangeTypes.exchanges)
-    end
-    @test begin
-        @eval begin
-            using JuBot.Exchanges: get_pairs
-            const getpairs = JuBot.Exchanges.get_pairs
-            prs = getpairs()
-        end
-        length(prs) > 0
-    end
-end
-
+include("test_exchanges.jl")
 include("test_collections.jl")
 
 test_strategy() = @testset "strategy" begin
@@ -62,6 +45,7 @@ end
 include("test_derivatives.jl")
 include("test_time.jl")
 include("test_ohlcv.jl")
+include("test_orders.jl")
 test_map = Dict(
     :aqua => [test_aqua],
     :exchanges => [test_exchanges],
