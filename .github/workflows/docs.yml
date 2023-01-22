@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.8
+      JULIA_VERSION: 1.9
 
     steps:
     - uses: actions/checkout@v2
@@ -39,22 +39,22 @@ jobs:
       run: |
         git submodule init; git submodule update
         sudo apt-get install -y xvfb xauth
+        # FIXME: this has to be done before precompilation
+        [ -e ~/.cache/JuBot.jl/data ] && rm -r ~/.cache/JuBot.jl/data
         xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
     - name: Build docs
       run: |
-        [ -e ~/.cache/JuBot.jl/data ] && rm -r ~/.cache/JuBot.jl/data # FIXME
         julia --project=. docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v2
       with:
         ref: gh-pages
-        path: docs
+        path: ghpages
     - name: Deploy docs
       run: |
-        mv docs/build ./
-        cd docs
+        cd ghpages
         rm -rf ./*
-        cp -r ../build/* .
+        cp -r ../docs/build/* .
         git add .
         git config --local user.email "github-actions@users.noreply.github.com"
         git config --local user.name "GitHub Actions"
