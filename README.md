@@ -22,7 +22,15 @@ import Pkg; Pkg.instantiate()
 ```
 
 ## Troubleshooting
-If python complains about missing dependencies, while in the julia REPL, with this repository as the activated project, do this:
+
+- A repo update might have added some dependencies. If there are problems with precompilation ensure all the packages are resolved.
+
+```julia
+include("resolve.jl")
+recurse_projects() # optional ;update=true
+```
+
+- If python complains about missing dependencies, while in the julia REPL, with this repository as the activated project, do this:
 ```julia
 ; find ./ -name .CondaPkg | xargs -I {} rm -r {} # Delete existing conda environments
 using Python # Loads our python wrapper around CondaPkg which fixes `PYTHONPATH` env var
