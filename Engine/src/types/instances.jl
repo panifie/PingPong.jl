@@ -1,15 +1,16 @@
 module Instances
 
-using TimeFrames: AbstractTimePeriodFrame
 using TimeTicks: TimeFrames
 using ExchangeTypes
-using Exchanges: pair_fees, pair_min_size, pair_precision, is_pair_active, getexchange!
+using ExchangeTypes: exc
+using Exchanges: market_fees, market_limits, market_precision, is_pair_active, getexchange!
 using Data: load, zi
 using Data.DFUtils: daterange, timeframe
 using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
 using Pairs
+using Misc: config
 using Processing
 using Reexport
 using ..Orders
@@ -26,7 +27,7 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost), NTuple{4, MM}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance24{T<:AbstractAsset, E<:ExchangeID}
+struct AssetInstance26{T<:AbstractAsset, E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{Order{T, E}}}
@@ -35,25 +36,25 @@ struct AssetInstance24{T<:AbstractAsset, E<:ExchangeID}
     limits::Limits
     precision::NamedTuple{(:amount, :price), Tuple{Int, Int}}
     fees::Float64
-    AssetInstance24(a::T, data, e::Exchange{I}) where {T<:Asset, I<:ExchangeID} = begin
+    AssetInstance26(a::T, data, e::Exchange{I}) where {T<:Asset, I<:ExchangeID} = begin
         limits = market_limits(a.raw, e)
         precision = market_precision(a.raw, e)
-        fees = pair_fees(a.raw, e)
+        fees = market_fees(a.raw, e)
         new{T, I}(a, data, Trade{Order{T, I}}[], Float64[0], e, limits, precision, fees)
     end
-    AssetInstance24(a::A, args...; kwargs...) where A<:AbstractAsset = begin
-        AssetInstance24(a.asset, args...; kwargs...)
+    AssetInstance26(a::A, args...; kwargs...) where A<:AbstractAsset = begin
+        AssetInstance26(a.asset, args...; kwargs...)
     end
-    AssetInstance24(s::S, t::S, e::S) where {S<:AbstractString} = begin
+    AssetInstance26(s::S, t::S, e::S) where {S<:AbstractString} = begin
         a = Asset(s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance24(a, data, exc)
+        AssetInstance26(a, data, exc)
     end
-    AssetInstance24(s, t) = AssetInstance24(s, t, exc)
+    AssetInstance26(s, t) = AssetInstance26(s, t, exc)
 end
-AssetInstance = AssetInstance24
+AssetInstance = AssetInstance26
 
 function instance(a::AbstractAsset)
     data = Dict()
@@ -63,13 +64,12 @@ function instance(a::AbstractAsset)
     end
     AssetInstance(a, data, exc)
 end
-AssetInstance = AssetInstance20
 
 @doc "Load ohlcv data of asset instance."
 load!(a::AssetInstance; reset=true) = begin
     for (tf, df) in a.data
         reset && empty!(df)
-        loaded = load(zi, a.exchange.name, a.raw, tf)
+        loaded = load(zi, a.exchange.name, a.raw, name(tf))
         append!(df, loaded)
     end
 end
@@ -127,5 +127,5 @@ function Base.fill!(i::AssetInstance, tfs...)
     end
 end
 
-export AssetInstance, isactive, load!, last_candle
+export AssetInstance, isactive, instance, load!, last_candle
 end
