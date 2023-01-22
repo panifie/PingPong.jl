@@ -70,7 +70,8 @@ test_map = Dict(
     :backtest => [test_exch, test_backtest],
     :derivatives => [test_derivatives],
     :time => [test_time],
-    :ohlcv => [test_ohlcv]
+    :ohlcv => [test_ohlcv],
+    :orders => [test_orders]
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS
