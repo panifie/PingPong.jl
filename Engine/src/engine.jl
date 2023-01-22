@@ -9,6 +9,7 @@ include("types/types.jl")
 include("live/live.jl")
 include("strategies/strategies.jl");
 include("sim/sim.jl")
+include("checks/checks.jl")
 
 @reexport using .Strategies;
 using .Strategies
