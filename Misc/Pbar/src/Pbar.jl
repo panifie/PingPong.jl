@@ -3,7 +3,7 @@ module Pbar
 
 using Python
 using Python.PythonCall: pynew, keys, pyisnull, pycopy!
-using Dates: now, Millisecond, Second
+using TimeTicks: now, Millisecond, Second
 
 const min_delta = Ref(Millisecond(0))
 const queued_counter = Ref(0)

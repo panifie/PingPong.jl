@@ -1,8 +1,8 @@
 import Base.getproperty
 
 using Reexport
+using TimeTicks
 using DataFrames: DataFrame
-using Dates: Day, Minute, Period, now
 using Ccxt
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc
@@ -13,7 +13,6 @@ using Python
 using Python.PythonCall: pycopy!, pyisnone
 using Serialization: deserialize, serialize
 using TimeToLive: TTL
-using Accessors
 
 const exclock = ReentrantLock()
 const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
@@ -230,9 +229,13 @@ issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.url
 @doc "Enable or disable rate limit."
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
 
+timestamp(exc::Exchange) = pyconvert(Int64, exc.py.fetchTime())
+Base.time(exc::Exchange) = pyconvert(Float64, exc.py.fetchTime()) |> dt
+
 include("pairlist.jl")
 include("data.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, get_pairlist, get_pairs
 export sandbox!, issandbox, ratelimit!
+export timestamp

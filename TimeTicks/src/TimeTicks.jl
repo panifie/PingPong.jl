@@ -9,6 +9,9 @@ using Base.Meta: parse
 
 include("consts.jl")
 
+@doc "Exported `Dates.now(UTC)` to avoid inadvertently calling now() which defaults to system timezone."
+now() = Dates.now(UTC)
+
 # ccxt always uses milliseconds in timestamps
 tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
 
@@ -210,6 +213,7 @@ end
 @doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
 available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
 
+
 export @as_td,
     @tf_str,
     @dt_str,
@@ -223,7 +227,8 @@ export @as_td,
     @infertf,
     dtfloat,
     name,
-    available
+    available,
+    now
 
 include("daterange.jl")         #
 

@@ -1,5 +1,5 @@
 using DataFramesMeta
-using Dates: Period, now, UTC
+using TimeTicks: Period, now
 using TimeTicks
 using Misc: Candle
 using Data: to_ohlcv
@@ -92,7 +92,7 @@ end
 
 @doc "Checks if a candle timestamp is too new."
 @inline function is_incomplete_candle(ts::F, td::F) where {F<:AbstractFloat}
-    nw = timefloat(now(UTC))
+    nw = timefloat(now())
     ts + td > nw
 end
 

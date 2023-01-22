@@ -1,6 +1,5 @@
 module Orders
-using Dates: DateTime, Period
-using Misc: Candle
+using Misc: Candle, config
 using TimeTicks
 using Pairs
 using ExchangeTypes
