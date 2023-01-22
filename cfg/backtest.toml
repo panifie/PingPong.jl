@@ -1,4 +1,6 @@
 [kucoin]
+futures = false
+[kucoinfutures]
 futures = true
 [binance]
 leveraged = "from"

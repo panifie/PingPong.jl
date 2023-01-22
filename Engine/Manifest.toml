@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "d03ffcb44a9beb29c35415b6b6ab031dd8ae8c0b"
+project_hash = "1af687611c2765593cf7a760929764b4e41cc16a"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -194,7 +194,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
+deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Pairs", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -482,7 +482,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.2"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "Python"]
+deps = ["Dates", "Misc", "Python", "TimeTicks"]
 path = "../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"

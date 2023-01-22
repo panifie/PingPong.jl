@@ -453,7 +453,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "Python"]
+deps = ["Dates", "Misc", "Python", "TimeTicks"]
 path = "../../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "f0bea164d6dac1423da78e71c9113b4607756057"
+project_hash = "6cb51626155aa8e5f092e0c01c885057035e0163"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -453,7 +453,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "Python"]
+deps = ["Dates", "Misc", "Python", "TimeTicks"]
 path = "../../../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"

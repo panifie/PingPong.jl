@@ -29,7 +29,7 @@ uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.4.0"
 
 [[deps.Analysis]]
-deps = ["CausalityTools", "Data", "DataFrames", "DataFramesMeta", "EffectSizes", "ExchangeTypes", "Indicators", "LegibleLambdas", "Logging", "Misc", "ProgressMeter", "Requires", "StatsBase", "StatsModels", "Temporal"]
+deps = ["CausalityTools", "Data", "DataFrames", "DataFramesMeta", "EffectSizes", "ExchangeTypes", "Indicators", "LegibleLambdas", "Logging", "Misc", "ProgressMeter", "Requires", "StatsBase", "StatsModels", "Temporal", "TimeTicks"]
 path = "../Analysis"
 uuid = "d4fe19c2-883d-48d3-92d7-80b36677371b"
 version = "0.1.0"

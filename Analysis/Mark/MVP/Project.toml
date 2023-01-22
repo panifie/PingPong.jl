@@ -4,6 +4,7 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
+Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"

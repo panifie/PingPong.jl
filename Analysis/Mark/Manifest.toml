@@ -334,7 +334,7 @@ version = "0.3.19"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[deps.Long]]
-deps = ["DataFramesMeta", "Indicators", "MVP", "Misc", "Processing", "Short"]
+deps = ["Data", "DataFramesMeta", "Indicators", "MVP", "Misc", "Processing", "Short"]
 path = "Long"
 uuid = "4332194b-c649-4273-a126-4843709b406e"
 version = "0.1.0"
@@ -346,7 +346,7 @@ uuid = "5ced341a-0733-55b8-9ab6-a4889d929147"
 version = "1.9.3+0"
 
 [[deps.MVP]]
-deps = ["DataFrames", "Misc", "Statistics"]
+deps = ["Data", "DataFrames", "Misc", "Statistics"]
 path = "MVP"
 uuid = "979b01cd-db89-4249-a98e-f526d6a7ff63"
 version = "0.1.0"
@@ -430,7 +430,7 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.1"
 
 [[deps.Pbar]]
-deps = ["Dates", "Misc", "Python"]
+deps = ["Dates", "Misc", "Python", "TimeTicks"]
 path = "../../Misc/Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"
@@ -535,7 +535,7 @@ version = "1.1.1"
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[deps.Short]]
-deps = ["DataFrames", "DataFramesMeta", "Misc", "Processing", "Statistics"]
+deps = ["Data", "DataFrames", "DataFramesMeta", "Misc", "Processing", "Statistics"]
 path = "Short"
 uuid = "669a2027-c4b8-428d-ba58-693007de5487"
 version = "0.1.0"
