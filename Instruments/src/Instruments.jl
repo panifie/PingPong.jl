@@ -119,9 +119,8 @@ const leverage_pair_rgx =
     r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
-@inline is_leveraged_pair(pair) = !isnothing(match(leverage_pair_rgx, pair))
-
-@inline split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
+is_leveraged_pair(pair) = !isnothing(match(leverage_pair_rgx, pair))
+split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
 
 @doc "Remove leveraged pair pre/suffixes from base currency."
 @inline function deleverage_pair(pair::T; split=false, sep="/") where {T<:AbstractString}
@@ -134,16 +133,15 @@ const leverage_pair_rgx =
     split ? dlv : join(dlv, sep)
 end
 
-@inline deleverage_qc(dlv::Vector{T}) where {T<:AbstractString} =
-    deleverage_pair(dlv; split=true)[1]
+deleverage_qc(dlv::Vector{T}) where {T<:AbstractString} = deleverage_pair(dlv; split=true)[1]
 deleverage_qc(pair::AbstractString) = deleverage_pair(pair; split=true)[1]
 
 @doc "Check if both base and quote are fiat currencies."
-@inline is_fiat_pair(b::T, q::T) where {T<:AbstractString} = begin
+is_fiat_pair(b::T, q::T) where {T<:AbstractString} = begin
     b ∈ fiatnames && q ∈ fiatnames
 end
-@inline is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
-@inline is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
+is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
+is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
 
 macro a_str(pair)
     :($(Asset(pair)))
