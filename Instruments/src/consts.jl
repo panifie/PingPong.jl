@@ -16,8 +16,8 @@ const fiatnames = Set([
     "USDJ"
 ])
 
-@doc """[From CCTX](https://docs.ccxt.com/en/latest/manual.html#option)"""
 const DEFAULT_MARKET_SEPARATOR = raw"/"
 const ALL_MARKET_SEPARATORS = raw"/\-_."
 const SETTLEMENT_SEPARATOR = raw":"
+@doc """[From CCTX](https://docs.ccxt.com/en/latest/manual.html#option)"""
 const FULL_SYMBOL_GROUPS_REGEX = Regex("([^$(ALL_MARKET_SEPARATORS)]+)[$(ALL_MARKET_SEPARATORS)]([^:]*):?([^-]*)-?([^-]*)-?([^-]*)-?([^-]*)")

@@ -7,9 +7,11 @@ end
 
 @doc """A variable quantity of some currency.
 
+```julia
 > ca = c"USDT"
 > typeof(ca)
-Instruments.Cash{:USDT}
+# Instruments.Cash{:USDT}
+```
 
 """
 Cash = Cash3
@@ -63,6 +65,7 @@ abstract type AbstractAsset end
 > typeof(asset)
 Asset{:BTC, :USDT}
 end
+```
 """
 struct Asset{B,Q} <: AbstractAsset
     raw::SubString
@@ -79,15 +82,14 @@ struct Asset{B,Q} <: AbstractAsset
         unlev = deleverage_pair(s; split=true)[1]
         new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
     end
-    Asset(s::AbstractString) = begin
-        pair = split_pair(s)
-        if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
-            throw(InexactError(:Asset, Asset, s))
-        end
-        Asset(SubString(s, 1, length(s)), pair[1], pair[2])
-    end
 end
-
+function Base.parse(::Type{Asset}, s::AbstractString)
+    pair = split_pair(s)
+    if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
+        throw(InexactError(:Asset, Asset, s))
+    end
+    Asset(SubString(s, 1, length(s)), pair[1], pair[2])
+end
 Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.display(a::AbstractAsset) = Base.display(a.raw)
@@ -144,7 +146,7 @@ is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
 is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
 
 macro a_str(pair)
-    :($(Asset(pair)))
+    :($(parse(Asset, pair)))
 end
 
 export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str

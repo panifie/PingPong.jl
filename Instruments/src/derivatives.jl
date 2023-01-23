@@ -4,6 +4,7 @@ using ..Instruments: FULL_SYMBOL_GROUPS_REGEX
 
 @doc "A symbol parsed as settlement currency."
 const SettlementCurrency = Symbol
+@doc "Differentiates between perpetuals and options."
 @enum DerivativeKind Unkn Call Put
 parse_option(s::AbstractString) = begin
     s == "C" && return Call
@@ -13,20 +14,24 @@ end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
 
-@doc """Derivative parsed accordingly to [`Instruments.FULL_SYMBOL_GROUPS_REGEX`](@ref)."""
+@doc """Derivative parsed accordingly to [`Instruments.FULL_SYMBOL_GROUPS_REGEX`](@ref).
+
+- `asset`: The underlying asset.
+- `sc`: settlement currency.
+- `id`: identifier of the contract (the date).
+- `strike`: strike price.
+- `kind`: [`Instruments.Derivatives.DerivativeKind`](@ref)
+"""
 struct Derivative2{A<:Asset} <: AbstractAsset
     asset::A
     sc::SettlementCurrency
     id::SubString
     strike::Float64
     kind::DerivativeKind
-    Derivative2(a::A, args...; kwargs...) where {A<:Asset} = begin
+    function Derivative2(a::A, args...; kwargs...) where {A<:Asset}
         new{A}(a, args...; kwargs...)
     end
-    Derivative2(s::AbstractString) = begin
-        m = match(FULL_SYMBOL_GROUPS_REGEX, s)
-        @assert !isnothing(m) _derivative_error(s)
-        m = m.captures
+    function Derivative2(s::AbstractString, m)
         asset = Asset(SubString(s, 1, length(s)), m[1], m[2])
         @assert !isnothing(m[3]) _derivative_error(s)
         S = Symbol(m[3])
@@ -37,6 +42,22 @@ struct Derivative2{A<:Asset} <: AbstractAsset
     end
 end
 Derivative = Derivative2
+
+function Base.parse(::Type{Derivative}, s::AbstractString)
+    m = match(FULL_SYMBOL_GROUPS_REGEX, s)
+    @assert !(isnothing(m) || isnothing(m.captures)) _derivative_error(s)
+    Derivative(s, m.captures)
+end
+
+function Base.parse(::Type{AbstractAsset}, s::AbstractString)
+    m = match(FULL_SYMBOL_GROUPS_REGEX, s)
+    @assert !(isnothing(m) || isnothing(m.captures)) _derivative_error(s)
+    if length(m) > 2 && !isempty(m[3])
+        Derivative(s, m.captures)
+    else
+        Asset(SubString(s, 1, length(s)), m[1], m[2])
+    end
+end
 
 import Base.getproperty
 function getproperty(d::Derivative, s::Symbol)
@@ -58,10 +79,15 @@ is_option(d::Derivative) =
 is_linear(d::Derivative) = is_settled(d) ? d.qc == d.sc : true
 is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
 
+@doc """Shortand for parsing derivatives:
+```julia
+> drv = d"BTC/USDT:USDT"
+> typeof(drv)
+# Instruments.Derivatives.Derivative{Asset{:BTC, :USDT}}
+```
+"""
 macro d_str(s)
-    quote
-        $(Derivative(s))
-    end
+    :($(parse(Derivative, s)))
 end
 
 export Derivative, DerivativeKind, @d_str

@@ -30,6 +30,7 @@ use(:Instruments, "Instruments")
 use(:Exchanges, "Exchanges")
 use(:Plotting, "Plotting")
 use(:Analysis, "Analysis")
+use(:Engine, "Engine")
 
 function filter_strategy(t)
     if startswith(string(nameof(t)), "Strategy")
@@ -41,6 +42,7 @@ end
 
 makedocs(sitename="JuBot.jl", pages= [
     "index.md",
+    "types.md",
     "strategy.md",
     "engine/engine.md",
     "exchanges.md",
