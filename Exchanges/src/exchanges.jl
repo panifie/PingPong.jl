@@ -50,7 +50,8 @@ end
 - `cache`: rely on storage cache
 - `agemax`: max cache valid period [1 day]."
 function loadmarkets!(exc; cache=true, agemax=Day(1))
-    mkt = joinpath(DATA_PATH, exc.name, "markets.jlz")
+    sbox = issandbox(exc) ? "_sandbox" : ""
+    mkt = joinpath(DATA_PATH, exc.name, "markets$(sbox).jlz")
     empty!(exc.markets)
     function force_load()
         @debug "Loading markets from exchange and caching at $mkt."
@@ -222,7 +223,10 @@ function exckeys!(exc)
 end
 
 @doc "Enable sandbox mode for exchange"
-sandbox!(exc::Exchange=exc, flag=true) = (exc.py.setSandboxMode(flag); nothing)
+function sandbox!(exc::Exchange=exc, flag=true)
+    exc.py.setSandboxMode(flag)
+    loadmarkets!(exc)
+end
 @doc "Check if sandbox mode is enabled for exchange."
 issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.urls["api"])
 
