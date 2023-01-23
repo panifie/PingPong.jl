@@ -88,11 +88,11 @@ struct Asset{B,Q} <: AbstractAsset
     end
 end
 
-Base.hash(a::Asset, h::UInt) = Base.hash((a.bc, a.qc), h)
-Base.convert(::Type{String}, a::Asset) = a.raw
-Base.display(a::Asset) = Base.display(a.raw)
-Base.show(a::Asset) = Base.display(a.raw)
-Base.display(v::AbstractVector{T}) where {T<:Asset} = begin
+Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
+Base.convert(::Type{String}, a::AbstractAsset) = a.raw
+Base.display(a::AbstractAsset) = Base.display(a.raw)
+Base.show(a::AbstractAsset) = Base.display(a.raw)
+Base.display(v::AbstractVector{<:AbstractAsset}) = begin
     text = Vector{String}()
     for a in v
         push!(text, a.raw)
@@ -112,8 +112,8 @@ import Base.==
 ==(a::Asset, s::String) = Base.isequal(a.raw, s)
 ==(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
 
-@inline isbase(a::Asset, b::Symbol) = a.bc == b
-@inline isquote(a::Asset, q::Symbol) = a.qc == q
+isbase(a::AbstractAsset, b) = a.bc == b
+isquote(a::AbstractAsset, q) = a.qc == q
 
 const leverage_pair_rgx =
     r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
