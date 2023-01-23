@@ -74,7 +74,7 @@ struct Asset{B,Q} <: AbstractAsset
     fiat::Bool
     leveraged::Bool
     unleveraged_bc::BaseCurrency
-    @inline Asset(s::SubString, b::T, q::T) where {T<:AbstractString} = begin
+    Asset(s::SubString, b::T, q::T) where {T<:AbstractString} = begin
         B = Symbol(b)
         Q = Symbol(q)
         fiat = is_fiat_pair(b, q)
@@ -82,6 +82,7 @@ struct Asset{B,Q} <: AbstractAsset
         unlev = deleverage_pair(s; split=true)[1]
         new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
     end
+    Asset(s::AbstractString) = parse(Asset, s)
 end
 function Base.parse(::Type{Asset}, s::AbstractString)
     pair = split_pair(s)
