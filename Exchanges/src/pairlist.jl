@@ -128,8 +128,8 @@ end
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange=exc)
     mkt = exc.markets[pair]["precision"]
-    p_amount = pyconvert(Int, @py mkt["amount"])
-    p_price = pyconvert(Int, @py mkt["price"])
+    p_amount = pyconvert(Real, @py mkt["amount"])
+    p_price = pyconvert(Real, @py mkt["price"])
     (; amount=p_amount, price=p_price)
 end
 

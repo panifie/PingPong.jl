@@ -4,21 +4,30 @@ using ..Orders
 using Accessors: setproperties
 using Lang: Option
 
+toprecision(n::Int, prec::Int) = n - mod(n, prec)
+@doc "When precision is a float it represents the pip."
+toprecision(n::Float64, prec::Float64) = n - mod(n, prec)
+@doc "When precision is a Integer it represents the number of decimals."
+toprecision(n::Float64, prec::Int) = round(n; digits=prec)
+
+@doc """Price and amount value of an order are adjusted by subtraction.
+
+Which means that their output values will always be lower than their input, **except** \
+for the case in which their values would fall below the exchange minimums. In such case \
+the exchange minimum is returned.
+"""
 function sanitize_price_amount(inst::AssetInstance, price, amount)
     sanitized_price = if inst.limits.price.min > 0 && price < inst.limits.price.min
         inst.limits.price.min
     else
-        round(price; digits=inst.precision.price)
+        max(toprecision(price, inst.precision.price), inst.limit.price.min)
     end
     sanitized_amount = if inst.limits.amount.min > 0 && amount < inst.limits.amount.min
         inst.limits.amount.min
+    elseif inst.precision.amount < 0 # has to be a multiple of 10
+        max(toprecision(Int(amount), 10), inst.limits.amount.min)
     else
-        if inst.precision.amount < 0 # has to be a multiple of 10
-            amt = Int(amount)
-            max(amt - mod(amt, 10), inst.limits.amount.min)
-        else
-            round(amount; digits=inst.precision.amount)
-        end
+        toprecision(amount, inst.precision.amount)
     end
     return (sanitized_price, sanitized_amount)
 end
