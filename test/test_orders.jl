@@ -21,9 +21,8 @@ function _test_orders_1()
     @assert sanitized.amount != o.amount
     ccxt_amt_prec = pyconvert(Float64, @py float(exc.py.decimalToPrecision(sanitized.amount; precision=amt_prec)))
     ccxt_prc_prec = pyconvert(Float64, @py float(exc.py.decimalToPrecision(sanitized.price; precision=prc_prec)))
-    # NOTE: this comparison might fail cause floats
-    @assert Bool(@py sanitized.price == ccxt_prc_prec) "$(sanitized.price) != $(ccxt_prc_prec)"
-    @assert Bool(@py sanitized.amount == ccxt_amt_prec) "$(sanitized.amount) != $(ccxt_amt_prec)"
+    @assert Bool(@py sanitized.price ≈ ccxt_prc_prec) "$(sanitized.price) ≉ $(ccxt_prc_prec)"
+    @assert Bool(@py sanitized.amount ≈ ccxt_amt_prec) "$(sanitized.amount) ≉ $(ccxt_amt_prec)"
     true
 end
 
