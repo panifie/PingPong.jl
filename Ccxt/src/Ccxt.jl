@@ -5,6 +5,8 @@ using Python.PythonCall: pyisnull
 using Misc: DATA_PATH
 
 const ccxt = pynew()
+const ccxt_async = pynew()
+const ccxt_ws = pynew()
 const ccxt_errors = Set{String}()
 
 function __init__()
@@ -16,6 +18,8 @@ function __init__()
         string |>
         Set |>
         errors -> union(ccxt_errors, errors)
+        @pymodule ccxt_async ccxt.async_support
+        @pymodule ccxt_ws ccxt.pro
         mkpath(joinpath(DATA_PATH, "markets"))
     end
 end
@@ -27,5 +31,5 @@ function ccxt_exchange(name::Symbol, params = nothing)
     isnothing(params) ? exc_cls() : exc_cls(params)
 end
 
-export ccxt, ccxt_errors, ccxt_exchange
+export ccxt, ccxt_async, ccxt_ws, ccxt_errors, ccxt_exchange
 end # module Ccxt
