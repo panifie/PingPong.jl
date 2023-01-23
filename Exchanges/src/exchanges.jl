@@ -222,7 +222,7 @@ function exckeys!(exc)
 end
 
 @doc "Enable sandbox mode for exchange"
-sandbox!(exc::Exchange=exc, flag=true) = exc.py.setSandboxMode(flag)
+sandbox!(exc::Exchange=exc, flag=true) = (exc.py.setSandboxMode(flag); nothing)
 @doc "Check if sandbox mode is enabled for exchange."
 issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.urls["api"])
 
