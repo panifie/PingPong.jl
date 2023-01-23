@@ -10,13 +10,14 @@ using TimeTicks
 using Misc: Iterable
 using ExchangeTypes
 using Instruments
+using Instruments.Derivatives
 using ..Instances
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
 struct AssetCollection2
     data::DataFrame
     function AssetCollection2(
-        df=DataFrame(; exchange=ExchangeID[], asset=Asset[], instance=AssetInstance[]),
+        df=DataFrame(; exchange=ExchangeID[], asset=AbstractAsset[], instance=AssetInstance[]),
     )
         new(df)
     end
@@ -28,15 +29,16 @@ struct AssetCollection2
         ) |> AssetCollection2
     end
     function AssetCollection2(
-        assets::Union{Iterable{String},Iterable{<:Asset}};
+        assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
         timeframe="15m",
         exc::Exchange=ExchangeTypes.exc,
     )
         if eltype(assets) == String
-            assets = [Asset(name) for name in assets]
+            assets = [parse(AbstractAsset, name) for name in assets]
         end
+
         tf = convert(TimeFrame, timeframe)
-        getInstance(ast::Asset) = begin
+        getInstance(ast::AbstractAsset) = begin
             data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
             AssetInstance(ast, data, exc)
         end
