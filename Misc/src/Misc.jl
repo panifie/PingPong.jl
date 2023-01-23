@@ -43,6 +43,8 @@ function _instantiate_workers(mod; force = false, num = 4)
     end
 end
 
+
+# countdecimals(num::Float64) = abs(Base.Ryu.reduce_shortest(num)[2])
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
 include("config.jl")
