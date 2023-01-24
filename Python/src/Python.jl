@@ -28,6 +28,8 @@ function clearpypath!()
     @py append!(path_list, gpaths)
 end
 
+include("async.jl")
+
 function __init__()
     clearpypath!()
 end
@@ -57,4 +59,5 @@ end
 # NOTE: This must be done after all the global code in this module has been execute
 using Reexport; @reexport using PythonCall
 export @pymodule, clearpypath!
+
 end
