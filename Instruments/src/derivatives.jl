@@ -14,7 +14,7 @@ end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
 
-@doc """Derivative parsed accordingly to [`Instruments.FULL_SYMBOL_GROUPS_REGEX`](@ref).
+@doc """Derivative parsed accordingly to [`regex`](@ref Instruments.FULL_SYMBOL_GROUPS_REGEX).
 
 - `asset`: The underlying asset.
 - `sc`: settlement currency.
