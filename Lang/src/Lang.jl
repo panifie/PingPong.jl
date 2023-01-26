@@ -49,7 +49,7 @@ macro lget!(dict, k, expr)
                 $dict[$k] = v
                 v
             else
-                rethrow(error)
+                rethrow(e)
             end
         end
     end
