@@ -1,0 +1,3 @@
+module CoinGecko
+
+end

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "218b3e4527a5492e80f97fc3637185a30348ba16"
+project_hash = "ae3e230367af9563db9a0413295550194d283f74"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -682,6 +682,12 @@ version = "0.1.12"
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
+[[deps.LazyJSON]]
+deps = ["JSON", "OrderedCollections", "PropertyDicts"]
+git-tree-sha1 = "ce08411caa70e0c9e780f142f59debd89a971738"
+uuid = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
+version = "0.2.2"
+
 [[deps.LegibleLambdas]]
 deps = ["MacroTools"]
 git-tree-sha1 = "7946db4829eb8de47c399f92c19790f9cc0bbd07"
@@ -980,6 +986,11 @@ deps = ["Distributed", "Printf"]
 git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
+
+[[deps.PropertyDicts]]
+git-tree-sha1 = "8cf3b5cea994cfa9f238e19c3946a39cf051896c"
+uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
+version = "0.1.2"
 
 [[deps.Python]]
 deps = ["PythonCall", "Reexport"]
@@ -1346,6 +1357,12 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"
 uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
 version = "1.0.0"
+
+[[deps.Watchers]]
+deps = ["Data", "DataStructures", "Exchanges", "HTTP", "Lang", "LazyJSON", "Misc", "Python", "TimeTicks", "URIs"]
+path = "Watchers"
+uuid = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
+version = "0.1.0"
 
 [[deps.Wavelets]]
 deps = ["DSP", "FFTW", "LinearAlgebra", "Reexport", "SpecialFunctions", "Statistics"]

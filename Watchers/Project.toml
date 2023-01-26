@@ -1,0 +1,16 @@
+name = "Watchers"
+uuid = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+LazyJSON = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
+Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
+Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"

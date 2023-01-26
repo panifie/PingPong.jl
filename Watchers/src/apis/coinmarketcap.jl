@@ -1,0 +1,123 @@
+module CoinMarketCap
+using Watchers
+using HTTP
+using URIs
+using LazyJSON
+using Misc: Config, config, loadconfig!
+using Lang: Option
+
+const API_HEADER = "X-CMC_PRO_API_KEY"
+const API_URL = "https://pro-api.coinmarketcap.com"
+const API_KEY_CONFIG = "coinmarketcap_apikey"
+const API_KEY = Ref("")
+const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]
+
+function setapikey!()
+    cfg = loadconfig!(:default; path="cfg/backtest.toml", cfg=Config())
+    @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in [default] configuration."
+    keepat!(API_HEADERS, (x -> x[1] != API_HEADER).(API_HEADERS))
+    push!(API_HEADERS, API_HEADER => cfg.attrs[API_KEY_CONFIG])
+    nothing
+end
+
+const ApiPaths = (;
+    info="/v1/key/info",
+    map="/v1/cryptocurrency/map",
+    metadata="/v2/cryptocurrency/info",
+    listings="/v1/cryptocurrency/listings/latest",
+    quotes="/v2/cryptocurrency/quotes/latest",
+    global_quotes="/v1/global-metrics/quotes/latest",
+    crypto_cat="/v1/cryptocurrency/category",
+    categories="/v1/cryptocurrency/categories",
+)
+
+check_error(json) =
+    let code = json["status"]["error_code"]
+        @assert code == 0 "CoinMarketCap response error ($code)!"
+    end
+
+function get(path::T where {T}, query=nothing)
+    json = LazyJSON.value(HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS).body)
+    check_error(json)
+    json
+end
+
+@enum SortBy begin
+    date_added
+    market_cap
+    num_market_pairs
+    volume_24h
+    percent_change_1h
+    percent_change_24h
+    percent_change_7d
+    volume_7d
+    volume_30d
+end
+
+@enum SortDir asc desc
+
+@kwdef struct Params
+    start = 1
+    limit = 100
+    market_cap_min::Option{Int} = nothing
+    volume_24h_min::Option{Int} = nothing
+    percent_change_24h_min::Option{Int} = nothing
+    sort::SortBy = volume_24h
+    sort_dir::SortDir = desc
+end
+
+@doc "Call `quotes` to get data for a specific list of currencies.
+
+Passing values of type `Symbol` will use the `symbol` parameter, while
+`String` will use the `slug` parameter.
+"
+function quotes(syms::AbstractArray{String})
+    get(ApiPaths.quotes, "slug" => join(syms, ","))
+end
+quotes(syms::AbstractArray{Symbol}) = get(ApiPaths.quotes, "symbol" => join(syms, ","))
+
+function listings(quot="USD", as_json=false; kwargs...)
+    local query
+    try
+        query = Params(; kwargs...)
+    catch error
+        if error isa ArgumentError
+            @error "Wrong query parameters."
+            rethrow(error)
+        end
+    end
+    fieldnames(typeof(query))
+    params = Dict()
+    for s in fieldnames(Params)
+        f = getproperty(query, s)
+        isnothing(f) && continue
+        params[s] = string(f)
+    end
+    json = get(ApiPaths.listings, params)
+    if as_json
+        json
+    else
+        convert(Vector{Dict{String,Any}}, json["data"])
+    end
+end
+
+function credits()
+    json = get(ApiPaths.info)
+    usg = json["data"]["usage"]
+    (;
+        minute=usg["current_minute"]["requests_left"],
+        day=usg["current_day"]["credits_left"],
+        month=usg["current_month"]["credits_left"],
+    )
+end
+
+usdquote(entry) = entry["quote"]["USD"]
+usdquotes(entries) = usdquote.(entries)
+usdvol(entry::AbstractDict) = usdquote(entry)["volume_24h"] |> Float64
+usdvol(data::AbstractVector) = usdvol.(data)
+usdprice(entry::AbstractDict) = usdquote(entry)["price"] |> Float64
+usdprice(data::AbstractVector) = usdprice.(data)
+
+export setapikey!, quotes, listings, credits, SortBy
+
+end

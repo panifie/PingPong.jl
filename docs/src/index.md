@@ -1,11 +1,13 @@
 # JuBot docs
 
+
 This backtest framework is comprised of different modules:
 
 - [Engine](./engine/engine.md): The actual backtest engine (to be built).
 - [Strategies](./strategy.md): Types and concept for building strategies.
 - [Exchanges](./exchanges.md): Loads exchanges instances, markets and pairlists, based on [ccxt](https://docs.ccxt.com/en/latest/manual.html).
 - [Data](./data.md): Loading and saving ohlcv data (and more), based Zarr.
+- [Watchers](./watchers.md): Services for data pipelines, from sources to storage.
 - [Processing](./processing.md): Data cleanup, normalization, resampling functions.
 - [Misc](./misc.md): Ancillary stuff, like configuration, and some UI bits.
 - [Plotting](./plotting.md): Output plots for ohlcv data and indicators, based on pyecharts.
