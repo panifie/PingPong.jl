@@ -48,6 +48,7 @@ end
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
 include("config.jl")
+include("helpers.jl")
 
 export results, config, resetconfig!, @as_td, timefloat, TimeFrame
 
