@@ -3,7 +3,7 @@ using Watchers
 using HTTP
 using URIs
 using LazyJSON
-using Misc: Config, config, loadconfig!
+using Misc: Config, config, loadconfig!, queryfromstruct
 using Lang: Option
 
 const API_HEADER = "X-CMC_PRO_API_KEY"
@@ -87,22 +87,7 @@ end
 quotes(syms::AbstractArray{Symbol}) = get(ApiPaths.quotes, "symbol" => join(syms, ","))
 
 function listings(quot="USD", as_json=false; kwargs...)
-    local query
-    try
-        query = Params(; kwargs...)
-    catch error
-        if error isa ArgumentError
-            @error "Wrong query parameters."
-            rethrow(error)
-        end
-    end
-    fieldnames(typeof(query))
-    params = Dict()
-    for s in fieldnames(Params)
-        f = getproperty(query, s)
-        isnothing(f) && continue
-        params[s] = string(f)
-    end
+    query = queryfromstruct(Params; kwargs...)
     json = get(ApiPaths.listings, params)
     if as_json
         json

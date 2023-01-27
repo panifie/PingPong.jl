@@ -61,6 +61,7 @@ function Watcher3(
         @assert length(mets) > 0 && length(mets[1].sig.parameters) == 1 "Function should have no arguments."
     end
     w = Watcher3{T}(CircularBuffer{T}(len); timeout, interval)
+    finalizer(close, w)
     wrapped_fetcher() = begin
         try
             v = fetcher() # local bind, such that `now` is called after the event
@@ -99,14 +100,13 @@ end
 function isstale(w::Watcher)
     w.attempts > 0 || last(w.data).first < now() - w.interval - w.timeout
 end
-last(w::Watcher) = last(w.data)
-
-# isstale(w::Watcher) = w.data
+Base.last(w::Watcher) = last(w.data)
 Base.length(w::Watcher) = length(w.data)
-Base.finalizer(w::Watcher) = isnothing(w.timer) || close(w.timer)
+close(w::Watcher) = isnothing(w.timer) || close(w.timer)
 
 
 export Watcher, isstale
+
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
 
