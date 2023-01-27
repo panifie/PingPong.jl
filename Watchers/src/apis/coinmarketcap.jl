@@ -12,11 +12,21 @@ const API_KEY_CONFIG = "coinmarketcap_apikey"
 const API_KEY = Ref("")
 const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]
 
-function setapikey!()
-    cfg = loadconfig!(:default; path="cfg/backtest.toml", cfg=Config())
-    @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in [default] configuration."
+@doc """Sets coinmarketcap api key.
+
+- from env var `CMC_API_KEY`
+- or from config key $(API_KEY_CONFIG)
+"""
+function setapikey!(from_env=false, config_path="cfg/backtest.toml")
+    apikey = if from_env
+        get(ENV, "CMC_API_KEY")
+    else
+        cfg = loadconfig!(:default; path=config_path, cfg=Config())
+        @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in [default] configuration."
+        cfg.attrs[API_KEY_CONFIG]
+    end
     keepat!(API_HEADERS, (x -> x[1] != API_HEADER).(API_HEADERS))
-    push!(API_HEADERS, API_HEADER => cfg.attrs[API_KEY_CONFIG])
+    push!(API_HEADERS, API_HEADER => apikey)
     nothing
 end
 
