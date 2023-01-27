@@ -79,7 +79,7 @@ struct Asset{B,Q} <: AbstractAsset
         Q = Symbol(q)
         fiat = is_fiat_pair(b, q)
         lev = is_leveraged_pair(s)
-        unlev = deleverage_pair(s; split=true)[1]
+        unlev = lev ? deleverage_pair(s; split=true)[1] : B
         new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
     end
     Asset(s::AbstractString) = parse(Asset, s)
