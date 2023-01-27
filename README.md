@@ -1,5 +1,7 @@
 [![build-status](https://github.com/untoreh/JuBot.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/JuBot.jl)
 
+**Supported julia version: 1.9**
+
 Currently not really a backtest framework. Mostly data.
 
 ## Install
