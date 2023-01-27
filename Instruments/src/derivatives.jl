@@ -43,6 +43,10 @@ struct Derivative2{A<:Asset} <: AbstractAsset
 end
 Derivative = Derivative2
 
+function perpetual(raw::AbstractString, bc, qc)
+    Derivative(Asset(SubString(raw), bc, qc), Symbol(qc), SubString(""), 0.0, Unkn)
+end
+
 function Base.parse(::Type{Derivative}, s::AbstractString)
     m = match(FULL_SYMBOL_GROUPS_REGEX, s)
     @assert !(isnothing(m) || isnothing(m.captures)) _derivative_error(s)
@@ -90,6 +94,6 @@ macro d_str(s)
     :($(parse(Derivative, s)))
 end
 
-export Derivative, DerivativeKind, @d_str
+export Derivative, DerivativeKind, @d_str, perpetual
 
 end
