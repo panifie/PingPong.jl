@@ -7,10 +7,6 @@ using DataStructures: CircularBuffer
 using Lang: Option
 using Base.Threads: @spawn
 
-function __init__()
-    Python._async_init()
-end
-
 safenotify(cond::Condition) = begin
     lock(cond)
     notify(cond)
