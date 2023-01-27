@@ -93,6 +93,14 @@ is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
 macro d_str(s)
     :($(parse(Derivative, s)))
 end
+Base.isequal(b::NTuple{3, Symbol}, a::Derivative) = a.bc == b[1] && a.qc == b[2] && a.sc == b[3]
+Base.isequal(a::Derivative, b::Derivative) = begin
+    a.qc == b.qc &&
+    a.bc == b.bc &&
+    a.sc == b.sc
+end
+Base.hash(a::Derivative) = Base.hash((a.bc, a.qc, a.sc))
+Base.hash(a::Derivative, h::UInt64) = Base.hash((a.bc, a.qc, a.sc), h)
 
 export Derivative, DerivativeKind, @d_str, perpetual
 

@@ -91,6 +91,7 @@ function Base.parse(::Type{Asset}, s::AbstractString)
     end
     Asset(SubString(s, 1, length(s)), pair[1], pair[2])
 end
+Base.hash(a::AbstractAsset) = hash((a.bc, a.qc))
 Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.display(a::AbstractAsset) = Base.display(a.raw)
@@ -111,9 +112,8 @@ Base.Broadcast.broadcastable(q::Asset) = Ref(q)
 Base.in(a::Asset, t::QuoteTuple) = Base.isequal(a.qc, t.q)
 Base.in(a::Asset, t::BaseTuple) = Base.isequal(a.bc, t.b)
 Base.in(a::Asset, t::BaseQuoteTuple) = Base.isequal(a.bc, t.b) && Base.isequal(a.qc, t.q)
-import Base.==
-==(a::Asset, s::String) = Base.isequal(a.raw, s)
-==(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
+Base.isequal(a::Asset, s::String) = Base.isequal(a.raw, s)
+Base.isequal(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
 
 isbase(a::AbstractAsset, b) = a.bc == b
 isquote(a::AbstractAsset, q) = a.qc == q
