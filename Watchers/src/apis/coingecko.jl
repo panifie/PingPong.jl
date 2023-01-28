@@ -12,9 +12,9 @@ using TimeTicks
 using TimeTicks: timestamp
 using Instruments.Derivatives
 
-API_URL = "https://api.coingecko.com"
-API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]
-ApiPaths = (;
+const API_URL = "https://api.coingecko.com"
+const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]
+const ApiPaths = (;
     ping="/api/v3/ping",
     simple_price="/api/v3/simple/price",
     simple_vs="/api/v3/simple/supported_vs_currencies",
@@ -66,7 +66,7 @@ function price(syms::AbstractVector, vs=[DEFAULT_CUR])
     convert(Dict{String,Dict{String,Any}}, json)
 end
 
-currencies = Set{String}()
+const currencies = Set{String}()
 function vs_currencies()
     if length(currencies) > 0
         currencies
@@ -79,7 +79,7 @@ function vs_currencies()
     end
 end
 
-coins = TTL{Nothing,Dict{String,String}}(Minute(60))
+const coins = TTL{Nothing,Dict{String,String}}(Minute(60))
 @doc "Load all coins symbols."
 loadcoins!() = @lget! coins nothing begin
     json = get(ApiPaths.coins_list)
@@ -98,15 +98,15 @@ end
     id_desc
 end
 
-oneHour = "1h"
-oneDay = "24h"
-oneWeek = "7d"
-twoWeeks = "14d"
-oneMonth = "30d"
-sixMonths = "200d"
-oneYear = "1y"
+const oneHour = "1h"
+const oneDay = "24h"
+const oneWeek = "7d"
+const twoWeeks = "14d"
+const oneMonth = "30d"
+const sixMonths = "200d"
+const oneYear = "1y"
 
-@kwdef struct Paramss
+@kwdef struct Params
     vs_currency = DEFAULT_CUR
     ids::Option{Vector{String}} = nothing
     order = volume_desc
@@ -114,7 +114,6 @@ oneYear = "1y"
     page = 1
     price_change_percentage = [oneHour, oneDay, oneWeek, oneMonth, sixMonths]
 end
-Params = Paramss
 
 @doc "Get markets for a list of symbols, accepting params `CoinGecko.Params`."
 coinsmarkets(; kwargs...) = begin
@@ -296,7 +295,7 @@ function derivatives()
     end
 end
 
-drv_exchanges = Dict{String,String}()
+const drv_exchanges = Dict{String,String}()
 @doc "Returns the list of all exchange ids."
 function loadderivatives!()
     begin
@@ -330,7 +329,7 @@ function derivatives_from(id)
     )
 end
 
-exchanges = Dict{String,String}()
+const exchanges = Dict{String,String}()
 function loadexchanges!()
     if isempty(exchanges)
         json = get(ApiPaths.exchanges)
