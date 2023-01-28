@@ -2,8 +2,7 @@ using Zarr
 using Misc: DATA_PATH
 import Base.delete!
 
-
-const compressor = Zarr.BloscCompressor(cname="zstd", clevel=2, shuffle=true)
+const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
 function delete!(g::ZGroup, key::AbstractString; force=true)
     rm(joinpath(g.storage.folder, g.path, key); force, recursive=true)
@@ -41,4 +40,3 @@ mutable struct ZarrInstance
 end
 
 const zi = Ref{ZarrInstance}()
-

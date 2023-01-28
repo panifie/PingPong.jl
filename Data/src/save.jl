@@ -1,7 +1,13 @@
 zsave(zi::ZarrInstance, data, path::AbstractString) = zsave(zi, data, splitpath(path)...)
 
-function zsave(zi::ZarrInstance, data, path::Vararg{AbstractString}; type=Float64, merge_fun::Union{Nothing, Function}=nothing)
-    folder = joinpath(path[begin:end-1]...)
+function zsave(
+    zi::ZarrInstance,
+    data,
+    path::Vararg{AbstractString};
+    type=Float64,
+    merge_fun::Union{Nothing,Function}=nothing,
+)
+    folder = joinpath(path[begin:(end - 1)]...)
     name = path[end]
     # zg::Union{Nothing, ZGroup} = nothing
     local zg

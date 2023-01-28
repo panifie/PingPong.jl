@@ -18,8 +18,10 @@ struct DateRange12
 end
 DateRange = DateRange12
 
-Base.show(dr::DateRange) = begin
-    Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
+function Base.show(dr::DateRange)
+    begin
+        Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
+    end
 end
 Base.display(dr::DateRange) = Base.show(dr)
 iterate(dr::DateRange) = begin
@@ -48,8 +50,9 @@ collect(dr::DateRange) = begin
 end
 
 reset(dr::DateRange) = dr.current_date[1] = dr.start
-Base.isequal(dr1::DateRange, dr2::DateRange) =
+function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
+end
 
 @doc """Create a `DateRange` using notation `FROM..TO;STEP`.
 

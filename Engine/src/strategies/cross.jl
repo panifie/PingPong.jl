@@ -9,10 +9,14 @@ struct CrossStrategy1{M}
     orders::Dict{ExchangeID,Dict{Asset,Ref{AssetInstance}}}
     wallet::Dict{Tuple{ExchangeID,Symbol},Cash}
     config::Config
-    CrossStrategy1(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
-        exc = getexchange!(config.exchange)
-        uni = AssetCollection(assets; exc)
-        new{src}(uni, Dict(), Dict(), Dict(), config,)
+    function CrossStrategy1(
+        src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config
+    )
+        begin
+            exc = getexchange!(config.exchange)
+            uni = AssetCollection(assets; exc)
+            new{src}(uni, Dict(), Dict(), Dict(), config)
+        end
     end
 end
 CrossStrategy = CrossStrategy1

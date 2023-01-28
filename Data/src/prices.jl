@@ -9,7 +9,7 @@ const pranges_expa = (0.7, 0.8, 0.9, 0.98, 0.985, 1.015, 1.02, 1.1, 1.2, 1.3)
 @doc """Given a price, output price at given ratios.
 (Predefined ratios - :bal,:futures,:tight,:expa)
 """
-function price_ranges(price::Number, ranges = :expa)
+function price_ranges(price::Number, ranges=:expa)
     if ranges === :bal
         p = pranges_bal
     elseif ranges === :futures
@@ -43,8 +43,8 @@ function price_ranges(pass::AbstractVector, mrkts::AbstractDict; kwargs...)
 end
 
 @doc "Total profit of a ladder of trades"
-function gprofit(peak = 0.2, grids = 10)
-    collect(peak/grids:peak/grids:peak) .* inv(grids) |> sum
+function gprofit(peak=0.2, grids=10)
+    sum(collect((peak / grids):(peak / grids):peak) .* inv(grids))
 end
 
 end

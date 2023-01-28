@@ -62,11 +62,12 @@ backtest!(strat; ctx, kwargs...) = begin
     backtest!(strat, ctx; kwargs...)
 end
 
-execute(strat::Strategy, orders::Vector{LiveOrder}) =
+function execute(strat::Strategy, orders::Vector{LiveOrder})
     for o in orders
         # Each order
         cdl = last_candle(o.asset, o.date)
         spread = Sim.spread(cdl.high, cdl.low, cdl.close)
     end
+end
 
 export backtest!

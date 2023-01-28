@@ -8,13 +8,10 @@
 using CompileBot
 
 botconfig = BotConfig(
-  "Cli";                            # package name (the one this configuration lives in)
-    os = ["linux"],
-  # yml_path = "SnoopCompile.yml"        # parse `os` and `version` from `SnoopCompile.yml`
-  exclusions = [""],        # exclude functions (by name) that would be problematic if precompiled
+    "Cli";                            # package name (the one this configuration lives in)
+    os=["linux"],
+    # yml_path = "SnoopCompile.yml"        # parse `os` and `version` from `SnoopCompile.yml`
+    exclusions=[""],        # exclude functions (by name) that would be problematic if precompiled
 )
 
-snoop_bot(
-  botconfig,
-  "$(@__DIR__)/script.jl",
-)
+snoop_bot(botconfig, "$(@__DIR__)/script.jl")

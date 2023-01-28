@@ -17,16 +17,20 @@ using ..Instances
 struct AssetCollection2
     data::DataFrame
     function AssetCollection2(
-        df=DataFrame(; exchange=ExchangeID[], asset=AbstractAsset[], instance=AssetInstance[]),
+        df=DataFrame(;
+            exchange=ExchangeID[], asset=AbstractAsset[], instance=AssetInstance[]
+        ),
     )
         new(df)
     end
     function AssetCollection2(instances::Iterable{<:AssetInstance})
-        DataFrame(
-            (; exchange=inst.exchange[].id, asset=inst.asset, instance=inst) for
-            inst in instances;
-            copycols=false,
-        ) |> AssetCollection2
+        AssetCollection2(
+            DataFrame(
+                (; exchange=inst.exchange[].id, asset=inst.asset, instance=inst) for
+                inst in instances;
+                copycols=false,
+            ),
+        )
     end
     function AssetCollection2(
         assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
@@ -38,9 +42,11 @@ struct AssetCollection2
         end
 
         tf = convert(TimeFrame, timeframe)
-        getInstance(ast::AbstractAsset) = begin
-            data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
-            AssetInstance(ast, data, exc)
+        function getInstance(ast::AbstractAsset)
+            begin
+                data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
+                AssetInstance(ast, data, exc)
+            end
         end
         instances = [getInstance(ast) for ast in assets]
         AssetCollection2(instances)
@@ -49,37 +55,49 @@ end
 AssetCollection = AssetCollection2
 
 @enum AssetCollectionColumn exchange = 1 asset = 2 instance = 3
-const AssetCollectionTypes =
-    OrderedDict([exchange => ExchangeID, asset => Asset, instance => AssetInstance])
-const AssetCollectionColumns4 = AssetCollectionTypes |> sort! |> keys .|> Symbol
+const AssetCollectionTypes = OrderedDict([
+    exchange => ExchangeID, asset => Asset, instance => AssetInstance
+])
+const AssetCollectionColumns4 = Symbol.(keys(sort!(AssetCollectionTypes)))
 AssetCollectionColumns = AssetCollectionColumns4
-const AssetCollectionRow =
-    @NamedTuple{exchange::ExchangeID, asset::Asset, instance::AssetInstance}
+const AssetCollectionRow = @NamedTuple{
+    exchange::ExchangeID, asset::Asset, instance::AssetInstance
+}
 
 using Instruments: isbase, isquote
-Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange.==i, :]
-Base.getindex(pf::AssetCollection, i::Asset) = @view pf.data[pf.data.asset.==i, :]
-Base.getindex(pf::AssetCollection, i::String) = @view pf.data[pf.data.asset.==i, :]
+Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange .== i, :]
+Base.getindex(pf::AssetCollection, i::Asset) = @view pf.data[pf.data.asset .== i, :]
+Base.getindex(pf::AssetCollection, i::String) = @view pf.data[pf.data.asset .== i, :]
 
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
-bqe(df::DataFrame, b::T, q::T, e::T) where {T<:Symbol} = begin
-    isbase.(df.asset, b) && isquote.(df.asset, q) && df.exchange .== e
+function bqe(df::DataFrame, b::T, q::T, e::T) where {T<:Symbol}
+    begin
+        isbase.(df.asset, b) && isquote.(df.asset, q) && df.exchange .== e
+    end
 end
-bqe(df::DataFrame, ::Nothing, q::T, e::T) where {T<:Symbol} = begin
-    isquote(df.asset, q) && df.exchange .== e
+function bqe(df::DataFrame, ::Nothing, q::T, e::T) where {T<:Symbol}
+    begin
+        isquote(df.asset, q) && df.exchange .== e
+    end
 end
-bqe(df::DataFrame, b::T, ::Nothing, e::T) where {T<:Symbol} = begin
-    isbase.(df.asset, b) && df.exchange .== e
+function bqe(df::DataFrame, b::T, ::Nothing, e::T) where {T<:Symbol}
+    begin
+        isbase.(df.asset, b) && df.exchange .== e
+    end
 end
-bqe(df::DataFrame, ::T, q::T, e::Nothing) where {T<:Symbol} = begin
-    isbase.(df.asset, b) && isquote.(df.asset, q)
+function bqe(df::DataFrame, ::T, q::T, e::Nothing) where {T<:Symbol}
+    begin
+        isbase.(df.asset, b) && isquote.(df.asset, q)
+    end
 end
 bqe(df::DataFrame, ::Nothing, ::Nothing, e::T) where {T<:Symbol} = begin
     df.exchange .== e
 end
-bqe(df::DataFrame, ::Nothing, q::T, e::Nothing) where {T<:Symbol} = begin
-    isquote.(df.asset, q)
+function bqe(df::DataFrame, ::Nothing, q::T, e::Nothing) where {T<:Symbol}
+    begin
+        isquote.(df.asset, q)
+    end
 end
 bqe(df::DataFrame, b::T, ::Nothing, e::Nothing) where {T<:Symbol} = begin
     isbase.(df.asset, b)
@@ -132,7 +150,6 @@ Base.fill!(ac::AssetCollection, tfs...) = begin
         fill!(:instance, tfs...)
     end
 end
-
 
 export AssetCollection, flatten
 

@@ -17,7 +17,7 @@ end
 Cash = Cash3
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
-getproperty(c::C, s::Symbol) where C<:Cash = begin
+getproperty(c::C, s::Symbol) where {C<:Cash} = begin
     if s === :value
         getfield(c, :value)[1]
     elseif s === :id
@@ -74,13 +74,15 @@ struct Asset{B,Q} <: AbstractAsset
     fiat::Bool
     leveraged::Bool
     unleveraged_bc::BaseCurrency
-    Asset(s::SubString, b::T, q::T) where {T<:AbstractString} = begin
-        B = Symbol(b)
-        Q = Symbol(q)
-        fiat = is_fiat_pair(b, q)
-        lev = is_leveraged_pair(s)
-        unlev = lev ? deleverage_pair(s; split=true)[1] : B
-        new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
+    function Asset(s::SubString, b::T, q::T) where {T<:AbstractString}
+        begin
+            B = Symbol(b)
+            Q = Symbol(q)
+            fiat = is_fiat_pair(b, q)
+            lev = is_leveraged_pair(s)
+            unlev = lev ? deleverage_pair(s; split=true)[1] : B
+            new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
+        end
     end
     Asset(s::AbstractString) = parse(Asset, s)
 end
@@ -118,8 +120,7 @@ Base.isequal(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
 isbase(a::AbstractAsset, b) = a.bc == b
 isquote(a::AbstractAsset, q) = a.qc == q
 
-const leverage_pair_rgx =
-    r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
+const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
 is_leveraged_pair(pair) = !isnothing(match(leverage_pair_rgx, pair))
@@ -127,7 +128,7 @@ split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
 
 @doc "Remove leveraged pair pre/suffixes from base currency."
 @inline function deleverage_pair(pair::T; split=false, sep="/") where {T<:AbstractString}
-    dlv = replace(pair, leverage_pair_rgx => s"\1") |> split_pair
+    dlv = split_pair(replace(pair, leverage_pair_rgx => s"\1"))
     # HACK: assume that BEAR/BULL represent BTC
     if isempty(dlv[1])
         @warn "Deleveraging pair $pair failed, assuming base currency is BTC."
@@ -136,7 +137,9 @@ split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
     split ? dlv : join(dlv, sep)
 end
 
-deleverage_qc(dlv::Vector{T}) where {T<:AbstractString} = deleverage_pair(dlv; split=true)[1]
+function deleverage_qc(dlv::Vector{T}) where {T<:AbstractString}
+    deleverage_pair(dlv; split=true)[1]
+end
 deleverage_qc(pair::AbstractString) = deleverage_pair(pair; split=true)[1]
 
 @doc "Check if both base and quote are fiat currencies."
@@ -144,13 +147,14 @@ is_fiat_pair(b::T, q::T) where {T<:AbstractString} = begin
     b ∈ fiatnames && q ∈ fiatnames
 end
 is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
-is_fiat_pair(pair::AbstractString) = split_pair(pair) |> is_fiat_pair
+is_fiat_pair(pair::AbstractString) = is_fiat_pair(split_pair(pair))
 
 macro a_str(pair)
     :($(parse(Asset, pair)))
 end
 
-export Cash, Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str
+export Cash,
+    Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str
 include("derivatives.jl")
 
 end # module Instruments

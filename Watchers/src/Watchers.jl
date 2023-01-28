@@ -54,7 +54,13 @@ Watcher = Watcher3
     If using flushers, do not modify the input data (argument of the flusher callback), always make a copy.
 """
 function Watcher3(
-    T::Type, fetcher, flusher=nothing; threads=false, len=1000, interval=Second(30), timeout=Second(5)
+    T::Type,
+    fetcher,
+    flusher=nothing;
+    threads=false,
+    len=1000,
+    interval=Second(30),
+    timeout=Second(5),
 )
     begin
         mets = methods(fetcher)
@@ -73,23 +79,25 @@ function Watcher3(
         end
     end
     # NOTE: the callback for the timer requires 1 arg (the timer itself)
-    with_timeout(_) = begin
-        fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
-        @async begin
-            sleep(timeout)
-            safenotify(fetcher_task.donenotify)
-        end
-        safewait(fetcher_task.donenotify)
-        if istaskdone(fetcher_task) && fetch(fetcher_task)
-            w.attempts = 0
-            w._flush_counter += 1
-            if !isnothing(flusher) && w._flush_counter == length(w.data)
-                w._flush_counter = 0
-                flusher(w.data)
+    function with_timeout(_)
+        begin
+            fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
+            @async begin
+                sleep(timeout)
+                safenotify(fetcher_task.donenotify)
             end
-        else
-            w.attempts += 1
-            w.last_try = now()
+            safewait(fetcher_task.donenotify)
+            if istaskdone(fetcher_task) && fetch(fetcher_task)
+                w.attempts = 0
+                w._flush_counter += 1
+                if !isnothing(flusher) && w._flush_counter == length(w.data)
+                    w._flush_counter = 0
+                    flusher(w.data)
+                end
+            else
+                w.attempts += 1
+                w.last_try = now()
+            end
         end
     end
     w.timer = Timer(with_timeout, 0; interval)
@@ -103,7 +111,6 @@ end
 Base.last(w::Watcher) = last(w.data)
 Base.length(w::Watcher) = length(w.data)
 close(w::Watcher) = isnothing(w.timer) || close(w.timer)
-
 
 export Watcher, isstale
 

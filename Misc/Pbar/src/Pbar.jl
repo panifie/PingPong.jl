@@ -49,7 +49,9 @@ macro pbar!(data, desc="", unit="", use_finalizer=false)
             $pbar.close(; clear=true)
         catch
         end
-        pycopy!($pbar, $emn.counter(; total=length($data), desc=$desc, unit=$unit, leave=false))
+        pycopy!(
+            $pbar, $emn.counter(; total=length($data), desc=$desc, unit=$unit, leave=false)
+        )
         local $pb
         if $uf
             $pb = PbarInstance($pbar, true)

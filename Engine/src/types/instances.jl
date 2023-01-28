@@ -15,8 +15,8 @@ using Processing
 using Reexport
 using ..Orders
 
-const MM = NamedTuple{(:min, :max), Tuple{Float64, Float64}}
-const Limits = NamedTuple{(:leverage, :amount, :price, :cost), NTuple{4, MM}}
+const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
+const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -27,30 +27,36 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost), NTuple{4, MM}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance27{T<:AbstractAsset, E<:ExchangeID}
+struct AssetInstance27{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
-    history::Vector{Trade{Order{T, E}}}
+    history::Vector{Trade{Order{T,E}}}
     cash::Vector{Float64}
     exchange::Ref{Exchange{E}}
     limits::Limits
-    precision::NamedTuple{(:amount, :price), Tuple{Real, Real}}
+    precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    AssetInstance27(a::T, data, e::Exchange{I}) where {T<:Asset, I<:ExchangeID} = begin
-        limits = market_limits(a.raw, e)
-        precision = market_precision(a.raw, e)
-        fees = market_fees(a.raw, e)
-        new{T, I}(a, data, Trade{Order{T, I}}[], Float64[0], e, limits, precision, fees)
+    function AssetInstance27(a::T, data, e::Exchange{I}) where {T<:Asset,I<:ExchangeID}
+        begin
+            limits = market_limits(a.raw, e)
+            precision = market_precision(a.raw, e)
+            fees = market_fees(a.raw, e)
+            new{T,I}(a, data, Trade{Order{T,I}}[], Float64[0], e, limits, precision, fees)
+        end
     end
-    AssetInstance27(a::A, args...; kwargs...) where A<:AbstractAsset = begin
-        AssetInstance27(a.asset, args...; kwargs...)
+    function AssetInstance27(a::A, args...; kwargs...) where {A<:AbstractAsset}
+        begin
+            AssetInstance27(a.asset, args...; kwargs...)
+        end
     end
-    AssetInstance27(s::S, t::S, e::S) where {S<:AbstractString} = begin
-        a = Asset(s)
-        tf = convert(TimeFrame, t)
-        exc = getexchange!(Symbol(e))
-        data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance27(a, data, exc)
+    function AssetInstance27(s::S, t::S, e::S) where {S<:AbstractString}
+        begin
+            a = Asset(s)
+            tf = convert(TimeFrame, t)
+            exc = getexchange!(Symbol(e))
+            data = Dict(tf => load(zi, exc.name, a.raw, t))
+            AssetInstance27(a, data, exc)
+        end
     end
     AssetInstance27(s, t) = AssetInstance27(s, t, exc)
 end
@@ -66,11 +72,13 @@ function instance(a::AbstractAsset)
 end
 
 @doc "Load ohlcv data of asset instance."
-load!(a::AssetInstance; reset=true) = begin
-    for (tf, df) in a.data
-        reset && empty!(df)
-        loaded = load(zi, a.exchange.name, a.raw, name(tf))
-        append!(df, loaded)
+function load!(a::AssetInstance; reset=true)
+    begin
+        for (tf, df) in a.data
+            reset && empty!(df)
+            loaded = load(zi, a.exchange.name, a.raw, name(tf))
+            append!(df, loaded)
+        end
     end
 end
 isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
@@ -95,7 +103,7 @@ function last_candle(i::AssetInstance, tf::TimeFrame, date::DateTime)
 end
 
 @inline function last_candle(i::AssetInstance, date::DateTime)
-    tf = keys(i.data) |> first
+    tf = first(keys(i.data))
     last_candle(i, tf, date)
 end
 
@@ -107,9 +115,7 @@ function Base.fill!(i::AssetInstance, tfs...)
     sort!(s_tfs)
     if tfs[begin] < from_tf
         throw(
-            ArgumentError(
-                "Timeframe $(tfs[begin]) is shorter than the shortest available.",
-            ),
+            ArgumentError("Timeframe $(tfs[begin]) is shorter than the shortest available.")
         )
     end
     exc = i.exchange[]
@@ -121,13 +127,15 @@ function Base.fill!(i::AssetInstance, tfs...)
             for to_tf in tfs
                 i.data[to_tf] = empty_ohlcv()
             end
-            return
+            return nothing
         end
     end
     dr = daterange(from_data)
     for to_tf in tfs
         if to_tf ∉ current_tfs
-            from_sto = load(zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop)
+            from_sto = load(
+                zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop
+            )
             i.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
                 from_sto
             else

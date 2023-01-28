@@ -19,10 +19,10 @@ const pypaths = Vector{String}()
 @doc "Remove wrong python version libraries dirs from python loading path."
 function clearpypath!()
     isempty(pypaths) &&
-        append!(pypaths, pyimport("sys").path |> x -> pyconvert(Vector{String}, x))
+        append!(pypaths, (x -> pyconvert(Vector{String}, x))(pyimport("sys").path))
     ENV["PYTHONPATH"] = ".:$(envdir())/python$(py_v)"
 
-    path_list = pyimport("sys")."path" |> PyList
+    path_list = PyList(pyimport("sys")."path")
     gpaths = [pystr(x) for x in pypaths]
     empty!(path_list)
     @py append!(path_list, gpaths)
@@ -35,9 +35,8 @@ function __init__()
 end
 const pynull = pynew()
 
-
 @doc "Import a python module over a variable defined in global scope."
-macro pymodule(name, modname = nothing)
+macro pymodule(name, modname=nothing)
     str_name = string(name)
     str_mod = isnothing(modname) ? str_name : string(modname)
     var_name = esc(name)
@@ -57,7 +56,8 @@ macro pymodule(name, modname = nothing)
 end
 
 # NOTE: This must be done after all the global code in this module has been execute
-using Reexport; @reexport using PythonCall
+using Reexport
+@reexport using PythonCall
 export @pymodule, clearpypath!
 
 end

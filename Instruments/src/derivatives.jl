@@ -6,10 +6,12 @@ using ..Instruments: FULL_SYMBOL_GROUPS_REGEX
 const SettlementCurrency = Symbol
 @doc "Differentiates between perpetuals and options."
 @enum DerivativeKind Unkn Call Put
-parse_option(s::AbstractString) = begin
-    s == "C" && return Call
-    s == "P" && return Put
-    throw(ArgumentError("Failed to parse $s as `DerivativeKind`."))
+function parse_option(s::AbstractString)
+    begin
+        s == "C" && return Call
+        s == "P" && return Put
+        throw(ArgumentError("Failed to parse $s as `DerivativeKind`."))
+    end
 end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
@@ -78,8 +80,7 @@ expires(d::Derivative) = !isempty(d.id)
 is_future(d::Derivative) = is_settled(d) && !has_strike(d) && d.kind == Unkn
 is_perp(d::Derivative) = is_future(d) && !expires(d.id)
 is_spot(d::Derivative) = !is_settled(d)
-is_option(d::Derivative) =
-    d.kind != Unkn && is_settled(d) && has_strike(d) && expires(d)
+is_option(d::Derivative) = d.kind != Unkn && is_settled(d) && has_strike(d) && expires(d)
 is_linear(d::Derivative) = is_settled(d) ? d.qc == d.sc : true
 is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
 
@@ -93,11 +94,13 @@ is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
 macro d_str(s)
     :($(parse(Derivative, s)))
 end
-Base.isequal(b::NTuple{3, Symbol}, a::Derivative) = a.bc == b[1] && a.qc == b[2] && a.sc == b[3]
-Base.isequal(a::Derivative, b::Derivative) = begin
-    a.qc == b.qc &&
-    a.bc == b.bc &&
-    a.sc == b.sc
+function Base.isequal(b::NTuple{3,Symbol}, a::Derivative)
+    a.bc == b[1] && a.qc == b[2] && a.sc == b[3]
+end
+function Base.isequal(a::Derivative, b::Derivative)
+    begin
+        a.qc == b.qc && a.bc == b.bc && a.sc == b.sc
+    end
 end
 Base.hash(a::Derivative) = Base.hash((a.bc, a.qc, a.sc))
 Base.hash(a::Derivative, h::UInt64) = Base.hash((a.bc, a.qc, a.sc), h)

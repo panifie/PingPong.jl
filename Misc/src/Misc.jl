@@ -21,7 +21,7 @@ function _find_module(sym)
 end
 
 @doc "Instantiate new workers if the current number mismatches the requested one."
-function _instantiate_workers(mod; force = false, num = 4)
+function _instantiate_workers(mod; force=false, num=4)
     if workers_setup[] !== num || force
         length(workers()) > 1 && rmprocs(workers())
 
@@ -42,7 +42,6 @@ function _instantiate_workers(mod; force = false, num = 4)
         workers_setup[] = num
     end
 end
-
 
 # countdecimals(num::Float64) = abs(Base.Ryu.reduce_shortest(num)[2])
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)

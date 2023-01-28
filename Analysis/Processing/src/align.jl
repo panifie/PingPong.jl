@@ -8,10 +8,7 @@ using TimeTicks
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 
 function common_timestamp(
-    dfs::AbstractArray{DataFrame},
-    tf::TimeFrame,
-    common=nothing,
-    tail=false,
+    dfs::AbstractArray{DataFrame}, tf::TimeFrame, common=nothing, tail=false
 )
     isnothing(common) && (common = timestamp_by_timeframe(dfs[1], tf, tail))
     compare = tail ? (<) : (>)
@@ -75,7 +72,7 @@ function trim!(data::AbstractDict; tail=false)
         (bigger_tf, bigger_ohlcv) = last(data)
         all(
             begin
-                ohlcv[1, :timestamp] |> x -> x == apply(bigger_tf, x)
+                (x -> x == apply(bigger_tf, x))(ohlcv[1, :timestamp])
             end for ohlcv in bigger_ohlcv
         )
     end

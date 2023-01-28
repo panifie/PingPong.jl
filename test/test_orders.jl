@@ -5,7 +5,7 @@ function _test_orders_1()
     @eval using Instruments
     @eval using PingPong.Engine: Orders, Instances
     @eval using PingPong.Exchanges
-    @eval using .Orders;
+    @eval using .Orders
     @eval using .Instances
     @eval using PingPong.Python
     s = "BTC/USDT:USDT"
@@ -19,13 +19,19 @@ function _test_orders_1()
     prc_prec = @py Int(exc.markets[s]["precision"]["price"])
     @assert sanitized.price != o.price
     @assert sanitized.amount != o.amount
-    ccxt_amt_prec = pyconvert(Float64, @py float(exc.py.decimalToPrecision(sanitized.amount; precision=amt_prec)))
-    ccxt_prc_prec = pyconvert(Float64, @py float(exc.py.decimalToPrecision(sanitized.price; precision=prc_prec)))
+    ccxt_amt_prec = pyconvert(
+        Float64, @py float(exc.py.decimalToPrecision(sanitized.amount; precision=amt_prec))
+    )
+    ccxt_prc_prec = pyconvert(
+        Float64, @py float(exc.py.decimalToPrecision(sanitized.price; precision=prc_prec))
+    )
     @assert Bool(@py sanitized.price ≈ ccxt_prc_prec) "$(sanitized.price) ≉ $(ccxt_prc_prec)"
     @assert Bool(@py sanitized.amount ≈ ccxt_amt_prec) "$(sanitized.amount) ≉ $(ccxt_amt_prec)"
     true
 end
 
 test_orders() = @testset "orders" begin
-    @test begin _test_orders_1() end
+    @test begin
+        _test_orders_1()
+    end
 end

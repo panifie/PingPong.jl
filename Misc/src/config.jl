@@ -26,11 +26,11 @@ end
 
 function keys_path(exc_name::AbstractString)
     cfg_dir = _config_dir()
-    file = (replace(exc_name, ".json" => "") * ".json") |> lowercase
+    file = lowercase((replace(exc_name, ".json" => "") * ".json"))
     joinpath(cfg_dir, file)
 end
 
-function exchange_keys(name)::Dict{String, Any}
+function exchange_keys(name)::Dict{String,Any}
     try
         local cfg
         name = string(name)
@@ -60,8 +60,9 @@ end
     path::String = ""
     window::Period = Day(7)
     timeframe::TimeFrame = TimeFrame(Day(1))
-    timeframes::Vector{TimeFrame} =
-        [convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")]
+    timeframes::Vector{TimeFrame} = [
+        convert(TimeFrame, t) for t in ("1m", "15m", "1h", "1d")
+    ]
     exchange::Symbol = Symbol()
     qc::Symbol = :USDT
     margin::Bool = false
@@ -87,9 +88,7 @@ const SourcesDict = Dict{Symbol,String}
 
 @doc "Parses the toml file and populates the global `config`."
 function loadconfig!(
-    name::T;
-    path::String=config_path(),
-    cfg::Config=config,
+    name::T; path::String=config_path(), cfg::Config=config
 ) where {T<:Union{Symbol,String}}
     name = convert(Symbol, name)
     if !isfile(path)

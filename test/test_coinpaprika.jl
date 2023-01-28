@@ -19,10 +19,8 @@ function test_paprika()
         @test cp.coin_ohlcv("xmr-monero") isa Candle
         @test test_tickers()
         @test cp.ticker("btc-bitcoin") isa Dict{String,Float64}
-        @test (
-            betas = cp.betas(); betas isa NamedTuple &&
-                length(betas.coins) == length(betas.betas)
-        )
+        @test (betas = cp.betas();
+        betas isa NamedTuple && length(betas.coins) == length(betas.betas))
         @test cp.hourly("btc-bitcoin").timestamp[begin] > now() - Day(1)
     end
 end
@@ -56,5 +54,5 @@ end
 
 function test_tickers()
     tkrs = cp.tickers()
-    "btc-bitcoin" in keys(tkrs) && tkrs isa Dict{String, Dict{String,Float64}}
+    "btc-bitcoin" in keys(tkrs) && tkrs isa Dict{String,Dict{String,Float64}}
 end

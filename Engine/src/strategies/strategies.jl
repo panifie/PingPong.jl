@@ -18,14 +18,16 @@ struct Strategy42{M,E,C}
     orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
     cash::Cash{C}
     config::Config
-    Strategy42(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config) = begin
-        exc = getexchange!(config.exchange)
-        uni = AssetCollection(assets; exc)
-        ca = Cash(config.qc, config.initial_cash)
-        eid = typeof(exc.id)
-        pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-        orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-        new{src,exc.id, config.qc}(uni, pf, orders, ca, config,)
+    function Strategy42(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config)
+        begin
+            exc = getexchange!(config.exchange)
+            uni = AssetCollection(assets; exc)
+            ca = Cash(config.qc, config.initial_cash)
+            eid = typeof(exc.id)
+            pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+            orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
+            new{src,exc.id,config.qc}(uni, pf, orders, ca, config)
+        end
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -108,22 +110,24 @@ function loadstrategy!(src::Symbol, cfg=config)
     Strategy(mod.name, pairs, cfg)
 end
 
-Base.display(strat::Strategy) = begin
-    out = IOBuffer()
-    try
-        write(out, "Strategy name: $(typeof(strat))\n")
-        write(out, "Base Amount: $(strat.config.base_amount)\n")
-        write(out, "Universe:\n")
-        write(out, string(Collections.prettydf(strat.universe)))
-        write(out, "\n")
-        write(out, "Balances:\n")
-        write(out, string(strat.balances))
-        write(out, "\n")
-        write(out, "Orders:\n")
-        write(out, string(strat.orders))
-        Base.print(String(take!(out)))
-    finally
-        close(out)
+function Base.display(strat::Strategy)
+    begin
+        out = IOBuffer()
+        try
+            write(out, "Strategy name: $(typeof(strat))\n")
+            write(out, "Base Amount: $(strat.config.base_amount)\n")
+            write(out, "Universe:\n")
+            write(out, string(Collections.prettydf(strat.universe)))
+            write(out, "\n")
+            write(out, "Balances:\n")
+            write(out, string(strat.balances))
+            write(out, "\n")
+            write(out, "Orders:\n")
+            write(out, string(strat.orders))
+            Base.print(String(take!(out)))
+        finally
+            close(out)
+        end
     end
 end
 

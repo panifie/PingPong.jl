@@ -3,7 +3,7 @@ module Lang
 using Distributed: @distributed
 using Logging: with_logger, NullLogger
 
-const Option{T} = Union{Nothing, T} where T
+const Option{T} = Union{Nothing,T} where {T}
 
 macro evalmod(files...)
     quote
@@ -75,8 +75,7 @@ macro exportenum(enums...)
         push!(
             expr.args,
             :(Core.eval(
-                $__module__,
-                Expr(:export, map(Symbol, instances($(esc(enum))))...),
+                $__module__, Expr(:export, map(Symbol, instances($(esc(enum))))...)
             )),
         )
     end

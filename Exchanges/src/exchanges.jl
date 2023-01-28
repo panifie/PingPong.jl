@@ -43,7 +43,7 @@ function isfileyounger(f::AbstractString, p::Period)
 end
 
 function py_except_name(e::PyException)
-    pygetattr(pytype(e), "__name__") |> string
+    string(pygetattr(pytype(e), "__name__"))
 end
 
 @doc "Load exchange markets:
@@ -57,7 +57,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
         @debug "Loading markets from exchange and caching at $mkt."
         exc.loadMarkets(true)
         pd = pyconvert(OptionsDict, exc.py.markets)
-        mkt |> dirname |> mkpath
+        mkpath(dirname(mkt))
         serialize(mkt, PyDict(pd))
         merge!(exc.markets, pd)
     end
@@ -81,11 +81,15 @@ getexchange() = exc
 
 @doc """getexchage!: ccxt exchange by symbol either from cache or anew. """
 function getexchange!(x::Symbol, args...; kwargs...)
-    get!(exchanges, x, begin
-        py = ccxt_exchange(x, args...; kwargs...)
-        e = Exchange(py)
-        setexchange!(e)
-    end)
+    get!(
+        exchanges,
+        x,
+        begin
+            py = ccxt_exchange(x, args...; kwargs...)
+            e = Exchange(py)
+            setexchange!(e)
+        end,
+    )
 end
 
 @doc "Instantiate an exchange struct. it sets:
@@ -106,9 +110,7 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     markets && loadmarkets!(exc)
     @debug "Loaded $(length(exc.markets))."
     precision = getfield(exc, :precision)
-    precision[1] = exc.py.precisionMode |>
-                   x -> pyconvert(Int, x) |>
-                        ExcPrecisionMode
+    precision[1] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
     exckeys!(exc)
     exc
 end
@@ -135,8 +137,9 @@ macro tickers(force=false)
                 if $force || nm ∉ keys(tickers_cache)
                     @assert hastickers($exc) "Exchange doesn't provide tickers list."
                     tickers_cache[nm] =
-                        $tickers =
-                            pyconvert(Dict{String,Dict{String,Any}}, $(exc).fetchTickers())
+                        $tickers = pyconvert(
+                            Dict{String,Dict{String,Any}}, $(exc).fetchTickers()
+                        )
                 else
                     $tickers = tickers_cache[nm]
                 end
@@ -213,7 +216,7 @@ function exckeys!(exc)
     # Check the exchange->futures mapping to re-use keys
     if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
         sym = Symbol(exc.id)
-        id = argmax(x->x[2]==sym, futures_exchange)
+        id = argmax(x -> x[2] == sym, futures_exchange)
         merge!(exc_keys, exchange_keys(id.first))
     end
     if !isempty(exc_keys)
@@ -234,7 +237,7 @@ issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.url
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
 
 timestamp(exc::Exchange) = pyconvert(Int64, exc.py.fetchTime())
-Base.time(exc::Exchange) = pyconvert(Float64, exc.py.fetchTime()) |> dt
+Base.time(exc::Exchange) = dt(pyconvert(Float64, exc.py.fetchTime()))
 
 include("pairlist.jl")
 include("data.jl")

@@ -11,7 +11,7 @@ LastTwo = @NamedTuple begin
     volume::PricePair
 end
 
-@inline lasttwo(arr::AbstractArray) = PricePair((arr[end-1], arr[end]))
+@inline lasttwo(arr::AbstractArray) = PricePair((arr[end - 1], arr[end]))
 
 @doc "Get the last two candles of a ohlcv table."
 function lasttwo(data::T where {T<:AbstractDataFrame})

@@ -1,7 +1,7 @@
-import Pkg
+using Pkg: Pkg
 
 @doc "Recursively resolves all julia projects in a directory."
-function recurse_projects(path="."; top = true, doupdate=false)
+function recurse_projects(path="."; top=true, doupdate=false)
     path = realpath(path)
     for subpath in readdir(path)
         fullpath = joinpath(path, subpath)

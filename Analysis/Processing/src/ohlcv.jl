@@ -6,18 +6,24 @@ using Data: to_ohlcv
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
-fill_missing_rows(df, timeframe::AbstractString; strategy=:close) = begin
-    @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=false)
+function fill_missing_rows(df, timeframe::AbstractString; strategy=:close)
+    begin
+        @as_td
+        _fill_missing_rows(df, prd; strategy, inplace=false)
+    end
 end
 
-fill_missing_rows!(df, prd::Period; strategy=:close) = begin
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+function fill_missing_rows!(df, prd::Period; strategy=:close)
+    begin
+        _fill_missing_rows(df, prd; strategy, inplace=true)
+    end
 end
 
-fill_missing_rows!(df, timeframe::AbstractString; strategy=:close) = begin
-    @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+function fill_missing_rows!(df, timeframe::AbstractString; strategy=:close)
+    begin
+        @as_td
+        _fill_missing_rows(df, prd; strategy, inplace=true)
+    end
 end
 
 function _fill_missing_rows(df, prd::Period; strategy, inplace)
@@ -32,7 +38,7 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
             # NOTE: we assume that ALL timestamps are multiples of the timedelta!
             while ts_cur < ts_end
                 if ts_cur !== :timestamp[ts_idx]
-                    close = :close[ts_idx-1]
+                    close = :close[ts_idx - 1]
                     push!(ordered_rows, Candle(ts_cur, can(close)...))
                 else
                     ts_idx += 1
@@ -61,7 +67,7 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     ts_offset = ts_float .% td
     if all(ts_offset .== ts_offset[begin])
         @debug "Offsetting timestamps for $(ts_offset[begin])."
-        df.timestamp .= (ts_float .- ts_offset[begin]) .|> dt
+        df.timestamp .= dt.((ts_float .- ts_offset[begin]))
     end
 
     # remove rows with bad timestamps

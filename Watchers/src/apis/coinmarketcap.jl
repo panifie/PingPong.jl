@@ -110,9 +110,9 @@ end
 
 usdquote(entry) = entry["quote"]["USD"]
 usdquotes(entries) = usdquote.(entries)
-usdvol(entry::AbstractDict) = usdquote(entry)["volume_24h"] |> Float64
+usdvol(entry::AbstractDict) = Float64(usdquote(entry)["volume_24h"])
 usdvol(data::AbstractVector) = usdvol.(data)
-usdprice(entry::AbstractDict) = usdquote(entry)["price"] |> Float64
+usdprice(entry::AbstractDict) = Float64(usdquote(entry)["price"])
 usdprice(data::AbstractVector) = usdprice.(data)
 
 export setapikey!, quotes, listings, credits, SortBy

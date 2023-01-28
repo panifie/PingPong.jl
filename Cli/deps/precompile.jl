@@ -1,4 +1,3 @@
 using Cli
 
-
 Cli.main()

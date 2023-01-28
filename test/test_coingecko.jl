@@ -67,6 +67,6 @@ end
 coingecko_derivatives() = begin
     one = length(cg.loadderivatives!()) > 0
     drv = cg.derivatives_from("binance_futures")
-    two = drv isa Dict{Derivative, <:Dict} && length(drv) > 0
+    two = drv isa Dict{Derivative,<:Dict} && length(drv) > 0
     one && two && d"BTC/BUSD:BUSD" ∈ keys(drv)
 end

@@ -8,7 +8,9 @@ struct RightContiguityException <: ContiguityException
     new_date::AbstractDateTime
 end
 
-display(e::RightContiguityException) = "Data stored ends at $(e.stored_date) while new data starts at $(e.new_date)."
+function display(e::RightContiguityException)
+    "Data stored ends at $(e.stored_date) while new data starts at $(e.new_date)."
+end
 show(e::RightContiguityException) = display(e)
 
 struct LeftContiguityException <: Exception
@@ -16,5 +18,7 @@ struct LeftContiguityException <: Exception
     new_date::AbstractDateTime
 end
 
-display(e::LeftContiguityException) = "Data stored starts at $(e.stored_date) while new data ends at $(e.new_date)."
+function display(e::LeftContiguityException)
+    "Data stored starts at $(e.stored_date) while new data ends at $(e.new_date)."
+end
 show(e::LeftContiguityException) = display(e)

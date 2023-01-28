@@ -23,7 +23,11 @@ macro choosepairs()
             $pairs = [e => get_pairlist(e, $qc, $vol; as_vec=true) for e in $ev]
         else
             $qc !== "" && @warn "Ignoring quote: " * $qc " since pairs were supplied."
-            pl = eltype($pairs) <: AbstractVector ? flatten(p for p in $pairs) : collect($pairs)
+            pl = if eltype($pairs) <: AbstractVector
+                flatten(p for p in $pairs)
+            else
+                collect($pairs)
+            end
             $pairs = [e => pl for e in $ev]
         end
     end
@@ -71,10 +75,19 @@ Fetch pairs from exchanges.
 - `-r, --reset`: Reset saved data.
 
 """
-@cast function fetch(pairs...; timeframe::AbstractString="1h",
-               exchanges::AbstractString="kucoin", from="", to="", vol::Float64=1e4,
-                     noupdate::Bool=false, qc::AbstractString="", progress::Bool=false,
-                     multiprocess::Bool=false, reset::Bool=false)
+@cast function fetch(
+    pairs...;
+    timeframe::AbstractString="1h",
+    exchanges::AbstractString="kucoin",
+    from="",
+    to="",
+    vol::Float64=1e4,
+    noupdate::Bool=false,
+    qc::AbstractString="",
+    progress::Bool=false,
+    multiprocess::Bool=false,
+    reset::Bool=false,
+)
     @debug "Activating python env..."
 
     # NOTE: don't create exchange classes since multiple exchanges uses @distributed
@@ -83,8 +96,17 @@ Fetch pairs from exchanges.
 
     @choosepairs
 
-    fetch_ohlcv(pairs, timeframe; parallel=multiprocess, wait_task=true,
-                         from, to, update=(!noupdate), progress, reset)
+    fetch_ohlcv(
+        pairs,
+        timeframe;
+        parallel=multiprocess,
+        wait_task=true,
+        from,
+        to,
+        update=(!noupdate),
+        progress,
+        reset,
+    )
 end
 
 """
@@ -105,10 +127,14 @@ Downsamples ohlcv data from a timeframe to another.
 - `-p, --progress`: Show Progress
 
 """
-@cast function resample_data(pairs...; from_timeframe::AbstractString="1h",
-                        target_timeframe::AbstractString="1d",
-                        exchanges::AbstractString="kucoin",
-                        qc::AbstractString="", progress::Bool=false)
+@cast function resample_data(
+    pairs...;
+    from_timeframe::AbstractString="1h",
+    target_timeframe::AbstractString="1d",
+    exchanges::AbstractString="kucoin",
+    qc::AbstractString="",
+    progress::Bool=false,
+)
     @splitexchanges!
 
     vol = config.vol_min

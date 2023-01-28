@@ -43,7 +43,7 @@ fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 @doc "Loads the Mark module."
 function mark!()
     dir = @__DIR__
-    modpath = joinpath(dir |> dirname, "Mark")
+    modpath = joinpath(dirname(dir), "Mark")
     if modpath ∉ Base.LOAD_PATH
         push!(Base.LOAD_PATH, modpath)
     end

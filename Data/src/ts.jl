@@ -4,7 +4,11 @@ using Temporal: TS
 macro ohlc(df, tp=Float64)
     df = esc(:df)
     quote
-        TS(@to_mat(@view($df[:, PingPong.OHLCV_COLUMNS_TS]), $tp), $df.timestamp, OHLCV_COLUMNS_TS)
+        TS(
+            @to_mat(@view($df[:, PingPong.OHLCV_COLUMNS_TS]), $tp),
+            $df.timestamp,
+            OHLCV_COLUMNS_TS,
+        )
     end
 end
 
@@ -14,7 +18,7 @@ macro as_ts(df, c1, cols...)
     local columns
     if cols[1] isa QuoteNode
         columns = [c.value for c in cols]::Vector{Symbol}
-        return
+        return nothing
     else
         @assert size(cols, 1) === 1
         columns = esc(cols[1])
@@ -30,7 +34,7 @@ macro as_ts(df, c1, cols...)
             end
             idx = hasproperty($df, :timestamp) ? $(df).timestamp : $(esc(:dates))
             ns = vcat([$c1]::Vector{Symbol}, $columns::Vector{Symbol})
-	        TS(@to_mat(@view($df[:, ns])), idx, ns)
+            TS(@to_mat(@view($df[:, ns])), idx, ns)
         end
     end
 end

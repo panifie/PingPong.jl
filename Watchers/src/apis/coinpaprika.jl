@@ -220,7 +220,7 @@ function markets(exc_id, qc="usd")
     @assert exc_id ∈ keys(exchanges_cache) "Not a valid exchange id or exchange ids not loaded, (call `loadexchanges!`)"
     path = (apiPaths.exchanges, "/", exc_id, "/markets")
     json = get(join(path), ("quote" => qc))
-    data = Dict{String, Any}()
+    data = Dict{String,Any}()
     for v in json
         pair = v["pair"] * ":" * v["category"]
         @assert pair ∉ keys(data)

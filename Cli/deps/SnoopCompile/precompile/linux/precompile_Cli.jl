@@ -8,10 +8,10 @@ macro warnpcfail(ex::Expr)
     quote
         $(esc(ex)) || @warn """precompile directive
      $($(Expr(:quote, ex)))
- failed. Please report an issue in $($modl) (after checking for duplicates) or remove this directive.""" _file=$file _line=$line
+ failed. Please report an issue in $($modl) (after checking for duplicates) or remove this directive.""" _file =
+            $file _line = $line
     end
 end
-
 
 function _precompile_()
     ccall(:jl_generating_output, Cint, ()) == 1 || return nothing

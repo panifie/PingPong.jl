@@ -30,7 +30,7 @@ const ApiPaths = (;
     rates="/api/v3/exchange_rates",
     search="/api/v3/search",
     trending="/api/v3/search/trending",
-    glob="/api/v3/global"
+    glob="/api/v3/global",
 )
 const DEFAULT_CUR = "usd"
 
@@ -149,8 +149,8 @@ function coinshistory(id::AbstractString, date::DateTime, cur=DEFAULT_CUR)
         path = (ApiPaths.coins_id, "/", id, "/history")
         json = get(join(path), ("date" => _cg_dateformat(date),))
         data = json["market_data"]
-        price = data["current_price"][cur] |> Float64
-        volume = data["total_volume"][cur] |> Float64
+        price = Float64(data["current_price"][cur])
+        volume = Float64(data["total_volume"][cur])
         (; price, volume)
     end
 end
@@ -253,7 +253,7 @@ function globaldata()
     (;
         volume=convert(Dict{String,Float64}, data["total_volume"]),
         mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
-        date=DateTime(data["updated_at"])
+        date=DateTime(data["updated_at"]),
     )
 end
 
@@ -270,7 +270,7 @@ function trending()
                     id=convert(String, itm["id"]),
                     price_btc=convert(Float64, itm["price_btc"]),
                     slug=convert(String, itm["slug"]),
-                    sym=convert(String, itm["symbol"])
+                    sym=convert(String, itm["symbol"]),
                 )
                 itm.id => itm
             end for item in json["coins"]

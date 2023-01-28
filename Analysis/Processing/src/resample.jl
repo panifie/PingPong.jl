@@ -7,14 +7,16 @@ using Data: data_td, save_ohlcv, PairData
 using Data.DFUtils
 using DataFrames
 
-resample(exc::Exchange, pair::PairData, to_tf; kwargs...) = begin
-    resample(exc, pair.name, pair.data, pair.tf, to_tf; kwargs...)
+function resample(exc::Exchange, pair::PairData, to_tf; kwargs...)
+    begin
+        resample(exc, pair.name, pair.data, pair.tf, to_tf; kwargs...)
+    end
 end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     @debug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
-                   "Resampling assumptions are not met, expecting cleaned data."
+        "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(data, 1)
     sz > 1 || return empty_ohlcv()
@@ -31,12 +33,12 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
 
     # remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
     left = 1
-    while (data.timestamp[left] |> timefloat) % td !== 0.0
+    while (timefloat(data.timestamp[left])) % td !== 0.0
         left += 1
     end
     right = size(data, 1)
     let last_sample_candle_remainder = src_td * (frame_size - 1)
-        while (data.timestamp[right] |> timefloat) % td !== last_sample_candle_remainder
+        while (timefloat(data.timestamp[right])) % td !== last_sample_candle_remainder
             right -= 1
         end
     end
@@ -60,7 +62,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     select!(data, Not(:sample))
     select!(df, Not(:sample))
     save && size(df)[1] > 0 && save_ohlcv(exc, pairname, name(to_tf), df)
-    @debug @show "last 2 candles: " df[end-1, :timestamp] df[end, :timestamp]
+    @debug @show "last 2 candles: " df[end - 1, :timestamp] df[end, :timestamp]
     df
 end
 
@@ -76,10 +78,7 @@ function resample(
     try
         for (name, pair_data) in mrkts
             rs[name] = PairData(
-                name,
-                timeframe,
-                resample(exc, pair_data, timeframe; save),
-                nothing,
+                name, timeframe, resample(exc, pair_data, timeframe; save), nothing
             )
             progress && @pbupdate!
         end

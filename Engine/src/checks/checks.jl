@@ -38,7 +38,9 @@ function check_cost(inst::AssetInstance, price, amount)
 end
 
 @doc "Ensures the order respect the minimum limits (not the maximum!) and precision for the market."
-function sanitize_order(inst::AssetInstance{A, E}, o::Order{A, E})::Option{Order{A, E}} where {A, E}
+function sanitize_order(
+    inst::AssetInstance{A,E}, o::Order{A,E}
+)::Option{Order{A,E}} where {A,E}
     (price, amount) = sanitize_price_amount(inst, o.price, o.amount)
     o = setproperties(o; price, amount)
     check_cost(inst, o.price, o.amount)

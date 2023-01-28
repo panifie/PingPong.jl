@@ -2,27 +2,23 @@ using Misc: timefloat, @as_td
 using StatsBase: transform!, transform, fit, ZScoreTransform, UnitRangeTransform
 
 @doc "Applies either a unitrange transform or a zscore tranform over the data in place."
-normalize!(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = true)
-normalize(arr; unit = false, dims = ndims(arr)) = _normalize(arr; unit, dims, copy = false)
+normalize!(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=true)
+normalize(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=false)
 
-function _normalize(arr::AbstractArray; unit = false, dims = ndims(arr), copy = false)
+function _normalize(arr::AbstractArray; unit=false, dims=ndims(arr), copy=false)
     t = copy ? transform! : transform
-    fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims) |> x -> t(x, arr)
+    (x -> t(x, arr))(fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims))
 end
 
 @doc "Apply a function over data, resampling data to each timeframe in `tfs`.
 - `f`: signature is (data; kwargs...)::DataFrame
 - `tfsum`: sum the scores across multiple timeframes for every pair."
 function maptf(
-    tfs::AbstractVector{T} where {T<:String},
-    data,
-    f::Function;
-    tfsum = true,
-    kwargs...,
+    tfs::AbstractVector{T} where {T<:String}, data, f::Function; tfsum=true, kwargs...
 )
     res = []
     # sort timeframes
-    tfs_idx = tfs .|> Symbol .|> timefloat |> sortperm
+    tfs_idx = sortperm(timefloat.(Symbol.(tfs)))
     permute!(tfs, tfs_idx)
     unique!(tfs)
     # apply an ordinal 2x weighting formula and normalize it
@@ -30,7 +26,7 @@ function maptf(
     tf_weights ./= sum(tf_weights)
 
     for (n, tf) in enumerate(tfs)
-        data_r = resample(data, tf; save = false, progress = false)
+        data_r = resample(data, tf; save=false, progress=false)
         d = f(data_r; kwargs...)
         tfsum || (d[!, :timeframe] .= tf)
         d[!, :score] = d.score .* tf_weights[n]

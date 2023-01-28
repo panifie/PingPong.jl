@@ -8,8 +8,9 @@ const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
-const DATA_PATH =
-    get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))")
+const DATA_PATH = get(
+    ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))"
+)
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
 
@@ -43,7 +44,9 @@ macro as_dfdict(data, skipempty=true)
     end
 end
 
-drop(nt::NamedTuple, keys::NTuple{N,Symbol}) where {N} = Base.structdiff(nt, NamedTuple{keys})
+function drop(nt::NamedTuple, keys::NTuple{N,Symbol}) where {N}
+    Base.structdiff(nt, NamedTuple{keys})
+end
 
 include("exceptions.jl")
 

@@ -22,13 +22,15 @@ log_close = np.log(close)
 function spread(high::T, low::T, close::T) where {T<:PricePair}
     # The first price of the pair should precede the second in the chronological order
     lcp = log(close.prev)
-    max(4
-        * (lcp - (log(high.prev) + log(low.prev) / 2))
-        * (lcp - (log(high.next) + log(low.next)) / 2), 0)
+    max(
+        4 *
+        (lcp - (log(high.prev) + log(low.prev) / 2)) *
+        (lcp - (log(high.next) + log(low.next)) / 2),
+        0,
+    )
 end
 
 @inline spread(l2::LastTwo) = spread(l2.high, l2.low, l2.close)
-
 
 # @doc "Get two adjacent candles of a ohlcv table."
 # function attwo(data::T where {T<:AbstractDataFrame}, date::DateTime)
@@ -51,9 +53,9 @@ macro splatpairs(data, idx, syms...)
     idx = esc(idx)
     Expr(
         :tuple,
-        [:($PricePair(($(data).$(sym)[$idx-1], $(data).$(sym)[$idx])))
-         for sym in syms
-        ]...
+        [
+            :($PricePair(($(data).$(sym)[$idx - 1], $(data).$(sym)[$idx]))) for sym in syms
+        ]...,
     )
 end
 

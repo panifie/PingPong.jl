@@ -46,7 +46,7 @@ test_map = Dict(
     :time => [test_time],
     :ohlcv => [test_ohlcv],
     :orders => [test_orders],
-    :cmc => [test_coinmarketcap]
+    :cmc => [test_coinmarketcap],
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS

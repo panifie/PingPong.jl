@@ -11,7 +11,8 @@ function queryfromstruct(T::Type, sep=","; kwargs...)
         isnothing(f) && continue
         ft = typeof(f)
         hasmethod(length, (ft,)) && length(f) == 0 && continue
-        params[string(s)] = ft != String && hasmethod(iterate, (ft,)) ? join(f, sep) : string(f)
+        params[string(s)] =
+            ft != String && hasmethod(iterate, (ft,)) ? join(f, sep) : string(f)
     end
     params
 end

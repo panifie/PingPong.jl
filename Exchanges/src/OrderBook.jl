@@ -2,11 +2,11 @@
 
 using StatsBase: iqr
 
-function mon_obi(exc, pair, runs=60*5)
+function mon_obi(exc, pair, runs=60 * 5)
     imbs = Array{Real}(undef, runs)
     price = similar(imbs)
     r = 1
-    while r < runs+1
+    while r < runs + 1
         imbs[r], price[r] = obimbalance(exc, pair; use_last=true)
         sleep(1)
         r += 1
@@ -14,13 +14,12 @@ function mon_obi(exc, pair, runs=60*5)
     imbs, price
 end
 
-
 macro fetchob(args...)
     ob = esc(:ob)
     exc = esc(:exc)
     pair = esc(:pair)
     quote
-	    if isnothing($ob)
+        if isnothing($ob)
             $ob = $exc.fetchOrderBook($pair)
         end
     end
@@ -63,12 +62,14 @@ end
 - `stepvalue` size of the bins for aggregation (the range value of :price or :volume). If it is nothing,
 it takes the average of the first 10 elements of the array.
 """
-function orderbook(exc, pair; ob=nothing, stepvalue::Union{Nothing, Real}=nothing, by=:price)
+function orderbook(exc, pair; ob=nothing, stepvalue::Union{Nothing,Real}=nothing, by=:price)
     @fetchob
     bids = DataFrame(ob["bids"], ["price", "volume"])
     asks = DataFrame(ob["asks"], ["price", "volume"])
     price_vol = by === :price
-    (ob=ob,
-     bids=vwap(bids, stepvalue; price_vol, bid_ask=true),
-     asks=vwap(asks, stepvalue; price_vol, bid_ask=false))
+    (
+        ob=ob,
+        bids=vwap(bids, stepvalue; price_vol, bid_ask=true),
+        asks=vwap(asks, stepvalue; price_vol, bid_ask=false),
+    )
 end

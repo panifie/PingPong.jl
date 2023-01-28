@@ -4,15 +4,15 @@ export DateType
 
 @doc "Mapping of timeframes to default window sizes."
 const tf_win = IdDict(
-    "1m"   =>  20,  #  20m
-    "5m"   =>  12,  #  1h
-    "15m"  =>  16,  #  4h
-    "30m"  =>  16,  #  8h
-    "1h"   =>  24,  #  24h
-    "2h"   =>  24,  #  48h
-    "4h"   =>  42,  #  1w
-    "8h"   =>  42,  #  2w
-    "1d"   =>  26   #  4w
+    "1m" => 20,  #  20m
+    "5m" => 12,  #  1h
+    "15m" => 16,  #  4h
+    "30m" => 16,  #  8h
+    "1h" => 24,  #  24h
+    "2h" => 24,  #  48h
+    "4h" => 42,  #  1w
+    "8h" => 42,  #  2w
+    "1d" => 26,   #  4w
 )
 
 @doc "Reverse mapping of timedeltas (milliseconds) to timeframes."
@@ -27,5 +27,5 @@ const td_tf = Dict(
     14400000 => "4h",
     28800000 => "8h",
     43200000 => "12h",
-    86400000 => "1d"
+    86400000 => "1d",
 )

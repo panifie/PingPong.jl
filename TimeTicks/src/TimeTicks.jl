@@ -13,7 +13,7 @@ include("consts.jl")
 now() = Dates.now(UTC)
 
 # ccxt always uses milliseconds in timestamps
-tfnum(prd::Period) = convert(Millisecond, prd) |> x -> convert(Float64, x.value)
+tfnum(prd::Period) = (x -> convert(Float64, x.value))(convert(Millisecond, prd))
 
 @doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature.
 Units bigger than days are converted to the equivalent number of days days."
@@ -82,44 +82,46 @@ macro as_td()
 end
 
 @doc "Converts integers to relative datetimes according to given period."
-from_to_dt(prd::Period, from, to) = begin
-    if from !== ""
-        from = if typeof(from) <: Int
-            from
-        else
-            something(tryparse(Int, from), tryparse(DateTime, from), from)
-        end
-        typeof(from) <: Int && begin
-            if from === 0
-                DateTime(0)
+function from_to_dt(prd::Period, from, to)
+    begin
+        if from !== ""
+            from = if typeof(from) <: Int
+                from
             else
-                if prd.value === 0
-                    from
+                something(tryparse(Int, from), tryparse(DateTime, from), from)
+            end
+            typeof(from) <: Int && begin
+                if from === 0
+                    DateTime(0)
                 else
-                    now() - (abs(from) * prd)
+                    if prd.value === 0
+                        from
+                    else
+                        now() - (abs(from) * prd)
+                    end
                 end
             end
         end
-    end
-    if to !== ""
-        to = if typeof(to) <: Int
-            to
-        else
-            something(tryparse(Int, to), tryparse(DateTime, to), to)
-        end
-        typeof(to) <: Int && begin
-            if to === 0
-                now()
+        if to !== ""
+            to = if typeof(to) <: Int
+                to
             else
-                if prd.value === 0
-                    to
+                something(tryparse(Int, to), tryparse(DateTime, to), to)
+            end
+            typeof(to) <: Int && begin
+                if to === 0
+                    now()
                 else
-                    now() - (abs(to) * prd)
+                    if prd.value === 0
+                        to
+                    else
+                        now() - (abs(to) * prd)
+                    end
                 end
             end
         end
+        from, to
     end
-    from, to
 end
 from_to_dt(timeframe::AbstractString, args...) = begin
     @as_td
@@ -136,25 +138,27 @@ convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 function convert(::Type{String}, tf::T) where {T<:TimeFrame}
     tostring(unit::String) = "$(tf.period.value)$(unit)"
     prd = tf.period
-    if prd isa Nanosecond
-        "ns"
-    elseif prd isa Millisecond
-        "ms"
-    elseif prd isa Second
-        "s"
-    elseif prd isa Minute
-        "m"
-    elseif prd isa Hour
-        "h"
-    elseif prd isa Day
-        "d"
-    elseif prd isa Week
-        "w"
-    elseif prd isa Month
-        "M"
-    else
-        "y"
-    end |> tostring
+    tostring(
+        if prd isa Nanosecond
+            "ns"
+        elseif prd isa Millisecond
+            "ms"
+        elseif prd isa Second
+            "s"
+        elseif prd isa Minute
+            "m"
+        elseif prd isa Hour
+            "h"
+        elseif prd isa Day
+            "d"
+        elseif prd isa Week
+            "w"
+        elseif prd isa Month
+            "M"
+        else
+            "y"
+        end,
+    )
 end
 
 const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
@@ -170,18 +174,18 @@ dt(num::Real) = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 
 @doc "Converts date into an Integer unix timestamp (seconds)."
-timestamp(d::DateTime) = datetime2unix(d) |> trunc |> Int
-timestamp(s::AbstractString) = DateTime(s) |> timestamp
+timestamp(d::DateTime) = Int(trunc(datetime2unix(d)))
+timestamp(s::AbstractString) = timestamp(DateTime(s))
 timefloat(time::Float64) = time
 timefloat(prd::Period) = prd.value * 1.0
 timefloat(time::DateTime) = dtfloat(time)
 
 function timefloat(time::String)
     time === "" && return dtfloat(dt(0))
-    DateTime(time) |> dtfloat
+    dtfloat(DateTime(time))
 end
 
-timefloat(tf::Symbol) = tf |> string |> tfperiod |> tfnum
+timefloat(tf::Symbol) = tfnum(tfperiod(string(tf)))
 
 @doc "Given a container, infer the timeframe by looking at the first two \
  and the last two elements timestamp."
@@ -189,8 +193,8 @@ macro infertf(data, field=:timestamp)
     quote
         begin
             arr = getproperty($(esc(data)), $(QuoteNode(field)))
-            td1 = arr[begin+1] - arr[begin]
-            td2 = arr[end] - arr[end-1]
+            td1 = arr[begin + 1] - arr[begin]
+            td2 = arr[end] - arr[end - 1]
             @assert td1 === td2 """mismatch in dataframe dates found!
             1: $(arr[begin])
             2: $(arr[begin+1])
@@ -204,9 +208,11 @@ end
 import Base.convert
 
 const tf_conv_map = Dict{Period,TimeFrame}()
-@inline convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond}) = begin
-    @lget! tf_conv_map v.period begin
-        TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))
+@inline function convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond})
+    begin
+        @lget! tf_conv_map v.period begin
+            TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))
+        end
     end
 end
 @inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Day) = tf"1440m"
@@ -215,7 +221,6 @@ end
 
 @doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
 available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
-
 
 export @as_td,
     @tf_str,

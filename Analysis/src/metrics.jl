@@ -1,4 +1,5 @@
-import Indicators; const ind = Indicators;
+using Indicators: Indicators;
+const ind = Indicators;
 using DataFramesMeta
 using ProgressMeter
 using Misc: config
@@ -7,11 +8,11 @@ using Data: @to_mat, PairData
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN
     df[!, :minima] .= NaN
-    dfv = @view df[window+2:end, :]
+    dfv = @view df[(window + 2):end, :]
     price = df.close
     # prev_window = window - 2
     @eachrow! dfv begin
-        stop = row+window
+        stop = row + window
         # ensure no lookahead bias
         @assert df.timestamp[stop] < :timestamp
         subts = @view(price[row:stop])
@@ -38,8 +39,8 @@ end
 
 @doc "Calculate successrate of given column against next candle.
 `direction`: `true` is buy, `false` is sell."
-function up_successrate(df, bcol::Union{Symbol, String}; threshold=0.05)
-    bcol_v = getproperty(df, bcol) |> x -> circshift(x, 1)
+function up_successrate(df, bcol::Union{Symbol,String}; threshold=0.05)
+    bcol_v = (x -> circshift(x, 1))(getproperty(df, bcol))
     bcol_v[1] = NaN
     rate = 0
     tv = 1 + threshold
@@ -50,8 +51,8 @@ function up_successrate(df, bcol::Union{Symbol, String}; threshold=0.05)
     rate
 end
 
-function down_successrate(df, bcol::Union{Symbol, String}; threshold=0.05)
-    bcol_v = getproperty(df, bcol) |> x -> circshift(x, 1)
+function down_successrate(df, bcol::Union{Symbol,String}; threshold=0.05)
+    bcol_v = (x -> circshift(x, 1))(getproperty(df, bcol))
     bcol_v[1] = NaN
     rate = 0
     tv = 1 + threshold
@@ -63,15 +64,15 @@ function down_successrate(df, bcol::Union{Symbol, String}; threshold=0.05)
 end
 
 @doc "This support and resistance functions from Indicators appear to be too inaccurate despite parametrization."
-function supres(df; order=1, threshold=0., window=16)
+function supres(df; order=1, threshold=0.0, window=16)
     df[!, :sup] .= NaN
     df[!, :res] .= NaN
-    dfv = @view df[window+2:end, :]
+    dfv = @view df[(window + 2):end, :]
     price = df.close
     local prev_r, prev_s
     @assert window > 15 # use a large enough window size to prevent zero values
     @eachrow! dfv begin
-        stop = row+window
+        stop = row + window
         # ensure no lookahead bias
         @debug @assert df.timestamp[stop] < :timestamp
         subts = @view price[row:stop]
@@ -86,7 +87,7 @@ function supres(df; order=1, threshold=0., window=16)
     df
 end
 
-function renkodf(df; box_size=10., use_atr=false, n=14)
+function renkodf(df; box_size=10.0, use_atr=false, n=14)
     local rnk_idx
     if use_atr
         type = Float64
@@ -108,16 +109,16 @@ function isrenkoentry(df::AbstractDataFrame; head=3, tail=1, long=true, kwargs..
     size(rnk, 1) > head + tail || return false
     if long
         # if long the tail (the last candles) must be red
-        tailcheck = all(rnk.close[end-n] <= rnk.open[end-n] for n in 0:tail-1)
+        tailcheck = all(rnk.close[end - n] <= rnk.open[end - n] for n in 0:(tail - 1))
         tailcheck || return tailcheck
         # since long, the trend must be green
-        headcheck = all(rnk.close[end-n] > rnk.open[end-n] for n in tail:head)
+        headcheck = all(rnk.close[end - n] > rnk.open[end - n] for n in tail:head)
         return headcheck
     else
         # opposite...
-        tailcheck = all(rnk.close[end-n] > rnk.open[end-n] for n in 0:tail-1)
+        tailcheck = all(rnk.close[end - n] > rnk.open[end - n] for n in 0:(tail - 1))
         tailcheck || return tailcheck
-        headcheck = all(rnk.close[end-n] <= rnk.open[end-n] for n in tail:head)
+        headcheck = all(rnk.close[end - n] <= rnk.open[end - n] for n in tail:head)
         return headcheck
     end
 end
@@ -130,13 +131,13 @@ function isrenkoentry(data::AbstractDict; kwargs...)
     out
 end
 
-function gridrenko(data::AbstractDataFrame; head_range=1:10, tail_range=1:3, n_range=10:10:200)
+function gridrenko(
+    data::AbstractDataFrame; head_range=1:10, tail_range=1:3, n_range=10:10:200
+)
     out = []
-    for head in head_range,
-        tail in tail_range,
-        n in n_range
+    for head in head_range, tail in tail_range, n in n_range
         if isrenkoentry(data; head, tail, n)
-            push!(out, (;head, tail, n))
+            push!(out, (; head, tail, n))
         end
     end
     out
@@ -159,7 +160,9 @@ function bbands!(df::AbstractDataFrame; kwargs...)
     if bbcols[1] ∈ getfield(df, :colindex).names
         df[!, bbcols] = bb
     else
-        insertcols!(df, [c => @view(bb[:, n]) for (n, c) in enumerate(bbcols)]...; copycols=false)
+        insertcols!(
+            df, [c => @view(bb[:, n]) for (n, c) in enumerate(bbcols)]...; copycols=false
+        )
     end
     df
 end
@@ -170,45 +173,47 @@ end
 
 using Base.Iterators: countfrom, take
 using Base.Threads: @spawn
-const Float = typeof(0.)
+const Float = typeof(0.0)
 
-function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.], corr=:corke)
+function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.0], corr=:corke)
     out = Dict()
     out_df = []
     # out_df = IdDict(n => [] for n in 1:Threads.nthreads())
     if n_range isa UnitRange
-        n_range = n_range.start:min(size(df, 1) - 1, n_range.stop)
+        n_range = (n_range.start):min(size(df, 1) - 1, n_range.stop)
     elseif n_range isa StepRange
-        n_range = n_range.start:n_range.step:min(size(df, 1) - 1, n_range.stop)
+        n_range = (n_range.start):(n_range.step):min(size(df, 1) - 1, n_range.stop)
     end
     local postproc
     if eval(corr) isa Function
         corfn = getproperty(@__MODULE__, corr)
-        postproc = (n, bb) -> begin
-            vals = collect(corfn(@view(bb[:, col1][n:end]),
-                                 @view(getproperty(df, col2)[n:end]))
-            for (col1, col2) in ((1, :low), (2, :close), (2, :high)))
-            (;bb_low_corr=vals[1], bb_mid_corr=vals[2], bb_high_corr=vals[3])
-        end
+        postproc =
+            (n, bb) -> begin
+                vals = collect(
+                    corfn(@view(bb[:, col1][n:end]), @view(getproperty(df, col2)[n:end])) for (col1, col2) in ((1, :low), (2, :close), (2, :high))
+                )
+                (; bb_low_corr=vals[1], bb_mid_corr=vals[2], bb_high_corr=vals[3])
+            end
     else
         postproc = (_, _) -> (nothing, nothing, nothing)
     end
     p = Progress(length(n_range) * length(sigma_range))
     th = []
     l = ReentrantLock()
-    for n in n_range,
-        sigma in sigma_range
+    for n in n_range, sigma in sigma_range
         push!(th, Threads.@spawn begin
             bb = bbands(df; n, sigma)
             co = postproc(n, bb)
             lock(l)
-            push!(out_df, (;n, sigma, co...))
-            size(bb, 1) > 0 && setindex!(out, bb, (;n, sigma))
+            push!(out_df, (; n, sigma, co...))
+            size(bb, 1) > 0 && setindex!(out, bb, (; n, sigma))
             next!(p)
             unlock(l)
         end)
     end
-    for t in th wait(t) end
+    for t in th
+        wait(t)
+    end
     out, DataFrame(out_df)
 end
 
@@ -244,11 +249,10 @@ end
 
 function is_uptrend(ohlcv::DataFrame; thresh=0.05, n=26)
     @checksize
-    ind.momentum(@view(ohlcv.close[end-n:end]); n)[end] > thresh
+    ind.momentum(@view(ohlcv.close[(end - n):end]); n)[end] > thresh
 end
 
-function is_lowvol(ohlcv::DataFrame; thresh=0.05, n=3)
-end
+function is_lowvol(ohlcv::DataFrame; thresh=0.05, n=3) end
 
 include("corr.jl")
 include("slope.jl")

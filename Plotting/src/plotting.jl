@@ -20,8 +20,8 @@ const cplot = pynew()
 # end
 
 @doc "Loads pyecharts python module."
-function init_pyecharts(reload = false)
-    !pyisnull(pyec) && !reload && return
+function init_pyecharts(reload=false)
+    !pyisnull(pyec) && !reload && return nothing
     @pymodule pyec pyecharts
     @pymodule np numpy
     pycopy!(opts, pyec.options)
@@ -46,7 +46,7 @@ end
 
 macro passkwargs(args...)
     kwargs = [Expr(:kw, a.args[1], a.args[2]) for a in args]
-    return esc( :( $(kwargs...) ) )
+    return esc(:($(kwargs...)))
 end
 
 @doc "Initializes pyechart chart class."
@@ -64,8 +64,10 @@ macro df_dates_data()
     tail = esc(:tail)
     e_df = esc(:df)
     quote
-        $dates = $e_df.timestamp[end-$tail:end]
-        $data = Matrix{Float64}(@view($e_df[end-$tail:end, collect(c for c in echarts_ohlc_cols)]))
+        $dates = $e_df.timestamp[(end - $tail):end]
+        $data = Matrix{Float64}(
+            @view($e_df[(end - $tail):end, collect(c for c in echarts_ohlc_cols)])
+        )
     end
 end
 
@@ -73,7 +75,7 @@ macro autotail(df)
     tail = esc(:tail)
     df = esc(df)
     quote
-	    if $tail == -1
+        if $tail == -1
             $tail = size($df, 1) - 1
         end
     end
@@ -85,13 +87,16 @@ const bar_inds = Set()
 const line_inds = Set()
 
 bar_inds!() = (empty!(bar_inds); union!(bar_inds, ["maxima", "minima", "volume", "renko"]))
-line_inds!() = (empty!(line_inds); union!(line_inds, ["sup", "res", "mlr", "mlr_lb", "mlr_ub", "alma"]))
+function line_inds!()
+    (empty!(line_inds);
+    union!(line_inds, ["sup", "res", "mlr", "mlr_lb", "mlr_ub", "alma"]))
+end
 const default_chart_type = "line"
 
 macro charttypes!(type)
     quote
         global chartinds
-	    for ind in getproperty(Plotting, Symbol($type, :_inds))
+        for ind in getproperty(Plotting, Symbol($type, :_inds))
             chartinds[ind] = $type
         end
     end
@@ -103,7 +108,7 @@ macro chartinds!()
         union!(charttypes, ["bar", "line"])
         bar_inds!()
         line_inds!()
-	    for tp in charttypes
+        for tp in charttypes
             @charttypes! tp
         end
     end
@@ -118,10 +123,13 @@ function plotgrid(df, tail=20; name="OHLCV", view=false, inds=[], inds2=[], relo
     @autotail df
     @df_dates_data
 
-    inds = PyDict(pystr(ind) => (get(chartinds, ind, default_chart_type),
-                              PyList(getproperty(df, ind))) for ind in inds)
+    inds = PyDict(
+        pystr(ind) =>
+            (get(chartinds, ind, default_chart_type), PyList(getproperty(df, ind))) for
+        ind in inds
+    )
     "volume" ∉ keys(inds) && begin
-	    @py inds["volume"] = ("bar", PyList(df.volume))
+        @py inds["volume"] = ("bar", PyList(df.volume))
     end
 
     @info "Plotting..."
@@ -144,10 +152,10 @@ function plotscatter3d(df; x=:x, y=:y, z=:z, name="", tail=50, reload=true)
     cols = [x, y, z]
     @info "Preparing data..."
     @with df begin
-	    data = [[df[n, cols]..., n] for n in 1:size(df, 1)]
+        data = [[df[n, cols]..., n] for n in 1:size(df, 1)]
     end
     @info "Generating plot..."
-	cplot.scatter3d(data; name, x, y, z)
+    cplot.scatter3d(data; name, x, y, z)
 end
 
 function showhere(data::AbstractDataFrame, pred::Function, target::Symbol)
@@ -168,7 +176,7 @@ function countdf(data::AbstractDataFrame)
     local bins
     @with data begin
         bins = Dict(col => Dict() for col in names(data))
-	    for col in keys(bins)
+        for col in keys(bins)
             for v in data[:, col]
                 pv = get(bins[col], v, 0)
                 pv += 1
@@ -191,7 +199,7 @@ function heatmap(x, y, v, y_name="", y_labels="", reload=true)
     @eachrow df begin
         _DF[row, x]
     end
-    return
+    return nothing
     cplot.heatmap(x_axis, y_axis; y_name, y_labels)
 end
 
@@ -209,7 +217,7 @@ function _plotone(pair::PairData; timeframe="15m", n_bb=nothing, n_mul=100)
     @info "Bbands with window $n..."
     Analysis.bbands!(df; n)
     df[!, :alma] = Analysis.ind.alma(df.close; n)
-    plotgrid(df, size(df, 1) -1; name=pair.name, inds=[:alma, :bb_low, :bb_mid, :bb_high])
+    plotgrid(df, size(df, 1) - 1; name=pair.name, inds=[:alma, :bb_low, :bb_mid, :bb_high])
 end
 
 macro plotone(name, bb_args...)

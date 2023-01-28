@@ -43,9 +43,11 @@ struct Order4{A<:AbstractAsset,E<:ExchangeID}
     amount::Float64
     date::DateTime
     function Order4(a::A, e::E, args...) where {A<:AbstractAsset,E<:ExchangeID}
-        new{A, E}(a, e, args...)
+        new{A,E}(a, e, args...)
     end
-    function Order4(a::A, e::E; amount=config.base_amount, price=0.0, kind=Take, date=now()) where {A<:AbstractAsset,E<:ExchangeID}
+    function Order4(
+        a::A, e::E; amount=config.base_amount, price=0.0, kind=Take, date=now()
+    ) where {A<:AbstractAsset,E<:ExchangeID}
         new{A,E}(a, e, kind, price, amount, date)
     end
 end

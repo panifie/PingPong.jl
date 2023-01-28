@@ -1,4 +1,5 @@
-using PingPong.Data; using .Data
+using PingPong.Data;
+using .Data;
 using PingPong.Data.DFUtils
 
 include("env.jl")

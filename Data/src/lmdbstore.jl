@@ -1,6 +1,6 @@
-import Zarr;
+using Zarr: Zarr;
 const za = Zarr;
-import LMDB;
+using LMDB: LMDB;
 const lm = LMDB;
 
 struct LMDBDictStore <: za.AbstractDictStore

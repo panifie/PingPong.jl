@@ -16,16 +16,18 @@ mutable struct LiveOrder4{A<:Asset,E<:ExchangeID}
     asset::Ref{AssetInstance{A,E}}
     order::Order{A,E}
     delay::Millisecond
-    LiveOrder4(
-        i::AssetInstance{A,E},
-        o::Order{A,E};
-        delay=Millisecond(0),
-    ) where {A<:Asset,E<:ExchangeID} = begin
-        new{A,E}(i, o, date, delay)
+    function LiveOrder4(
+        i::AssetInstance{A,E}, o::Order{A,E}; delay=Millisecond(0)
+    ) where {A<:Asset,E<:ExchangeID}
+        begin
+            new{A,E}(i, o, date, delay)
+        end
     end
-    LiveOrder4(a::AssetInstance, kind::OrderKind, amt::Float64; kwargs...) = begin
-        order = Order(a.asset, a.exc.id, kind, amt)
-        LiveOrder4(order, kwargs...)
+    function LiveOrder4(a::AssetInstance, kind::OrderKind, amt::Float64; kwargs...)
+        begin
+            order = Order(a.asset, a.exc.id, kind, amt)
+            LiveOrder4(order, kwargs...)
+        end
     end
 end
 

@@ -25,11 +25,11 @@ struct PairData
 end
 
 PairData(; name, tf, data, z) = PairData(name, tf, data, z)
-Base.convert(
-    ::Type{T},
-    d::AbstractDict{String,PairData},
-) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame} =
+function Base.convert(
+    ::Type{T}, d::AbstractDict{String,PairData}
+) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame}
     Dict(p.name => p.data for p in values(d))
+end
 
 macro zkey()
     p = esc(:pair)
@@ -57,8 +57,8 @@ macro check_td(args...)
                 @warn "Saved date not matching timeframe, resetting."
                 throw(
                     TimeFrameError(
-                        $check_data[1, $col] |> string,
-                        $check_data[2, $col] |> string,
+                        string($check_data[1, $col]),
+                        string($check_data[2, $col]),
                         convert(Second, Millisecond($td)),
                     ),
                 )
@@ -183,12 +183,7 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
 end
 
 function _get_zarray(
-    zi::ZarrInstance,
-    key::AbstractString,
-    sz::Tuple;
-    type,
-    overwrite,
-    reset
+    zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
 )
     existing = false
     if is_zarray(zi.store, key)
@@ -226,7 +221,7 @@ function _save_ohlcv(
     data_col=1,
     saved_col=1,
     overwrite=true,
-    reset=false
+    reset=false,
 )
     local za
     !reset && @check_td(data)
@@ -238,8 +233,8 @@ function _save_ohlcv(
         local data_view
         saved_first_ts = za[1, saved_col]
         saved_last_ts = za[end, saved_col]
-        data_first_ts = data[1, data_col] |> timefloat
-        data_last_ts = data[end, data_col] |> timefloat
+        data_first_ts = timefloat(data[1, data_col])
+        data_last_ts = timefloat(data[end, data_col])
         _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
         # if appending data
         if data_first_ts >= saved_first_ts
@@ -261,7 +256,7 @@ function _save_ohlcv(
                     @debug :saved, dt(za[end, saved_col]) :data_new,
                     dt(data[data_offset, data_col])
                     @assert za[end, saved_col] + td ===
-                            timefloat(data[data_offset, data_col])
+                        timefloat(data[data_offset, data_col])
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -279,20 +274,19 @@ function _save_ohlcv(
             # fetch saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[saved_offset+1:end, :]
+            saved_data = za[(saved_offset + 1):end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[szd+1:end, :] = saved_data
+            za[(szd + 1):end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
         @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(
-            za[:, data_col],
-            td,
+            za[:, data_col], td
         )
     else
         resize!(za, size(data))
@@ -330,7 +324,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             idx = max(size(tmp, 1), from)
             @with tmp begin
                 for col in eachcol(tmp)
-                    p.data[!, col] = @view col[begin:idx-1]
+                    p.data[!, col] = @view col[begin:(idx - 1)]
                 end
             end
         else
@@ -338,7 +332,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             if idx > 0
                 @with tmp begin
                     for (col, name) in zip(eachcol(tmp), names(tmp))
-                        p.data[!, name] = @view col[idx+1:end]
+                        p.data[!, name] = @view col[(idx + 1):end]
                     end
                 end
             end
@@ -358,8 +352,9 @@ function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
             clear_key(zi[], key) # ensure path does not exist
-            emptyz =
-                zcreate(Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor)
+            emptyz = zcreate(
+                Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor
+            )
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
             elseif :with_z ∈ keys(kwargs)
@@ -376,13 +371,7 @@ end
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load(
-    zi::Ref{ZarrInstance},
-    exc_name,
-    pair,
-    timeframe::AbstractString;
-    kwargs...
-)
+function load(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; kwargs...)
     @as_td
     @zkey
     _wrap_load(zi, key, tfnum(tf.period); kwargs...)
@@ -392,12 +381,15 @@ end
 function to_ohlcv(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
-    fromta && return TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS) |>
-                     x -> DataFrame(x; copycols=false)
+    fromta && return (x -> DataFrame(x; copycols=false))(
+        TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS)
+    )
     DataFrame(
         :timestamp => dates,
-        [OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for n in 1:length(OHLCV_COLUMNS_TS)]...;
-        copycols=false
+        [
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for n in 1:length(OHLCV_COLUMNS_TS)
+        ]...;
+        copycols=false,
     )
 end
 
@@ -410,12 +402,7 @@ end
 function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     @debug "Loading data for pair at $key."
     za, _ = _get_zarray(
-        zi[],
-        key,
-        (1, length(OHLCV_COLUMNS));
-        overwrite=true,
-        type=Float64,
-        reset=false
+        zi[], key, (1, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false
     )
 
     if size(za, 1) < 2
@@ -433,14 +420,12 @@ function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=fals
     with_from = !iszero(from)
     with_to = !iszero(to)
     if with_from
-        ts_start = max(firstindex(za, saved_col),
-                       (from - saved_first_ts + td) ÷ td) |> Int
+        ts_start = Int(max(firstindex(za, saved_col), (from - saved_first_ts + td) ÷ td))
     else
         ts_start = firstindex(za, saved_col)
     end
     if with_to
-        ts_stop = min(lastindex(za, saved_col),
-                      (ts_start + ((to - from) ÷ td))) |> Int
+        ts_stop = Int(min(lastindex(za, saved_col), (ts_start + ((to - from) ÷ td))))
     else
         ts_stop = lastindex(za, saved_col)
     end
@@ -499,6 +484,5 @@ end
 @enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
 
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
-
 
 export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv

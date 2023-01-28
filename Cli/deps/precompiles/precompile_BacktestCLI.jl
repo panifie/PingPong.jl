@@ -8,14 +8,42 @@ macro warnpcfail(ex::Expr)
     quote
         $(esc(ex)) || @warn """precompile directive
      $($(Expr(:quote, ex)))
- failed. Please report an issue in $($modl) (after checking for duplicates) or remove this directive.""" _file=$file _line=$line
+ failed. Please report an issue in $($modl) (after checking for duplicates) or remove this directive.""" _file =
+            $file _line = $line
     end
 end
 
-
 function _precompile_()
     ccall(:jl_generating_output, Cint, ()) == 1 || return nothing
-    isdefined(JuBotCLI, Symbol("##fetch#1")) && precompile(Tuple{JuBotCLI.var"##fetch#1", String, String, String, String, Bool, String, typeof(JuBotCLI.fetch), String, Vararg{String}})
-    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(Tuple{JuBotCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(JuBotCLI.fetch), String, Vararg{String}})
-    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(Tuple{JuBotCLI.var"#fetch##kw", NamedTuple{(:exchange,), Tuple{String}}, typeof(JuBotCLI.fetch), String})
+    isdefined(JuBotCLI, Symbol("##fetch#1")) && precompile(
+        Tuple{
+            JuBotCLI.var"##fetch#1",
+            String,
+            String,
+            String,
+            String,
+            Bool,
+            String,
+            typeof(JuBotCLI.fetch),
+            String,
+            Vararg{String},
+        },
+    )
+    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(
+        Tuple{
+            JuBotCLI.var"#fetch##kw",
+            NamedTuple{(:exchange,),Tuple{String}},
+            typeof(JuBotCLI.fetch),
+            String,
+            Vararg{String},
+        },
+    )
+    isdefined(JuBotCLI, Symbol("#fetch##kw")) && precompile(
+        Tuple{
+            JuBotCLI.var"#fetch##kw",
+            NamedTuple{(:exchange,),Tuple{String}},
+            typeof(JuBotCLI.fetch),
+            String,
+        },
+    )
 end

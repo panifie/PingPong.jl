@@ -1,5 +1,4 @@
-should_precompile =  false
-
+should_precompile = false
 
 # Don't edit the following! Instead change the script for `snoop_bot`.
 ismultios = true
@@ -8,17 +7,22 @@ ismultiversion = false
 @static if !should_precompile
     # nothing
 elseif !ismultios && !ismultiversion
-    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/precompile_PingPong.jl"))
+    @static if isfile(
+        joinpath(@__DIR__, "../deps/SnoopCompile/precompile/precompile_PingPong.jl")
+    )
         include("../deps/SnoopCompile/precompile/precompile_PingPong.jl")
         _precompile_()
     end
 else
-    @static if Sys.islinux() 
-    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl"))
-        include("../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl")
-        _precompile_()
+    @static if Sys.islinux()
+        @static if isfile(
+            joinpath(
+                @__DIR__, "../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl"
+            ),
+        )
+            include("../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl")
+            _precompile_()
+        end
+    else
     end
-else 
-    end
-
 end # precompile_enclosure

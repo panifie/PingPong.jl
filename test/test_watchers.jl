@@ -5,5 +5,7 @@ function _test_watchers_1()
 end
 
 test_watchers() = @testset "watchers" begin
-    @test begin _test_watchers_1() end
+    @test begin
+        _test_watchers_1()
+    end
 end

@@ -23,10 +23,9 @@ macro setup(exc)
         $a = an
         setexchange!($exc)
         $m = load_ohlcv("15m")
-        $mr = @resample($m, "1d"; save = false)
+        $mr = @resample($m, "1d"; save=false)
     end
 end
-
 
 export @excfilter,
     price_ranges, @bbranges, vcons, gprofit, smvp, cbot, cpek, @otime, @setup, last_day_roc

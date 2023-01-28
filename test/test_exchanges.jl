@@ -20,11 +20,10 @@ _exchange_sbox() = begin
     @assert !issandbox()
     sandbox!()
     @assert issandbox()
-    sandbox!(flag=false)
+    sandbox!(; flag=false)
     @assert !issandbox()
     ratelimit!()
 end
-
 
 test_exchanges() = @testset "exchanges" begin
     test_exch()
