@@ -3,7 +3,7 @@ module JuBot
 Base.Experimental.@compiler_options optimize = 1 compile = min
 
 using Python
-@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine).args
+@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine, Watchers).args
     @async eval(:(using $m))
 end
 include("repl.jl")
