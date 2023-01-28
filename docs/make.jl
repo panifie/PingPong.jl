@@ -31,6 +31,9 @@ use(:Exchanges, "Exchanges")
 use(:Plotting, "Plotting")
 use(:Analysis, "Analysis")
 use(:Engine, "Engine")
+use(:Watchers, "Watchers")
+using DataStructures
+@eval using Base: Timer
 
 function filter_strategy(t)
     if startswith(string(nameof(t)), "Strategy")
@@ -46,6 +49,7 @@ makedocs(sitename="JuBot.jl", pages= [
     "strategy.md",
     "engine/engine.md",
     "exchanges.md",
+    "watchers.md",
     "data.md",
     "processing.md",
     "misc.md",
