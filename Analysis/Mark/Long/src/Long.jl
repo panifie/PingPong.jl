@@ -11,7 +11,7 @@ using DataFramesMeta: @rsubset!
 using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
 using MVP
 
-function last_breakout(price, br_lvl; op = >)
+function last_breakout(price, br_lvl; op = (>))
     for (n, p) in enumerate(price)
         op(p, br_lvl) && return n
     end
