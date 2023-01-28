@@ -33,5 +33,5 @@
 When the engine executes an order, it does the following for every order:
 - Calculate the spread of the order asset based on the ohlcv data 
 - check that the balance is positive and above the minimum order size if not mark the order as failed
-- Choose the open or close rate according to the signal type and open/close the order accordingly
-- return the failed order to the strategy and repeat until the strategy gives no new orders.
+- Choose the close price and amount according to the signal type and open/close the order accordingly
+- return the failed orders to the strategy and repeat until the strategy gives no new orders.
