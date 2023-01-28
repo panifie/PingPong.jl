@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.8
+      JULIA_VERSION: 1.9
 
     steps:
     - uses: actions/checkout@v2
@@ -31,7 +31,8 @@ jobs:
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
-        version: ${{ env.JULIA_VERSION }}
+        version: '1'
+        include-all-prereleases: true
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
