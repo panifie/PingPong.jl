@@ -6,7 +6,7 @@ using Misc: config
 
 const name = :Macd
 const S = Strategy{name}
-const exc = :kucoin
+const exc = :kucoinfutures
 
 @doc "Module initialization."
 function __init__()
@@ -17,11 +17,11 @@ function process(Strategy::S, idx, cdl)
 end
 
 function get_pairs(::Type{S})
-    ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
+    ["ETH/USDT:USDT", "BTC/USDT:USDT", "XMR/USDT:USDT"]
 end
 
 function assets(_::S)
-    exc = ExchangeID(:kucoin)
+    exc = ExchangeID(exc)
     Dict{Asset,ExchangeID}(
         Asset(a) => exc
         for a in pairs(S)
