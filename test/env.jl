@@ -1,12 +1,12 @@
-using JuBot: JuBot, Exchanges
+using PingPong: PingPong, Exchanges
 using .Exchanges
 using .Exchanges.Instruments
 using .Instruments.Derivatives
-using JuBot.Engine: Engine, Strategies, Collections, Instances
+using PingPong.Engine: Engine, Strategies, Collections, Instances
 using .Collections
 using .Collections.TimeTicks
 using .Instances
-using JuBot.Data
+using PingPong.Data
 using .Data.DFUtils
 using Processing
 using Misc

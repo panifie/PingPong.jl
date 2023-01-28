@@ -4,7 +4,7 @@ test_assetcollection() = @testset "AssetCollection" begin
         if !isdefined(@__MODULE__, :prs)
             @eval prs = getpairs()
         end
-        @eval using JuBot.Engine.Collections
+        @eval using PingPong.Engine.Collections
         @eval coll = AssetCollection(prs)
         size(coll.data)[1] == length(prs)
     end

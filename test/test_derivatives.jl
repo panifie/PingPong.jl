@@ -2,7 +2,7 @@ using Test
 example = "ETH/USDT:USDT-210625-5000-C"
 
 _test_derivatives_1() = begin
-    @eval using JuBot.Engine.Collections.Instruments.Derivatives
+    @eval using PingPong.Engine.Collections.Instruments.Derivatives
     d = Derivative(example)
     @assert d.bc == :ETH &&
         d.qc == :USDT &&

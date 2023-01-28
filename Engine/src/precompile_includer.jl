@@ -8,14 +8,14 @@ ismultiversion = false
 @static if !should_precompile
     # nothing
 elseif !ismultios && !ismultiversion
-    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/precompile_JuBot.jl"))
-        include("../deps/SnoopCompile/precompile/precompile_JuBot.jl")
+    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/precompile_PingPong.jl"))
+        include("../deps/SnoopCompile/precompile/precompile_PingPong.jl")
         _precompile_()
     end
 else
     @static if Sys.islinux() 
-    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/linux/precompile_JuBot.jl"))
-        include("../deps/SnoopCompile/precompile/linux/precompile_JuBot.jl")
+    @static if isfile(joinpath(@__DIR__, "../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl"))
+        include("../deps/SnoopCompile/precompile/linux/precompile_PingPong.jl")
         _precompile_()
     end
 else 

@@ -1,4 +1,4 @@
-module JuBot
+module PingPong
 
 Base.Experimental.@compiler_options optimize = 1 compile = min
 

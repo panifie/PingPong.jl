@@ -1,7 +1,7 @@
 using Test
 
 function _test_markets(name=:binance, pair="BTC/USDT")
-    @eval using JuBot.Exchanges: loadmarkets!, exchanges
+    @eval using PingPong.Exchanges: loadmarkets!, exchanges
     exc = getexchange!(name)
     # without cache
     loadmarkets!(exc, cache=false)

@@ -9,7 +9,7 @@ const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 const DATA_PATH =
-    get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "JuBot.jl", "data"))")
+    get(ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))")
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
 

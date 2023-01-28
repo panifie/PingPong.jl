@@ -1,19 +1,19 @@
-[![build-status](https://github.com/untoreh/JuBot.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/JuBot.jl)
+[![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/PingPong.jl)
 
 **Supported julia version: 1.9**
 
 Currently not really a backtest framework. Mostly data.
 
 ## Install
-JuBot.jl is not in the julia registry, to install do the following:
+PingPong.jl is not in the julia registry, to install do the following:
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/untoreh/JuBot.jl jubot
+git clone --recurse-submodules https://github.com/untoreh/PingPong.jl PingPong
 ```
 - Activate the project:
 ```bash
-cd jubot
+cd PingPong
 git submodule init
 git submodule update
 julia --project=.

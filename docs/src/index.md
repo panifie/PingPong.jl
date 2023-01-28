@@ -1,4 +1,4 @@
-# JuBot docs
+# PingPong docs
 
 
 This backtest framework is comprised of different modules:

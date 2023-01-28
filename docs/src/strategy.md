@@ -3,7 +3,7 @@
 ## Load a strategy
 The strategy is instantiated by loading a julia module at runtime.
 ```julia
-using JuBot
+using PingPong
 cfg = loadconfig!(:kucoin, cfg=Config()) # Load the configuration, choosing kucoin as exchange
 loadstrategy!(:Macd, cfg) # Load the Macd strategy
 ```

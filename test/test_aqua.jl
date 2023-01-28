@@ -1,7 +1,7 @@
 using Test
 
 test_aqua() = @testset "aqua" begin
-    pkg = JuBot
+    pkg = PingPong
     # Aqua.test_ambiguities(pkg) skip=true
     # Aqua.test_stale_deps(pkg; ignore=[:Aqua]) skip=true
     Aqua.test_unbound_args(pkg)

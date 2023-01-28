@@ -218,7 +218,7 @@ end
 It accepts:
 - a mapping of exchange instances to pairlists.
 - a vector of symbols for which an exchange instance will be instantiated for each element,
-    and pairlist will be composed according to quote currency and min_volume from `JuBot.config`.
+    and pairlist will be composed according to quote currency and min_volume from `PingPong.config`.
 """
 function fetch_ohlcv(
     excs::Vector{Exchange}, timeframe; parallel=false, wait_task=false, kwargs...
@@ -227,7 +227,7 @@ function fetch_ohlcv(
     # err_file = joinpath(DATA_PATH, "err.log")
     # FIXME: find out how io redirection interacts with distributed
     # t = redirect_stdio(; stdout=out_file, stderr=err_file) do
-    parallel && _instantiate_workers(:JuBot; num=length(excs))
+    parallel && _instantiate_workers(:PingPong; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
         e_pl = s -> (ex = getexchange!(s); (ex, get_pairlist(ex; as_vec=true)))

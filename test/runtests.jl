@@ -11,13 +11,13 @@ if NO_TMP
         root = ".."
     end
     Pkg.activate(root)
-    @assert Pkg.project().name == "JuBot"
+    @assert Pkg.project().name == "PingPong"
     if ispath(joinpath(root, ".CondaPkg", "env"))
         ENV["JULIA_CONDAPKG_OFFLINE"] = "yes"
     end
 end
-using JuBot
-using JuBot.ExchangeTypes
+using PingPong
+using PingPong.ExchangeTypes
 all = "all" ∈ ARGS || length(ARGS) == 0
 
 include("test_aqua.jl")

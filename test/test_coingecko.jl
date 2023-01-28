@@ -3,7 +3,7 @@ using Test
 function test_coingecko()
     @testset "coingecko" begin
         @eval begin
-            using JuBot.Watchers.CoinGecko
+            using PingPong.Watchers.CoinGecko
             using Instruments
             using Instruments.Derivatives
             using TimeTicks

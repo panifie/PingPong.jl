@@ -3,7 +3,7 @@ using Test
 function test_paprika()
     @testset "paprika" begin
         @eval begin
-            using JuBot.Watchers.CoinPaprika
+            using PingPong.Watchers.CoinPaprika
             using Instruments
             using TimeTicks
             using .CoinPaprika.LazyJSON

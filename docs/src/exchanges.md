@@ -17,7 +17,7 @@ Pages = ["exchanges.jl", "pairlist.jl", "-data.jl"]
 Extensions for the top level [Data](./data.md) module.
 
 ```@autodocs
-Modules = [JuBot.Exchanges]
+Modules = [PingPong.Exchanges]
 Pages = ["data.jl"]
 ```
 

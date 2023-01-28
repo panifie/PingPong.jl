@@ -1,2 +1,2 @@
-# using JuBot
+# using PingPong
 @show ENV

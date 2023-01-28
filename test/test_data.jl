@@ -1,5 +1,5 @@
-using JuBot.Data; using .Data
-using JuBot.Data.DFUtils
+using PingPong.Data; using .Data
+using PingPong.Data.DFUtils
 
 include("env.jl")
 

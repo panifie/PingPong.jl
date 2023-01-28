@@ -1,7 +1,7 @@
 # Data
 
 ```@autodocs
-Modules = [JuBot.Data]
+Modules = [PingPong.Data]
 ```
 
 # Prices

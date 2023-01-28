@@ -1,7 +1,7 @@
 using Test
 
 _test_time() = begin
-    @eval using JuBot.Engine.TimeTicks
+    @eval using PingPong.Engine.TimeTicks
     d = dtr"2020-01-..2020-03"
     @assert d.start == DateTime(Year(2020), Month(1), Day(1))
     @assert d.stop == DateTime(Year(2020), Month(3), Day(1))

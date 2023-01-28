@@ -7,7 +7,7 @@ end
 using Documenter, DocStringExtensions
 
 # Modules
-using JuBot
+using PingPong
 using Pbar
 project_path = dirname(Pkg.project().path)
 function use(name, args...)
@@ -44,7 +44,7 @@ function filter_strategy(t)
 end
 
 makedocs(;
-    sitename="JuBot.jl",
+    sitename="PingPong.jl",
     pages=[
         "index.md",
         "types.md",

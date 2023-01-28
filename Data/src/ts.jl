@@ -4,7 +4,7 @@ using Temporal: TS
 macro ohlc(df, tp=Float64)
     df = esc(:df)
     quote
-        TS(@to_mat(@view($df[:, JuBot.OHLCV_COLUMNS_TS]), $tp), $df.timestamp, OHLCV_COLUMNS_TS)
+        TS(@to_mat(@view($df[:, PingPong.OHLCV_COLUMNS_TS]), $tp), $df.timestamp, OHLCV_COLUMNS_TS)
     end
 end
 

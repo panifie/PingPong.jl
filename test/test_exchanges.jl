@@ -8,15 +8,15 @@ _exchange_id() = begin
 end
 _exchange_pairs() = begin
     @eval begin
-        using JuBot.Exchanges: get_pairs
-        const getpairs = JuBot.Exchanges.get_pairs
+        using PingPong.Exchanges: get_pairs
+        const getpairs = PingPong.Exchanges.get_pairs
         prs = getpairs()
     end
     length(prs) > 0
 end
 
 _exchange_sbox() = begin
-    @eval using Jubot.Exchanges
+    @eval using PingPong.Exchanges
     @assert !issandbox()
     sandbox!()
     @assert issandbox()

@@ -1,7 +1,7 @@
 using Test
 
 _test_cmc_1() = begin
-    @eval using JuBot.Watchers.CoinMarketCap
+    @eval using PingPong.Watchers.CoinMarketCap
     cmc = CoinMarketCap
     cmc.setapikey!()
     data = cmc.listings(sort=cmc.volume_24h)

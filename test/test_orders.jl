@@ -3,16 +3,16 @@ using Test
 function _test_orders_1()
     @eval setexchange!(:kucoinfutures)
     @eval using Instruments
-    @eval using JuBot.Engine: Orders, Instances
-    @eval using JuBot.Exchanges
+    @eval using PingPong.Engine: Orders, Instances
+    @eval using PingPong.Exchanges
     @eval using .Orders;
     @eval using .Instances
-    @eval using JuBot.Python
+    @eval using PingPong.Python
     s = "BTC/USDT:USDT"
     asset = Derivative(s)
     inst = instance(asset)
     o = Order(asset, exc.id; amount=123.1234567891012, price=0.12333333333333333)
-    @eval using JuBot.Engine.Checks
+    @eval using PingPong.Engine.Checks
     sanitized = sanitize_order(inst, o)
     @assert !isnothing(sanitized)
     amt_prec = @py Int(exc.markets[s]["precision"]["amount"])

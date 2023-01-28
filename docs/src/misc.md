@@ -1,7 +1,7 @@
 # Misc
 
 ```@autodocs
-Modules = [JuBot.Misc]
+Modules = [PingPong.Misc]
 ```
 
 ## Progress bar

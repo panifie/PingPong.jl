@@ -33,7 +33,7 @@ end
 #     exchange = esc(:exchange)
 #     quote
 #         @info "Setting Exchange"
-#         JuBot.setexchange!(Symbol($exchange))
+#         PingPong.setexchange!(Symbol($exchange))
 #     end
 # end
 
@@ -124,7 +124,7 @@ Downsamples ohlcv data from a timeframe to another.
 end
 
 """
-JuBot CLI
+PingPong CLI
 """
 @main
 
