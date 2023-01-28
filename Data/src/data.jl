@@ -388,7 +388,7 @@ function load(
     _wrap_load(zi, key, tfnum(tf.period); kwargs...)
 end
 
-@doc "Convert raw ccxt OHLCV data to a timearray/dataframe."
+@doc "Convert raw ccxt OHLCV data (matrix) to a timearray/dataframe."
 function to_ohlcv(data; fromta=false)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
