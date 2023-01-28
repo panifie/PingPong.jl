@@ -109,5 +109,6 @@ export Watcher, isstale
 
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
+include("apis/coinpaprika.jl")
 
 end

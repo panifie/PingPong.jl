@@ -36,7 +36,7 @@ const DEFAULT_CUR = "usd"
 
 const last_query = Ref(DateTime(0))
 const limit = Millisecond(3 * 1000)
-@doc "Allows only 1 query every 3 seconds."
+@doc "Allows only 1 query every $(limit) seconds."
 function ratelimit()
     sleep(max(Second(0), (last_query[] - now()) + limit))
 end
