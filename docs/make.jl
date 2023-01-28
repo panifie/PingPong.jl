@@ -1,5 +1,5 @@
-import Pkg;
-let dse =  "~/.julia/environments/$(VERSION)/"
+using Pkg: Pkg;
+let dse = "~/.julia/environments/$(VERSION)/"
     if dse ∉ LOAD_PATH
         push!(LOAD_PATH, dse)
     end
@@ -9,7 +9,7 @@ using Documenter, DocStringExtensions
 # Modules
 using JuBot
 using Pbar
-project_path = Pkg.project().path |> dirname
+project_path = dirname(Pkg.project().path)
 function use(name, args...)
     path = joinpath(project_path, args...)
     if endswith(args[end], ".jl")
@@ -43,17 +43,22 @@ function filter_strategy(t)
     end
 end
 
-makedocs(sitename="JuBot.jl", pages= [
-    "index.md",
-    "types.md",
-    "strategy.md",
-    "engine/engine.md",
-    "exchanges.md",
-    "watchers.md",
-    "data.md",
-    "processing.md",
-    "misc.md",
-    "plotting.md",
-    "analysis.md"
-
-])
+makedocs(;
+    sitename="JuBot.jl",
+    pages=[
+        "index.md",
+        "types.md",
+        "strategy.md",
+        "engine/engine.md",
+        "exchanges.md",
+        "data.md",
+        "processing.md",
+        "Watchers" => ["watchers/watchers.md",
+                       "watchers/apis/coingecko.md",
+                       "watchers/apis/coinpaprika.md",
+                       "watchers/apis/coinmarketcap.md"],
+        "misc.md",
+        "plotting.md",
+        "analysis.md",
+    ],
+)

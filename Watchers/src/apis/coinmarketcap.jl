@@ -86,6 +86,7 @@ function quotes(syms::AbstractArray{String})
 end
 quotes(syms::AbstractArray{Symbol}) = get(ApiPaths.quotes, "symbol" => join(syms, ","))
 
+@doc "Fetch all coin listings."
 function listings(quot="USD", as_json=false; kwargs...)
     query = queryfromstruct(Params; kwargs...)
     json = get(ApiPaths.listings, params)
@@ -96,6 +97,7 @@ function listings(quot="USD", as_json=false; kwargs...)
     end
 end
 
+@doc "Fetch remaining credits."
 function credits()
     json = get(ApiPaths.info)
     usg = json["data"]["usage"]

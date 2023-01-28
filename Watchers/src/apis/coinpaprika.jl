@@ -23,7 +23,7 @@ const limit = Millisecond(25 * 1000)
 On every call we check when the last query was performed, and add available queries
 that weren't used on a counter, to allow for bursts.
 
-!!! "Not precise"
+!!! warning "Not precise"
     Coinpaprika does not expose credits consumed by each endpoint, so we assume all calls are equals (2/min).
 """
 ratelimit() = begin
@@ -110,7 +110,9 @@ end
 
 @doc """ Returns all markets for give coin (interpreted as *base* currency).
 
-!!! "Expensive call"
+!!! warning "Expensive call"
+    Don't call too often.
+
 """
 coin_markets(id) = begin
     path = (apiPaths.coins, "/", id, "/markets")
@@ -161,6 +163,7 @@ function tickers(qc="usd")
     Dict(String(t["id"]) => ticker_dict(t) for t in json)
 end
 
+@doc "Fetch ticker for specified coin."
 function ticker(id)
     @assert id ∈ keys(coins_cache) "Not a valid coin id or coins list not loaded (call `loadcoins!`)"
     path = (apiPaths.tickers, "/", id)

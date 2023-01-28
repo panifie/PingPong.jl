@@ -169,7 +169,7 @@ function _parse_data(data)
 end
 
 @doc """Get `close` price and volume for symbol `id` for specified number of days.
-!! `days="max"
+!!! info "days=\"max\""
     returns all available history.
 """
 function coinschart(id::AbstractString; days_ago="365", vs=DEFAULT_CUR)
@@ -182,13 +182,13 @@ end
 
 @doc """Same as [`CoinGecko.coinschart`](@ref) but for specified timerange.
 
- - `from`, `to`: date range boundaries.
+- `from`, `to`: date range boundaries.
 
- !! From coingecko:
+!!! warning "From coingecko:"
     Data granularity is automatic (cannot be adjusted)
-    1 day from current time = 5 minute interval data
-    1 - 90 days from current time = hourly data
-    above 90 days from current time = daily data (00:00 UTC)
+    - 1 day from current time = 5 minute interval data
+    - 1 - 90 days from current time = hourly data
+    - above 90 days from current time = daily data (00:00 UTC)
 
  """
 function coinschart_range(id::AbstractString; from, to=now(), vs=DEFAULT_CUR)
