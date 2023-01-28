@@ -169,6 +169,9 @@ dt(d::DateTime) = d
 dt(num::Real) = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 
+@doc "Converts date into an Integer unix timestamp (seconds)."
+timestamp(d::DateTime) = datetime2unix(d) |> trunc |> Int
+timestamp(s::AbstractString) = DateTime(s) |> timestamp
 timefloat(time::Float64) = time
 timefloat(prd::Period) = prd.value * 1.0
 timefloat(time::DateTime) = dtfloat(time)
