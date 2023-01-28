@@ -35,6 +35,6 @@ Strategy
 ```
 
 ```@autodocs
-Modules = [Strategies]
+Modules = [Engine.Strategies]
 Filter = filter_strategy
 ```
