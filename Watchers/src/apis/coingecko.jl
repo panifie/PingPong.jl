@@ -30,14 +30,15 @@ ApiPaths = (;
     rates="/api/v3/exchange_rates",
     search="/api/v3/search",
     trending="/api/v3/search/trending",
-    glob="/api/v3/global",
+    glob="/api/v3/global"
 )
 const DEFAULT_CUR = "usd"
 
 const last_query = Ref(DateTime(0))
+const limit = Millisecond(3 * 1000)
 @doc "Allows only 1 query every 3 seconds."
 function ratelimit()
-    sleep(max(Second(0), (last_query[] - now()) + Millisecond(3 * 1000)))
+    sleep(max(Second(0), (last_query[] - now()) + limit))
 end
 
 function get(path::T where {T}, query=nothing)
@@ -149,8 +150,8 @@ function coinshistory(id::AbstractString, date::DateTime, cur=DEFAULT_CUR)
         path = (ApiPaths.coins_id, "/", id, "/history")
         json = get(join(path), ("date" => _cg_dateformat(date),))
         data = json["market_data"]
-        price = data["current_price"][cur]
-        volume = data["total_volume"][cur]
+        price = data["current_price"][cur] |> Float64
+        volume = data["total_volume"][cur] |> Float64
         (; price, volume)
     end
 end
@@ -226,18 +227,21 @@ end
 - `<=4h`: 30 days
 - `>4h`: max
 """
-function coinsohlc(id::AbstractString, timeframe=tf"30m", vs=DEFAULT_CUR)
-    begin
-        path = (ApiPaths.coins_id, "/", id, "/ohlc")
-        days = if timeframe <= tf"30m"
-            Day(1)
-        elseif timeframe <= tf"4h"
-            Day(30)
-        else
-            Day(99999)
-        end
-        json = get(join(path), ("days" => days.value, "vs_currency" => vs))
-        permutedims(splat(reduce)((hcat, convert(Vector{Vector{Float64}}, json))))
+function coinsohlc(id::AbstractString, timeframe=tf"30m", vs=DEFAULT_CUR, as_mat=true)
+    path = (ApiPaths.coins_id, "/", id, "/ohlc")
+    days = if timeframe <= tf"30m"
+        Day(1)
+    elseif timeframe <= tf"4h"
+        Day(30)
+    else
+        Day(99999)
+    end
+    json = get(join(path), ("days" => days.value, "vs_currency" => vs))
+    vec = convert(Vector{Vector{Float64}}, json)
+    if as_mat
+        permutedims(splat(reduce)((hcat, vec)))
+    else
+        vec
     end
 end
 
@@ -246,14 +250,12 @@ end
 - `volume`: total_volume (Dict{String, Float64})
 - `mcap_change_24h`: market_cap_change_percentage_24h_usd"
 function globaldata()
-    begin
-        data = get(ApiPaths.glob)["data"]
-        (;
-            volume=convert(Dict{String,Float64}, data["total_volume"]),
-            mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
-            date=DateTime(data["updated_at"]),
-        )
-    end
+    data = get(ApiPaths.glob)["data"]
+    (;
+        volume=convert(Dict{String,Float64}, data["total_volume"]),
+        mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
+        date=DateTime(data["updated_at"])
+    )
 end
 
 @doc """ 24h trending top 7 coins.
@@ -266,10 +268,10 @@ function trending()
             begin
                 itm = item["item"]
                 itm = (;
-                    id=itm["id"],
-                    price_btc=itm["price_btc"],
-                    slug=itm["slug"],
-                    sym=itm["symbol"],
+                    id=convert(String, itm["id"]),
+                    price_btc=convert(Float64, itm["price_btc"]),
+                    slug=convert(String, itm["slug"]),
+                    sym=convert(String, itm["symbol"])
                 )
                 itm.id => itm
             end for item in json["coins"]
@@ -313,7 +315,7 @@ end
 
 Returns a Dict{`Derivative`, Dict}."
 function derivatives_from(id)
-    @assert id ∈ keys(exchanges) "Not a valid exchange id (call `loadderivatives!` to fetch ids)."
+    @assert id ∈ keys(drv_exchanges) "Not a valid exchange id (call `loadderivatives!` to fetch ids)."
     path = (ApiPaths.derivatives_exchanges, "/", id)
     json = get(join(path), ("include_tickers" => "unexpired",))
     Dict(
@@ -344,7 +346,7 @@ end
 Returns a Dict{Asset, Dict}
 """
 function tickers_from(exc_id)
-    # @assert exc_id ∈ keys(exchanges) "Exchange id not found, call `loadexchanges!` to fetch ids."
+    @assert exc_id ∈ keys(exchanges) "Exchange id not found, call `loadexchanges!` to fetch ids."
     path = (ApiPaths.exchanges, "/", exc_id)
     json = get(join(path))
     Dict(
