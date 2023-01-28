@@ -58,7 +58,7 @@ reload!(strat::Strategy) = begin
     end
 end
 
-process(::Strategy, date::DateTime, orders::Vector{LiveOrder}) = Order((Buy, 0))
+process(::Strategy, date::DateTime, orders::Vector{Order}=[]) = orders
 assets(::Strategy, e::ExchangeID=nothing) = Asset[]
 get_pairs(::Strategy) = String[]
 

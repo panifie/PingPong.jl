@@ -50,17 +50,8 @@ function backtest!(strat::Strategy, ctx::Context; trim_universe=false)
     reset(ctx)
     for date in ctx
         while true
-            orders::Vector{LiveOrder} = process(strat, date)
+            orders::Vector{Order} = process(strat, date)
             length(orders) == 0 && break
-        end
-        for pair in strat.universe
-            for (signal, amount) in signals
-                if signal < 0
-                    sell(pair, portfolio, candle, amount, ctx)
-                elseif signal > 0
-                    buy(pair, portfolio, candle, amount, ctx)
-                end
-            end
         end
     end
 end
@@ -77,6 +68,5 @@ execute(strat::Strategy, orders::Vector{LiveOrder}) =
         cdl = last_candle(o.asset, o.date)
         spread = Sim.spread(cdl.high, cdl.low, cdl.close)
     end
-
 
 export backtest!
