@@ -1,19 +1,17 @@
-function queryfromstruct(st::Type; kwargs...)
-    local query
-    try
-        query = st(; kwargs...)
+function queryfromstruct(T::Type, sep=","; kwargs...)
+    query = try
+        T(; kwargs...)
     catch error
-        if error isa ArgumentError
-            @error "Wrong query parameters for ($(st))."
-            rethrow(error)
-        end
+        error isa ArgumentError && @error "Wrong query parameters for ($(st))."
+        rethrow(error)
     end
-    fieldnames(typeof(query))
     params = Dict()
-    for s in fieldnames(Params)
+    for s in fieldnames(T)
         f = getproperty(query, s)
         isnothing(f) && continue
-        params[s] = string(f)
+        ft = typeof(f)
+        hasmethod(length, (ft,)) && length(f) == 0 && continue
+        params[string(s)] = ft != String && hasmethod(iterate, (ft,)) ? join(f, sep) : string(f)
     end
-    query
+    params
 end
