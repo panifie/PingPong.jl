@@ -1,5 +1,5 @@
 using Zarr
-using Misc: DATA_PATH
+using Misc: DATA_PATH, isdirempty
 import Base.delete!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
@@ -28,9 +28,10 @@ mutable struct ZarrInstance
     path::AbstractString
     store::DirectoryStore
     group::ZGroup
-    function ZarrInstance(data_path=DATA_PATH)
+    function ZarrInstance(data_path=joinpath(DATA_PATH, "store"))
         ds = DirectoryStore(data_path)
         if !Zarr.is_zgroup(ds, "")
+            @assert isdirempty(data_path) "Directory at $(data_path) must be empty."
             zgroup(ds, "")
         end
         @debug "Data: opening store $ds"
