@@ -206,7 +206,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "JSON", "Lang", "Misc", "Instruments", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
+deps = ["Accessors", "Ccxt", "Data", "DataFrames", "Dates", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -228,7 +228,7 @@ uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 version = "1.1.0"
 
 [[deps.Fetch]]
-deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Lang", "Misc", "Instruments", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
+deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Exchanges", "Instruments", "Lang", "Misc", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
 path = "../Exchanges/Fetch"
 uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 version = "0.1.0"
@@ -274,6 +274,12 @@ version = "1.6.0"
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 version = "0.5.1"
+
+[[deps.Instruments]]
+deps = ["Misc"]
+path = "../Instruments"
+uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
+version = "0.1.0"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
@@ -498,12 +504,6 @@ git-tree-sha1 = "68cd7e4e645fbfe72a906fdafd6838b308e4d148"
 uuid = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 version = "2.1.2"
 
-[[deps.Instruments]]
-deps = ["Misc"]
-path = "../Instruments"
-uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-version = "0.1.0"
-
 [[deps.Parsers]]
 deps = ["Dates", "SnoopPrecompile"]
 git-tree-sha1 = "b64719e8b4504983c7fca6cc9db3ebc8acc2a4d6"
@@ -556,7 +556,7 @@ uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
 
 [[deps.Python]]
-deps = ["PythonCall", "Reexport"]
+deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

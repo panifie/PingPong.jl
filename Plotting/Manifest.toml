@@ -939,7 +939,7 @@ uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
 
 [[deps.Python]]
-deps = ["PythonCall", "Reexport"]
+deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

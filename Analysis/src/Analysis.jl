@@ -1,9 +1,8 @@
 module Analysis
 
 using Requires
-using Misc: empty_ohlcv
 using TimeTicks: td_tf, timefloat, @as_td
-using Data: @to_mat, data_td, save_ohlcv, PairData
+using Data: @to_mat, data_td, save_ohlcv, PairData, empty_ohlcv
 using ExchangeTypes: Exchange, exc
 using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger

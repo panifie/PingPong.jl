@@ -1,11 +1,12 @@
 using Temporal: TS
+using Data: OHLCV_COLUMNS_TS
 
 @doc "Converts ohlcv dataframe to timeseries type."
 macro ohlc(df, tp=Float64)
     df = esc(:df)
     quote
         TS(
-            @to_mat(@view($df[:, PingPong.OHLCV_COLUMNS_TS]), $tp),
+            @to_mat(@view($df[:, OHLCV_COLUMNS_TS]), $tp),
             $df.timestamp,
             OHLCV_COLUMNS_TS,
         )

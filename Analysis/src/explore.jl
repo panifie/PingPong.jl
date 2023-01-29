@@ -1,6 +1,6 @@
 using ExchangeTypes: exc
 using Temporal: TS
-using Data: load, zi, PairData
+using Data: load, zi, PairData, OHLCV_COLUMNS
 
 include("metrics.jl")
 

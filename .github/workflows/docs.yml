@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1.9
+      CONDA_PKG_ENV: ~/.CondaPkg
 
     steps:
     - uses: actions/checkout@v2
@@ -22,7 +23,7 @@ jobs:
       with:
         path: |
           $HOME/.julia
-          ./.CondaPkg
+          ~/.CondaPkg
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
         restore-keys: |
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}

@@ -1,6 +1,6 @@
 module LiveOrders
 using Dates: DateTime, Period
-using Misc: Candle
+using Data: Candle
 using ExchangeTypes
 using ..Instances: AssetInstance
 using TimeTicks

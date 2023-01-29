@@ -1,5 +1,6 @@
 module Orders
-using Misc: Candle, config
+using Misc: config
+using Data: Candle
 using TimeTicks
 using Instruments
 using Exchanges

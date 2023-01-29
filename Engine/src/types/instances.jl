@@ -4,13 +4,13 @@ using TimeTicks: TimeFrames
 using ExchangeTypes
 using ExchangeTypes: exc
 using Exchanges: market_fees, market_limits, market_precision, is_pair_active, getexchange!
-using Data: load, zi
+using Data: load, zi, empty_ohlcv
 using Data.DFUtils: daterange, timeframe
 using TimeTicks
 using DataFrames: DataFrame
 using DataStructures: SortedDict
 using Instruments
-using Misc: config, empty_ohlcv
+using Misc: config
 using Processing
 using Reexport
 using ..Orders

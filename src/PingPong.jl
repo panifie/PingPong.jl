@@ -15,7 +15,7 @@ function __init__()
         loadconfig!(exc)
         setexchange!(exc)
     end
-    Python._async_init()
+    # Python._async_init()
 end
 
 export Engine,

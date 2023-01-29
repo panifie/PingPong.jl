@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta3"
 manifest_format = "2.0"
-project_hash = "131c77583353243fb267d85a1c4e4393cda6cd3a"
+project_hash = "340cb9d72cd4a930ad7af5afce148473d29852fa"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -21,9 +21,12 @@ version = "1.0.2+0"
 
 [[deps.CondaPkg]]
 deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "TOML"]
-git-tree-sha1 = "64dd885fa25c61fdf6b27e90d6adedf564ae363a"
+git-tree-sha1 = "c27aec98e733e9578ce146c2ec207f9ff8207a49"
+pinned = true
+repo-rev = "main"
+repo-url = "https://github.com/cjdoris/CondaPkg.jl"
 uuid = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
-version = "0.2.15"
+version = "0.2.17"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "e8119c1a33d267e16108be441a287a6981ba1630"
@@ -145,9 +148,9 @@ version = "1.4.1"
 
 [[deps.Parsers]]
 deps = ["Dates", "SnoopPrecompile"]
-git-tree-sha1 = "6466e524967496866901a78fca3f2e9ea445a559"
+git-tree-sha1 = "8175fc2b118a3755113c8e68084dc1a9e63c61ee"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.5.2"
+version = "2.5.3"
 
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -209,9 +212,10 @@ version = "1.1.1"
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[deps.SnoopPrecompile]]
-git-tree-sha1 = "f604441450a3c0569830946e5b33b78c928e1a85"
+deps = ["Preferences"]
+git-tree-sha1 = "e760a70afdcd461cf01a575947738d359234665c"
 uuid = "66db9d55-30c0-4569-8b51-7e840670fc0c"
-version = "1.0.1"
+version = "1.0.3"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -272,9 +276,9 @@ version = "5.2.0+0"
 
 [[deps.micromamba_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "2a0e413383f56c604835d30ea11620bae63f99f2"
+git-tree-sha1 = "80ddb5f510c650de288ecd548ebc3de557ffb3e2"
 uuid = "f8abcde7-e9b7-5caa-b8af-a437887ae8e4"
-version = "1.0.0+0"
+version = "1.2.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]

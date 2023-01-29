@@ -7,7 +7,7 @@ function test_paprika()
             using Instruments
             using TimeTicks
             using .CoinPaprika.LazyJSON
-            using Misc: Candle
+            using Data: Candle
             cp = CoinPaprika
         end
         @test test_ratelimit()

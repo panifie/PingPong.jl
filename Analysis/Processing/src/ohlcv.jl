@@ -1,8 +1,7 @@
 using DataFramesMeta
 using TimeTicks: Period, now
 using TimeTicks
-using Misc: Candle
-using Data: to_ohlcv
+using Data: Candle, to_ohlcv, empty_ohlcv
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """

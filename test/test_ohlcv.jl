@@ -4,7 +4,7 @@ timeframe = "5m"
 
 _test_ohlcv_exc() = begin
     @eval using Fetch
-    @eval using Misc: OHLCV_COLUMNS
+    @eval using Data: OHLCV_COLUMNS
     @eval using Processing: is_last_complete_candle
     timeframe = "5m"
     count = 500

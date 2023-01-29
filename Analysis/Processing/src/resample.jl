@@ -2,8 +2,7 @@ using Pbar
 using ExchangeTypes: Exchange
 using Lang: passkwargs
 using TimeTicks
-using Misc: empty_ohlcv
-using Data: data_td, save_ohlcv, PairData
+using Data: data_td, save_ohlcv, PairData, empty_ohlcv
 using Data.DFUtils
 using DataFrames
 

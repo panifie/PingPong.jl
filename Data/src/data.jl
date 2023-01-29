@@ -7,15 +7,24 @@ using Dates: DateTime, Millisecond, Period, Second, UTC, datetime2unix, now, uni
 using TimeTicks
 using Lang: @as
 using Misc:
-    Candle,
     LeftContiguityException,
-    OHLCV_COLUMNS,
-    OHLCV_COLUMNS_TS,
     RightContiguityException,
-    empty_ohlcv,
     config
 
 using Zarr: is_zarray
+
+const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
+const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
+const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
+
+struct Candle
+    timestamp::DateTime
+    open::AbstractFloat
+    high::AbstractFloat
+    low::AbstractFloat
+    close::AbstractFloat
+    volume::AbstractFloat
+end
 
 struct PairData
     name::String
@@ -301,6 +310,15 @@ end
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
 @inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
     "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
+end
+
+@doc "An empty OHLCV dataframe."
+function empty_ohlcv()
+    DataFrame(
+        [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
+        OHLCV_COLUMNS;
+        copycols=false,
+    )
 end
 
 load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)

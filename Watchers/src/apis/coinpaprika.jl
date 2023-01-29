@@ -4,7 +4,8 @@ using Watchers
 using HTTP
 using URIs
 using LazyJSON
-using Misc: Config, config, loadconfig!, queryfromstruct, Candle
+using Data: Candle
+using Misc: Config, config, loadconfig!, queryfromstruct
 using Lang: Option, @lget!
 using TimeTicks
 

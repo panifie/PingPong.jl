@@ -4,7 +4,10 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
+Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Long = "4332194b-c649-4273-a126-4843709b406e"
 MVP = "979b01cd-db89-4249-a98e-f526d6a7ff63"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Short = "669a2027-c4b8-428d-ba58-693007de5487"
 TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"

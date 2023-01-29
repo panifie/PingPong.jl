@@ -1,36 +1,13 @@
-using Dates
-using DataFrames: AbstractDataFrame, DataFrame, groupby, combine
-using TimeTicks: td_tf
+using TimeTicks
+const td_tf = TimeTicks.td_tf
 
 const StrOrVec = Union{AbstractString,AbstractVector}
-
-const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
-const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
-const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 const DATA_PATH = get(
     ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))"
 )
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
-
-struct Candle
-    timestamp::DateTime
-    open::AbstractFloat
-    high::AbstractFloat
-    low::AbstractFloat
-    close::AbstractFloat
-    volume::AbstractFloat
-end
-
-@doc "An empty OHLCV dataframe."
-function empty_ohlcv()
-    DataFrame(
-        [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
-        OHLCV_COLUMNS;
-        copycols=false,
-    )
-end
 
 @doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
 where the keys are the pairs names and the data is the OHLCV data of the pair."
@@ -50,4 +27,4 @@ end
 
 include("exceptions.jl")
 
-export Candle, Iterable, StrOrVec, ContiguityException, empty_ohlcv
+export Iterable, StrOrVec, ContiguityException

@@ -1,9 +1,9 @@
 module Strategies
 using Pkg: Pkg
-using Dates: DateTime
 using ExchangeTypes
 using Exchanges: getexchange!
-using Misc: Config, config, Iterable, Candle
+using Misc: Config, config, Iterable
+using Data: Candle
 using Instruments: Asset, Cash
 using ..Collections
 using ..Instances
