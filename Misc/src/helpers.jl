@@ -16,3 +16,8 @@ function queryfromstruct(T::Type, sep=","; kwargs...)
     end
     params
 end
+
+function isdirempty(path::T where {T})
+    allpaths = collect(walkdir(path))
+    length(allpaths) == 1 && isempty(allpaths[1][2]) && isempty(allpaths[1][3])
+end
