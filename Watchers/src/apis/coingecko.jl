@@ -253,7 +253,7 @@ function globaldata()
     (;
         volume=convert(Dict{String,Float64}, data["total_volume"]),
         mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
-        date=DateTime(data["updated_at"]),
+        date=unix2datetime(data["updated_at"]),
     )
 end
 
