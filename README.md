@@ -20,6 +20,8 @@ julia --project=.
 ```
 - Download and build dependencies:
 ```bash
+# use centralized condapkg env
+ENV["CONDA_PKG_ENV"] = joinpath(dirname(Base.active_project()), ".CondaPkg")
 import Pkg; Pkg.instantiate()
 ```
 
