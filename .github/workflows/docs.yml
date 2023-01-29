@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1.9
-      CONDA_PKG_ENV: ~/.CondaPkg
+      CONDA_PKG_ENV: $HOME/.CondaPkg
 
     steps:
     - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
       with:
         path: |
           $HOME/.julia
-          ~/.CondaPkg
+          $HOME/.CondaPkg
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
         restore-keys: |
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
@@ -43,11 +43,12 @@ jobs:
         sudo apt-get install -y xvfb xauth
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.resolve(); Pkg.instantiate()'
+        xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.instantiate(); Pkg.precompile(); Pkg.precompile()'
     - name: Build docs
       run: |
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
+        export JULIA_CONDAPKG_OFFLINE=yes
         julia --project=. docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v2
