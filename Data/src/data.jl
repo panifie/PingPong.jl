@@ -3,7 +3,6 @@ using Requires
 include("zarr_utils.jl")
 
 using DataFramesMeta
-using Dates: DateTime, Millisecond, Period, Second, UTC, datetime2unix, now, unix2datetime
 using TimeTicks
 using Lang: @as
 using Misc:

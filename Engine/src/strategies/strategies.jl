@@ -12,11 +12,11 @@ using ..LiveOrders
 using Instruments
 using TimeTicks
 
-struct Strategy42{M,E,C}
+struct Strategy42{M,E}
     universe::AssetCollection
     balances::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
     orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
-    cash::Cash{C}
+    cash::Cash
     config::Config
     function Strategy42(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config)
         begin
@@ -26,7 +26,7 @@ struct Strategy42{M,E,C}
             eid = typeof(exc.id)
             pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
             orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-            new{src,exc.id,config.qc}(uni, pf, orders, ca, config)
+            new{src,exc.id}(uni, pf, orders, ca, config)
         end
     end
 end

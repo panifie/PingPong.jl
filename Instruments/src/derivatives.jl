@@ -24,26 +24,26 @@ _derivative_error(s) = "Failed to parse derivative symbols for $s."
 - `strike`: strike price.
 - `kind`: [`Instruments.Derivatives.DerivativeKind`](@ref)
 """
-struct Derivative2{A<:Asset} <: AbstractAsset
-    asset::A
+struct Derivative8 <: AbstractAsset
+    asset::Asset
     sc::SettlementCurrency
     id::SubString
     strike::Float64
     kind::DerivativeKind
-    function Derivative2(a::A, args...; kwargs...) where {A<:Asset}
-        new{A}(a, args...; kwargs...)
+    function Derivative8(a::A, args...; kwargs...) where {A<:Asset}
+        new(a, args...; kwargs...)
     end
-    function Derivative2(s::AbstractString, m)
+    function Derivative8(s::AbstractString, m)
         asset = Asset(SubString(s, 1, length(s)), m[1], m[2])
         @assert !isnothing(m[3]) _derivative_error(s)
         S = Symbol(m[3])
         id = isnothing(m[4]) ? SubString("") : m[4]
         strike = isnothing(m[5]) || isempty(m[5]) ? 0.0 : parse(Float64, m[5])
         kind = isnothing(m[6]) || isempty(m[6]) ? Unkn : parse_option(m[6])
-        Derivative2(asset, S, id, strike, kind)
+        Derivative8(asset, S, id, strike, kind)
     end
 end
-Derivative = Derivative2
+Derivative = Derivative8
 
 function perpetual(raw::AbstractString, bc, qc)
     Derivative(Asset(SubString(raw), bc, qc), Symbol(qc), SubString(""), 0.0, Unkn)

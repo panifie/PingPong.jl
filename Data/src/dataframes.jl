@@ -1,7 +1,5 @@
 @doc "Utilities for DataFrames.jl, prominently timeframe based indexing."
 module DFUtils
-using Dates: AbstractDateTime
-using Dates
 using DataFrames
 using TimeTicks
 import Base: getindex
@@ -9,7 +7,7 @@ import Base: getindex
 @inline firstdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[begin]
 @inline lastdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[end]
 
-function timeframe(df::T where {T<:AbstractDataFrame})::F where {F<:TimeFrame}
+function timeframe(df::T where {T<:AbstractDataFrame})<:TimeFrame
     begin
         try
             colmetadata(df, :timestamp, "timeframe")

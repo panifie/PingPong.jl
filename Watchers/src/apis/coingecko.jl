@@ -1,5 +1,6 @@
+@nospecialize
 module CoinGecko
-
+@nospecialize
 using Base: unconstrain_vararg_length
 using HTTP
 using URIs

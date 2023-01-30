@@ -1,8 +1,10 @@
+@nospecialize
 module Instruments
 
-struct Cash3{T}
+struct Cash4
+    name::Symbol
     value::Vector{Float64}
-    Cash3(s::Symbol, val::Real) = new{s}([val])
+    Cash4(s, val::Real) = new(Symbol(s), [val])
 end
 
 @doc """A variable quantity of some currency.
@@ -14,14 +16,14 @@ end
 ```
 
 """
-Cash = Cash3
+Cash = Cash4
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
-getproperty(c::C, s::Symbol) where {C<:Cash} = begin
+Base.getproperty(c::Cash, s::Symbol) = begin
     if s === :value
         getfield(c, :value)[1]
     elseif s === :id
-        C.parameters[1]
+        c.name
     else
         getfield(c, s) ## throws
     end
@@ -67,25 +69,25 @@ Asset{:BTC, :USDT}
 end
 ```
 """
-struct Asset{B,Q} <: AbstractAsset
+struct Asset5 <: AbstractAsset
     raw::SubString
     bc::BaseCurrency
     qc::QuoteCurrency
     fiat::Bool
     leveraged::Bool
     unleveraged_bc::BaseCurrency
-    function Asset(s::SubString, b::T, q::T) where {T<:AbstractString}
-        begin
-            B = Symbol(b)
-            Q = Symbol(q)
-            fiat = is_fiat_pair(b, q)
-            lev = is_leveraged_pair(s)
-            unlev = lev ? deleverage_pair(s; split=true)[1] : B
-            new{B,Q}(s, B, Q, fiat, lev, Symbol(unlev))
-        end
+    function Asset5(s::SubString, b::T, q::T) where {T<:AbstractString}
+        B = Symbol(b)
+        Q = Symbol(q)
+        fiat = is_fiat_pair(b, q)
+        lev = is_leveraged_pair(s)
+        unlev = lev ? deleverage_pair(s; split=true)[1] : B
+        new(s, B, Q, fiat, lev, Symbol(unlev))
     end
-    Asset(s::AbstractString) = parse(Asset, s)
+    Asset5(s::AbstractString) = parse(Asset, s)
 end
+Asset = Asset5
+
 function Base.parse(::Type{Asset}, s::AbstractString)
     pair = split_pair(s)
     if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
