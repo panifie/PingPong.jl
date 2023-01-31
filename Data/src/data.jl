@@ -5,12 +5,7 @@ include("zarr_utils.jl")
 using DataFramesMeta
 using TimeTicks
 using Lang: @as
-using Misc:
-    LeftContiguityException,
-    RightContiguityException,
-    config
-
-using Zarr: is_zarray
+using Misc: LeftContiguityException, RightContiguityException, config
 
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
@@ -188,35 +183,6 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
             rethrow(e)
         end
     end
-end
-
-function _get_zarray(
-    zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
-)
-    existing = false
-    if is_zarray(zi.store, key)
-        za = zopen(zi.store, "w"; path=key)
-        if size(za, 2) !== sz[2] || reset
-            if overwrite || reset
-                rm(joinpath(zi.store.folder, key); recursive=true)
-                za = zcreate(type, zi.store, sz...; path=key, compressor)
-            else
-                throw(
-                    "Dimensions mismatch between stored data $(size(za)) and new data. $(sz)",
-                )
-            end
-        else
-            existing = true
-        end
-    else
-        if !Zarr.isemptysub(zi.store, key)
-            p = joinpath(zi.store.folder, key)
-            @debug "Deleting garbage at path $p"
-            rm(p; recursive=true)
-        end
-        za = zcreate(type, zi.store, sz...; path=key, compressor)
-    end
-    (za, existing)
 end
 
 function _save_ohlcv(
@@ -502,4 +468,4 @@ end
 
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
-export PairData, ZarrInstance, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv
+export PairData, ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv

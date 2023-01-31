@@ -1,12 +1,12 @@
 using Zarr
-using Zarr: AbstractStore
+using Zarr: AbstractStore, DirectoryStore, is_zarray
 using Misc: DATA_PATH, isdirempty
 import Base.delete!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
 function delete!(g::ZGroup, key::AbstractString; force=true)
-    rm(joinpath(g.storage.folder, g.path, key); force, recursive=true)
+    delete!(g.storage, g.path, key)
     if key ∈ keys(g.groups)
         delete!(g.groups, key)
     else
@@ -14,16 +14,58 @@ function delete!(g::ZGroup, key::AbstractString; force=true)
     end
 end
 
-function delete!(z::ZArray, ok=true; kind=:directory)
+function delete!(store::DirectoryStore, paths::Vararg{<:AbstractString}; recursive=true)
+    rm(joinpath(store.folder, paths...); force=true, recursive)
+end
+
+function delete!(store::T, paths...; recursive=true) where {T<:AbstractStore}
+    delete!(store, paths...; recursive)
+end
+
+function delete!(z::ZArray; ok=true)
     ok && begin
-        if kind == :directory
-            rm(joinpath(z.storage.folder, z.path); force=true, recursive=true)
-        elseif kind == :lmdbdict
-            delete!(z.storage.a, z.path)
-        else
-            throw(ArgumentError("$kind is not a valid storage backend."))
-        end
+        delete!(z.storage, z.path; recursive=true)
+        store_type = typeof(z.storage)
+        @assert store_type <: DirectoryStore || store_type <: LMDBDictStore "$store_type does not support array deletion."
     end
+end
+
+function _get_zarray(
+    zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
+)
+    existing = false
+    if is_zarray(zi.store, key)
+        za = zopen(zi.store, "w"; path=key)
+        za_sz = size(za)
+        if length(za_sz) != length(sz) || (length(za_sz) > 1 && za_sz[2] != sz[2]) || reset
+            if overwrite || reset
+                delete!(zi.store, key)
+                za = zcreate(
+                    type,
+                    zi.store,
+                    sz...;
+                    fill_value=zero(type),
+                    fill_as_missing=false,
+                    path=key,
+                    compressor=compressor,
+                )
+            else
+                throw(
+                    "Dimensions mismatch between stored data $(size(za)) and new data. $(sz)",
+                )
+            end
+        else
+            existing = true
+        end
+    else
+        if !Zarr.isemptysub(zi.store, key)
+            p = joinpath(zi.store.folder, key)
+            @debug "Deleting garbage at path $p"
+            rm(p; recursive=true)
+        end
+        za = zcreate(type, zi.store, sz...; path=key, compressor)
+    end
+    (za, existing)
 end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
