@@ -1,4 +1,5 @@
 using Zarr
+using Zarr: AbstractStore
 using Misc: DATA_PATH, isdirempty
 import Base.delete!
 
@@ -26,10 +27,11 @@ function delete!(z::ZArray, ok=true; kind=:directory)
 end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
-mutable struct ZarrInstance
+mutable struct ZarrInstance{S<:AbstractStore}
     path::AbstractString
-    store::DirectoryStore
+    store::S
     group::ZGroup
+    ZarrInstance(path, store, g) = new{typeof(store)}(path, store, g)
     function ZarrInstance(data_path=joinpath(DATA_PATH, "store"))
         ds = DirectoryStore(data_path)
         if !Zarr.is_zgroup(ds, "")
@@ -38,7 +40,7 @@ mutable struct ZarrInstance
         end
         @debug "Data: opening store $ds"
         g = zopen(ds, "w")
-        new(data_path, ds, g)
+        new{DirectoryStore}(data_path, ds, g)
     end
 end
 
