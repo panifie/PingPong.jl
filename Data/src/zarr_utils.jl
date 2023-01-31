@@ -19,6 +19,8 @@ function delete!(z::ZArray, ok=true; kind=:directory)
             rm(joinpath(z.storage.folder, z.path); force=true, recursive=true)
         elseif kind == :lmdbdict
             delete!(z.storage.a, z.path)
+        else
+            throw(ArgumentError("$kind is not a valid storage backend."))
         end
     end
 end
