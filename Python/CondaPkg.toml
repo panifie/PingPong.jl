@@ -1,0 +1,8 @@
+
+[pip.deps]
+uvloop = ""
+aiorun = ""
+enlighten = ""
+six = ""
+ccxt = ""
+numpy = ""
