@@ -72,8 +72,7 @@ function _get_zarray(
     existing = false
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
-        za_sz = size(za)
-        if length(za_sz) != length(sz) || (length(za_sz) > 1 && za_sz[2] != sz[2]) || reset
+        if ndims(za) != length(sz) || (ndims(za) > 1 && size(za, 2) != sz[2]) || reset
             if overwrite || reset
                 delete!(zi.store, key)
                 za = zcreate(
