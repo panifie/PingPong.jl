@@ -44,7 +44,7 @@ function zilmdb(path::AbstractString=joinpath(DATA_PATH, "lmdb"); force=false)
     end
 end
 
-function delete!(store::LMDBDictStore, paths...; recursive=true)
+function delete!(store::LMDBDictStore, paths::Vararg{AbstractString}; recursive=true)
     try
         if recursive
             for k in keys(store.a; prefix=joinpath(paths...))
@@ -59,8 +59,9 @@ function delete!(store::LMDBDictStore, paths...; recursive=true)
     end
 end
 
-function Base.empty!(d::lm.LMDBDict)
-    lm.txn_dbi_do(d) do tx, dbi
-        lm.drop(tx, dbi)
+function Base.empty!(d::lm.LMDBDict{K}) where {K}
+    lm.txn_dbi_do(d; readonly=false) do txn, dbi
+        lm.drop(txn, dbi; delete=true)
     end
+    lm.sync(d.env, true)
 end
