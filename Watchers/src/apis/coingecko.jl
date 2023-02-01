@@ -9,6 +9,7 @@ using Lang: @lget!, Option
 using Misc
 using TimeTicks
 using TimeTicks: timestamp
+using Instruments
 using Instruments.Derivatives
 
 const API_URL = "https://api.coingecko.com"
