@@ -323,18 +323,12 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     end
 end
 
-@doc "Delete directory for a zarr group key from underlying directory store."
-function clear_key(zi::ZarrInstance, key)
-    path = joinpath(zi.path, key)
-    isdir(path) && rm(path; recursive=true)
-end
-
 function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
     try
         _load(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
-            clear_key(zi[], key) # ensure path does not exist
+            delete!(zi[].store, key) # ensure path does not exist
             emptyz = zcreate(
                 Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor
             )
