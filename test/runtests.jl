@@ -34,6 +34,7 @@ include("test_strategies.jl")
 include("test_watchers.jl")
 include("test_coinmarketcap.jl")
 include("test_coingecko.jl")
+include("test_coinpaprika.jl")
 
 test_map = Dict(
     :aqua => [test_aqua],
@@ -47,6 +48,8 @@ test_map = Dict(
     :ohlcv => [test_ohlcv],
     :orders => [test_orders],
     :cmc => [test_coinmarketcap],
+    :gecko => [test_coingecko],
+    :paprika => [test_coinpaprika],
 )
 for (testname, tests) in test_map
     if all || lowercase(string(testname)) ∈ ARGS
