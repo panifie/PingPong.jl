@@ -11,6 +11,7 @@ function test_coingecko()
         end
         @test cg.ping()
         @test coingecko_ratelimit()
+        @test cg.idbysym("eth") == "ethereum"
         @test coingecko_tickers()
         @test coingecko_price()
         @test coingecko_currencies()

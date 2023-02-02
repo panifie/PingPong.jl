@@ -80,12 +80,33 @@ function vs_currencies()
 end
 
 const coins = TTL{Nothing,Dict{String,String}}(Minute(60))
+const coins_syms = Dict{String,Vector{SubString}}()
 @doc "Load all coins symbols."
 loadcoins!() = @lget! coins nothing begin
     json = get(ApiPaths.coins_list)
     @assert !isnothing(json)
-    Dict{String,String}(d["id"] => d["symbol"] for d in json)
+    data = Dict{String,String}()
+    for d in json
+        id = d["id"]
+        sym = d["symbol"]
+        data[id] = sym
+        ls = lowercase(sym)
+        if ls ∈ keys(coins_syms)
+            push!(coins_syms[ls], id)
+        else
+            coins_syms[ls] = [id]
+        end
+    end
+    data
 end
+
+@doc "Get all coingecko item id matching by its symbol."
+idbysym(sym, ::Bool) = begin
+    loadcoins!()
+    @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
+end
+@doc "Get the first coingecko item id by its symbol."
+idbysym(sym) = first(idbysym(sym, true))
 
 @enum SortBy begin
     gecko_desc
@@ -352,6 +373,10 @@ function tickers_from(exc_id)
         Asset(SubString(""), t["base"], t["target"]) => convert(Dict{String,Any}, t) for
         t in json["tickers"] if _is_valid(t)
     )
+end
+
+function to_id(s::AbstractString)
+    coins = loadcoins!()
 end
 
 end
