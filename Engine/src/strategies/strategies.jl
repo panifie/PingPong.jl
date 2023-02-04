@@ -111,23 +111,21 @@ function loadstrategy!(src::Symbol, cfg=config)
 end
 
 function Base.display(strat::Strategy)
-    begin
-        out = IOBuffer()
-        try
-            write(out, "Strategy name: $(typeof(strat))\n")
-            write(out, "Base Amount: $(strat.config.base_amount)\n")
-            write(out, "Universe:\n")
-            write(out, string(Collections.prettydf(strat.universe)))
-            write(out, "\n")
-            write(out, "Balances:\n")
-            write(out, string(strat.balances))
-            write(out, "\n")
-            write(out, "Orders:\n")
-            write(out, string(strat.orders))
-            Base.print(String(take!(out)))
-        finally
-            close(out)
-        end
+    out = IOBuffer()
+    try
+        write(out, "Strategy name: $(typeof(strat))\n")
+        write(out, "Base Amount: $(strat.config.base_amount)\n")
+        write(out, "Universe:\n")
+        write(out, string(Collections.prettydf(strat.universe)))
+        write(out, "\n")
+        write(out, "Balances:\n")
+        write(out, string(strat.balances))
+        write(out, "\n")
+        write(out, "Orders:\n")
+        write(out, string(strat.orders))
+        Base.print(String(take!(out)))
+    finally
+        close(out)
     end
 end
 
