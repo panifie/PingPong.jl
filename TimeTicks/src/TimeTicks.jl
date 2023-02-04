@@ -1,5 +1,6 @@
 module TimeTicks
 using Base: AbstractCmd
+using Serialization
 using Reexport
 @reexport using Dates
 using TimeFrames: TimeFrames, TimeFrame, apply, TimePeriodFrame
@@ -179,6 +180,14 @@ timestamp(s::AbstractString) = timestamp(DateTime(s))
 timefloat(time::Float64) = time
 timefloat(prd::Period) = prd.value * 1.0
 timefloat(time::DateTime) = dtfloat(time)
+timefloat(time::Vector{UInt8}) = begin
+    buf = Base.IOBuffer(time)
+    try
+        timefloat(deserialize(buf))
+    finally
+        close(buf)
+    end
+end
 
 function timefloat(time::String)
     time === "" && return dtfloat(dt(0))
