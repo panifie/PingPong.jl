@@ -222,6 +222,23 @@ end
 @doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
 available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
 
+@doc "Converts period in the most readable format up to days."
+function compact(s::Period)
+    millis = Millisecond(s)
+    ms = millis.value
+    if ms < 1000
+        millis
+    elseif ms < 12e4
+        round(s, Second)
+    elseif ms < 36e5
+        round(s, Minute)
+    elseif ms < 864e5
+        round(s, Hour)
+    else
+        round(s, Day)
+    end
+end
+
 export @as_td,
     @tf_str,
     @dt_str,
@@ -236,6 +253,7 @@ export @as_td,
     dtfloat,
     name,
     available,
+    compact,
     now
 
 include("daterange.jl")         #
