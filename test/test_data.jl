@@ -5,7 +5,6 @@ using Test
 #
 
 test_zarrinstance() = begin
-    @eval using PingPong.Data
     zi = Data.zilmdb()
     @test zi isa ZarrInstance
     @test zi.store isa Data.LMDBDictStore
@@ -17,8 +16,6 @@ end
 function test_save_json(zi=nothing, key="coingecko/markets/all")
     @eval begin
         using JSON
-        using PingPong.Data
-        using Data.Zarr
         using Mmap
         da = Data
     end
@@ -40,7 +37,28 @@ function test_save_json(zi=nothing, key="coingecko/markets/all")
     end
 end
 
+test_zarray_save(zi) = begin
+    sz = (123, 3)
+    k = string(rand())
+    z, existing = da._get_zarray(
+        zi, k, sz; type=String, overwrite=true, reset=true
+    )
+    @test !existing
+    @test z isa ZArray
+    @test eltype(z) == String
+    @test length(z) == reduce(*, sz)
+    @test size(z) == sz
+    return z
+end
+
 test_data() = @testset "data" begin
+    @eval begin
+        using PingPong.Data
+        da = Data
+        using Data.Zarr
+        za = Zarr
+    end
     zi = test_zarrinstance()
+    test_zarray_save(zi)
     test_save_json(zi)
 end

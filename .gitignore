@@ -10,6 +10,6 @@
 /**/deps/precompiles/*
 !/**/deps/precompiles/*_PingPong*.jl
 /**/*.log
-/**/CondaPkg.toml
+# /*/**/CondaPkg.toml
 /**/.JuliaFormatter.toml
 /docs/build/
