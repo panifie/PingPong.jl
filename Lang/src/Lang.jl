@@ -117,23 +117,22 @@ end
 @doc "Define `@fromdict` locally, to avoid precompilation side effects."
 macro define_fromdict!()
     quote
-        @eval begin
-            isdefined($(__module__), Symbol("@fromdict")) ||
-                @doc "This macro tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
-                macro fromdict(nt_type, key_type, dict_var)
-                    ttype = eval(:($(__module__).$nt_type))
-                    ktype = eval(:($(__module__).$key_type))
-                    @assert ttype <: NamedTuple "First arg must be a namedtuple type."
-                    @assert ktype isa Type "Second arg must be the type of the dict keys."
-                    @assert applicable(ktype, Symbol()) "Can't convert symbols to $ktype."
-                    params = Expr(:parameters)
-                    ex = Expr(:tuple, params)
-                    for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-                        p = Expr(:kw, fi, :(convert($(ty), $(esc(dict_var))[$(ktype(fi))])))
-                        push!(params.args, p)
-                    end
-                    ex
+        isdefined($(__module__), Symbol("@fromdict")) || @eval begin
+            @doc "This macro tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
+            macro fromdict(nt_type, key_type, dict_var)
+                ttype = eval(:($(__module__).$nt_type))
+                ktype = eval(:($(__module__).$key_type))
+                @assert ttype <: NamedTuple "First arg must be a namedtuple type."
+                @assert ktype isa Type "Second arg must be the type of the dict keys."
+                @assert applicable(ktype, Symbol()) "Can't convert symbols to $ktype."
+                params = Expr(:parameters)
+                ex = Expr(:tuple, params)
+                for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
+                    p = Expr(:kw, fi, :(convert($(ty), $(esc(dict_var))[$(ktype(fi))])))
+                    push!(params.args, p)
                 end
+                ex
+            end
         end
     end
 end
