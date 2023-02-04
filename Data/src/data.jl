@@ -193,7 +193,7 @@ function _save_ohlcv(
     kind="ohlcv",
     type=Float64,
     data_col=1,
-    saved_col=1,
+    saved_col=data_col,
     overwrite=true,
     reset=false,
 )
@@ -374,10 +374,10 @@ end
 `zi`: The zarr instance to use
 `key`: the name of the array to load from the zarr instance (in the format exchange/timeframe/pair)
 `td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
-`from`, `to`:
+`from`, `to`: date range
 """
 function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
-    @debug "Loading data for pair at $key."
+    @debug "Loading data from $(zi[].path):$(key)"
     za, _ = _get_zarray(
         zi[], key, (1, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false
     )
@@ -392,7 +392,7 @@ function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=fals
     @as to timefloat(to)
 
     saved_first_ts = za[begin, saved_col]
-    @debug "Pair first timestamp is $(saved_first_ts |> dt)"
+    @debug "Saved data first timestamp is $(saved_first_ts |> dt)"
 
     with_from = !iszero(from)
     with_to = !iszero(to)
