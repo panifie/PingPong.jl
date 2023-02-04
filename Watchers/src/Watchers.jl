@@ -4,41 +4,64 @@ using Python
 using TimeTicks
 using DataStructures
 using DataStructures: CircularBuffer
+using Data
 using Lang: Option
 using Base.Threads: @spawn
+using Base: acquire, Semaphore, release
 
-safenotify(cond::Condition) = begin
+safenotify(cond) = begin
     lock(cond)
     notify(cond)
     unlock(cond)
 end
-safewait(cond::Condition) = begin
+safewait(cond) = begin
     lock(cond)
     wait(cond)
     unlock(cond)
 end
+@doc "Same as `@lock` but with `acquire` and `release`."
+macro acquire(cond, code)
+    quote
+        temp = $(esc(cond))
+        acquire(temp)
+        try
+            $(esc(code))
+        finally
+            release(temp)
+        end
+    end
+end
 
-@kwdef mutable struct Watcher3{T}
-    const data::CircularBuffer{Pair{DateTime,T}}
+BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
+
+@kwdef mutable struct Watcher8{T}
+    const buffer::CircularBuffer{BufferEntry(T)}
+    const name::SubString
     const timeout::Millisecond
     const interval::Millisecond
-    const _fetcher_sem::Base.Semaphore
-    const _buffer_sem::Base.Semaphore
+    const flush_interval::Millisecond
+    const _fetcher_sem::Semaphore
+    const _buffer_sem::Semaphore
+    _fetch_func::Function = (_) -> ()
+    _flush_func::Function = (_) -> nothing
     timer::Option{Timer} = nothing
     attempts::Int = 0
     last_try::DateTime = DateTime(0)
-    _flush_counter::Int = 0
+    last_flush::DateTime = DateTime(0)
 end
 @doc """ Watchers manage data, they pull from somewhere, keep a cache in memory, and optionally flush periodically to persistent storage.
 
- - `data`: A [CircularBuffer](https://juliacollections.github.io/DataStructures.jl/latest/circ_buffer/) of default length `1000` of the watcher type parameter.
+ - `buffer`: A [CircularBuffer](https://juliacollections.github.io/DataStructures.jl/latest/circ_buffer/) of default length `1000` of the watcher type parameter.
+ - `name`: Give it a name for better logging.
  - `timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  - `timeout`: How much time to wait for the fetcher function.
  - `interval`: the `Period` with which the `fetcher` function will be called.
+ - `flush_interval`: the `Period` with which the `flusher` function will be called.
  - `attempts`: In cause of fetcher failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
- - `last_try`: the last time a fetch operation failed.
+ - `last_try`: the most recent time a fetch operation failed.
+ - `last_flush`: the most recent time the flush function was called.
  """
-Watcher = Watcher3
+Watcher = Watcher8
 
 @doc """ Instantiate a watcher.
 
@@ -53,66 +76,146 @@ Watcher = Watcher3
 !!! warning
     If using flushers, do not modify the input data (argument of the flusher callback), always make a copy.
 """
-function Watcher3(
+function watcher(
     T::Type,
-    fetcher,
-    flusher=nothing;
+    name::AbstractString,
+    fetcher::Function;
+    flusher::Union{Bool,Function}=false,
     threads=false,
     len=1000,
     interval=Second(30),
-    timeout=Second(5),
+    flush_interval=Second(360),
+    timeout=Second(5)
 )
     begin
         mets = methods(fetcher)
         @assert length(mets) > 0 && length(mets[1].sig.parameters) == 1 "Function should have no arguments."
     end
-    w = Watcher3{T}(CircularBuffer{T}(len); timeout, interval)
-    finalizer(close, w)
+    buffer = CircularBuffer{BufferEntry(T)}(len)
+    w = Watcher8{T}(; name=SubString(name), buffer, timeout, interval, flush_interval,
+        _fetcher_sem=Semaphore(1), _buffer_sem=Semaphore(1))
+    w = finalizer(close, w)
+
     wrapped_fetcher() = begin
+        local value
+        acquire(w._fetcher_sem)
+        time = now()
         try
-            v = fetcher() # local bind, such that `now` is called after the event
-            push!(w.data, (now(), v))
+            value = fetcher() # local bind, such that `now` is called after the event
+            value != w.buffer[end].value && push!(w.buffer, (; time, value))
             true
         catch error
-            @warn "Watcher error!" error
-            false
+            if error isa BoundsError && isempty(w.buffer)
+                push!(w.buffer, (; time, value))
+                true
+            else
+                @warn "Watcher error!" error
+                false
+            end
+        finally
+            release(w._fetcher_sem)
         end
+    end
+    w._flush_func = if flusher isa Function
+        @assert applicable(flusher, w.buffer) "Incompatible flusher function. (It must accept an `AbstractVector`)"
+        flusher
+    elseif flusher
+        (buf) -> base_flusher(buf, w.name)
+    else
+        (_) -> nothing
     end
     # NOTE: the callback for the timer requires 1 arg (the timer itself)
-    function with_timeout(_)
-        begin
-            fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
-            @async begin
-                sleep(timeout)
-                safenotify(fetcher_task.donenotify)
+    w._fetch_func = (_) -> begin
+        fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
+        @async begin
+            sleep(timeout)
+            safenotify(fetcher_task.donenotify)
+        end
+        safewait(fetcher_task.donenotify)
+        if istaskdone(fetcher_task) && fetch(fetcher_task)
+            w.attempts = 0
+            let time_now = now()
+                time_now - w.last_flush > w.flush_interval &&
+                    _call_flush(w, time_now)
             end
-            safewait(fetcher_task.donenotify)
-            if istaskdone(fetcher_task) && fetch(fetcher_task)
-                w.attempts = 0
-                w._flush_counter += 1
-                if !isnothing(flusher) && w._flush_counter == length(w.data)
-                    w._flush_counter = 0
-                    flusher(w.data)
-                end
-            else
-                w.attempts += 1
-                w.last_try = now()
-            end
+        else
+            w.attempts += 1
+            w.last_try = now()
         end
     end
-    w.timer = Timer(with_timeout, 0; interval)
+    w.timer = Timer(w._fetch_func, 0; interval=interval.value)
+    w.last_flush = now()
     w
 end
 
+_call_flush(w::Watcher, time=now()) = @async @acquire w._buffer_sem begin
+    w.last_flush = time
+    w._flush_func(w.buffer)
+end
+@doc "Force flush watcher."
+flush!(w::Watcher) = w._flush_func(w.buffer)
+@doc "Save function for watcher data, saves to the default `DATA_PATH` \
+located lmdb instance using serialization."
+base_flusher(vec::AbstractVector, key::AbstractString) = begin
+    save_data(zilmdb(), key, vec; serialize=true)
+end
+
+@doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
+polling will resume after the watcher `interval`."
+fetch!(w::Watcher; reset=false) =
+    try
+        if reset
+            w._fetch_func()
+            close(w.timer)
+            w.timer = Timer(w._fetch_func, w.interval.value; interval=w.interval.value)
+        else
+            w._fetch_func(w.timer)
+        end
+    catch e
+        @error e
+    finally
+        return last(w.buffer).value
+    end
+
 @doc "True if last available data entry is older than `now() + interval + timeout`."
 function isstale(w::Watcher)
-    w.attempts > 0 || last(w.data).first < now() - w.interval - w.timeout
+    w.attempts > 0 || last(w.buffer).time < now() - w.interval - w.timeout
 end
-Base.last(w::Watcher) = last(w.data)
-Base.length(w::Watcher) = length(w.data)
-close(w::Watcher) = isnothing(w.timer) || close(w.timer)
+Base.last(w::Watcher) = last(w.buffer)
+Base.length(w::Watcher) = length(w.buffer)
+close(w::Watcher) = begin
+    isnothing(w.timer) || close(w.timer)
+end
 
-export Watcher, isstale
+function Base.display(w::Watcher)
+    out = IOBuffer()
+    try
+        tps = "$(typeof(w))"
+        write(out, "$(length(w.buffer))-element ")
+        if length(tps) > 80
+            write(out, @view(tps[begin:40]))
+            write(out, "...")
+            write(out, @view(tps[end-40:end]))
+        else
+            write(out, tps)
+        end
+        write(out, "\nName: ")
+        write(out, w.name)
+        write(out, "\nFetch: ")
+        write(out, "$(compact(w.interval))")
+        write(out, "\nFlush: ")
+        write(out, "$(compact(w.flush_interval))")
+        write(out, "\nTimeout: ")
+        write(out, "$(compact(w.timeout))")
+        write(out, "\nFlushed: ")
+        write(out, "$(w.last_flush)")
+        Base.println(String(take!(out)))
+    finally
+        Base.close(out)
+    end
+end
+
+export Watcher, watcher, isstale
 
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
