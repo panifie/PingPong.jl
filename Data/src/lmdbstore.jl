@@ -2,6 +2,7 @@ using Zarr: Zarr;
 const za = Zarr;
 using LMDB: LMDB;
 const lm = LMDB;
+using Lang: @lget!
 
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
@@ -28,18 +29,20 @@ end
 
 `force`: resets the underlying store."
 function zilmdb(path::AbstractString=joinpath(DATA_PATH, "lmdb"); force=false)
-    get(force) = begin
-        store = LMDBDictStore(path; reset=force)
-        g = get_zgroup(store)
-        ZarrInstance(path, store, g)
-    end
-    try
-        get(false)
-    catch error
-        if force
-            get(true)
-        else
-            rethrow(error)
+    @lget! zcache path begin
+        get(force) = begin
+            store = LMDBDictStore(path; reset=force)
+            g = get_zgroup(store)
+            ZarrInstance(path, store, g)
+        end
+        try
+            get(false)
+        catch error
+            if force
+                get(true)
+            else
+                rethrow(error)
+            end
         end
     end
 end
@@ -65,3 +68,5 @@ function Base.empty!(d::lm.LMDBDict{K}) where {K}
     end
     lm.sync(d.env, true)
 end
+
+export zilmdb
