@@ -1,6 +1,7 @@
 using Zarr
-using Zarr: AbstractStore, DirectoryStore, is_zarray
+using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub
 using Misc: DATA_PATH, isdirempty
+using Lang: @lget!
 import Base.delete!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
@@ -30,17 +31,25 @@ function delete!(z::ZArray; ok=true)
     end
 end
 
+istypeorval(t::Type, v) = v isa t
+istypeorval(t::Type, v::Type) = v <: t
 default(t::Type) = begin
-    if hasmethod(zero, (t,))
+    if applicable(zero, (t,))
         zero(t)
-    elseif hasmethod(empty, Tuple{t})
+    elseif applicable(empty, Tuple{t})
         empty(t)
-    elseif t <: AbstractString
+    elseif istypeorval(AbstractString, t)
         ""
-    elseif t <: AbstractChar
+    elseif istypeorval(AbstractChar, t)
         '\0'
-    elseif t <: Function
+    elseif istypeorval(Tuple, t)
+        ((default(ft) for ft in fieldtypes(t))...,)
+    elseif istypeorval(DateTime, t)
+        DateTime(0)
+    elseif t isa Function
         (_...) -> nothing
+    elseif applicable(t)
+        t()
     else
         throw(ArgumentError("No default value for type: $t"))
     end
@@ -53,18 +62,39 @@ mutable struct ZarrInstance{S<:AbstractStore}
     group::ZGroup
     ZarrInstance(path, store, g) = new{typeof(store)}(path, store, g)
     function ZarrInstance(data_path=joinpath(DATA_PATH, "store"))
-        ds = DirectoryStore(data_path)
-        if !Zarr.is_zgroup(ds, "")
-            @assert isdirempty(data_path) "Directory at $(data_path) must be empty."
-            zgroup(ds, "")
+        @lget! zcache data_path begin
+            ds = DirectoryStore(data_path)
+            if !Zarr.is_zgroup(ds, "")
+                @assert isdirempty(data_path) "Directory at $(data_path) must be empty."
+                zgroup(ds, "")
+            end
+            @debug "Data: opening store $ds"
+            g = zopen(ds, "w")
+            new{DirectoryStore}(data_path, ds, g)
         end
-        @debug "Data: opening store $ds"
-        g = zopen(ds, "w")
-        new{DirectoryStore}(data_path, ds, g)
     end
 end
 
 const zi = Ref{ZarrInstance}()
+const zcache = Dict{String,ZarrInstance}()
+
+macro zcreate()
+    type = esc(:type)
+    key = esc(:key)
+    sz = esc(:sz)
+    zi = esc(:zi)
+    quote
+        zcreate(
+            $type,
+            $(zi).store,
+            $(sz)...;
+            fill_value=default($(esc(:type))),
+            fill_as_missing=false,
+            path=$key,
+            compressor=compressor
+        )
+    end
+end
 
 function _get_zarray(
     zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
@@ -75,15 +105,7 @@ function _get_zarray(
         if ndims(za) != length(sz) || (ndims(za) > 1 && size(za, 2) != sz[2]) || reset
             if overwrite || reset
                 delete!(zi.store, key)
-                za = zcreate(
-                    type,
-                    zi.store,
-                    sz...;
-                    fill_value=default(type),
-                    fill_as_missing=false,
-                    path=key,
-                    compressor=compressor,
-                )
+                za = @zcreate
             else
                 throw(
                     "Dimensions mismatch between stored data $(size(za)) and new data. $(sz)",
@@ -93,12 +115,11 @@ function _get_zarray(
             existing = true
         end
     else
-        if !Zarr.isemptysub(zi.store, key)
-            p = joinpath(zi.store.folder, key)
+        if !isemptysub(zi.store, key)
             @debug "Deleting garbage at path $p"
-            rm(p; recursive=true)
+            delete!(zi.store, key)
         end
-        za = zcreate(type, zi.store, sz...; path=key, compressor)
+        za = @zcreate
     end
     (za, existing)
 end
