@@ -220,6 +220,6 @@ export Watcher, watcher, isstale
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
 include("apis/coinpaprika.jl")
-include("impl.jl")
+include("impls/impls.jl")
 
 end

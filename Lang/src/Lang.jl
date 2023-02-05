@@ -114,27 +114,49 @@ macro unroll(exp, fields, asn=:el)
     Expr(:block, (:($(esc(asn)) = $el; $ex) for el in fields.args)...)
 end
 
-@doc "Define `@fromdict` locally, to avoid precompilation side effects."
-macro define_fromdict!()
+macro evalarg(arg)
+    # s = eval(arg)
+    @show @eval $__module__.$arg
     quote
-        isdefined($(__module__), Symbol("@fromdict")) || @eval begin
+        # mod = $__module__
+        # eval($mod,  Base.Meta.parse("$mod." * $(string(esc(arg)))))
+    end
+end
+
+@doc "Define `@fromdict` locally, to avoid precompilation side effects."
+macro define_fromdict!(force=false)
+    quote
+        (isdefined($(__module__), Symbol("@fromdict")) && !$force) || @eval begin
             @doc "This macro tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
             macro fromdict(nt_type, key_type, dict_var)
-                ttype = eval(:($(__module__).$nt_type))
-                ktype = eval(:($(__module__).$key_type))
+                ttype = eval( Base.Meta.parse("$__module__.$nt_type"))
+                ktype = eval( Base.Meta.parse("$__module__.$key_type"))
                 @assert ttype <: NamedTuple "First arg must be a namedtuple type."
                 @assert ktype isa Type "Second arg must be the type of the dict keys."
                 @assert applicable(ktype, Symbol()) "Can't convert symbols to $ktype."
                 params = Expr(:parameters)
                 ex = Expr(:tuple, params)
                 for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-                    p = Expr(:kw, fi, :(convert($(ty), $(esc(dict_var))[$(ktype(fi))])))
+                    p = Expr(:kw, fi, :(convert($(ty), $(esc(dict_var))[$(convert(ktype, fi))])))
                     push!(params.args, p)
                 end
                 ex
             end
         end
     end
+end
+
+@doc "Same as `@fromdict` but as a generated function."
+@generated fromdict(tuple, key, di) = begin
+    params = Expr(:parameters)
+    ex = Expr(:tuple, params)
+    ttype = first(tuple.parameters)
+    ktype = isempty(key.parameters) ? key : first(key.parameters)
+    for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
+        p = Expr(:kw, fi, :(convert($ty, (di[$(convert(ktype, fi))]))))
+        push!(params.args, p)
+    end
+    ex
 end
 
 macro sym_str(s)
