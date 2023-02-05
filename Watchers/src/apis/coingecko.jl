@@ -37,9 +37,7 @@ const DEFAULT_CUR = "usd"
 const last_query = Ref(DateTime(0))
 const limit = Millisecond(3 * 1000)
 @doc "Allows only 1 query every $(limit) seconds."
-function ratelimit()
-    sleep(max(Second(0), (last_query[] - now()) + limit))
-end
+ratelimit() = sleep(max(Second(0), (last_query[] - now()) + limit))
 
 function get(path::T where {T}, query=nothing)
     ratelimit()
@@ -47,7 +45,7 @@ function get(path::T where {T}, query=nothing)
     last_query[] = now()
     @assert resp.status == 200
     json = LazyJSON.value(resp.body)
-    json
+    return json
 end
 
 ping() = "gecko_says" ∈ keys(get(ApiPaths.ping))
@@ -63,11 +61,11 @@ function price(syms::AbstractVector, vs=[DEFAULT_CUR])
             "include_last_updated_at" => true,
         ),
     )
-    convert(Dict{String,Dict{String,Any}}, json)
+    return convert(Dict{String,Dict{String,Any}}, json)
 end
 
 const currencies = Set{String}()
-function vs_currencies()
+vs_currencies() =
     if length(currencies) > 0
         currencies
     else
@@ -77,7 +75,6 @@ function vs_currencies()
         end
         currencies
     end
-end
 
 const coins = TTL{Nothing,Dict{String,String}}(Minute(60))
 const coins_syms = Dict{String,Vector{SubString}}()
@@ -101,9 +98,11 @@ loadcoins!() = @lget! coins nothing begin
 end
 
 @doc "Get all coingecko item id matching by its symbol."
-idbysym(sym, ::Bool) = begin
-    loadcoins!()
-    @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
+function idbysym(sym, ::Bool)
+    begin
+        loadcoins!()
+        @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
+    end
 end
 @doc "Get the first coingecko item id by its symbol."
 idbysym(sym) = first(idbysym(sym, true))
@@ -186,7 +185,7 @@ function _parse_data(data)
         push!(prices, price)
         push!(volume, vol_data[n][2])
     end
-    (; dates, prices, volume)
+    return (; dates, prices, volume)
 end
 
 @doc """Get `close` price and volume for symbol `id` for specified number of days.
@@ -271,7 +270,7 @@ end
 - `mcap_change_24h`: market_cap_change_percentage_24h_usd"
 function globaldata()
     data = get(ApiPaths.glob)["data"]
-    (;
+    return (;
         volume=convert(Dict{String,Float64}, data["total_volume"]),
         mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
         date=unix2datetime(data["updated_at"]),
@@ -319,26 +318,28 @@ end
 const drv_exchanges = Dict{String,String}()
 @doc "Returns the list of all exchange ids."
 function loadderivatives!()
-    begin
-        isempty(drv_exchanges) && begin
-            path = (ApiPaths.derivatives_exchanges, "/list")
-            json = get(join(path))
-            for v in json
-                drv_exchanges[v["id"]] = v["name"]
-            end
+    isempty(drv_exchanges) && begin
+        path = (ApiPaths.derivatives_exchanges, "/list")
+        json = get(join(path))
+        for v in json
+            drv_exchanges[v["id"]] = v["name"]
         end
-        drv_exchanges
     end
+    return drv_exchanges
+end
+
+function check_drv_exchange(id)
+    @assert id ∈ keys(loadderivatives!()) "Not a valid exchange id (call `loadderivatives!` to fetch ids)."
 end
 
 @doc "Fetch derivatives from specified exchange.
 
 Returns a Dict{`Derivative`, Dict}."
 function derivatives_from(id)
-    @assert id ∈ keys(drv_exchanges) "Not a valid exchange id (call `loadderivatives!` to fetch ids)."
+    check_drv_exchange(id)
     path = (ApiPaths.derivatives_exchanges, "/", id)
     json = get(join(path), ("include_tickers" => "unexpired",))
-    Dict(
+    return Dict(
         begin
             v = convert(Dict{String,Any}, t)
             perpetual(
@@ -359,7 +360,7 @@ function loadexchanges!()
             exchanges[e["id"]] = e["name"]
         end
     end
-    exchanges
+    return exchanges
 end
 @doc """ Fetches top 100 tickers from exchange.
 
@@ -369,14 +370,10 @@ function tickers_from(exc_id)
     @assert exc_id ∈ keys(exchanges) "Exchange id not found, call `loadexchanges!` to fetch ids."
     path = (ApiPaths.exchanges, "/", exc_id)
     json = get(join(path))
-    Dict(
+    return Dict(
         Asset(SubString(""), t["base"], t["target"]) => convert(Dict{String,Any}, t) for
         t in json["tickers"] if _is_valid(t)
     )
-end
-
-function to_id(s::AbstractString)
-    coins = loadcoins!()
 end
 
 end
