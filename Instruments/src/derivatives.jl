@@ -50,13 +50,13 @@ function perpetual(raw::AbstractString, bc, qc)
 end
 
 function Base.parse(::Type{Derivative}, s::AbstractString)
-    m = match(FULL_SYMBOL_GROUPS_REGEX, s)
+    m = match(FULL_SYMBOL_GROUPS_REGEX, SubString(s))
     @assert !(isnothing(m) || isnothing(m.captures)) _derivative_error(s)
     Derivative(s, m.captures)
 end
 
 function Base.parse(::Type{AbstractAsset}, s::AbstractString)
-    m = match(FULL_SYMBOL_GROUPS_REGEX, s)
+    m = match(FULL_SYMBOL_GROUPS_REGEX, SubString(s))
     @assert !(isnothing(m) || isnothing(m.captures)) _derivative_error(s)
     if length(m) > 2 && !isempty(m[3])
         Derivative(s, m.captures)
