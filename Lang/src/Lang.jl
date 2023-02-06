@@ -153,7 +153,7 @@ end
     ttype = first(tuple.parameters)
     ktype = isempty(key.parameters) ? key : first(key.parameters)
     for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-        p = Expr(:kw, fi, :(convert($ty, (di[$(convert(ktype, fi))]))))
+        p = Expr(:kw, fi, :(convert($ty, (di[convert($ktype, $(QuoteNode(fi)))]))))
         push!(params.args, p)
     end
     ex
