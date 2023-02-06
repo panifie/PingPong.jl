@@ -1,51 +1,6 @@
 using Serialization
 using Misc: Iterable
 
-function zsave(zi::ZarrInstance, data, path::AbstractString)
-    zsave(zi, data, splitpath(path)...)
-end
-
-function zsave(
-    zi::ZarrInstance,
-    data,
-    path::Vararg{AbstractString};
-    type=Float64,
-    merge_fun::Union{Nothing,Function}=nothing,
-)
-    folder = joinpath(path[begin:(end - 1)]...)
-    name = path[end]
-    # zg::Union{Nothing, ZGroup} = nothing
-    local zg
-    if Zarr.is_zgroup(zi.store, folder)
-        zg = zopen(zi.store, "w"; path=folder)
-    else
-        if !Zarr.isemptysub(zi.store, folder)
-            rm(joinpath(zi.store.folder, folder); recursive=true)
-        end
-        zg = zgroup(zi.store, folder)
-    end
-    local za
-    if name in keys(zg.arrays)
-        za = zg[name]
-        # check if the array is empty
-        if Zarr.isemptysub(zg.storage, joinpath(folder, name)) || isnothing(merge_fun)
-            za[:] = data
-        else
-            prev = reshape(za[:], size(za))
-            mdata = merge_fun(prev, data)
-            resize!(za, size(mdata)...)
-            for (n, col) in enumerate(names(mdata))
-                za[:, n] = mdata[:, col]
-            end
-            za[:, :] .= mdata[:, :]
-        end
-    else
-        za = Zarr.zcreate(type, zg, string(name), size(data)...; compressor)
-        za[:] = data
-    end
-    za, zg
-end
-
 tobytes(buf::IOBuffer, data) = begin
     @debug @assert position(buf) == 0
     serialize(buf, data)
@@ -121,7 +76,7 @@ function _save_data(
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
 
     @debug "Zarr dataset for key $key, len: $(size(data))."
-    if !reset && existing && size(za, 1) > 0
+    if !reset && existing && !isempty(za)
         local data_view
         saved_first_ts = timefloat(za[begin, za_col])
         saved_last_ts = timefloat(za[end, za_col])
@@ -131,7 +86,9 @@ function _save_data(
         if data_first_ts >= saved_first_ts
             if overwrite
                 # when overwriting get the index where data starts overwriting storage
-                offset = searchsortedfirst(@view(za[:, za_col]), data_first_ts, by=timefloat)
+                offset = searchsortedfirst(
+                    @view(za[:, za_col]), data_first_ts; by=timefloat
+                )
                 data_view = @view data[:, :]
                 begin # checks
                     @debug dt(data_first_ts), dt(saved_last_ts), dt(saved_last_ts + td)
@@ -146,14 +103,18 @@ function _save_data(
                 end
             else
                 # when not overwriting get the index where data has new values
-                data_offset = searchsortedlast(@view(data[:, data_col]), saved_last_ts, by=timefloat) + 1
+                data_offset =
+                    searchsortedlast(
+                        @view(data[:, data_col]), saved_last_ts; by=timefloat
+                    ) + 1
                 offset = size(za, 1) + 1
                 if data_offset <= size(data, 1)
                     data_view = @view data[data_offset:end, :]
                     begin # checks
                         @debug :saved dt(za[end, za_col]):data_view,
                         dt(data[data_offset, data_col])
-                        @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, za_col])
+                        @assert timefloat(data[data_offset, data_col]) >=
+                            timefloat(za[end, za_col])
                     end
                 else
                     data_view = @view data[1:0, :]
@@ -164,7 +125,8 @@ function _save_data(
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
-                @assert timefloat(za[max(1, offset - 1), za_col]) <= timefloat(data_view[begin, data_col])
+                @assert timefloat(za[max(1, offset - 1), za_col]) <=
+                    timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
@@ -174,7 +136,9 @@ function _save_data(
             if data_last_ts < saved_first_ts # just concat
             else # data_last_ts >= saved_first_ts
                 # have to slice
-                saved_offset = searchsortedfirst(@view(za[:, za_col]), data_last_ts, by=timefloat)
+                saved_offset = searchsortedfirst(
+                    @view(za[:, za_col]), data_last_ts; by=timefloat
+                )
                 saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
                 else
@@ -200,6 +164,7 @@ function _save_data(
     return za
 end
 
+const DEFAULT_CHUNK_SIZE = (100, 2)
 @doc """ Load data from zarr instance.
 `zi`: The zarr instance to use
 `key`: the name of the array to load from the zarr instance (full key path).
@@ -208,16 +173,21 @@ end
 `from`, `to`: date range
 """
 function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
-    sz = serialized ? (0, 2) : get(kwargs, :sz, (0, 2))
+    # NOTE
+    sz = serialized ? DEFAULT_CHUNK_SIZE : get(kwargs, :sz, DEFAULT_CHUNK_SIZE)
+    @debug @assert all(sz .> 0)
     try
-         _load_data(zi, key, sz; kwargs..., serialized)
+        _load_data(zi, key, sz; kwargs..., serialized)
     catch e
         if typeof(e) ∈ (MethodError, ArgumentError)
             delete!(zi.store, key) # ensure path does not exist
+            type = serialized ? Vector{UInt8} : get(kwargs, :type, Float64)
             emptyz = zcreate(
-                serialized ? Vector{UInt8} : get(kwargs, :type, Float64),
+                type,
                 zi.store,
                 sz...;
+                fill_value=default(type),
+                fill_as_missing=false,
                 path=key,
                 compressor,
             )
@@ -264,16 +234,17 @@ function _load_data(
 )
     @debug "Loading data from $(zi.path):$(key)"
     z_type = serialized ? Vector{UInt8} : type
-    za, _ = _get_zarray(zi, key, sz; overwrite=true, type=z_type, reset=false)
+    za, existing = _get_zarray(zi, key, sz; overwrite=true, type=z_type, reset=false)
     ndims = length(sz)
 
     def_type = serialized ? Any : type
-    function result(; data=Array{def_type,ndims}(undef, sz), startstop=(0, 0))
+    function result(sz=tuple(0 for _ in 1:ndims)...; data=nothing, startstop=(0, 0))
+        isnothing(data) && (data = Array{def_type,ndims}(undef, sz))
         as_z && return (; z=za, startstop)
         with_z && return (; data, z=za)
         return data
     end
-    size(za, 1) < 1 && return result()
+    (!existing || isempty(za)) && return result((0, sz[2:end]...))
 
     @as from timefloat(from)
     @as to timefloat(to)

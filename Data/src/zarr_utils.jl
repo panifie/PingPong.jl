@@ -1,10 +1,16 @@
 using Zarr
-using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub
+using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub, ZArray
 using Misc: DATA_PATH, isdirempty
 using Lang: @lget!
-import Base.delete!
+import Base.delete!, Base.isempty
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
+
+function isempty(z::ZArray)
+    size(z) == z.metadata.chunks &&
+        first(z, 0) == z.metadata.fill_value &&
+        last(z, 0) == z.metadata.fill_value
+end
 
 function delete!(g::ZGroup, key::AbstractString; force=true)
     delete!(g.storage, g.path, key)
@@ -91,7 +97,7 @@ macro zcreate()
             fill_value=default($(esc(:type))),
             fill_as_missing=false,
             path=$key,
-            compressor=compressor
+            compressor=compressor,
         )
     end
 end
