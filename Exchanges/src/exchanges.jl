@@ -55,7 +55,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     empty!(exc.markets)
     function force_load()
         @debug "Loading markets from exchange and caching at $mkt."
-        exc.loadMarkets(true)
+        pyfetch(exc.loadMarkets, true)
         pd = pyconvert(OptionsDict, exc.py.markets)
         mkpath(dirname(mkt))
         serialize(mkt, PyDict(pd))
@@ -138,7 +138,7 @@ macro tickers(force=false)
                     @assert hastickers($exc) "Exchange doesn't provide tickers list."
                     tickers_cache[nm] =
                         $tickers = pyconvert(
-                            Dict{String,Dict{String,Any}}, $(exc).fetchTickers()
+                            Dict{String,Dict{String,Any}}, pyfetch($(exc).fetchTickers)
                         )
                 else
                     $tickers = tickers_cache[nm]
@@ -236,8 +236,8 @@ issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.url
 @doc "Enable or disable rate limit."
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
 
-timestamp(exc::Exchange) = pyconvert(Int64, exc.py.fetchTime())
-Base.time(exc::Exchange) = dt(pyconvert(Float64, exc.py.fetchTime()))
+timestamp(exc::Exchange) = pyconvert(Int64, pyfetch(exc.py.fetchTime))
+Base.time(exc::Exchange) = dt(pyconvert(Float64, pyfetch(exc.py.fetchTime)))
 
 include("pairlist.jl")
 include("data.jl")

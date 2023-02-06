@@ -29,7 +29,7 @@ function py_start_loop()
     pycopy!(pyloop, pyrunner.get_loop())
 end
 
-function pyasync_run(f::Py, args...; kwargs...)
+function pytask(f::Py, args...; kwargs...)
     fut = pyaio.run_coroutine_threadsafe(f(args...; kwargs...), pyloop)
     @async begin
         while !Bool(fut.done())
@@ -38,6 +38,8 @@ function pyasync_run(f::Py, args...; kwargs...)
         fut.result()
     end
 end
+
+pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
@@ -72,4 +74,4 @@ function raise_exception()
       """
 end
 
-export pyasync_run
+export pytask, pyfetch

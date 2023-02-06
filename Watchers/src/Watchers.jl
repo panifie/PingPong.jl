@@ -44,6 +44,7 @@ BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
     const _buffer_sem::Semaphore
     _fetch_func::Function = (_) -> ()
     _flush_func::Function = (_) -> nothing
+    _start_func::Function = (_) -> T[]
     timer::Option{Timer} = nothing
     attempts::Int = 0
     last_try::DateTime = DateTime(0)
@@ -69,6 +70,7 @@ Watcher = Watcher8
 - `len`: length of the circular buffer.
 - `fetcher`: The _input_ function that fetches data from somewhere, with signature `() -> T`.
 - `flusher`: Optional function that is called once every `len` successful updates, `(AbstractVector) -> ()`
+- `starter`: Optional function that is called on watcher startup to prefill the buffer with previous (most recent) data, `(AbstractString) -> AbstractVector`
 
 !!! warning "asyncio vs threads"
     Both `fetcher` and `flusher` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
@@ -81,20 +83,25 @@ function watcher(
     name::AbstractString,
     fetcher::Function;
     flusher::Union{Bool,Function}=false,
+    starter::Union{Bool,Function}=true,
     threads=false,
     len=1000,
     interval=Second(30),
     flush_interval=Second(360),
     timeout=Second(5)
 )
-    begin
-        mets = methods(fetcher)
+    local w
+    let mets = methods(fetcher)
         @assert length(mets) > 0 && length(mets[1].sig.parameters) == 1 "Function should have no arguments."
     end
-    buffer = CircularBuffer{BufferEntry(T)}(len)
-    w = Watcher8{T}(; name=SubString(name), buffer, timeout, interval, flush_interval,
-        _fetcher_sem=Semaphore(1), _buffer_sem=Semaphore(1))
-    w = finalizer(close, w)
+    let buffer = CircularBuffer{BufferEntry(T)}(len)
+        for el in (starter isa Function ? starter : default_starter)(name)
+            push!(buffer, el)
+        end
+        w = Watcher8{T}(; name=SubString(name), buffer, timeout, interval, flush_interval,
+            _fetcher_sem=Semaphore(1), _buffer_sem=Semaphore(1))
+        w = finalizer(close, w)
+    end
 
     wrapped_fetcher() = begin
         local value
@@ -120,7 +127,7 @@ function watcher(
         @assert applicable(flusher, w.buffer) "Incompatible flusher function. (It must accept an `AbstractVector`)"
         flusher
     elseif flusher
-        (buf) -> base_flusher(buf, w.name)
+        (buf) -> default_flusher(buf, w.name)
     else
         (_) -> nothing
     end
@@ -156,8 +163,11 @@ end
 flush!(w::Watcher) = w._flush_func(w.buffer)
 @doc "Save function for watcher data, saves to the default `DATA_PATH` \
 located lmdb instance using serialization."
-base_flusher(vec::AbstractVector, key::AbstractString) = begin
+default_flusher(vec::AbstractVector, key::AbstractString) = begin
     save_data(zilmdb(), key, vec; serialize=true)
+end
+default_starter(key) = begin
+    load_data(zilmdb(), key; serialized=true)
 end
 
 @doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
@@ -183,8 +193,8 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-close(w::Watcher) = begin
-    isnothing(w.timer) || close(w.timer)
+Base.close(w::Watcher) = begin
+    isnothing(w.timer) || Base.close(w.timer)
 end
 
 function Base.display(w::Watcher)

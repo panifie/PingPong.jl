@@ -38,7 +38,7 @@ function _fetch_ohlcv_1(
     (from, to) = _check_from_to(from, to)
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
     fetch_func =
-        (pair, since, limit) -> exc.py.fetchOHLCV(pair; timeframe, since, limit, params)
+        (pair, since, limit) -> pyfetch(exc.py.fetchOHLCV, pair; timeframe, since, limit, params)
     limit = fetch_limit(exc, nothing)
     data = _fetch_loop(fetch_func, exc, pair; from, to, sleep_t, limit)
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
@@ -184,7 +184,7 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
     timeframe = get(kwargs, :timeframe, config.timeframe)
     params = get(kwargs, :params, PyDict())
     fetc_func =
-        (pair, since, limit) -> exc.py.fetchOHLCV(pair; since, limit, timeframe, params)
+        (pair, since, limit) -> pyfetch(exc.py.fetchOHLCV, pair; since, limit, timeframe, params)
     kwargs = collect((k, v) for (k, v) in kwargs if k ∉ (:params, :timeframe, :limit))
     _fetch_with_delay(fetc_func, args...; limit, kwargs...)
 end

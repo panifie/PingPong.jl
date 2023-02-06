@@ -37,5 +37,6 @@ include("cg_ticker.jl")
 include("cg_derivatives.jl")
 include("cp_markets.jl")
 include("cp_twitter.jl")
+include("ccxt_tickers.jl")
 
 end

@@ -122,7 +122,7 @@ function market!(pair::AbstractString, exc::Exchange=exc)
 end
 
 function ticker!(pair::AbstractString, exc::Exchange)
-    @lget! tickersCache1Min pair exc.py.fetchTicker(pair)
+    @lget! tickersCache1Min pair pyfetch(exc.py.fetchTicker, pair)
 end
 
 @doc "Precision of the (base, quote) currencies of the market."

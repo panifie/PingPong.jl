@@ -5,19 +5,17 @@ using Python.PythonCall: pyisnull
 using Misc: DATA_PATH
 
 const ccxt = pynew()
-const ccxt_async = pynew()
 const ccxt_ws = pynew()
 const ccxt_errors = Set{String}()
 
 function __init__()
     clearpypath!()
     if pyisnull(ccxt)
-        @pymodule ccxt
+        @pymodule ccxt ccxt.async_support
+        @pymodule ccxt_ws ccxt.pro
         (errors -> union(ccxt_errors, errors))(
             Set(string.(pydir(pyimport("ccxt.base.errors"))))
         )
-        @pymodule ccxt_async ccxt.async_support
-        @pymodule ccxt_ws ccxt.pro
         mkpath(joinpath(DATA_PATH, "markets"))
     end
 end
@@ -29,5 +27,5 @@ function ccxt_exchange(name::Symbol, params=nothing)
     isnothing(params) ? exc_cls() : exc_cls(params)
 end
 
-export ccxt, ccxt_async, ccxt_ws, ccxt_errors, ccxt_exchange
+export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange
 end # module Ccxt
