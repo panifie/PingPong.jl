@@ -85,6 +85,11 @@ loadcoins!() = begin
     coins_cache
 end
 
+check_coin_id(id) = begin
+    @assert id ∈ keys(loadcoins!()) "Not a valid coin id or coins list not loaded (call `loadcoins!`)"
+end
+
+
 @doc """ Get last ~50 tweets for coin.
 
 
@@ -166,7 +171,7 @@ end
 
 @doc "Fetch ticker for specified coin."
 function ticker(id)
-    @assert id ∈ keys(coins_cache) "Not a valid coin id or coins list not loaded (call `loadcoins!`)"
+    check_coin_id(id)
     path = (apiPaths.tickers, "/", id)
     json = get(join(path))
     ticker_dict(json)
@@ -187,7 +192,7 @@ end
 
 """
 function hourly(id, qc="usd")
-    @assert id ∈ keys(coins_cache) "Not a valid coin id or coins list not loaded (call `loadcoins!`)"
+    check_coin_id(id)
     path = (apiPaths.tickers, "/", id, "/historical")
     start = string(Int(trunc(datetime2unix(now() - Minute(1439)))))
     json = get(join(path), ("quote" => qc, "interval" => "1h", "start" => start))
@@ -215,10 +220,13 @@ function loadexchanges!()
     exchanges_cache
 end
 
+check_exc_id(id) =
+    @assert id ∈ keys(loadexchanges!()) "Not a valid exchange id or exchange ids not loaded, (call `loadexchanges!`)"
+
 @doc """ Fetch all markets for specified exchange.
 """
 function markets(exc_id, qc="usd")
-    @assert exc_id ∈ keys(exchanges_cache) "Not a valid exchange id or exchange ids not loaded, (call `loadexchanges!`)"
+    check_exc_id(exc_id)
     path = (apiPaths.exchanges, "/", exc_id, "/markets")
     json = get(join(path), ("quote" => qc))
     data = Dict{String,Any}()

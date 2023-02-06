@@ -10,7 +10,7 @@ const CgTick = @NamedTuple begin
     fully_diluted_valuation::Float64
 end
 
-@doc """ Create a `Watcher` instance that tracks the price of some currencies on an exchange.
+@doc """ Create a `Watcher` instance that tracks the price of some currencies on an exchange (coingecko).
 
 """
 cg_ticker_watcher(syms::AbstractVector) = begin

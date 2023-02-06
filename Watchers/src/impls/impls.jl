@@ -2,11 +2,13 @@ module WatchersImpls
 using ..Watchers
 using Data
 using TimeTicks
-using Lang: @define_fromdict!
+using Lang: @define_fromdict!, fromdict
 using LazyJSON
 
 using ..CoinGecko: CoinGecko
 cg = CoinGecko
+using ..CoinPaprika: CoinPaprika
+cp = CoinPaprika
 
 @define_fromdict!(true)
 
@@ -25,12 +27,15 @@ macro parsedata(tick_type, mkts, key="symbol")
     end
 end
 
-# FIXME: ARR
 Base.convert(::Type{Symbol}, s::LazyJSON.String) = Symbol(s)
 Base.convert(::Type{DateTime}, s::LazyJSON.String) = _parsedatez(s)
 Base.convert(::Type{DateTime}, s::LazyJSON.Number) = unix2datetime(s)
+Base.convert(::Type{String}, s::Symbol) = string(s)
+Base.convert(::Type{Symbol}, s::String) = Symbol(s)
 
 include("cg_ticker.jl")
 include("cg_derivatives.jl")
+include("cp_markets.jl")
+include("cp_twitter.jl")
 
 end
