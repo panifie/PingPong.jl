@@ -147,13 +147,13 @@ macro define_fromdict!(force=false)
 end
 
 @doc "Same as `@fromdict` but as a generated function."
-@generated fromdict(tuple, key, di) = begin
+@generated fromdict(tuple, key, di, kconvfunc=convert, convfunc=convert) = begin
     params = Expr(:parameters)
     ex = Expr(:tuple, params)
     ttype = first(tuple.parameters)
     ktype = isempty(key.parameters) ? key : first(key.parameters)
     for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-        p = Expr(:kw, fi, :(convert($ty, (di[convert($ktype, $(QuoteNode(fi)))]))))
+        p = Expr(:kw, fi, :(convfunc($ty, (di[kconvfunc($ktype, $(QuoteNode(fi)))]))))
         push!(params.args, p)
     end
     ex
