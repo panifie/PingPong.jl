@@ -234,7 +234,7 @@ function sandbox!(exc::Exchange=exc, flag=true)
     loadmarkets!(exc)
 end
 @doc "Check if sandbox mode is enabled for exchange."
-issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls["test"] == exc.py.urls["api"])
+issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls.get("test", "") == exc.py.urls["api"])
 
 @doc "Enable or disable rate limit."
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
