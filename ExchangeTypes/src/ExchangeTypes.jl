@@ -8,31 +8,27 @@ using Lang: Option
 @doc "An ExchangeID is a symbol checked to match a ccxt exchange class."
 struct ExchangeID{I}
     function ExchangeID(sym::Symbol=Symbol())
-        begin
-            sym == Symbol() && return new{sym}()
-            if !isdefined(@__MODULE__, :exchangeIds)
-                @eval begin
-                    @doc "All possible exchanges that can be instantiated by ccxt."
-                    const exchangeIds = (x -> PersistentSet{Symbol}(x))(
-                        pyconvert(Vector{Symbol}, ccxt.exchanges)
-                    )
-                end
-                @assert sym ∈ exchangeIds
-            else
-                @assert sym ∈ exchangeIds
+        sym == Symbol() && return new{sym}()
+        if !isdefined(@__MODULE__, :exchangeIds)
+            @eval begin
+                @doc "All possible exchanges that can be instantiated by ccxt."
+                const exchangeIds = (x -> PersistentSet{Symbol}(x))(
+                    pyconvert(Vector{Symbol}, ccxt.exchanges)
+                )
             end
-            new{sym}()
+            @assert sym ∈ exchangeIds
+        else
+            @assert sym ∈ exchangeIds
         end
+        new{sym}()
     end
     function ExchangeID(py::Py)
-        begin
-            s = if pyisnull(py)
-                ""
-            else
-                (pyhasattr(py, "__name__") ? py.__name__ : py.__class__.__name__)
-            end
-            ExchangeID(pyconvert(Symbol, s))
+        s = if pyisnull(py)
+            ""
+        else
+            (pyhasattr(py, "__name__") ? py.__name__ : py.__class__.__name__)
         end
+        ExchangeID(pyconvert(Symbol, s))
     end
 end
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]

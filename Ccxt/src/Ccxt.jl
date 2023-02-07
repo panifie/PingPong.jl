@@ -21,9 +21,10 @@ function __init__()
 end
 
 @doc "Instantiate a ccxt exchange class matching name."
-function ccxt_exchange(name::Symbol, params=nothing)
+function ccxt_exchange(name::Symbol, params=nothing; kwargs...)
     @debug "Instantiating Exchange $name..."
-    exc_cls = getproperty(ccxt, name)
+    exc_cls =
+        hasproperty(ccxt_ws, name) ? getproperty(ccxt_ws, name) : getproperty(ccxt, name)
     isnothing(params) ? exc_cls() : exc_cls(params)
 end
 

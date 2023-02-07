@@ -79,7 +79,10 @@ end
 
 getexchange() = exc
 
-@doc """getexchage!: ccxt exchange by symbol either from cache or anew. """
+@doc """getexchage!: ccxt exchange by symbol either from cache or anew.
+It uses a WS instance if available, otherwise an async instance.
+
+"""
 function getexchange!(x::Symbol, args...; kwargs...)
     get!(
         exchanges,
