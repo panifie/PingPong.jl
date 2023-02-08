@@ -88,7 +88,7 @@ function watcher(
     len=1000,
     interval=Second(30),
     flush_interval=Second(360),
-    timeout=Second(5)
+    timeout=Second(5),
 )
     local w
     let mets = methods(fetcher)
@@ -98,12 +98,19 @@ function watcher(
         for el in (starter isa Function ? starter : default_starter)(name)
             push!(buffer, el)
         end
-        w = Watcher8{T}(; name=SubString(name), buffer, timeout, interval, flush_interval,
-            _fetcher_sem=Semaphore(1), _buffer_sem=Semaphore(1))
+        w = Watcher8{T}(;
+            name=SubString(name),
+            buffer,
+            timeout,
+            interval,
+            flush_interval,
+            _fetcher_sem=Semaphore(1),
+            _buffer_sem=Semaphore(1),
+        )
         w = finalizer(close, w)
     end
 
-    wrapped_fetcher() = begin
+    function wrapped_fetcher()
         local value
         acquire(w._fetcher_sem)
         time = now()
@@ -132,24 +139,24 @@ function watcher(
         (_) -> nothing
     end
     # NOTE: the callback for the timer requires 1 arg (the timer itself)
-    w._fetch_func = (_) -> begin
-        fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
-        @async begin
-            sleep(timeout)
-            safenotify(fetcher_task.donenotify)
-        end
-        safewait(fetcher_task.donenotify)
-        if istaskdone(fetcher_task) && fetch(fetcher_task)
-            w.attempts = 0
-            let time_now = now()
-                time_now - w.last_flush > w.flush_interval &&
-                    _call_flush(w, time_now)
+    w._fetch_func =
+        (_) -> begin
+            fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
+            @async begin
+                sleep(timeout)
+                safenotify(fetcher_task.donenotify)
             end
-        else
-            w.attempts += 1
-            w.last_try = now()
+            safewait(fetcher_task.donenotify)
+            if istaskdone(fetcher_task) && fetch(fetcher_task)
+                w.attempts = 0
+                let time_now = now()
+                    time_now - w.last_flush > w.flush_interval && _call_flush(w, time_now)
+                end
+            else
+                w.attempts += 1
+                w.last_try = now()
+            end
         end
-    end
     w.timer = Timer(w._fetch_func, 0; interval=interval.value)
     w.last_flush = now()
     w
@@ -163,7 +170,7 @@ end
 flush!(w::Watcher) = w._flush_func(w.buffer)
 @doc "Save function for watcher data, saves to the default `DATA_PATH` \
 located lmdb instance using serialization."
-default_flusher(vec::AbstractVector, key::AbstractString) = begin
+function default_flusher(vec::AbstractVector, key::AbstractString)
     save_data(zilmdb(), key, vec; serialize=true)
 end
 default_starter(key) = begin
@@ -172,7 +179,7 @@ end
 
 @doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
 polling will resume after the watcher `interval`."
-fetch!(w::Watcher; reset=false) =
+function fetch!(w::Watcher; reset=false)
     try
         if reset
             w._fetch_func()
@@ -186,6 +193,7 @@ fetch!(w::Watcher; reset=false) =
     finally
         return last(w.buffer).value
     end
+end
 
 @doc "True if last available data entry is older than `now() + interval + timeout`."
 function isstale(w::Watcher)
@@ -195,6 +203,7 @@ Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
 Base.close(w::Watcher) = begin
     isnothing(w.timer) || Base.close(w.timer)
+    flush!(w)
 end
 
 function Base.display(w::Watcher)
@@ -205,7 +214,7 @@ function Base.display(w::Watcher)
         if length(tps) > 80
             write(out, @view(tps[begin:40]))
             write(out, "...")
-            write(out, @view(tps[end-40:end]))
+            write(out, @view(tps[(end - 40):end]))
         else
             write(out, tps)
         end
