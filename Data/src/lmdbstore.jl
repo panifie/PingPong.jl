@@ -10,10 +10,12 @@ struct LMDBDictStore <: za.AbstractDictStore
         reset && rm(path; recursive=true)
         !ispath(path) && mkpath(path)
         d = new(lm.LMDBDict{String,Vector{UInt8}}(path))
-        d.env[:MapSize] = mapsize
+        d.a.env[:MapSize] = mapsize
         d
     end
 end
+
+_getmapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
 
 Base.filter!(f, d::lm.LMDBDict) = begin
     collect(v for v in pairs(d) if f(v))

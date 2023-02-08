@@ -1,6 +1,7 @@
 using Data: load, to_ohlcv, zi, PairData, DataFrame, empty_ohlcv
 using Ccxt
 using Python
+using Python: pylist_to_matrix
 using ExchangeTypes: Exchange
 using Exchanges:
     setexchange!,
@@ -118,10 +119,6 @@ function _fetch_loop(
         @debug "Downloaded data for pair $pair up to $(since |> dt) from $(exc.name)."
     end
     return out
-end
-
-function pylist_to_matrix(data::Py)
-    permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
 end
 
 @doc """
