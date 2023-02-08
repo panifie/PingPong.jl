@@ -6,10 +6,12 @@ using Lang: @lget!
 
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
-    function LMDBDictStore(path::AbstractString; reset=false)
+    function LMDBDictStore(path::AbstractString; reset=false, mapsize=64 * 1024 * 1024)
         reset && rm(path; recursive=true)
         !ispath(path) && mkpath(path)
-        new(lm.LMDBDict{String,Vector{UInt8}}(path))
+        d = new(lm.LMDBDict{String,Vector{UInt8}}(path))
+        d.env[:MapSize] = mapsize
+        d
     end
 end
 
