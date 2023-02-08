@@ -16,6 +16,29 @@ tobytes(data) = begin
     end
 end
 
+function _check_size(data, arr::ZArray)
+    if arr.storage isa LMDBDictStore
+        # HACK: for this check to be 100% secure, it would have to read data from disk
+        # and sum `saved_size` with `new_size` to ensure that the total chunk size is
+        # below the LMDB mapsize which we use (our default 64M).
+        # Here instead we consider only the size of the saved data.
+        chunk_len = arr.metadata.chunks[1]
+        chunk_size = 0
+        chunk_count = 0
+        maxsize = _getmapsize(arr.storage)
+        for n in 1:size(data, 1)
+            chunk_size += mapreduce(length, +, data[n])
+            chunk_count += 1
+            if chunk_count < chunk_len
+                @assert chunk_size < maxsize "Size of data exceeded lmdb current map size, reduce objects size or increase mapsize."
+            else
+                chunk_size = 0
+                chunk_count = 0
+            end
+        end
+    end
+end
+
 @doc """
 `data`: A type with a `size`.
 `data_col`: the timestamp column of the new data (1)
@@ -74,6 +97,7 @@ function _save_data(
     local za
 
     za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+    eltype(data) <: Vector{UInt8} && _check_size(data, za)
 
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && !isempty(za)
