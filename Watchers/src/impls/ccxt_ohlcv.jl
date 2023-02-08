@@ -1,43 +1,32 @@
 using Exchanges
 using Python
+using Data: Candle
 
-CcxtOHLCV = @NamedTuple begin
-    symbol::String
-    timestamp::Option{DateTime}
-    open::Float64
-    high::Float64
-    low::Float64
-    close::Float64
-    previousClose::Option{Float64}
-    bid::Float64
-    ask::Float64
-    bidVolume::Option{Float64}
-    askVolume::Option{Float64}
-    last::Float64
-    vwap::Float64
-    change::Float64
-    percentage::Float64
-    average::Float64
-    baseVolume::Float64
-    quoteVolume::Float64
+function Base.convert(::Type{Candle}, py::PyList)
+    Candle(dt(pyconvert(Float64, py[1])), (pyconvert(Float64, py[n]) for n in 2:6)...)
 end
 
 @doc """ Create a `Watcher` instance that tracks ohlcv for an exchange (ccxt).
 
 """
-function ccxt_ohlcv_watcher(exc::Exchange, syms=[]; interval=Second(5))
-    tfunc = tickersfunc(exc, syms)
+function ccxt_ohlcv_watcher(exc::Exchange, syms::AbstractVector=[]; interval=Second(5))
+    tfunc = choosefunc(exc, "ohlcv", syms)
     fetcher() = begin
         data = tfunc()
-        result = Dict{String, CcxtTicker}()
+        result = Dict{String,Vector{Candle}}()
         for (k, v) in PyDict(data)
-            result[pyconvert(String, k)] = fromdict(CcxtTicker, String, v, pyconvert, pyconvert)
+            result[pyconvert(String, k)] = pyconvert(Vector, v)
         end
         result
     end
-    name = "ccxt_$(exc.name)-$(join(syms, "-"))-tickers"
-    watcher_type = Dict{String,CcxtTicker}
+    name = "ccxt_$(exc.name)-$(join(syms, "-"))-ohlcv"
+    watcher_type = Dict{String,Vector{Candle}}
     watcher(watcher_type, name, fetcher; flusher=true, interval)
 end
 
-ccxt_ohlcv_watcher(syms...; kwargs...) = ccxt_tickers_watcher(exc, [syms...]; kwargs...)
+function ccxt_ohlcv_watcher(exc::Exchange, syms...; kwargs...)
+    ccxt_tickers_watcher(exc, [syms...]; kwargs...)
+end
+function ccxt_ohlcv_watcher(syms...; kwargs...)
+    ccxt_tickers_watcher(exc::Exchange, [syms...]; kwargs...)
+end

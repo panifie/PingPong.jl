@@ -55,6 +55,8 @@ macro pymodule(name, modname=nothing)
     end
 end
 
+include("functions.jl")
+
 # NOTE: This must be done after all the global code in this module has been execute
 using Reexport
 @reexport using PythonCall

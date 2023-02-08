@@ -1,7 +1,8 @@
 using Exchanges
+using Exchanges.Ccxt: choosefunc
 using Python
 
-CcxtTicker = @NamedTuple begin
+const CcxtTicker = @NamedTuple begin
     symbol::String
     timestamp::Option{DateTime}
     open::Float64
@@ -25,14 +26,10 @@ end
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt).
 
 """
-function ccxt_tickers_watcher(exc::Exchange, syms=[])
-    tickers_func = if isempty(syms)
-        (() -> pyfetch(exc.py.fetch_tickers))
-    else
-        (() -> Dict(s => pyfetch(exc.py.fetch_ticker, s) for s in syms))
-    end
+function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
+    tfunc = choosefunc(exc, "ticker", syms)
     fetcher() = begin
-        data = tickers_func()
+        data = tfunc()
         result = Dict{String, CcxtTicker}()
         for (k, v) in PyDict(data)
             result[pyconvert(String, k)] = fromdict(CcxtTicker, String, v, pyconvert, pyconvert)
@@ -41,6 +38,7 @@ function ccxt_tickers_watcher(exc::Exchange, syms=[])
     end
     name = "ccxt_$(exc.name)-$(join(syms, "-"))-tickers"
     watcher_type = Dict{String,CcxtTicker}
-    watcher(watcher_type, name, fetcher; flusher=true, interval=Second(5))
+    watcher(watcher_type, name, fetcher; flusher=true, interval)
 end
+
 ccxt_tickers_watcher(syms...) = ccxt_tickers_watcher([syms...])
