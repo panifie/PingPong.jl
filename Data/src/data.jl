@@ -375,7 +375,11 @@ function to_ohlcv(data::Matrix)
     )
 end
 
-to_ohlcv(data::AbstractVector{Candle}) = DataFrame(data; copycols=false)
+function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
+   df =  DataFrame(data; copycols=false)
+   df.timestamp[:] = apply.(timeframe, df.timestamp)
+   df
+end
 
 @doc """ Load ohlcv pair data from zarr instance.
 `zi`: The zarr instance to use
