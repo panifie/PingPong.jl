@@ -16,6 +16,8 @@ function __init__()
         setexchange!(exc)
     end
     Python._async_init()
+    # default to using lmdb store for data
+    Data.zi[] = Data.zilmdb()
 end
 
 export Engine,
