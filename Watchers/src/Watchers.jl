@@ -45,7 +45,7 @@ BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
     _fetch_func::Function = (_) -> ()
     _flush_func::Function = (_) -> nothing
     _start_func::Function = (_) -> T[]
-    timer::Option{Timer} = nothing
+    timer::Option{Timer} = nothing # maybe this should be private
     attempts::Int = 0
     last_try::DateTime = DateTime(0)
     last_flush::DateTime = DateTime(0)
@@ -95,9 +95,6 @@ function watcher(
         @assert length(mets) > 0 && length(mets[1].sig.parameters) == 1 "Function should have no arguments."
     end
     let buffer = CircularBuffer{BufferEntry(T)}(len)
-        for el in (starter isa Function ? starter : default_starter)(name)
-            push!(buffer, el)
-        end
         w = Watcher8{T}(;
             name=SubString(name),
             buffer,
@@ -109,7 +106,13 @@ function watcher(
         )
         w = finalizer(close, w)
     end
-
+    let start_buf = (starter isa Function ? starter : default_starter)(w), time = now()
+        start_offset = min(len, size(start_buf, 1)) + 1
+        foreach(
+            x -> push!(w.buffer, (; time, value=x)),
+            @view(start_buf[(end - start_offset):end])
+        )
+    end
     function wrapped_fetcher()
         local value
         acquire(w._fetcher_sem)
@@ -131,10 +134,10 @@ function watcher(
         end
     end
     w._flush_func = if flusher isa Function
-        @assert applicable(flusher, w.buffer) "Incompatible flusher function. (It must accept an `AbstractVector`)"
+        @assert applicable(flusher, w) "Incompatible flusher function. (It must accept a `Watcher`)"
         flusher
     elseif flusher
-        (buf) -> default_flusher(buf, w.name)
+        (w) -> default_flusher(w)
     else
         (_) -> nothing
     end
@@ -167,14 +170,14 @@ _call_flush(w::Watcher, time=now()) = @async @acquire w._buffer_sem begin
     w._flush_func(w.buffer)
 end
 @doc "Force flush watcher."
-flush!(w::Watcher) = w._flush_func(w.buffer)
+flush!(w::Watcher) = w._flush_func(w)
 @doc "Save function for watcher data, saves to the default `DATA_PATH` \
 located lmdb instance using serialization."
-function default_flusher(vec::AbstractVector, key::AbstractString)
-    save_data(zilmdb(), key, vec; serialize=true)
+function default_flusher(w::Watcher)
+    save_data(zilmdb(), w.name, w.buffer; serialize=true)
 end
-default_starter(key) = begin
-    load_data(zilmdb(), key; serialized=true)
+default_starter(w::Watcher) = begin
+    load_data(zilmdb(), w.name; serialized=true)
 end
 
 @doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
