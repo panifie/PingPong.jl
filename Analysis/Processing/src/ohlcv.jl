@@ -1,28 +1,24 @@
 using DataFramesMeta
 using TimeTicks: Period, now
+using DataFrames: clear_pt_conf!
+using Base: _cleanup_locked
 using TimeTicks
 using Data: Candle, to_ohlcv, empty_ohlcv
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
 function fill_missing_rows(df, timeframe::AbstractString; strategy=:close)
-    begin
-        @as_td
-        _fill_missing_rows(df, prd; strategy, inplace=false)
-    end
+    @as_td
+    _fill_missing_rows(df, prd; strategy, inplace=false)
 end
 
 function fill_missing_rows!(df, prd::Period; strategy=:close)
-    begin
-        _fill_missing_rows(df, prd; strategy, inplace=true)
-    end
+    _fill_missing_rows(df, prd; strategy, inplace=true)
 end
 
 function fill_missing_rows!(df, timeframe::AbstractString; strategy=:close)
-    begin
-        @as_td
-        _fill_missing_rows(df, prd; strategy, inplace=true)
-    end
+    @as_td
+    _fill_missing_rows(df, prd; strategy, inplace=true)
 end
 
 function _fill_missing_rows(df, prd::Period; strategy, inplace)
@@ -57,9 +53,8 @@ end
 function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return empty_ohlcv()
-    df = data isa DataFrame ? data : to_ohlcv(data)
-
     @as_td
+    df = data isa DataFrame ? data : to_ohlcv(data, tf)
 
     # For when for example 1d candles start at hours other than 00
     ts_float = timefloat.(df.timestamp)
@@ -122,3 +117,5 @@ function is_last_complete_candle(x, timeframe)
     ts = timefloat(x)
     is_incomplete_candle(ts + td, td)
 end
+
+export cleanup_ohlcv_data
