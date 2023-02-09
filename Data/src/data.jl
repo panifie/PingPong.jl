@@ -303,18 +303,26 @@ function empty_ohlcv()
     )
 end
 
-load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)
+function _load_pairdata(out::Dict, k, zi, exc_name, timeframe)
+    (pair_df, za) = load(zi, exc_name, k, timeframe; with_z=true)
+    out[k] = PairData(k, timeframe, pair_df, za)
+end
+
+function _load_zarr(out::Dict, k, zi, exc_name, timeframe)
+    (out[k], _) = load(zi, exc_name, k, timeframe; as_z=true)
+end
 
 @doc "Load data from given zarr instance, exchange, pairs list and timeframe."
-function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe)
-    pairdata = Dict{String,PairData}()
+function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe; raw=false)
     exc_name = exc.name
+    out = Dict{String,raw ? za.ZArray : PairData}()
+    load_func = raw ? _load_zarr : _load_pairdata
     for p in pairs
-        (pair_df, za) = load(zi, exc_name, p, timeframe; with_z=true)
-        pairdata[p] = PairData(p, timeframe, pair_df, za)
+        load_func(out, p, zi, exc_name, timeframe)
     end
-    pairdata
+    out
 end
+load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)
 
 function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     for (_, p) in data
@@ -340,12 +348,12 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     end
 end
 
-function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
+function _wrap_load(zi::ZarrInstance, key::String, td::Float64; kwargs...)
     try
         _load(zi, key, td; kwargs...)
     catch e
         if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
-            delete!(zi[].store, key) # ensure path does not exist
+            delete!(zi.store, key) # ensure path does not exist
             emptyz = zcreate(
                 Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor
             )
@@ -361,15 +369,18 @@ function _wrap_load(zi::Ref{ZarrInstance}, key::String, td::Float64; kwargs...)
         end
     end
 end
+_wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...; kwargs...)
 
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; kwargs...)
+function load(zi::ZarrInstance, exc_name, pair, timeframe; kwargs...)
     @as_td
     @zkey
     _wrap_load(zi, key, tfnum(tf.period); kwargs...)
 end
+
+load(zi::Ref{ZarrInstance}, args...; kwargs...) = load(zi[], args...; kwargs...)
 
 @doc "Convert raw ccxt OHLCV data (matrix) to a dataframe."
 function to_ohlcv(data::Matrix)
@@ -397,10 +408,12 @@ end
 `td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
 `from`, `to`: date range
 """
-function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=false)
+function _load(
+    zi::ZarrInstance, key, td; from="", to="", saved_col=1, as_z=false, with_z=false
+)
     @debug "Loading data from $(zi[].path):$(key)"
     za, _ = _get_zarray(
-        zi[], key, (1, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false
+        zi, key, (1, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false
     )
 
     if size(za, 1) < 2
@@ -438,6 +451,7 @@ function _load(zi, key, td; from="", to="", saved_col=1, as_z=false, with_z=fals
     with_z && return (to_ohlcv(data), za)
     to_ohlcv(data)
 end
+_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _load(zi[], args...; kwargs...)
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
