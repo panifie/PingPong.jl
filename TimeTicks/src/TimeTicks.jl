@@ -237,11 +237,11 @@ function compact(s::Period)
     ms = millis.value
     if ms < 1000
         millis
-    elseif ms < 12e4
+    elseif ms < 120_000
         round(s, Second)
-    elseif ms < 36e5
+    elseif ms < 3_600_000
         round(s, Minute)
-    elseif ms < 864e5
+    elseif ms < 86_400_000
         round(s, Hour)
     else
         round(s, Day)
