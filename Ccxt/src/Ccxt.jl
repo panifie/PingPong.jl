@@ -22,6 +22,9 @@ end
 
 close_exc(e::Py) = e.close()
 
+_issupported(has::Py, k) = k in has && Bool(has[k])
+issupported(exc::Exchange, k) = issupported(exc.py.has, k)
+
 @doc "Instantiate a ccxt exchange class matching name."
 function ccxt_exchange(name::Symbol, params=nothing; kwargs...)
     @debug "Instantiating Exchange $name..."
@@ -33,22 +36,23 @@ end
 @doc "Choose correct ccxt function according to what the exchange supports."
 function _multifunc(exc, suffix, hasinputs=false)
     py = exc.py
-    fname = "watch_" * suffix * "s"
-    if hasproperty(py, fname)
+    suffix = titlecase(suffix)
+    fname = "watch" * suffix * "s"
+    if issupported(exc, fname)
         getproperty(py, fname), :multi
     elseif begin
-        fname = "watch_" * suffix
-        hasinputs && hasproperty(py, fname)
+        fname = "watch" * suffix
+        hasinputs && issupported(exc, fname)
     end
         getproperty(py, fname), :single
     elseif begin
-        fname = "fetch_" * suffix * "s"
-        hasproperty(py, fname)
+        fname = "fetch" * suffix * "s"
+        issupported(exc, fname)
     end
         getproperty(py, fname), :multi
     else
-        fname = "fetch_" * suffix
-        @assert hasproperty(py, fname) "Exchange $(exc.name) does not support $name"
+        fname = "fetch" * suffix
+        @assert issupported(exc, fname) "Exchange $(exc.name) does not support $name"
         @assert hasinputs "Single function needs inputs."
         getproperty(py, fname), :single
     end
@@ -56,28 +60,28 @@ end
 
 # NOTE: watch_tickers([...]) returns empty sometimes...
 # so call without args, and select the input
-function choosefunc(exc, suffix, inputs::AbstractVector)
+function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
     hasinputs = length(inputs) > 0
     f, kind = _multifunc(exc, suffix, hasinputs)
     if hasinputs
         if kind == :multi
             () -> begin
-                data = pyfetch(f)
+                data = pyfetch(f; kwargs...)
                 Dict(i => data[i] for i in inputs)
             end
         else
             () -> begin
-                Dict(i => pyfetch(f, i) for i in inputs)
+                Dict(i => pyfetch(f, i; kwargs...) for i in inputs)
             end
         end
     else
         () -> begin
-            pyfetch(f)
+            pyfetch(f; kwargs...)
         end
     end
 end
 
-choosefunc(exc, suffix, inputs...) = choosefunc(exc, suffix, [inputs...])
+choosefunc(exc, suffix, inputs...; kwargs...) = choosefunc(exc, suffix, [inputs...]; kwargs...)
 
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
 end # module Ccxt
