@@ -212,7 +212,7 @@ function _save_ohlcv(
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && size(za, 1) > 0
         local data_view
-        saved_first_ts = za[1, saved_col]
+        saved_first_ts = za[begin, saved_col]
         saved_last_ts = za[end, saved_col]
         data_first_ts = timefloat(data[1, data_col])
         data_last_ts = timefloat(data[end, data_col])
@@ -224,10 +224,20 @@ function _save_ohlcv(
                 # we count the number of candles using the difference
                 offset = convert(Int, ((data_first_ts - saved_first_ts + td) ÷ td))
                 data_view = @view data[:, :]
-                @debug dt(data_first_ts), dt(saved_last_ts), dt(saved_last_ts + td)
-                @debug :saved, dt.(za[end, saved_col]) :data, dt.(data[1, data_col]) :saved_off,
-                dt(za[offset, data_col])
-                @assert timefloat(data[1, data_col]) === za[offset, saved_col]
+                @debug begin
+                    ts = compact(Millisecond(td))
+                    first_date = dt(data_first_ts)
+                    last_date = dt(saved_last_ts)
+                    next_date = dt(saved_last_ts + td)
+                    "timeframe: $ts\nfirst_date: $first_date\nlast_date: $last_date\nnext_date: $next_date"
+                end
+                @debug begin
+                    saved = dt(za[end, saved_col])
+                    data_first = dt(data[begin, data_col])
+                    saved_off = dt(za[offset, data_col])
+                    "saved: $saved\ndata_first: $data_first\nsaved_off: $saved_off"
+                end
+                @assert timefloat(data[begin, data_col]) >= timefloat(za[offset, saved_col])
             else
                 # when not overwriting get the index where data has new values
                 data_offset = searchsortedlast(@view(data[:, data_col]), saved_last_ts) + 1
@@ -376,9 +386,9 @@ function to_ohlcv(data::Matrix)
 end
 
 function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
-   df =  DataFrame(data; copycols=false)
-   df.timestamp[:] = apply.(timeframe, df.timestamp)
-   df
+    df = DataFrame(data; copycols=false)
+    df.timestamp[:] = apply.(timeframe, df.timestamp)
+    df
 end
 
 @doc """ Load ohlcv pair data from zarr instance.
