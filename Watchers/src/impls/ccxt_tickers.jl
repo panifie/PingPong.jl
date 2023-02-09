@@ -36,7 +36,7 @@ function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
         end
         result
     end
-    name = "ccxt_$(exc.name)-$(join(syms, "-"))-tickers"
+    name = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
     watcher_type = Dict{String,CcxtTicker}
     watcher(watcher_type, name, fetcher; flusher=true, interval)
 end
