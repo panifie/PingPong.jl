@@ -45,7 +45,7 @@ BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
     _fetch_func::Function = (_) -> ()
     _flush_func::Function = (_) -> nothing
     _start_func::Function = (_) -> T[]
-    timer::Option{Timer} = nothing # maybe this should be private
+    _timer::Option{Timer} = nothing # maybe this should be private
     attempts::Int = 0
     last_try::DateTime = DateTime(0)
     last_flush::DateTime = DateTime(0)
@@ -160,7 +160,7 @@ function watcher(
                 w.last_try = now()
             end
         end
-    w.timer = Timer(w._fetch_func, 0; interval=interval.value)
+    w._timer = Timer(w._fetch_func, 0; interval=interval.value)
     w.last_flush = now()
     w
 end
@@ -186,10 +186,10 @@ function fetch!(w::Watcher; reset=false)
     try
         if reset
             w._fetch_func()
-            close(w.timer)
-            w.timer = Timer(w._fetch_func, w.interval.value; interval=w.interval.value)
+            close(w._timer)
+            w._timer = Timer(w._fetch_func, w.interval.value; interval=w.interval.value)
         else
-            w._fetch_func(w.timer)
+            w._fetch_func(w._timer)
         end
     catch e
         @error e
@@ -205,7 +205,7 @@ end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
 Base.close(w::Watcher) = begin
-    isnothing(w.timer) || Base.close(w.timer)
+    isnothing(w._timer) || Base.close(w._timer)
     flush!(w)
 end
 
