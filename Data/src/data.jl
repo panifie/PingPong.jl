@@ -44,6 +44,13 @@ macro zkey()
     end
 end
 
+macro zkey(pair, exc, timeframe)
+    p = esc(pair)
+    exn = esc(exc)
+    tf = esc(timeframe)
+    :(joinpath($exn, $p, "ohlcv", "tf_" * $tf))
+end
+
 macro check_td(args...)
     local check_data
     if !isempty(args)
@@ -354,21 +361,21 @@ function load(zi::Ref{ZarrInstance}, exc_name, pair, timeframe::AbstractString; 
     _wrap_load(zi, key, tfnum(tf.period); kwargs...)
 end
 
-@doc "Convert raw ccxt OHLCV data (matrix) to a timearray/dataframe."
-function to_ohlcv(data; fromta=false)
+@doc "Convert raw ccxt OHLCV data (matrix) to a dataframe."
+function to_ohlcv(data::Matrix)
     # ccxt timestamps in milliseconds
     dates = unix2datetime.(@view(data[:, 1]) / 1e3)
-    fromta && return (x -> DataFrame(x; copycols=false))(
-        TimeArray(dates, @view(data[:, 2:end]), OHLCV_COLUMNS_TS)
-    )
     DataFrame(
         :timestamp => dates,
-        [
-            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for n in 1:length(OHLCV_COLUMNS_TS)
-        ]...;
+        (
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for
+            n in eachindex(OHLCV_COLUMNS_TS)
+        )...;
         copycols=false,
     )
 end
+
+to_ohlcv(data::AbstractVector{Candle}) = DataFrame(data; copycols=false)
 
 @doc """ Load ohlcv pair data from zarr instance.
 `zi`: The zarr instance to use
