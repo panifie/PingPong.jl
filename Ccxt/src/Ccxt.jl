@@ -23,7 +23,7 @@ end
 close_exc(e::Py) = e.close()
 
 _issupported(has::Py, k) = k in has && Bool(has[k])
-issupported(exc::Exchange, k) = issupported(exc.py.has, k)
+issupported(exc, k) = _issupported(exc.py.has, k)
 
 @doc "Instantiate a ccxt exchange class matching name."
 function ccxt_exchange(name::Symbol, params=nothing; kwargs...)
@@ -36,7 +36,6 @@ end
 @doc "Choose correct ccxt function according to what the exchange supports."
 function _multifunc(exc, suffix, hasinputs=false)
     py = exc.py
-    suffix = titlecase(suffix)
     fname = "watch" * suffix * "s"
     if issupported(exc, fname)
         getproperty(py, fname), :multi
@@ -52,7 +51,7 @@ function _multifunc(exc, suffix, hasinputs=false)
         getproperty(py, fname), :multi
     else
         fname = "fetch" * suffix
-        @assert issupported(exc, fname) "Exchange $(exc.name) does not support $name"
+        @assert issupported(exc, fname) "Exchange $(exc.name) does not support $fname"
         @assert hasinputs "Single function needs inputs."
         getproperty(py, fname), :single
     end
