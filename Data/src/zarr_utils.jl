@@ -40,7 +40,7 @@ end
 istypeorval(t::Type, v) = v isa t
 istypeorval(t::Type, v::Type) = v <: t
 default(t::Type) = begin
-    if applicable(zero, (t,))
+    if applicable(zero, t)
         zero(t)
     elseif applicable(empty, Tuple{t})
         empty(t)
