@@ -22,11 +22,29 @@ function py_start_loop()
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     @assert pyisnull(pyrunner_thread)
     pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
-    pycopy!(pyrunner_thread, pythreads.Thread(; target=pyrunner.run, args=[async_main_func()()]))
+    pycopy!(
+        pyrunner_thread, pythreads.Thread(; target=pyrunner.run, args=[async_main_func()()])
+    )
     # We need to set the thread as daemon, to stop it automatically when exiting the main (julia) thread.
     pyrunner_thread.daemon = pybuiltins.True
     pyrunner_thread.start()
     pycopy!(pyloop, pyrunner.get_loop())
+end
+
+macro pytask(code)
+    quote
+        fut = pyaio.run_coroutine_threadsafe($(esc(code)), pyloop)
+        @async begin
+            while !Bool(fut.done())
+                sleep(0.01)
+            end
+            fut.result()
+        end
+    end
+end
+
+macro pyfetch(code)
+    :(fetch(@pytask $(esc(code))))
 end
 
 function pytask(f::Py, args...; kwargs...)
@@ -44,15 +62,16 @@ pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
     g = pydict()
-    pyexec("""
-        import asyncio
-        from math import inf
-        async def main():
-            try:
-                await asyncio.sleep(inf)
-            finally:
-                asyncio.get_running_loop().stop()
-        """,
+    pyexec(
+        """
+     import asyncio
+     from math import inf
+     async def main():
+         try:
+             await asyncio.sleep(inf)
+         finally:
+             asyncio.get_running_loop().stop()
+     """,
         g,
     )
     g["main"]
@@ -74,4 +93,4 @@ function raise_exception()
       """
 end
 
-export pytask, pyfetch
+export pytask, pyfetch, @pytask, @pyfetch
