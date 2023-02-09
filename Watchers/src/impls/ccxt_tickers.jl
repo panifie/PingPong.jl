@@ -27,7 +27,7 @@ end
 
 """
 function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
-    tfunc = choosefunc(exc, "ticker", syms)
+    tfunc = choosefunc(exc, "Ticker", syms)
     fetcher() = begin
         data = tfunc()
         result = Dict{String, CcxtTicker}()
