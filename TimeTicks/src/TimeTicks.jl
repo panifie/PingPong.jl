@@ -179,6 +179,7 @@ timestamp(d::DateTime) = Int(trunc(datetime2unix(d)))
 timestamp(s::AbstractString) = timestamp(DateTime(s))
 timefloat(time::Float64) = time
 timefloat(prd::Period) = prd.value * 1.0
+timefloat(tf::TimeFrame) = timefloat(convert(Millisecond, tf.period))
 timefloat(time::DateTime) = dtfloat(time)
 timefloat(time::Vector{UInt8}) = begin
     buf = Base.IOBuffer(time)
