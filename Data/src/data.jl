@@ -2,6 +2,7 @@ using Requires
 
 include("zarr_utils.jl")
 
+using DataFrames: DataFrameRow
 using DataFramesMeta
 using TimeTicks
 using Lang: @as
@@ -11,13 +12,13 @@ const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
-struct Candle
+struct Candle{T<:AbstractFloat}
     timestamp::DateTime
-    open::AbstractFloat
-    high::AbstractFloat
-    low::AbstractFloat
-    close::AbstractFloat
-    volume::AbstractFloat
+    open::T
+    high::T
+    low::T
+    close::T
+    volume::T
 end
 
 struct PairData
@@ -496,5 +497,7 @@ end
 @enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
 
 const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
+
+Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 
 export PairData, ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv
