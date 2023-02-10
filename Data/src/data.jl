@@ -19,6 +19,11 @@ struct Candle{T<:AbstractFloat}
     low::T
     close::T
     volume::T
+    Candle(args...; kwargs...) = begin
+        new{Float64}(args...; kwargs...)
+    end
+    Candle(t::NamedTuple) = Candle(t...)
+    Candle(t::Tuple) = Candle(t...)
 end
 
 struct PairData
@@ -203,7 +208,7 @@ function _save_ohlcv(
     data_col=1,
     saved_col=data_col,
     overwrite=true,
-    reset=false,
+    reset=false
 )
     local za
     !reset && @check_td(data)
@@ -248,7 +253,7 @@ function _save_ohlcv(
                     @debug :saved, dt(za[end, saved_col]) :data_new,
                     dt(data[data_offset, data_col])
                     @assert za[end, saved_col] + td ===
-                        timefloat(data[data_offset, data_col])
+                            timefloat(data[data_offset, data_col])
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -266,14 +271,14 @@ function _save_ohlcv(
             # fetch saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[(saved_offset + 1):end, :]
+            saved_data = za[(saved_offset+1):end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[(szd + 1):end, :] = saved_data
+            za[(szd+1):end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
@@ -300,7 +305,7 @@ function empty_ohlcv()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
-        copycols=false,
+        copycols=false
     )
 end
 
@@ -333,7 +338,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             idx = max(size(tmp, 1), from)
             @with tmp begin
                 for col in eachcol(tmp)
-                    p.data[!, col] = @view col[begin:(idx - 1)]
+                    p.data[!, col] = @view col[begin:(idx-1)]
                 end
             end
         else
@@ -341,7 +346,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             if idx > 0
                 @with tmp begin
                     for (col, name) in zip(eachcol(tmp), names(tmp))
-                        p.data[!, name] = @view col[(idx + 1):end]
+                        p.data[!, name] = @view col[(idx+1):end]
                     end
                 end
             end
@@ -390,10 +395,10 @@ function to_ohlcv(data::Matrix)
     DataFrame(
         :timestamp => dates,
         (
-            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for
             n in eachindex(OHLCV_COLUMNS_TS)
         )...;
-        copycols=false,
+        copycols=false
     )
 end
 
