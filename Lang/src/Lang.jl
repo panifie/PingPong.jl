@@ -55,6 +55,21 @@ macro lget!(dict, k, expr)
     end
 end
 
+macro kget!(dict, k, expr)
+    dict = esc(dict)
+    expr = esc(expr)
+    k = esc(k)
+    quote
+        if haskey($dict, $k)
+            $dict[$k]
+        else
+            v = $expr
+            $dict[$k] = v
+            v
+        end
+    end
+end
+
 @doc "Define a new symbol with given value if it is not already defined."
 macro ifundef(name, val, mod=__module__)
     name_var = esc(name)
