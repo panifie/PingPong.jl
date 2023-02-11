@@ -13,12 +13,9 @@ include("consts.jl")
 @doc "Exported `Dates.now(UTC)` to avoid inadvertently calling now() which defaults to system timezone."
 now() = Dates.now(UTC)
 
-# ccxt always uses milliseconds in timestamps
-tfnum(prd::Period) = (x -> convert(Float64, x.value))(convert(Millisecond, prd))
-
 @doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature.
 Units bigger than days are converted to the equivalent number of days days."
-function convert(::Type{TimeFrame}, s::AbstractString)::TimeFrame
+function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
     mul = 0
     m = match(r"([0-9]+)([a-zA-Z]+)", s)
     n = m[1]
@@ -41,6 +38,9 @@ function convert(::Type{TimeFrame}, s::AbstractString)::TimeFrame
     end
     TimeFrame("$n$t")
 end
+const tf_parse_map = Dict{String,TimeFrame}()
+convert(t::Type{TimeFrame}, s::AbstractString) = @lget! tf_parse_map s Base.parse(t, s)
+period(t::TimeFrame) = t.period
 
 @doc "Comparison between timeframes"
 isless(t1::TimeFrame, t2::TimeFrame) = isless(t1.period, t2.period)
@@ -76,7 +76,7 @@ macro as_td()
     quote
         ($tf, $td) = @lget! $tf_map $timeframe begin
             tf = convert(TimeFrame, $timeframe)
-            (tf, tfnum(tf.period))
+            (tf, timefloat(tf))
         end
         $prd = $tf.period
     end
@@ -135,8 +135,7 @@ convert(::Type{DateTime}, s::T where {T<:AbstractString}) = DateTime(s, ISODateF
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
 convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 
-@inline tfperiod(s::AbstractString) = convert(TimeFrame, s).period
-function convert(::Type{String}, tf::T) where {T<:TimeFrame}
+function Base.nameof(tf::TimeFrame)
     tostring(unit::String) = "$(tf.period.value)$(unit)"
     prd = tf.period
     tostring(
@@ -163,11 +162,8 @@ function convert(::Type{String}, tf::T) where {T<:TimeFrame}
 end
 
 const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
-function name(tf::TimeFrame)
-    @lget! tf_name_map tf.period begin
-        convert(String, tf)
-    end
-end
+convert(::Type{String}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
+string(tf::TimeFrame) = convert(String, tf)
 
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d
@@ -178,8 +174,9 @@ dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 timestamp(d::DateTime) = Int(trunc(datetime2unix(d)))
 timestamp(s::AbstractString) = timestamp(DateTime(s))
 timefloat(time::Float64) = time
-timefloat(prd::Period) = prd.value * 1.0
-timefloat(tf::TimeFrame) = timefloat(convert(Millisecond, tf.period))
+@doc "ccxt always uses milliseconds in timestamps."
+timefloat(prd::Period) = convert(Float64, convert(Millisecond, prd).value)
+timefloat(tf::TimeFrame) = timefloat(tf.period)
 timefloat(time::DateTime) = dtfloat(time)
 timefloat(time::Vector{UInt8}) = begin
     buf = Base.IOBuffer(time)
@@ -192,10 +189,10 @@ end
 
 function timefloat(time::String)
     time === "" && return dtfloat(dt(0))
-    dtfloat(DateTime(time))
+    timefloat(DateTime(time))
 end
 
-timefloat(tf::Symbol) = tfnum(tfperiod(string(tf)))
+timefloat(tf::Symbol) = timefloat(convert(TimeFrame, string(tf)))
 
 @doc "Given a container, infer the timeframe by looking at the first two \
  and the last two elements timestamp."
@@ -215,19 +212,15 @@ macro infertf(data, field=:timestamp)
     end
 end
 
-import Base.convert
-
 const tf_conv_map = Dict{Period,TimeFrame}()
-@inline function convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond})
-    begin
-        @lget! tf_conv_map v.period begin
-            TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))
-        end
+function convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond})
+    @lget! tf_conv_map v.period begin
+        TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))
     end
 end
-@inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Day) = tf"1440m"
-@inline convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
-@inline convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
+convert(::Type{TimeFrames.Minute}, v::TimeFrames.Day) = tf"1440m"
+convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
+convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
 
 @doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
 available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
@@ -256,12 +249,10 @@ export @as_td,
     apply,
     dt,
     timefloat,
-    tfperiod,
+    period,
     from_to_dt,
-    tfnum,
     @infertf,
     dtfloat,
-    name,
     available,
     compact,
     now

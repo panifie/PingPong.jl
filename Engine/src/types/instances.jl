@@ -66,7 +66,7 @@ function instance(a::AbstractAsset)
     data = Dict()
     @assert a.raw ∈ keys(exc.markets) "Market $(a.raw) not found on exchange $(exc.name)."
     for tf in config.timeframes
-        data[tf] = load(zi, exc.name, a.raw, name(tf))
+        data[tf] = load(zi, exc.name, a.raw, string(tf))
     end
     AssetInstance(a, data, exc)
 end
@@ -76,7 +76,7 @@ function load!(a::AssetInstance; reset=true)
     begin
         for (tf, df) in a.data
             reset && empty!(df)
-            loaded = load(zi, a.exchange.name, a.raw, name(tf))
+            loaded = load(zi, a.exchange.name, a.raw, string(tf))
             append!(df, loaded)
         end
     end
@@ -122,7 +122,7 @@ function Base.fill!(i::AssetInstance, tfs...)
     pairname = i.asset.raw
     # Check if we have available data
     if size(from_data)[1] == 0
-        append!(from_data, load(zi, exc.name, i.asset.raw, name(from_tf)))
+        append!(from_data, load(zi, exc.name, i.asset.raw, string(from_tf)))
         if size(from_data)[1] == 0
             for to_tf in tfs
                 i.data[to_tf] = empty_ohlcv()
@@ -134,7 +134,7 @@ function Base.fill!(i::AssetInstance, tfs...)
     for to_tf in tfs
         if to_tf ∉ current_tfs
             from_sto = load(
-                zi, exc.name, i.asset.raw, name(to_tf); from=dr.start, to=dr.stop
+                zi, exc.name, i.asset.raw, string(to_tf); from=dr.start, to=dr.stop
             )
             i.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
                 from_sto

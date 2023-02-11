@@ -20,7 +20,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     sz = size(data, 1)
     sz > 1 || return empty_ohlcv()
 
-    td = tfnum(to_tf.period)
+    td = timefloat(to_tf)
     # src_prd = data_td(data)
     src_prd = timeframe(data).period
     src_td = timefloat(src_prd)
@@ -60,7 +60,7 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
-    save && size(df)[1] > 0 && save_ohlcv(exc, pairname, name(to_tf), df)
+    save && size(df)[1] > 0 && save_ohlcv(exc, pairname, string(to_tf), df)
     @debug @show "last 2 candles: " df[end - 1, :timestamp] df[end, :timestamp]
     df
 end

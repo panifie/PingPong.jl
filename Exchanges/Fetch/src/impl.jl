@@ -48,7 +48,7 @@ end
 @doc "Should return the oldest possible timestamp for a pair, or something close to it."
 function find_since(exc::Exchange, pair)
     tfs = collect(exc.timeframes)
-    periods = tfperiod.(tfs)
+    periods = period.(tfs)
     order = sortperm(periods; rev=true)
     periods = @view periods[order]
     tfs = @view tfs[order]

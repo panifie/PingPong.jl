@@ -383,7 +383,7 @@ _wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...
 function load(zi::ZarrInstance, exc_name, pair, timeframe; kwargs...)
     @as_td
     @zkey
-    _wrap_load(zi, key, tfnum(tf.period); kwargs...)
+    _wrap_load(zi, key, timefloat(tf); kwargs...)
 end
 
 load(zi::Ref{ZarrInstance}, args...; kwargs...) = load(zi[], args...; kwargs...)

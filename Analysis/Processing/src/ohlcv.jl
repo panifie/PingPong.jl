@@ -50,15 +50,14 @@ end
 @doc """Similar to the freqtrade homonymous function.
 - `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
-function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
+function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return empty_ohlcv()
-    @as_td
     df = data isa DataFrame ? data : to_ohlcv(data, tf)
 
     # For when for example 1d candles start at hours other than 00
     ts_float = timefloat.(df.timestamp)
-    ts_offset = ts_float .% td
+    ts_offset = ts_float .% timefloat(tf)
     if all(ts_offset .== ts_offset[begin])
         @debug "Offsetting timestamps for $(ts_offset[begin])."
         df.timestamp .= dt.((ts_float .- ts_offset[begin]))
@@ -79,37 +78,45 @@ function cleanup_ohlcv_data(data, timeframe; col=1, fill_missing=:close)
         renamecols=false,
     )
 
-    if is_incomplete_candle(df[end, :], td)
+    if is_incomplete_candle(@view(df[end, :]), tf)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
     if fill_missing !== false
-        fill_missing_rows!(df, prd; strategy=fill_missing)
+        fill_missing_rows!(df, tf.period; strategy=fill_missing)
     end
     df
 end
+function cleanup_ohlcv_data(data, tf::AbstractString; kwargs...)
+    cleanup_ohlcv_data(data, convert(TimeFrame, tf); kwargs...)
+end
 
 @doc "Checks if a candle timestamp is too new."
-@inline function is_incomplete_candle(ts::F, td::F) where {F<:AbstractFloat}
+function is_incomplete_candle(ts::F, td::F) where {F<:AbstractFloat}
     nw = timefloat(now())
     ts + td > nw
 end
 
-@inline function is_incomplete_candle(x::String, td::AbstractFloat)
+function is_incomplete_candle(x::AbstractString, td)
     ts = timefloat(x)
     is_incomplete_candle(ts, td)
 end
 
-@inline function is_incomplete_candle(candle, td::AbstractFloat)
-    ts = timefloat(candle.timestamp)
-    is_incomplete_candle(ts, td)
+function is_incomplete_candle(date::DateTime, tf::TimeFrame)
+    is_incomplete_candle(timefloat(date), timefloat(tf))
 end
 
-@inline function is_incomplete_candle(x, timeframe="1m")
-    @as_td
-    is_incomplete_candle(x, td)
+function is_incomplete_candle(x, tf::TimeFrame=tf"1m")
+    is_incomplete_candle(x.timestamp, tf)
 end
+
+function isincomplete(candle::Candle, tf::TimeFrame)
+    ts = timefloat(apply(tf, candle.timestamp))
+    is_incomplete_candle(ts, timefloat(tf))
+end
+
+iscomplete(candle::Candle, timeframe) = !isincomplete(candle, timeframe)
 
 @doc "Checks if a timestamp belongs to the newest possible candle of given timeframe."
 function is_last_complete_candle(x, timeframe)
@@ -118,4 +125,4 @@ function is_last_complete_candle(x, timeframe)
     is_incomplete_candle(ts + td, td)
 end
 
-export cleanup_ohlcv_data
+export cleanup_ohlcv_data, isincomplete, iscomplete
