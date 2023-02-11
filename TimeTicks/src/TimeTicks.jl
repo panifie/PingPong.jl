@@ -169,10 +169,8 @@ dt(::Nothing) = :nothing
 dt(d::DateTime) = d
 dt(num::Real) = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
+dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1000
 
-@doc "Converts date into an Integer unix timestamp (seconds)."
-timestamp(d::DateTime) = Int(trunc(datetime2unix(d)))
-timestamp(s::AbstractString) = timestamp(DateTime(s))
 timefloat(time::Float64) = time
 @doc "ccxt always uses milliseconds in timestamps."
 timefloat(prd::Period) = convert(Float64, convert(Millisecond, prd).value)
@@ -193,6 +191,12 @@ function timefloat(time::String)
 end
 
 timefloat(tf::Symbol) = timefloat(convert(TimeFrame, string(tf)))
+
+@doc "Converts date into an Integer unix timestamp (seconds)."
+timestamp(s::AbstractString) = timestamp(DateTime(s))
+@doc "Convertes a datetime into a timestamp."
+timestamp(d::DateTime) = round(Int64, datetime2unix(d))
+timestamp(d::DateTime, ::Val{:trunc}) = Int(trunc(datetime2unix(d)))
 
 @doc "Given a container, infer the timeframe by looking at the first two \
  and the last two elements timestamp."

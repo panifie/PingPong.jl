@@ -216,7 +216,11 @@ function coinschart_range(id::AbstractString; from, to=now(), vs=DEFAULT_CUR)
         path = (ApiPaths.coins_id, "/", id, "/market_chart/range")
         json = get(
             join(path),
-            ("from" => timestamp(from), "to" => timestamp(to), "vs_currency" => vs),
+            (
+                "from" => timestamp(from, Val(:trunc)),
+                "to" => timestamp(to, Val(:trunc)),
+                "vs_currency" => vs,
+            ),
         )
         _parse_data(json)
     end
