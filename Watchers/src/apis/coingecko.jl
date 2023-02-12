@@ -99,13 +99,15 @@ end
 
 @doc "Get all coingecko item id matching by its symbol."
 function idbysym(sym, ::Bool)
-    begin
-        loadcoins!()
-        @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
-    end
+    loadcoins!()
+    @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
 end
 @doc "Get the first coingecko item id by its symbol."
-idbysym(sym) = first(idbysym(sym, true))
+idbysym(sym) = begin
+    match = idbysym(sym, true)
+    @assert !isempty(match) "$sym not a valid coingecko id."
+    first(match)
+end
 
 @enum SortBy begin
     gecko_desc
