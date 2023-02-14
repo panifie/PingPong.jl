@@ -1,5 +1,6 @@
 using Serialization
 using Misc: Iterable
+using Data: @to_mat
 
 tobytes(buf::IOBuffer, data) = begin
     @debug @assert position(buf) == 0
@@ -119,10 +120,12 @@ function _save_data(
                     @debug :saved (dt.(za[end, za_col])):data,
                     (dt.(data[begin, data_col])):saved_off,
                     dt(za[offset, za_col])
-                    @assert if offset <= size(za, 1)
-                        timefloat(data[begin, data_col]) === timefloat(za[offset, za_col])
+                    datatime = timefloat(data[begin, data_col])
+                    savetime = timefloat(za[offset, za_col])
+                    if offset <= size(za, 1)
+                        @assert datatime <= savetime "$(dt(datatime)) does not match $(dt(savetime))"
                     else
-                        timefloat(data[begin, data_col]) >= timefloat(za[end, za_col])
+                        @assert datatime >= savetime "$(dt(datatime)) is not less than $(dt(savetime))"
                     end
                 end
             else
