@@ -36,6 +36,7 @@ end
 
 export passkwargs, @passkwargs
 
+@doc "Use hits for *initialization* type of key misses, that only happen once, otherwise use `@kget!`."
 macro lget!(dict, k, expr)
     dict = esc(dict)
     expr = esc(expr)
@@ -55,6 +56,7 @@ macro lget!(dict, k, expr)
     end
 end
 
+@doc "Use this in loops instead of `@lget!`"
 macro kget!(dict, k, expr)
     dict = esc(dict)
     expr = esc(expr)
