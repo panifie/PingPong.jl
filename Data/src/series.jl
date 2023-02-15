@@ -82,6 +82,28 @@ function save_data(
     end
 end
 
+function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, za_col)
+    @debug dt(data_first_ts), dt(saved_last_ts)
+    @debug :saved (dt.(za[end, za_col])):data,
+    (dt.(data[begin, data_col])):offset,
+    dt(za[offset, za_col])
+
+    if offset <= size(za, 1)
+        datatime = timefloat(data[begin, data_col])
+        savetime = timefloat(za[offset, za_col])
+        @assert datatime <= savetime "$(dt(datatime)) does not match $(dt(savetime))"
+    else
+        @assert data_first_ts > saved_last_ts "New data ($(dt(data_first_ts))) should be strictly greater than saved data ($(dt(saved_last_ts)))."
+    end
+end
+
+function _partial_checks(data, za, data_view, data_offset, data_col, za_col,)
+    @debug :saved dt(za[end, za_col]):data_view,
+    dt(data[data_offset, data_col])
+    @assert timefloat(data[data_offset, data_col]) >=
+            timefloat(za[end, za_col])
+end
+
 @doc """ Saves data to a zarr array ensuring only dates seriality, not contiguity (as opposed to `_save_ohlcv`).
 
 """
@@ -93,7 +115,7 @@ function _save_data(
     data_col=1,
     za_col=data_col,
     overwrite=true,
-    reset=false,
+    reset=false
 )
     local za
 
@@ -115,19 +137,7 @@ function _save_data(
                     @view(za[:, za_col]), data_first_ts; by=timefloat
                 )
                 data_view = @view data[:, :]
-                begin # checks
-                    @debug dt(data_first_ts), dt(saved_last_ts), dt(saved_last_ts + td)
-                    @debug :saved (dt.(za[end, za_col])):data,
-                    (dt.(data[begin, data_col])):saved_off,
-                    dt(za[offset, za_col])
-                    datatime = timefloat(data[begin, data_col])
-                    savetime = timefloat(za[offset, za_col])
-                    if offset <= size(za, 1)
-                        @assert datatime <= savetime "$(dt(datatime)) does not match $(dt(savetime))"
-                    else
-                        @assert datatime >= savetime "$(dt(datatime)) is not less than $(dt(savetime))"
-                    end
-                end
+                _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, za_col)
             else
                 # when not overwriting get the index where data has new values
                 data_offset =
@@ -137,12 +147,6 @@ function _save_data(
                 offset = size(za, 1) + 1
                 if data_offset <= size(data, 1)
                     data_view = @view data[data_offset:end, :]
-                    begin # checks
-                        @debug :saved dt(za[end, za_col]):data_view,
-                        dt(data[data_offset, data_col])
-                        @assert timefloat(data[data_offset, data_col]) >=
-                            timefloat(za[end, za_col])
-                    end
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -153,7 +157,7 @@ function _save_data(
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
                 @assert timefloat(za[max(1, offset - 1), za_col]) <=
-                    timefloat(data_view[begin, data_col])
+                        timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
@@ -169,7 +173,7 @@ function _save_data(
                 saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
                 else
-                    @view za[(saved_offset + 1):end, :]
+                    @view za[(saved_offset+1):end, :]
                 end
             end
             szd = size(data, 1)
@@ -179,7 +183,7 @@ function _save_data(
             # the new size will include the amount of saved data not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
             if ssd > 0
-                za[(szd + 1):end, :] = saved_data
+                za[(szd+1):end, :] = saved_data
             end
             za[begin:szd, :] = @to_mat(data)
             @debug "backwriting - data_last: $(dt(data_last_ts)) saved_first: $(dt(saved_first_ts))"
@@ -216,7 +220,7 @@ function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
                 fill_value=default(type),
                 fill_as_missing=false,
                 path=key,
-                compressor,
+                compressor
             )
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
@@ -257,7 +261,7 @@ function _load_data(
     type=Float64,
     serialized=false,
     as_z=false,
-    with_z=false,
+    with_z=false
 )
     @debug "Loading data from $(zi.path):$(key)"
     z_type = serialized ? Vector{UInt8} : type
@@ -299,7 +303,7 @@ function _load_data(
     as_z && return result(; startstop=(ts_start, ts_stop))
     ts_start > size(za, 1) && return result()
 
-    data = za[ts_start:ts_stop, :]
+    data = @view za[ts_start:ts_stop, :]
 
     with_from && @assert timefloat(data[begin, saved_col]) >= from
     with_to && @assert timefloat(data[end, saved_col]) <= to
@@ -308,7 +312,7 @@ function _load_data(
         buf = IOBuffer()
         try
             [
-                (; date=todata(buf, data[n, 1]), value=todata(buf, data[n, 2])) for
+                (; time=todata(buf, data[n, 1]), value=todata(buf, data[n, 2])) for
                 n in firstindex(data, 1):size(data, 1)
             ]
         finally
