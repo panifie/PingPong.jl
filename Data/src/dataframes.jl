@@ -1,13 +1,18 @@
 @doc "Utilities for DataFrames.jl, prominently timeframe based indexing."
 module DFUtils
 using DataFrames
+using DataFrames: index
 using TimeTicks
 import Base: getindex
 
-@inline firstdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[begin]
-@inline lastdate(df::T where {T<:AbstractDataFrame}) = df.timestamp[end]
+@doc "Get the column names for dataframe as symbols."
+colnames(df::AbstractDataFrame) = names(index(df))
 
-function timeframe(df::T where {T<:AbstractDataFrame})<:TimeFrame
+@inline firstdate(df::AbstractDataFrame) = df.timestamp[begin]
+@inline lastdate(df::AbstractDataFrame) = df.timestamp[end]
+
+function timeframe(df::T where {T<:AbstractDataFrame})
+    <:TimeFrame
     begin
         try
             colmetadata(df, :timestamp, "timeframe")
@@ -64,7 +69,7 @@ function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
         start = firstdate(df)
         stop = lastdate(df)
         if (!isnothing(dr.start) && dr.start < start) ||
-            (!isnothing(dr.stop) && dr.stop > stop)
+           (!isnothing(dr.stop) && dr.stop > stop)
             throw(
                 ArgumentError(
                     "Dates ($(dr.start) : $(dr.stop)) out of range for dataframe ($start : $stop).",
@@ -85,7 +90,7 @@ function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
         # start_idx = searchsortedfirst(df.timestamp, dr.start)
         # stop_idx = start_idx + searchsortedfirst(@view(df.timestamp[start_idx+1:end]), dr.stop)
         @debug @assert df.timestamp[start_idx] == dr.start &&
-            df.timestamp[stop_idx] == dr.stop
+                       df.timestamp[stop_idx] == dr.stop
         @view df[start_idx:stop_idx, cols]
     end
 end
@@ -101,6 +106,15 @@ function daterange(df::T where {T<:AbstractDataFrame})
     DateRange(df.timestamp[begin], df.timestamp[end], timeframe(df))
 end
 
-export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex, daterange
+@doc "Appends `v` to `df` ensuring the dataframe never grows larger than `maxlen`."
+function appendmax!(df, v, maxlen)
+    append!(df, v) # FIXME: we should check the size *before* appending.
+    sz = size(df, 1)
+    if sz > maxlen
+        deleteat!(df, maxlen+1:sz)
+    end
+end
+
+export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex, daterange, colnames
 
 end
