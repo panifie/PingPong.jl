@@ -180,6 +180,6 @@ macro sym_str(s)
     :(Symbol($s))
 end
 
-export @lget!, passkwargs, @exportenum, @as, Option, @sym_str
+export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str
 
 end
