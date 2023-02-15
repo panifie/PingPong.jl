@@ -73,7 +73,7 @@ function save_data(
     try
         _save_data(zi, key, data; kwargs..., type)
     catch e
-        if typeof(e) ∈ (MethodError, DivideError)
+        if typeof(e) ∈ (DivideError,)
             @warn "Resetting local data for key $key." e
             _save_data(zi, key, data; kwargs..., type, reset=true)
         else
@@ -211,6 +211,7 @@ function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
         _load_data(zi, key, sz; kwargs..., serialized)
     catch e
         if typeof(e) ∈ (MethodError, ArgumentError)
+            @error e
             delete!(zi.store, key) # ensure path does not exist
             type = serialized ? Vector{UInt8} : get(kwargs, :type, Float64)
             emptyz = zcreate(
@@ -223,9 +224,9 @@ function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
                 compressor
             )
             if :as_z ∈ keys(kwargs)
-                return emptyz, (0, 0)
+                return (; z=emptyz, startstop=(0, 0))
             elseif :with_z ∈ keys(kwargs)
-                return nothing, emptyz
+                return (; data=nothing, z=emptyz)
             else
                 return nothing
             end
@@ -267,10 +268,9 @@ function _load_data(
     z_type = serialized ? Vector{UInt8} : type
     za, existing = _get_zarray(zi, key, sz; overwrite=true, type=z_type, reset=false)
     ndims = length(sz)
-
     def_type = serialized ? Any : type
     function result(sz=tuple(0 for _ in 1:ndims)...; data=nothing, startstop=(0, 0))
-        isnothing(data) && (data = Array{def_type,ndims}(undef, sz))
+        isnothing(data) && (data = Array{def_type,ndims}(undef, sz...))
         as_z && return (; z=za, startstop)
         with_z && return (; data, z=za)
         return data
