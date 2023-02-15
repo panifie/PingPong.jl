@@ -26,17 +26,16 @@ struct Candle{T<:AbstractFloat}
     Candle(t::Tuple) = Candle(t...)
 end
 
-struct PairData
+@kwdef struct PairData
     name::String
     tf::String # string
     data::Union{Nothing,AbstractDataFrame} # in-memory data
     z::Union{Nothing,ZArray} # reference zarray
 end
 
-PairData(; name, tf, data, z) = PairData(name, tf, data, z)
 function Base.convert(
-    ::Type{T}, d::AbstractDict{String,PairData}
-) where {T<:AbstractDict{String,N}} where {N<:AbstractDataFrame}
+    ::Type{AbstractDict{String,N}}, d::AbstractDict{String,PairData}
+) where {N<:AbstractDataFrame}
     Dict(p.name => p.data for p in values(d))
 end
 
