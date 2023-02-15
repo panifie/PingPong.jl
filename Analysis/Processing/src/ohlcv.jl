@@ -33,7 +33,7 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
             # NOTE: we assume that ALL timestamps are multiples of the timedelta!
             while ts_cur < ts_end
                 if ts_cur !== :timestamp[ts_idx]
-                    close = :close[ts_idx - 1]
+                    close = :close[ts_idx-1]
                     push!(ordered_rows, Candle(ts_cur, can(close)...))
                 else
                     ts_idx += 1
@@ -75,7 +75,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         :low => minimum,
         :close => last,
         :volume => maximum;
-        renamecols=false,
+        renamecols=false
     )
 
     if is_incomplete_candle(@view(df[end, :]), tf)
@@ -111,11 +111,10 @@ function is_incomplete_candle(x, tf::TimeFrame=tf"1m")
     is_incomplete_candle(x.timestamp, tf)
 end
 
-function isincomplete(candle::Candle, tf::TimeFrame)
-    ts = timefloat(apply(tf, candle.timestamp))
-    is_incomplete_candle(ts, timefloat(tf))
+function isincomplete(d::DateTime, tf::TimeFrame)
+    is_incomplete_candle(timefloat(apply(tf, d)), timefloat(tf))
 end
-
+isincomplete(candle::Candle, tf::TimeFrame) = isincomplete(candle.timestamp, tf)
 iscomplete(candle::Candle, timeframe) = !isincomplete(candle, timeframe)
 
 @doc "Checks if a timestamp belongs to the newest possible candle of given timeframe."

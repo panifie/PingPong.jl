@@ -22,8 +22,8 @@ function common_timestamp(
     common
 end
 
-@inline _copysub(arr::Array) = arr
-@inline _copysub(arr::SubArray) = Array(arr)
+_copysub(arr::Array) = arr
+_copysub(arr::SubArray) = Array(arr)
 
 @doc "Replaces subarrays with arrays."
 copysubs!(df::AbstractDataFrame) = begin
