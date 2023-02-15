@@ -5,7 +5,7 @@ using URIs
 using Watchers
 using LazyJSON
 using TimeToLive: TTL
-using Lang: @lget!, Option
+using Lang: @kget!, Option
 using Misc
 using TimeTicks
 using TimeTicks: timestamp
@@ -79,7 +79,7 @@ vs_currencies() =
 const coins = TTL{Nothing,Dict{String,String}}(Minute(60))
 const coins_syms = Dict{String,Vector{SubString}}()
 @doc "Load all coins symbols."
-loadcoins!() = @lget! coins nothing begin
+loadcoins!() = @kget! coins nothing begin
     json = get(ApiPaths.coins_list)
     @assert !isnothing(json)
     data = Dict{String,String}()
@@ -88,11 +88,7 @@ loadcoins!() = @lget! coins nothing begin
         sym = d["symbol"]
         data[id] = sym
         ls = lowercase(sym)
-        if ls ∈ keys(coins_syms)
-            push!(coins_syms[ls], id)
-        else
-            coins_syms[ls] = [id]
-        end
+        push!(@kget!(coins_syms, ls, SubString[]), id)
     end
     data
 end
