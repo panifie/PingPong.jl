@@ -6,7 +6,7 @@ using URIs
 using LazyJSON
 using Data: Candle
 using Misc: Config, config, loadconfig!, queryfromstruct
-using Lang: Option, @lget!
+using Lang: Option, @kget!
 using TimeTicks
 
 API_URL = "https://api.coinpaprika.com/"
@@ -69,6 +69,7 @@ glob() = begin
 end
 
 const coins_cache = Dict{String,Dict{String,Any}}()
+const coins_syms = Dict{String,Vector{SubString}}()
 @doc """ Load all coin ids.
 
 
@@ -79,10 +80,25 @@ loadcoins!() = begin
         _check_error(json)
         for coin in json
             c = convert(Dict{String,Any}, coin)
-            coins_cache[c["id"]] = c
+            id = c["id"]
+            coins_cache[id] = c
+            ls = lowercase(c["symbol"])
+            push!(@kget!(coins_syms, ls, SubString[]), id)
         end
     end
     coins_cache
+end
+
+@doc "Get all coinpaprika item id matching by its symbol."
+function idbysym(sym, ::Bool)
+    loadcoins!()
+    @something Base.get(coins_syms, lowercase(string(sym)), nothing) []
+end
+@doc "Get the first coinpaprika item id by its symbol."
+idbysym(sym) = begin
+    match = idbysym(sym, true)
+    @assert !isempty(match) "$sym not a valid coinpaprika id."
+    first(match)
 end
 
 check_coin_id(id) = begin
