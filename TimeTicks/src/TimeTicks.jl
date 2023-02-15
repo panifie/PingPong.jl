@@ -84,54 +84,56 @@ end
 
 @doc "Converts integers to relative datetimes according to given period."
 function from_to_dt(prd::Period, from, to)
-    begin
-        if from !== ""
-            from = if typeof(from) <: Int
-                from
+    if from !== ""
+        from = if typeof(from) <: Int
+            from
+        else
+            something(tryparse(Int, from), tryparse(DateTime, from), from)
+        end
+        typeof(from) <: Int && begin
+            if from === 0
+                DateTime(0)
             else
-                something(tryparse(Int, from), tryparse(DateTime, from), from)
-            end
-            typeof(from) <: Int && begin
-                if from === 0
-                    DateTime(0)
+                if prd.value === 0
+                    from
                 else
-                    if prd.value === 0
-                        from
-                    else
-                        now() - (abs(from) * prd)
-                    end
+                    now() - (abs(from) * prd)
                 end
             end
         end
-        if to !== ""
-            to = if typeof(to) <: Int
-                to
-            else
-                something(tryparse(Int, to), tryparse(DateTime, to), to)
-            end
-            typeof(to) <: Int && begin
-                if to === 0
-                    now()
-                else
-                    if prd.value === 0
-                        to
-                    else
-                        now() - (abs(to) * prd)
-                    end
-                end
-            end
-        end
-        from, to
     end
+    if to !== ""
+        to = if typeof(to) <: Int
+            to
+        else
+            something(tryparse(Int, to), tryparse(DateTime, to), to)
+        end
+        typeof(to) <: Int && begin
+            if to === 0
+                now()
+            else
+                if prd.value === 0
+                    to
+                else
+                    now() - (abs(to) * prd)
+                end
+            end
+        end
+    end
+    from, to
 end
-from_to_dt(timeframe::AbstractString, args...) = begin
+from_to_dt(from, to) = from_to_dt(Second(0), from, to)
+from_to_dt(timeframe, from, to) = begin
     @as_td
-    from_to_dt(prd, args...)
+    from_to_dt(prd, from, to)
 end
 from_to_dt(tf::TimeFrame, args...) = from_to_dt(tf.period, args...)
 
 Base.Broadcast.broadcastable(tf::TimeFrame) = Ref(tf)
-convert(::Type{DateTime}, s::T where {T<:AbstractString}) = DateTime(s, ISODateFormat)
+# dateformat with millis at the end "sss"
+function convert(::Type{DateTime}, s::T where {T<:AbstractString})
+    DateTime(s, dateformat"yyyy-mm-dd\THH:MM:SS.sss")
+end
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
 convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 
