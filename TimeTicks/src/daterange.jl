@@ -1,22 +1,28 @@
 import Base: length, iterate, collect, reset
 const OptDate = Union{Nothing,DateTime}
-struct DateRange12
+const DateTuple = NamedTuple{(:start, :stop),NTuple{2,DateTime}}
+struct DateRange
     current_date::Vector{OptDate}
     start::OptDate
     stop::OptDate
     step::Union{Nothing,Period}
-    function DateRange12(start::OptDate, stop::OptDate, step=nothing)
+    function DateRange1(start::OptDate, stop::OptDate, step=nothing)
         begin
             new([start], start, stop, step)
         end
     end
-    function DateRange12(start::OptDate, stop::OptDate, tf::TimeFrame)
+    function DateRange1(start::OptDate, stop::OptDate, tf::TimeFrame)
         begin
             new([start], start, stop, tf.period)
         end
     end
 end
-DateRange = DateRange12
+
+function Base.convert(::Type{DateTuple}, d::DateRange)
+    DateTuple((
+        @something(d.start, typemin(DateTime)), @something(d.stop, typemax(DateTime))
+    ))
+end
 
 function Base.show(dr::DateRange)
     begin
@@ -84,4 +90,4 @@ macro dtr_str(s::String)
     :($dr)
 end
 
-export DateRange, @dtr_str
+export DateRange, DateTuple, @dtr_str
