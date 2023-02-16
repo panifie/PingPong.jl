@@ -1,5 +1,6 @@
 module Data
 
+include("utils.jl")
 include("data.jl")
 include("dataframes.jl")
 include("lmdbstore.jl")
