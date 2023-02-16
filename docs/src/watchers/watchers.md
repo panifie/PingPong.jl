@@ -11,7 +11,8 @@ On a watcher instance these function are currently available:
 - `isstale`: Should evaluate if the watcher is in a degraded state, e.g. when it can't fetch new data.
 - `fetch!`: A watcher runs queries on specified interval, so you should only use `fetch!` when you want to be sure that the watcher has the latest data.
 - `flush!`: like `fetch!` the watcher already flushes at predetermined intervals, use this only to ensure flushing in case of shutdown. The watcher *does* call flush on destruction through its finalizer, but it does so asynchronously and doesn't ensure the success of the flush operation.
-- `delete!`: deletes the watcher data from the storage backend used by `flush!`.
+- `delete!`: deletes the watcher data from the storage backend used by `flush!` (and empties the buffer).
+- `deleteat!`: deletes the watcher data within a date range (and empties the buffer).
 
 ## Imlementation interface
 To implement a custom watcher you have to define the functions such that dispatch happens through the watcher name interpreted as a value `Val{Symbol(my_watcher_name)}`. So a function needs to have a signature like `_fetch!(w::Watcher, ::Val{some_symbol})`.
@@ -23,6 +24,8 @@ To implement a custom watcher you have to define the functions such that dispatc
 - `_load!` to pre-fill the watcher buffer on construction, it is only called once, runs after `_init!`.
 - `_flush!` to save the watcher buffer somewhere on periodic intervals and on watcher destruction.
 - `_process!` to update the *view* of the raw data, which is what the *get* function should return.
+- `_delete!` to delete *all* the storage data of the watcher
+- `_deleteat!` to delete the storage data of the watcher within a date range `(from, to)`
 
 Look in the `Watchers` and `WatchersImpls` modules for helper functions:
 

@@ -1,4 +1,3 @@
-using Lang: Option
 using Instruments.Derivatives
 
 CgSymDerivative = @NamedTuple begin
@@ -14,23 +13,45 @@ CgSymDerivative = @NamedTuple begin
     expired_at::Option{DateTime}
     funding_rate::Float64
 end
+const CgDerivativesVal = Val{:cg_derivatives}
 
 @doc """ Create a `Watcher` instance that tracks all the derivatives from an exchange.
 
 """
 function cg_derivatives_watcher(exc_name)
     cg.check_drv_exchange(exc_name)
-    fetcher() = begin
-        mkts = cg.derivatives_from(exc_name)
+    attrs = Dict{Symbol, Any}()
+    attrs[:exc] = exc_name
+    attrs[:key] = "cg_$(exc_name)_derivatives"
+    watcher_type = Dict{Derivative,CgSymDerivative}
+    watcher(
+        watcher_type,
+        :cg_derivatives;
+        flush=true,
+        process=true,
+        fetch_interval=Second(360),
+        attrs,
+    )
+end
+
+function _fetch!(w::Watcher, ::CgDerivativesVal)
+    mkts = cg.derivatives_from(w.attrs[:exc])
+    if length(mkts) > 0
         result = Dict{Derivative,CgSymDerivative}()
         for (k, m) in mkts
             result[k] = @fromdict(CgSymDerivative, String, m)
-            result
         end
-        result
+        pushnew!(w, result)
+        true
+    else
+        false
     end
-
-    name = "cg_$(exc_name)_derivatives"
-    watcher_type = Dict{Derivative, CgSymDerivative}
-    watcher(watcher_type, name, fetcher; flusher=true, interval=Second(360))
 end
+
+function _cg_drv_append_buffer(dict, buf, maxlen)
+    data = @collect_buffer_data buf Derivative CgSymDerivative
+    @append_dict_data dict data maxlen
+end
+
+_init!(w::Watcher, ::CgDerivativesVal) = default_init(w, Dict{Derivative,DataFrame}())
+_process!(w::Watcher, ::CgDerivativesVal) = default_process(w, _cg_drv_append_buffer)

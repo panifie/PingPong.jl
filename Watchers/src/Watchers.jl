@@ -8,6 +8,7 @@ using Data
 using Lang: Option
 using Base.Threads: @spawn
 using Base: acquire, Semaphore, release
+using Processing.DataFrames: DataFrame
 
 safenotify(cond) = begin
     lock(cond)
@@ -32,45 +33,84 @@ macro acquire(cond, code)
     end
 end
 
-BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
+function _wrap_fetch(w)
+    acquire(w._exec.fetch_sem)
+    w.last_fetch = now()
+    try
+        _fetch!(w, w._val)
+    catch error
+        @warn "Watcher error!" error
+        false
+    finally
+        release(w._exec.fetch_sem)
+    end
+end
+function _schedule_fetch(w, timeout, threads)
+    fetcher_task = threads ? (@spawn _wrap_fetch(w)) : (@async _wrap_fetch(w))
+    @async begin
+        sleep(timeout)
+        safenotify(fetcher_task.donenotify)
+    end
+    safewait(fetcher_task.donenotify)
+    if istaskdone(fetcher_task) && fetch(fetcher_task)
+        w.attempts = 0
+        w.has.process && _process!(w, w._val)
+        w.has.flush && flush!(w; sync=false)
+    else
+        w.attempts += 1
+    end
+end
 
-@kwdef mutable struct Watcher8{T}
+function _timer!(w)
+    w._timer = Timer(
+        # NOTE: the callback for the timer requires 1 arg (the timer itself)
+        (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
+        0;
+        interval=convert(Second, w.interval.fetch).value,
+    )
+end
+
+BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
+const HasFunction = NamedTuple{(:load, :process, :flush),NTuple{3,Bool}}
+const Interval = NamedTuple{(:timeout, :fetch, :flush),NTuple{3,Millisecond}}
+const Exec = NamedTuple{(:threads, :fetch_sem, :buffer_sem),Tuple{Bool,Semaphore,Semaphore}}
+const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
+
+@kwdef mutable struct Watcher19{T}
     const buffer::CircularBuffer{BufferEntry(T)}
-    const name::SubString
-    const timeout::Millisecond
-    const interval::Millisecond
-    const flush_interval::Millisecond
-    const _fetcher_sem::Semaphore
-    const _buffer_sem::Semaphore
-    _fetch_func::Function = (_) -> ()
-    _flush_func::Function = (_) -> nothing
-    _start_func::Function = (_) -> T[]
-    _timer::Option{Timer} = nothing # maybe this should be private
+    const name::String
+    const has::HasFunction
+    const interval::Interval
+    const capacity::Capacity
+    const _exec::Exec
+    const _val::Val
+    _timer::Option{Timer} = nothing
     attempts::Int = 0
-    last_try::DateTime = DateTime(0)
+    last_fetch::DateTime = DateTime(0)
     last_flush::DateTime = DateTime(0)
+    attrs::Dict{Symbol,Any} = Dict()
 end
 @doc """ Watchers manage data, they pull from somewhere, keep a cache in memory, and optionally flush periodically to persistent storage.
 
  - `buffer`: A [CircularBuffer](https://juliacollections.github.io/DataStructures.jl/latest/circ_buffer/) of default length `1000` of the watcher type parameter.
- - `name`: Give it a name for better logging.
+ - `name`: The name is used for dispatching.
  - `timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  - `timeout`: How much time to wait for the fetcher function.
  - `interval`: the `Period` with which the `fetcher` function will be called.
  - `flush_interval`: the `Period` with which the `flusher` function will be called.
  - `attempts`: In cause of fetcher failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
- - `last_try`: the most recent time a fetch operation failed.
+ - `last_fetch`: the most recent time a fetch operation failed.
  - `last_flush`: the most recent time the flush function was called.
  """
-Watcher = Watcher8
+Watcher = Watcher19
 
 @doc """ Instantiate a watcher.
 
 - `T`: The type of the underlying `CircularBuffer`
 - `len`: length of the circular buffer.
-- `fetcher`: The _input_ function that fetches data from somewhere, with signature `() -> T`.
-- `flusher`: Optional function that is called once every `len` successful updates, `(AbstractVector) -> ()`
-- `starter`: Optional function that is called on watcher startup to prefill the buffer with previous (most recent) data, `(AbstractString) -> AbstractVector`
+- `fetcher`: The _input_ function that fetches data from somewhere, with signature `(Watcher) -> Bool`.
+- `flusher`: Optional function that is called once every `len` successful updates, `(Watcher) -> nothing`
+- `starter`: Optional function that is called on watcher startup to prefill the buffer with previous (most recent) data, `(Watcher) -> nothing`
 
 !!! warning "asyncio vs threads"
     Both `fetcher` and `flusher` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
@@ -80,116 +120,186 @@ Watcher = Watcher8
 """
 function watcher(
     T::Type,
-    name::AbstractString,
-    fetcher::Function;
-    flusher::Union{Bool,Function}=false,
-    starter::Union{Bool,Function}=true,
+    name;
+    len=100,
+    load=true,
+    process=false,
+    flush=false,
     threads=false,
-    len=1000,
-    interval=Second(30),
+    fetch_timeout=Second(5),
+    fetch_interval=Second(30),
     flush_interval=Second(360),
-    timeout=Second(5),
+    buffer_capacity=100,
+    view_capacity=1000,
+    attrs=Dict(),
 )
-    local w
-    let mets = methods(fetcher)
-        @assert length(mets) > 0 && length(mets[1].sig.parameters) == 1 "Function should have no arguments."
-    end
-    let buffer = CircularBuffer{BufferEntry(T)}(len)
-        w = Watcher8{T}(;
-            name=SubString(name),
-            buffer,
-            timeout,
-            interval,
-            flush_interval,
-            _fetcher_sem=Semaphore(1),
-            _buffer_sem=Semaphore(1),
-        )
-        w = finalizer(close, w)
-    end
-    let start_buf = (starter isa Function ? starter : default_starter)(w), time = now()
-        start_offset = min(len, size(start_buf, 1)) + 1
-        foreach(
-            x -> push!(w.buffer, (; time, value=x)),
-            @view(start_buf[(end - start_offset):end])
-        )
-    end
-    function wrapped_fetcher()
-        local value
-        acquire(w._fetcher_sem)
-        time = now()
-        try
-            value = fetcher() # local bind, such that `now` is called after the event
-            value != w.buffer[end].value && push!(w.buffer, (; time, value))
-            true
-        catch error
-            if error isa BoundsError && isempty(w.buffer)
-                push!(w.buffer, (; time, value))
-                true
-            else
-                @warn "Watcher error!" error
-                false
-            end
-        finally
-            release(w._fetcher_sem)
-        end
-    end
-    w._flush_func = if flusher isa Function
-        @assert applicable(flusher, w) "Incompatible flusher function. (It must accept a `Watcher`)"
-        flusher
-    elseif flusher
-        (w) -> default_flusher(w)
-    else
-        (_) -> nothing
-    end
-    # NOTE: the callback for the timer requires 1 arg (the timer itself)
-    w._fetch_func =
-        (_) -> begin
-            fetcher_task = threads ? (@spawn wrapped_fetcher()) : (@async wrapped_fetcher())
-            @async begin
-                sleep(timeout)
-                safenotify(fetcher_task.donenotify)
-            end
-            safewait(fetcher_task.donenotify)
-            if istaskdone(fetcher_task) && fetch(fetcher_task)
-                w.attempts = 0
-                let time_now = now()
-                    time_now - w.last_flush > w.flush_interval && _call_flush(w, time_now)
-                end
-            else
-                w.attempts += 1
-                w.last_try = now()
-            end
-        end
-    w._timer = Timer(w._fetch_func, 0; interval=interval.value)
-    w.last_flush = now()
+    @debug "new watcher: $name"
+    w = Watcher19{T}(;
+        buffer=CircularBuffer{BufferEntry(T)}(len),
+        name=String(name),
+        has=HasFunction((load, process, flush)),
+        interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
+        capacity=Capacity((buffer_capacity, view_capacity)),
+        _exec=Exec((threads, Semaphore(1), Semaphore(1))),
+        _val=Val(Symbol(name)),
+        attrs,
+    )
+    @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
+        with id $(w.name) (It must accept a `Watcher` as argument, and return a boolean)."
+    w = finalizer(close, w)
+    @debug "_init $name"
+    _init!(w, w._val)
+    @debug "_load for $name? $(w.has.load)"
+    w.has.load && _load!(w, w._val)
+    w.last_flush = now() # skip flush on start
+    @debug "setting timer for $name"
+    _timer!(w)
+    @debug "watcher $name initialized!"
     w
 end
 
-_call_flush(w::Watcher, time=now()) = @async @acquire w._buffer_sem begin
-    w.last_flush = time
-    w._flush_func(w.buffer)
-end
-@doc "Force flush watcher."
-flush!(w::Watcher) = w._flush_func(w)
-@doc "Save function for watcher data, saves to the default `DATA_PATH` \
-located lmdb instance using serialization."
-function default_flusher(w::Watcher)
-    save_data(zilmdb(), w.name, w.buffer; serialize=true)
-end
-default_starter(w::Watcher) = begin
-    load_data(zilmdb(), w.name; serialized=true)
+@doc "Helper function to push a vector of values to the watcher buffer."
+function pushstart!(w::Watcher, vec)
+    isempty(vec) && return nothing
+    time = now()
+    start_offset = min(w.buffer.capacity, size(vec, 1))
+    pushval(x) = push!(w.buffer, (; time, value=x.value))
+    foreach(pushval, @view(vec[(end - start_offset + 1):end]))
 end
 
+@doc "Helper function to push a new value to the watcher buffer if it is different from the last one."
+function pushnew!(w::Watcher, value)
+    try
+        if !isnothing(value) && value != w.buffer[end].value
+            push!(w.buffer, (time=now(), value))
+        end
+    catch error
+        if error isa BoundsError && isempty(w.buffer)
+            push!(w.buffer, (time=now(), value))
+        else
+            rethrow(error)
+        end
+    end
+end
+
+_isserialized(w::Watcher) = get!(w.attrs, :serialized, false)
+
+@doc "Save function for watcher data, saves to the default `DATA_PATH` \
+located lmdb instance using serialization."
+function default_flusher(w::Watcher, key; reset=false, buf=w.buffer)
+    save_data(zilmdb(), key, buf; serialize=_isserialized(w), overwrite=true, reset)
+end
+default_flusher(w::Watcher) = default_flusher(w, w.name)
+@doc "Load function for watcher data, loads from the default `DATA_PATH` \
+located lmdb instance using serialization."
+function default_loader(w::Watcher, key)
+    begin
+        get!(w.attrs, :loaded, false) && return nothing
+        v = load_data(zilmdb(), key; serialized=_isserialized(w))
+        !isnothing(v) && pushstart!(w, v)
+        w.has.process && _process!(w, w._val)
+        w.attrs[:loaded] = true
+    end
+end
+default_loader(w::Watcher) = default_loader(w, w.name)
+
+@doc "Processes the values of a watcher buffer into a dataframe.
+To be used with: `default_init` and `default_get`
+"
+function default_process(w::Watcher, appendby::Function)
+    isempty(w.buffer) && return nothing
+    if w.attrs[:last_processed] == DateTime(0)
+        appendby(w.attrs[:view], w.buffer, w.capacity.view)
+    else
+        idx = searchsortedfirst(
+            w.buffer, w.attrs[:last_processed]; lt=(x, y) -> isless(x.time, y)
+        )
+        let range = (idx + 1):lastindex(w.buffer)
+            length(range) > 0 &&
+                appendby(w.attrs[:view], @view(w.buffer[range]), w.capacity.view)
+        end
+    end
+    w.attrs[:last_processed] = w.buffer[end].time
+end
+function default_init(w::Watcher, dataview=DataFrame())
+    w.attrs[:view] = dataview
+    w.attrs[:last_processed] = DateTime(0)
+    w.attrs[:serialized] = true
+end
+default_get(w::Watcher) = w.attrs[:view]
+
+_notimpl(sym, w) = throw(error("`$sym` Not Implemented for watcher `$(w.name)`"))
+@doc "May run after a successful fetch operation, according to the `flush_interval`. It spawns a task."
+_flush!(w::Watcher, ::Val) = default_flusher(w, w.attrs[:key])
+@doc "Called once on watcher creation, used to pre-fill the watcher buffer."
+_load!(w::Watcher, ::Val) = default_loader(w, w.attrs[:key])
+@doc "Appends new data to the watcher buffer, returns `true` when new data is added, `false` otherwise."
+_fetch!(w::Watcher, ::Val) = _notimpl(fetch!, w)
+@doc "Processes the watcher data, called everytime the watcher fetches new data."
+_process!(w::Watcher, ::Val) = default_process(w, Data.DFUtils.appendmax!)
+@doc "Function to run on watcher initialization, it runs before `_load!`."
+_init!(w::Watcher, ::Val) = default_init(w)
+@doc "Returns the processed `view` of the watcher data."
+_get(w::Watcher, ::Val) = default_get(w)
+@doc "Returns the processed `view` of the watcher data. Accessible also as a `view` property of the watcher object."
+Base.get(w::Watcher) = _get(w, w._val)
+function _delete!(w::Watcher, ::Val)
+    delete!(zilmdb().group, get!(w.attrs, :key, w.name))
+    nothing
+end
+@doc "Deletes all watcher data from storage backend. Also empties the buffer."
+function Base.delete!(w::Watcher)
+    _delete!(w, w._val)
+    empty!(w.buffer)
+end
+function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
+    k = get!(w.attrs, :key, w.name)
+    z = load_data(zilmdb(), k; as_z=true)
+    zdelete!(z, from, to; serialized=_isserialized(w), kwargs...)
+    # TODO generalize this searchsorted based deletion function
+    if isnothing(from)
+        if isnothing(to)
+            return nothing
+        else
+            to_idx = searchsortedlast(w.buffer, (; time=to); by=x -> x.time)
+            deleteat!(w.buffer, firstindex(w.buffer, 1):to_idx)
+        end
+    elseif isnothing(to)
+        from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
+        deleteat!(w.buffer, (from_idx + 1):lastindex(w.buffer, 1))
+    else
+        from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
+        to_idx = searchsortedlast(w.buffer, (; time=to); by=x -> x.time)
+        deleteat!(w.buffer, (from_idx + 1):to_idx)
+    end
+end
+@doc "Delete watcher data from storage backend within the date range specified."
+function Base.deleteat!(w::Watcher, range::DateTuple)
+    _deleteat!(w, w._val; from=range.start, to=range.stop)
+end
+
+@doc "Flush the watcher. If wait is `true`, block until flush completes."
+function flush!(w::Watcher; force=true, sync=false)
+    time_now = now()
+    if force || time_now - w.last_flush > w.interval.flush
+        t = @async @acquire w._exec.buffer_sem begin
+            w.last_flush = time_now
+            _flush!(w, w._val)
+        end
+    end
+    sync && wait(t)
+    nothing
+end
 @doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
 polling will resume after the watcher `interval`."
 function fetch!(w::Watcher; reset=false)
     try
         if reset
-            w._fetch_func()
+            _schedule_fetch(w, w.interval.timeout, w._exec.threads)
             close(w._timer)
-            w._timer = Timer(w._fetch_func, w.interval.value; interval=w.interval.value)
+            _timer!(w)
         else
-            w._fetch_func(w._timer)
+            _schedule_fetch(w, w.interval.timeout, w._exec.threads)
         end
     catch e
         @error e
@@ -198,15 +308,25 @@ function fetch!(w::Watcher; reset=false)
     end
 end
 
-@doc "True if last available data entry is older than `now() + interval + timeout`."
+@doc "True if last available data entry is older than `now() + fetch_interval + fetch_timeout`."
 function isstale(w::Watcher)
-    w.attempts > 0 || last(w.buffer).time < now() - w.interval - w.timeout
+    w.attempts > 0 ||
+        w.last_fetch < now() - w.interval.fetch_interval - w.interval.fetch_timeout
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
 Base.close(w::Watcher) = begin
     isnothing(w._timer) || Base.close(w._timer)
     flush!(w)
+    nothing
+end
+Base.empty!(w::Watcher) = empty!(w.buffer)
+Base.getproperty(w::Watcher, p::Symbol) = begin
+    if p == :view
+        Base.get(w)
+    else
+        getfield(w, p)
+    end
 end
 
 function Base.display(w::Watcher)
@@ -223,12 +343,12 @@ function Base.display(w::Watcher)
         end
         write(out, "\nName: ")
         write(out, w.name)
-        write(out, "\nFetch: ")
-        write(out, "$(compact(w.interval))")
-        write(out, "\nFlush: ")
-        write(out, "$(compact(w.flush_interval))")
-        write(out, "\nTimeout: ")
-        write(out, "$(compact(w.timeout))")
+        write(out, "\nIntervals: ")
+        write(out, "$(compact(w.interval.timeout))(TO)")
+        write(out, ", $(compact(w.interval.fetch))(FE)")
+        write(out, ", $(compact(w.interval.flush))(FL)")
+        write(out, "\nFetched: ")
+        write(out, "$(w.last_fetch)")
         write(out, "\nFlushed: ")
         write(out, "$(w.last_flush)")
         Base.println(String(take!(out)))
@@ -237,7 +357,9 @@ function Base.display(w::Watcher)
     end
 end
 
-export Watcher, watcher, isstale
+export Watcher, watcher, isstale, default_loader, default_flusher
+export default_process, default_init, default_get
+export pushnew!, pushstart!
 
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")

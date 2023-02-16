@@ -1,3 +1,4 @@
+const CpTwitterVal = Val{:cp_twitter}
 const CpTweet = @NamedTuple begin
     date::DateTime
     status::String
@@ -5,16 +6,21 @@ const CpTweet = @NamedTuple begin
     like_count::Int
 end
 
-
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (coinpaprika).
 
 """
-function cp_twitter_watcher(syms::AbstractVector)
-    for s in syms
-        cp.check_coin_id(s)
-    end
-    fetcher() = begin
-        tweets = Dict(s => cp.twitter(s) for s in syms)
+function cp_twitter_watcher(syms::AbstractVector, interval=Minute(5))
+    attrs = Dict{Symbol, Any}()
+    attrs[:ids] = cp.idbysym.(syms)
+    attrs[:key] = "cp_twitter_$(join(string.(syms), "-"))"
+    watcher_type = Dict{String,Vector{CpTweet}}
+    watcher(watcher_type, :cp_twitter; flush=true, fetch_interval=interval, attrs)
+end
+cp_twitter_watcher(syms...) = cp_twitter_watcher([syms...])
+
+function _fetch!(w::Watcher, ::CpTwitterVal)
+    tweets = Dict(s => cp.twitter(s) for s in w.attrs[:ids])
+    if length(tweets) > 0
         result = Dict{String,Vector{CpTweet}}()
         temp = Dict{String,Any}()
         for (s, tws) in tweets
@@ -27,10 +33,12 @@ function cp_twitter_watcher(syms::AbstractVector)
             end
             result[s] = tweets
         end
-        result
+        pushnew!(w, result)
+        true
+    else
+        false
     end
-    name = "cp_$(join(syms, "-"))-tweets"
-    watcher_type = Dict{Symbol,Vector{CpTweet}}
-    watcher(watcher_type, name, fetcher; flusher=true, interval=Minute(5))
 end
-cp_twitter_watcher(syms...) = cp_twitter_watcher([syms...])
+
+_init!(w::Watcher, ::CpTwitterVal) = default_init(w, nothing)
+_get!(w::Watcher, ::CpTwitterVal) = w.buffer
