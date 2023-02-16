@@ -1,21 +1,5 @@
-using Serialization
 using Misc: Iterable
 using Data: @to_mat
-
-tobytes(buf::IOBuffer, data) = begin
-    @debug @assert position(buf) == 0
-    serialize(buf, data)
-    take!(buf)
-end
-
-tobytes(data) = begin
-    buf = IOBuffer()
-    try
-        tobytes(buf, data)
-    finally
-        close(buf)
-    end
-end
 
 function _check_size(data, arr::ZArray)
     if arr.storage isa LMDBDictStore
@@ -97,11 +81,9 @@ function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_
     end
 end
 
-function _partial_checks(data, za, data_view, data_offset, data_col, za_col,)
-    @debug :saved dt(za[end, za_col]):data_view,
-    dt(data[data_offset, data_col])
-    @assert timefloat(data[data_offset, data_col]) >=
-            timefloat(za[end, za_col])
+function _partial_checks(data, za, data_view, data_offset, data_col, za_col)
+    @debug :saved dt(za[end, za_col]):data_view, dt(data[data_offset, data_col])
+    @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, za_col])
 end
 
 @doc """ Saves data to a zarr array ensuring only dates seriality, not contiguity (as opposed to `_save_ohlcv`).
@@ -115,7 +97,7 @@ function _save_data(
     data_col=1,
     za_col=data_col,
     overwrite=true,
-    reset=false
+    reset=false,
 )
     local za
 
@@ -137,7 +119,9 @@ function _save_data(
                     @view(za[:, za_col]), data_first_ts; by=timefloat
                 )
                 data_view = @view data[:, :]
-                _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, za_col)
+                _overwrite_checks(
+                    data, za, offset, data_first_ts, saved_last_ts, data_col, za_col
+                )
             else
                 # when not overwriting get the index where data has new values
                 data_offset =
@@ -157,7 +141,7 @@ function _save_data(
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
                 @assert timefloat(za[max(1, offset - 1), za_col]) <=
-                        timefloat(data_view[begin, data_col])
+                    timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
@@ -173,7 +157,7 @@ function _save_data(
                 saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
                 else
-                    @view za[(saved_offset+1):end, :]
+                    @view za[(saved_offset + 1):end, :]
                 end
             end
             szd = size(data, 1)
@@ -183,7 +167,7 @@ function _save_data(
             # the new size will include the amount of saved data not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
             if ssd > 0
-                za[(szd+1):end, :] = saved_data
+                za[(szd + 1):end, :] = saved_data
             end
             za[begin:szd, :] = @to_mat(data)
             @debug "backwriting - data_last: $(dt(data_last_ts)) saved_first: $(dt(saved_first_ts))"
@@ -194,6 +178,7 @@ function _save_data(
     end
     return za
 end
+
 
 const DEFAULT_CHUNK_SIZE = (100, 2)
 @doc """ Load data from zarr instance.
@@ -221,8 +206,9 @@ function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
                 fill_value=default(type),
                 fill_as_missing=false,
                 path=key,
-                compressor
+                compressor,
             )
+            _addkey!(zi, emptyz)
             if :as_z ∈ keys(kwargs)
                 return (; z=emptyz, startstop=(0, 0))
             elseif :with_z ∈ keys(kwargs)
@@ -237,21 +223,6 @@ function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
 end
 load_data(key::AbstractString; kwargs...) = load_data(zilmdb(), key; kwargs...)
 
-todata(bytes) = begin
-    buf = IOBuffer(bytes)
-    try
-        deserialize(buf)
-    finally
-        close(buf)
-    end
-end
-todata(buf::IOBuffer, bytes) = begin
-    truncate(buf, 0)
-    write(buf, bytes)
-    seekstart(buf)
-    deserialize(buf)
-end
-
 function _load_data(
     zi::ZarrInstance,
     key,
@@ -262,7 +233,7 @@ function _load_data(
     type=Float64,
     serialized=false,
     as_z=false,
-    with_z=false
+    with_z=false,
 )
     @debug "Loading data from $(zi.path):$(key)"
     z_type = serialized ? Vector{UInt8} : type

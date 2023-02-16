@@ -362,6 +362,7 @@ function _wrap_load(zi::ZarrInstance, key::String, td::Float64; kwargs...)
             emptyz = zcreate(
                 Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor
             )
+            _addkey!(zi, emptyz)
             if :as_z ∈ keys(kwargs)
                 return emptyz, (0, 0)
             elseif :with_z ∈ keys(kwargs)
