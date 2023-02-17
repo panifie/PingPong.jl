@@ -1,5 +1,6 @@
 using Dates: AbstractDateTime
 const DateType = Union{AbstractString,AbstractDateTime,AbstractFloat,Integer}
+const TimeFrameOrStr = Union{TimeFrame, AbstractString}
 export DateType
 
 @doc "Mapping of timeframes to default window sizes."
