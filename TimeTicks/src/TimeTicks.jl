@@ -84,48 +84,30 @@ end
 
 @doc "Converts integers to relative datetimes according to given period."
 function from_to_dt(prd::Period, from, to)
-    if from !== ""
-        from = if typeof(from) <: Int
-            from
-        else
-            something(tryparse(Int, from), tryparse(DateTime, from), from)
-        end
-        typeof(from) <: Int && begin
-            if from === 0
-                DateTime(0)
-            else
-                if prd.value === 0
-                    from
-                else
-                    now() - (abs(from) * prd)
-                end
-            end
-        end
+    doparse(v) = v
+    function doparse(v::AbstractString)
+        @something tryparse(Int, v) tryparse(DateTime, v) v
     end
-    if to !== ""
-        to = if typeof(to) <: Int
-            to
+    reldate(v, _) = v
+    reldate(v::Int, defv) =
+        if v == 0
+            defv
+        elseif prd.value == 0
+            v
         else
-            something(tryparse(Int, to), tryparse(DateTime, to), to)
+            now() - (abs(v) * prd)
         end
-        typeof(to) <: Int && begin
-            if to === 0
-                now()
-            else
-                if prd.value === 0
-                    to
-                else
-                    now() - (abs(to) * prd)
-                end
-            end
-        end
+    from != "" && begin
+        from = doparse(from) |> x -> reldate(x, DateTime(0))
+    end
+    to != "" && begin
+        to = doparse(from) |> x -> reldate(x, now())
     end
     from, to
 end
 from_to_dt(from, to) = from_to_dt(Second(0), from, to)
 from_to_dt(timeframe, from, to) = begin
-    @as_td
-    from_to_dt(prd, from, to)
+    from_to_dt(convert(TimeFrame, timeframe).period, from, to)
 end
 from_to_dt(tf::TimeFrame, args...) = from_to_dt(tf.period, args...)
 
@@ -174,6 +156,7 @@ dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1000
 
 timefloat(time::Float64) = time
+timefloat(time::Int64) = timefloat(Float64(time))
 @doc "ccxt always uses milliseconds in timestamps."
 timefloat(prd::Period) = convert(Float64, convert(Millisecond, prd).value)
 timefloat(tf::TimeFrame) = timefloat(tf.period)
