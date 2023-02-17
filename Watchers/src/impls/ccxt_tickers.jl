@@ -2,6 +2,7 @@ using Exchanges
 using Exchanges.Ccxt: choosefunc
 using Python
 
+const CcxtTickerVal = Val{:ccxt_ticker}
 const CcxtTicker = @NamedTuple begin
     symbol::String
     timestamp::Option{DateTime}
@@ -27,18 +28,31 @@ end
 
 """
 function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
-    tfunc = choosefunc(exc, "Ticker", syms)
-    fetcher() = begin
-        data = tfunc()
-        result = Dict{String, CcxtTicker}()
-        for (k, v) in PyDict(data)
-            result[pyconvert(String, k)] = fromdict(CcxtTicker, String, v, pyconvert, pyconvert)
-        end
-        result
-    end
-    name = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
+    attrs = Dict{Symbol,Any}()
+    attrs[:tfunc] = choosefunc(exc, "Ticker", syms)
+    attrs[:ids] = syms
+    attrs[:key] = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
     watcher_type = Dict{String,CcxtTicker}
-    watcher(watcher_type, name, fetcher; flusher=true, interval)
+    watcher(
+        watcher_type, :ccxt_ticker; flush=true, process=false, fetch_interval=interval, attrs
+    )
+end
+ccxt_tickers_watcher(syms...) = ccxt_tickers_watcher([syms...])
+
+function _fetch!(w::Watcher, ::CcxtTickerVal)
+    data = w.attrs[:tfunc]() |> PyDict
+    if length(data) > 0
+        result = Dict{String,CcxtTicker}()
+        for k in keys(data)
+            result[pyconvert(String, k)] = fromdict(
+                CcxtTicker, String, data[k], pyconvert, pyconvert
+            )
+        end
+        pushnew!(w, result)
+        true
+    else
+        false
+    end
 end
 
-ccxt_tickers_watcher(syms...) = ccxt_tickers_watcher([syms...])
+_init!(w::Watcher, ::CcxtTickerVal) = default_init(w, nothing)
