@@ -42,16 +42,9 @@ macro lget!(dict, k, expr)
     expr = esc(expr)
     k = esc(k)
     quote
-        try
-            $dict[$k]
-        catch e
-            if e isa KeyError
-                v = $expr
-                $dict[$k] = v
-                v
-            else
-                rethrow(e)
-            end
+        @something get($dict, $k, nothing) let v = $expr
+            $dict[$k] = v
+            v
         end
     end
 end
@@ -146,15 +139,19 @@ macro define_fromdict!(force=false)
         (isdefined($(__module__), Symbol("@fromdict")) && !$force) || @eval begin
             @doc "This macro tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
             macro fromdict(nt_type, key_type, dict_var)
-                ttype = eval( Base.Meta.parse("$__module__.$nt_type"))
-                ktype = eval( Base.Meta.parse("$__module__.$key_type"))
+                ttype = eval(Base.Meta.parse("$__module__.$nt_type"))
+                ktype = eval(Base.Meta.parse("$__module__.$key_type"))
                 @assert ttype <: NamedTuple "First arg must be a namedtuple type."
                 @assert ktype isa Type "Second arg must be the type of the dict keys."
                 @assert applicable(ktype, Symbol()) "Can't convert symbols to $ktype."
                 params = Expr(:parameters)
                 ex = Expr(:tuple, params)
                 for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-                    p = Expr(:kw, fi, :(convert($(ty), $(esc(dict_var))[$(convert(ktype, fi))])))
+                    p = Expr(
+                        :kw,
+                        fi,
+                        :(convert($(ty), $(esc(dict_var))[$(convert(ktype, fi))])),
+                    )
                     push!(params.args, p)
                 end
                 ex
@@ -164,7 +161,7 @@ macro define_fromdict!(force=false)
 end
 
 @doc "Same as `@fromdict` but as a generated function."
-@generated fromdict(tuple, key, di, kconvfunc=convert, convfunc=convert) = begin
+@generated function fromdict(tuple, key, di, kconvfunc=convert, convfunc=convert)
     params = Expr(:parameters)
     ex = Expr(:tuple, params)
     ttype = first(tuple.parameters)
