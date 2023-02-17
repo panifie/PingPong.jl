@@ -144,6 +144,49 @@ function _fetch_loop(
     return out
 end
 
+function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter)
+    if e isa PyException
+        if !isnothing(match(r"429([0]+)?", string(e._v)))
+            @debug "Exchange error 429, too many requests."
+            sleep(sleep_t)
+            sleep_t = (sleep_t + 1) * 2
+            limit = isnothing(limit) ? limit : limit ÷ 2
+            _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
+        elseif py_except_name(e) ∈ ccxt_errors
+            @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
+            return df ? empty_ohlcv() : []
+        else
+            rethrow(e)
+        end
+    else
+        rethrow(e)
+    end
+end
+
+function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter)
+    @debug "Calling into ccxt to fetch data: $pair since $since, max: $limit"
+    data = fetch_func(pair, since, limit)
+    dpl = pyisinstance(data, @py(list))
+    if !dpl || length(data) == 0
+        @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
+        sleep(sleep_t)
+        sleep_t = (sleep_t + 1) * 2
+        return (
+            true,
+            _fetch_with_delay(
+                fetch_func,
+                pair;
+                since=since + SINCE_INC,
+                df,
+                sleep_t,
+                limit=(limit ÷ 2),
+                converter,
+            ),
+        )
+    end
+    (false, data)
+end
+
 @doc """
 Wraps a fetching function around error handling and backoff delay.
 `fetch_func` signature:
@@ -160,47 +203,19 @@ function _fetch_with_delay(
     converter=_to_ohlcv_vecs,
 )
     try
-        @debug "Calling into ccxt to fetch data: $pair since $since, max: $limit"
-        data = fetch_func(pair, since, limit)
-        dpl = pyisinstance(data, @py(list))
-        if !dpl || length(data) == 0
-            @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
-            sleep(sleep_t)
-            sleep_t = (sleep_t + 1) * 2
-            return _fetch_with_delay(
-                fetch_func,
-                pair;
-                since=since + SINCE_INC,
-                df,
-                sleep_t,
-                limit=(limit ÷ 2),
-                converter,
-            )
-        end
-        data = converter(data)
+        handled, data = __handle_fetch(
+            fetch_func, pair, since, limit, sleep_t, df, converter
+        )
+        handled && return data
         # Apply conversion to fetched data
-        if isempty(data) || size(data, 1) == 0
-            return data isa DataFrame ? data : empty_ohlcv()
-        end
-        # @debug "Returning converted ohlcv data."
-        (df && !(data isa DataFrame)) ? to_ohlcv(data) : data
+        data = converter(data)
+        handle_empty(data) = df ? empty_ohlcv() : data
+        handle_empty(data::DataFrame) = data
+        handle_data(data) = df ? to_ohlcv(data) : data
+        handle_data(data::DataFrame) = data
+        isempty(data) || size(data, 1) == 0 ? handle_empty(data) : handle_data(data)
     catch e
-        if e isa PyException
-            if !isnothing(match(r"429([0]+)?", string(e._v)))
-                @debug "Exchange error 429, too many requests."
-                sleep(sleep_t)
-                sleep_t = (sleep_t + 1) * 2
-                limit = isnothing(limit) ? limit : limit ÷ 2
-                _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
-            elseif py_except_name(e) ∈ ccxt_errors
-                @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
-                return df ? empty_ohlcv() : []
-            else
-                rethrow(e)
-            end
-        else
-            rethrow(e)
-        end
+        __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter)
     end
 end
 
