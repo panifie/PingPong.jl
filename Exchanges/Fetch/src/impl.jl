@@ -68,34 +68,54 @@ function _fetch_ohlcv_from_to(
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
 end
 
-@doc "Should return the oldest possible timestamp for a pair, or something close to it."
-function find_since(exc::Exchange, pair)
+function __ordered_timeframes(exc)
     tfs = collect(exc.timeframes)
     periods = period.(convert.(TimeFrame, tfs))
     order = sortperm(periods; rev=true)
     periods = @view periods[order]
     tfs = @view tfs[order]
-    data = []
+    tfs, periods
+end
+
+@doc "Should return the oldest possible timestamp for a pair, or something close to it."
+function find_since(exc::Exchange, pair)
+    data = ()
+    tfs, periods = __ordered_timeframes(exc)
+    as_int(v) = Int(timefloat(v))
     for (t, p) in zip(tfs, periods)
-        old_ts = Int(timefloat(Millisecond(p)))
+        old_ts = as_int(Millisecond(p))
         # fetch the first available candles using a long (1w) timeframe
         data = _fetch_ohlcv_with_delay(exc, pair; timeframe=t, since=old_ts, df=true)
-        if !isempty(data)
-            break
-        end
+        !isempty(data) && break
     end
     if isempty(data)
         # try without `since` arg
         data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
     end
     # default to 1 day
-    isempty(data) && return Int(timefloat(now() - Day(1)))
-    Int(timefloat(data[begin, 1]))
+    as_int(isempty(data) ? now() - Day(1) : data[begin, 1])
 end
 
 function fetch_limit(exc::Exchange, limit::Option{Int})
     if isnothing(limit)
         get(ohlcv_limits, Symbol(lowercase(string(exc.name))), 1000)
+    end
+end
+
+function __get_since(fetch_func, pair, limit, from, out, converter)
+    if from == 0.0
+        find_since(exc, pair)
+    else
+        append!(
+            out,
+            _fetch_with_delay(fetch_func, pair; since=Int(from), df=true, limit, converter),
+        )
+        if size(out, 1) > 0
+            Int(timefloat(out[end, 1]))
+        else
+            @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
+            find_since(exc, pair)
+        end
     end
 end
 
@@ -114,30 +134,19 @@ function _fetch_loop(
 ) where {F<:AbstractFloat}
     @debug "Downloading data for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
-    local since
-    if from === 0.0
-        since = find_since(exc, pair)
-        @debug "since time: ", since
-    else
-        append!(
-            out,
-            _fetch_with_delay(fetch_func, pair; since=Int(from), df=true, limit, converter),
-        )
-        if size(out, 1) > 0
-            since = Int(timefloat(out[end, 1]))
-        else
-            @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
-            since = find_since(exc, pair)
-        end
-    end
+    since = __get_since(fetch_func, pair, limit, from, out, converter)
+    @debug "since time: ", since
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
-    while since < to
+    function dofetch()
         sleep(sleep_t)
         fetched = _fetch_with_delay(fetch_func, pair; since, df=true, limit, converter)
-        size(fetched, 1) == 0 && break
-        append!(out, fetched)
-        last_ts = Int(timefloat(out[end, 1]))
-        since === last_ts && break
+        size(fetched, 1) == 0 ? false : (append!(out, fetched); true)
+    end
+    lastts() = Int(timefloat(out[end, 1]))
+    while since < to
+        dofetch() || break
+        last_ts = lastts()
+        since == last_ts && break
         since = last_ts
         @debug "Downloaded data for pair $pair up to $(since |> dt) from $(exc.name)."
     end
@@ -285,13 +294,11 @@ function fetch_ohlcv(
     t
 end
 
-function __ensure_dates(timeframe, from, to)
-    begin
-        if !is_timeframe_supported(timeframe, exc)
-            error("Timeframe $timeframe not supported by exchange $exc_name.")
-        end
-        from_to_dt(timeframe, from, to)
+function __ensure_dates(timeframe, from, to, exc_name)
+    if !is_timeframe_supported(timeframe, exc)
+        error("Timeframe $timeframe not supported by exchange $exc_name.")
     end
+    from_to_dt(timeframe, from, to)
 end
 
 function __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
@@ -321,7 +328,7 @@ end
 function __get_ohlcv(name, timeframe, from_date, to)
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
-    @debug "...from date $(dt(pair_from_date))"
+    @debug "...from date $(pair_from_date)"
     if !is_last_complete_candle(pair_from_date, timeframe)
         ohlcv = _fetch_ohlcv_from_to(exc, name, timeframe; from=pair_from_date, to)
     else
@@ -374,7 +381,7 @@ function fetch_ohlcv(
 )
     @assert !isempty(exc) "Bad exchange."
     exc_name = exc.name
-    from, to = __ensure_dates(timeframe, from, to)
+    from, to = __ensure_dates(timeframe, from, to, exc_name)
     from_date = __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
     data = Dict{String,PairData}()
     progress && __print_progress_1(pairs)
