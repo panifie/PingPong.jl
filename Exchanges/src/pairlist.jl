@@ -1,4 +1,5 @@
 using Misc: config
+using Lang: @lget!
 
 @inline function qid(v)
     k = keys(v)
@@ -103,13 +104,8 @@ end
 using Python.PythonCall: pystr
 const pyCached = Dict{String,Py}()
 macro pystr(k)
-    quote
-        try
-            pyCached[$k]
-        catch KeyError
-            get!(pyCached, $k, pystr($k))
-        end
-    end
+    s = esc(k)
+    :(@lget! pyCached $s pystr($s))
 end
 
 using Lang: @lget!
