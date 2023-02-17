@@ -12,6 +12,7 @@ using ExchangeTypes
 using Instruments
 using Instruments.Derivatives
 using ..Instances
+using Lang: @lget!
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
 struct AssetCollection2
@@ -131,12 +132,7 @@ function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
     out = Dict()
     @eachrow ac.data begin
         for (tf, df) in :instance.data
-            try
-                push!(out[tf], df)
-            catch error
-                @assert error isa KeyError
-                out[tf] = [df]
-            end
+            push!(@lget!(out, tf, DataFrame[]), df)
         end
     end
     out
