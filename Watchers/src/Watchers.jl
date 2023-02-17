@@ -94,13 +94,16 @@ end
 
  - `buffer`: A [CircularBuffer](https://juliacollections.github.io/DataStructures.jl/latest/circ_buffer/) of default length `1000` of the watcher type parameter.
  - `name`: The name is used for dispatching.
- - `timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
- - `timeout`: How much time to wait for the fetcher function.
- - `interval`: the `Period` with which the `fetcher` function will be called.
- - `flush_interval`: the `Period` with which the `flusher` function will be called.
- - `attempts`: In cause of fetcher failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
+ - `has`: flags that show which callbacks are enabled between `load`, `process` and `flush`.
+ - `fetch_timeout`: How much time to wait for the fetcher function.
+ - `fetch_interval`: the `Period` with which `_fetch!` function will be called.
+ - `flush_interval`: the `Period` with which `_flush!` function will be called.
+ - `capacity`: controls the size of the buffer and the processed container.
+ - `threads`: flag to enable to execute fetching in a separate thread.
+ - `attempts`: In cause of fetching failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
  - `last_fetch`: the most recent time a fetch operation failed.
  - `last_flush`: the most recent time the flush function was called.
+ - `_timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  """
 Watcher = Watcher19
 
@@ -108,15 +111,10 @@ Watcher = Watcher19
 
 - `T`: The type of the underlying `CircularBuffer`
 - `len`: length of the circular buffer.
-- `fetcher`: The _input_ function that fetches data from somewhere, with signature `(Watcher) -> Bool`.
-- `flusher`: Optional function that is called once every `len` successful updates, `(Watcher) -> nothing`
-- `starter`: Optional function that is called on watcher startup to prefill the buffer with previous (most recent) data, `(Watcher) -> nothing`
 
 !!! warning "asyncio vs threads"
-    Both `fetcher` and `flusher` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
+    Both `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
     high computation, pass `threads=true`, you will have to ensure thread safety.
-!!! warning
-    If using flushers, do not modify the input data (argument of the flusher callback), always make a copy.
 """
 function watcher(
     T::Type,
@@ -315,7 +313,7 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-Base.close(w::Watcher) = begin
+Base.close(w::Watcher) = @async begin
     isnothing(w._timer) || Base.close(w._timer)
     flush!(w)
     nothing
