@@ -119,7 +119,6 @@ Watcher = Watcher19
 function watcher(
     T::Type,
     name;
-    len=100,
     load=true,
     process=false,
     flush=false,
@@ -133,7 +132,7 @@ function watcher(
 )
     @debug "new watcher: $name"
     w = Watcher19{T}(;
-        buffer=CircularBuffer{BufferEntry(T)}(len),
+        buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
         name=String(name),
         has=HasFunction((load, process, flush)),
         interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
@@ -303,11 +302,11 @@ function fetch!(w::Watcher; reset=false)
     end
 end
 @doc "Add `v` to the things the watcher is fetching."
-function push!(w::Watcher, v, args...; kwargs...)
+function Base.push!(w::Watcher, v, args...; kwargs...)
     _push!(w, w._val, v, args...; kwargs...)
 end
 @doc "Remove `v` from the things the watcher is fetching."
-function pop!(w::Watcher, v, args...; kwargs...)
+function Base.pop!(w::Watcher, v, args...; kwargs...)
     _pop!(w, w._val, v, args...; kwargs...)
 end
 
