@@ -1,5 +1,14 @@
 using Data:
-    Data, load, to_ohlcv, zi, PairData, DataFrame, empty_ohlcv, Candle, OHLCV_COLUMNS
+    Data,
+    load,
+    to_ohlcv,
+    zi,
+    PairData,
+    DataFrame,
+    empty_ohlcv,
+    Candle,
+    OHLCV_COLUMNS,
+    OHLCVTuple
 using Ccxt
 using Python
 using Python: pylist_to_matrix
@@ -14,7 +23,7 @@ using Exchanges:
 using TimeTicks
 using Lang: @distributed, @parallel, Option
 using Misc
-using Misc: _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop
+using Misc: _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop, StrOrVec, Iterable
 using TimeTicks: TimeFrameOrStr, timestamp
 using Python
 using TimeTicks
@@ -24,7 +33,6 @@ using Processing: cleanup_ohlcv_data, is_last_complete_candle
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_INC = Millisecond(Day(30)).value
-const OHLCVVecs = Vector{Vector{Union{DateTime,Float64}}}
 
 function _to_candle(py, idx, range)
     Candle(dt(pyconvert(Float64, py[idx])), (pyconvert(Float64, py[n]) for n in range)...)
@@ -32,14 +40,14 @@ end
 Base.convert(::Type{Candle}, py::PyList) = _to_candle(py, 1, 2:6)
 Base.convert(::Type{Candle}, py::Py) = _to_candle(py, 0, 1:5)
 @doc "This is the fastest (afaik) way to convert ccxt lists to dataframe friendly format."
-function Base.convert(::Type{OHLCVVecs}, py::Py)
-    vecs = [DateTime[], (Float64[] for _ in 2:length(OHLCV_COLUMNS))...]
+function Base.convert(::Type{OHLCVTuple}, py::Py)
+    vecs = OHLCVTuple()
     loopcols((c, v)) = push!(vecs[c], pyconvert(eltype(vecs[c]), v))
     looprows(cdl) = foreach(loopcols, enumerate(cdl))
     foreach(looprows, py)
     vecs
 end
-_to_ohlcv_vecs(v)::OHLCVVecs = convert(OHLCVVecs, v)
+_to_ohlcv_vecs(v)::OHLCVTuple = convert(OHLCVTuple, v)
 Data.to_ohlcv(py::Py) = DataFrame(_to_ohlcv_vecs(py), OHLCV_COLUMNS)
 
 function _check_from_to(from::F, to::T) where {F,T<:DateType}
@@ -56,7 +64,15 @@ end
 
 @doc "Ensure a `to` date is set, before fetching."
 function _fetch_ohlcv_from_to(
-    exc::Exchange, pair, timeframe; from="", to="", params=PyDict(), sleep_t=1, cleanup=true
+    exc::Exchange,
+    pair,
+    timeframe;
+    from="",
+    to="",
+    params=PyDict(),
+    sleep_t=1,
+    cleanup=true,
+    out=empty_ohlcv(),
 )
     (from, to) = _check_from_to(from, to)
     @debug "Fetching pair $pair from exchange $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
@@ -64,7 +80,7 @@ function _fetch_ohlcv_from_to(
         (pair, since, limit) ->
             pyfetch(exc.py.fetchOHLCV, pair; timeframe, since, limit, params)
     limit = fetch_limit(exc, nothing)
-    data = _fetch_loop(fetch_func, exc, pair; from, to, sleep_t, limit)
+    data = _fetch_loop(fetch_func, exc, pair; from, to, sleep_t, limit, out)
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
 end
 
@@ -102,13 +118,15 @@ function fetch_limit(exc::Exchange, limit::Option{Int})
     end
 end
 
-function __get_since(fetch_func, pair, limit, from, out, converter)
+function __get_since(fetch_func, pair, limit, from, out, is_df, converter)
     if from == 0.0
         find_since(exc, pair)
     else
         append!(
             out,
-            _fetch_with_delay(fetch_func, pair; since=Int(from), df=true, limit, converter),
+            _fetch_with_delay(
+                fetch_func, pair; since=Int(from), df=is_df, limit, converter
+            ),
         )
         if size(out, 1) > 0
             Int(timefloat(out[end, 1]))
@@ -134,18 +152,19 @@ function _fetch_loop(
 ) where {F<:AbstractFloat}
     @debug "Downloading data for pair $pair."
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
-    since = __get_since(fetch_func, pair, limit, from, out, converter)
+    is_df = out isa DataFrame
+    since = __get_since(fetch_func, pair, limit, from, out, is_df, converter)
     @debug "since time: ", since
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     function dofetch()
         sleep(sleep_t)
-        fetched = _fetch_with_delay(fetch_func, pair; since, df=true, limit, converter)
+        fetched = _fetch_with_delay(fetch_func, pair; since, df=is_df, limit, converter)
         size(fetched, 1) == 0 ? false : (append!(out, fetched); true)
     end
-    lastts() = Int(timefloat(out[end, 1]))
+    lastts(out) = Int(timefloat(out[end, 1]))
     while since < to
         dofetch() || break
-        last_ts = lastts()
+        last_ts = lastts(out)
         since == last_ts && break
         since = last_ts
         @debug "Downloaded data for pair $pair up to $(since |> dt) from $(exc.name)."
@@ -233,25 +252,22 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
     limit = fetch_limit(exc, limit)
     timeframe = get(kwargs, :timeframe, config.timeframe)
     params = get(kwargs, :params, PyDict())
-    fetc_func =
-        (pair, since, limit) ->
-            pyfetch(exc.py.fetchOHLCV, pair; since, limit, timeframe, params)
+    function fetch_func(pair, since, limit)
+        pyfetch(exc.py.fetchOHLCV, pair; since, limit, timeframe, params)
+    end
     kwargs = collect((k, v) for (k, v) in kwargs if k ∉ (:params, :timeframe, :limit))
-    _fetch_with_delay(fetc_func, args...; limit, kwargs...)
+    _fetch_with_delay(fetch_func, args...; limit, kwargs...)
 end
 # FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
-function fetch_ohlcv(exc::Exchange, timeframe::TimeFrameOrStr, pairs::StrOrVec; kwargs...)
+function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
-function fetch_ohlcv(timeframe::TimeFrameOrStr, pairs::StrOrVec; kwargs...)
-    fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
-end
-function fetch_ohlcv(exc::Exchange, timeframe::TimeFrameOrStr; qc, kwargs...)
+function fetch_ohlcv(exc, timeframe; qc, kwargs...)
     pairs = get_pairlist(exc, qc; as_vec=true)
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
-function fetch_ohlcv(timeframe::TimeFrameOrStr; kwargs...)
+function fetch_ohlcv(exc, timeframe; kwargs...)
     qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : config.qc
     pairs = collect(keys(get_pairlist(exc, qc)))
     fetch_ohlcv(string(timeframe), pairs; filter(x -> x[1] !== :qc, kwargs)...)
@@ -314,40 +330,43 @@ function __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
                 za, size(za, 1) > 1 ? za[stop, 1] : from
             end
     else
-        from_date = (_) -> (nothing, from)
+        from_date = Returns((nothing, from))
     end
 end
 __print_progress_1(pairs) = begin
     @info "Downloading data for $(length(pairs)) pairs."
     @pbar! pairs "Pairlist download progress" "pair" false
+    pb
 end
 function __print_progress_2(name, exc_name)
     @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
     @pbupdate!
 end
-function __get_ohlcv(name, timeframe, from_date, to)
+function __get_ohlcv(exc, name, timeframe, from_date, to, out=empty_ohlcv())
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
     if !is_last_complete_candle(pair_from_date, timeframe)
-        ohlcv = _fetch_ohlcv_from_to(exc, name, timeframe; from=pair_from_date, to)
+        ohlcv = _fetch_ohlcv_from_to(exc, name, timeframe; from=pair_from_date, to, out)
     else
         ohlcv = empty_ohlcv()
     end
     ohlcv, z
 end
+function __handle_save_ohlcv_error(::ContiguityException, exc_name, name, timeframe, ohlcv)
+    save_ohlcv(zi, exc_name, name, timeframe, ohlcv; reset=true)
+end
+function __handle_save_ohlcv_error(e::AssertionError, _, name, args...)
+    @error "Could not fetch data for pair $name, check integrity of saved data." err = e
+end
+function __handle_save_ohlcv_error(e, args...)
+    rethrow(e)
+end
 function __save_ohlcv(zi, ohlcv, name, timeframe, exc_name, reset)
     try
         save_ohlcv(zi, exc_name, name, timeframe, ohlcv; reset)
     catch e
-        if e isa ContiguityException
-            save_ohlcv(zi, exc_name, name, timeframe, ohlcv; reset=true)
-        elseif e isa AssertionError
-            display(e)
-            @warn "Could not fetch data for pair $name, check integrity of saved data."
-        else
-            rethrow(e)
-        end
+        __handle_save_ohlcv_error(e, exc_name, name, timeframe, ohlcv)
     end
 end
 function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
@@ -371,7 +390,7 @@ end
 function fetch_ohlcv(
     exc::Exchange,
     timeframe::AbstractString,
-    pairs::AbstractVector;
+    pairs::Iterable;
     zi=zi[],
     from::DateType="",
     to::DateType="",
@@ -379,15 +398,16 @@ function fetch_ohlcv(
     reset=false,
     progress=false,
 )
+    local pb
     @assert !isempty(exc) "Bad exchange."
     exc_name = exc.name
     from, to = __ensure_dates(timeframe, from, to, exc_name)
     from_date = __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
     data = Dict{String,PairData}()
-    progress && __print_progress_1(pairs)
+    pb = progress && __print_progress_1(pairs)
     try
         for name in pairs
-            ohlcv, z = __get_ohlcv(name, timeframe, from_date, to)
+            ohlcv, z = __get_ohlcv(exc, name, timeframe, from_date, to)
             __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
             progress && __print_progress_2(name, exc_name)
         end
@@ -397,4 +417,35 @@ function fetch_ohlcv(
     data
 end
 
-export fetch_ohlcv
+function _fetch_candles(
+    exc, timeframe, pairs::Iterable; from::D1, to::D2
+) where {D1,D2<:Union{DateTime,AbstractString}}
+    Dict(
+        name => __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to)[1] for
+        name in pairs
+    )
+end
+
+function _fetch_candles(
+    exc, timeframe, pair::AbstractString; from::D1, to::D2
+) where {D1,D2<:Union{DateTime,AbstractString}}
+    __get_ohlcv(exc, pair, timeframe, Returns((nothing, from)), to)[1]
+end
+
+function fetch_candles(
+    exc::Exchange,
+    timeframe::AbstractString,
+    pairs::Union{AbstractString,Iterable};
+    zi=zi[],
+    from::DateType="",
+    to::DateType="",
+)
+    from, to = __ensure_dates(timeframe, from, to, exc.name)
+    _fetch_candles(exc, timeframe, pairs; from, to)
+end
+
+function fetch_candles(exc::Exchange, tf::TimeFrame, args...; kwargs...)
+    fetch_candles(exc, string(tf), args...; kwargs...)
+end
+
+export fetch_ohlcv, fetch_candles
