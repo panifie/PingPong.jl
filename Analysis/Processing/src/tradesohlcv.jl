@@ -1,6 +1,7 @@
 module TradesOHLCV
 using TimeTicks
 using DataFrames
+using ..Processing: isincomplete
 
 @doc "Returns the index where the data is *assumed* to end being contiguous.
 
@@ -10,10 +11,8 @@ the trades for that particular candle.
 function stopdateidx(v::AbstractVector, tf::TimeFrame; force=false)
     if force || isincomplete(last(v).timestamp, tf)
         to_date = apply(tf, last(v).timestamp)
-        for i in reverse(eachindex(@view(v[(end - 1):-1:begin])))
-            v[i].timestamp < to_date && return i
-        end
-        return firstindex(v) - 1
+        i = findfirst(x -> x.timestamp < to_date, @view(v[(end - 1):-1:begin]))
+        return isnothing(i) ? firstindex(v) - 1 : size(v, 1) - i
     end
     lastindex(v)
 end
@@ -25,14 +24,11 @@ the trades for that particular candle.
 "
 function startdateidx(v::AbstractVector, tf::TimeFrame)
     from_date = apply(tf, first(v).timestamp) + tf.period
-    for i in eachindex(@view(v[(begin + 1):end]))
-        if v[i].timestamp >= from_date
-            return i
-        end
-    end
-    lastindex(v)
+    i = findfirst(x -> x.timestamp >= from_date, @view(v[(begin + 1):end]))
+    isnothing(i) ? lastindex(v) : i + 1
 end
 
+const TRADES_COLS = [:timestamp, :price, :amount]
 @doc "Converts a vector of values with (timestamp, price, amount) fields to OHLCV.
 
 `tf`: the timeframe to build OHLCV for. [`1m`]
@@ -53,11 +49,10 @@ function trades_to_ohlcv(
     else
         v
     end
-    cols = [:timestamp, :price, :amount]
-    data = [getproperty.(trades, c) for c in cols]
+    data = [getproperty.(trades, c) for c in TRADES_COLS]
     # FIXME
     data[1][:] = apply.(tf, data[1])
-    df = DataFrame(data, cols; copycols=false)
+    df = DataFrame(data, TRADES_COLS; copycols=false)
     gd = groupby(df, :timestamp; sort=true)
     ohlcv = combine(
         gd,
