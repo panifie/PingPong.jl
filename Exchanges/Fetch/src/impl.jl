@@ -29,7 +29,7 @@ using Python
 using TimeTicks
 @debug using TimeTicks: dt
 using Pbar
-using Processing: cleanup_ohlcv_data, is_last_complete_candle
+using Processing: cleanup_ohlcv_data, islast
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_INC = Millisecond(Day(30)).value
@@ -342,12 +342,14 @@ function __print_progress_2(name, exc_name)
     @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
     @pbupdate!
 end
-function __get_ohlcv(exc, name, timeframe, from_date, to, out=empty_ohlcv())
+function __get_ohlcv(exc, name, timeframe, from_date, to; out=empty_ohlcv(), cleanup=true)
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
-    if !is_last_complete_candle(pair_from_date, timeframe)
-        ohlcv = _fetch_ohlcv_from_to(exc, name, timeframe; from=pair_from_date, to, out)
+    if !islast(pair_from_date, timeframe)
+        ohlcv = _fetch_ohlcv_from_to(
+            exc, name, timeframe; from=pair_from_date, to, cleanup, out
+        )
     else
         ohlcv = empty_ohlcv()
     end
@@ -421,15 +423,16 @@ function _fetch_candles(
     exc, timeframe, pairs::Iterable; from::D1, to::D2
 ) where {D1,D2<:Union{DateTime,AbstractString}}
     Dict(
-        name => __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to)[1] for
-        name in pairs
+        name =>
+            __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to; cleanup=false)[1]
+        for name in pairs
     )
 end
 
 function _fetch_candles(
     exc, timeframe, pair::AbstractString; from::D1, to::D2
 ) where {D1,D2<:Union{DateTime,AbstractString}}
-    __get_ohlcv(exc, pair, timeframe, Returns((nothing, from)), to)[1]
+    __get_ohlcv(exc, pair, timeframe, Returns((nothing, from)), to; cleanup=false)[1]
 end
 
 function fetch_candles(

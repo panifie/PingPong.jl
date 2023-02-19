@@ -78,7 +78,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         renamecols=false,
     )
 
-    if is_incomplete_candle(@view(df[end, :]), tf)
+    if isincomplete(@view(df[end, :]), tf)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
@@ -92,33 +92,20 @@ function cleanup_ohlcv_data(data, tf::AbstractString; kwargs...)
     cleanup_ohlcv_data(data, convert(TimeFrame, tf); kwargs...)
 end
 
-@doc "Checks if a candle timestamp is too new."
-function is_incomplete_candle(ts::F, td::F) where {F<:AbstractFloat}
-    nw = timefloat(now())
-    ts + td > nw
-end
-
-function is_incomplete_candle(date::DateTime, tf::TimeFrame)
-    is_incomplete_candle(timefloat(date), timefloat(tf))
-end
-
-function is_incomplete_candle(x, tf::TimeFrame=tf"1m")
-    is_incomplete_candle(x.timestamp, tf)
-end
-
-@doc "Checks if a timestamp belongs to the newest possible candle of given timeframe."
-function is_last_complete_candle(x, timeframe)
-    @as_td
-    ts = timefloat(x)
-    is_incomplete_candle(ts + td, td)
-end
-
-function isincomplete(d::DateTime, tf::TimeFrame)
-    is_incomplete_candle(timefloat(apply(tf, d)), timefloat(tf))
-end
-
+isincomplete(d::DateTime, tf::TimeFrame, ::Val{:raw}) = d + tf > now()
+isincomplete(d::DateTime, tf::TimeFrame) = isincomplete(apply(tf, d), tf, Val(:raw))
+@doc "Checks if a candle is too new."
 isincomplete(candle::Candle, tf::TimeFrame) = isincomplete(candle.timestamp, tf)
-iscomplete(candle::Candle, tf) = !isincomplete(candle, tf)
-islast(candle::Candle, tf) = is_incomplete_candle(candle.timestamp, tf)
+@doc "Checks if a candle is old enough to be complete."
+iscomplete(v, tf) = !isincomplete(v, tf)
+@doc "Checks if a candle is exactly the latest candle."
+islast(d::DateTime, tf, ::Val{:raw}) = begin
+    n = now()
+    next = d + tf
+    next <= n && next + tf > n
+end
+islast(d::DateTime, tf) = islast(apply(tf, d), tf, Val(:raw))
+islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
+islast(v, tf::AbstractString) = islast(v, timeframe(tf))
 
 export cleanup_ohlcv_data, isincomplete, iscomplete, islast
