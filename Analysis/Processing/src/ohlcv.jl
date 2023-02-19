@@ -33,7 +33,7 @@ function _fill_missing_rows(df, prd::Period; strategy, inplace)
             # NOTE: we assume that ALL timestamps are multiples of the timedelta!
             while ts_cur < ts_end
                 if ts_cur !== :timestamp[ts_idx]
-                    close = :close[ts_idx-1]
+                    close = :close[ts_idx - 1]
                     push!(ordered_rows, Candle(ts_cur, can(close)...))
                 else
                     ts_idx += 1
@@ -75,7 +75,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         :low => minimum,
         :close => last,
         :volume => maximum;
-        renamecols=false
+        renamecols=false,
     )
 
     if is_incomplete_candle(@view(df[end, :]), tf)
@@ -98,11 +98,6 @@ function is_incomplete_candle(ts::F, td::F) where {F<:AbstractFloat}
     ts + td > nw
 end
 
-function is_incomplete_candle(x::AbstractString, td)
-    ts = timefloat(x)
-    is_incomplete_candle(ts, td)
-end
-
 function is_incomplete_candle(date::DateTime, tf::TimeFrame)
     is_incomplete_candle(timefloat(date), timefloat(tf))
 end
@@ -111,12 +106,6 @@ function is_incomplete_candle(x, tf::TimeFrame=tf"1m")
     is_incomplete_candle(x.timestamp, tf)
 end
 
-function isincomplete(d::DateTime, tf::TimeFrame)
-    is_incomplete_candle(timefloat(apply(tf, d)), timefloat(tf))
-end
-isincomplete(candle::Candle, tf::TimeFrame) = isincomplete(candle.timestamp, tf)
-iscomplete(candle::Candle, timeframe) = !isincomplete(candle, timeframe)
-
 @doc "Checks if a timestamp belongs to the newest possible candle of given timeframe."
 function is_last_complete_candle(x, timeframe)
     @as_td
@@ -124,4 +113,12 @@ function is_last_complete_candle(x, timeframe)
     is_incomplete_candle(ts + td, td)
 end
 
-export cleanup_ohlcv_data, isincomplete, iscomplete
+function isincomplete(d::DateTime, tf::TimeFrame)
+    is_incomplete_candle(timefloat(apply(tf, d)), timefloat(tf))
+end
+
+isincomplete(candle::Candle, tf::TimeFrame) = isincomplete(candle.timestamp, tf)
+iscomplete(candle::Candle, tf) = !isincomplete(candle, tf)
+islast(candle::Candle, tf) = is_incomplete_candle(candle.timestamp, tf)
+
+export cleanup_ohlcv_data, isincomplete, iscomplete, islast
