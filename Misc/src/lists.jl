@@ -5,7 +5,8 @@ const ohlcv_limits = IdDict(
     :poloniex => 20000,
     :kucoin => nothing,
     :binance => 20000,
-    :bybit => 20000,
+    :bybit => 1000,
+    :bybit_futures => 200,
 )
 
 @doc "Some exchanges are split into different classes in ccxt."
