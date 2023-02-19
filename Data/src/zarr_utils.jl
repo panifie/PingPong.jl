@@ -192,6 +192,7 @@ macro zcreate()
                 compressor=compressor,
             )
             _addkey!($zi, z)
+            resize!(z, 0, $(sz)[2:end]...)
             z
         end
     end
