@@ -101,7 +101,7 @@ function from_to_dt(prd::Period, from, to)
         from = doparse(from) |> x -> reldate(x, DateTime(0))
     end
     to != "" && begin
-        to = doparse(from) |> x -> reldate(x, now())
+        to = doparse(to) |> x -> reldate(x, now())
     end
     from, to
 end
