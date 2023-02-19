@@ -234,10 +234,17 @@ function sandbox!(exc::Exchange=exc, flag=true)
     loadmarkets!(exc)
 end
 @doc "Check if sandbox mode is enabled for exchange."
-issandbox(exc::Exchange=exc) = pyconvert(Bool, exc.py.urls.get("test", "") == exc.py.urls["api"])
+function issandbox(exc::Exchange=exc)
+    pyconvert(Bool, exc.py.urls.get("test", "") == exc.py.urls["api"])
+end
 
 @doc "Enable or disable rate limit."
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
+@doc "Set exchange timouet"
+timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
+function check_timeout(exc::Exchange=exc, interval=Second(5))
+    @assert Bool(Millisecond(interval).value <= exc.timeout) "Watcher interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
+end
 
 timestamp(exc::Exchange) = pyconvert(Int64, pyfetch(exc.py.fetchTime))
 Base.time(exc::Exchange) = dt(pyconvert(Float64, pyfetch(exc.py.fetchTime)))
@@ -248,4 +255,4 @@ include("data.jl")
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, get_pairlist, get_pairs
 export sandbox!, issandbox, ratelimit!
-export timestamp
+export timestamp, timeout!, check_timeout
