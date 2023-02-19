@@ -7,7 +7,7 @@ const DATA_PATH = get(
     ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))"
 )
 
-const Iterable = Union{AbstractVector{T},AbstractSet{T}} where {T}
+const Iterable = Union{AbstractVector{T},AbstractSet{T}, Tuple{Vararg{T}}} where {T}
 
 @doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
 where the keys are the pairs names and the data is the OHLCV data of the pair."
