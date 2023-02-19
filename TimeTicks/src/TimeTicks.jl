@@ -148,6 +148,7 @@ end
 const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
 convert(::Type{String}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
 Base.string(tf::TimeFrame) = convert(String, tf)
+timeframe(s::AbstractString) = Base.parse(TimeFrame, s)
 
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d
@@ -235,6 +236,7 @@ export @as_td,
     @tf_str,
     @dt_str,
     TimeFrame,
+    timeframe,
     apply,
     dt,
     timefloat,
