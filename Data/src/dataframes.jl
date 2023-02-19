@@ -113,7 +113,7 @@ function appendmax!(df, v, maxlen)
     append!(df, v) # FIXME: we should check the size *before* appending.
     sz = size(df, 1)
     if sz > maxlen
-        deleteat!(df, (maxlen + 1):sz)
+        deleteat!(df, firstindex(df, 1):(sz - maxlen))
     end
 end
 
