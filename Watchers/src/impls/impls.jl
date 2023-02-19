@@ -1,6 +1,6 @@
 module WatchersImpls
 using LazyJSON
-using Lang: @define_fromdict!, @kget!, fromdict, Option
+using Lang: @define_fromdict!, @lget!, @kget!, fromdict, Option
 using TimeTicks
 using ..Watchers
 import ..Watchers: _fetch!, _init!, _load!, _flush!, _process!, _get
