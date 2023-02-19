@@ -167,16 +167,9 @@ end
 
 @doc "Helper function to push a new value to the watcher buffer if it is different from the last one."
 function pushnew!(w::Watcher, value)
-    try
-        if !isnothing(value) && value != w.buffer[end].value
-            push!(w.buffer, (time=now(), value))
-        end
-    catch error
-        if error isa BoundsError && isempty(w.buffer)
-            push!(w.buffer, (time=now(), value))
-        else
-            rethrow(error)
-        end
+    # NOTE: use object inequality to avoid non determinsm
+    if !isnothing(value) && (isempty(w.buffer) || value !== w.buffer[end].value)
+        push!(w.buffer, (time=now(), value))
     end
 end
 
