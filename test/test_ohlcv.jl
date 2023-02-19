@@ -5,7 +5,7 @@ timeframe = "5m"
 _test_ohlcv_exc() = begin
     @eval using Fetch
     @eval using Data: OHLCV_COLUMNS
-    @eval using Processing: is_last_complete_candle
+    @eval using Processing: islast
     timeframe = "5m"
     count = 500
     o = fetch_ohlcv(timeframe, pair; from=-count, progress=false)
@@ -18,7 +18,7 @@ _test_ohlcv_exc() = begin
     @assert names(pd.data) == String.(OHLCV_COLUMNS)
     @assert size(pd.data)[1] > (count / 10 * 9) # if its less there is something wrong
     last_candle = pd.data[end, :][1]
-    @assert is_last_complete_candle(last_candle, timeframe)
+    @assert islast(last_candle, timeframe)
     true
 end
 
