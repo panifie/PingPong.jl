@@ -34,7 +34,12 @@ function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
     attrs[:key] = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
     watcher_type = Dict{String,CcxtTicker}
     watcher(
-        watcher_type, :ccxt_ticker; flush=true, process=false, fetch_interval=interval, attrs
+        watcher_type,
+        :ccxt_ticker;
+        flush=true,
+        process=false,
+        fetch_interval=interval,
+        attrs,
     )
 end
 ccxt_tickers_watcher(syms...) = ccxt_tickers_watcher([syms...])

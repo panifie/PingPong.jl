@@ -25,9 +25,7 @@ function load_ohlcv(pairs::Union{AbstractArray,AbstractDict}, timeframe::Abstrac
 end
 
 function save_ohlcv(exc::Exchange, args...; kwargs...)
-    begin
-        save_ohlcv(zi[], exc.name, args...; kwargs...)
-    end
+    save_ohlcv(zi[], exc.name, args...; kwargs...)
 end
 
 @doc "Updates pair data of the globally set exchange."

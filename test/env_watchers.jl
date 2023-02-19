@@ -9,3 +9,4 @@ cp = PingPong.Watchers.CoinPaprika
 excs = collect(keys(cg.loadderivatives!()))
 wc = PingPong.Watchers
 wi = PingPong.Watchers.WatchersImpls
+setexchange!(:bybit)
