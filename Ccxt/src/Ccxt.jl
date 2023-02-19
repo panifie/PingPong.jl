@@ -20,7 +20,7 @@ function __init__()
     end
 end
 
-close_exc(e::Py) = e.close()
+close_exc(e::Py) = !pyisnull(e) && pyhasattr(e, "close") && e.close()
 
 _issupported(has::Py, k) = k in has && Bool(has[k])
 issupported(exc, k) = _issupported(exc.py.has, k)
@@ -69,18 +69,24 @@ function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
                 Dict(i => data[i] for i in inputs)
             end
         else
-            () -> begin
-                Dict(i => pyfetch(f, i; kwargs...) for i in inputs)
+            () -> @sync begin
+                out = Dict{eltype(inputs),Py}()
+                for i in inputs
+                    @async begin
+                        out[i] = pyfetch(f, i; kwargs...)
+                    end
+                end
+                out
             end
         end
     else
-        () -> begin
-            pyfetch(f; kwargs...)
-        end
+        () -> pyfetch(f; kwargs...)
     end
 end
 
-choosefunc(exc, suffix, inputs...; kwargs...) = choosefunc(exc, suffix, [inputs...]; kwargs...)
+function choosefunc(exc, suffix, inputs...; kwargs...)
+    choosefunc(exc, suffix, [inputs...]; kwargs...)
+end
 
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
 end # module Ccxt
