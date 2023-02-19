@@ -53,7 +53,7 @@ end
 function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
     size(data, 1) === 0 && return empty_ohlcv()
-    df = data isa DataFrame ? data : to_ohlcv(data, tf)
+    df = data isa AbstractDataFrame ? data : to_ohlcv(data, tf)
 
     # normalize dates
     @eachrow! df begin
