@@ -26,6 +26,14 @@ struct Candle{T<:AbstractFloat}
     Candle(t::Tuple) = Candle(t...)
 end
 
+@doc "Similar to a StructArray (and should probably be replaced by it), used for fast conversion."
+const OHLCVTuple = Tuple{Vector{DateTime},Vararg{Vector{Float64},5}}
+OHLCVTuple()::OHLCVTuple = (DateTime[], (Float64[] for _ in 2:length(OHLCV_COLUMNS))...)
+Base.append!(a::T, b::T) where {T<:OHLCVTuple} = foreach(splat(append!), zip(a, b))
+Base.axes(o::OHLCVTuple) = ((Base.OneTo(size(v, 1)) for v in o)...,)
+Base.axes(o::OHLCVTuple, i) = Base.OneTo(size(o[i], 1))
+Base.getindex(o::OHLCVTuple, i, j) = o[j][i]
+
 @kwdef struct PairData
     name::String
     tf::String # string
@@ -174,10 +182,16 @@ mutable struct TimeFrameError <: Exception
     td::Any
 end
 
+const SaveOHLCVError = Union{MethodError,DivideError,TimeFrameError}
+function __handle_save_ohlcv_error(e::SaveOHLCVError, zi, key, pair, td, data; kwargs...)
+    @warn "Resetting local data for pair $pair." e
+    _save_ohlcv(zi, key, td, data; kwargs..., reset=true)
+end
+__handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
+
 @doc """
 `data_col`: the timestamp column of the new data (1)
 `saved_col`: the timestamp column of the existing data (1)
-`kind`: what type of trading data it is, (ohlcv or trades)
 `pair`: the trading pair (BASE/QUOTE string)
 `timeframe`: exchange timeframe (from exc.timeframes)
 `type`: Primitive type used for storing the data (Float64)
@@ -188,26 +202,21 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
     try
         _save_ohlcv(zi, key, td, data; kwargs...)
     catch e
-        if typeof(e) ∈ (MethodError, DivideError, TimeFrameError)
-            @warn "Resetting local data for pair $pair." e
-            _save_ohlcv(zi, key, td, data; kwargs..., reset=true)
-        else
-            rethrow(e)
-        end
+        __handle_save_ohlcv_error(e, zi, key, pair, td, data; kwargs...)
     end
 end
+save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
 
 function _save_ohlcv(
     zi::ZarrInstance,
     key,
     td,
     data;
-    kind="ohlcv",
     type=Float64,
     data_col=1,
     saved_col=data_col,
     overwrite=true,
-    reset=false,
+    reset=false
 )
     local za
     !reset && @check_td(data)
@@ -252,7 +261,7 @@ function _save_ohlcv(
                     @debug :saved, dt(za[end, saved_col]) :data_new,
                     dt(data[data_offset, data_col])
                     @assert za[end, saved_col] + td ===
-                        timefloat(data[data_offset, data_col])
+                            timefloat(data[data_offset, data_col])
                 else
                     data_view = @view data[1:0, :]
                 end
@@ -270,14 +279,14 @@ function _save_ohlcv(
             # fetch saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[(saved_offset + 1):end, :]
+            saved_data = za[(saved_offset+1):end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[(szd + 1):end, :] = saved_data
+            za[(szd+1):end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
@@ -295,8 +304,8 @@ end
 @inline sanitize_pair(pair::AbstractString) = replace(pair, r"\.|\/|\-" => "_")
 
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
-@inline function pair_key(exc_name, pair, timeframe; kind="ohlcv")
-    "$exc_name/$(sanitize_pair(pair))/$kind/tf_$timeframe"
+@inline function pair_key(exc_name, pair, timeframe)
+    "$exc_name/$(sanitize_pair(pair))/ohlcv/tf_$timeframe"
 end
 
 @doc "An empty OHLCV dataframe."
@@ -304,7 +313,7 @@ function empty_ohlcv()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
-        copycols=false,
+        copycols=false
     )
 end
 
@@ -337,7 +346,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             idx = max(size(tmp, 1), from)
             @with tmp begin
                 for col in eachcol(tmp)
-                    p.data[!, col] = @view col[begin:(idx - 1)]
+                    p.data[!, col] = @view col[begin:(idx-1)]
                 end
             end
         else
@@ -345,34 +354,41 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             if idx > 0
                 @with tmp begin
                     for (col, name) in zip(eachcol(tmp), names(tmp))
-                        p.data[!, name] = @view col[(idx + 1):end]
+                        p.data[!, name] = @view col[(idx+1):end]
                     end
                 end
             end
         end
     end
 end
+const ResetErrors = Union{MethodError,DivideError,ArgumentError}
+function __handle_error(::ResetErrors, zi, key, kwargs)
+    delete!(zi.store, key) # ensure path does not exist
+    emptyz = zcreate(
+        Float64,
+        zi.store,
+        2, length(OHLCV_COLUMNS);
+        fill_value=0.0,
+        fill_as_missing=false,
+        path=key,
+        compressor
+    )
+    _addkey!(zi, emptyz)
+    if :as_z ∈ keys(kwargs)
+        return emptyz, (0, 0)
+    elseif :with_z ∈ keys(kwargs)
+        return empty_ohlcv(), emptyz
+    else
+        return empty_ohlcv()
+    end
+end
+__handle_error(e, args...) = rethrow(e)
 
 function _wrap_load(zi::ZarrInstance, key::String, td::Float64; kwargs...)
     try
-        _load(zi, key, td; kwargs...)
+        _load_ohlcv(zi, key, td; kwargs...)
     catch e
-        if typeof(e) ∈ (MethodError, DivideError, ArgumentError)
-            delete!(zi.store, key) # ensure path does not exist
-            emptyz = zcreate(
-                Float64, zi[].store, 2, length(OHLCV_COLUMNS); path=key, compressor
-            )
-            _addkey!(zi, emptyz)
-            if :as_z ∈ keys(kwargs)
-                return emptyz, (0, 0)
-            elseif :with_z ∈ keys(kwargs)
-                return empty_ohlcv(), emptyz
-            else
-                return empty_ohlcv()
-            end
-        else
-            rethrow(e)
-        end
+        __handle_error(e, zi, key, kwargs)
     end
 end
 _wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...; kwargs...)
@@ -395,10 +411,10 @@ function to_ohlcv(data::Matrix)
     DataFrame(
         :timestamp => dates,
         (
-            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for
             n in eachindex(OHLCV_COLUMNS_TS)
         )...;
-        copycols=false,
+        copycols=false
     )
 end
 
@@ -407,8 +423,18 @@ function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
     df.timestamp[:] = apply.(timeframe, df.timestamp)
     df
 end
-to_ohlcv(vecs::Vector{Vector{T}}) where {T} = begin
-    DataFrame(vecs, OHLCV_COLUMNS)
+to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
+
+__ensure_ohlcv_zarray(zi, key) = begin
+    ncols = length(OHLCV_COLUMNS)
+    get(reset) = begin
+        _get_zarray(
+            zi, key, (2, ncols); overwrite=true, type=Float64, reset
+        )[1]
+    end
+    z = get(false)
+    z.metadata.fill_value isa Float64 && return z
+    get(true)
 end
 
 @doc """ Load ohlcv pair data from zarr instance.
@@ -417,13 +443,11 @@ end
 `td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
 `from`, `to`: date range
 """
-function _load(
+function _load_ohlcv(
     zi::ZarrInstance, key, td; from="", to="", saved_col=1, as_z=false, with_z=false
 )
     @debug "Loading data from $(zi.path):$(key)"
-    za, _ = _get_zarray(
-        zi, key, (1, length(OHLCV_COLUMNS)); overwrite=true, type=Float64, reset=false
-    )
+    za = __ensure_ohlcv_zarray(zi, key)
 
     if size(za, 1) < 2
         as_z && return za, (0, 0)
@@ -460,7 +484,7 @@ function _load(
     with_z && return (to_ohlcv(data), za)
     to_ohlcv(data)
 end
-_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _load(zi[], args...; kwargs...)
+_load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = _load_ohlcv(zi[], args...; kwargs...)
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
@@ -508,4 +532,4 @@ const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 
-export PairData, ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load_ohlcv, save_ohlcv
+export PairData, ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load, load_ohlcv, save_ohlcv
