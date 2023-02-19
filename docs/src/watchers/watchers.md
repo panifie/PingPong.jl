@@ -13,8 +13,10 @@ On a watcher instance these function are currently available:
 - `flush!`: like `fetch!` the watcher already flushes at predetermined intervals, use this only to ensure flushing in case of shutdown. The watcher *does* call flush on destruction through its finalizer, but it does so asynchronously and doesn't ensure the success of the flush operation.
 - `delete!`: deletes the watcher data from the storage backend used by `flush!` (and empties the buffer).
 - `deleteat!`: deletes the watcher data within a date range (and empties the buffer).
+- `push!`: add an element to the elements the watcher subscribes to (if any).
+- `pop!`: opposite of `push!`.
 
-## Imlementation interface
+# Imlementation interface
 To implement a custom watcher you have to define the functions such that dispatch happens through the watcher name interpreted as a value `Val{Symbol(my_watcher_name)}`. So a function needs to have a signature like `_fetch!(w::Watcher, ::Val{some_symbol})`.
 ### Required 
 - `_fetch!` whatever fetches the data, like an http request.
@@ -26,6 +28,8 @@ To implement a custom watcher you have to define the functions such that dispatc
 - `_process!` to update the *view* of the raw data, which is what the *get* function should return.
 - `_delete!` to delete *all* the storage data of the watcher
 - `_deleteat!` to delete the storage data of the watcher within a date range `(from, to)`
+- `_push!` watchers might manage a list of things to track (like `Asset` symbols)
+- `_pop!` _push!`
 
 Look in the `Watchers` and `WatchersImpls` modules for helper functions:
 

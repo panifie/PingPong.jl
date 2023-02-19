@@ -234,6 +234,10 @@ _init!(w::Watcher, ::Val) = default_init(w)
 _get(w::Watcher, ::Val) = default_get(w)
 @doc "Returns the processed `view` of the watcher data. Accessible also as a `view` property of the watcher object."
 Base.get(w::Watcher) = _get(w, w._val)
+@doc "If the watcher manager a group of things that it is fetching, `_push!` should add an element to it."
+_push!(w::Watcher, ::Val) = _notimpl(push!, w)
+@doc "Same as `_push!` but for removing elements."
+_pop!(w::Watcher, ::Val) = _notimpl(pop!, w)
 function _delete!(w::Watcher, ::Val)
     delete!(zilmdb().group, get!(w.attrs, :key, w.name))
     nothing
@@ -297,6 +301,14 @@ function fetch!(w::Watcher; reset=false)
     finally
         return last(w.buffer).value
     end
+end
+@doc "Add `v` to the things the watcher is fetching."
+function push!(w::Watcher, v, args...; kwargs...)
+    _push!(w, w._val, v, args...; kwargs...)
+end
+@doc "Remove `v` from the things the watcher is fetching."
+function pop!(w::Watcher, v, args...; kwargs...)
+    _pop!(w, w._val, v, args...; kwargs...)
 end
 
 @doc "True if last available data entry is older than `now() + fetch_interval + fetch_timeout`."
