@@ -1,5 +1,5 @@
 using DataFramesMeta
-using TimeTicks: Period, now
+using TimeTicks: Period, now, timeframe, apply
 using DataFrames: clear_pt_conf!
 using Base: _cleanup_locked
 using TimeTicks
@@ -55,17 +55,10 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     size(data, 1) === 0 && return empty_ohlcv()
     df = data isa DataFrame ? data : to_ohlcv(data, tf)
 
-    # For when for example 1d candles start at hours other than 00
-    ts_float = timefloat.(df.timestamp)
-    ts_offset = ts_float .% timefloat(tf)
-    if all(ts_offset .== ts_offset[begin])
-        @debug "Offsetting timestamps for $(ts_offset[begin])."
-        df.timestamp .= dt.((ts_float .- ts_offset[begin]))
+    # normalize dates
+    @eachrow! df begin
+        :timestamp = apply(tf, :timestamp)
     end
-
-    # remove rows with bad timestamps
-    # delete!(df, timefloat.(df.timestamp) .% td .!== 0.)
-    # @debug "DataFrame without bad timestamp size: $(size(df, 1))"
 
     gd = groupby(df, :timestamp; sort=true)
     df = combine(
@@ -78,7 +71,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         renamecols=false,
     )
 
-    if isincomplete(@view(df[end, :]), tf)
+    if isincomplete(df[end, :timestamp], tf)
         last_candle = copy(df[end, :])
         delete!(df, lastindex(df, 1))
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
@@ -104,7 +97,7 @@ islast(d::DateTime, tf, ::Val{:raw}) = begin
     next = d + tf
     next <= n && next + tf > n
 end
-islast(d::DateTime, tf) = islast(apply(tf, d), tf, Val(:raw))
+islast(d::DateTime, tf::TimeFrame) = islast(apply(tf, d), tf, Val(:raw))
 islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
 islast(v, tf::AbstractString) = islast(v, timeframe(tf))
 
