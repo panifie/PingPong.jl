@@ -339,7 +339,7 @@ function Base.display(w::Watcher)
         if length(tps) > 80
             write(out, @view(tps[begin:40]))
             write(out, "...")
-            write(out, @view(tps[(end - 40):end]))
+            write(out, @view(tps[(end-40):end]))
         else
             write(out, tps)
         end
@@ -353,6 +353,8 @@ function Base.display(w::Watcher)
         write(out, "$(w.last_fetch)")
         write(out, "\nFlushed: ")
         write(out, "$(w.last_flush)")
+        write(out, "\nAttemps: ")
+        write(out, "$(w.attempts)")
         Base.println(String(take!(out)))
     finally
         Base.close(out)
