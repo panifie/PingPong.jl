@@ -215,6 +215,12 @@ macro sym_str(s)
     :(Symbol($s))
 end
 
+macro ifdebug(a, b)
+    env_var = get(ENV, "JULIA_DEBUG", "0")
+    isdebug = something(tryparse(Bool, env_var), false)
+    isdebug ? a : b
+end
+
 export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str
 
 end
