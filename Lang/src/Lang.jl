@@ -36,7 +36,23 @@ end
 
 export passkwargs, @passkwargs
 
-@doc "Use hits for *initialization* type of key misses, that only happen once, otherwise use `@kget!`."
+@doc """Get a value from a container that *should not contain* `nothing`, lazily evaluating the default value.
+```julia
+> @get Dict("a" => false) "a" (println("hello"); true)
+false
+> Lang.@get Dict("a" => false) "b" (println("hello"); true)
+hello
+true
+```
+"""
+macro get(dict, k, expr)
+    dict = esc(dict)
+    expr = esc(expr)
+    k = esc(k)
+    :(@something get($dict, $k, nothing) $expr)
+end
+
+@doc "Lazy *get or set* for a container key-value pair that *should not contain* `nothing`."
 macro lget!(dict, k, expr)
     dict = esc(dict)
     expr = esc(expr)
@@ -47,6 +63,28 @@ macro lget!(dict, k, expr)
             v
         end
     end
+end
+
+@doc """Get the first available key from a container, or a default (last) value.
+```julia
+> @multiget Dict("k" => 1) "a" "b" false
+false
+> @multiget Dict("k" => 1, "b" => 2) "a" "b" false
+2
+```
+"""
+macro multiget(dict, args...)
+    dict = esc(dict)
+    if length(args) < 2
+        throw(ArgumentError("Not enough args in macro call."))
+    end
+    expr = esc(args[end])
+    result = :(@something)
+    for k in args[begin:(end - 1)]
+        push!(result.args, :(get($dict, $(esc(k)), nothing)))
+    end
+    push!(result.args, expr)
+    result
 end
 
 @doc "Use this in loops instead of `@lget!`"
