@@ -263,14 +263,9 @@ function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
-function fetch_ohlcv(exc, timeframe; qc, kwargs...)
+function fetch_ohlcv(exc, timeframe; qc=config.qc, kwargs...)
     pairs = get_pairlist(exc, qc; as_vec=true)
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
-end
-function fetch_ohlcv(exc, timeframe; kwargs...)
-    qc = :qc ∈ keys(kwargs) ? kwargs[:qc] : config.qc
-    pairs = collect(keys(get_pairlist(exc, qc)))
-    fetch_ohlcv(string(timeframe), pairs; filter(x -> x[1] !== :qc, kwargs)...)
 end
 
 function fetch_ohlcv(::Val{:ask}, args...; kwargs...)
