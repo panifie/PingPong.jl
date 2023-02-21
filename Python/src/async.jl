@@ -1,4 +1,4 @@
-using PythonCall: Py, pynew, pyimport, pycopy!, pyisnull, @pyexec, pybuiltins
+using PythonCall: Py, pynew, pyimport, pycopy!, pyisnull, @pyexec, pybuiltins, @pyeval
 
 const pyaio = pynew()
 const pyuv = pynew()
@@ -7,6 +7,7 @@ const pyrunner = pynew()
 const pyrunner_thread = pynew()
 const pyloop = pynew()
 const pyrun = pynew()
+const jllock = Base.Semaphore(1)
 
 function _async_init()
     if pyisnull(pyaio)
@@ -48,18 +49,24 @@ pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
 @doc "Generates a julia yielding function to run python async coroutines."
 function run_with_yield_func()
-    @pyexec (pyloop = pyloop) =>
+    @pyexec (looparg=pyloop, lockarg=jllock) =>
         """
-    global asyncio, jl, doyield, myloop
+    global asyncio, jl, doyield, pyloop, jllock, jlacquire, jlrelease
     import asyncio
-    from juliacall import Main as jl
-    doyield = getattr(jl, "yield")
-    myloop = pyloop
+    import juliacall
+    jl = juliacall.Main
+    jlyield = getattr(jl, "yield")
+    jlacquire = getattr(jl, "Main").Base.acquire
+    jlrelease = getattr(jl, "Main").Base.release
+    pyloop = looparg
+    jllock = lockarg
     def run(f, *args, **kwargs):
         try:
-            fut = asyncio.run_coroutine_threadsafe(f(*args, **kwargs), myloop)
+            fut = asyncio.run_coroutine_threadsafe(f(*args, **kwargs), pyloop)
             while not fut.done(): # Can't use running() here because the task is not started right away
-                doyield()
+                jlacquire(jllock)
+                jlyield()
+                jlrelease(jllock)
             return fut.result()
         except Exception as e:
             return e
