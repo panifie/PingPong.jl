@@ -27,7 +27,7 @@ end
 @doc """
 `data`: A type with a `size`.
 `data_col`: the timestamp column of the new data (1)
-`za_col`: the timestamp column of the existing data (1)
+`z_col`: the timestamp column of the existing data (1)
 `key`: the full key of the zarr group to use
 `type`: Primitive type used for storing the data (Float64)
 """
@@ -66,24 +66,24 @@ function save_data(
     end
 end
 
-function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, za_col)
+function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, z_col)
     @debug dt(data_first_ts), dt(saved_last_ts)
-    @debug :saved (dt.(za[end, za_col])):data,
+    @debug :saved (dt.(za[end, z_col])):data,
     (dt.(data[begin, data_col])):offset,
-    dt(za[offset, za_col])
+    dt(za[offset, z_col])
 
     if offset <= size(za, 1)
         datatime = timefloat(data[begin, data_col])
-        savetime = timefloat(za[offset, za_col])
+        savetime = timefloat(za[offset, z_col])
         @assert datatime <= savetime "$(dt(datatime)) does not match $(dt(savetime))"
     else
         @assert data_first_ts > saved_last_ts "New data ($(dt(data_first_ts))) should be strictly greater than saved data ($(dt(saved_last_ts)))."
     end
 end
 
-function _partial_checks(data, za, data_view, data_offset, data_col, za_col)
-    @debug :saved dt(za[end, za_col]):data_view, dt(data[data_offset, data_col])
-    @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, za_col])
+function _partial_checks(data, za, data_view, data_offset, data_col, z_col)
+    @debug :saved dt(za[end, z_col]):data_view, dt(data[data_offset, data_col])
+    @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, z_col])
 end
 
 @doc """ Saves data to a zarr array ensuring only dates seriality, not contiguity (as opposed to `_save_ohlcv`).
@@ -95,7 +95,7 @@ function _save_data(
     data;
     type=Float64,
     data_col=1,
-    za_col=data_col,
+    z_col=data_col,
     overwrite=true,
     reset=false,
 )
@@ -107,8 +107,8 @@ function _save_data(
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && !isempty(za)
         local data_view
-        saved_first_ts = timefloat(za[begin, za_col])
-        saved_last_ts = timefloat(za[end, za_col])
+        saved_first_ts = timefloat(za[begin, z_col])
+        saved_last_ts = timefloat(za[end, z_col])
         data_first_ts = timefloat(data[begin, data_col])
         data_last_ts = timefloat(data[end, data_col])
         # if appending data
@@ -116,43 +116,38 @@ function _save_data(
             if overwrite
                 # when overwriting get the index where data starts overwriting storage
                 offset = searchsortedfirst(
-                    @view(za[:, za_col]), data_first_ts; by=timefloat
+                    @view(za[:, z_col]), data_first_ts; by=timefloat
                 )
                 data_view = @view data[:, :]
                 _overwrite_checks(
-                    data, za, offset, data_first_ts, saved_last_ts, data_col, za_col
+                    data, za, offset, data_first_ts, saved_last_ts, data_col, z_col
                 )
             else
                 # when not overwriting get the index where data has new values
-                data_offset =
-                    searchsortedlast(
-                        @view(data[:, data_col]), saved_last_ts; by=timefloat
-                    ) + 1
+                data_range = rangeafter(
+                    @view(data[:, data_col]), saved_last_ts; by=timefloat
+                )
                 offset = size(za, 1) + 1
-                if data_offset <= size(data, 1)
-                    data_view = @view data[data_offset:end, :]
-                else
-                    data_view = @view data[1:0, :]
-                end
+                data_view = @view data[data_range, :]
             end
             szdv = size(data_view, 1)
             @debug "Size data_view: " szdv
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
-                @assert timefloat(za[max(1, offset - 1), za_col]) <=
+                @assert timefloat(za[max(1, offset - 1), z_col]) <=
                     timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
-            # fetch the saved data and combine with new one
-            # fetch saved data starting after the last date of the new data
+            # load the saved data and combine with new one
+            # load saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             if data_last_ts < saved_first_ts # just concat
             else # data_last_ts >= saved_first_ts
                 # have to slice
                 saved_offset = searchsortedfirst(
-                    @view(za[:, za_col]), data_last_ts; by=timefloat
+                    @view(za[:, z_col]), data_last_ts; by=timefloat
                 )
                 saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
@@ -178,7 +173,6 @@ function _save_data(
     end
     return za
 end
-
 
 const DEFAULT_CHUNK_SIZE = (100, 2)
 @doc """ Load data from zarr instance.
@@ -229,7 +223,7 @@ function _load_data(
     sz=(0, 2);
     from="",
     to="",
-    saved_col=1,
+    z_col=1,
     type=Float64,
     serialized=false,
     as_z=false,
@@ -252,7 +246,7 @@ function _load_data(
     @as to timefloat(to)
 
     @debug begin
-        saved_first_ts = timefloat(za[begin, saved_col])
+        saved_first_ts = timefloat(za[begin, z_col])
         "Saved data first timestamp is $(saved_first_ts |> dt)"
     end
 
@@ -260,15 +254,15 @@ function _load_data(
     with_to = !iszero(to)
 
     ts_start = if with_from
-        searchsortedfirst(@view(za[:, saved_col]), from; by=timefloat)
+        searchsortedfirst(@view(za[:, z_col]), from; by=timefloat)
     else
-        firstindex(za, saved_col)
+        firstindex(za, z_col)
     end
     ts_stop = if with_to
-        rev = @view(za[lastindex(za, 1):-1:firstindex(za, 1), saved_col])
+        rev = @view(za[lastindex(za, 1):-1:firstindex(za, 1), z_col])
         searchsortedfirst(rev, to; by=timefloat)
     else
-        lastindex(za, saved_col)
+        lastindex(za, z_col)
     end
 
     as_z && return result(; startstop=(ts_start, ts_stop))
@@ -276,8 +270,8 @@ function _load_data(
 
     data = @view za[ts_start:ts_stop, :]
 
-    with_from && @assert timefloat(data[begin, saved_col]) >= from
-    with_to && @assert timefloat(data[end, saved_col]) <= to
+    with_from && @assert timefloat(data[begin, z_col]) >= from
+    with_to && @assert timefloat(data[end, z_col]) <= to
 
     out = if serialized
         buf = IOBuffer()

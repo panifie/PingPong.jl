@@ -6,7 +6,7 @@ using DataFrames: DataFrameRow
 using DataFramesMeta
 using TimeTicks
 using Lang: @as
-using Misc: LeftContiguityException, RightContiguityException, config
+using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
 
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
@@ -75,7 +75,7 @@ macro check_td(args...)
     td = esc(:td)
     quote
         if size($check_data, 1) > 1
-            timeframe_match = timefloat($check_data[2, $col] - $check_data[1, $col]) === $td
+            timeframe_match = timefloat($check_data[2, $col] - $check_data[1, $col]) == $td
             if !timeframe_match
                 @warn "Saved date not matching timeframe, resetting."
                 throw(
@@ -206,6 +206,7 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
     end
 end
 save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
+# _docopy(z, from, data, type) = z[from:end, :] = @to_mat(data)
 
 function _save_ohlcv(
     zi::ZarrInstance,
@@ -216,7 +217,8 @@ function _save_ohlcv(
     data_col=1,
     saved_col=data_col,
     overwrite=true,
-    reset=false
+    reset=false,
+    check=false,
 )
     local za
     !reset && @check_td(data)
@@ -254,23 +256,19 @@ function _save_ohlcv(
                 @assert timefloat(data[begin, data_col]) >= timefloat(za[offset, saved_col])
             else
                 # when not overwriting get the index where data has new values
-                data_offset = searchsortedlast(@view(data[:, data_col]), saved_last_ts) + 1
+                data_range = rangeafter(@view(data[:, data_col]), saved_last_ts)
+                data_offset = data_range.start
                 offset = size(za, 1) + 1
-                if data_offset <= size(data, 1)
-                    data_view = @view data[data_offset:end, :]
-                    @debug :saved, dt(za[end, saved_col]) :data_new,
-                    dt(data[data_offset, data_col])
-                    @assert za[end, saved_col] + td ===
-                            timefloat(data[data_offset, data_col])
-                else
-                    data_view = @view data[1:0, :]
-                end
+                data_view = @view(data[data_range, :])
+                @debug :saved, dt(za[end, saved_col]), dt(data[data_offset, data_col])
+                @assert length(data_range) < 1 ||
+                    za[end, saved_col] + td == timefloat(data[data_offset, data_col])
             end
             szdv = size(data_view, 1)
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
+                # _docopy(za, offset, data_view, type)
                 za[offset:end, :] = @to_mat(data_view)
-                @debug _contiguous_ts(za[:, saved_col], td)
             end
             @debug "Size data_view: " szdv
             # inserting requires overwrite
@@ -279,24 +277,23 @@ function _save_ohlcv(
             # fetch saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[(saved_offset+1):end, :]
+            saved_data = za[(saved_offset + 1):end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[(szd+1):end, :] = saved_data
+            za[(szd + 1):end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
-        @debug "Ensuring contiguity in saved data $(size(za))." _contiguous_ts(
-            @view(za[:, data_col]), td
-        )
     else
         resize!(za, size(data))
         za[:, :] = @to_mat(data)
     end
+    @debug "Ensuring contiguity in saved data $(size(za))."
+    check && _contiguous_ts(@view(za[:, saved_col]), td)
     return za
 end
 
@@ -313,7 +310,7 @@ function empty_ohlcv()
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
-        copycols=false
+        copycols=false,
     )
 end
 
@@ -346,7 +343,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             idx = max(size(tmp, 1), from)
             @with tmp begin
                 for col in eachcol(tmp)
-                    p.data[!, col] = @view col[begin:(idx-1)]
+                    p.data[!, col] = @view col[begin:(idx - 1)]
                 end
             end
         else
@@ -354,7 +351,7 @@ function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
             if idx > 0
                 @with tmp begin
                     for (col, name) in zip(eachcol(tmp), names(tmp))
-                        p.data[!, name] = @view col[(idx+1):end]
+                        p.data[!, name] = @view col[(idx + 1):end]
                     end
                 end
             end
@@ -367,11 +364,12 @@ function __handle_error(::ResetErrors, zi, key, kwargs)
     emptyz = zcreate(
         Float64,
         zi.store,
-        2, length(OHLCV_COLUMNS);
+        2,
+        length(OHLCV_COLUMNS);
         fill_value=0.0,
         fill_as_missing=false,
         path=key,
-        compressor
+        compressor,
     )
     _addkey!(zi, emptyz)
     if :as_z ∈ keys(kwargs)
@@ -411,10 +409,10 @@ function to_ohlcv(data::Matrix)
     DataFrame(
         :timestamp => dates,
         (
-            OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for
             n in eachindex(OHLCV_COLUMNS_TS)
         )...;
-        copycols=false
+        copycols=false,
     )
 end
 
@@ -425,16 +423,18 @@ function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
 end
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
 
-__ensure_ohlcv_zarray(zi, key) = begin
-    ncols = length(OHLCV_COLUMNS)
-    get(reset) = begin
-        _get_zarray(
-            zi, key, (2, ncols); overwrite=true, type=Float64, reset
-        )[1]
+function __ensure_ohlcv_zarray(zi, key)
+    begin
+        ncols = length(OHLCV_COLUMNS)
+        function get(reset)
+            begin
+                _get_zarray(zi, key, (2, ncols); overwrite=true, type=Float64, reset)[1]
+            end
+        end
+        z = get(false)
+        z.metadata.fill_value isa Float64 && return z
+        get(true)
     end
-    z = get(false)
-    z.metadata.fill_value isa Float64 && return z
-    get(true)
 end
 
 @doc """ Load ohlcv pair data from zarr instance.
@@ -463,15 +463,16 @@ function _load_ohlcv(
 
     with_from = !iszero(from)
     with_to = !iszero(to)
-    if with_from
-        ts_start = Int(max(firstindex(za, saved_col), (from - saved_first_ts + td) ÷ td))
+
+    ts_start = if with_from
+        Int(max(firstindex(za, saved_col), (from - saved_first_ts + td) ÷ td))
     else
-        ts_start = firstindex(za, saved_col)
+        firstindex(za, saved_col)
     end
-    if with_to
-        ts_stop = Int(min(lastindex(za, saved_col), (ts_start + ((to - from) ÷ td))))
+    ts_stop = if with_to
+        Int(min(lastindex(za, saved_col), (ts_start + ((to - from) ÷ td))))
     else
-        ts_stop = lastindex(za, saved_col)
+        lastindex(za, saved_col)
     end
 
     as_z && return za, (ts_start, ts_stop)
@@ -484,7 +485,9 @@ function _load_ohlcv(
     with_z && return (to_ohlcv(data), za)
     to_ohlcv(data)
 end
-_load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = _load_ohlcv(zi[], args...; kwargs...)
+function _load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...)
+    _load_ohlcv(zi[], args...; kwargs...)
+end
 
 function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
     pv = dtfloat(series[1])
@@ -532,4 +535,5 @@ const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 
-export PairData, ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load, load_ohlcv, save_ohlcv
+export PairData,
+    ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load, load_ohlcv, save_ohlcv
