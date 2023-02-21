@@ -10,11 +10,9 @@ import Base.delete!, Base.isempty
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
-
 function isempty(z::ZArray)
-    size(z) == z.metadata.chunks &&
-        first(z, 0) == z.metadata.fill_value &&
-        last(z, 0) == z.metadata.fill_value
+    size(z, 1) == 0 ||
+        size(z) == z.metadata.chunks && all(view(z, :) .== z.metadata.fill_value)
 end
 
 function delete!(g::ZGroup, key::AbstractString; force=true)
