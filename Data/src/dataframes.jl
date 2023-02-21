@@ -111,7 +111,7 @@ end
 @doc "Appends `v` to `df` ensuring the dataframe never grows larger than `maxlen`."
 function appendmax!(df, v, maxlen)
     append!(df, v) # FIXME: we should check the size *before* appending.
-    sz = size(df, 1)
+    sz = nrow(df)
     if sz > maxlen
         deleteat!(df, firstindex(df, 1):(sz - maxlen))
     end
