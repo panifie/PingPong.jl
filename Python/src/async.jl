@@ -21,7 +21,7 @@ function py_start_loop()
     @assert !pyisnull(pyaio)
     @assert !pyisnull(pythreads)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
-    @assert pyisnull(pyrunner_thread)
+    @assert pyisnull(pyrunner_thread) || !Bool(pyrunner_thread.is_alive())
     pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
     pycopy!(
         pyrunner_thread, pythreads.Thread(; target=pyrunner.run, args=[async_main_func()()])
@@ -69,6 +69,7 @@ end
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
     @pyexec () => """
+    global asyncio, inf
     import asyncio
     from math import inf
     async def main():
