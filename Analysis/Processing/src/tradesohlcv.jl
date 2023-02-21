@@ -41,14 +41,11 @@ function trades_to_ohlcv(
     v::AbstractVector, tf::TimeFrame=tf"1m"; trim_left=true, trim_right=true
 )
     isempty(v) && return nothing
-    trades = if trim_left
-        start = startdateidx(v, tf)
-        stop = stopdateidx(v, tf; force=trim_right)
-        start > stop && return nothing
-        @view v[start:stop]
-    else
-        v
-    end
+    start = trim_left ? startdateidx(v, tf) : 1
+    stop = stopdateidx(v, tf; force=trim_right)
+    start > stop && return nothing
+    trades = length(start:stop) == length(v) ? v : view(v, start:stop)
+
     data = [getproperty.(trades, c) for c in TRADES_COLS]
     # FIXME
     data[1][:] = apply.(tf, data[1])
