@@ -1,4 +1,5 @@
-using PythonCall: Py, pynew, pyimport, pycopy!, pyisnull, @pyexec, pybuiltins, @pyeval
+using PythonCall:
+    Py, pynew, pyimport, pycopy!, pyisnull, @pyexec, pybuiltins, @pyeval, pyconvert
 
 const pyaio = pynew()
 const pyuv = pynew()
@@ -6,8 +7,6 @@ const pythreads = pynew()
 const pyrunner = pynew()
 const pyrunner_thread = pynew()
 const pyloop = pynew()
-const pyrun = pynew()
-const jllock = Base.Semaphore(1)
 
 function _async_init()
     if pyisnull(pyaio)
@@ -23,6 +22,7 @@ function py_start_loop()
     @assert !pyisnull(pythreads)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     @assert pyisnull(pyrunner_thread) || !Bool(pyrunner_thread.is_alive())
+
     pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
     pycopy!(
         pyrunner_thread, pythreads.Thread(; target=pyrunner.run, args=[async_main_func()()])
@@ -31,7 +31,6 @@ function py_start_loop()
     pyrunner_thread.daemon = pybuiltins.True
     pyrunner_thread.start()
     pycopy!(pyloop, pyrunner.get_loop())
-    pycopy!(pyrun, run_with_yield_func())
 end
 
 macro pytask(code)
@@ -44,34 +43,19 @@ macro pyfetch(code)
     Expr(:call, :pyfetch, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
-pytask(f::Py, args...; kwargs...) = @async pyrun(f, args...; kwargs...)
-pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
-
-@doc "Generates a julia yielding function to run python async coroutines."
-function run_with_yield_func()
-    @pyexec (looparg=pyloop, lockarg=jllock) =>
-        """
-    global asyncio, jl, doyield, pyloop, jllock, jlacquire, jlrelease
-    import asyncio
-    import juliacall
-    jl = juliacall.Main
-    jlyield = getattr(jl, "yield")
-    jlacquire = getattr(jl, "Main").Base.acquire
-    jlrelease = getattr(jl, "Main").Base.release
-    pyloop = looparg
-    jllock = lockarg
-    def run(f, *args, **kwargs):
-        try:
-            fut = asyncio.run_coroutine_threadsafe(f(*args, **kwargs), pyloop)
-            while not fut.done(): # Can't use running() here because the task is not started right away
-                jlacquire(jllock)
-                jlyield()
-                jlrelease(jllock)
-            return fut.result()
-        except Exception as e:
-            return e
-    """ => run
+function pyschedule(coro::Py)
+    pyaio.run_coroutine_threadsafe(coro, pyloop)
 end
+
+pytask(f::Py, args...; kwargs...) = begin
+    @async let fut = pyschedule(f(args...; kwargs...))
+        while !Bool(fut.done())
+            yield()
+        end
+        fut.result()
+    end
+end
+pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
