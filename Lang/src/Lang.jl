@@ -221,6 +221,11 @@ macro ifdebug(a, b)
     isdebug ? a : b
 end
 
-export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str
+@doc "`errormonitor` wrapped `@async` call."
+macro asyncm(expr)
+    :(errormonitor(@async $(esc(expr))))
+end
+
+export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str, @asyncm
 
 end
