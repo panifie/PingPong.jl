@@ -151,12 +151,29 @@ end
 is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
 is_fiat_pair(pair::AbstractString) = is_fiat_pair(split_pair(pair))
 
+@doc """Parses `pair` to an `Asset` type.
+```julia
+> typeof(a"BTC/USDT")
+Instruments.Asset
+"""
 macro a_str(pair)
     :($(parse(Asset, pair)))
 end
 
-export Cash,
-    Asset, AbstractAsset, is_fiat_pair, deleverage_pair, is_leveraged_pair, @a_str, @c_str
+@doc """Rewrites `sym` as a perpetual usdt symbol.
+```julia
+> pusdt"btc"
+BTC/USDT:USDT
+```
+"""
+macro pusdt_str(sym)
+    :($(uppercase(sym) * "/USDT:USDT"))
+end
+
+export Cash, Asset, AbstractAsset
+export is_fiat_pair, deleverage_pair, is_leveraged_pair
+export @a_str, @c_str
+
 include("derivatives.jl")
 
 end # module Instruments
