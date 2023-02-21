@@ -169,8 +169,8 @@ function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
 end
 
 @doc "Get price from ticker."
-function aprice(t)
-    something(t["average"], t["last"], t["bid"])
+function tickerprice(tkr)
+    @something tkr["average"] tkr["last"] tkr["bid"]
 end
 
 @doc "Get price ranges using tickers data from exchange."
@@ -179,21 +179,21 @@ function price_ranges(pair::AbstractString, args...; kwargs...)
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
 end
 
-@doc "Get quote volume of market."
-function qvol(t::AbstractDict)
-    v1 = t["quoteVolume"]
+@doc "Get quote volume from ticker."
+function quotevol(tkr::AbstractDict)
+    v1 = get(tkr, "quoteVolume", nothing)
     isnothing(v1) || return v1
-    v2 = t["baseVolume"]
-    isnothing(v2) || return v2 * aprice(t)
+    v2 = get(tkr, "baseVolume", nothing)
+    isnothing(v2) || return v2 * tickerprice(tkr)
     0
 end
 
-@doc "Trims the settlement currency in futures."
-@inline function as_spot_ticker(k, v)
-    if "quote" ∈ keys(v)
-        "$(v["base"])/$(v["quote"])"
+@doc "Trims the settlement currency in futures. (`mkt` is a ccxt market.)"
+@inline function spotsymbol(sym, mkt)
+    if "quote" ∈ keys(mkt)
+        "$(mkt["base"])/$(mkt["quote"])"
     else
-        split(k, ":")[1]
+        split(sym, ":")[1]
     end
 end
 
@@ -203,7 +203,6 @@ end
 
 @doc "Set exchange api keys."
 function exckeys!(exc, key, secret, pass)
-    name = uppercase(exc.name)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
     if nameof(exc.id) ∈ (:kucoin, :kucoinfutures)
         (key, secret) = secret, key
@@ -248,6 +247,12 @@ end
 
 timestamp(exc::Exchange) = pyconvert(Int64, pyfetch(exc.py.fetchTime))
 Base.time(exc::Exchange) = dt(pyconvert(Float64, pyfetch(exc.py.fetchTime)))
+
+@doc "Returns the matching *futures* exchange instance, if it exists, or the input exchange otherwise."
+function futures(exc::Exchange)
+    futures_sym = get(futures_exchange, exc.id, exc.id)
+    futures_sym != exc.id ? getexchange!(futures_sym) : exc
+end
 
 include("pairlist.jl")
 include("data.jl")
