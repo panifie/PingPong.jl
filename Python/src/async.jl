@@ -6,6 +6,7 @@ const pythreads = pynew()
 const pyrunner = pynew()
 const pyrunner_thread = pynew()
 const pyloop = pynew()
+const pyrun = pynew()
 
 function _async_init()
     if pyisnull(pyaio)
@@ -29,68 +30,69 @@ function py_start_loop()
     pyrunner_thread.daemon = pybuiltins.True
     pyrunner_thread.start()
     pycopy!(pyloop, pyrunner.get_loop())
+    pycopy!(pyrun, run_with_yield_func())
 end
 
 macro pytask(code)
-    quote
-        fut = pyaio.run_coroutine_threadsafe($(esc(code)), pyloop)
-        @async begin
-            while !Bool(fut.done())
-                sleep(0.01)
-            end
-            fut.result()
-        end
-    end
+    @assert code.head == :call
+    Expr(:call, :pytask, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
 macro pyfetch(code)
-    :(fetch(@pytask $(esc(code))))
+    @assert code.head == :call
+    Expr(:call, :pyfetch, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
-function pytask(f::Py, args...; kwargs...)
-    fut = pyaio.run_coroutine_threadsafe(f(args...; kwargs...), pyloop)
-    @async begin
-        while !Bool(fut.done())
-            sleep(0.01)
-        end
-        fut.result()
-    end
-end
-
+pytask(f::Py, args...; kwargs...) = @async pyrun(f, args...; kwargs...)
 pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
+
+@doc "Generates a julia yielding function to run python async coroutines."
+function run_with_yield_func()
+    @pyexec (pyloop = pyloop) =>
+        """
+    global asyncio, jl, doyield, myloop
+    import asyncio
+    from juliacall import Main as jl
+    doyield = getattr(jl, "yield")
+    myloop = pyloop
+    def run(f, *args, **kwargs):
+        try:
+            fut = asyncio.run_coroutine_threadsafe(f(*args, **kwargs), myloop)
+            while not fut.done(): # Can't use running() here because the task is not started right away
+                doyield()
+            return fut.result()
+        except Exception as e:
+            return e
+    """ => run
+end
 
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
-    g = pydict()
-    pyexec(
-        """
-     import asyncio
-     from math import inf
-     async def main():
-         try:
-             await asyncio.sleep(inf)
-         finally:
-             asyncio.get_running_loop().stop()
-     """,
-        g,
-    )
-    g["main"]
+    @pyexec () => """
+    import asyncio
+    from math import inf
+    async def main():
+        try:
+            await asyncio.sleep(inf)
+        finally:
+            asyncio.get_running_loop().stop()
+    """ => main
 end
 
 @doc "Raises an exception in a python thread, used to stop async loop."
 function raise_exception()
     @pyexec (t = pyrunner_thread) => """
-      from threading import Thread
-      from asyncio import CancelledError
-      from ctypes import c_long, c_ulong, py_object, pythonapi
-      try:
-          pythonapi.PyThreadState_SetAsyncExc(c_long(t.ident), py_object(CancelledError))
-      except:
-          import traceback
-          traceback.print_exc()
-      import sys
-      sys.stdout.flush()
-      """
+    from threading import Thread
+    from asyncio import CancelledError
+    from ctypes import c_long, c_ulong, py_object, pythonapi
+    try:
+        pythonapi.PyThreadState_SetAsyncExc(c_long(t.ident), py_object(CancelledError))
+    except:
+        import traceback
+        traceback.print_exc()
+    import sys
+    sys.stdout.flush()
+    """
 end
 
 export pytask, pyfetch, @pytask, @pyfetch
