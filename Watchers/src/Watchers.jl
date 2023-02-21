@@ -37,7 +37,7 @@ end
 
 function _tryfetch(w)::Bool
     # skip fetching if already locked to avoid building up the queue
-    w._exec.fetch_sem.curr_cnt > 1 && return false
+    w._exec.fetch_sem.curr_cnt > 0 && return false
     result = @acquire w._exec.fetch_sem begin
         w.last_fetch = now()
         _fetch!(w, w._val)
@@ -306,10 +306,8 @@ function fetch!(w::Watcher; reset=false)
         return isempty(w.buffer) ? nothing : last(w.buffer).value
     end
 end
-process!(w::Watcher) = @logerror w _process!(w, w._val)
-load!(w::Watcher) = @logerror w _load!(w, w._val)
-init!(w::Watcher) = @logerror w _init!(w, w._val)
 
+errors(w::Watcher) = w._exec.errors
 @doc "Stores an error to the watcher log journal."
 logerror(w::Watcher, e::Exception) = push!(w._exec.errors, e)
 @doc "Get the last logged watcher error."
@@ -318,7 +316,7 @@ lasterror(w::Watcher) = isempty(w._exec.errors) ? nothing : last(w._exec.errors)
 lasterror(t::Type, w::Watcher) = findlast(e -> e isa t, w._exec.errors)
 @doc "Get all logged watcher errors of type `t`."
 allerror(t::Type, w::Watcher) = filter(e -> e isa t, w._exec.errors)
-macro logerror(w::Watcher, expr)
+macro logerror(w, expr)
     quote
         try
             $(esc(expr))
@@ -328,6 +326,9 @@ macro logerror(w::Watcher, expr)
     end
 end
 
+process!(w::Watcher) = @logerror w _process!(w, w._val)
+load!(w::Watcher) = @logerror w _load!(w, w._val)
+init!(w::Watcher) = @logerror w _init!(w, w._val)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
     _push!(w, w._val, v, args...; kwargs...)
@@ -377,7 +378,7 @@ function Base.display(w::Watcher)
         write(out, ", $(compact(w.interval.fetch))(FE)")
         write(out, ", $(compact(w.interval.flush))(FL)")
         write(out, "\nFetched: ")
-        write(out, "$(w.last_fetch)")
+        write(out, "$(w.last_fetch) queue: $(w._exec.fetch_sem.curr_cnt)")
         write(out, "\nFlushed: ")
         write(out, "$(w.last_flush)")
         write(out, "\nAttemps: ")
