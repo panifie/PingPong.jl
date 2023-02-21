@@ -1,29 +1,37 @@
 using Misc: config
-using Lang: @lget!
+using Lang: @get, @multiget, @lget!
 
-@inline function qid(v)
-    k = keys(v)
-    if "quoteId" ∈ k
-        v["quoteId"]
-    elseif "quote" ∈ k
-        v["quote"]
+quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
+isquote(id, qc) = lowercase(id) == qc
+ismargin(mkt) = Bool(@get mkt "margin" false)
+
+function has_leverage(pair, pairs_with_leverage)
+    !is_leveraged_pair(pair) && pair ∈ pairs_with_leverage
+end
+function leverage_func(exc, with_leveraged, with_futures)
+    # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
+    # they have a leveraged counterpart
+    if with_leveraged == :from
+        with_futures &&
+            @warn "Filtering by leveraged when futures markets are enabled, are you sure?"
+        pairs_with_leverage = Set()
+        for k in keys(exc.markets)
+            dlv = deleverage_pair(k)
+            k !== dlv && push!(pairs_with_leverage, dlv)
+        end
+        (pair) -> has_leverage(pair, pairs_with_leverage)
     else
-        false
+        Returns(true)
     end
 end
-@inline is_qmatch(id, q) = lowercase(id) === q
-get_pairs(args...; kwargs...) = keys(get_pairlist(args...; kwargs...))
+
+get_pairs(args...; kwargs...) = keys(get_pairlist(exc, args...; kwargs...))
+get_pairs(exc::Exchange, args...; kwargs...) = keys(get_pairlist(exc, args...; kwargs...))
 get_pairlist(quot::Symbol, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
-function get_pairlist(
-    exc::Exchange=exc,
-    quot::Symbol=config.qc,
-    min_vol::T where {T<:AbstractFloat}=config.vol_min;
-    kwargs...,
-)
-    begin
-        get_pairlist(exc, string(quot), convert(Float64, min_vol); kwargs...)
-    end
-end
+
+aspair(k, v) = k => v
+askey(k, _) = k
+asvalue(_, v) = v
 
 @doc """Get the exchange pairlist.
 - `quot`: Only choose pairs where the quot currency equals `quot`.
@@ -35,70 +43,51 @@ end
 """
 function get_pairlist(
     exc::Exchange,
-    quot::String,
-    min_vol::Float64;
+    quot;
+    min_vol,
     skip_fiat=true,
-    margin=config.margin,
-    futures=config.futures,
-    leveraged=config.leverage,
+    with_margin=config.margin,
+    with_futures=config.futures,
+    with_leverage=config.leverage,
     as_vec=false,
 )::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers
-    pairlist = []
+    pairlist = String[]
+    quot = string(quot)
+
     lquot = lowercase(quot)
+    exc = ifelse(with_futures, futures(exc), exc)
 
-    if futures
-        futures_sym = get(futures_exchange, exc.id, exc.id)
-        if futures_sym !== exc.id
-            exc = getexchange!(futures_sym)
-        end
-    end
-
-    tup_fun = as_vec ? (k, _) -> k : (k, v) -> k => v
-    push_fun = if isempty(quot)
-        (p, k, v) -> push!(p, tup_fun(k, v))
-    else
-        (p, k, v) -> is_qmatch(qid(v), lquot) && push!(p, tup_fun(k, v))
-    end
-    # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
-    # they have a leveraged counterpart
-    local hasleverage
-    if leveraged === :from
-        if futures
-            @warn "Filtering by leveraged when futures markets are enabled, are you sure?"
-        end
-        pairs_with_leverage = Set()
-        for k in keys(exc.markets)
-            dlv = deleverage_pair(k)
-            if k !== dlv
-                push!(pairs_with_leverage, dlv)
-            end
-        end
-        hasleverage = (k) -> (!is_leveraged_pair(k) && k ∈ pairs_with_leverage)
-    else
-        hasleverage = (_) -> true
+    as = ifelse(as_vec, askey, aspair)
+    pushas(p, k, v, _) = push!(p, as(k, v))
+    pushifquote(p, k, v, q) = isquote(quoteid(v), q) && pushas(p, k, v, nothing)
+    addto = ifelse(isempty(quot), pushas, pushifquote)
+    leverage_check = leverage_func(exc, with_leverage, with_futures)
+    function skip_check(spot, islev, mkt)
+        (with_leverage == :no && islev) ||
+            (with_leverage == :only && !islev) ||
+            !leverage_check(spot) ||
+            (spot ∈ keys(tickers) && quotevol(tickers[spot]) <= min_vol) ||
+            (skip_fiat && is_fiat_pair(spot)) ||
+            (with_margin && Bool(@get(mkt, "margin", false)))
     end
 
-    for (k, v) in exc.markets
-        k = as_spot_ticker(k, v)
-        lev = is_leveraged_pair(k)
-        if (leveraged === :no && lev) ||
-            (leveraged === :only && !lev) ||
-            !hasleverage(k) ||
-            (k ∈ keys(tickers) && qvol(tickers[k]) <= min_vol) ||
-            (skip_fiat && is_fiat_pair(k)) ||
-            (margin && !isnothing(get(v, "margin", nothing)) && !v["margin"])
-            continue
-        else
-            push_fun(pairlist, k, v)
-        end
+    for (sym, mkt) in exc.markets
+        spot = spotsymbol(sym, mkt)
+        islev = is_leveraged_pair(spot)
+        skip_check(spot, islev, mkt) && continue
+        addto(pairlist, sym, mkt, lquot)
     end
-    isempty(pairlist) &&
-        @warn "No pairs found, check quote currency ($quot) and min volume parameters ($min_vol)."
-    isempty(quot) && return pairlist
-    as_vec && return pairlist
-    Dict(pairlist)
+
+    function result(pairlist, as_vec)
+        isempty(pairlist) &&
+            @warn "No pairs found, check quote currency ($quot) and min volume parameters ($min_vol)."
+        isempty(quot) && return pairlist
+        as_vec && return unique!(pairlist)
+        Dict(pairlist)
+    end
+    result(pairlist, as_vec)
 end
 
 using Python.PythonCall: pystr
@@ -108,9 +97,8 @@ macro pystr(k)
     :(@lget! pyCached $s pystr($s))
 end
 
-using Lang: @lget!
 const marketsCache1Min = TTL{String,Py}(Minute(1))
-const tickersCache1MIn = TTL{String,Py}(Minute(1))
+const tickersCache1Min = TTL{String,Py}(Minute(1))
 const activeCache1Min = TTL{String,Bool}(Minute(1))
 @doc "Retrieves a cached market (1minute) or fetches it from exchange."
 function market!(pair::AbstractString, exc::Exchange=exc)
