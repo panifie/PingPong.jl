@@ -10,3 +10,8 @@ excs = collect(keys(cg.loadderivatives!()))
 wc = PingPong.Watchers
 wi = PingPong.Watchers.WatchersImpls
 setexchange!(:bybit)
+macro usdt_str(sym)
+    s = uppercase(sym) * "/USDT:USDT"
+    :($s)
+end
+usdm(sym) = "$(uppercase(sym))/USDT:USDT"
