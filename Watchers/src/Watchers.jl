@@ -27,26 +27,30 @@ macro acquire(cond, code)
         acquire(temp)
         try
             $(esc(code))
+        catch e
+            e
         finally
             release(temp)
         end
     end
 end
 
-function _wrap_fetch(w)
-    acquire(w._exec.fetch_sem)
-    w.last_fetch = now()
-    try
+function _tryfetch(w)::Bool
+    # skip fetching if already locked to avoid building up the queue
+    w._exec.fetch_sem.curr_cnt > 1 && return false
+    result = @acquire w._exec.fetch_sem begin
+        w.last_fetch = now()
         _fetch!(w, w._val)
-    catch error
-        @warn "Watcher error!" error
+    end
+    if result isa Exception
+        logerror(w, result)
         false
-    finally
-        release(w._exec.fetch_sem)
+    else
+        result
     end
 end
 function _schedule_fetch(w, timeout, threads)
-    fetcher_task = threads ? (@spawn _wrap_fetch(w)) : (@async _wrap_fetch(w))
+    fetcher_task = threads ? (@spawn _tryfetch(w)) : (@async _tryfetch(w))
     @async begin
         sleep(timeout)
         safenotify(fetcher_task.donenotify)
@@ -54,7 +58,7 @@ function _schedule_fetch(w, timeout, threads)
     safewait(fetcher_task.donenotify)
     if istaskdone(fetcher_task) && fetch(fetcher_task)
         w.attempts = 0
-        w.has.process && _process!(w, w._val)
+        w.has.process && process!(w)
         w.has.flush && flush!(w; sync=false)
     else
         w.attempts += 1
@@ -62,6 +66,7 @@ function _schedule_fetch(w, timeout, threads)
 end
 
 function _timer!(w)
+    isnothing(w._timer) || close(w._timer)
     w._timer = Timer(
         # NOTE: the callback for the timer requires 1 arg (the timer itself)
         (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
@@ -73,7 +78,10 @@ end
 BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
 const HasFunction = NamedTuple{(:load, :process, :flush),NTuple{3,Bool}}
 const Interval = NamedTuple{(:timeout, :fetch, :flush),NTuple{3,Millisecond}}
-const Exec = NamedTuple{(:threads, :fetch_sem, :buffer_sem),Tuple{Bool,Semaphore,Semaphore}}
+const Exec = NamedTuple{
+    (:threads, :fetch_sem, :buffer_sem, :errors),
+    Tuple{Bool,Semaphore,Semaphore,CircularBuffer{Exception}},
+}
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
 
 @kwdef mutable struct Watcher19{T}
@@ -137,7 +145,7 @@ function watcher(
         has=HasFunction((load, process, flush)),
         interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
         capacity=Capacity((buffer_capacity, view_capacity)),
-        _exec=Exec((threads, Semaphore(1), Semaphore(1))),
+        _exec=Exec((threads, Semaphore(1), Semaphore(1), CircularBuffer{Exception}(10))),
         _val=Val(Symbol(name)),
         attrs,
     )
@@ -147,7 +155,7 @@ function watcher(
     @debug "_init $name"
     _init!(w, w._val)
     @debug "_load for $name? $(w.has.load)"
-    w.has.load && _load!(w, w._val)
+    w.has.load && load!(w)
     w.last_flush = now() # skip flush on start
     @debug "setting timer for $name"
     _timer!(w)
@@ -183,13 +191,11 @@ default_flusher(w::Watcher) = default_flusher(w, w.name)
 @doc "Load function for watcher data, loads from the default `DATA_PATH` \
 located lmdb instance using serialization."
 function default_loader(w::Watcher, key)
-    begin
-        get!(w.attrs, :loaded, false) && return nothing
-        v = load_data(zilmdb(), key; serialized=_isserialized(w))
-        !isnothing(v) && pushstart!(w, v)
-        w.has.process && _process!(w, w._val)
-        w.attrs[:loaded] = true
-    end
+    get!(w.attrs, :loaded, false) && return nothing
+    v = load_data(zilmdb(), key; serialized=_isserialized(w))
+    !isnothing(v) && pushstart!(w, v)
+    w.has.process && process!(w)
+    w.attrs[:loaded] = true
 end
 default_loader(w::Watcher) = default_loader(w, w.name)
 
@@ -229,6 +235,7 @@ _fetch!(w::Watcher, ::Val) = _notimpl(fetch!, w)
 _process!(w::Watcher, ::Val) = default_process(w, Data.DFUtils.appendmax!)
 @doc "Function to run on watcher initialization, it runs before `_load!`."
 _init!(w::Watcher, ::Val) = default_init(w)
+
 @doc "Returns the processed `view` of the watcher data."
 _get(w::Watcher, ::Val) = default_get(w)
 @doc "Returns the processed `view` of the watcher data. Accessible also as a `view` property of the watcher object."
@@ -276,9 +283,12 @@ end
 function flush!(w::Watcher; force=true, sync=false)
     time_now = now()
     if force || time_now - w.last_flush > w.interval.flush
-        t = @async @acquire w._exec.buffer_sem begin
-            w.last_flush = time_now
-            _flush!(w, w._val)
+        t = @async begin
+            result = @acquire w._exec.buffer_sem begin
+                w.last_flush = time_now
+                _flush!(w, w._val)
+            end
+            ifelse(result isa Exception, logerror(w, result), result)
         end
     end
     sync && wait(t)
@@ -288,19 +298,36 @@ end
 polling will resume after the watcher `interval`."
 function fetch!(w::Watcher; reset=false)
     try
-        if reset
-            _schedule_fetch(w, w.interval.timeout, w._exec.threads)
-            close(w._timer)
-            _timer!(w)
-        else
-            _schedule_fetch(w, w.interval.timeout, w._exec.threads)
-        end
+        _schedule_fetch(w, w.interval.timeout, w._exec.threads)
+        reset && _timer!(w)
     catch e
-        @error e
+        logerror(w, e)
     finally
-        return last(w.buffer).value
+        return isempty(w.buffer) ? nothing : last(w.buffer).value
     end
 end
+process!(w::Watcher) = @logerror w _process!(w, w._val)
+load!(w::Watcher) = @logerror w _load!(w, w._val)
+init!(w::Watcher) = @logerror w _init!(w, w._val)
+
+@doc "Stores an error to the watcher log journal."
+logerror(w::Watcher, e::Exception) = push!(w._exec.errors, e)
+@doc "Get the last logged watcher error."
+lasterror(w::Watcher) = isempty(w._exec.errors) ? nothing : last(w._exec.errors)
+@doc "Get the last logged watcher error of type `t`."
+lasterror(t::Type, w::Watcher) = findlast(e -> e isa t, w._exec.errors)
+@doc "Get all logged watcher errors of type `t`."
+allerror(t::Type, w::Watcher) = filter(e -> e isa t, w._exec.errors)
+macro logerror(w::Watcher, expr)
+    quote
+        try
+            $(esc(expr))
+        catch e
+            logerror($(esc(w)), e)
+        end
+    end
+end
+
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
     _push!(w, w._val, v, args...; kwargs...)
@@ -317,9 +344,9 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-Base.close(w::Watcher) = @async begin
+Base.close(w::Watcher; doflush=true) = @async begin
     isnothing(w._timer) || Base.close(w._timer)
-    flush!(w)
+    doflush && flush!(w)
     nothing
 end
 Base.empty!(w::Watcher) = empty!(w.buffer)
@@ -339,7 +366,7 @@ function Base.display(w::Watcher)
         if length(tps) > 80
             write(out, @view(tps[begin:40]))
             write(out, "...")
-            write(out, @view(tps[(end-40):end]))
+            write(out, @view(tps[(end - 40):end]))
         else
             write(out, tps)
         end
