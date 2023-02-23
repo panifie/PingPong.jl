@@ -7,52 +7,53 @@ using Data: Candle, to_ohlcv, empty_ohlcv
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
-function fill_missing_rows(df, timeframe::AbstractString; strategy=:close)
+function fill_missing_candles(df, timeframe::AbstractString; strategy=:close)
     @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=false)
+    _fill_missing_candles(df, prd; strategy, inplace=false)
 end
 
-function fill_missing_rows!(df, prd::Period; strategy=:close)
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+function fill_missing_candles!(df, prd::Period; strategy=:close)
+    _fill_missing_candles(df, prd; strategy, inplace=true)
 end
 
-function fill_missing_rows!(df, timeframe::AbstractString; strategy=:close)
+function fill_missing_candles!(df, timeframe::AbstractString; strategy=:close)
     @as_td
-    _fill_missing_rows(df, prd; strategy, inplace=true)
+    _fill_missing_candles(df, prd; strategy, inplace=true)
 end
 
-function _fill_missing_rows(df, prd::Period; strategy, inplace)
-    size(df, 1) === 0 && return empty_ohlcv()
-    let ordered_rows = []
-        # fill the row by previous close or with NaNs
-        can =
-            strategy === :close ? (x) -> [x, x, x, x, 0] : (_) -> [NaN, NaN, NaN, NaN, NaN]
-        @with df begin
-            ts_cur, ts_end = first(:timestamp) + prd, last(:timestamp)
-            ts_idx = 2
-            # NOTE: we assume that ALL timestamps are multiples of the timedelta!
-            while ts_cur < ts_end
-                if ts_cur !== :timestamp[ts_idx]
-                    close = :close[ts_idx - 1]
-                    push!(ordered_rows, Candle(ts_cur, can(close)...))
-                else
-                    ts_idx += 1
-                end
-                ts_cur += prd
+novol_candle(ts, n) = Candle(ts, n, n, n, n, 0)
+nan_candle(ts, _) = Candle(ts, NaN, NaN, NaN, NaN, NaN)
+
+function _fill_missing_candles(df, prd::Period; strategy, inplace)
+    size(df, 1) == 0 && return empty_ohlcv()
+    ordered_rows = Candle[]
+    # fill the row by previous close or with NaNs
+    build_candle = ifelse(strategy == :close, novol_candle, nan_candle)
+    @with df begin
+        ts_cur, ts_end = first(:timestamp) + prd, last(:timestamp)
+        ts_idx = 2
+        # NOTE: we assume that ALL timestamps are multiples of the timedelta!
+        while ts_cur < ts_end
+            if ts_cur != :timestamp[ts_idx]
+                close = :close[ts_idx-1]
+                push!(ordered_rows, build_candle(ts_cur, close))
+            else
+                ts_idx += 1
             end
+            ts_cur += prd
         end
-        inplace || (df = deepcopy(df); true)
-        append!(df, ordered_rows)
-        sort!(df, :timestamp)
-        return df
     end
+    inplace || (df = deepcopy(df); true)
+    append!(df, ordered_rows)
+    sort!(df, :timestamp)
+    return df
 end
 @doc """Similar to the freqtrade homonymous function.
 - `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
 function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
-    size(data, 1) === 0 && return empty_ohlcv()
+    size(data, 1) == 0 && return empty_ohlcv()
     df = data isa AbstractDataFrame ? data : to_ohlcv(data, tf)
 
     # normalize dates
@@ -68,7 +69,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         :low => minimum,
         :close => last,
         :volume => maximum;
-        renamecols=false,
+        renamecols=false
     )
 
     if isincomplete(df[end, :timestamp], tf)
@@ -76,8 +77,8 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         delete!(df, lastindex(df, 1))
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
-    if fill_missing !== false
-        fill_missing_rows!(df, tf.period; strategy=fill_missing)
+    if fill_missing != false
+        fill_missing_candles!(df, tf.period; strategy=fill_missing)
     end
     df
 end
