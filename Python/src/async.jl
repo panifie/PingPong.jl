@@ -50,7 +50,7 @@ end
 pytask(f::Py, args...; kwargs...) = begin
     @async let fut = pyschedule(f(args...; kwargs...))
         while !Bool(fut.done())
-            yield()
+            sleep(0.01)
         end
         fut.result()
     end
