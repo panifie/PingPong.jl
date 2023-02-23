@@ -6,15 +6,11 @@ struct DateRange
     start::OptDate
     stop::OptDate
     step::Union{Nothing,Period}
-    function DateRange1(start::OptDate, stop::OptDate, step=nothing)
-        begin
-            new([start], start, stop, step)
-        end
+    function DateRange(start::OptDate=nothing, stop::OptDate=nothing, step=nothing)
+        new([start], start, stop, step)
     end
-    function DateRange1(start::OptDate, stop::OptDate, tf::TimeFrame)
-        begin
-            new([start], start, stop, tf.period)
-        end
+    function DateRange(start::OptDate, stop::OptDate, tf::TimeFrame)
+        new([start], start, stop, tf.period)
     end
 end
 
@@ -25,9 +21,7 @@ function Base.convert(::Type{DateTuple}, d::DateRange)
 end
 
 function Base.show(dr::DateRange)
-    begin
-        Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
-    end
+    Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
 end
 Base.display(dr::DateRange) = Base.show(dr)
 iterate(dr::DateRange) = begin
