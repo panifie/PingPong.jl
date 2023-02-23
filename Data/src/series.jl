@@ -31,7 +31,17 @@ end
 `key`: the full key of the zarr group to use
 `type`: Primitive type used for storing the data (Float64)
 """
+
 function save_data(
+    zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
+)
+    t = @async _wrap_save_data(
+        zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
+    )
+    fetch(t)
+end
+
+function _wrap_save_data(
     zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
 )
     try
@@ -115,9 +125,7 @@ function _save_data(
         if data_first_ts >= saved_first_ts
             if overwrite
                 # when overwriting get the index where data starts overwriting storage
-                offset = searchsortedfirst(
-                    @view(za[:, z_col]), data_first_ts; by=timefloat
-                )
+                offset = searchsortedfirst(@view(za[:, z_col]), data_first_ts; by=timefloat)
                 data_view = @view data[:, :]
                 _overwrite_checks(
                     data, za, offset, data_first_ts, saved_last_ts, data_col, z_col
@@ -183,6 +191,10 @@ const DEFAULT_CHUNK_SIZE = (100, 2)
 `from`, `to`: date range
 """
 function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
+    t = @async _wrap_load_data(zi, key; serialized, kwargs...)
+    fetch(t)
+end
+function _wrap_load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
     # NOTE
     sz = serialized ? DEFAULT_CHUNK_SIZE : get(kwargs, :sz, DEFAULT_CHUNK_SIZE)
     @debug @assert all(sz .> 0)
