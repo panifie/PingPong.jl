@@ -48,6 +48,14 @@ function _fill_missing_candles(df, prd::Period; strategy, inplace)
     sort!(df, :timestamp)
     return df
 end
+
+function _remove_incomplete_candle(df, tf)
+    if isincomplete(df[end, :timestamp], tf)
+        last_candle = copy(df[end, :])
+        delete!(df, lastindex(df, 1))
+        @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
+    end
+end
 @doc """Similar to the freqtrade homonymous function.
 - `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
 """
@@ -56,6 +64,8 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     size(data, 1) == 0 && return empty_ohlcv()
     df = data isa AbstractDataFrame ? data : to_ohlcv(data, tf)
 
+    # remove incomplete candle before timestamp normalization
+    _remove_incomplete_candle(df, tf)
     # normalize dates
     @eachrow! df begin
         :timestamp = apply(tf, :timestamp)
@@ -71,12 +81,9 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         :volume => maximum;
         renamecols=false
     )
+    # check again after de-duplication
+    _remove_incomplete_candle(df, tf)
 
-    if isincomplete(df[end, :timestamp], tf)
-        last_candle = copy(df[end, :])
-        delete!(df, lastindex(df, 1))
-        @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
-    end
     if fill_missing != false
         fill_missing_candles!(df, tf.period; strategy=fill_missing)
     end
