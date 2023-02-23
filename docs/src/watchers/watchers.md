@@ -15,6 +15,8 @@ On a watcher instance these function are currently available:
 - `deleteat!`: deletes the watcher data within a date range (and empties the buffer).
 - `push!`: add an element to the elements the watcher subscribes to (if any).
 - `pop!`: opposite of `push!`.
+- `stop`: Stops the watcher.
+- `start`: Restarts the watcher.
 
 # Imlementation interface
 To implement a custom watcher you have to define the functions such that dispatch happens through the watcher name interpreted as a value `Val{Symbol(my_watcher_name)}`. So a function needs to have a signature like `_fetch!(w::Watcher, ::Val{some_symbol})`.
@@ -26,10 +28,12 @@ To implement a custom watcher you have to define the functions such that dispatc
 - `_load!` to pre-fill the watcher buffer on construction, it is only called once, runs after `_init!`.
 - `_flush!` to save the watcher buffer somewhere on periodic intervals and on watcher destruction.
 - `_process!` to update the *view* of the raw data, which is what the *get* function should return.
-- `_delete!` to delete *all* the storage data of the watcher
-- `_deleteat!` to delete the storage data of the watcher within a date range `(from, to)`
-- `_push!` watchers might manage a list of things to track (like `Asset` symbols)
-- `_pop!` _push!`
+- `_delete!` to delete *all* the storage data of the watcher.
+- `_deleteat!` to delete the storage data of the watcher within a date range `(from, to)`.
+- `_push!` watchers might manage a list of things to track (like `Asset` symbols).
+- `_pop!` inverse of `_push!`.
+- `_start` Executed before starting the timer.
+- `_stop` Executed after stopping the timer.
 
 Look in the `Watchers` and `WatchersImpls` modules for helper functions:
 
