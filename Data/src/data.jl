@@ -47,23 +47,6 @@ function Base.convert(
     Dict(p.name => p.data for p in values(d))
 end
 
-macro zkey()
-    p = esc(:pair)
-    exn = esc(:exc_name)
-    tf = esc(:timeframe)
-    key = esc(:key)
-    quote
-        $key = joinpath($exn, $p, "ohlcv", "tf_" * $tf)
-    end
-end
-
-macro zkey(pair, exc, timeframe)
-    p = esc(pair)
-    exn = esc(exc)
-    tf = esc(timeframe)
-    :(joinpath($exn, $p, "ohlcv", "tf_" * $tf))
-end
-
 macro check_td(args...)
     local check_data
     if !isempty(args)
@@ -198,9 +181,10 @@ __handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
 """
 function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
-    @zkey
+    key = pair_key(exc_name, pair, timeframe)
     try
-        _save_ohlcv(zi, key, td, data; kwargs...)
+        t = @async _save_ohlcv(zi, key, td, data; kwargs...)
+        fetch(t)
     catch e
         __handle_save_ohlcv_error(e, zi, key, pair, td, data; kwargs...)
     end
@@ -328,36 +312,13 @@ function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe; raw=false)
     exc_name = exc.name
     out = Dict{String,raw ? za.ZArray : PairData}()
     load_func = raw ? _load_zarr : _load_pairdata
-    for p in pairs
-        load_func(out, p, zi, exc_name, timeframe)
+    @sync for p in pairs
+        @async load_func(out, p, zi, exc_name, timeframe)
     end
     out
 end
 load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)
 
-function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
-    for (_, p) in data
-        tmp = copy(p.data)
-        select!(p.data, [])
-        if from >= 0
-            idx = max(size(tmp, 1), from)
-            @with tmp begin
-                for col in eachcol(tmp)
-                    p.data[!, col] = @view col[begin:(idx - 1)]
-                end
-            end
-        else
-            idx = size(tmp, 1) + from
-            if idx > 0
-                @with tmp begin
-                    for (col, name) in zip(eachcol(tmp), names(tmp))
-                        p.data[!, name] = @view col[(idx + 1):end]
-                    end
-                end
-            end
-        end
-    end
-end
 const ResetErrors = Union{MethodError,DivideError,ArgumentError}
 function __handle_error(::ResetErrors, zi, key, kwargs)
     delete!(zi.store, key) # ensure path does not exist
@@ -394,10 +355,11 @@ _wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
 "
-function load(zi::ZarrInstance, exc_name, pair, timeframe; kwargs...)
+function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
     @as_td
-    @zkey
-    _wrap_load(zi, key, timefloat(tf); kwargs...)
+    key = pair_key(exc_name, pair, timeframe)
+    t = _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
+    fetch(t)
 end
 
 load(zi::Ref{ZarrInstance}, args...; kwargs...) = load(zi[], args...; kwargs...)
@@ -424,17 +386,13 @@ end
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
 
 function __ensure_ohlcv_zarray(zi, key)
-    begin
-        ncols = length(OHLCV_COLUMNS)
-        function get(reset)
-            begin
-                _get_zarray(zi, key, (2, ncols); overwrite=true, type=Float64, reset)[1]
-            end
-        end
-        z = get(false)
-        z.metadata.fill_value isa Float64 && return z
-        get(true)
+    ncols = length(OHLCV_COLUMNS)
+    function get(reset)
+        _get_zarray(zi, key, (2, ncols); overwrite=true, type=Float64, reset)[1]
     end
+    z = get(false)
+    z.metadata.fill_value isa Float64 && return z
+    get(true)
 end
 
 @doc """ Load ohlcv pair data from zarr instance.

@@ -4,6 +4,7 @@ using DataStructures
 using DataFrames
 using Misc
 using TimeTicks
+using Data: PairData, @with
 
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 
@@ -95,6 +96,30 @@ function check_alignment(data::AbstractDict; raise=false)
         end
     end
     return true
+end
+
+function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
+    for (_, p) in data
+        tmp = copy(p.data)
+        select!(p.data, [])
+        if from >= 0
+            idx = max(size(tmp, 1), from)
+            @with tmp begin
+                for col in eachcol(tmp)
+                    p.data[!, col] = @view col[begin:(idx - 1)]
+                end
+            end
+        else
+            idx = size(tmp, 1) + from
+            if idx > 0
+                @with tmp begin
+                    for (col, name) in zip(eachcol(tmp), names(tmp))
+                        p.data[!, name] = @view col[(idx + 1):end]
+                    end
+                end
+            end
+        end
+    end
 end
 
 export trim!, check_alignment
