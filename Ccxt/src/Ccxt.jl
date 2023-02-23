@@ -69,12 +69,13 @@ function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
                 Dict(i => data[i] for i in inputs)
             end
         else
-            () -> @sync begin
-                out = Dict{eltype(inputs),Py}()
+            () -> begin
+                out = Dict{eltype(inputs),Union{Task,Py}}()
                 for i in inputs
-                    @async begin
-                        out[i] = pyfetch(f, i; kwargs...)
-                    end
+                    out[i] = pytask(f, i; kwargs...)
+                end
+                for (i, task) in out
+                    out[i] = fetch(task)
                 end
                 out
             end
