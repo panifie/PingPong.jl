@@ -104,6 +104,9 @@ function Base.isequal(a::Derivative, b::Derivative)
 end
 Base.hash(a::Derivative) = Base.hash((a.bc, a.qc, a.sc))
 Base.hash(a::Derivative, h::UInt64) = Base.hash((a.bc, a.qc, a.sc), h)
+Base.show(buf::IO, a::Derivative) = begin
+    write(buf, "Derivative($(a.raw))")
+end
 
 export Derivative, DerivativeKind, @d_str, perpetual
 

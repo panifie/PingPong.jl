@@ -98,15 +98,8 @@ end
 Base.hash(a::AbstractAsset) = hash((a.bc, a.qc))
 Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
-Base.display(a::AbstractAsset) = Base.display(a.raw)
-Base.show(a::AbstractAsset) = Base.display(a.raw)
-Base.display(v::AbstractVector{<:AbstractAsset}) = begin
-    text = Vector{String}()
-    for a in v
-        push!(text, a.raw)
-    end
-    Base.display(text)
-end
+Base.show(buf::IO, a::AbstractAsset) = write(buf, "Asset($(a.qc)/$(a.bc))")
+Base.display(a::AbstractAsset) = show(stdout, a)
 
 const QuoteTuple = @NamedTuple{q::Symbol}
 const BaseTuple = @NamedTuple{b::Symbol}
