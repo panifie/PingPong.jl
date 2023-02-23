@@ -254,7 +254,7 @@ function futures(exc::Exchange)
     futures_sym != exc.id ? getexchange!(futures_sym) : exc
 end
 
-include("pairlist.jl")
+include("tickers.jl")
 include("data.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
