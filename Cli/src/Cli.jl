@@ -4,7 +4,7 @@ using Base.Iterators: flatten
 using Comonicon
 using Data: load_ohlcv
 using Exchanges
-using Exchanges: get_pairlist
+using Exchanges: tickers
 using Fetch
 using Misc: Exchange, config
 using Processing: resample
@@ -20,7 +20,7 @@ macro choosepairs()
                 $qc = config.qc
                 @info "Using default quote currency $($qc)."
             end
-            $pairs = [e => get_pairlist(e, $qc, $vol; as_vec=true) for e in $ev]
+            $pairs = [e => tickers(e, $qc; min_vol=$vol, as_vec=true) for e in $ev]
         else
             $qc !== "" && @warn "Ignoring quote: " * $qc " since pairs were supplied."
             pl = if eltype($pairs) <: AbstractVector

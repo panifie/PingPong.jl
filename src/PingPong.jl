@@ -21,8 +21,8 @@ function __init__()
 end
 
 export Engine,
-    get_pairs,
-    get_pairlist,
+    marketids,
+    tickers,
     load_ohlcv,
     user!,
     getexchange!,

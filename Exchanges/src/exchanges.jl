@@ -258,6 +258,6 @@ include("pairlist.jl")
 include("data.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
-export loadmarkets!, get_pairlist, get_pairs
+export loadmarkets!, pairlist, pairs
 export sandbox!, issandbox, ratelimit!
 export timestamp, timeout!, check_timeout

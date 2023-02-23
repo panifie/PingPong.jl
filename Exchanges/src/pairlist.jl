@@ -25,15 +25,15 @@ function leverage_func(exc, with_leveraged, with_futures)
     end
 end
 
-get_pairs(args...; kwargs...) = keys(get_pairlist(exc, args...; kwargs...))
-get_pairs(exc::Exchange, args...; kwargs...) = keys(get_pairlist(exc, args...; kwargs...))
-get_pairlist(quot::Symbol, args...; kwargs...) = get_pairlist(exc, quot, args...; kwargs...)
+marketids(args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+marketids(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+tickers(quot::Symbol, args...; kwargs...) = tickers(exc, quot, args...; kwargs...)
 
 aspair(k, v) = k => v
 askey(k, _) = k
 asvalue(_, v) = v
 
-@doc """Get the exchange pairlist.
+@doc """Get the exchange tickers.
 - `quot`: Only choose pairs where the quot currency equals `quot`.
 - `min_vol`: The minimum volume of each pair.
 - `skip_fiat`: Ignore fiat/fiat pairs.
@@ -41,7 +41,7 @@ asvalue(_, v) = v
 - `leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
 - `as_vec`: Returns the pairlist as a Vector instead of as a Dict.
 """
-function get_pairlist(
+function tickers(
     exc::Exchange,
     quot;
     min_vol,
@@ -53,7 +53,7 @@ function get_pairlist(
 )::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers
-    pairlist = String[]
+    pairlist = []
     quot = string(quot)
 
     lquot = lowercase(quot)
@@ -64,6 +64,7 @@ function get_pairlist(
     pushifquote(p, k, v, q) = isquote(quoteid(v), q) && pushas(p, k, v, nothing)
     addto = ifelse(isempty(quot), pushas, pushifquote)
     leverage_check = leverage_func(exc, with_leverage, with_futures)
+    # TODO: all this checks should be decomposed into functions transducer style
     function skip_check(spot, islev, mkt)
         (with_leverage == :no && islev) ||
             (with_leverage == :only && !islev) ||

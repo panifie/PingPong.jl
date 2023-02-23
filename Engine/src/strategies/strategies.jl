@@ -62,7 +62,7 @@ end
 
 process(::Strategy, date::DateTime, orders::Vector{Order}=[]) = orders
 assets(::Strategy, e::ExchangeID=nothing) = Asset[]
-get_pairs(::Strategy) = String[]
+marketids(::Strategy) = String[]
 
 macro notfound(path)
     quote
@@ -106,7 +106,7 @@ function loadstrategy!(src::Symbol, cfg=config)
         cfg.exchange = mod.exc
     end
     @assert isdefined(mod, :name) && mod.name isa Symbol "Source $src does not define a strategy name."
-    pairs = Base.invokelatest(mod.get_pairs, Strategy{mod.name})
+    pairs = Base.invokelatest(mod.marketids, Strategy{mod.name})
     Strategy(mod.name, pairs, cfg)
 end
 

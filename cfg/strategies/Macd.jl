@@ -15,7 +15,7 @@ function process(Strategy::S, idx, cdl)
     Order()
 end
 
-function get_pairs(::Type{S})
+function marketids(::Type{S})
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "XMR/USDT:USDT"]
 end
 
@@ -24,5 +24,5 @@ function assets(_::S)
     Dict{Asset,ExchangeID}(Asset(a) => exc for a in pairs(S))
 end
 
-export name, process, assets, get_pairs
+export name, process, assets, marketids
 end

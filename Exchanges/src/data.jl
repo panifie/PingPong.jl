@@ -3,7 +3,7 @@ using Data: zi, PairData
 using Misc: config
 
 function load_ohlcv(timeframe::AbstractString)
-    load_ohlcv(get_pairlist(config.qc; as_vec=true, margin=config.margin), timeframe)
+    load_ohlcv(tickers(config.qc; as_vec=true, margin=config.margin), timeframe)
 end
 
 load_ohlcv(exc::Exchange, timeframe::AbstractString) = load_ohlcv(zi, exc, pairs, timeframe)
@@ -16,7 +16,7 @@ function load_ohlcv(
     load_ohlcv(zi, exc, pairs, timeframe)
 end
 @doc "Load all pairs from exchange according to config quote currency and timeframe."
-load_ohlcv() = load_ohlcv(get_pairlist(config.qc), convert(String, config.timeframe))
+load_ohlcv() = load_ohlcv(tickers(config.qc), convert(String, config.timeframe))
 function load_ohlcv(zi, exc, pairs::AbstractDict, timeframe)
     load_ohlcv(zi, exc, keys(pairs), timeframe)
 end

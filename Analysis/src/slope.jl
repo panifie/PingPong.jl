@@ -6,7 +6,7 @@ function slopefilter(
     timeframe=config.timeframe; qc=config.qc, minv=10.0, maxv=90.0, window=20
 )
     @assert exc.issset "Global exchange variable is not set."
-    pairs = get_pairlist(exc, qc)
+    pairs = tickers(exc, qc)
     pairs = load_ohlcv(zi, exc, pairs, timeframe)
     pred = x -> slopeangle(x; window)
     filter(pred, pairs, minv, maxv)

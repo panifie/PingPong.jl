@@ -27,7 +27,7 @@ macro excfilter(exc_name)
         pred = @λ(x -> slopeangle(x; n=config.window)[end])
         # load the data from exchange with the quote currency and timeframe from config
         data = ((x -> $bt.load_ohlcv($bt.Data.zi, $exc_name, x, config.timeframe))(
-            $bt.Exchanges.get_pairlist($exc_name, config.qc)
+            $bt.Exchanges.tickers($exc_name, config.qc)
         ))
         # apply the filter
         flt = $bt.filter(pred, data, config.slope_min, config.slope_max)

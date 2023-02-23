@@ -1,5 +1,5 @@
 using Python: @pymodule
-using Exchanges: get_pairlist
+using Exchanges: tickers
 using Python.PythonCall: pyimport, @py, PyDict
 
 function cf_getfeed(; timeout=3)
@@ -9,7 +9,7 @@ function cf_getfeed(; timeout=3)
     feed = pyimport("src.exchanges.feed")
     rld = pyimport("importlib")
     rld.reload(feed)
-    pairs = get_pairlist()
+    pairs = tickers()
     norm_pairs = []
     for p in keys(pairs)
         push!(norm_pairs, replace(p, "/" => "-"))

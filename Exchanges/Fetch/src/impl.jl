@@ -15,7 +15,7 @@ using Python: pylist_to_matrix
 using ExchangeTypes: Exchange
 using Exchanges:
     setexchange!,
-    get_pairlist,
+    tickers,
     getexchange!,
     is_timeframe_supported,
     py_except_name,
@@ -264,7 +264,7 @@ function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
 function fetch_ohlcv(exc, timeframe; qc=config.qc, kwargs...)
-    pairs = get_pairlist(exc, qc; as_vec=true)
+    pairs = tickers(exc, qc; as_vec=true)
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
 
@@ -292,7 +292,7 @@ function fetch_ohlcv(
     parallel && _instantiate_workers(:PingPong; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
-        e_pl = s -> (ex = getexchange!(s); (ex, get_pairlist(ex; as_vec=true)))
+        e_pl = s -> (ex = getexchange!(s); (ex, tickers(ex; as_vec=true)))
     else
         e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name))), s[2])
     end
@@ -417,9 +417,9 @@ end
 function _fetch_candles(
     exc, timeframe, pairs::Iterable; from::D1, to::D2
 ) where {D1,D2<:Union{DateTime,AbstractString}}
-    Dict(
+    @sync Dict(
         name =>
-            __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to; cleanup=false)[1]
+            @async __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to; cleanup=false)[1]
         for name in pairs
     )
 end
