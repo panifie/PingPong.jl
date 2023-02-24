@@ -190,7 +190,6 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
     end
 end
 save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
-# _docopy(z, from, data, type) = z[from:end, :] = @to_mat(data)
 
 function _save_ohlcv(
     zi::ZarrInstance,
@@ -203,11 +202,17 @@ function _save_ohlcv(
     overwrite=true,
     reset=false,
     check=false,
+    input=nothing
 )
     local za
+    isempty(data) && return
     !reset && @check_td(data)
 
-    za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+    if !(input isa ZArray)
+        za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+    else
+        za, existing = input, true
+    end
 
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && size(za, 1) > 0
@@ -251,7 +256,6 @@ function _save_ohlcv(
             szdv = size(data_view, 1)
             if szdv > 0
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
-                # _docopy(za, offset, data_view, type)
                 za[offset:end, :] = @to_mat(data_view)
             end
             @debug "Size data_view: " szdv

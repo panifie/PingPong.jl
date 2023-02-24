@@ -36,7 +36,7 @@ function save_data(
     zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
 )
     t = @async _wrap_save_data(
-        zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
+        zi::ZarrInstance, key, data::Iterable; serialize, data_col, kwargs...
     )
     fetch(t)
 end
@@ -45,9 +45,9 @@ function _wrap_save_data(
     zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
 )
     try
-        @assert applicable(iterate, data) lazy"$(typeof(data)) is not iterable."
-        @assert length(first(data)) > 1 lazy"Data must have at least 2 dimensions (It needs a timestamp column.)"
-        @assert first(data)[data_col] isa DateTime lazy"Element $(first(data))"
+        @assert applicable(iterate, data) "$(typeof(data)) is not iterable."
+        @assert length(first(data)) > 1 "Data must have at least 2 dimensions (It needs a timestamp column.)"
+        @assert first(data)[data_col] isa DateTime "Element $(first(data))"
     catch e
         @error "Tried to save incompatible data type ($(typeof(data))) using index $data_col as time column."
         rethrow(e)
@@ -65,11 +65,11 @@ function _wrap_save_data(
         type = get(kwargs, :type, Float64)
     end
     try
-        _save_data(zi, key, data; kwargs..., type)
+        _save_data(zi, key, data; kwargs..., type, data_col)
     catch e
         if typeof(e) ∈ (DivideError,)
             @warn "Resetting local data for key $key." e
-            _save_data(zi, key, data; kwargs..., type, reset=true)
+            _save_data(zi, key, data; kwargs..., type, data_col, reset=true)
         else
             rethrow(e)
         end

@@ -6,14 +6,16 @@ using Base: GenericIOBuffer
 using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub, ZArray
 using Misc: DATA_PATH, isdirempty
 using Lang: @lget!, Option
-import Base.delete!, Base.isempty
+import Base.delete!, Base.isempty, Base.empty!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
-function isempty(z::ZArray)
-    size(z, 1) == 0 ||
-        size(z) == z.metadata.chunks && all(view(z, :) .== z.metadata.fill_value)
+empty!(z::ZArray) = begin
+    resize!(z, 0, size(z)[2:end]...)
+    z
 end
+
+isempty(z::ZArray) = size(z, 1) == 0
 
 function delete!(g::ZGroup, key::AbstractString; force=true)
     delete!(g.storage, g.path, key)
