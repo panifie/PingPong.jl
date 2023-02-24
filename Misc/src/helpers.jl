@@ -35,4 +35,4 @@ function rangeafter(v::AbstractVector, d; strict=true, kwargs...)
 end
 
 @doc "Returns a view of the sorted vector `v`, indexed using `rangeafter`."
-after(v::AbstractVector, d) = view(v, rangeafter(v, d))
+after(v::AbstractVector, d; kwargs...) = view(v, rangeafter(v, d; kwargs...))
