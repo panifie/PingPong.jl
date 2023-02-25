@@ -27,17 +27,30 @@ end
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt).
 
 """
-function ccxt_tickers_watcher(exc::Exchange, syms=[], interval=Second(5))
+function ccxt_tickers_watcher(
+    exc::Exchange;
+    wid=:ccxt_ticker,
+    syms=[],
+    interval=Second(5),
+    start=true,
+    process=false,
+    buffer_capacity=100,
+)
+    check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
+    attrs[:serialized] = true
     attrs[:tfunc] = choosefunc(exc, "Ticker", syms)
     attrs[:ids] = syms
     attrs[:key] = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
     watcher_type = Dict{String,CcxtTicker}
     watcher(
         watcher_type,
-        :ccxt_ticker;
+        wid;
+        start,
+        load=false,
         flush=true,
-        process=false,
+        process,
+        buffer_capacity,
         fetch_interval=interval,
         attrs,
     )
