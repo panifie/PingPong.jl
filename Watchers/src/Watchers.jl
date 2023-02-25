@@ -11,9 +11,9 @@ using Base.Threads: @spawn
 using Base: acquire, Semaphore, release
 using Processing.DataFrames: DataFrame
 
-safenotify(cond) = begin
+safenotify(cond, args...; kwargs...) = begin
     lock(cond)
-    notify(cond)
+    notify(cond, args...; kwargs...)
     unlock(cond)
 end
 safewait(cond) = begin
@@ -47,11 +47,14 @@ function _tryfetch(w)::Bool
         logerror(w, result)
         false
     else
-        result
+        @debug @assert result
+        safenotify(w.beacon)
+        true
     end
 end
-function _schedule_fetch(w, timeout, threads)
-    fetcher_task = threads ? (@spawn _tryfetch(w)) : (@async _tryfetch(w))
+function _schedule_fetch(w, timeout, threads; kwargs...)
+    fetcher_task =
+        threads ? (@spawn _tryfetch(w; kwargs...)) : (@async _tryfetch(w; kwargs...))
     @async begin
         sleep(timeout)
         safenotify(fetcher_task.donenotify)
@@ -85,12 +88,13 @@ const Exec = NamedTuple{
 }
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
 
-@kwdef mutable struct Watcher19{T}
+@kwdef mutable struct Watcher20{T}
     const buffer::CircularBuffer{BufferEntry(T)}
     const name::String
     const has::HasFunction
     const interval::Interval
     const capacity::Capacity
+    const beacon::Threads.Condition
     const _exec::Exec
     const _val::Val
     _timer::Option{Timer} = nothing
@@ -108,18 +112,20 @@ end
  - `fetch_interval`: the `Period` with which `_fetch!` function will be called.
  - `flush_interval`: the `Period` with which `_flush!` function will be called.
  - `capacity`: controls the size of the buffer and the processed container.
+ - `beacon`: A condition that is notified whenever a successful fetch is performed.
  - `threads`: flag to enable to execute fetching in a separate thread.
  - `attempts`: In cause of fetching failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
  - `last_fetch`: the most recent time a fetch operation failed.
  - `last_flush`: the most recent time the flush function was called.
  - `_timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  """
-Watcher = Watcher19
+Watcher = Watcher20
 
 @doc """ Instantiate a watcher.
 
 - `T`: The type of the underlying `CircularBuffer`
 - `len`: length of the circular buffer.
+- `start`: If `true`(default), the watcher will start fetching asap.
 
 !!! warning "asyncio vs threads"
     Both `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
@@ -128,6 +134,7 @@ Watcher = Watcher19
 function watcher(
     T::Type,
     name;
+    start=true,
     load=true,
     process=false,
     flush=false,
@@ -140,12 +147,13 @@ function watcher(
     attrs=Dict()
 )
     @debug "new watcher: $name"
-    w = Watcher19{T}(;
+    w = Watcher20{T}(;
         buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
         name=String(name),
         has=HasFunction((load, process, flush)),
         interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
         capacity=Capacity((buffer_capacity, view_capacity)),
+        beacon=Threads.Condition(),
         _exec=Exec((
             threads, Semaphore(1), Semaphore(1), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
@@ -161,7 +169,7 @@ function watcher(
     w.has.load && load!(w)
     w.last_flush = now() # skip flush on start
     @debug "setting timer for $name"
-    _timer!(w)
+    start && _timer!(w)
     @debug "watcher $name initialized!"
     w
 end
@@ -188,7 +196,16 @@ _isserialized(w::Watcher) = get!(w.attrs, :serialized, false)
 @doc "Save function for watcher data, saves to the default `DATA_PATH` \
 located lmdb instance using serialization."
 function default_flusher(w::Watcher, key; reset=false, buf=w.buffer)
-    save_data(zilmdb(), key, buf; serialize=_isserialized(w), overwrite=true, reset)
+    isempty(buf) && return nothing
+    most_recent = last(buf)
+    last_flushed = w.attrs[:last_flushed]
+    if most_recent.time > last_flushed.time
+        recent_slice = after(buf, last_flushed; by=x -> x.time)
+        save_data(
+            zilmdb(), key, recent_slice; serialize=_isserialized(w), overwrite=true, reset
+        )
+        w.attrs[:last_flushed] = most_recent
+    end
 end
 default_flusher(w::Watcher) = default_flusher(w, w.name)
 @doc "Load function for watcher data, loads from the default `DATA_PATH` \
@@ -207,22 +224,19 @@ To be used with: `default_init` and `default_get`
 "
 function default_process(w::Watcher, appendby::Function)
     isempty(w.buffer) && return nothing
-    if w.attrs[:last_processed] == DateTime(0)
+    last_p = w.attrs[:last_processed]
+    if isnothing(last_p)
         appendby(w.attrs[:view], w.buffer, w.capacity.view)
     else
-        idx = searchsortedfirst(
-            w.buffer, w.attrs[:last_processed]; lt=(x, y) -> isless(x.time, y)
-        )
-        let range = (idx+1):lastindex(w.buffer)
-            length(range) > 0 &&
-                appendby(w.attrs[:view], @view(w.buffer[range]), w.capacity.view)
-        end
+        range = rangeafter(w.buffer, last_p; by=x -> x.time)
+        length(range) > 0 &&
+            appendby(w.attrs[:view], view(w.buffer, range), w.capacity.view)
     end
-    w.attrs[:last_processed] = w.buffer[end].time
+    w.attrs[:last_processed] = w.buffer[end]
 end
 function default_init(w::Watcher, dataview=DataFrame())
     w.attrs[:view] = dataview
-    w.attrs[:last_processed] = DateTime(0)
+    w.attrs[:last_processed] = nothing
     w.attrs[:serialized] = true
 end
 default_get(w::Watcher) = w.attrs[:view]
@@ -303,9 +317,9 @@ function flush!(w::Watcher; force=true, sync=false)
 end
 @doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
 polling will resume after the watcher `interval`."
-function fetch!(w::Watcher; reset=false)
+function fetch!(w::Watcher; reset=false, kwargs...)
     try
-        _schedule_fetch(w, w.interval.timeout, w._exec.threads)
+        _schedule_fetch(w, w.interval.timeout, w._exec.threads; kwargs...)
         reset && _timer!(w)
     catch e
         logerror(w, e, stacktrace(catch_backtrace()))
@@ -334,10 +348,9 @@ macro logerror(w, expr)
         end
     end
 end
-
-process!(w::Watcher) = @logerror w _process!(w, w._val)
-load!(w::Watcher) = @logerror w _load!(w, w._val)
-init!(w::Watcher) = @logerror w _init!(w, w._val)
+process!(w::Watcher, args...; kwargs...) = @logerror w _process!(w, w._val, args...; kwargs...)
+load!(w::Watcher, args...; kwargs...) = @logerror w _load!(w, w._val, args...; kwargs...)
+init!(w::Watcher, args...; kwargs...) = @logerror w _init!(w, w._val, args...; kwargs...)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
     _push!(w, w._val, v, args...; kwargs...)
@@ -369,14 +382,22 @@ Base.getproperty(w::Watcher, p::Symbol) = begin
 end
 @doc "Stops the watcher timer."
 stop(w::Watcher) = begin
-    isnothing(w._timer) || Base.close(w._timer)
+    @assert isstarted(w) "Tried to stop an already stopped watcher."
+    Base.close(w._timer)
     _stop(w, w._val)
+    nothing
 end
 @doc "Resets the watcher timer."
 start(w::Watcher) = begin
+    @assert isstopped(w) "Tried to start an already started watcher."
     _start(w, w._val)
-    (_timer!(w); nothing)
+    _timer!(w)
+    nothing
 end
+@doc "True if timer is not running."
+isstopped(w::Watcher) = isnothing(w._timer) || !isopen(w._timer)
+@doc "True if timer is running."
+isstarted(w::Watcher) = !isnothing(w._timer) && isopen(w._timer)
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
@@ -399,7 +420,7 @@ function Base.show(out::IO, w::Watcher)
     write(out, "\nFlushed: ")
     write(out, "$(w.last_flush)")
     write(out, "\nActive: ")
-    write(out, "$(isopen(w._timer))")
+    write(out, "$(isstarted(w))")
     write(out, "\nAttemps: ")
     write(out, "$(w.attempts)")
 end
@@ -414,7 +435,7 @@ Base.display(w::Watcher) =
 
 export Watcher, watcher, isstale, default_loader, default_flusher
 export default_process, default_init, default_get
-export pushnew!, pushstart!, start, stop, process!, load!, init!
+export pushnew!, pushstart!, start, stop, isstarted, isstopped, process!, load!, init!
 
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
