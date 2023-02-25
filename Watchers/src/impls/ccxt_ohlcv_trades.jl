@@ -10,7 +10,7 @@ using Data:
     empty_ohlcv,
     nrow,
     _contiguous_ts
-using Misc: ohlcv_limits, rangeafter, Iterable
+using Misc: ohlcv_limits, rangeafter, Iterable, rangebetween
 using .DataFramesMeta
 using Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using Processing.TradesOHLCV
@@ -118,25 +118,6 @@ function _flush!(w::Watcher, ::CcxtOHLCVVal)
     w.attrs[:last_saved_date] = w.view.timestamp[end]
 end
 
-_status(w::Watcher) = w.attrs[:status]
-_tfunc(w::Watcher) = w.attrs[:tfunc]
-_exc(w::Watcher) = w.attrs[:exc]
-_sym(w::Watcher) = w.attrs[:sym]
-_tfr(w::Watcher) = w.attrs[:timeframe]
-_trades(w::Watcher) = w.attrs[:trades]
-_firstdate(df::DataFrame, range::UnitRange) = df[range.start, :timestamp]
-_firstdate(df::DataFrame) = df[begin, :timestamp]
-_firsttrade(w::Watcher) = first(_trades(w))
-_lasttrade(w::Watcher) = last(_trades(w))
-_lastdate(df::DataFrame) = df[end, :timestamp]
-_nextdate(df::DataFrame, tf) = df[end, :timestamp] + period(tf)
-_lastdate(z::ZArray) = z[end, 1] # the first col is a timestamp
-_curdate(tf) = apply(tf, now())
-
-function _fetch_candles(w, from, to="")
-    fetch_candles(_exc(w), _tfr(w), _sym(w); zi=zilmdb(), from, to)
-end
-
 function _get_available(w, z, last_timestamp)
     max_lookback = last_timestamp - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
@@ -150,8 +131,6 @@ function _get_available(w, z, last_timestamp)
         return Data.to_ohlcv(available[:, :])
     end
 end
-
-_check_contig(w, df) = _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
 
 function _load!(w::Watcher, ::CcxtOHLCVVal)
     tf = _tfr(w)
@@ -198,12 +177,11 @@ function _resolve_and_append(w, temp)
         let from = next,
             to = right - period(tf),
             candles = _fetch_candles(w, from, to),
-            to_idx = min(_date_to_idx(tf, from, to), nrow(candles)),
-            from_idx = rangeafter(candles.timestamp, left).start,
-            sliced = nrow(candles) > 1 ? view(candles, from_idx:to_idx, :) : candles
+            from_to_range = rangebetween(candles.timestamp, left, right),
+            sliced = nrow(candles) > 1 ? view(candles, from_to_range, :) : candles
 
             isempty(sliced) && begin
-                @debug left right from to from_idx to_idx
+                @debug left right from to from_to_range
                 _reconcile_error(w)
                 return nothing
             end
@@ -221,7 +199,7 @@ function _resolve_and_append(w, temp)
     # and fetched ohlcv overlap with processed ohlcv
     from_range = rangeafter(temp.ohlcv.timestamp, left)
     if length(from_range) > 0 &&
-       _firstdate(temp.ohlcv, from_range) == _nextdate(w.view, _tfr(w))
+       _firstdate(temp.ohlcv, from_range) == next
         @debug "Appending trades from $(_firstdate(temp.ohlcv, from_range)) to $(_lastdate(temp.ohlcv))"
         appendmax!(w.view, view(temp.ohlcv, from_range, :), w.capacity.view)
         _check_contig(w, w.view)
@@ -238,21 +216,11 @@ _update_timestamps(left, prd, ts, from_idx) = begin
     end
 end
 
-# On startup, the first trades that we receive are likely incomplete
-# So we have to discard them, and only consider trades after the first (normalized) timestamp
-# Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
-struct Initialized end
-struct Pending end
-_iswarm(_, ::Initialized) = false
-_iswarm(w, ::Pending) = true
-_warmed!(_, ::Initialized) = nothing
-_warmed!(w, ::Pending) = w.attrs[:status] = Initialized()
-
 _empty_candles(_, ::Pending) = nothing
 # Ensure that when no trades happen, candles are still updated
 # NOTE: this assumes all trades were witnesses from the watcher side
 # otherwise we couldn't tell if a candle truly had 0 volume.
-function _empty_candles(w, ::Initialized)
+function _empty_candles(w, ::Warmed)
     tf = _tfr(w)
     prd = period(tf)
     # If no trades happened at all, consider the actual candle
@@ -280,11 +248,13 @@ function _empty_candles(w, ::Initialized)
     end
 end
 
-
 function _process!(w::Watcher, ::CcxtOHLCVVal)
     _empty_candles(w, _status(w))
+    # On startup, the first trades that we receive are likely incomplete
+    # So we have to discard them, and only consider trades after the first (normalized) timestamp
+    # Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
     temp = trades_to_ohlcv(
-        _trades(w), _tfr(w); trim_left=_iswarm(w, _status(w)), trim_right=false
+        _trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false
     )
     isnothing(temp) && return nothing
     if isempty(w.view)
@@ -297,7 +267,7 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
 end
 
 function _start(w::Watcher, ::CcxtOHLCVVal)
-    w.attrs[:status] = Pending()
+    _pending!(w)
     empty!(_trades(w))
     candles = _fetch_candles(w, _lastdate(w))
     candles = cleanup_ohlcv_data(candles, _tfr(w))
