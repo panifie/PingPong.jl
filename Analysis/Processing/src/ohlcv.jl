@@ -108,5 +108,8 @@ end
 islast(d::DateTime, tf::TimeFrame) = islast(apply(tf, d), tf, Val(:raw))
 islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
 islast(v, tf::AbstractString) = islast(v, timeframe(tf))
+isleftadj(a, b, tf::TimeFrame) = a + tf == b
+isrightadj(a, b, tf::TimeFrame) = isleftadj(b, a, tf)
+isadjacent(a, b, tf::TimeFrame) = isleftadj(a, b, tf) || isrightadj(a, b, tf)
 
-export cleanup_ohlcv_data, isincomplete, iscomplete, islast
+export cleanup_ohlcv_data, isincomplete, iscomplete, islast, isleftadj, isrightadj, isadjacent
