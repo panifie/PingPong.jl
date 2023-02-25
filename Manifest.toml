@@ -1074,6 +1074,12 @@ git-tree-sha1 = "6ed52fdd3382cf21947b15e8870ac0ddbff736da"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.4.0+0"
 
+[[deps.Rocket]]
+deps = ["DataStructures", "Sockets", "Unrolled"]
+git-tree-sha1 = "33e270ce5710d5315f28c205ec7d598c4fdf660d"
+uuid = "df971d30-c9d6-4b37-b8ff-e965b2cb3a40"
+version = "1.7.0"
+
 [[deps.Roots]]
 deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
 git-tree-sha1 = "a3db467ce768343235032a1ca0830fc64158dadf"
@@ -1363,13 +1369,19 @@ version = "1.0.2"
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
+[[deps.Unrolled]]
+deps = ["MacroTools"]
+git-tree-sha1 = "69eccecbb9ba198e46b4ddcb164f8dea3c685601"
+uuid = "9602ed7d-8fef-5bc8-8597-8f21381861e8"
+version = "0.1.4"
+
 [[deps.UnsafePointers]]
 git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"
 uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
 version = "1.0.0"
 
 [[deps.Watchers]]
-deps = ["Data", "DataStructures", "Exchanges", "Fetch", "HTTP", "Instruments", "Lang", "LazyJSON", "Misc", "Processing", "Python", "Tables", "TimeTicks", "TimeToLive", "URIs"]
+deps = ["Data", "DataStructures", "Exchanges", "Fetch", "HTTP", "Instruments", "Lang", "LazyJSON", "Misc", "Processing", "Python", "Rocket", "Tables", "TimeTicks", "TimeToLive", "URIs"]
 path = "Watchers"
 uuid = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
 version = "0.1.0"

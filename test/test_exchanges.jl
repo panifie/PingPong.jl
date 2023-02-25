@@ -8,8 +8,8 @@ _exchange_id() = begin
 end
 _exchange_pairs() = begin
     @eval begin
-        using PingPong.Exchanges: get_pairs
-        const getpairs = PingPong.Exchanges.get_pairs
+        using PingPong.Exchanges: marketids
+        const getpairs = PingPong.Exchanges.marketids
         prs = getpairs()
     end
     length(prs) > 0

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta4"
 manifest_format = "2.0"
-project_hash = "1fef7c27f884a058e2170a14184eace5997f9cdd"
+project_hash = "db57d8d1f68cf0c57213177099099e000bded14a"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -585,6 +585,12 @@ git-tree-sha1 = "41ac127cd281bb33e42aba46a9d3b25cd35fc6d5"
 uuid = "20febd7b-183b-5ae2-ac4a-720e7ce64774"
 version = "0.4.1"
 
+[[deps.Rocket]]
+deps = ["DataStructures", "Sockets", "Unrolled"]
+git-tree-sha1 = "33e270ce5710d5315f28c205ec7d598c4fdf660d"
+uuid = "df971d30-c9d6-4b37-b8ff-e965b2cb3a40"
+version = "1.7.0"
+
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
@@ -734,6 +740,12 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[deps.Unrolled]]
+deps = ["MacroTools"]
+git-tree-sha1 = "69eccecbb9ba198e46b4ddcb164f8dea3c685601"
+uuid = "9602ed7d-8fef-5bc8-8597-8f21381861e8"
+version = "0.1.4"
 
 [[deps.UnsafePointers]]
 git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"

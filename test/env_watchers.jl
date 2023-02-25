@@ -9,6 +9,7 @@ cp = PingPong.Watchers.CoinPaprika
 excs = collect(keys(cg.loadderivatives!()))
 wc = PingPong.Watchers
 wi = PingPong.Watchers.WatchersImpls
+pro = wi.Processing
 setexchange!(:bybit)
 macro usdt_str(sym)
     s = uppercase(sym) * "/USDT:USDT"
