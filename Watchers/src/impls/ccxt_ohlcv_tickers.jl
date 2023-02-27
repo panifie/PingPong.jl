@@ -1,18 +1,42 @@
 using Data: OHLCV_COLUMNS
 using Misc: between
+using Processing: iscomplete
+using Lang: fromstruct, ifproperty!, ifkey!
+using ..Watchers: @logerror
 
+const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
 
-_view(w) = w.attrs[:view]
-function ccxt_ohlcv_tickers_watcher(exc::Exchange; timeframe=tf"1m", kwargs...)
+@doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
+
+- The OHLCV ticker watcher can monitor a group of symbols, while the trades watcher only one symbol per instance.
+- The OHLCV ticker watcher candles do not match 1:1 the exchange candles, since they rely on polled data.
+- The OHLCV ticker watcher is intended to be *lazy*. It won't pre-load/fetch data for all symbols, it will only
+process new candles from the time it is started w.r.t. the timeframe provided.
+- The source price chooses which price to use to build the candles any of `:last`, `:vwap`, `:bid`, `:ask` (default `:last`).
+
+To back-fill the *view* (DataFrame) of a particular symbol, call `load!(watcher, symbol)`, which will fill
+the view up to the watcher `view_capacity`.
+
+!!! warning "Inaccurate volume"
+    Since the volume data from the ticker is a daily rolling sum, the recorded volume is adjusted to be
+    a fraction of it (using the timeframe as unit, see `_meanvolume!`).
+    If this behaviour is not desired, it is better to use `vwap` as price source for building OHLC and ignore
+    the volume column.
+"""
+function ccxt_ohlcv_tickers_watcher(
+    exc::Exchange; price_source=:last, timeframe=tf"1m", kwargs...
+)
     w = ccxt_tickers_watcher(
-        exc; wid=:ccxt_ohlcv_ticker, start=false, process=true, kwargs...
+        exc; wid=:ccxt_ohlcv_ticker, start=false, load=false, process=true, kwargs...
     )
-    w.attrs[:tickers_ohlc] = true
+    w.attrs[:tickers_ohlcv] = true
     w.attrs[:timeframe] = timeframe
+    @assert price_source ∈ PRICE_SOURCES "price_source $price_source is not one of: $PRICE_SOURCES"
+    w.attrs[:price_source] = price_source
+    w.attrs[:volume_divisor] = Day(1) / period(timeframe)
     ids = w.attrs[:ids]
     _key!(w, "ccxt_$(exc.name)_ohlcv_tickers_$(join(ids, "_"))")
-    _view!(w, Dict{String,DataFrame}())
     _pending!(w)
     w
 end
@@ -23,38 +47,86 @@ end
 
 @kwdef mutable struct TempCandle{T}
     timestamp::DateTime = DateTime(0)
-    open::T = 0
-    high::T = 0
-    low::T = 0
-    close::T = 0
+    open::T = NaN
+    high::T = -Inf
+    low::T = Inf
+    close::T = NaN
     volume::T = 0
     TempCandle(args...; kwargs...) = begin
         new{Float64}(args...; kwargs...)
     end
 end
 
+_symlock(w, sym) = @lget! w.attrs[:sym_locks] sym ReentrantLock()
+_loaded!(w, sym) = w.attrs[:loaded][sym] = true
+_isloaded(w, sym) = get!(w.attrs[:loaded], sym, false)
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
+    _view!(w, Dict{String,DataFrame}())
     w.attrs[:temp_ohlcv] = Dict{String,TempCandle}()
+    w.attrs[:candle_ticks] = Dict{String,Int}()
+    w.attrs[:loaded] = Dict{String,Bool}()
+    w.attrs[:sym_locks] = Dict{String,ReentrantLock}()
+    _checkson!(w)
 end
 
+_resetcandle!(w, cdl, ts, price) = begin
+    cdl.timestamp = ts
+    cdl.open = price
+    cdl.high = typemin(Float64)
+    cdl.low = typemax(Float64)
+    cdl.close = price
+    cdl.volume = ifelse(_isvwap(w), NaN, 0)
+end
+_isvwap(w) = w.attrs[:price_source] == :vwap
 _ohlcv(w) = w.attrs[:temp_ohlcv]
-
+_ticks(w) = w.attrs[:candle_ticks]
+_tick!(w, sym) = _ticks(w)[sym] += 1
+_zeroticks!(w, sym) = _ticks(w)[sym] = 0
+function _meanvolume!(w, sym, temp_candle)
+    temp_candle.volume = temp_candle.volume / _ticks(w)[sym] / w.attrs[:volume_divisor]
+end
+# Appends temp_candle ensuring contiguity
+function _ensure_contig!(w, df, temp_candle, tf, sym)
+    if !isempty(df)
+        left = _lastdate(df)
+        if !isrightadj(temp_candle.timestamp, left, tf)
+            _resolve(w, df, temp_candle.timestamp, sym)
+            @debug @assert isrightadj(temp_candle.timestamp, _lastdate(df), tf)
+        end
+    end
+    ## append complete candle
+    pushmax!(df, fromstruct(temp_candle), w.capacity.view)
+end
 function _update_sym_ohlcv(w, ticker, last_time)
     sym = ticker.symbol
-    latest_timestamp = apply(_tfr(w), @something(ticker.timestamp, last_time))
-    temp_candle = @lget! _ohlcv(w) sym TempCandle(timestamp=latest_timestamp)
-    if temp_candle.timestamp < latest_timestamp
-        @assert iscomplete(temp_candle)
-        @assert isrightadj(temp_candle.timestamp, _lastdate(w.view[sym]))
-        ## append complete candle
-        push!(w.view[sym], temp_candle)
+    df = @lget! w.view sym empty_ohlcv()
+    latest_timestamp = apply(_tfr(w), last_time)
+    price = getproperty(ticker, w.attrs[:price_source])
+    temp_candle = @lget! _ohlcv(w) sym begin
+        c = TempCandle(; timestamp=latest_timestamp)
+        _resetcandle!(w, c, latest_timestamp, price)
+        _zeroticks!(w, sym)
+        c
     end
-    temp_candle.timestamp = latest_timestamp
-    temp_candle.open = ticker.open
-    temp_candle.high = ticker.high
-    temp_candle.low = ticker.low
-    temp_candle.close = ticker.close
-    temp_candle.volume = ticker.baseVolume
+    if temp_candle.timestamp < latest_timestamp
+        # NOTE: this is where a stall can happen since can potentially call
+        # process adjusted volume
+        _isvwap(w) ? nothing : _meanvolume!(w, sym, temp_candle)
+        # `_fetch_candles`
+        _ensure_contig!(w, df, temp_candle, _tfr(w), sym)
+        _resetcandle!(w, temp_candle, latest_timestamp, price)
+        _zeroticks!(w, sym)
+    end
+
+    # update high if higher than current
+    ifproperty!(isless, temp_candle, :high, price)
+    # update low if lower than current
+    ifproperty!(>, temp_candle, :low, price)
+    # Sum daily volume averages (to be processed at candle finalization, see above)
+    _isvwap(w) || (temp_candle.volume += ticker.baseVolume)
+    # update the close price to the last price
+    temp_candle.close = price
+    _tick!(w, sym)
 end
 
 function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
@@ -62,22 +134,31 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     @ispending(w) && return nothing
     last_fetch = last(w.buffer)
     for (sym, ticker) in last_fetch.value
-        _update_sym_ohlcv(w, ticker, last_fetch.time)
+        @async @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
+            w, ticker, last_fetch.time
+        )
     end
 end
 
-function _start(w::Watcher, ::CcxtOHLCVTickerVal)
+function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
     _pending!(w)
     _chill!(w)
-    empty!(_view(w))
 end
 
 function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
-    df = w.view[sym]
-    if nrow(df) < w.view.capacity
-        from = _firstdate(df)
-        to = _lastdate(df)
-        candles = _fetch_candles(w, from, to)
-        # to_idx = min(_date_to_idx(tf, from, to), nrow(candles)),
+    _isloaded(w, sym) && return nothing
+    tf = _tfr(w)
+    @lock _symlock(w, sym) begin
+        df = @lget! w.view sym empty_ohlcv()
+        to = isempty(df) ? _nextdate(tf) : _firstdate(df)
+        _fetchto!(w, df, sym, tf, Val(:prepend); to)
+    end
+end
+
+function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
+    (isempty(w.buffer) || isempty(w.view)) && return nothing
+    syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
+    for sym in syms
+        @async @logerror w _load!(w, w._val, sym)
     end
 end
