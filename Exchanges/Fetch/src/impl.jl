@@ -434,7 +434,6 @@ function fetch_candles(
     exc::Exchange,
     timeframe::AbstractString,
     pairs::Union{AbstractString,Iterable};
-    zi=zi[],
     from::DateType="",
     to::DateType="",
 )
