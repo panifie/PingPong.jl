@@ -12,7 +12,7 @@ const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
-struct Candle{T<:AbstractFloat}
+@kwdef struct Candle{T<:AbstractFloat}
     timestamp::DateTime
     open::T
     high::T
@@ -26,6 +26,7 @@ struct Candle{T<:AbstractFloat}
     Candle(t::Tuple) = Candle(t...)
 end
 
+default(::Type{Candle}) = Candle(DateTime(0), 0, 0, 0, 0, 0)
 @doc "Similar to a StructArray (and should probably be replaced by it), used for fast conversion."
 const OHLCVTuple = Tuple{Vector{DateTime},Vararg{Vector{Float64},5}}
 OHLCVTuple()::OHLCVTuple = (DateTime[], (Float64[] for _ in 2:length(OHLCV_COLUMNS))...)
