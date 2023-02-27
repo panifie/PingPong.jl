@@ -77,3 +77,4 @@ julia> between([1, 2, 3, 3, 3], 2, 3; strict=false)
 function between(v::AbstractVector, left, right; kwargs...)
     view(v, rangebetween(v, left, right; kwargs...))
 end
+
