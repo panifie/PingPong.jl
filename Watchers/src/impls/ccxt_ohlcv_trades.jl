@@ -1,22 +1,8 @@
+using Data: Candle, empty_ohlcv
 using Exchanges
-using Exchanges.Ccxt: _multifunc
-using Python
-using Data:
-    Candle,
-    save_ohlcv,
-    zilmdb,
-    DataFramesMeta,
-    OHLCV_COLUMNS,
-    empty_ohlcv,
-    nrow,
-    _contiguous_ts
-using Misc: ohlcv_limits, rangeafter, Iterable, rangebetween
-using .DataFramesMeta
-using Processing: cleanup_ohlcv_data, iscomplete, isincomplete
+using Misc: Iterable
 using Processing.TradesOHLCV
-using Base.Iterators: drop, reverse
-using Fetch: fetch_candles
-using Lang: @ifdebug
+using Python
 
 const CcxtOHLCVVal = Val{:ccxt_ohlcv}
 @enum TradeSide buy sell
@@ -39,11 +25,16 @@ TradeRole(v) = getproperty(@__MODULE__, Symbol(v))
 Base.convert(::Type{TradeSide}, v) = TradeSide(v)
 Base.convert(::Type{TradeRole}, v) = TradeRole(v)
 
+# FIXME
 Python.pyconvert(::Type{DateTime}, py::Py) = dt(pyconvert(Int, py))
 Python.pyconvert(::Type{TradeSide}, py::Py) = TradeSide(py)
 Python.pyconvert(::Type{TradeRole}, py::Py) = TradeRole(py)
 
-trades_fromdict(v, ::Val{CcxtTrade}) = @fromdict(CcxtTrade, String, v)
+trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, v)
+_trades(w::Watcher) = w.attrs[:trades]
+_trades!(w) = w.attrs[:trades] = CcxtTrade[]
+_lastfetched(w) = w.attrs[:last_fetched]
+_lastfetched!(w, v) = w.attrs[:last_fetched] = v
 
 @doc """ Create a `Watcher` instance that tracks ohlcv for an exchange (ccxt).
 
@@ -66,17 +57,15 @@ doesn't ensure it, it only uses it to reduce the number of candles to fetch from
 function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=Second(5))
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    attrs[:tfunc] = _multifunc(exc, "Trades", true)[1]
-    attrs[:sym] = sym
-    attrs[:key] = "ccxt_$(exc.name)_ohlcv_$sym"
-    attrs[:exc] = exc
-    attrs[:timeframe] = timeframe
-    attrs[:status] = Pending()
-    attrs[:last_saved_date] = nothing
+    _tfunc!(attrs, "Trades")
+    _sym!(attrs, sym)
+    _exc!(attrs, exc)
+    _tfr!(attrs, timeframe)
     watcher_type = Vector{CcxtTrade}
-    watcher(
+    w = watcher(
         watcher_type,
         :ccxt_ohlcv;
+        start=false,
         flush=true,
         process=true,
         buffer_capacity=1,
@@ -84,6 +73,8 @@ function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=S
         fetch_timeout=2interval,
         attrs
     )
+    start!(w)
+    w
 end
 
 function ccxt_ohlcv_watcher(exc::Exchange, syms::Iterable; kwargs...)
@@ -92,122 +83,62 @@ function ccxt_ohlcv_watcher(exc::Exchange, syms::Iterable; kwargs...)
 end
 ccxt_ohlcv_watcher(syms::Iterable; kwargs...) = ccxt_ohlcv_watcher.(exc, syms; kwargs...)
 
+_init!(w::Watcher, ::CcxtOHLCVVal) = begin
+    default_init(w, empty_ohlcv())
+    _trades!(w)
+    _key!(w, "ccxt_$(_exc(w).name)_ohlcv_$(_sym(w))")
+    _pending!(w)
+    _lastfetched!(w, DateTime(0))
+    _lastflushed!(w, DateTime(0))
+end
+
+_load!(w::Watcher, ::CcxtOHLCVVal) = _fastforward(w)
+
+_tradestask(w) = get(w.attrs, :trades_task, nothing)
+_tradestask!(w) = begin
+    task = _tradestask(w)
+    if isnothing(task) || istaskfailed(task)
+        w.attrs[:trades_task] = @async _fetch_trades_loop(w)
+    end
+end
+function _start!(w::Watcher, ::CcxtOHLCVVal)
+    _pending!(w)
+    empty!(_trades(w))
+    _fetchto!(w, w.view, _sym(w), _tfr(w); to=_curdate(_tfr(w)))
+    _check_contig(w, w.view)
+end
+
+function _fetch_trades_loop(w)
+    backoff = ms(0)
+    while !isnothing(w._timer) && isopen(w._timer)
+        pytrades = @logerror w @pyfetch _tfunc(w)(_sym(w))
+        if pytrades isa Exception
+            backoff += ms(500)
+            sleep(backoff)
+            continue
+        end
+        if length(pytrades) > 0
+            new_trades = [
+                fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in pytrades
+            ]
+            append!(_trades(w), new_trades)
+        end
+    end
+end
+
 function _fetch!(w::Watcher, ::CcxtOHLCVVal)
-    pytrades = @pyfetch _tfunc(w)(_sym(w))
-    if length(pytrades) > 0
-        new_trades = [
-            fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in pytrades
-        ]
-        append!(_trades(w), new_trades)
-        pushnew!(w, new_trades)
+    _tradestask!(w)
+    isempty(w.buffer) && return true
+    trade = _lasttrade(w)
+    if trade.timestamp != _lastfetched(w)
+        pushnew!(w, _trades(w))
+        _lastfetched!(w, trade.timestamp)
     end
     true
 end
 
-function _flush!(w::Watcher, ::CcxtOHLCVVal)
-    # we assume that _load! and process already clean the data
-    from_date = max(w.view.timestamp[begin], w.attrs[:last_saved_date])
-    save_ohlcv(
-        zilmdb(),
-        _exc(w).name,
-        _sym(w),
-        string(_tfr(w)),
-        w.view[DateRange(from_date)];
-        check=@ifdebug(true, false)
-    )
-    w.attrs[:last_saved_date] = w.view.timestamp[end]
-end
-
-function _get_available(w, z, last_timestamp)
-    max_lookback = last_timestamp - _tfr(w) * w.capacity.view
-    isempty(z) && return nothing
-    maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end-maxlen+1):end, :])
-    if dt(available[end, 1]) < max_lookback
-        # data is too old, fetch just the latest candles,
-        # and schedule a background task to fast forward saved data
-        return nothing
-    else
-        return Data.to_ohlcv(available[:, :])
-    end
-end
-
-function _load!(w::Watcher, ::CcxtOHLCVVal)
-    tf = _tfr(w)
-    df = w.view
-    w.attrs[:trades] = CcxtTrade[]
-    z = load(zilmdb(), _exc(w).name, _sym(w), string(tf); raw=true)[1]
-    @debug @assert isempty(z) || _lastdate(z) != 0 "Corrupted storage because last date is 0: $(_lastdate(z))"
-
-    last_timestamp = apply(tf, now())
-    avl = _get_available(w, z, last_timestamp)
-    rem = if isnothing(avl)
-        rem = w.capacity.view
-    else
-        append!(df, avl)
-        _check_contig(w, df)
-        (last_timestamp - _lastdate(df)) ÷ period(tf)
-    end
-
-    if rem > 0
-        candles = _fetch_candles(w, -max(rem, 2))
-        appendmax!(df, cleanup_ohlcv_data(candles, tf), w.capacity.view)
-        _check_contig(w, df)
-    end
-end
-
-function _init!(w::Watcher, ::CcxtOHLCVVal)
-    exc_limit = get(ohlcv_limits, _exc(w).id, 1000)
-    w.attrs[:fetch_limit] = min(exc_limit, w.capacity.view)
-    default_init(w, empty_ohlcv())
-end
-
-_date_to_idx(tf, from, to) = max(1, (to - from) ÷ period(tf))
-function _reconcile_error(w)
-    @error "Trades/ohlcv reconcile failed for $(_sym(w)) @ $(_exc(w).name)"
-end
-
-function _resolve_and_append(w, temp)
-    sym = _sym(w)
-    tf = _tfr(w)
-    left = _lastdate(w.view)
-    right = _firstdate(temp.ohlcv)
-    next = _nextdate(w.view, tf)
-    if next < right
-        let from = next,
-            to = right - period(tf),
-            candles = _fetch_candles(w, from, to),
-            from_to_range = rangebetween(candles.timestamp, left, right),
-            sliced = nrow(candles) > 1 ? view(candles, from_to_range, :) : candles
-
-            isempty(sliced) && begin
-                @debug left right from to from_to_range
-                _reconcile_error(w)
-                return nothing
-            end
-            let cleaned = cleanup_ohlcv_data(sliced, tf)
-                _firstdate(cleaned) != next && begin
-                    _reconcile_error(w)
-                    return nothing
-                end
-                appendmax!(w.view, cleaned, w.capacity.view)
-                _check_contig(w, w.view)
-            end
-        end
-    end
-    # at initialization it can happen that trades fetching is too slow
-    # and fetched ohlcv overlap with processed ohlcv
-    from_range = rangeafter(temp.ohlcv.timestamp, left)
-    if length(from_range) > 0 &&
-       _firstdate(temp.ohlcv, from_range) == next
-        @debug "Appending trades from $(_firstdate(temp.ohlcv, from_range)) to $(_lastdate(temp.ohlcv))"
-        appendmax!(w.view, view(temp.ohlcv, from_range, :), w.capacity.view)
-        _check_contig(w, w.view)
-    end
-    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
-    _warmed!(w, _status(w))
-    @debug "Latest candle for $sym is $(_lastdate(temp.ohlcv))"
-end
+_flush!(w::Watcher, ::CcxtOHLCVVal) = _flushfrom!(w)
+_delete!(w::Watcher, ::CcxtOHLCVVal) = _delete_ohlcv!(w)
 
 _update_timestamps(left, prd, ts, from_idx) = begin
     for i in from_idx:lastindex(ts)
@@ -253,25 +184,14 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     # On startup, the first trades that we receive are likely incomplete
     # So we have to discard them, and only consider trades after the first (normalized) timestamp
     # Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
-    temp = trades_to_ohlcv(
-        _trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false
-    )
+    temp = trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
     isnothing(temp) && return nothing
     if isempty(w.view)
         appendmax!(w.view, temp.ohlcv, w.capacity.view)
-        keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
-        _warmed!(w, _status(w))
     else
-        _resolve_and_append(w, temp)
+        _resolve(w, w.view, temp.ohlcv)
     end
-end
-
-function _start(w::Watcher, ::CcxtOHLCVVal)
-    _pending!(w)
-    empty!(_trades(w))
-    candles = _fetch_candles(w, _lastdate(w))
-    candles = cleanup_ohlcv_data(candles, _tfr(w))
-    ra = rangeafter(candles.timestamp, _lastdate(w.view))
-    appendmax!(w.view, view(candles, ra, :), w.capacity.view)
-    _check_contig(w, w.view)
+    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
+    _warmed!(w, _status(w))
+    @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end
