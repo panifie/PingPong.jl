@@ -3,7 +3,18 @@ using LazyJSON
 using Lang: @lget!, @kget!, fromdict, Option
 using TimeTicks
 using ..Watchers
-import ..Watchers: _fetch!, _init!, _load!, _flush!, _process!, _get, _push!, _pop!, _start!, _stop!
+import ..Watchers:
+    _fetch!,
+    _init!,
+    _load!,
+    _flush!,
+    _process!,
+    _get,
+    _push!,
+    _pop!,
+    _start!,
+    _stop!,
+    _delete!
 using Data
 using Data.DFUtils: appendmax!, prependmax!, pushmax!
 using Data.DataFrames
