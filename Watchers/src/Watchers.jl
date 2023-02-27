@@ -6,40 +6,14 @@ using DataStructures
 using DataStructures: CircularBuffer
 using Misc
 using Data
-using Lang: Option
+using Lang: Option, safewait, safenotify
 using Base.Threads: @spawn
-using Base: acquire, Semaphore, release
 using Processing.DataFrames: DataFrame
-
-safenotify(cond, args...; kwargs...) = begin
-    lock(cond)
-    notify(cond, args...; kwargs...)
-    unlock(cond)
-end
-safewait(cond) = begin
-    lock(cond)
-    wait(cond)
-    unlock(cond)
-end
-@doc "Same as `@lock` but with `acquire` and `release`."
-macro acquire(cond, code)
-    quote
-        temp = $(esc(cond))
-        acquire(temp)
-        try
-            $(esc(code))
-        catch e
-            e
-        finally
-            release(temp)
-        end
-    end
-end
 
 function _tryfetch(w)::Bool
     # skip fetching if already locked to avoid building up the queue
-    w._exec.fetch_sem.curr_cnt > 0 && return true
-    result = @acquire w._exec.fetch_sem begin
+    islocked(w._exec.fetch_lock) && return true
+    result = @lock w._exec.fetch_lock begin
         w.last_fetch = now()
         _fetch!(w, w._val)
     end
@@ -75,7 +49,7 @@ function _timer!(w)
         # NOTE: the callback for the timer requires 1 arg (the timer itself)
         (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
         0;
-        interval=convert(Second, w.interval.fetch).value
+        interval=convert(Second, w.interval.fetch).value,
     )
 end
 
@@ -83,8 +57,8 @@ BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
 const HasFunction = NamedTuple{(:load, :process, :flush),NTuple{3,Bool}}
 const Interval = NamedTuple{(:timeout, :fetch, :flush),NTuple{3,Millisecond}}
 const Exec = NamedTuple{
-    (:threads, :fetch_sem, :buffer_sem, :errors),
-    Tuple{Bool,Semaphore,Semaphore,CircularBuffer{Tuple{Any,Vector}}},
+    (:threads, :fetch_lock, :buffer_lock, :errors),
+    Tuple{Bool,ReentrantLock,ReentrantLock,CircularBuffer{Tuple{Any,Vector}}},
 }
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
 
@@ -121,6 +95,8 @@ end
  """
 Watcher = Watcher20
 
+include("errors.jl")
+
 @doc """ Instantiate a watcher.
 
 - `T`: The type of the underlying `CircularBuffer`
@@ -144,7 +120,7 @@ function watcher(
     flush_interval=Second(360),
     buffer_capacity=100,
     view_capacity=1000,
-    attrs=Dict()
+    attrs=Dict(),
 )
     @debug "new watcher: $name"
     w = Watcher20{T}(;
@@ -155,18 +131,18 @@ function watcher(
         capacity=Capacity((buffer_capacity, view_capacity)),
         beacon=Threads.Condition(),
         _exec=Exec((
-            threads, Semaphore(1), Semaphore(1), CircularBuffer{Tuple{Any,Vector}}(10)
+            threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
         _val=Val(Symbol(name)),
-        attrs
+        attrs,
     )
     @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
         with id $(w.name) (It must accept a `Watcher` as argument, and return a boolean)."
     w = finalizer(close, w)
     @debug "_init $name"
-    _init!(w, w._val)
+    @logerror w _init!(w, w._val)
     @debug "_load for $name? $(w.has.load)"
-    w.has.load && load!(w)
+    w.has.load && @logerror w _load!(w, w._val)
     w.last_flush = now() # skip flush on start
     @debug "setting timer for $name"
     start && _timer!(w)
@@ -180,7 +156,7 @@ function pushstart!(w::Watcher, vec)
     time = now()
     start_offset = min(w.buffer.capacity, size(vec, 1))
     pushval(x) = push!(w.buffer, (; time, value=x.value))
-    foreach(pushval, @view(vec[(end-start_offset+1):end]))
+    foreach(pushval, @view(vec[(end - start_offset + 1):end]))
 end
 
 @doc "Helper function to push a new value to the watcher buffer if it is different from the last one."
@@ -198,7 +174,7 @@ located lmdb instance using serialization."
 function default_flusher(w::Watcher, key; reset=false, buf=w.buffer)
     isempty(buf) && return nothing
     most_recent = last(buf)
-    last_flushed = w.attrs[:last_flushed]
+    last_flushed = get!(w.attrs, :last_flushed, (; time=DateTime(0)))
     if most_recent.time > last_flushed.time
         recent_slice = after(buf, last_flushed; by=x -> x.time)
         save_data(
@@ -237,6 +213,7 @@ end
 function default_init(w::Watcher, dataview=DataFrame())
     w.attrs[:view] = dataview
     w.attrs[:last_processed] = nothing
+    w.attrs[:checks] = Val(:off)
     w.attrs[:serialized] = true
 end
 default_get(w::Watcher) = w.attrs[:view]
@@ -266,9 +243,9 @@ function _delete!(w::Watcher, ::Val)
     nothing
 end
 @doc "Executed before starting the timer."
-_start(_::Watcher, ::Val) = nothing
+_start!(_::Watcher, ::Val) = nothing
 @doc "Executed after the timer has been stopped."
-_stop(_::Watcher, ::Val) = nothing
+_stop!(_::Watcher, ::Val) = nothing
 @doc "Deletes all watcher data from storage backend. Also empties the buffer."
 function Base.delete!(w::Watcher)
     _delete!(w, w._val)
@@ -288,11 +265,11 @@ function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
         end
     elseif isnothing(to)
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx+1):lastindex(w.buffer, 1))
+        deleteat!(w.buffer, (from_idx + 1):lastindex(w.buffer, 1))
     else
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
         to_idx = searchsortedlast(w.buffer, (; time=to); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx+1):to_idx)
+        deleteat!(w.buffer, (from_idx + 1):to_idx)
     end
 end
 @doc "Delete watcher data from storage backend within the date range specified."
@@ -305,7 +282,7 @@ function flush!(w::Watcher; force=true, sync=false)
     time_now = now()
     if force || time_now - w.last_flush > w.interval.flush
         t = @async begin
-            result = @acquire w._exec.buffer_sem begin
+            result = @lock w._exec.buffer_lock begin
                 w.last_flush = time_now
                 _flush!(w, w._val)
             end
@@ -328,29 +305,11 @@ function fetch!(w::Watcher; reset=false, kwargs...)
     end
 end
 
-errors(w::Watcher) = w._exec.errors
-@doc "Stores an error to the watcher log journal."
-function logerror(w::Watcher, e, bt=[])
-    push!(w._exec.errors, (e, bt))
+function process!(w::Watcher, args...; kwargs...)
+    @logerror w _process!(w, w._val, args...; kwargs...)
 end
-@doc "Get the last logged watcher error."
-lasterror(w::Watcher) = isempty(w._exec.errors) ? nothing : last(w._exec.errors)
-@doc "Get the last logged watcher error of type `t`."
-lasterror(t::Type, w::Watcher) = findlast(e -> e isa t, w._exec.errors)
-@doc "Get all logged watcher errors of type `t`."
-allerror(t::Type, w::Watcher) = filter(e -> e[1] isa t, w._exec.errors)
-macro logerror(w, expr)
-    quote
-        try
-            $(esc(expr))
-        catch e
-            logerror($(esc(w)), e, stacktrace(catch_backtrace()))
-        end
-    end
-end
-process!(w::Watcher, args...; kwargs...) = @logerror w _process!(w, w._val, args...; kwargs...)
-load!(w::Watcher, args...; kwargs...) = @logerror w _load!(w, w._val, args...; kwargs...)
-init!(w::Watcher, args...; kwargs...) = @logerror w _init!(w, w._val, args...; kwargs...)
+load!(w::Watcher, args...; kwargs...) = _load!(w, w._val, args...; kwargs...)
+init!(w::Watcher, args...; kwargs...) = _init!(w, w._val, args...; kwargs...)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
     _push!(w, w._val, v, args...; kwargs...)
@@ -381,16 +340,17 @@ Base.getproperty(w::Watcher, p::Symbol) = begin
     end
 end
 @doc "Stops the watcher timer."
-stop(w::Watcher) = begin
+stop!(w::Watcher) = begin
     @assert isstarted(w) "Tried to stop an already stopped watcher."
     Base.close(w._timer)
-    _stop(w, w._val)
+    _stop!(w, w._val)
     nothing
 end
 @doc "Resets the watcher timer."
-start(w::Watcher) = begin
+start!(w::Watcher) = begin
     @assert isstopped(w) "Tried to start an already started watcher."
-    _start(w, w._val)
+    empty!(w._exec.errors)
+    _start!(w, w._val)
     _timer!(w)
     nothing
 end
@@ -405,7 +365,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end-40):end]))
+        write(out, @view(tps[(end - 40):end]))
     else
         write(out, tps)
     end
@@ -416,13 +376,22 @@ function Base.show(out::IO, w::Watcher)
     write(out, ", $(compact(w.interval.fetch))(FE)")
     write(out, ", $(compact(w.interval.flush))(FL)")
     write(out, "\nFetched: ")
-    write(out, "$(w.last_fetch) queue: $(w._exec.fetch_sem.curr_cnt)")
+    write(out, "$(w.last_fetch) busy: $(islocked(w._exec.fetch_lock))")
     write(out, "\nFlushed: ")
     write(out, "$(w.last_flush)")
     write(out, "\nActive: ")
     write(out, "$(isstarted(w))")
     write(out, "\nAttemps: ")
     write(out, "$(w.attempts)")
+    e = lasterror(w)
+    if !isnothing(e)
+        write(out, "\nErrors: ")
+        Base.show_backtrace(out, e[2])
+        # avoid recursion
+        if isempty(Base.catch_stack())
+            Base.showerror(out, e[1])
+        end
+    end
 end
 Base.display(w::Watcher) =
     try
@@ -435,7 +404,7 @@ Base.display(w::Watcher) =
 
 export Watcher, watcher, isstale, default_loader, default_flusher
 export default_process, default_init, default_get
-export pushnew!, pushstart!, start, stop, isstarted, isstopped, process!, load!, init!
+export pushnew!, pushstart!, start!, stop!, isstarted, isstopped, process!, load!, init!
 
 include("apis/coinmarketcap.jl")
 include("apis/coingecko.jl")
