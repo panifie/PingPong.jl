@@ -179,6 +179,10 @@ __handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
 `pair`: the trading pair (BASE/QUOTE string)
 `timeframe`: exchange timeframe (from exc.timeframes)
 `type`: Primitive type used for storing the data (Float64)
+`check`:
+  - `:bounds` (default) only checks that new data is adjacent to previous data.
+  - `:all` checks full contiguity of previous and new data.
+  - `:none` or anything else, no checks are done.
 """
 function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
@@ -192,6 +196,10 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
 end
 save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
 
+const check_bounds_flag = :bounds
+const check_all_flag = :all
+const check_flags = (check_bounds_flag, check_all_flag)
+
 function _save_ohlcv(
     zi::ZarrInstance,
     key,
@@ -202,11 +210,11 @@ function _save_ohlcv(
     saved_col=data_col,
     overwrite=true,
     reset=false,
-    check=false,
-    input=nothing
+    check=check_bounds_flag,
+    input=nothing,
 )
     local za
-    isempty(data) && return
+    isempty(data) && return nothing
     !reset && @check_td(data)
 
     if !(input isa ZArray)
@@ -222,7 +230,9 @@ function _save_ohlcv(
         saved_last_ts = za[end, saved_col]
         data_first_ts = timefloat(data[1, data_col])
         data_last_ts = timefloat(data[end, data_col])
-        _check_contiguity(data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td)
+        check ∈ check_flags && _check_contiguity(
+            data_first_ts, data_last_ts, saved_first_ts, saved_last_ts, td
+        )
         # if appending data
         if data_first_ts >= saved_first_ts
             if overwrite
@@ -281,8 +291,10 @@ function _save_ohlcv(
         resize!(za, size(data))
         za[:, :] = @to_mat(data)
     end
-    @debug "Ensuring contiguity in saved data $(size(za))."
-    check && _contiguous_ts(@view(za[:, saved_col]), td)
+    check == check_all_flag && begin
+        @debug "Ensuring contiguity in saved data $(size(za))."
+        _contiguous_ts(@view(za[:, saved_col]), td)
+    end
     return za
 end
 
