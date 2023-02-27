@@ -33,24 +33,28 @@ function ccxt_tickers_watcher(
     syms=[],
     interval=Second(5),
     start=true,
+    load=true,
     process=false,
     buffer_capacity=100,
+    view_capacity=1000,
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
     attrs[:serialized] = true
     attrs[:tfunc] = choosefunc(exc, "Ticker", syms)
     attrs[:ids] = syms
+    attrs[:exc] = exc
     attrs[:key] = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
     watcher_type = Dict{String,CcxtTicker}
     watcher(
         watcher_type,
         wid;
         start,
-        load=false,
+        load,
         flush=true,
         process,
         buffer_capacity,
+        view_capacity,
         fetch_interval=interval,
         attrs,
     )
@@ -61,10 +65,9 @@ function _fetch!(w::Watcher, ::CcxtTickerVal)
     data = w.attrs[:tfunc]() |> PyDict
     if length(data) > 0
         result = Dict{String,CcxtTicker}()
-        for k in keys(data)
-            result[pyconvert(String, k)] = fromdict(
-                CcxtTicker, String, data[k], pyconvert, pyconvert
-            )
+        for py_ticker in values(data)
+            ticker = fromdict(CcxtTicker, String, py_ticker, pyconvert, pyconvert)
+            result[ticker.symbol] = ticker
         end
         pushnew!(w, result)
         true
