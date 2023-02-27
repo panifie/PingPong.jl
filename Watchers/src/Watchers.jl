@@ -49,7 +49,7 @@ function _timer!(w)
         # NOTE: the callback for the timer requires 1 arg (the timer itself)
         (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
         0;
-        interval=convert(Second, w.interval.fetch).value,
+        interval=convert(Second, w.interval.fetch).value
     )
 end
 
@@ -120,7 +120,7 @@ function watcher(
     flush_interval=Second(360),
     buffer_capacity=100,
     view_capacity=1000,
-    attrs=Dict(),
+    attrs=Dict()
 )
     @debug "new watcher: $name"
     w = Watcher20{T}(;
@@ -134,15 +134,15 @@ function watcher(
             threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
         _val=Val(Symbol(name)),
-        attrs,
+        attrs
     )
     @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
         with id $(w.name) (It must accept a `Watcher` as argument, and return a boolean)."
     w = finalizer(close, w)
     @debug "_init $name"
-    @logerror w _init!(w, w._val)
+    _init!(w, w._val)
     @debug "_load for $name? $(w.has.load)"
-    w.has.load && @logerror w _load!(w, w._val)
+    w.has.load && _load!(w, w._val)
     w.last_flush = now() # skip flush on start
     @debug "setting timer for $name"
     start && _timer!(w)
@@ -156,7 +156,7 @@ function pushstart!(w::Watcher, vec)
     time = now()
     start_offset = min(w.buffer.capacity, size(vec, 1))
     pushval(x) = push!(w.buffer, (; time, value=x.value))
-    foreach(pushval, @view(vec[(end - start_offset + 1):end]))
+    foreach(pushval, @view(vec[(end-start_offset+1):end]))
 end
 
 @doc "Helper function to push a new value to the watcher buffer if it is different from the last one."
@@ -265,11 +265,11 @@ function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
         end
     elseif isnothing(to)
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx + 1):lastindex(w.buffer, 1))
+        deleteat!(w.buffer, (from_idx+1):lastindex(w.buffer, 1))
     else
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
         to_idx = searchsortedlast(w.buffer, (; time=to); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx + 1):to_idx)
+        deleteat!(w.buffer, (from_idx+1):to_idx)
     end
 end
 @doc "Delete watcher data from storage backend within the date range specified."
@@ -327,9 +327,11 @@ end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
 Base.close(w::Watcher; doflush=true) = @async begin
-    stop(w)
-    doflush && flush!(w)
-    nothing
+    @lock w._exec.fetch_lock begin
+        stop!(w)
+        doflush && flush!(w)
+        nothing
+    end
 end
 Base.empty!(w::Watcher) = empty!(w.buffer)
 Base.getproperty(w::Watcher, p::Symbol) = begin
@@ -365,7 +367,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end - 40):end]))
+        write(out, @view(tps[(end-40):end]))
     else
         write(out, tps)
     end
