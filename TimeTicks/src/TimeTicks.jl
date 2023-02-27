@@ -148,6 +148,9 @@ end
 const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
 convert(::Type{String}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
 Base.string(tf::TimeFrame) = convert(String, tf)
+ms(tf::TimeFrame) = Millisecond(period(tf))
+ms(prd::Period) = Millisecond(prd)
+ms(v) = Millisecond(v)
 timeframe(s::AbstractString) = Base.parse(TimeFrame, s)
 
 dt(::Nothing) = :nothing
@@ -232,21 +235,12 @@ function compact(s::Period)
     end
 end
 
-export @as_td,
-    @tf_str,
-    @dt_str,
-    TimeFrame,
-    timeframe,
-    apply,
-    dt,
-    timefloat,
-    period,
-    from_to_dt,
-    @infertf,
-    dtfloat,
-    available,
-    compact,
-    now
+export @as_td, @infertf
+export @tf_str, @dt_str
+export TimeFrame, timeframe, period, apply
+export dt, ms, timefloat, dtfloat
+export now, available, from_to_dt
+export compact
 
 include("daterange.jl")         #
 
