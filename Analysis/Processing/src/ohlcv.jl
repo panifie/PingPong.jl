@@ -49,12 +49,14 @@ function _fill_missing_candles(df, prd::Period; strategy, inplace)
     return df
 end
 
-function _remove_incomplete_candle(df, tf)
+function _remove_incomplete_candle(in_df, tf)
+    df = in_df isa SubDataFrame ? copy(in_df) : in_df
     if isincomplete(df[end, :timestamp], tf)
         last_candle = copy(df[end, :])
-        delete!(df, lastindex(df, 1))
+        deleteat!(df, lastindex(df, 1))
         @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
     end
+    df
 end
 @doc """Similar to the freqtrade homonymous function.
 - `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
@@ -65,7 +67,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     df = data isa AbstractDataFrame ? data : to_ohlcv(data, tf)
 
     # remove incomplete candle before timestamp normalization
-    _remove_incomplete_candle(df, tf)
+    df = _remove_incomplete_candle(df, tf)
     # normalize dates
     @eachrow! df begin
         :timestamp = apply(tf, :timestamp)
@@ -82,7 +84,7 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         renamecols=false
     )
     # check again after de-duplication
-    _remove_incomplete_candle(df, tf)
+    df = _remove_incomplete_candle(df, tf)
 
     if fill_missing != false
         fill_missing_candles!(df, tf.period; strategy=fill_missing)
@@ -108,7 +110,9 @@ end
 islast(d::DateTime, tf::TimeFrame) = islast(apply(tf, d), tf, Val(:raw))
 islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
 islast(v, tf::AbstractString) = islast(v, timeframe(tf))
+@doc "`a` is left adjacent to `b` if in order `..ab..`"
 isleftadj(a, b, tf::TimeFrame) = a + tf == b
+@doc "`a` is right adjacent to `b` if in order `..ba..`"
 isrightadj(a, b, tf::TimeFrame) = isleftadj(b, a, tf)
 isadjacent(a, b, tf::TimeFrame) = isleftadj(a, b, tf) || isrightadj(a, b, tf)
 
