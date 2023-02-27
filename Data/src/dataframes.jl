@@ -102,14 +102,37 @@ function daterange(df::T where {T<:AbstractDataFrame})
     DateRange(df.timestamp[begin], df.timestamp[end], timeframe(df))
 end
 
-@doc "Appends `v` to `df` ensuring the dataframe never grows larger than `maxlen`."
-function appendmax!(df, v, maxlen)
-    append!(df, v) # FIXME: we should check the size *before* appending.
-    sz = nrow(df)
-    if sz > maxlen
-        deleteat!(df, firstindex(df, 1):(sz - maxlen))
+function _make_room(df, capacity, n)
+    @debug @assert n > 0
+    diff = capacity - nrow(df)
+    if diff < n
+        deleteat!(df, firstindex(df, 1):abs(diff - n))
     end
 end
+
+@doc "Mutates `v` to `df` ensuring the dataframe never grows larger than `maxlen`."
+function _mutatemax!(df, v, maxlen, n, mut)
+    _make_room(df, maxlen, n)
+    mut(df, v)
+    @debug @assert nrow(df) <= maxlen
+end
+
+function _tomaxlen(v, maxlen)
+    li = lastindex(v, 1)
+    from = li - min(maxlen, li) + 1
+    view(v, from:li, :)
+end
+
+@doc "See `_mutatemax!`"
+function appendmax!(df, v, maxlen)
+    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), append!)
+end
+@doc "See `_mutatemax!`"
+function prependmax!(df, v, maxlen)
+    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), prepend!)
+end
+@doc "See `_mutatemax!`"
+pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
 
 export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex, daterange, colnames
 
