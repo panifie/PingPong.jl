@@ -162,43 +162,7 @@ macro unroll(exp, fields, asn=:el)
     Expr(:block, (:($(esc(asn)) = $el; $ex) for el in fields.args)...)
 end
 
-macro evalarg(arg)
-    # s = eval(arg)
-    @show @eval $__module__.$arg
-    quote
-        # mod = $__module__
-        # eval($mod,  Base.Meta.parse("$mod." * $(string(esc(arg)))))
-    end
-end
-
-@doc "Define `@fromdict` locally, to avoid precompilation side effects."
-macro define_fromdict!(force=false)
-    quote
-        (isdefined($(__module__), Symbol("@fromdict")) && !$force) || @eval begin
-            @doc "This macro tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
-            macro fromdict(nt_type, key_type, dict_var)
-                ttype = eval(Base.Meta.parse("$__module__.$nt_type"))
-                ktype = eval(Base.Meta.parse("$__module__.$key_type"))
-                @assert ttype <: NamedTuple "First arg must be a namedtuple type."
-                @assert ktype isa Type "Second arg must be the type of the dict keys."
-                @assert applicable(ktype, Symbol()) "Can't convert symbols to $ktype."
-                params = Expr(:parameters)
-                ex = Expr(:tuple, params)
-                for (fi, ty) in zip(fieldnames(ttype), fieldtypes(ttype))
-                    p = Expr(
-                        :kw,
-                        fi,
-                        :(convert($(ty), $(esc(dict_var))[$(convert(ktype, fi))])),
-                    )
-                    push!(params.args, p)
-                end
-                ex
-            end
-        end
-    end
-end
-
-@doc "Same as `@fromdict` but as a generated function."
+@doc "`fromdict` tries to fill a _known_ `NamedTuple` from an _unknown_ `Dict`."
 @generated function fromdict(tuple, key, di, kconvfunc=convert, convfunc=convert)
     params = Expr(:parameters)
     ex = Expr(:tuple, params)
@@ -209,6 +173,14 @@ end
         push!(params.args, p)
     end
     ex
+end
+
+@doc "Converts a struct into a named tuple."
+function fromstruct(c::T) where {T}
+    names = fieldnames(T)
+    nt = NamedTuple{names,Tuple{fieldtypes(T)...}}
+    t = (getfield(c, f) for f in names)
+    nt(t)
 end
 
 macro sym_str(s)
@@ -224,6 +196,42 @@ end
 @doc "`errormonitor` wrapped `@async` call."
 macro asyncm(expr)
     :(errormonitor(@async $(esc(expr))))
+end
+
+@doc "Sets property `prop` on object `a` to value `val` if `op(a.prop, val)` is `true`."
+function ifproperty!(op, a, prop, val)
+    op(getproperty(a, prop), val) && setproperty!(a, prop, val)
+end
+@doc "Sets key `k` on object `a` to value `val` if `op(a[prop], val)` is `true`."
+function ifkey!(op, a, k, val)
+    op(get!(a, k, val), val) && setindex!(a, val, k)
+end
+
+@doc "Notify a condition with locks."
+safenotify(cond, args...; kwargs...) = begin
+    lock(cond)
+    notify(cond, args...; kwargs...)
+    unlock(cond)
+end
+@doc "Wait a condition with locks."
+safewait(cond) = begin
+    lock(cond)
+    wait(cond)
+    unlock(cond)
+end
+@doc "Same as `@lock` but with `acquire` and `release`."
+macro acquire(cond, code)
+    quote
+        temp = $(esc(cond))
+        acquire(temp)
+        try
+            $(esc(code))
+        catch e
+            e
+        finally
+            release(temp)
+        end
+    end
 end
 
 export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str, @asyncm

@@ -39,7 +39,7 @@ function _fetch!(w::Watcher, ::CgDerivativesVal)
     if length(mkts) > 0
         result = Dict{Derivative,CgSymDerivative}()
         for (k, m) in mkts
-            result[k] = @fromdict(CgSymDerivative, String, m)
+            result[k] = fromdict(CgSymDerivative, String, m)
         end
         pushnew!(w, result)
         true
