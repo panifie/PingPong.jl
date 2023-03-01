@@ -57,9 +57,9 @@ doesn't ensure it, it only uses it to reduce the number of candles to fetch from
 function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=Second(5))
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    _tfunc!(attrs, "Trades")
     _sym!(attrs, sym)
     _exc!(attrs, exc)
+    _tfunc!(attrs, "Trades")
     _tfr!(attrs, timeframe)
     watcher_type = Vector{CcxtTrade}
     w = watcher(

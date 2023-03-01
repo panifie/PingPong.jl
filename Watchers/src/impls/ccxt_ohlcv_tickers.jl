@@ -91,7 +91,7 @@ function _ensure_contig!(w, df, temp_candle, tf, sym)
         left = _lastdate(df)
         if !isrightadj(temp_candle.timestamp, left, tf)
             _resolve(w, df, temp_candle.timestamp, sym)
-            @debug @assert isrightadj(temp_candle.timestamp, _lastdate(df), tf)
+            @ifdebug @assert isrightadj(temp_candle.timestamp, _lastdate(df), tf)
         end
     end
     ## append complete candle
