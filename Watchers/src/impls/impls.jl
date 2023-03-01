@@ -34,5 +34,6 @@ include("cp_twitter.jl")
 include("ccxt_tickers.jl")
 include("ccxt_ohlcv_trades.jl")
 include("ccxt_ohlcv_tickers.jl")
+include("ccxt_orderbook.jl")
 
 end

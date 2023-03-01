@@ -65,7 +65,7 @@ function zdelete!(
     by=identity,
     select=x -> view(x, :, 1),
     serialized=false,
-    buffer::Option{IOBuffer}=nothing,
+    buffer::Option{IOBuffer}=nothing
 )
     selected::AbstractVector = select(z)
     buffer, close_buffer = _setup_buffer(serialized, buffer)
@@ -87,7 +87,7 @@ function zdelete!(
             else
                 # Delete all entries where dates are less than `to`
                 to_idx = search_to(firstindex(selected))
-                tail_range = (to_idx + 1):lastindex(z, 1)
+                tail_range = (to_idx+1):lastindex(z, 1)
                 tail_len = length(tail_range)
                 if tail_len > 0
                     z[begin:tail_len, :] = view(z, tail_range, :)
@@ -105,7 +105,7 @@ function zdelete!(
             # and less than `to`
             from_idx = search_from()
             to_idx = search_to(from_idx)
-            right_range = (to_idx + 1):lastindex(z, 1)
+            right_range = (to_idx+1):lastindex(z, 1)
             # the last idx of the copied over data
             end_idx = from_idx + length(right_range) - 1
             if length(right_range) > 0
@@ -189,7 +189,7 @@ macro zcreate()
                 fill_value=default($(esc(:type))),
                 fill_as_missing=false,
                 path=$key,
-                compressor=compressor,
+                compressor=compressor
             )
             _addkey!($zi, z)
             resize!(z, 0, $(sz)[2:end]...)
@@ -198,13 +198,17 @@ macro zcreate()
     end
 end
 
+_wrongdims(za, sz) = ndims(za) != length(sz)
+_wrongcols(za, sz) = ndims(za) > 1 && size(za, 2) != sz[2]
+
 function _get_zarray(
     zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
 )
     existing = false
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
-        if ndims(za) != length(sz) || (ndims(za) > 1 && size(za, 2) != sz[2]) || reset
+        if _wrongdims(za, sz) || _wrongcols(za, sz) || reset
+            @debug "wrong dims? $(_wrongdims(za, sz)), wrong cols? $(_wrongcols(za, sz))"
             if overwrite || reset
                 delete!(zi.store, key)
                 za = @zcreate
