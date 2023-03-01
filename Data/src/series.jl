@@ -78,9 +78,12 @@ end
 
 function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, z_col)
     @debug dt(data_first_ts), dt(saved_last_ts)
-    @debug :saved (dt.(za[end, z_col])):data,
-    (dt.(data[begin, data_col])):offset,
-    dt(za[offset, z_col])
+    @debug let saved = (dt.(za[end, z_col])),
+        data = (dt.(data[begin, data_col])),
+        offset = dt(za[offset, z_col])
+
+        "saved: $saved, data: $data, offset: $offset"
+    end
 
     if offset <= size(za, 1)
         datatime = timefloat(data[begin, data_col])
@@ -92,7 +95,9 @@ function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_
 end
 
 function _partial_checks(data, za, data_view, data_offset, data_col, z_col)
-    @debug :saved dt(za[end, z_col]):data_view, dt(data[data_offset, data_col])
+    @debug let saved = dt(za[end, z_col]), data_view = dt(data[data_offset, data_col])
+        "saved: $saved, data_view: $data_view"
+    end
     @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, z_col])
 end
 
@@ -107,7 +112,7 @@ function _save_data(
     data_col=1,
     z_col=data_col,
     overwrite=true,
-    reset=false,
+    reset=false
 )
     local za
 
@@ -144,7 +149,7 @@ function _save_data(
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
                 @assert timefloat(za[max(1, offset - 1), z_col]) <=
-                    timefloat(data_view[begin, data_col])
+                        timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
@@ -160,7 +165,7 @@ function _save_data(
                 saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
                 else
-                    @view za[(saved_offset + 1):end, :]
+                    @view za[(saved_offset+1):end, :]
                 end
             end
             szd = size(data, 1)
@@ -170,7 +175,7 @@ function _save_data(
             # the new size will include the amount of saved data not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
             if ssd > 0
-                za[(szd + 1):end, :] = saved_data
+                za[(szd+1):end, :] = saved_data
             end
             za[begin:szd, :] = @to_mat(data)
             @debug "backwriting - data_last: $(dt(data_last_ts)) saved_first: $(dt(saved_first_ts))"
@@ -189,14 +194,19 @@ const DEFAULT_CHUNK_SIZE = (100, 2)
 `type`: Set to the type that zarr should use to store the data (only bits types). [Float64].
 `serialized`: If set, data will be deserialized before returned (`type` is ignored).
 `from`, `to`: date range
+`sz`: The chunks tuple which should match the shape of the already saved data.
+
+!!! warning "Mismatching chunks"
+    Loading data with from key with wrong dimensions (`ndims(sz)`) or shape (columns)
+    will reset the stored zarray.
 """
 function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
     t = @async _wrap_load_data(zi, key; serialized, kwargs...)
     fetch(t)
 end
-function _wrap_load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
+function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kwargs...)
     # NOTE
-    sz = serialized ? DEFAULT_CHUNK_SIZE : get(kwargs, :sz, DEFAULT_CHUNK_SIZE)
+    sz = serialized ? DEFAULT_CHUNK_SIZE : @something sz DEFAULT_CHUNK_SIZE
     @ifdebug @assert all(sz .> 0)
     try
         _load_data(zi, key, sz; kwargs..., serialized)
@@ -208,11 +218,11 @@ function _wrap_load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
             emptyz = zcreate(
                 type,
                 zi.store,
-                sz...;
+                sz;
                 fill_value=default(type),
                 fill_as_missing=false,
                 path=key,
-                compressor,
+                compressor
             )
             _addkey!(zi, emptyz)
             if :as_z ∈ keys(kwargs)
@@ -232,14 +242,14 @@ load_data(key::AbstractString; kwargs...) = load_data(zilmdb(), key; kwargs...)
 function _load_data(
     zi::ZarrInstance,
     key,
-    sz=(0, 2);
+    sz=(100, 2);
     from="",
     to="",
     z_col=1,
     type=Float64,
     serialized=false,
     as_z=false,
-    with_z=false,
+    with_z=false
 )
     @debug "Loading data from $(zi.path):$(key)"
     z_type = serialized ? Vector{UInt8} : type
@@ -257,8 +267,7 @@ function _load_data(
     @as from timefloat(from)
     @as to timefloat(to)
 
-    @debug begin
-        saved_first_ts = timefloat(za[begin, z_col])
+    @debug let saved_first_ts = timefloat(za[begin, z_col])
         "Saved data first timestamp is $(saved_first_ts |> dt)"
     end
 
