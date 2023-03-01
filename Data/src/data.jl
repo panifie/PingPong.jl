@@ -5,7 +5,7 @@ include("zarr_utils.jl")
 using DataFrames: DataFrameRow
 using DataFramesMeta
 using TimeTicks
-using Lang: @as
+using Lang: @as, @ifdebug
 using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
 
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
@@ -108,7 +108,7 @@ end
 
 @doc "The time interval of the dataframe, guesses from the difference between the first two rows."
 function data_td(data)
-    @debug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
+    @ifdebug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
     data.timestamp[2] - data.timestamp[1]
 end
 
@@ -186,7 +186,7 @@ __handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
 """
 function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
-    key = pair_key(exc_name, pair, timeframe)
+    key = key_path(exc_name, pair, timeframe)
     try
         t = @async _save_ohlcv(zi, key, td, data; kwargs...)
         fetch(t)
@@ -299,11 +299,11 @@ function _save_ohlcv(
 end
 
 @doc "Normalizes or special characthers separators to `_`."
-@inline sanitize_pair(pair::AbstractString) = replace(pair, r"\.|\/|\-" => "_")
+@inline snakecased(pair::AbstractString) = replace(pair, r"\.|\/|\-" => "_")
 
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
-@inline function pair_key(exc_name, pair, timeframe)
-    "$exc_name/$(sanitize_pair(pair))/ohlcv/tf_$timeframe"
+@inline function key_path(exc_name, pair, timeframe)
+    "$exc_name/$(snakecased(pair))/ohlcv/tf_$timeframe"
 end
 
 @doc "An empty OHLCV dataframe."
@@ -374,7 +374,7 @@ _wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...
 "
 function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
     @as_td
-    key = pair_key(exc_name, pair, timeframe)
+    key = key_path(exc_name, pair, timeframe)
     t = _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
     fetch(t)
 end
@@ -394,6 +394,9 @@ function to_ohlcv(data::Matrix)
         copycols=false,
     )
 end
+
+@doc "Construct a `DataFrame` without copying."
+df!(args...; kwargs...) = DataFrame(args...; copycols=false, kwargs...)
 
 function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
     df = DataFrame(data; copycols=false)
@@ -510,5 +513,6 @@ const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
 
 Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 
-export PairData,
-    ZarrInstance, zilmdb, @as_df, @as_mat, @to_mat, load, load_ohlcv, save_ohlcv
+export ZarrInstance, zilmdb, PairData
+export df!, @as_mat, @to_mat
+export load, load_ohlcv, save_ohlcv
