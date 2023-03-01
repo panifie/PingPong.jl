@@ -1,5 +1,5 @@
-using Misc: Iterable
 using Data: @to_mat
+using Lang: @ifdebug
 
 function _check_size(data, arr::ZArray)
     if arr.storage isa LMDBDictStore
@@ -33,16 +33,16 @@ end
 """
 
 function save_data(
-    zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
+    zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...
 )
     t = @async _wrap_save_data(
-        zi::ZarrInstance, key, data::Iterable; serialize, data_col, kwargs...
+        zi::ZarrInstance, key, data; serialize, data_col, kwargs...
     )
     fetch(t)
 end
 
 function _wrap_save_data(
-    zi::ZarrInstance, key, data::Iterable; serialize=false, data_col=1, kwargs...
+    zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...
 )
     try
         @assert applicable(iterate, data) "$(typeof(data)) is not iterable."
@@ -197,7 +197,7 @@ end
 function _wrap_load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
     # NOTE
     sz = serialized ? DEFAULT_CHUNK_SIZE : get(kwargs, :sz, DEFAULT_CHUNK_SIZE)
-    @debug @assert all(sz .> 0)
+    @ifdebug @assert all(sz .> 0)
     try
         _load_data(zi, key, sz; kwargs..., serialized)
     catch e
