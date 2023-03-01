@@ -1,7 +1,8 @@
 using Serialization
+using Lang
 
 tobytes(buf::IOBuffer, data) = begin
-    @debug @assert position(buf) == 0
+    @ifdebug @assert position(buf) == 0
     serialize(buf, data)
     take!(buf)
 end

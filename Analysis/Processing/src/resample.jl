@@ -1,6 +1,6 @@
 using Pbar
 using ExchangeTypes: Exchange
-using Lang: passkwargs
+using Lang: passkwargs, @ifdebug
 using TimeTicks
 using Data: data_td, save_ohlcv, PairData, empty_ohlcv
 using Data.DFUtils
@@ -14,7 +14,7 @@ end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
 function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
-    @debug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
+    @ifdebug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
         "Resampling assumptions are not met, expecting cleaned data."
     # NOTE: need at least 2 points
     sz = size(data, 1)

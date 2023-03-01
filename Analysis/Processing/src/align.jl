@@ -5,6 +5,7 @@ using DataFrames
 using Misc
 using TimeTicks
 using Data: PairData, @with
+using Lang
 
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 
@@ -69,7 +70,7 @@ end
 @doc "Ensures all the ohlcv frames start from the same timestamp.
 tail: also trims the end."
 function trim!(data::AbstractDict; tail=false)
-    @debug @assert begin
+    @ifdebug @assert begin
         (bigger_tf, bigger_ohlcv) = last(data)
         all(
             begin

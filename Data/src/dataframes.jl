@@ -3,7 +3,7 @@ module DFUtils
 using DataFrames
 using DataFrames: index
 using TimeTicks
-using Lang: @lget!
+using Lang
 import Base: getindex
 
 @doc "Get the column names for dataframe as symbols."
@@ -46,12 +46,12 @@ end
 @doc "While indexing ohlcv data we have to consider the *time of arrival* of a candle. In general candles collect the price *up to* its timestamp. E.g. the candle at time `2000-01-01` would have tracked time from `1999-12-31T00:00:00` to `2000-01-01T00:00:00`. Therefore what we return is always the *left adjacent* timestamp of the queried one."
 function getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime, cols)
     tf = timeframe(df)
-    @debug @assert @infertf(df) == tf
+    @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     start <= idx || throw(ArgumentError("$idx not found in dataframe."))
     int_idx = (idx - start) ÷ tf.period + 1
     int_idx > size(df)[1] && throw(ArgumentError("$idx not found in dataframe."))
-    @debug @assert df.timestamp[int_idx] == idx
+    @ifdebug @assert df.timestamp[int_idx] == idx
     @view df[int_idx, cols]
 end
 
@@ -64,7 +64,7 @@ df[dtr"1999-..2000-"] # The Year 1999
 """
 function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
     tf = timeframe(df)
-    @debug @assert @infertf(df) == tf
+    @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     stop = lastdate(df)
     if (!isnothing(dr.start) && dr.start < start) || (!isnothing(dr.stop) && dr.stop > stop)
@@ -87,7 +87,7 @@ function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
     end
     # start_idx = searchsortedfirst(df.timestamp, dr.start)
     # stop_idx = start_idx + searchsortedfirst(@view(df.timestamp[start_idx+1:end]), dr.stop)
-    @debug @assert df.timestamp[start_idx] == dr.start && df.timestamp[stop_idx] == dr.stop
+    @ifdebug @assert df.timestamp[start_idx] == dr.start && df.timestamp[stop_idx] == dr.stop
     @view df[start_idx:stop_idx, cols]
 end
 
@@ -103,7 +103,7 @@ function daterange(df::T where {T<:AbstractDataFrame})
 end
 
 function _make_room(df, capacity, n)
-    @debug @assert n > 0
+    # @ifdebug @assert n > 0;
     diff = capacity - nrow(df)
     if diff < n
         deleteat!(df, firstindex(df, 1):abs(diff - n))
@@ -114,7 +114,7 @@ end
 function _mutatemax!(df, v, maxlen, n, mut)
     _make_room(df, maxlen, n)
     mut(df, v)
-    @debug @assert nrow(df) <= maxlen
+    @ifdebug @assert nrow(df) <= maxlen
 end
 
 function _tomaxlen(v, maxlen)

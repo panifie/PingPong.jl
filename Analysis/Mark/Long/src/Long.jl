@@ -10,6 +10,7 @@ using Data: PairData
 using DataFramesMeta: @rsubset!
 using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
 using MVP
+using Lang
 
 function last_breakout(price, br_lvl; op=(>))
     for (n, p) in enumerate(price)
@@ -267,7 +268,7 @@ function long(
     weights=cweights[],
     mvpargs=(;),
 )
-    @debug @assert size(df, 1) > window2
+    @ifdebug @assert size(df, 1) > window2
 
     dfv = @view df[(end - window):end, :]
     dfv2 = @view df[(end - window2):end, :]

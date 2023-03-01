@@ -6,6 +6,7 @@ using DataFrames: DataFrame, AbstractDataFrame, index
 using DataFramesMeta
 using Data: PairData
 using Processing: maptf
+using Lang
 
 @doc """Breakout level. Mean with std."""
 function mustd(price::AbstractVector, args...; op=+)
@@ -20,7 +21,7 @@ end
     r_vol = volume[(idx + 1):rt_idx]
     # volume before breakout, same length as post breakout volume
     l_vol = volume[(idx - length(r_vol) + 1):idx]
-    @debug @assert length(l_vol) === length(r_vol) "$(length(l_vol)), $(length(r_vol))"
+    @ifdebug @assert length(l_vol) === length(r_vol) "$(length(l_vol)), $(length(r_vol))"
     sum(r_vol) > sum(l_vol)
 end
 
@@ -138,7 +139,7 @@ function short(
     neg=true,
     weights=vweights[],
 )
-    @debug @assert size(df, 1) > window2
+    @ifdebug @assert size(df, 1) > window2
 
     dfv = @view df[(end - window):end, :]
     dfv2 = @view df[(end - window2):end, :]

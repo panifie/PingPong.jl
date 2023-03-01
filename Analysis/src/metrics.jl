@@ -4,6 +4,7 @@ using DataFramesMeta
 using ProgressMeter
 using Misc: config
 using Data: @to_mat, PairData
+using Lang
 
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN
@@ -74,7 +75,7 @@ function supres(df; order=1, threshold=0.0, window=16)
     @eachrow! dfv begin
         stop = row + window
         # ensure no lookahead bias
-        @debug @assert df.timestamp[stop] < :timestamp
+        @ifdebug @assert df.timestamp[stop] < :timestamp
         subts = @view price[row:stop]
         res = resistance(subts; order, threshold)
         sup = support(subts; order, threshold=-threshold)
@@ -82,7 +83,7 @@ function supres(df; order=1, threshold=0.0, window=16)
         s = findfirst(isfinite, sup)
         :res = isnothing(r) ? prev_r : prev_r = res[r]
         :sup = isnothing(s) ? prev_s : prev_s = sup[s]
-        @debug @assert !iszero(prev_r)
+        @ifdebug @assert !iszero(prev_r)
     end
     df
 end

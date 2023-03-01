@@ -187,10 +187,13 @@ macro sym_str(s)
     :(Symbol($s))
 end
 
-macro ifdebug(a, b)
+function _isdebug()
     env_var = get(ENV, "JULIA_DEBUG", "0")
-    isdebug = something(tryparse(Bool, env_var), false)
-    isdebug ? a : b
+    something(tryparse(Bool, env_var), false)
+end
+
+macro ifdebug(a, b=nothing)
+    _isdebug() ? esc(a) : b
 end
 
 @doc "`errormonitor` wrapped `@async` call."
@@ -234,6 +237,9 @@ macro acquire(cond, code)
     end
 end
 
-export @kget!, @lget!, passkwargs, @exportenum, @as, Option, @sym_str, @asyncm
+export @kget!, @lget!
+export passkwargs, @exportenum
+export @as, @sym_str
+export Option, @asyncm, @ifdebug
 
 end

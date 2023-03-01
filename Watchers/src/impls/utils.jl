@@ -1,8 +1,9 @@
-using Data: _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, sanitize_pair
+using Data: df, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
 using Data.DataFramesMeta
+using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
 using Fetch: fetch_candles
-using Lang: @ifdebug
+using Lang
 using Misc: rangeafter, rangebetween
 using Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 
@@ -40,7 +41,7 @@ macro append_dict_data(dict, data, maxlen_var)
     maxlen = esc(maxlen_var)
     quote
         function doappend((key, newdata))
-            df = @kget! $(esc(dict)) key DataFrame(; copycols=false)
+            df = @kget! $(esc(dict)) key df()
             appendmax!(df, newdata, $maxlen)
         end
         foreach(doappend, $(esc(data)))
@@ -61,11 +62,14 @@ _do_check_contig(w, df, ::Val{:on}) = _contiguous_ts(df.timestamp, timefloat(_tf
 _do_check_contig(_, _, ::Val{:off}) = nothing
 _check_contig(w, df) = !isempty(df) && _do_check_contig(w, df, _checks(w))
 
-_tfunc!(attrs, suffix) = attrs[:tfunc] = _multifunc(exc, suffix, true)[1]
-_tfunc(w::Watcher) = w.attrs[:tfunc]
-_exc(w::Watcher) = w.attrs[:exc]
+_exc(attrs) = attrs[:exc]
+_exc(w::Watcher) = _exc(w.attrs)
 _exc!(attrs, exc) = attrs[:exc] = exc
 _exc!(w::Watcher, exc) = _exc!(w.attrs, exc)
+_tfunc!(attrs, suffix, k) = attrs[k] = _multifunc(_exc(attrs), suffix, true)[1]
+_tfunc!(attrs, suffix) = attrs[:tfunc] = _multifunc(_exc(attrs), suffix, true)[1]
+_tfunc!(attrs, exc::Exchange, args...) = attrs[:tfunc] = choosefunc(exc, args...)
+_tfunc(w::Watcher) = w.attrs[:tfunc]
 _sym(w::Watcher) = w.attrs[:sym]
 _sym!(attrs, v) = attrs[:sym] = v
 _sym!(w::Watcher, v) = _sym!(w.attrs, v)
@@ -85,6 +89,8 @@ _nextdate(tf) = _curdate(tf) + tf
 _dateidx(tf, from, to) = max(1, (to - from) ÷ period(tf))
 _lastflushed!(w::Watcher, v) = w.attrs[:last_flushed] = v
 _lastflushed(w::Watcher) = w.attrs[:last_flushed]
+_lastprocessed!(w::Watcher, v) = w.attrs[:last_processed] = v
+_lastprocessed(w::Watcher) = w.attrs[:last_processed]
 
 struct Warmed end
 struct Pending end
@@ -117,6 +123,7 @@ macro warmup!(w)
 end
 
 _key!(w::Watcher, k) = w.attrs[:key] = k
+_key(w::Watcher) = w.attrs[:key]
 _view!(w, v) = w.attrs[:view] = v
 _view(w) = w.attrs[:view]
 
@@ -124,7 +131,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end - maxlen + 1):end, :])
+    available = @view(z[(end-maxlen+1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -135,7 +142,7 @@ function _get_available(w, z, to)
 end
 
 function _delete_ohlcv!(w, sym=_sym(w))
-    z = load(zi, _exc(w).name, sanitize_pair(sym), string(_tfr(w)); raw=true)[1]
+    z = load(zi, _exc(w).name, snakecased(sym), string(_tfr(w)); raw=true)[1]
     delete!(z)
 end
 
@@ -143,7 +150,7 @@ function _fastforward(w, sym=_sym(w))
     tf = _tfr(w)
     df = w.view
     z = load(zi, _exc(w).name, sym, string(tf); raw=true)[1]
-    @debug @assert isempty(z) || _lastdate(z) != 0 "Corrupted storage because last date is 0: $(_lastdate(z))"
+    @ifdebug @assert isempty(z) || _lastdate(z) != 0 "Corrupted storage because last date is 0: $(_lastdate(z))"
 
     cur_timestamp = _curdate(tf)
     avl = _get_available(w, z, cur_timestamp)
@@ -172,7 +179,7 @@ _op(::Val{:append}, args...; kwargs...) = appendmax!(args...; kwargs...)
 _op(::Val{:prepend}, args...; kwargs...) = prependmax!(args...; kwargs...)
 _fromto(to, prd, cap, kept) = to - prd * (cap - kept) - 2prd
 function _from(df, to, tf, cap, ::Val{:append})
-    @debug @assert to >= _lastdate(tf)
+    @ifdebug @assert to >= _lastdate(tf)
     date_cap = (to - tf * cap) - tf # add one more period to ensure from inclusion
     (isempty(df) ? date_cap : max(date_cap, _lastdate(df)))
 end
@@ -203,7 +210,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         cleaned = cleanup_ohlcv_data(sliced, tf)
         _firstdate(cleaned) != from + prd && _fetch_error(w, from, to, sym)
         _op(op, df, cleaned, w.capacity.view)
-        @debug @assert nrow(df) <= w.capacity.view
+        @ifdebug @assert nrow(df) <= w.capacity.view
     end
 end
 
@@ -222,15 +229,15 @@ function _resolve(w, ohlcv_dst, date_candidate::DateTime, sym=_sym(w))
     if next < right
         _fetchto!(w, ohlcv_dst, sym, tf; to=right, from=left)
     else
-        @debug @assert isrightadj(right, left, tf) "Should $(right) is not right adjacent to $(left)!"
+        @ifdebug @assert isrightadj(right, left, tf) "Should $(right) is not right adjacent to $(left)!"
     end
 end
 
 function _append_ohlcv!(w, ohlcv_dst, ohlcv_src, left, next)
     # at initialization it can happen that processing is too slow
     # and fetched ohlcv overlap with processed ohlcv
-    @debug @assert _lastdate(ohlcv_dst) == left
-    @debug @assert left + _tfr(w) == next
+    @ifdebug @assert _lastdate(ohlcv_dst) == left
+    @ifdebug @assert left + _tfr(w) == next
     from_range = rangeafter(ohlcv_src.timestamp, left)
     if length(from_range) > 0 && _firstdate(ohlcv_src) == next
         @debug "Appending trades from $(_firstdate(ohlcv_src, from_range)) to $(_lastdate(ohlcv_src))"
