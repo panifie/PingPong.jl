@@ -24,6 +24,9 @@ const CcxtTicker = @NamedTuple begin
     quoteVolume::Float64
 end
 
+_ids!(attrs, ids) = attrs[:ids] = ids
+_ids(w) = w.attrs[:ids]
+
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt).
 
 """
@@ -40,11 +43,10 @@ function ccxt_tickers_watcher(
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    attrs[:serialized] = true
-    attrs[:tfunc] = choosefunc(exc, "Ticker", syms)
-    attrs[:ids] = syms
-    attrs[:exc] = exc
-    attrs[:key] = "ccxt_$(exc.name)_tickers_$(join(syms, "_"))"
+    _sym!(attrs, syms)
+    _tfunc!(attrs, exc, "Ticker", syms)
+    _ids!(attrs, syms)
+    _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
     watcher(
         watcher_type,
@@ -76,4 +78,7 @@ function _fetch!(w::Watcher, ::CcxtTickerVal)
     end
 end
 
-_init!(w::Watcher, ::CcxtTickerVal) = default_init(w, nothing)
+function _init!(w::Watcher, ::CcxtTickerVal)
+    _key!(w, "ccxt_$(_exc(w).name)_tickers_$(join(snakecased.(_ids(w)), "_"))")
+    default_init(w, nothing)
+end
