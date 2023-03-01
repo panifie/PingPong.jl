@@ -187,9 +187,10 @@ macro sym_str(s)
     :(Symbol($s))
 end
 
+_asbool(v::Bool) = v
+_asbool(v::String) = tryparse(Bool, v)
 function _isdebug()
-    env_var = get(ENV, "JULIA_DEBUG", "0")
-    something(tryparse(Bool, env_var), false)
+    @something _asbool(@something get(ENV, "JULIA_DEBUG", nothing) false) false
 end
 
 macro ifdebug(a, b=nothing)

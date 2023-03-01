@@ -39,7 +39,7 @@ function ccxt_orderbook_watcher(
         :ccxt_order_book;
         start=false,
         load=false,
-        flush=false,
+        flush=true,
         process=true,
         buffer_capacity=10,
         view_capacity=1000,
@@ -101,8 +101,8 @@ function _fetch!(w::Watcher, ::CcxtOrderBookVal)
 end
 
 function _process!(w::Watcher, ::CcxtOrderBookVal)
-    default_process(w, (v, b, cap) -> appendmax!(v, last(b).value, cap))
-    # _view!(w, last(w.buffer).value)
+    appendby(v, b, cap) = appendmax!(v, last(b).value, cap)
+    default_process(w, appendby)
 end
 
 function _flush!(w::Watcher, ::CcxtOrderBookVal)
@@ -110,11 +110,12 @@ function _flush!(w::Watcher, ::CcxtOrderBookVal)
     range = rangeafter(w.buffer, (; time=_lastflushed(w)); by=x -> x.time)
     if length(range) > 0
         toflush = vcat(getproperty.(view(w.buffer, range), :value)...)
-        @show _key(w)
         save_data(zi[], _key(w), toflush; serialize=false, type=Float64)
         _lastflushed!(w, w.buffer[end].time)
     end
-    # from_date = min(l.time, _lastflushed(w))
-    # from_date == _obtimestamp(l.value) && return nothing
-    # w.view
+end
+
+const OBCHUNKS = (100, 5) # chunks of the z array
+function _load_ob_data(w)
+    load_data(zi[], _key(w), sz=OBCHUNKS, serialized=false, type=Float64)
 end
