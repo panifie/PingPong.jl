@@ -1,4 +1,4 @@
-using Data: df, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
+using Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
 using Data.DataFramesMeta
 using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
