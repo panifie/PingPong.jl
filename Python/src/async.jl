@@ -7,6 +7,7 @@ const pythreads = pynew()
 const pyrunner = pynew()
 const pyrunner_thread = pynew()
 const pyloop = pynew()
+const pycoro_type = pynew()
 
 function _async_init()
     if pyisnull(pyaio)
@@ -23,6 +24,7 @@ function py_start_loop()
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     @assert pyisnull(pyrunner_thread) || !Bool(pyrunner_thread.is_alive())
 
+    pycopy!(pycoro_type, pyimport("types").CoroutineType)
     pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
     pycopy!(
         pyrunner_thread, pythreads.Thread(; target=pyrunner.run, args=[async_main_func()()])
@@ -47,14 +49,18 @@ function pyschedule(coro::Py)
     pyaio.run_coroutine_threadsafe(coro, pyloop)
 end
 
-pytask(f::Py, args...; kwargs...) = begin
-    @async let fut = pyschedule(f(args...; kwargs...))
-        while !Bool(fut.done())
-            sleep(0.01)
-        end
+pywait_fut(fut::Py) = begin
+    while !Bool(fut.done())
+        sleep(0.01)
+    end
+end
+pytask(coro::Py, ::Val{:coro}) = begin
+    @async let fut = pyschedule(coro)
+        pywait_fut(fut)
         fut.result()
     end
 end
+pytask(f::Py, args...; kwargs...) = pytask(f(args...; kwargs...), Val(:coro))
 pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
