@@ -3,11 +3,11 @@ const td_tf = TimeTicks.td_tf
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 
-const DATA_PATH = get(
-    ENV, "XDG_CACHE_DIR", "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", "data"))"
-)
+default_local_dir(args...) = "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...))"
+local_dir(args...) = get(ENV, "XDG_CACHE_DIR", default_local_dir(args...))
+const DATA_PATH = local_dir("data")
 
-const Iterable = Union{AbstractVector{T},AbstractSet{T}, Tuple{Vararg{T}}} where {T}
+const Iterable = Union{AbstractVector{T},AbstractSet{T},Tuple{Vararg{T}}} where {T}
 
 @doc "Binds a `mrkts` variable to a Dict{String, DataFrame} \
 where the keys are the pairs names and the data is the OHLCV data of the pair."
