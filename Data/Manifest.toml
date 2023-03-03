@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-beta3"
+julia_version = "1.9.0-beta4"
 manifest_format = "2.0"
-project_hash = "ef9daa32671ff02c80296348f98e49135a97bacb"
+project_hash = "1cee80e9eb78180d260be9ae30c1ec7dd6e426b4"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -484,7 +484,7 @@ version = "0.3.0"
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "5.10.1+0"
+version = "5.10.1+6"
 
 [[deps.SymDict]]
 deps = ["Test"]
@@ -531,7 +531,7 @@ uuid = "51948d2b-02eb-5b28-9840-c902cc6821c9"
 version = "0.2.0"
 
 [[deps.TimeTicks]]
-deps = ["Dates", "Lang", "Reexport", "TimeFrames"]
+deps = ["Dates", "Lang", "Reexport", "Serialization", "TimeFrames"]
 path = "../TimeTicks"
 uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 version = "0.1.0"
@@ -586,7 +586,7 @@ version = "1.5.2+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.2.0+0"
+version = "5.4.0+0"
 
 [[deps.libsodium_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
