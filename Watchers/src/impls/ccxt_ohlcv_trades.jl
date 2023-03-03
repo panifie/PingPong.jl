@@ -2,6 +2,7 @@ using Data: Candle, empty_ohlcv
 using Exchanges
 using Misc: Iterable
 using Processing.TradesOHLCV
+using Processing: trail!
 using Python
 
 const CcxtOHLCVVal = Val{:ccxt_ohlcv}
@@ -128,7 +129,7 @@ end
 
 function _fetch!(w::Watcher, ::CcxtOHLCVVal)
     _tradestask!(w)
-    isempty(w.buffer) && return true
+    isempty(_trades(w)) && return true
     trade = _lasttrade(w)
     if trade.timestamp != _lastfetched(w)
         pushnew!(w, _trades(w))
@@ -140,43 +141,15 @@ end
 _flush!(w::Watcher, ::CcxtOHLCVVal) = _flushfrom!(w)
 _delete!(w::Watcher, ::CcxtOHLCVVal) = _delete_ohlcv!(w)
 
-_update_timestamps(left, prd, ts, from_idx) = begin
-    for i in from_idx:lastindex(ts)
-        left += prd
-        ts[i] = left
-    end
-end
-
 _empty_candles(_, ::Pending) = nothing
 # Ensure that when no trades happen, candles are still updated
 # NOTE: this assumes all trades were witnesses from the watcher side
 # otherwise we couldn't tell if a candle truly had 0 volume.
 function _empty_candles(w, ::Warmed)
     tf = _tfr(w)
-    prd = period(tf)
-    # If no trades happened at all, consider the actual candle
     right = length(_trades(w)) == 0 ? _curdate(tf) : apply(tf, _firsttrade(w).timestamp)
     left = apply(tf, _lastdate(w.view))
-    n_to_append = (right - left) ÷ prd - 1
-    if n_to_append > 0
-        df = w.view
-        push!(df, @view(df[end, :]))
-        size(df, 1) > w.capacity.view && popfirst!(df)
-        left += prd
-        close = df[end, :close]
-        df[end, :timestamp] = left
-        df[end, :open] = close
-        df[end, :high] = close
-        df[end, :low] = close
-        df[end, :volume] = 0
-        n_to_append -= 1
-        if n_to_append > 0
-            to_append = repeat(@view(df[end:end, :]), n_to_append)
-            appendmax!(df, to_append, w.capacity.view)
-            from_idx = lastindex(df.timestamp) - n_to_append + 1
-            _update_timestamps(left, prd, df.timestamp, from_idx)
-        end
-    end
+    trail!(w.view, tf, from=left, to=right, cap=w.capacity.view)
 end
 
 function _process!(w::Watcher, ::CcxtOHLCVVal)
