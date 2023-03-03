@@ -304,6 +304,7 @@ end
 
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
 @inline function key_path(exc_name, pair, timeframe)
+    @ifdebug @assert !isempty(exc_name)
     "$exc_name/$(snakecased(pair))/ohlcv/tf_$timeframe"
 end
 
@@ -337,7 +338,9 @@ end
 function load_ohlcv(zi::ZarrInstance, exc, args...; kwargs...)
     load_ohlcv(zi, exc.name, args...; kwargs...)
 end
-load_ohlcv(pair::AbstractString, args...; kwargs...) = load_ohlcv([pair], args...; kwargs...)
+function load_ohlcv(pair::AbstractString, args...; kwargs...)
+    load_ohlcv([pair], args...; kwargs...)
+end
 
 const ResetErrors = Union{MethodError,DivideError,ArgumentError}
 function __handle_error(::ResetErrors, zi, key, kwargs)
@@ -470,30 +473,27 @@ function _load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...)
     _load_ohlcv(zi[], args...; kwargs...)
 end
 
-function _contiguous_ts(series::AbstractVector{DateTime}, td::AbstractFloat)
-    pv = dtfloat(series[1])
-    for i in 2:length(series)
-        nv = dtfloat(series[i])
-        nv - pv !== td && throw("Time series is not contiguous at index $i.")
-        pv = nv
-    end
-    true
-end
-
 @doc "Checks if a timeseries has any intervals not conforming to the given timeframe."
 contiguous_ts(series, timeframe::AbstractString) = begin
     @as_td
     _contiguous_ts(series, td)
 end
 
-function _contiguous_ts(series::AbstractVector{Float64}, td::Float64)
-    pv = series[1]
+function _contiguous_ts(series::AbstractVector{T}, td; raise=true) where {T}
+    pv = dtfloat(series[1])
+    conv = T isa AbstractFloat ? identity : dtfloat
     for i in 2:length(series)
-        nv = series[i]
-        nv - pv !== td && throw("Time series is not contiguous at index $i.")
+        nv = conv(series[i])
+        nv - pv !== td && (
+            if raise
+                throw("Time series is not contiguous at index $i. ($(dt(pv)) != $(dt(nv)))")
+            else
+                return false
+            end
+        )
         pv = nv
     end
-    true
+    return true
 end
 
 function _check_contiguity(
