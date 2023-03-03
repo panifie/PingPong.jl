@@ -186,6 +186,7 @@ __handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
 """
 function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
+    @assert !isempty(exc_name) "No exchange name provided"
     key = key_path(exc_name, pair, timeframe)
     try
         t = @async _save_ohlcv(zi, key, td, data; kwargs...)
@@ -325,8 +326,7 @@ function _load_zarr(out::Dict, k, zi, exc_name, timeframe)
 end
 
 @doc "Load data from given zarr instance, exchange, pairs list and timeframe."
-function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe; raw=false)
-    exc_name = exc.name
+function load_ohlcv(zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false)
     out = Dict{String,raw ? za.ZArray : PairData}()
     load_func = raw ? _load_zarr : _load_pairdata
     @sync for p in pairs
@@ -334,7 +334,10 @@ function load_ohlcv(zi::ZarrInstance, exc, pairs, timeframe; raw=false)
     end
     out
 end
-load_ohlcv(pair::AbstractString, args...) = load_ohlcv([pair], args...)
+function load_ohlcv(zi::ZarrInstance, exc, args...; kwargs...)
+    load_ohlcv(zi, exc.name, args...; kwargs...)
+end
+load_ohlcv(pair::AbstractString, args...; kwargs...) = load_ohlcv([pair], args...; kwargs...)
 
 const ResetErrors = Union{MethodError,DivideError,ArgumentError}
 function __handle_error(::ResetErrors, zi, key, kwargs)
