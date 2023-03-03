@@ -3,7 +3,8 @@ using TimeTicks: Period, now, timeframe, apply
 using DataFrames: clear_pt_conf!
 using Base: _cleanup_locked
 using TimeTicks
-using Data: Candle, to_ohlcv, empty_ohlcv
+using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils
+using .DFUtils: appendmax!
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
 Rows are filled either by previous close, or NaN. """
@@ -21,6 +22,46 @@ function fill_missing_candles!(df, timeframe::AbstractString; strategy=:close)
     _fill_missing_candles(df, prd; strategy, inplace=true)
 end
 
+_update_timestamps(left, prd, ts, from_idx) = begin
+    for i in from_idx:lastindex(ts)
+        left += prd
+        ts[i] = left
+    end
+end
+
+_check_cap(::Val{:uncapped}, args...) = nothing
+function _check_cap(::Val{:capped}, df, cap)
+    size(df, 1) > cap && popfirst!(df)
+end
+_append_cap!(::Val{:uncapped}, _, args...) = append!(args...)
+_append_cap!(::Val{:capped}, cap, args...) = appendmax!(args..., cap)
+
+@doc "Appends empty candles to df up to `to` datetime (excluded).
+`cap`: max capacity of `df`
+"
+trail!(df, tf::TimeFrame; to, from=df[end, :timestamp], cap=0) = begin
+    prd = period(tf)
+    n_to_append = (to - from) ÷ prd - 1
+    if n_to_append > 0
+        capval = cap > 0 ? Val(:capped) : Val(:uncapped)
+        push!(df, @view(df[end, :]))
+        _check_cap(capval, df, cap)
+        from += prd
+        close = df[end, :close]
+        df[end, :timestamp] = from
+        df[end, :open] = close
+        df[end, :high] = close
+        df[end, :low] = close
+        df[end, :volume] = 0
+        n_to_append -= 1
+        if n_to_append > 0
+            to_append = repeat(@view(df[end:end, :]), n_to_append)
+            _append_cap!(capval, cap, df, to_append)
+            from_idx = lastindex(df.timestamp) - n_to_append + 1
+            _update_timestamps(from, prd, df.timestamp, from_idx)
+        end
+    end
+end
 novol_candle(ts, n) = Candle(ts, n, n, n, n, 0)
 nan_candle(ts, _) = Candle(ts, NaN, NaN, NaN, NaN, NaN)
 

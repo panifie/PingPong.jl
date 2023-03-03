@@ -11,7 +11,7 @@ the trades for that particular candle.
 function stopdateidx(v::AbstractVector, tf::TimeFrame; force=false)
     if force || isincomplete(last(v).timestamp, tf)
         to_date = apply(tf, last(v).timestamp)
-        i = findfirst(x -> x.timestamp < to_date, @view(v[(end - 1):-1:begin]))
+        i = findfirst(x -> x.timestamp < to_date, @view(v[(end-1):-1:begin]))
         return isnothing(i) ? firstindex(v) - 1 : size(v, 1) - i
     end
     lastindex(v)
@@ -24,11 +24,23 @@ the trades for that particular candle.
 "
 function startdateidx(v::AbstractVector, tf::TimeFrame)
     from_date = apply(tf, first(v).timestamp) + tf.period
-    i = findfirst(x -> x.timestamp >= from_date, @view(v[(begin + 1):end]))
+    i = findfirst(x -> x.timestamp >= from_date, @view(v[(begin+1):end]))
     isnothing(i) ? lastindex(v) : i + 1
 end
 
 const TRADES_COLS = [:timestamp, :price, :amount]
+function to_ohlcv(df)
+    gd = groupby(df, :timestamp; sort=true)
+    combine(
+        gd,
+        :price => first => :open,
+        :price => maximum => :high,
+        :price => minimum => :low,
+        :price => last => :close,
+        :amount => sum => :volume,
+    )
+end
+
 @doc "Converts a vector of values with (timestamp, price, amount) fields to OHLCV.
 
 `tf`: the timeframe to build OHLCV for. [`1m`]
@@ -50,15 +62,7 @@ function trades_to_ohlcv(
     # FIXME
     data[1][:] = apply.(tf, data[1])
     df = DataFrame(data, TRADES_COLS; copycols=false)
-    gd = groupby(df, :timestamp; sort=true)
-    ohlcv = combine(
-        gd,
-        :price => first => :open,
-        :price => maximum => :high,
-        :price => minimum => :low,
-        :price => last => :close,
-        :amount => sum => :volume,
-    )
+    ohlcv = to_ohlcv(df)
     (; ohlcv, start, stop)
 end
 
