@@ -9,8 +9,8 @@ import Base: getindex
 @doc "Get the column names for dataframe as symbols."
 colnames(df::AbstractDataFrame) = names(index(df))
 
-@inline firstdate(df::AbstractDataFrame) = df.timestamp[begin]
-@inline lastdate(df::AbstractDataFrame) = df.timestamp[end]
+firstdate(df::AbstractDataFrame) = df[begin, :timestamp]
+lastdate(df::AbstractDataFrame) = df[end, :timestamp]
 
 @doc "Returns the timeframe of a dataframe according to its metadata.
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
