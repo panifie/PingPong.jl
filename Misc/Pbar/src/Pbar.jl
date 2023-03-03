@@ -54,8 +54,9 @@ macro pbar!(data, desc="", unit="", use_finalizer=false)
         )
         local $pb
         if $uf
-            $pb = PbarInstance($pbar, true)
-            finalizer($clearpbar, $pb)
+            $pb = let $pb = PbarInstance($pbar, true)
+                finalizer($clearpbar, $pb)
+            end
         else
             $pb = PbarInstance($pbar, false)
         end
