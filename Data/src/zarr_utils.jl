@@ -26,7 +26,7 @@ function delete!(g::ZGroup, key::AbstractString; force=true)
     end
 end
 
-function delete!(store::DirectoryStore, paths...; recursive=true)
+function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
     rm(joinpath(store.folder, paths...); force=true, recursive)
 end
 
