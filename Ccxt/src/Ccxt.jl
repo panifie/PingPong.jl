@@ -1,7 +1,7 @@
 module Ccxt
 using Python
-using Python: pynew
-using Python.PythonCall: pyisnull
+using Python: pynew, pycoro_type, pywait_fut, pyschedule
+using Python.PythonCall: pyisnull, pycopy!
 using Misc: DATA_PATH
 
 const ccxt = pynew()
@@ -11,7 +11,8 @@ const ccxt_errors = Set{String}()
 function __init__()
     clearpypath!()
     if pyisnull(ccxt)
-        @pymodule ccxt ccxt.async_support
+        @pymodule ccxt
+        pycopy!(ccxt, pyimport("ccxt.async_support"))
         @pymodule ccxt_ws ccxt.pro
         (errors -> union(ccxt_errors, errors))(
             Set(string.(pydir(pyimport("ccxt.base.errors"))))
@@ -20,7 +21,14 @@ function __init__()
     end
 end
 
-close_exc(e::Py) = !pyisnull(e) && pyhasattr(e, "close") && e.close()
+function close_exc(e::Py)
+    @async if !pyisnull(e) && pyhasattr(e, "close")
+        co = e.close()
+        if !pyisnull(co) && pyisinstance(co, pycoro_type)
+            wait(pytask(co, Val(:coro)))
+        end
+    end
+end
 
 _issupported(has::Py, k) = k in has && Bool(has[k])
 issupported(exc, k) = _issupported(exc.py.has, k)
