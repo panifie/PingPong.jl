@@ -222,7 +222,7 @@ function _get_zarray(
         end
     else
         if !isemptysub(zi.store, key)
-            @debug "Deleting garbage at path $p"
+            @debug "Deleting garbage at path $key"
             delete!(zi.store, key)
         end
         za = @zcreate
