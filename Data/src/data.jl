@@ -9,6 +9,7 @@ using Lang: @as, @ifdebug
 using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
 
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
+const OHLCV_COLUMNS_COUNT = length(OHLCV_COLUMNS)
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
@@ -106,6 +107,17 @@ macro to_mat(data, tp=nothing)
     end
 end
 
+@doc "Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2."
+function chunksize(data; parts=100)
+    sz_rest = size(data)[2:end]
+    n_rest = reduce(*, sz_rest)
+    n = (size(data, 1) ÷ parts) * n_rest
+    log2 = round(log(n) / log(2))
+    len = (2^log2) ÷ n_rest
+    # If we multiply the size of all the dimensions we should get a number close to a power of 2
+    (round(Int, len), sz_rest...)
+end
+
 @doc "The time interval of the dataframe, guesses from the difference between the first two rows."
 function data_td(data)
     @ifdebug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
@@ -197,6 +209,7 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
 end
 save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
 
+const DEFAULT_OHLCV_CHUNK_SIZE = (492, OHLCV_COLUMNS_COUNT)
 const check_bounds_flag = :bounds
 const check_all_flag = :all
 const check_flags = (check_bounds_flag, check_all_flag)
@@ -207,6 +220,7 @@ function _save_ohlcv(
     td,
     data;
     type=Float64,
+    chunk_size=nothing,
     data_col=1,
     saved_col=data_col,
     overwrite=true,
@@ -219,7 +233,9 @@ function _save_ohlcv(
     !reset && @check_td(data)
 
     if !(input isa ZArray)
-        za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+        za, existing = _get_zarray(
+            zi, key, @something(chunk_size, chunksize(data)); type, overwrite, reset
+        )
     else
         za, existing = input, true
     end
@@ -289,8 +305,11 @@ function _save_ohlcv(
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
     else
-        resize!(za, size(data))
-        za[:, :] = @to_mat(data)
+        @show za.metadata.chunks
+        let m = @to_mat(data)
+            resize!(za, size(data))
+            za[:, :] = m
+        end
     end
     check == check_all_flag && begin
         @debug "Ensuring contiguity in saved data $(size(za))."
@@ -412,9 +431,8 @@ end
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
 
 function __ensure_ohlcv_zarray(zi, key)
-    ncols = length(OHLCV_COLUMNS)
     function get(reset)
-        _get_zarray(zi, key, (2, ncols); overwrite=true, type=Float64, reset)[1]
+        _get_zarray(zi, key, DEFAULT_OHLCV_CHUNK_SIZE; overwrite=true, type=Float64, reset)[1]
     end
     z = get(false)
     z.metadata.fill_value isa Float64 && return z
