@@ -3,11 +3,10 @@ module BybitData
 
 using URIs
 using HTTP
-using Ccxt: ccxt_exchange
 using CodecZlib: CodecZlib as zlib
 using EzXML
 using CSV
-using Data: DataFrame, DataFramesMeta, zi, _contiguous_ts
+using Data: DataFrame, DataFramesMeta, zi, _contiguous_ts, zilmdb
 using Data: save_ohlcv, Cache as ca, load_ohlcv
 using Data.DFUtils: lastdate, firstdate
 using .DataFramesMeta
@@ -26,7 +25,7 @@ const PATHS = (; premium_index="premium_index", spot_index="spot_index", trading
 const TRADING_SYMS = String[]
 const WORKERS = Ref(10)
 const TF = Ref(tf"1m")
-const MAX_CHUNK_SIZE = 50_000 # Limit the chunk size to not exceed lmdb memmaped page size
+const MAX_CHUNK_SIZE = 100_000 # Limit the chunk size to not exceed lmdb memmaped page size
 
 function __init__()
     zi[] = zilmdb()
@@ -41,15 +40,6 @@ function timeframe!(s)
     prev = TF[]
     TF[] = timeframe(s)
     @info "TimeFrame set from $prev to $(TF[])"
-end
-
-function bybit_exchange()
-    ccxt_exchange(:bybit)
-end
-
-function currencies()
-    exc = ccxt_exchange(:bybit)
-    exc.currencies
 end
 
 function links_list(doc)
@@ -180,15 +170,12 @@ function glue_ohlcv(out)
 end
 
 function bybitsave(sym, data, zi=zi[])
-    idx = 1
-    sz = size(data, 1)
-    while idx <= sz
-        chunk = view(data, idx:idx+MAX_CHUNK_SIZE, :)
-        save_ohlcv(zi, NAME, sym, string(TF[]), chunk; check=@ifdebug(check_all_flag, :none))
-        idx += MAX_CHUNK_SIZE
-    end
+    save_ohlcv(zi, NAME, sym, string(TF[]), data; check=@ifdebug(check_all_flag, :none))
 end
 
+@doc "Download data for symbols `syms` from bybit.
+`reset`: if `true` start from scratch.
+"
 function bybitdownload(syms=String[]; reset=false, path=PATHS.trading)
     selected = symsvec(syms; path)
     if isempty(selected)
@@ -197,14 +184,15 @@ function bybitdownload(syms=String[]; reset=false, path=PATHS.trading)
     for s in selected
         ohlcv, last_file = fetchsym(s; reset, path)
         if !(isnothing(ohlcv) || isnothing(last_file))
-            save(s, ohlcv)
+            bybitsave(s, ohlcv)
             ca.save_cache(cache_key(s; path), last_file)
         end
     end
 end
 
-bybitdownload(args::AbstractString...) = bybitdownload([args...])
-bybitload(syms; zi=zi[]) = load_ohlcv(zi, NAME, syms, string(TF[]))
+bybitdownload(args::AbstractString...; kwargs...) = bybitdownload([args...]; kwargs...)
+@doc "Load previously downloaded data from bybit."
+bybitload(syms::AbstractVector; zi=zi[]) = load_ohlcv(zi, NAME, syms, string(TF[]))
 bybitload(syms...) = bybitload([syms...])
 
 export bybitdownload, bybitload, bybitallsyms
