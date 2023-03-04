@@ -4,9 +4,10 @@ using LMDB: LMDB;
 const lm = LMDB;
 using Lang: @lget!
 
+const MB = 1024 * 1024
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
-    function LMDBDictStore(path::AbstractString; reset=false, mapsize=64 * 1024 * 1024)
+    function LMDBDictStore(path::AbstractString; reset=false, mapsize=64 * MB)
         reset && rm(path; recursive=true)
         !ispath(path) && mkpath(path)
         d = new(lm.LMDBDict{String,Vector{UInt8}}(path))
@@ -15,7 +16,9 @@ struct LMDBDictStore <: za.AbstractDictStore
     end
 end
 
-_getmapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
+mapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
+mapsize!(store::LMDBDictStore, mb) = store.a.env[:MapSize] = mb * MB
+mapsize!!(store::LMDBDictStore, mb) = store.a.env[:MapSize] += mb * MB
 
 Base.filter!(f, d::lm.LMDBDict) = begin
     collect(v for v in pairs(d) if f(v))

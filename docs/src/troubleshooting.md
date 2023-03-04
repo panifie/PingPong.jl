@@ -18,3 +18,14 @@ import Pkg; Pkg.instantiate()
 
 ## It is unresponsive
 - If the exchange instance has been idle for quite a while the connection might have been closed. It should fail according to the ccxt exchange timeout, although more often than not it takes longer. After the inevitable timeout error the connection is re-established and subsequent functions that rely on api calls should become responsive again.
+
+## Can't save data
+- If you are using LMDB with zarr (which is default) the initial db size is 64MB. To increase it:
+
+``` julia
+using Data
+zi = zilmdb()
+Data.mapsize!(zi, 1024) # This will set the max DB size to 1GB
+Data.mapsize!!(zi, 100) # Double bang (!!) will _add_ to the previous mapsize (in this case 1.1GB)
+```
+Whenever the stored data reaches the mapsize, you have to increase it.
