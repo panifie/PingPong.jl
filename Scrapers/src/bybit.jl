@@ -3,17 +3,25 @@ module BybitData
 
 using URIs
 using HTTP
-using CodecZlib: CodecZlib as zlib
 using EzXML
-using CSV
-using Data: DataFrame, DataFramesMeta, zi, _contiguous_ts, zilmdb
+using Data: DataFrame, zi
 using Data: save_ohlcv, Cache as ca, load_ohlcv
-using Data.DFUtils: lastdate, firstdate
-using .DataFramesMeta
 using TimeTicks
-using Processing: TradesOHLCV as tra, cleanup_ohlcv_data, trail!
 using Pbar
 using Lang
+using ..Scrapers:
+    selectsyms,
+    timeframe!,
+    workers!,
+    WORKERS,
+    TF,
+    fetchfile,
+    zlib,
+    csvtodf,
+    trades_to_ohlcv,
+    mergechunks,
+    glue_ohlcv,
+    dofetchfiles
 
 const NAME = "Bybit"
 const BASE_URL = URI("https://public.bybit.com/")
@@ -23,24 +31,7 @@ const BASE_URL = URI("https://public.bybit.com/")
 # Which means the only source that reconstructs OHLCV is /trading
 const PATHS = (; premium_index="premium_index", spot_index="spot_index", trading="trading")
 const TRADING_SYMS = String[]
-const WORKERS = Ref(10)
-const TF = Ref(tf"1m")
-const MAX_CHUNK_SIZE = 100_000 # Limit the chunk size to not exceed lmdb memmaped page size
-
-function __init__()
-    zi[] = zilmdb()
-end
-
-function workers!(n)
-    prev = WORKERS[]
-    WORKERS[] = n
-    @info "Workers count set from $prev to $n"
-end
-function timeframe!(s)
-    prev = TF[]
-    TF[] = timeframe(s)
-    @info "TimeFrame set from $prev to $(TF[])"
-end
+const COLS = [:symbol, :timestamp, :price, :size]
 
 function links_list(doc)
     elements(elements(elements(elements(doc.node)[1])[2])[3])
@@ -75,26 +66,12 @@ function symsvec(syms; path=PATHS.trading, quote_currency="usdt")
     mysyms
 end
 
-function fetchfile(url)
-    resp = HTTP.get(url)
-    zlib.transcode(zlib.GzipDecompressor, resp.body)
-end
-csvtodf(v) = begin
-    df = CSV.read(v, DataFrame; select=[:symbol, :timestamp, :price, :size])
-    rename!(df, :size => :amount)
-    df
-end
-dftoohlcv(df) = begin
-    df[!, :timestamp] = apply.(TF[], unix2datetime.(df.timestamp))
-    ohlcv = tra.to_ohlcv(df)
-    cleanup_ohlcv_data(ohlcv, TF[])
-end
-
 function fetch_ohlcv(sym, file; out, path=PATHS.trading)
     url = symurl(sym, file; path)
     data = fetchfile(url)
-    df = csvtodf(data)
-    ohlcv = dftoohlcv(df)
+    df = csvtodf(data, COLS)
+    rename!(df, :size => :amount)
+    ohlcv = trades_to_ohlcv(df)
     out[first(ohlcv.timestamp)] = ohlcv
     @debug "Downloaded chunk $file"
     nothing
@@ -106,67 +83,45 @@ symlinkslist(sym; path=PATHS.trading) = begin
     links_list(doc)
 end
 cache_key(sym; path=PATHS.trading) = "$(NAME)/_$(sym)_$(path)"
-function symfiles(links, from=nothing)
-    download_from = 1
-    if !isnothing(from)
-        for (n, l) in enumerate(links)
-            file = l.content
-            if file == from
-                download_from = n + 1
-            end
-        end
-    end
-    download_from > length(links) && return nothing
-    map(l -> l.content, @view(links[download_from:end]))
-end
+# function symfiles(links, from=nothing)
+#     download_from = 1
+#     if !isnothing(from)
+#         for (n, l) in enumerate(links)
+#             file = l.content
+#             if file == from
+#                 download_from = n + 1
+#                 break
+#             end
+#         end
+#     end
+#     download_from > length(links) && return nothing
+#     map(l -> l.content, @view(links[download_from:end]))
+# end
 
-function dofetchfiles(sym, files; path=PATHS.trading)
-    out = Dict{DateTime,DataFrame}()
-    @pbar! files sym
-    try
-        dofetch(file) = begin
-            fetch_ohlcv(sym, file; out, path)
-            @pbupdate!
-        end
-        asyncmap(dofetch, files; ntasks=WORKERS[])
-    finally
-        @pbclose
-    end
-    return out
-end
-
-function mergechunks(files, out)
-    @assert length(out) == length(files) "Couldn't download all chunks!"
-    sorted = sort(out)
-    glue_ohlcv(sorted)
-    merged = vcat(values(sorted)...)
-    @ifdebug _contiguous_ts(merged.timestamp, timefloat(TF[]))
-    merged
-end
+# function dofetchfiles(sym, files; path=PATHS.trading)
+#     out = Dict{DateTime,DataFrame}()
+#     @pbar! files sym
+#     try
+#         dofetch(file) = begin
+#             fetch_ohlcv(sym, file; out, path)
+#             @pbupdate!
+#         end
+#         asyncmap(dofetch, files; ntasks=WORKERS[])
+#     finally
+#         @pbclose
+#     end
+#     return out
+# end
 
 symurl(args...; path=PATHS.trading) = joinpath(BASE_URL, path, args...)
 function fetchsym(sym; reset=false, path=PATHS.trading)
     from = reset ? nothing : ca.load_cache(cache_key(sym; path); raise=false)
     files = let links = symlinkslist(sym; path)
-        symfiles(links, from)
+        symfiles(links; by=l -> l.content, from)
     end
     isnothing(files) && return (nothing, nothing)
-    out = dofetchfiles(sym, files; path)
+    out = dofetchfiles(sym, files; func=fetch_ohlcv, path)
     (mergechunks(files, out), last(files))
-end
-
-function glue_ohlcv(out)
-    prev_df = first(out).second
-    prev_ts = lastdate(prev_df)
-    for (first_ts, df) in Iterators.drop(out, 1)
-        if prev_ts + TF[] != first_ts
-            trail!(prev_df, TF[]; to=firstdate(df))
-        end
-        @assert lastdate(prev_df) + TF[] == firstdate(df)
-        prev_ts = lastdate(df)
-        prev_df = df
-    end
-    out
 end
 
 function bybitsave(sym, data, zi=zi[])
@@ -176,8 +131,11 @@ end
 @doc "Download data for symbols `syms` from bybit.
 `reset`: if `true` start from scratch.
 "
-function bybitdownload(syms=String[]; reset=false, path=PATHS.trading)
-    selected = symsvec(syms; path)
+function bybitdownload(
+    syms=String[]; reset=false, path=PATHS.trading, quote_currency="usdt"
+)
+    all_syms = bybitallsyms(path)
+    selected = selectsyms(syms, all_syms; quote_currency)
     if isempty(selected)
         throw(ArgumentError("No symbols found matching $syms"))
     end
@@ -189,11 +147,13 @@ function bybitdownload(syms=String[]; reset=false, path=PATHS.trading)
         end
     end
 end
+@argstovec bybitdownload AbstractString
 
-bybitdownload(args::AbstractString...; kwargs...) = bybitdownload([args...]; kwargs...)
 @doc "Load previously downloaded data from bybit."
-bybitload(syms::AbstractVector; zi=zi[]) = load_ohlcv(zi, NAME, syms, string(TF[]))
-bybitload(syms...) = bybitload([syms...])
+function bybitload(syms::AbstractVector; zi=zi[], kwargs...)
+    load_ohlcv(zi, NAME, syms, string(TF[]); kwargs...)
+end
+@argstovec bybitload AbstractString
 
 export bybitdownload, bybitload, bybitallsyms
 end

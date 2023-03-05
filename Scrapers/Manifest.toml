@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-beta4"
 manifest_format = "2.0"
-project_hash = "3275af37d17d4e60eb46b4ce6626b6fb2a4dcc0d"
+project_hash = "07d86064ebb4eb3fdd31115f2438569390f7b836"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -117,7 +117,7 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.Data]]
-deps = ["DataFrames", "DataFramesMeta", "Dates", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "Dates", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -755,6 +755,12 @@ deps = ["AWSS3", "Blosc", "CodecZlib", "DataStructures", "Dates", "DiskArrays", 
 path = "../Data/vendor/zarr"
 uuid = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 version = "99.0.0"
+
+[[deps.ZipFile]]
+deps = ["Libdl", "Printf", "Zlib_jll"]
+git-tree-sha1 = "f492b7fe1698e623024e873244f10d89c95c340a"
+uuid = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
+version = "0.10.1"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
