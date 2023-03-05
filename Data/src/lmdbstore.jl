@@ -17,12 +17,14 @@ struct LMDBDictStore <: za.AbstractDictStore
 end
 
 mapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
-mapsize!(store::LMDBDictStore, mb) = store.a.env[:MapSize] = mb * MB
+mapsize!(store::LMDBDictStore, mb) = begin
+    store.a.env[:MapSize] = round(Int, mb * MB)
+end
 mapsize!!(store::LMDBDictStore, mb) = mapsize!(store, (mapsize(store) / MB + mb) * MB)
-mapsize!!(store::LMDBDictStore, prc::AbstractFloat) =
-    let sz = mapsize(store)
-        mapsize!(store, sz + sz * prc)
-    end
+mapsize!!(store::LMDBDictStore, prc::AbstractFloat) = begin
+    sz = mapsize(store) ÷ MB
+    mapsize!(store, sz + sz * prc)
+end
 
 function Base.setindex!(d::LMDBDictStore, v, i::AbstractString)
     try
@@ -30,7 +32,7 @@ function Base.setindex!(d::LMDBDictStore, v, i::AbstractString)
     catch e
         if e isa lm.LMDBError && e.code == -30792
             mapsize!!(d, 0.1)
-            setindex!(d, v, i)
+            Base.setindex!(d, v, i)
         else
             rethrow(e)
         end
@@ -40,6 +42,8 @@ end
 Base.filter!(f, d::lm.LMDBDict) = begin
     collect(v for v in pairs(d) if f(v))
 end
+
+Base.delete!(store::LMDBDictStore, k; recursive=false) = delete!(store.a, k; prefix=k)
 
 get_zgroup(store) = begin
     if !Zarr.is_zgroup(store, "")
