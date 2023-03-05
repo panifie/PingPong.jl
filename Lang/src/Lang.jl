@@ -34,6 +34,10 @@ macro passkwargs(args...)
     return esc(:($(kwargs...)))
 end
 
+filterkws(kws...; kwargs) = begin
+    ((k, v) for (k, v) in kwargs if k ∈ (kws...,))
+end
+
 export passkwargs, @passkwargs
 
 @doc """Get a value from a container that *should not contain* `nothing`, lazily evaluating the default value.
@@ -238,9 +242,28 @@ macro acquire(cond, code)
     end
 end
 
+macro buffer!(v, code)
+    quote
+        buf = IOBuffer($(esc(v)))
+        try
+            $(esc(code))
+        finally
+            close(buf)
+        end
+    end
+end
+
+macro argstovec(fname, type)
+    fname = esc(fname)
+    type = esc(type)
+    quote
+        $fname(args::$type...; kwargs...) = $fname([args...]; kwargs...)
+    end
+end
+
 export @kget!, @lget!
-export passkwargs, @exportenum
+export passkwargs, filterkws, @exportenum
 export @as, @sym_str
-export Option, @asyncm, @ifdebug
+export Option, @asyncm, @ifdebug, @argstovec
 
 end

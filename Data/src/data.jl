@@ -305,7 +305,6 @@ function _save_ohlcv(
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
     else
-        @show za.metadata.chunks
         let m = @to_mat(data)
             resize!(za, size(data))
             za[:, :] = m
