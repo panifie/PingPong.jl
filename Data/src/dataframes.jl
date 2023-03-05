@@ -7,7 +7,7 @@ using Lang
 import Base: getindex
 
 @doc "Get the column names for dataframe as symbols."
-colnames(df::AbstractDataFrame) = names(index(df))
+colnames(df::AbstractDataFrame) = index(df).names
 
 firstdate(df::AbstractDataFrame) = df[begin, :timestamp]
 lastdate(df::AbstractDataFrame) = df[end, :timestamp]
