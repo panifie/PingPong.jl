@@ -7,7 +7,7 @@ using Lang: @lget!
 const MB = 1024 * 1024
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
-    function LMDBDictStore(path::AbstractString; reset=false, mapsize=64 * MB)
+    function LMDBDictStore(path::AbstractString; reset=false, mapsize=64MB)
         reset && rm(path; recursive=true)
         !ispath(path) && mkpath(path)
         d = new(lm.LMDBDict{String,Vector{UInt8}}(path))
@@ -18,7 +18,24 @@ end
 
 mapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
 mapsize!(store::LMDBDictStore, mb) = store.a.env[:MapSize] = mb * MB
-mapsize!!(store::LMDBDictStore, mb) = store.a.env[:MapSize] += mb * MB
+mapsize!!(store::LMDBDictStore, mb) = mapsize!(store, (mapsize(store) / MB + mb) * MB)
+mapsize!!(store::LMDBDictStore, prc::AbstractFloat) =
+    let sz = mapsize(store)
+        mapsize!(store, sz + sz * prc)
+    end
+
+function Base.setindex!(d::LMDBDictStore, v, i::AbstractString)
+    try
+        d.a[i] = v
+    catch e
+        if e isa lm.LMDBError && e.code == -30792
+            mapsize!!(d, 0.1)
+            setindex!(d, v, i)
+        else
+            rethrow(e)
+        end
+    end
+end
 
 Base.filter!(f, d::lm.LMDBDict) = begin
     collect(v for v in pairs(d) if f(v))
