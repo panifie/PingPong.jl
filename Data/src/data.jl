@@ -399,7 +399,7 @@ _wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...
 function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
     @as_td
     key = key_path(exc_name, pair, timeframe)
-    t = _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
+    t = @async _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
     fetch(t)
 end
 

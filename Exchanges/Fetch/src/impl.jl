@@ -14,16 +14,11 @@ using Python
 using Python: pylist_to_matrix
 using ExchangeTypes: Exchange
 using Exchanges:
-    setexchange!,
-    tickers,
-    getexchange!,
-    is_timeframe_supported,
-    py_except_name,
-    save_ohlcv
+    setexchange!, tickers, getexchange!, is_timeframe_supported, py_except_name, save_ohlcv
 using TimeTicks
-using Lang: @distributed, @parallel, Option
+using Lang: @distributed, @parallel, Option, filterkws
 using Misc
-using Misc: _instantiate_workers, config, DATA_PATH, ohlcv_limits, drop, StrOrVec, Iterable
+using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using TimeTicks: TimeFrameOrStr, timestamp
 using Python
 using TimeTicks
@@ -101,7 +96,9 @@ function find_since(exc::Exchange, pair)
     for (t, p) in zip(tfs, periods)
         old_ts = as_int(Millisecond(p))
         # fetch the first available candles using a long (1w) timeframe
-        data = _fetch_ohlcv_with_delay(exc, pair; timeframe=t, since=old_ts, df=true)
+        data = _fetch_ohlcv_with_delay(
+            exc, pair; timeframe=t, since=old_ts, df=true, retry=false
+        )
         !isempty(data) && break
     end
     if isempty(data)
@@ -114,11 +111,11 @@ end
 
 function fetch_limit(exc::Exchange, limit::Option{Int})
     if isnothing(limit)
-        get(ohlcv_limits, Symbol(lowercase(string(exc.name))), 1000)
+        get(fetch_limits, Symbol(lowercase(string(exc.name))), 1000)
     end
 end
 
-function __get_since(fetch_func, pair, limit, from, out, is_df, converter)
+function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
     if from == 0.0
         find_since(exc, pair)
     else
@@ -151,14 +148,16 @@ function _fetch_loop(
     limit=nothing,
 ) where {F<:AbstractFloat}
     @debug "Downloading data for pair $pair."
+    last_fetched_count = Ref(0)
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
     is_df = out isa DataFrame
-    since = __get_since(fetch_func, pair, limit, from, out, is_df, converter)
+    since = __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
     @debug "since time: ", since
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     function dofetch()
         sleep(sleep_t)
         fetched = _fetch_with_delay(fetch_func, pair; since, df=is_df, limit, converter)
+        last_fetched_count[] = size(fetched, 1)
         size(fetched, 1) == 0 ? false : (append!(out, fetched); true)
     end
     lastts(out) = Int(timefloat(out[end, 1]))
@@ -167,12 +166,20 @@ function _fetch_loop(
         last_ts = lastts(out)
         since == last_ts && break
         since = last_ts
-        @debug "Downloaded data for pair $pair up to $(since |> dt) from $(exc.name)."
+        @debug "Downloaded data for pair $pair up to $(since |> dt) ($(last_fetched_count[]) of $limit) from $(exc.name)."
     end
     return out
 end
 
-function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter)
+macro return_empty()
+    :(return $(esc(:df)) ? empty_ohlcv() : [])
+end
+
+function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter, retry)
+    !retry && @return_empty()
+    if e isa TaskFailedException
+        e = e.task.result
+    end
     if e isa PyException
         if !isnothing(match(r"429([0]+)?", string(e._v)))
             @debug "Exchange error 429, too many requests."
@@ -182,20 +189,22 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
             _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
         elseif py_except_name(e) ∈ ccxt_errors
             @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
-            return df ? empty_ohlcv() : []
+            @return_empty()
         else
             rethrow(e)
         end
+    elseif e isa InterruptException
+        @return_empty()
     else
         rethrow(e)
     end
 end
 
-function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter)
+function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, retry)
     @debug "Calling into ccxt to fetch data: $pair since $since, max: $limit"
     data = fetch_func(pair, since, limit)
     dpl = pyisinstance(data, @py(list))
-    if !dpl || length(data) == 0
+    if retry && (!dpl || length(data) == 0)
         @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
         sleep(sleep_t)
         sleep_t = (sleep_t + 1) * 2
@@ -229,10 +238,11 @@ function _fetch_with_delay(
     sleep_t=0,
     limit=nothing,
     converter=_to_ohlcv_vecs,
+    retry=true,
 )
     try
         handled, data = __handle_fetch(
-            fetch_func, pair, since, limit, sleep_t, df, converter
+            fetch_func, pair, since, limit, sleep_t, df, converter, retry
         )
         handled && return data
         # Apply conversion to fetched data
@@ -243,7 +253,7 @@ function _fetch_with_delay(
         handle_data(data::DataFrame) = data
         isempty(data) || size(data, 1) == 0 ? handle_empty(data) : handle_data(data)
     catch e
-        __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter)
+        __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter, retry)
     end
 end
 
@@ -255,7 +265,7 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
     function fetch_func(pair, since, limit)
         pyfetch(exc.py.fetchOHLCV, pair; since, limit, timeframe, params)
     end
-    kwargs = collect((k, v) for (k, v) in kwargs if k ∉ (:params, :timeframe, :limit))
+    kwargs = collect(filterkws(:params, :timeframe, :limit; kwargs, pred=∉))
     _fetch_with_delay(fetch_func, args...; limit, kwargs...)
 end
 # FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
@@ -305,9 +315,9 @@ function fetch_ohlcv(
     t
 end
 
-function __ensure_dates(timeframe, from, to, exc_name)
+function __ensure_dates(exc, timeframe, from, to)
     if !is_timeframe_supported(timeframe, exc)
-        error("Timeframe $timeframe not supported by exchange $exc_name.")
+        error("Timeframe $timeframe not supported by exchange $(exc.name).")
     end
     from_to_dt(timeframe, from, to)
 end
@@ -341,7 +351,7 @@ function __get_ohlcv(exc, name, timeframe, from_date, to; out=empty_ohlcv(), cle
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
-    if !islast(pair_from_date, timeframe)
+    if isempty(pair_from_date) || !islast(pair_from_date, timeframe)
         ohlcv = _fetch_ohlcv_from_to(
             exc, name, timeframe; from=pair_from_date, to, cleanup, out
         )
@@ -398,7 +408,7 @@ function fetch_ohlcv(
     local pb
     @assert !isempty(exc) "Bad exchange."
     exc_name = exc.name
-    from, to = __ensure_dates(timeframe, from, to, exc_name)
+    from, to = __ensure_dates(exc, timeframe, from, to)
     from_date = __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
     data = Dict{String,PairData}()
     pb = progress && __print_progress_1(pairs)
@@ -418,9 +428,9 @@ function _fetch_candles(
     exc, timeframe, pairs::Iterable; from::D1, to::D2
 ) where {D1,D2<:Union{DateTime,AbstractString}}
     @sync Dict(
-        name =>
-            @async __get_ohlcv(exc, name, timeframe, Returns((nothing, from)), to; cleanup=false)[1]
-        for name in pairs
+        name => @async __get_ohlcv(
+            exc, name, timeframe, Returns((nothing, from)), to; cleanup=false
+        )[1] for name in pairs
     )
 end
 
@@ -437,7 +447,7 @@ function fetch_candles(
     from::DateType="",
     to::DateType="",
 )
-    from, to = __ensure_dates(timeframe, from, to, exc.name)
+    from, to = __ensure_dates(exc, timeframe, from, to)
     _fetch_candles(exc, timeframe, pairs; from, to)
 end
 
