@@ -13,3 +13,7 @@
 # /*/**/CondaPkg.toml
 /**/.JuliaFormatter.toml
 /docs/build/
+/Data/vendor/*
+!/Data/vendor/.gitkeep
+/vendor/*
+!/vendor/.gitkeep
