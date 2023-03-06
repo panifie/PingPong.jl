@@ -107,13 +107,17 @@ macro to_mat(data, tp=nothing)
     end
 end
 
+function nearestl2(n)
+    log2 = round(log(n) / log(2))
+    round(Int, 2^log2)
+end
+
 @doc "Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2."
 function chunksize(data; parts=100)
     sz_rest = size(data)[2:end]
     n_rest = reduce(*, sz_rest)
     n = (size(data, 1) ÷ parts) * n_rest
-    log2 = round(log(n) / log(2))
-    len = (2^log2) ÷ n_rest
+    len = nearestl2(n) ÷ n_rest
     # If we multiply the size of all the dimensions we should get a number close to a power of 2
     (round(Int, len), sz_rest...)
 end
@@ -209,7 +213,7 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
 end
 save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
 
-const DEFAULT_OHLCV_CHUNK_SIZE = (492, OHLCV_COLUMNS_COUNT)
+const OHLCV_CHUNK_SIZE = (2730, OHLCV_COLUMNS_COUNT)
 const check_bounds_flag = :bounds
 const check_all_flag = :all
 const check_flags = (check_bounds_flag, check_all_flag)
@@ -431,7 +435,7 @@ to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
 
 function __ensure_ohlcv_zarray(zi, key)
     function get(reset)
-        _get_zarray(zi, key, DEFAULT_OHLCV_CHUNK_SIZE; overwrite=true, type=Float64, reset)[1]
+        _get_zarray(zi, key, OHLCV_CHUNK_SIZE; overwrite=true, type=Float64, reset)[1]
     end
     z = get(false)
     z.metadata.fill_value isa Float64 && return z

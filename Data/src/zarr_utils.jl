@@ -207,7 +207,7 @@ function _get_zarray(
     existing = false
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
-        if _wrongdims(za, sz) || _wrongcols(za, sz) || reset
+        if isempty(za) || _wrongdims(za, sz) || _wrongcols(za, sz) || reset
             @debug "wrong dims? $(_wrongdims(za, sz)), wrong cols? $(_wrongcols(za, sz))"
             if overwrite || reset
                 delete!(zi.store, key)
