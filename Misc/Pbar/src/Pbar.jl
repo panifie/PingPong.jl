@@ -1,83 +1,73 @@
-@doc "Python enlighten progressbar wrapper."
+@doc "Progress bar wrapper."
 module Pbar
 
-using Python
-using Python.PythonCall: pynew, keys, pyisnull, pycopy!
+using Term.Progress
 using TimeTicks: now, Millisecond, Second
+using Lang: toggle!
 
 const min_delta = Ref(Millisecond(0))
 const queued_counter = Ref(0)
-const enlighten = pynew()
-const emn = pynew()
-const pbar = pynew()
-const six = pynew()
-
-mutable struct PbarInstance
-    pbar::Py
-    fin::Bool
-end
+const pbar = Ref{Union{Nothing,ProgressBar}}(nothing)
 
 function clearpbar(pb)
-    pb.pbar ∈ emn.counters.keys() && pbclose(pb)
+    if !pb.paused
+        stop!(pb)
+    end
+    for j in pb.jobs
+        stop!(j)
+    end
+    empty!(pb.jobs)
 end
 
 function __init__()
-    # Misc.__init__()
-    @pymodule six
-    @pymodule enlighten
-    # pycopy!(enlighten, pyimport("enlighten"))
-    pyisnull(emn) || emn.stop()
-    pycopy!(emn, enlighten.get_manager())
-    @debug @info "Pbar: Loaded enlighten."
+    if isnothing(pbar[])
+        pbar[] = ProgressBar(; transient=true, columns=:detailed)
+    end
+    clearpbar(pbar[])
+    @debug "Pbar: Loaded."
 end
+
+const plu = esc(:pb_last_update)
+const pbj = esc(:pb_job)
+
+@doc "Toggles pbar transient flag"
+transient!(pb=pbar[]) = toggle!(pb, :transient)
 
 @doc "Instantiate a progress bar:
 - `data`: `length(data)` determines the bar total
 - `unit`: what unit the display
 - `desc`: description will appear over the progressbar
 "
-macro pbar!(data, desc="", unit="", use_finalizer=false)
+macro pbar!(data, desc="", unit="", delta=Millisecond(10)) # use_finalizer=false)
     data = esc(data)
     desc = esc(desc)
     unit = esc(unit)
-    plu = esc(:pb_last_update)
-    pb = esc(:pb)
-    uf = esc(use_finalizer)
+    pbar = Pbar.pbar[]
     quote
         @pbinit!
-        !$pyisnull($pbar) && try
-            $pbar.close(; clear=true)
-        catch
-        end
-        pycopy!(
-            $pbar, $emn.counter(; total=length($data), desc=$desc, unit=$unit, leave=false)
-        )
-        local $pb
-        if $uf
-            $pb = let $pb = PbarInstance($pbar, true)
-                finalizer($clearpbar, $pb)
-            end
-        else
-            $pb = PbarInstance($pbar, false)
-        end
-        $min_delta[] = Millisecond($pyconvert(Float64, $pbar.min_delta) * 1e3)
-        $pbar.refresh()
-        local $plu = $now()
-        $pb
+        start!($pbar)
+        $queued_counter[] = 1
+        $min_delta[] = $(esc(delta))
+        $pbj = addjob!($pbar; description=$desc, N=length($data), transient=true)
+        $plu = $now()
+        render($pbar)
+        yield()
     end
 end
 
 @doc "Single update to the progressbar with the new value."
 macro pbupdate!(n=1, args...)
     n = esc(n)
-    plu = esc(:pb_last_update)
-    pb = esc(:pb)
+    pbar = Pbar.pbar[]
     quote
         let t = $now()
-            if t - $plu > $min_delta[]
-                $pb.pbar.update($queued_counter[] + $n, $args...)
+            if t - $plu > $(min_delta[]) # min_delta should not mutate
+            Main.display!("Pbar.jl:65")
+                update!($pbj; i=$queued_counter[])
+                $queued_counter[] = 1
                 $plu = t
-                $queued_counter[] = 0
+                render($pbar)
+                yield()
             else
                 $queued_counter[] += 1
             end
@@ -86,22 +76,29 @@ macro pbupdate!(n=1, args...)
 end
 
 @doc "Terminates the progress bar."
-function pbclose(pb)
-    pb.pbar.close(; clear=true)
+function pbclose(pb, complete=true)
+    if complete
+        for j in pb.jobs
+            if !isnothing(j.N)
+                update!(j; i=j.N - j.i)
+                render(pb)
+            end
+        end
+    end
+    stop!(pb)
 end
 
 macro pbclose()
-    pb = esc(:pb)
+    pbar = Pbar.pbar[]
     quote
-        $pbclose($pb)
+        $pbclose($pbar)
     end
 end
 
 macro pbstop()
     # FIXME: kwarg clear=true doesn't seem to work
     quote
-        $pbar.close(; clear=true)
-        $emn.stop()
+        $stop!($(pbar[]))
     end
 end
 
@@ -109,6 +106,6 @@ macro pbinit!()
     :($(__init__)())
 end
 
-export @pbar!, @pbupdate!, @pbclose, @pbstop, @pbinit!
+export @pbar!, @pbupdate!, @pbclose, @pbstop, @pbinit!, transient!
 
 end

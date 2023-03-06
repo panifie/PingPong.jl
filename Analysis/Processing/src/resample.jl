@@ -73,7 +73,7 @@ function resample(
     progress=false,
 )
     rs = Dict{String,PairData}()
-    progress && @pbar! "Instruments" false
+    progress && @pbar! "Instruments"
     try
         for (name, pair_data) in mrkts
             rs[name] = PairData(

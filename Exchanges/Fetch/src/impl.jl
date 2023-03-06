@@ -340,7 +340,7 @@ function __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
 end
 __print_progress_1(pairs) = begin
     @info "Downloading data for $(length(pairs)) pairs."
-    @pbar! pairs "Pairlist download progress" "pair" false
+    @pbar! pairs "Pairlist download progress" "pair"
     pb
 end
 function __print_progress_2(name, exc_name)
@@ -351,7 +351,7 @@ function __get_ohlcv(exc, name, timeframe, from_date, to; out=empty_ohlcv(), cle
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
-    if isempty(pair_from_date) || !islast(pair_from_date, timeframe)
+    if !islast(pair_from_date, timeframe)
         ohlcv = _fetch_ohlcv_from_to(
             exc, name, timeframe; from=pair_from_date, to, cleanup, out
         )

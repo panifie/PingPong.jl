@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
