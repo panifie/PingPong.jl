@@ -151,6 +151,7 @@ end
 islast(d::DateTime, tf::TimeFrame) = islast(apply(tf, d), tf, Val(:raw))
 islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
 islast(v, tf::AbstractString) = islast(v, timeframe(tf))
+islast(v::AbstractString, tf) = islast(something(tryparse(DateTime, v), DateTime(0)), tf)
 @doc "`a` is left adjacent to `b` if in order `..ab..`"
 isleftadj(a, b, tf::TimeFrame) = a + tf == b
 @doc "`a` is right adjacent to `b` if in order `..ba..`"

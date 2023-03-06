@@ -1,9 +1,9 @@
 
 @doc "Exchange ohlcv candles limits."
-const ohlcv_limits = IdDict(
+const fetch_limits = IdDict(
     :lbank => 2000,
     :poloniex => 20000,
-    :kucoin => nothing,
+    :kucoin => 1500,
     :binance => 20000,
     :bybit => 1000,
     :bybit_futures => 200,

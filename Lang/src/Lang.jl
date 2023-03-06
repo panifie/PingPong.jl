@@ -34,11 +34,15 @@ macro passkwargs(args...)
     return esc(:($(kwargs...)))
 end
 
-filterkws(kws...; kwargs) = begin
-    ((k, v) for (k, v) in kwargs if k ∈ (kws...,))
+@doc "Returns only the keywords `kws...` from all the `kwargs`"
+filterkws(kws...; kwargs, pred=∈) = begin
+    ((k, v) for (k, v) in kwargs if pred(k, (kws...,)))
 end
 
-export passkwargs, @passkwargs
+@doc "Splits the keywords `kws...` from all the `kwargs`, returning the tuple `(filtered, rest)`."
+function splitkws(kws...; kwargs)
+    (filtered=filterkws(kws...; kwargs), rest=filterkws(kws...; kwargs, pred=∉))
+end
 
 @doc """Get a value from a container that *should not contain* `nothing`, lazily evaluating the default value.
 ```julia
@@ -261,9 +265,14 @@ macro argstovec(fname, type)
     end
 end
 
+@doc "Toggles a boolean property."
+function toggle!(value, name)
+    setproperty!(value, name, ifelse(getproperty(value, name), false, true))
+end
+
 export @kget!, @lget!
-export passkwargs, filterkws, @exportenum
-export @as, @sym_str
-export Option, @asyncm, @ifdebug, @argstovec
+export @passkwargs, passkwargs, filterkws, splitkws
+export @as, @sym_str, @exportenum
+export Option, toggle, @asyncm, @ifdebug, @argstovec
 
 end
