@@ -3,13 +3,15 @@ using URIs
 using HTTP
 using CodecZlib: CodecZlib as zlib
 using EzXML: EzXML as ez
-using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec
+using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
 using TimeTicks
 using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
 using Data.DataFrames
+using Pbar
 using ..Scrapers:
     selectsyms,
     WORKERS,
+    SEM,
     TF,
     timeframe!,
     workers!,
@@ -137,6 +139,7 @@ function binancesave(sym, ohlcv; reset=false, zi=zi[], path_kws...)
         check=@ifdebug(check_all_flag, :none)
     )
 end
+
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     path_kws = filterkws(:market, :freq, :kind; kwargs)
     all_syms = binancesyms(; path_kws...)
@@ -144,13 +147,18 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
     if isempty(selected)
         throw(ArgumentError("No symbols found matching $syms"))
     end
-    for s in selected
-        ohlcv, last_file = fetchsym(s; reset, path_kws...)
-        if !(isnothing(ohlcv) || isnothing(last_file))
-            binancesave(s, ohlcv; reset)
-            ca.save_cache(key_path(s; path_kws...), last_file)
+    @withpbar! selected desc = "Symbols" begin
+        fetchandsave(s) = begin
+            ohlcv, last_file = fetchsym(s; reset, path_kws...)
+            if !(isnothing(ohlcv) || isnothing(last_file))
+                binancesave(s, ohlcv; reset)
+                ca.save_cache(key_path(s; path_kws...), last_file)
+            end
+            @pbupdate!
         end
+        @acquire SEM asyncmap(fetchandsave, (s for s in selected), ntasks=WORKERS[])
     end
+    nothing
 end
 @argstovec binancedownload AbstractString
 

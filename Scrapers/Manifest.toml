@@ -314,7 +314,7 @@ version = "1.12.0"
 
 [[deps.LMDB]]
 deps = ["CEnum", "LMDB_jll", "Libdl"]
-path = "/home/fra/.julia/dev/LMDB"
+git-tree-sha1 = "d2278a79addc79266c0781e4cbb6f49be100fddd"
 uuid = "11f193de-5e89-5f17-923a-7d207d56daf9"
 version = "1.0.0"
 

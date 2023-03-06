@@ -82,7 +82,7 @@ function resample(
             progress && @pbupdate!
         end
     finally
-        progress && @pbclose
+        progress && @pbstop!
     end
     rs
 end

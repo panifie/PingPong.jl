@@ -1,7 +1,7 @@
 using HTTP
 using CodecZlib: CodecZlib as zlib
 using ZipFile: ZipFile as zip
-using Lang: @buffer!, @ifdebug
+using Lang: @ifdebug, @acquire
 using CSV
 using Data.DFUtils: lastdate, firstdate
 using Data.DataFrames
@@ -26,6 +26,7 @@ end
 function workers!(n)
     prev = WORKERS[]
     WORKERS[] = n
+    SEM[] = Base.Semaphore(n)
     @info "Workers count set from $prev to $n"
 end
 function timeframe!(s)
@@ -106,16 +107,13 @@ end
 
 function dofetchfiles(sym, files; func, kwargs...)
     out = Dict{DateTime,DataFrame}()
-    @pbar! files sym
-    try
+    @withpbar! files desc=sym begin
         # NOTE: func must accept a kw arg `out`
         dofetch(file) = begin
             func(sym, file; out, kwargs...)
             @pbupdate!
         end
-        asyncmap(dofetch, files; ntasks=WORKERS[])
-    finally
-        @pbclose
+        @acquire SEM asyncmap(dofetch, files; ntasks=WORKERS[])
     end
     return out
 end

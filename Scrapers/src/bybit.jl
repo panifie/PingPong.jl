@@ -16,6 +16,7 @@ using ..Scrapers:
     workers!,
     WORKERS,
     TF,
+    SEM,
     fetchfile,
     zlib,
     csvtodf,
@@ -23,7 +24,8 @@ using ..Scrapers:
     mergechunks,
     glue_ohlcv,
     dofetchfiles,
-    symfiles
+    symfiles,
+    @acquire
 
 const NAME = "Bybit"
 const BASE_URL = URI("https://public.bybit.com/")
@@ -106,35 +108,6 @@ symlinkslist(sym; path=PATHS.trading) = begin
     links_list(doc)
 end
 cache_key(sym; path=PATHS.trading) = "$(NAME)/_$(sym)_$(path)"
-# function symfiles(links, from=nothing)
-#     download_from = 1
-#     if !isnothing(from)
-#         for (n, l) in enumerate(links)
-#             file = l.content
-#             if file == from
-#                 download_from = n + 1
-#                 break
-#             end
-#         end
-#     end
-#     download_from > length(links) && return nothing
-#     map(l -> l.content, @view(links[download_from:end]))
-# end
-
-# function dofetchfiles(sym, files; path=PATHS.trading)
-#     out = Dict{DateTime,DataFrame}()
-#     @pbar! files sym
-#     try
-#         dofetch(file) = begin
-#             fetch_ohlcv(sym, file; out, path)
-#             @pbupdate!
-#         end
-#         asyncmap(dofetch, files; ntasks=WORKERS[])
-#     finally
-#         @pbclose
-#     end
-#     return out
-# end
 
 symurl(args...; path=PATHS.trading) = joinpath(BASE_URL, path, args...)
 function fetchsym(sym; reset=false, path=PATHS.trading)
@@ -165,11 +138,17 @@ function bybitdownload(
     if isempty(selected)
         throw(ArgumentError("No symbols found matching $syms"))
     end
-    for s in selected
-        ohlcv, last_file = fetchsym(s; reset, path)
-        if !(isnothing(ohlcv) || isnothing(last_file))
-            bybitsave(s, ohlcv; path)
-            ca.save_cache(cache_key(s; path), last_file)
+    @withpbar! selected desc = "Symbols" begin
+        for s in selected
+            fetchandsave(s) = begin
+                ohlcv, last_file = fetchsym(s; reset, path)
+                if !(isnothing(ohlcv) || isnothing(last_file))
+                    bybitsave(s, ohlcv; path)
+                    ca.save_cache(cache_key(s; path), last_file)
+                end
+                @pbupdate!
+            end
+            @acquire SEM asyncmap(fetchandsave, (s for s in selected), ntasks=WORKERS[])
         end
     end
 end

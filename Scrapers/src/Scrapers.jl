@@ -4,6 +4,7 @@ using TimeTicks
 
 const WORKERS = Ref(10)
 const TF = Ref(tf"1m")
+const SEM = Base.Semaphore(3)
 
 function __init__()
     zi[] = zilmdb()
