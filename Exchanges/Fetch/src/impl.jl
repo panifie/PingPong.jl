@@ -341,11 +341,9 @@ end
 __print_progress_1(pairs) = begin
     @info "Downloading data for $(length(pairs)) pairs."
     @pbar! pairs "Pairlist download progress" "pair"
-    pb
+    pb_job
 end
-function __print_progress_2(name, exc_name)
-    @info "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
-    @pbupdate!
+function __print_progress_2(pb_job, name, exc_name)
 end
 function __get_ohlcv(exc, name, timeframe, from_date, to; out=empty_ohlcv(), cleanup=true)
     @debug "Fetching pair $name."
@@ -385,6 +383,7 @@ function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
         z
     end
     p = PairData(; name, tf=timeframe, data=ohlcv, z)
+    @debug "Fetched $(size(p.data, 1)) candles for $name from $(exc_name)"
     data[name] = p
 end
 
@@ -405,21 +404,21 @@ function fetch_ohlcv(
     reset=false,
     progress=false,
 )
-    local pb
+    local pb_job = nothing
     @assert !isempty(exc) "Bad exchange."
     exc_name = exc.name
     from, to = __ensure_dates(exc, timeframe, from, to)
     from_date = __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
     data = Dict{String,PairData}()
-    pb = progress && __print_progress_1(pairs)
+    progress && (pb_job = __print_progress_1(pairs))
     try
         for name in pairs
             ohlcv, z = __get_ohlcv(exc, name, timeframe, from_date, to)
             __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
-            progress && __print_progress_2(name, exc_name)
+            progress && @pbupdate!
         end
     finally
-        progress && @pbclose
+        progress && @pbstop!
     end
     data
 end

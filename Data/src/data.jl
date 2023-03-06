@@ -113,13 +113,13 @@ function nearestl2(n)
 end
 
 @doc "Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2."
-function chunksize(data; parts=100)
+function chunksize(data; parts=100, def=DEFAULT_CHUNK_SIZE[1])
     sz_rest = size(data)[2:end]
     n_rest = reduce(*, sz_rest)
     n = (size(data, 1) ÷ parts) * n_rest
     len = nearestl2(n) ÷ n_rest
     # If we multiply the size of all the dimensions we should get a number close to a power of 2
-    (round(Int, len), sz_rest...)
+    (max(def, round(Int, len)), sz_rest...)
 end
 
 @doc "The time interval of the dataframe, guesses from the difference between the first two rows."
