@@ -3,7 +3,7 @@ using URIs
 using HTTP
 using CodecZlib: CodecZlib as zlib
 using EzXML: EzXML as ez
-using Lang: @ifdebug, @lget!, filterkws, @argstovec
+using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec
 using TimeTicks
 using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
 using Data.DataFrames
@@ -40,6 +40,8 @@ const QUERY_SYMS = IdDict{URI,Vector{String}}()
 const CDN_URL = Ref(URI())
 const COLS = [1, 2, 3, 4, 5, 6]
 
+isklines(s) = s ∈ (:index, :klines, :mark, :premium)
+
 function cdn!()
     if CDN_URL[] === URI()
         html = HTTP.get(BASE_URL).body |> ez.parsehtml
@@ -72,10 +74,10 @@ function symlinkslist(s; kwargs...)
     html = ez.parsexml(HTTP.get(url).body)
     links = ez.Node[]
     function chunk_url(el)
-        e = elements(el)[1]
+        e = ez.elements(el)[1]
         e.name == "Key" && !endswith(e.content, "CHECKSUM") && push!(links, e)
     end
-    for el in elements(ez.elements(html.node)[1])
+    for el in ez.elements(ez.elements(html.node)[1])
         el.name == "Contents" && chunk_url(el)
     end
     return links
@@ -109,22 +111,31 @@ end
 
 using ..Scrapers: Scrapers as scr
 function fetchsym(sym; reset, path_kws...)
-    from = reset ? nothing : ca.load_cache(cache_key(sym; path_kws...); raise=false)
+    from = reset ? nothing : ca.load_cache(key_path(sym; path_kws...); raise=false)
     files = let links = symlinkslist(sym; path_kws...)
         scr.symfiles(links; by=x -> x.content, from)
     end
     isnothing(files) && return (nothing, nothing)
-    out = dofetchfiles(sym, files; func=fetch_ohlcv, path_kws...)
+    out = dofetchfiles(sym, files; func=fetch_ohlcv)
     (mergechunks(files, out), last(files))
 end
 
-cache_key(sym; path_kws...) = begin
+key(sym; path_kws...) = begin
     mkt = get(path_kws, :market, "um")
     kind = get(path_kws, :kind, "klines")
-    "$(NAME)/_$(sym)_$(mkt)_$(kind)"
+    "$(sym)_$(mkt)_$(kind)"
 end
-function binancesave(sym, ohlcv; zi=zi[])
-    save_ohlcv(zi, NAME, sym, string(TF[]), ohlcv; check=@ifdebug(check_all_flag, :none))
+key_path(sym; path_kws...) = joinpath(NAME, key(sym; path_kws...))
+function binancesave(sym, ohlcv; reset=false, zi=zi[], path_kws...)
+    save_ohlcv(
+        zi,
+        NAME,
+        key(sym; path_kws...),
+        string(TF[]),
+        ohlcv;
+        reset,
+        check=@ifdebug(check_all_flag, :none)
+    )
 end
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     path_kws = filterkws(:market, :freq, :kind; kwargs)
@@ -136,16 +147,20 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
     for s in selected
         ohlcv, last_file = fetchsym(s; reset, path_kws...)
         if !(isnothing(ohlcv) || isnothing(last_file))
-            binancesave(s, ohlcv)
-            ca.save_cache(cache_key(s; path_kws...), last_file)
+            binancesave(s, ohlcv; reset)
+            ca.save_cache(key_path(s; path_kws...), last_file)
         end
     end
 end
 @argstovec binancedownload AbstractString
 
 @doc "Load previously downloaded data from binance."
-function binanceload(syms::AbstractVector; zi=zi[], kwargs...)
-    load_ohlcv(zi, NAME, syms, string(TF[]); kwargs...)
+function binanceload(syms::AbstractVector; zi=zi[], quote_currency="usdt", kwargs...)
+    path_kws, rest_kws = splitkws(:market, :freq, :kind; kwargs)
+    selected = let all_syms = binancesyms(; path_kws...)
+        selectsyms(syms, all_syms; quote_currency)
+    end
+    load_ohlcv(zi, NAME, key.(selected; path_kws...), string(TF[]); rest_kws...)
 end
 @argstovec binanceload AbstractString
 

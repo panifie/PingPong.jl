@@ -75,8 +75,8 @@ function timestamp!(df::DataFrame, conv=unix2datetime)
     df
 end
 
-trades_to_ohlcv(df) = begin
-    timestamp!(df)
+trades_to_ohlcv(df, conv=unix2datetime) = begin
+    timestamp!(df, conv)
     ohlcv = tra.to_ohlcv(df)
     cleanup_ohlcv_data(ohlcv, TF[])
 end

@@ -6,6 +6,7 @@ using HTTP
 using EzXML
 using Data: DataFrame, zi
 using Data: save_ohlcv, Cache as ca, load_ohlcv
+using Data.DataFrames
 using TimeTicks
 using Pbar
 using Lang
@@ -21,7 +22,8 @@ using ..Scrapers:
     trades_to_ohlcv,
     mergechunks,
     glue_ohlcv,
-    dofetchfiles
+    dofetchfiles,
+    symfiles
 
 const NAME = "Bybit"
 const BASE_URL = URI("https://public.bybit.com/")
@@ -29,9 +31,12 @@ const BASE_URL = URI("https://public.bybit.com/")
 # - metatrade_kline is low res (15m)
 # - premium_index and spot_index have NO VOLUME data
 # Which means the only source that reconstructs OHLCV is /trading
-const PATHS = (; premium_index="premium_index", spot_index="spot_index", trading="trading")
+const PATHS = (;
+    premium_index="premium_index", spot_index="spot_index", trading="trading", spot="spot"
+)
 const TRADING_SYMS = String[]
-const COLS = [:symbol, :timestamp, :price, :size]
+const TRADES_COLS = [:symbol, :timestamp, :price, :size]
+const SPOT_COLS = [:timestamp, :price, :volume]
 
 function links_list(doc)
     elements(elements(elements(elements(doc.node)[1])[2])[3])
@@ -66,12 +71,30 @@ function symsvec(syms; path=PATHS.trading, quote_currency="usdt")
     mysyms
 end
 
+function colvec(path=PATHS.trading)
+    if path == PATHS.trading
+        TRADES_COLS
+    else
+        SPOT_COLS
+    end
+end
+function colrename(path=PATHS.trading)
+    if path == PATHS.trading
+        (:size => :amount,)
+    else
+        (:volume => :amount,)
+    end
+end
+
 function fetch_ohlcv(sym, file; out, path=PATHS.trading)
     url = symurl(sym, file; path)
     data = fetchfile(url)
-    df = csvtodf(data, COLS)
-    rename!(df, :size => :amount)
-    ohlcv = trades_to_ohlcv(df)
+    # spot uses :volume col
+    df = csvtodf(data, colvec(path))
+    rename!(df, colrename(path)...)
+    # spot uses ms timestamps
+    conv = path == PATHS.trading ? unix2datetime : dt
+    ohlcv = trades_to_ohlcv(df, conv)
     out[first(ohlcv.timestamp)] = ohlcv
     @debug "Downloaded chunk $file"
     nothing
@@ -124,8 +147,11 @@ function fetchsym(sym; reset=false, path=PATHS.trading)
     (mergechunks(files, out), last(files))
 end
 
-function bybitsave(sym, data, zi=zi[])
-    save_ohlcv(zi, NAME, sym, string(TF[]), data; check=@ifdebug(check_all_flag, :none))
+key(sym, args...) = join((sym, args...), '_')
+function bybitsave(sym, data; path=PATHS.trading, zi=zi[])
+    save_ohlcv(
+        zi, NAME, key(sym, path), string(TF[]), data; check=@ifdebug(check_all_flag, :none)
+    )
 end
 
 @doc "Download data for symbols `syms` from bybit.
@@ -142,7 +168,7 @@ function bybitdownload(
     for s in selected
         ohlcv, last_file = fetchsym(s; reset, path)
         if !(isnothing(ohlcv) || isnothing(last_file))
-            bybitsave(s, ohlcv)
+            bybitsave(s, ohlcv; path)
             ca.save_cache(cache_key(s; path), last_file)
         end
     end
@@ -150,8 +176,13 @@ end
 @argstovec bybitdownload AbstractString
 
 @doc "Load previously downloaded data from bybit."
-function bybitload(syms::AbstractVector; zi=zi[], kwargs...)
-    load_ohlcv(zi, NAME, syms, string(TF[]); kwargs...)
+function bybitload(
+    syms::AbstractVector; quote_currency="usdt", path=PATHS.trading, zi=zi[], kwargs...
+)
+    selected = let all_syms = bybitallsyms(path)
+        selectsyms(syms, all_syms; quote_currency)
+    end
+    load_ohlcv(zi, NAME, key.(selected, path), string(TF[]); kwargs...)
 end
 @argstovec bybitload AbstractString
 

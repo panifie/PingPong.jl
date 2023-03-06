@@ -1,5 +1,5 @@
 module Scrapers
-using Data: zi
+using Data: zi, zilmdb
 using TimeTicks
 
 const WORKERS = Ref(10)
