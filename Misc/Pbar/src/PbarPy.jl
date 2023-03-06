@@ -109,6 +109,6 @@ macro pbinit!()
     :($(__init__)())
 end
 
-export @pbar!, @pbupdate!, @pbclose, @pbstop, @pbinit!
+export @pbar!, @pbupdate!, @pbclose!, @pbstop, @pbinit!
 
 end
