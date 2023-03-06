@@ -7,18 +7,23 @@ using Lang: @lget!
 const MB = 1024 * 1024
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
+    lock::ReentrantLock
     function LMDBDictStore(path::AbstractString; reset=false, mapsize=64MB)
         reset && rm(path; recursive=true)
         !ispath(path) && mkpath(path)
-        d = new(lm.LMDBDict{String,Vector{UInt8}}(path))
+        d = new(lm.LMDBDict{String,Vector{UInt8}}(path), ReentrantLock())
         d.a.env[:MapSize] = mapsize
         d
     end
 end
 
 mapsize(store::LMDBDictStore) = convert(Int, lm.info(store.a.env).me_mapsize)
-mapsize!(store::LMDBDictStore, mb) = begin
-    store.a.env[:MapSize] = round(Int, mb * MB)
+function mapsize!(store::LMDBDictStore, mb)
+    # FIXME: setindex! on the `lm.Environment` converts Ints to UInt32 limiting mapsize to <4GB
+    # store.a.env[:MapSize] = round(Int, mb * MB)
+    @lock store.lock begin
+        lm.mdb_env_set_mapsize(store.a.env.handle, Cuintmax_t(round(Int, mb * MB)))
+    end
 end
 mapsize!!(store::LMDBDictStore, mb) = mapsize!(store, (mapsize(store) / MB + mb) * MB)
 mapsize!!(store::LMDBDictStore, prc::AbstractFloat) = begin
