@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-beta3"
+julia_version = "1.9.0-beta4"
 manifest_format = "2.0"
 project_hash = "340cb9d72cd4a930ad7af5afce148473d29852fa"
 
@@ -272,7 +272,7 @@ version = "1.2.13+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.2.0+0"
+version = "5.4.0+0"
 
 [[deps.micromamba_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
