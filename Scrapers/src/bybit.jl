@@ -140,15 +140,17 @@ function bybitdownload(
     end
     @withpbar! selected desc = "Symbols" begin
         for s in selected
-            fetchandsave(s) = begin
-                ohlcv, last_file = fetchsym(s; reset, path)
-                if !(isnothing(ohlcv) || isnothing(last_file))
-                    bybitsave(s, ohlcv; path)
-                    ca.save_cache(cache_key(s; path), last_file)
+            @acquire SEM begin
+                fetchandsave(s) = begin
+                    ohlcv, last_file = fetchsym(s; reset, path)
+                    if !(isnothing(ohlcv) || isnothing(last_file))
+                        bybitsave(s, ohlcv; path)
+                        ca.save_cache(cache_key(s; path), last_file)
+                    end
+                    @pbupdate!
                 end
-                @pbupdate!
+                asyncmap(fetchandsave, (s for s in selected); ntasks=WORKERS[])
             end
-            @acquire SEM asyncmap(fetchandsave, (s for s in selected), ntasks=WORKERS[])
         end
     end
 end

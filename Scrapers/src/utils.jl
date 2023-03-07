@@ -96,8 +96,9 @@ function glue_ohlcv(out)
     out
 end
 
-function mergechunks(files, out)
-    @assert length(out) == length(files) "Couldn't download all chunks!"
+function mergechunks(files, out; strict=false)
+    strict &&
+        @assert length(out) == length(files) "Couldn't download all chunks! $(length(out)) < $(length(files))"
     sorted = sort(out)
     glue_ohlcv(sorted)
     merged = vcat(values(sorted)...)
@@ -107,13 +108,22 @@ end
 
 function dofetchfiles(sym, files; func, kwargs...)
     out = Dict{DateTime,DataFrame}()
-    @withpbar! files desc=sym begin
-        # NOTE: func must accept a kw arg `out`
-        dofetch(file) = begin
-            func(sym, file; out, kwargs...)
-            @pbupdate!
+    @withpbar! files desc = sym begin
+        @acquire SEM begin
+            # NOTE: func must accept a kw arg `out`
+            dofetch(file) = begin
+                try
+                    func(sym, file; out, kwargs...)
+                catch e
+                    @ifdebug begin
+                        @warn "chunk $file couldn't be parsed."
+                        @warn e
+                    end
+                end
+                @pbupdate!
+            end
+            asyncmap(dofetch, files; ntasks=WORKERS[])
         end
-        @acquire SEM asyncmap(dofetch, files; ntasks=WORKERS[])
     end
     return out
 end
