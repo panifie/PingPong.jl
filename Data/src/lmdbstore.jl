@@ -1,7 +1,5 @@
-using Zarr: Zarr;
-const za = Zarr;
-using LMDB: LMDB;
-const lm = LMDB;
+using Zarr: Zarr as za;
+using LMDB: LMDB as lm;
 using Lang: @lget!
 
 const MB = 1024 * 1024
