@@ -235,11 +235,9 @@ end
 macro acquire(cond, code)
     quote
         temp = $(esc(cond))
-        Base.acquire(temp)
         try
+            Base.acquire(temp)
             $(esc(code))
-        catch e
-            e
         finally
             Base.release(temp)
         end

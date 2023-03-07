@@ -8,6 +8,7 @@ using Lang: toggle!
 const last_render = Ref(DateTime(0))
 const min_delta = Ref(Millisecond(0))
 const pbar = Ref{Union{Nothing,ProgressBar}}(nothing)
+const pbar_lock = ReentrantLock()
 @kwdef mutable struct RunningJob
     job::ProgressJob
     counter::Int = 1
@@ -15,19 +16,23 @@ const pbar = Ref{Union{Nothing,ProgressBar}}(nothing)
 end
 
 function clearpbar(pb=pbar[])
-    for j in pb.jobs
-        stop!(j)
+    !isnothing(pb) && @lock pbar_lock begin
+        for j in pb.jobs
+            stop!(j)
+        end
+        empty!(pb.jobs)
+        stop!(pb)
     end
-    empty!(pb.jobs)
-    stop!(pb)
+end
+
+function pbar!(; transient=true, columns=:default, kwargs...)
+    clearpbar()
+    pbar[] = ProgressBar(; transient, columns, kwargs...)
 end
 
 function __init__()
-    if isnothing(pbar[])
-        pbar[] = ProgressBar(; transient=true, columns=:detailed)
-        clearpbar(pbar[])
-        @debug "Pbar: Loaded."
-    end
+    pbar!()
+    @debug "Pbar: Loaded."
 end
 
 macro pbinit!()
@@ -38,29 +43,34 @@ const plu = esc(:pb_last_update)
 const pbj = esc(:pb_job)
 
 @doc "Toggles pbar transient flag"
-transient!(pb=pbar[]) = toggle!(pb, :transient)
+transient!(pb=pbar[]) = @lock pbar_lock toggle!(pb, :transient)
 
 @doc "Set the update frequency globally."
-frequency!(v) = min_delta[] = v
+frequency!(v) = @lock pbar_lock min_delta[] = v
 
 # This prevents flickering when we render too frequently
-dorender(pb, t=now()) = t - last_render[] > min_delta[] && begin
-    render(pb)
-    last_render[] = t
-    yield()
-    true
+function dorender(pb, t=now())
+    @lock pbar_lock if t - last_render[] > min_delta[]
+        render(pb)
+        last_render[] = t
+        yield()
+        true
+    end
+    false
 end
 
 function startjob!(pb, desc="", N=nothing)
-    job = let j = addjob!(pb; description=desc, N, transient=true)
-        RunningJob(; job=j)
+    @lock pbar_lock begin
+        job = let j = addjob!(pb; description=desc, N, transient=true)
+            RunningJob(; job=j)
+        end
+        pb.running || begin
+            start!(pb)
+            dorender(pb)
+        end
+        yield()
+        job
     end
-    pb.running || begin
-        start!(pb)
-        dorender(pb)
-    end
-    yield()
-    job
 end
 
 @doc "Instantiate a progress bar:
@@ -86,11 +96,13 @@ function complete!(pb, j)
         end
         (!j.transient) && removejob!(pb, j)
     end
+    nothing
 end
 
 macro pbstop!()
     quote
-        isempty($pbar[].jobs) && $stop!($pbar[])
+        @lock pbar_lock isempty($pbar[].jobs) && $stop!($pbar[])
+        nothing
     end
 end
 
@@ -113,10 +125,15 @@ macro withpbar!(data, args...)
     end
     quote
         local $pbj = startjob!($pbar[], $desc, length($data))
+        local iserror = false
         try
             $code
+        catch
+            iserror = true
+            pbclose!($pbar[])
+            clearpbar($pbar[])
         finally
-            pbclose!($pbj.job, $pbar[])
+            iserror || pbclose!($pbj.job, $pbar[])
         end
     end
 end
@@ -134,6 +151,7 @@ macro pbupdate!(n=1, args...)
                 $pbj.counter += 1
             end
         end
+        nothing
     end
 end
 
@@ -141,11 +159,13 @@ end
 function pbclose!(pb::ProgressBar=pbar[], all=true)
     all && foreach(j -> complete!(pb, j), pb.jobs)
     stop!(pb)
+    nothing
 end
 
 function pbclose!(job, pb=pbar[])
     complete!(pb, job)
     @pbstop!
+    nothing
 end
 
 macro pbclose!()
