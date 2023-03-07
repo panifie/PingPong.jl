@@ -39,7 +39,7 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
       run: |
-        git submodule init; git submodule update
+        git submodule update --init;
         sudo apt-get install -y xvfb xauth
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
