@@ -1,13 +1,12 @@
 using PingPong
 using Instruments.Derivatives
-using PingPong.Watchers
+using PingPong.Watchers: Watchers as wc
 using PingPong.Data
 using TimeTicks
 const da = Data
 const cg = PingPong.Watchers.CoinGecko
 const cp = PingPong.Watchers.CoinPaprika
 const excs = collect(keys(cg.loadderivatives!()))
-const wc = PingPong.Watchers
 const wi = PingPong.Watchers.WatchersImpls
 const pro = wi.Processing
 setexchange!(:bybit)
