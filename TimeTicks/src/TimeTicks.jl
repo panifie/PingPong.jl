@@ -152,6 +152,7 @@ ms(tf::TimeFrame) = Millisecond(period(tf))
 ms(prd::Period) = Millisecond(prd)
 ms(v) = Millisecond(v)
 timeframe(s::AbstractString) = Base.parse(TimeFrame, s)
+timeframe!(args...; kwargs...) = error("Not implemented")
 
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d

@@ -15,7 +15,7 @@ lastdate(df::AbstractDataFrame) = df[end, :timestamp]
 @doc "Returns the timeframe of a dataframe according to its metadata.
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
 If the timeframe can't be inferred, a `TimeFrame(0)` is returned. "
-function timeframe(df::AbstractDataFrame)::TimeFrame
+function TimeTicks.timeframe(df::AbstractDataFrame)::TimeFrame
     if hasproperty(df, :timestamp)
         md = @lget!(colmetadata(df), :timestamp, Dict{String,Any}())
         @something get(md, "timeframe", nothing) begin
@@ -27,11 +27,11 @@ function timeframe(df::AbstractDataFrame)::TimeFrame
         end
     end
 end
-@inline function timeframe!(df::T, t::F) where {T<:AbstractDataFrame,F<:TimeFrame}
+function TimeTicks.timeframe!(df::T, t::F) where {T<:AbstractDataFrame,F<:TimeFrame}
     colmetadata!(df, :timestamp, "timeframe", t)
     t
 end
-@inline timeframe!(df::T where {T<:AbstractDataFrame}) = begin
+TimeTicks.timeframe!(df::T where {T<:AbstractDataFrame}) = begin
     tf = @infertf(df)
     timeframe!(df, tf)
     tf
@@ -87,7 +87,8 @@ function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
     end
     # start_idx = searchsortedfirst(df.timestamp, dr.start)
     # stop_idx = start_idx + searchsortedfirst(@view(df.timestamp[start_idx+1:end]), dr.stop)
-    @ifdebug @assert df.timestamp[start_idx] == dr.start && df.timestamp[stop_idx] == dr.stop
+    @ifdebug @assert df.timestamp[start_idx] == dr.start &&
+        df.timestamp[stop_idx] == dr.stop
     @view df[start_idx:stop_idx, cols]
 end
 

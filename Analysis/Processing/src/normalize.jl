@@ -1,12 +1,13 @@
 using Misc: timefloat, @as_td
-using StatsBase: transform!, transform, fit, ZScoreTransform, UnitRangeTransform
+using StatsBase: StatsBase as sb
+using StatsBase: fit, ZScoreTransform, UnitRangeTransform
 
 @doc "Applies either a unitrange transform or a zscore tranform over the data in place."
 normalize!(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=true)
 normalize(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=false)
 
 function _normalize(arr::AbstractArray; unit=false, dims=ndims(arr), copy=false)
-    t = copy ? transform! : transform
+    t = copy ? sb.transform! : sb.transform
     (x -> t(x, arr))(fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims))
 end
 
