@@ -1,8 +1,20 @@
-[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/VURFt4wQ)[![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/PingPong.jl)
+[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/VURFt4wQ) [![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/PingPong.jl)
 
 **Supported julia version: 1.9**
 
-Currently not really a backtest framework. Mostly data.
+## What can it do?
+- Help you write data feeds to monitor exchanges or 3rd party apis.
+- Download data from external archives in parallel, and api wrappers for crypto apis.
+- Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
+- Organize your strategy using a predefined type hierarchy for instruments, exchanges, strategies.
+- Backtesting (to be improved)
+- Optimization (not implemented)
+- Plotting (to be improved)
+- Dry run (not implemented)
+- Live (not implemented)
+- Telegram Bot (not implemented)
+- Dashboard (not implemented)
+
 
 ## Install
 PingPong.jl is not in the julia registry, to install do the following:
