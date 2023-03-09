@@ -1,7 +1,7 @@
 using Reexport
 using Misc: config
 using Data: PairData
-using Dates: DateTime
+using TimeTicks
 
 # include("consts.jl")
 # include("funcs.jl")
@@ -26,7 +26,7 @@ using .Instances
 On every iteration, the strategy is queried for the _current_ timestamp.
 The strategy should only access data up to this point.
 Example:
-- Timeframe iteration: `5s`
+- Timeframe iteration: `1s`
 - Strategy minimum available timeframe `1m`
 Iteration gives time `1999-12-31T23:59:59` to the strategy:
 The strategy (that can only lookup up to `1m` precision)
