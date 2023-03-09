@@ -78,3 +78,18 @@ function between(v::AbstractVector, left, right; kwargs...)
     view(v, rangebetween(v, left, right; kwargs...))
 end
 
+function rewritekeys!(dict::AbstractDict, f)
+    for (k, v) in dict
+        delete!(dict, k)
+        setindex!(dict, v, f(k))
+    end
+    dict
+end
+
+function swapkeys(dict::AbstractDict{K,V}, k_type::Type, f; dict_type=Dict) where {K,V}
+    out = dict_type{k_type,V}()
+    for (k, v) in dict
+        out[f(k)] = v
+    end
+    out
+end
