@@ -1,5 +1,5 @@
 using TimeTicks
-using DataFrames: AbstractDataFrame
+using Data: AbstractDataFrame
 const DF = Union{DateTime,Float64}
 const PricePair = NamedTuple{(:prev, :next),Tuple{DF,DF}}
 LastTwo = @NamedTuple begin
@@ -16,4 +16,18 @@ end
 @doc "Get the last two candles of a ohlcv table."
 function lasttwo(data::T where {T<:AbstractDataFrame})
     (; (field => lasttwo(getproperty(data, field)) for field in fieldnames(LastTwo))...)
+end
+
+macro splatpairs(data, idx, syms...)
+    data = esc(data)
+    if eltype(syms) == QuoteNode
+        syms = [s.value for s in syms]
+    end
+    idx = esc(idx)
+    Expr(
+        :tuple,
+        [
+            :($PricePair(($(data).$(sym)[$idx - 1], $(data).$(sym)[$idx]))) for sym in syms
+        ]...,
+    )
 end
