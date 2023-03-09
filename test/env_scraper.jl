@@ -1,5 +1,4 @@
-using Data
-const da = Data
+isdefined(Main, :da) || using Data: Data as da
 using Pkg
 Pkg.activate("./Scrapers")
 using Scrapers: Scrapers as scr
