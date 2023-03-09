@@ -12,7 +12,7 @@ using ExchangeTypes
 using Instruments
 using Instruments.Derivatives
 using ..Instances
-using Lang: @lget!
+using Lang: @lget!, MatchString
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
 struct AssetCollection2
@@ -65,10 +65,12 @@ const AssetCollectionRow = @NamedTuple{
 
 using Instruments: isbase, isquote
 Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange .== i, :]
-Base.getindex(pf::AssetCollection, i::Asset) = @view pf.data[pf.data.asset .== i, :]
-Base.getindex(pf::AssetCollection, i::Derivative) = @view pf.data[pf.data.asset .== i, :]
+Base.getindex(pf::AssetCollection, i::AbstractAsset) = @view pf.data[pf.data.asset .== i, :]
 function Base.getindex(pf::AssetCollection, i::AbstractString)
     @view pf.data[pf.data.asset .== i, :]
+end
+function Base.getindex(pf::AssetCollection, i::MatchString)
+    @view pf.data[startswith.(getproperty.(pf.data.asset, :raw), uppercase(i.s)), :]
 end
 
 # TODO: this should use a macro...

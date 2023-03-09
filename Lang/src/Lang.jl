@@ -191,8 +191,16 @@ function fromstruct(c::T) where {T}
     nt(t)
 end
 
+@doc "A string literal as a symbol."
 macro sym_str(s)
     :(Symbol($s))
+end
+
+@doc "A `MatchString` should be used to dispatch string specific functions with some supertype context."
+struct MatchString{S<:AbstractString} s::S end
+@doc "A string literal as a `MatchString`."
+macro m_str(s)
+    :(MatchString($s))
 end
 
 _asbool(v::Bool) = v
