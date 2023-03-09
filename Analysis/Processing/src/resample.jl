@@ -1,7 +1,7 @@
 using TimeTicks
-using ExchangeTypes: Exchange
 using Lang: passkwargs, @ifdebug
-using Data: data_td, save_ohlcv, PairData, empty_ohlcv, DataFrames
+using Base: beginsym
+using Data: zi, data_td, save_ohlcv, PairData, empty_ohlcv, DataFrames
 using Data.DFUtils
 using .DataFrames
 using Pbar
@@ -39,7 +39,7 @@ function _deltas(data, to_tf)
 end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
+function resample(data, from_tf, to_tf)
     @ifdebug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
         "Resampling assumptions are not met, expecting cleaned data."
 
@@ -65,43 +65,52 @@ function resample(exc::Exchange, pairname, data, from_tf, to_tf; save=false)
     )
     select!(data, Not(:sample))
     select!(df, Not(:sample))
-    save && size(df)[1] > 0 && save_ohlcv(exc, pairname, string(to_tf), df)
     @debug "last 2 candles: " df[end - 1, :timestamp] df[end, :timestamp]
     df
 end
+@doc """Resamples data, and saves to storage.
 
-function resample(exc::Exchange, pair::PairData, to_tf; kwargs...)
-    resample(exc, pair.name, pair.data, pair.tf, to_tf; kwargs...)
+!!! warning "Usually not worth it"
+    Resampling is quite fast, so it is simpler to keep only the smaller timeframe
+    on storage, and resample the longer ones on demand.
+
+"""
+function resample(args...; exc_name, name)
+    df = resample(args...)
+    if size(df)[1] > 0
+        save_ohlcv(zi, exc_name, name, string(last(args)), df)
+    end
+    df
 end
 
-function resample(
-    exc::Exchange,
-    mrkts::AbstractDict{String,PairData},
-    timeframe;
-    save=true,
-    progress=false,
-)
+function resample(pair::PairData, to_tf)
+    from_tf = convert(TimeFrame, pair.tf)
+    to_tf = convert(TimeFrame, to_tf)
+    resample(pair.data, from_tf, to_tf)
+end
+
+function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false)
     rs = Dict{String,PairData}()
-    progress && @pbar! "Instruments"
+    progress && @pbar! mkts "Instruments"
     try
-        for (name, pair_data) in mrkts
-            rs[name] = PairData(
-                name, timeframe, resample(exc, pair_data, timeframe; save), nothing
-            )
+        lock = ReentrantLock()
+        Threads.@threads for (name, pair_data) in collect(mkts)
+            v = PairData(name, timeframe, resample(pair_data, timeframe), nothing)
+            @lock lock rs[name] = v
             progress && @pbupdate!
         end
     finally
-        progress && @pbstop!
+        progress && @pbclose!
     end
     rs
 end
 
 # resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
-# macro resample(mrkts::AbstractDict{String,PairData}, timeframe::String, args...)
-macro resample(params, mrkts, timeframe, args...)
+# macro resample(mkts::AbstractDict{String,PairData}, timeframe::String, args...)
+macro resample(params, mkts, timeframe, args...)
     e = esc(:Exchanges)
     kwargs = passkwargs(args...)
-    m = esc(mrkts)
+    m = esc(mkts)
     quote
         resample($(e).exc, $m, $timeframe; $(kwargs...))
     end

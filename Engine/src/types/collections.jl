@@ -1,5 +1,6 @@
 module Collections
 
+using Lang: @lget!, MatchString
 using Base.Enums: namemap
 using Data.DataFrames
 using Data.DataFramesMeta
@@ -7,12 +8,12 @@ using Data: load, zi
 using OrderedCollections: OrderedDict
 using DataStructures: SortedDict
 using TimeTicks
-using Misc: Iterable
+using Misc: Iterable, swapkeys
 using ExchangeTypes
-using Instruments
+using Instruments: fiatnames
 using Instruments.Derivatives
 using ..Instances
-using Lang: @lget!, MatchString
+using Processing: resample
 
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
 struct AssetCollection2
@@ -70,7 +71,9 @@ function Base.getindex(pf::AssetCollection, i::AbstractString)
     @view pf.data[pf.data.asset .== i, :]
 end
 function Base.getindex(pf::AssetCollection, i::MatchString)
-    @view pf.data[startswith.(getproperty.(pf.data.asset, :raw), uppercase(i.s)), :]
+    v = @view pf.data[startswith.(getproperty.(pf.data.asset, :raw), uppercase(i.s)), :]
+    isempty(v) && return v
+    @view v[begin, :]
 end
 
 # TODO: this should use a macro...
@@ -134,6 +137,36 @@ Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instanc
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
 
-export AssetCollection, flatten
+@doc "Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
+
+`src`: The mapping, should be a pair `TimeFrame => Dict{String, PairData}`.
+
+Example:
+```julia
+using Scrapers.BinanceData as bn
+using Strategies
+using Exchanges
+setexchange!(:binanceusdm)
+cfg = loadconfig!(nameof(exc.id); cfg=Config())
+strat = loadstrategy!(:MacdStrategy, cfg)
+data = bn.binanceload()
+stub!(strat.universe, data)
+```
+"
+function stub!(ac::AssetCollection, src)
+    src_dict = swapkeys(src, NTuple{2,Symbol}, k -> let a = parse(Asset, k, fiatnames)
+        (a.bc, a.qc)
+    end)
+    for inst in ac.data.instance
+        for tf in keys(inst.data)
+            empty!(inst.data[tf])
+            pd = src_dict[(inst.asset.bc, inst.asset.qc)]
+            new_data = resample(pd, tf)
+            append!(inst.data[tf], new_data)
+        end
+    end
+end
+
+export AssetCollection, flatten, stub!
 
 end

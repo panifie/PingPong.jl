@@ -93,7 +93,7 @@ end
 function loadstrategy!(src::Symbol, cfg=config)
     file = get(cfg.sources, src, nothing)
     if isnothing(file)
-        throw(KeyError("Symbol $src not found in config $(config.path)."))
+        throw(ArgumentError("Symbol $src not found in config $(config.path)."))
     end
     path = find_path(file, cfg)
     mod = @eval begin

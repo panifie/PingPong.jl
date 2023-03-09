@@ -21,7 +21,7 @@ end
 
 function assets(_::S)
     exc = ExchangeID(exc)
-    Dict{Asset,ExchangeID}(Asset(a) => exc for a in pairs(S))
+    Dict{Asset,ExchangeID}(Asset(a) => exc for a in marketids(S))
 end
 
 export name, process, assets, marketids
