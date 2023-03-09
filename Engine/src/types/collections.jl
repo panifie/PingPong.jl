@@ -74,32 +74,22 @@ end
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
 function bqe(df::DataFrame, b::T, q::T, e::T) where {T<:Symbol}
-    begin
-        isbase.(df.asset, b) && isquote.(df.asset, q) && df.exchange .== e
-    end
+    isbase.(df.asset, b) && isquote.(df.asset, q) && df.exchange .== e
 end
 function bqe(df::DataFrame, ::Nothing, q::T, e::T) where {T<:Symbol}
-    begin
-        isquote(df.asset, q) && df.exchange .== e
-    end
+    isquote(df.asset, q) && df.exchange .== e
 end
 function bqe(df::DataFrame, b::T, ::Nothing, e::T) where {T<:Symbol}
-    begin
-        isbase.(df.asset, b) && df.exchange .== e
-    end
+    isbase.(df.asset, b) && df.exchange .== e
 end
 function bqe(df::DataFrame, ::T, q::T, e::Nothing) where {T<:Symbol}
-    begin
-        isbase.(df.asset, b) && isquote.(df.asset, q)
-    end
+    isbase.(df.asset, b) && isquote.(df.asset, q)
 end
 bqe(df::DataFrame, ::Nothing, ::Nothing, e::T) where {T<:Symbol} = begin
     df.exchange .== e
 end
 function bqe(df::DataFrame, ::Nothing, q::T, e::Nothing) where {T<:Symbol}
-    begin
-        isquote.(df.asset, q)
-    end
+    isquote.(df.asset, q)
 end
 bqe(df::DataFrame, b::T, ::Nothing, e::Nothing) where {T<:Symbol} = begin
     isbase.(df.asset, b)
@@ -131,10 +121,8 @@ Base.display(pf::AssetCollection) = Base.show(prettydf(pf))
 @doc "Returns a Dict{TimeFrame, DataFrame} of all the OHLCV dataframes present in the asset collection."
 function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
     out = Dict()
-    @eachrow ac.data begin
-        for (tf, df) in :instance.data
-            push!(@lget!(out, tf, DataFrame[]), df)
-        end
+    @eachrow ac.data for (tf, df) in :instance.data
+        push!(@lget!(out, tf, DataFrame[]), df)
     end
     out
 end
@@ -142,11 +130,7 @@ end
 Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instance).data)[2]
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
-Base.fill!(ac::AssetCollection, tfs...) = begin
-    @eachrow ac.data begin
-        fill!(:instance, tfs...)
-    end
-end
+Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
 
 export AssetCollection, flatten
 
