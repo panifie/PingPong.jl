@@ -1,10 +1,10 @@
-module MacdStrategy
+module Example
 using Engine
 using Instruments
 using ExchangeTypes
 using Misc: config
 
-const name = :Macd
+const name = :Example
 const S = Strategy{name}
 const exc = :kucoinfutures
 

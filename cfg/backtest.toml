@@ -5,4 +5,4 @@ futures = true
 [binance]
 leveraged = "from"
 [sources]
-MacdStrategy = "cfg/strategies/Macd.jl" # the name of the module
+Example = "cfg/strategies/Example.jl" # the name of the module

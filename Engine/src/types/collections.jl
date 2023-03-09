@@ -148,7 +148,7 @@ using Strategies
 using Exchanges
 setexchange!(:binanceusdm)
 cfg = loadconfig!(nameof(exc.id); cfg=Config())
-strat = loadstrategy!(:MacdStrategy, cfg)
+strat = loadstrategy!(:Example, cfg)
 data = bn.binanceload()
 stub!(strat.universe, data)
 ```

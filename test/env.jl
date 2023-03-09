@@ -13,6 +13,6 @@ using Misc
 
 setexchange!(:kucoinfutures)
 cfg = loadconfig!(nameof(exc.id); cfg=Config())
-s = loadstrategy!(:MacdStrategy, cfg)
+s = loadstrategy!(:Example, cfg)
 btc = s.universe[d"BTC/USDT:USDT"].instance[1]
 fill!(s.universe, config.timeframes[(begin + 1):end]...)
