@@ -35,7 +35,9 @@ struct AssetInstance27{T<:AbstractAsset,E<:ExchangeID}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    function AssetInstance27(a::T, data, e::Exchange{I}) where {T<:AbstractAsset,I<:ExchangeID}
+    function AssetInstance27(
+        a::T, data, e::Exchange{I}
+    ) where {T<:AbstractAsset,I<:ExchangeID}
         limits = market_limits(a.raw, e)
         precision = market_precision(a.raw, e)
         fees = market_fees(a.raw, e)
@@ -99,10 +101,7 @@ end
     last_candle(i, tf, date)
 end
 
-@doc "Pulls data from storage, or resample from the shortest timeframe available."
-function Base.fill!(i::AssetInstance, tfs...)
-    current_tfs = Set(keys(i.data))
-    (from_tf, from_data) = first(i.data)
+function _check_timeframes(tfs, from_tf)
     s_tfs = sort([t for t in tfs])
     sort!(s_tfs)
     if tfs[begin] < from_tf
@@ -110,21 +109,30 @@ function Base.fill!(i::AssetInstance, tfs...)
             ArgumentError("Timeframe $(tfs[begin]) is shorter than the shortest available.")
         )
     end
-    exc = i.exchange[]
-    pairname = i.asset.raw
-    # Check if we have available data
+end
+
+# Check if we have available data
+function _load_smallest!(i, tfs, from_data, from_tf)
     if size(from_data)[1] == 0
         append!(from_data, load(zi, exc.name, i.asset.raw, string(from_tf)))
         if size(from_data)[1] == 0
             for to_tf in tfs
                 i.data[to_tf] = empty_ohlcv()
             end
-            return nothing
+            return false
         end
+        true
+    else
+        true
     end
+end
+
+function _load_rest!(i, tfs, from_tf, from_data)
+    exc = i.exchange[]
+    pairname = i.asset.raw
     dr = daterange(from_data)
     for to_tf in tfs
-        if to_tf ∉ current_tfs
+        if to_tf ∉ Set(keys(i.data)) # current tfs
             from_sto = load(
                 zi, exc.name, i.asset.raw, string(to_tf); from=dr.start, to=dr.stop
             )
@@ -135,6 +143,15 @@ function Base.fill!(i::AssetInstance, tfs...)
             end
         end
     end
+end
+
+@doc "Pulls data from storage, or resample from the shortest timeframe available."
+function Base.fill!(i::AssetInstance, tfs...)
+    # asset timeframes dict is sorted
+    (from_tf, from_data) = first(i.data)
+    _check_timeframes(tfs, from_tf)
+    _load_smallest!(i, tfs, from_data, from_tf) || return nothing
+    _load_rest!(i, tfs, from_tf, from_data)
 end
 
 export AssetInstance, isactive, instance, load!, last_candle
