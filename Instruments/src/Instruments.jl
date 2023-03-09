@@ -1,5 +1,6 @@
 @nospecialize
 module Instruments
+import Base.==
 
 struct Cash4
     name::Symbol
@@ -53,6 +54,7 @@ include("consts.jl")
 has_punct(s::AbstractString) = !isnothing(match(r"[[:punct:]]", s))
 abstract type AbstractAsset end
 
+# TYPENUM
 @doc """An `Asset` represents a parsed raw (usually ccxt) pair of base and quote currency.
 
 - `raw`: The raw underlying string e.g. 'BTC/USDT'
@@ -106,11 +108,11 @@ const BaseTuple = @NamedTuple{b::Symbol}
 const BaseQuoteTuple = @NamedTuple{b::Symbol, q::Symbol}
 const CurrencyTuple = Union{QuoteTuple,BaseTuple,BaseQuoteTuple}
 Base.Broadcast.broadcastable(q::Asset) = Ref(q)
-Base.in(a::Asset, t::QuoteTuple) = Base.isequal(a.qc, t.q)
-Base.in(a::Asset, t::BaseTuple) = Base.isequal(a.bc, t.b)
-Base.in(a::Asset, t::BaseQuoteTuple) = Base.isequal(a.bc, t.b) && Base.isequal(a.qc, t.q)
-Base.isequal(a::Asset, s::String) = Base.isequal(a.raw, s)
-Base.isequal(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
+Base.in(a::Asset, t::QuoteTuple) = a.qc == t.q
+Base.in(a::Asset, t::BaseTuple) = a.bc == t.b
+Base.in(a::Asset, t::BaseQuoteTuple) = a.bc == t.b && a.qc == t.q
+==(a::AbstractAsset, s::AbstractString) = a.raw == s
+==(a::Asset, b::Asset) = a.qc == b.qc && a.bc == b.bc
 
 isbase(a::AbstractAsset, b) = a.bc == b
 isquote(a::AbstractAsset, q) = a.qc == q

@@ -1,10 +1,10 @@
 module Collections
 
 using Base.Enums: namemap
-using DataFrames, DataFramesMeta
+using Data.DataFrames
+using Data.DataFramesMeta
 using Data: load, zi
 using OrderedCollections: OrderedDict
-using DataFramesMeta
 using DataStructures: SortedDict
 using TimeTicks
 using Misc: Iterable
@@ -44,10 +44,8 @@ struct AssetCollection2
 
         tf = convert(TimeFrame, timeframe)
         function getInstance(ast::AbstractAsset)
-            begin
-                data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
-                AssetInstance(ast, data, exc)
-            end
+            data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
+            AssetInstance(ast, data, exc)
         end
         instances = [getInstance(ast) for ast in assets]
         AssetCollection2(instances)
@@ -68,7 +66,10 @@ const AssetCollectionRow = @NamedTuple{
 using Instruments: isbase, isquote
 Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange .== i, :]
 Base.getindex(pf::AssetCollection, i::Asset) = @view pf.data[pf.data.asset .== i, :]
-Base.getindex(pf::AssetCollection, i::String) = @view pf.data[pf.data.asset .== i, :]
+Base.getindex(pf::AssetCollection, i::Derivative) = @view pf.data[pf.data.asset .== i, :]
+function Base.getindex(pf::AssetCollection, i::AbstractString)
+    @view pf.data[pf.data.asset .== i, :]
+end
 
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
