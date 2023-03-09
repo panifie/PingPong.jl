@@ -103,7 +103,7 @@ end
 const symbol_rgx_cache = Dict{String,Regex}()
 function Base.parse(::Type{Asset}, s::AbstractString, qc::AbstractString; raise=true)
     pair = split_pair(s)
-    m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)\$", "i")), pair[1])
+    m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)(?:settled?)?\$", "i")), pair[1])
     if isnothing(m)
         raise && throw(InexactError(:Asset, Asset, s))
         return nothing
