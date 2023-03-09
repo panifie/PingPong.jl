@@ -1,13 +1,12 @@
 module Instances
 
-using TimeTicks: TimeFrames
+using TimeTicks
 using ExchangeTypes
 using ExchangeTypes: exc
 using Exchanges: market_fees, market_limits, market_precision, is_pair_active, getexchange!
 using Data: load, zi, empty_ohlcv
 using Data.DFUtils: daterange, timeframe
-using TimeTicks
-using DataFrames: DataFrame
+using Data: DataFrame
 using DataStructures: SortedDict
 using Instruments
 using Misc: config
@@ -36,33 +35,27 @@ struct AssetInstance27{T<:AbstractAsset,E<:ExchangeID}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    function AssetInstance27(a::T, data, e::Exchange{I}) where {T<:Asset,I<:ExchangeID}
-        begin
-            limits = market_limits(a.raw, e)
-            precision = market_precision(a.raw, e)
-            fees = market_fees(a.raw, e)
-            new{T,I}(a, data, Trade{Order{T,I}}[], Float64[0], e, limits, precision, fees)
-        end
+    function AssetInstance27(a::T, data, e::Exchange{I}) where {T<:AbstractAsset,I<:ExchangeID}
+        limits = market_limits(a.raw, e)
+        precision = market_precision(a.raw, e)
+        fees = market_fees(a.raw, e)
+        new{T,I}(a, data, Trade{Order{T,I}}[], Float64[0], e, limits, precision, fees)
     end
     function AssetInstance27(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        begin
-            AssetInstance27(a.asset, args...; kwargs...)
-        end
+        AssetInstance27(a.asset, args...; kwargs...)
     end
     function AssetInstance27(s::S, t::S, e::S) where {S<:AbstractString}
-        begin
-            a = Asset(s)
-            tf = convert(TimeFrame, t)
-            exc = getexchange!(Symbol(e))
-            data = Dict(tf => load(zi, exc.name, a.raw, t))
-            AssetInstance27(a, data, exc)
-        end
+        a = Asset(s)
+        tf = convert(TimeFrame, t)
+        exc = getexchange!(Symbol(e))
+        data = Dict(tf => load(zi, exc.name, a.raw, t))
+        AssetInstance27(a, data, exc)
     end
     AssetInstance27(s, t) = AssetInstance27(s, t, exc)
 end
 AssetInstance = AssetInstance27
 
-function instance(a::AbstractAsset)
+function instance(exc::Exchange, a::AbstractAsset)
     data = Dict()
     @assert a.raw ∈ keys(exc.markets) "Market $(a.raw) not found on exchange $(exc.name)."
     for tf in config.timeframes
@@ -70,15 +63,14 @@ function instance(a::AbstractAsset)
     end
     AssetInstance(a, data, exc)
 end
+instance(a) = instance(exc, a)
 
 @doc "Load ohlcv data of asset instance."
 function load!(a::AssetInstance; reset=true)
-    begin
-        for (tf, df) in a.data
-            reset && empty!(df)
-            loaded = load(zi, a.exchange.name, a.raw, string(tf))
-            append!(df, loaded)
-        end
+    for (tf, df) in a.data
+        reset && empty!(df)
+        loaded = load(zi, a.exchange.name, a.raw, string(tf))
+        append!(df, loaded)
     end
 end
 isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
