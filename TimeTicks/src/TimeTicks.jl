@@ -238,7 +238,7 @@ end
 
 export @as_td, @infertf
 export @tf_str, @dt_str
-export TimeFrame, timeframe, period, apply
+export TimeFrame, timeframe, timeframe!, period, apply
 export dt, ms, timefloat, dtfloat
 export now, available, from_to_dt
 export compact
