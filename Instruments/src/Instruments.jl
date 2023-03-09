@@ -1,5 +1,5 @@
-@nospecialize
 module Instruments
+using Lang: @lget!
 import Base.==
 
 struct Cash4
@@ -90,17 +90,39 @@ struct Asset5 <: AbstractAsset
 end
 Asset = Asset5
 
-function Base.parse(::Type{Asset}, s::AbstractString)
-    pair = split_pair(s)
+_check_parse(pair, s) = begin
     if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
         throw(InexactError(:Asset, Asset, s))
     end
-    Asset(SubString(s, 1, length(s)), pair[1], pair[2])
+end
+function Base.parse(::Type{Asset}, s::AbstractString)
+    pair = split_pair(s)
+    _check_parse(pair, s)
+    Asset(SubString(s), pair[1], pair[2])
+end
+const symbol_rgx_cache = Dict{String,Regex}()
+function Base.parse(::Type{Asset}, s::AbstractString, qc::AbstractString; raise=true)
+    pair = split_pair(s)
+    m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)\$", "i")), pair[1])
+    if isnothing(m)
+        raise && throw(InexactError(:Asset, Asset, s))
+        return nothing
+    end
+    Asset(SubString(s), m.captures[1], m.captures[2])
+end
+function Base.parse(
+    ::Type{Asset}, s::AbstractString, qcs::Union{AbstractVector,AbstractSet}
+)
+    for qc in qcs
+        p = parse(Asset, s, qc; raise=false)
+        !isnothing(p) && return p
+    end
+    throw(InexactError(:Asset, Asset, s))
 end
 Base.hash(a::AbstractAsset) = hash((a.bc, a.qc))
 Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
-Base.show(buf::IO, a::AbstractAsset) = write(buf, "Asset($(a.qc)/$(a.bc))")
+Base.show(buf::IO, a::AbstractAsset) = write(buf, "Asset($(a.bc)/$(a.qc))")
 Base.display(a::AbstractAsset) = show(stdout, a)
 
 const QuoteTuple = @NamedTuple{q::Symbol}
