@@ -12,22 +12,25 @@ using ..LiveOrders
 using Instruments
 using TimeTicks
 
-struct Strategy42{M,E}
+const AssetInstanceDict{E} = Dict{
+    AbstractAsset,Ref{AssetInstance{AbstractAsset,ExchangeID{E}}}
+}
+# TYPENUM
+struct Strategy46{M,E}
+    mod::Module
     universe::AssetCollection
-    balances::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
-    orders::Dict{Asset,Ref{AssetInstance{Asset,ExchangeID{E}}}}
+    balances::AssetInstanceDict{E}
+    orders::AssetInstanceDict{E}
     cash::Cash
     config::Config
-    function Strategy42(src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config)
-        begin
-            exc = getexchange!(config.exchange)
-            uni = AssetCollection(assets; exc)
-            ca = Cash(config.qc, config.initial_cash)
-            eid = typeof(exc.id)
-            pf = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-            orders = Dict{Asset,Ref{AssetInstance{Asset,eid}}}()
-            new{src,exc.id}(uni, pf, orders, ca, config)
-        end
+    function Strategy46(mod::Module, assets::Union{Dict,Iterable{String}}, config::Config)
+        exc = getexchange!(config.exchange)
+        uni = AssetCollection(assets; exc)
+        ca = Cash(config.qc, config.initial_cash)
+        eid = typeof(exc.id)
+        pf = AssetInstanceDict{eid}()
+        orders = AssetInstanceDict{eid}()
+        new{Symbol(mod),exc.id}(mod, uni, pf, orders, ca, config)
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -43,7 +46,7 @@ The exchange and the quote cash should be specified from the config, or the stra
 - `orders`: all active orders
 - `cash`: the quote currency used for trades
 """
-Strategy = Strategy42
+Strategy = Strategy46
 
 @doc "Clears all orders history from strategy."
 clearorders!(strat::Strategy) = begin
@@ -62,7 +65,7 @@ end
 
 process(::Strategy, date::DateTime, orders::Vector{Order}=[]) = orders
 assets(::Strategy, e::ExchangeID=nothing) = Asset[]
-marketids(::Strategy) = String[]
+marketsid(::Strategy) = String[]
 
 macro notfound(path)
     quote
@@ -101,13 +104,16 @@ function loadstrategy!(src::Symbol, cfg=config)
         end
         $src
     end
+    loadstrategy!(mod, cfg)
+end
+function loadstrategy!(mod::Module, cfg=config)
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = mod.exc
     end
     @assert isdefined(mod, :name) && mod.name isa Symbol "Source $src does not define a strategy name."
     pairs = Base.invokelatest(mod.marketids, Strategy{mod.name})
-    Strategy(mod.name, pairs, cfg)
+    Strategy(mod, pairs, cfg)
 end
 
 function Base.display(strat::Strategy)
