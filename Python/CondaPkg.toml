@@ -1,6 +1,5 @@
 [pip.deps]
 uvloop = ""
-enlighten = ""
 six = ""
 ccxt = ""
 numpy = ""
