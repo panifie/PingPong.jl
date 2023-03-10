@@ -15,6 +15,13 @@ recurse_projects() # optional ;update=true
 using Python # Loads our python wrapper around CondaPkg which fixes `PYTHONPATH` env var
 import Pkg; Pkg.instantiate()
 ```
+- Alternatively force CondaPkg env resolution, from `julia --project.`
+
+``` julia
+using Python.PythonCall.C.CondaPkg
+CondaPkg.resolve(force=true)
+```
+restart the REPL.
 
 ## It is unresponsive
 - If the exchange instance has been idle for quite a while the connection might have been closed. It should fail according to the ccxt exchange timeout, although more often than not it takes longer. After the inevitable timeout error the connection is re-established and subsequent functions that rely on api calls should become responsive again.
