@@ -16,21 +16,22 @@ const AssetInstanceDict{E} = Dict{
     AbstractAsset,Ref{AssetInstance{AbstractAsset,ExchangeID{E}}}
 }
 # TYPENUM
-struct Strategy46{M,E}
+struct Strategy48{M,E}
     mod::Module
     universe::AssetCollection
     balances::AssetInstanceDict{E}
     orders::AssetInstanceDict{E}
     cash::Cash
     config::Config
-    function Strategy46(mod::Module, assets::Union{Dict,Iterable{String}}, config::Config)
+    function Strategy48(mod::Module, assets::Union{Dict,Iterable{String}}, config::Config)
         exc = getexchange!(config.exchange)
         uni = AssetCollection(assets; exc)
         ca = Cash(config.qc, config.initial_cash)
         eid = typeof(exc.id)
         pf = AssetInstanceDict{eid}()
         orders = AssetInstanceDict{eid}()
-        new{Symbol(mod),exc.id}(mod, uni, pf, orders, ca, config)
+        name = nameof(mod)
+        new{name,exc.id}(mod, uni, pf, orders, ca, config)
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -46,7 +47,7 @@ The exchange and the quote cash should be specified from the config, or the stra
 - `orders`: all active orders
 - `cash`: the quote currency used for trades
 """
-Strategy = Strategy46
+Strategy = Strategy48
 
 @doc "Clears all orders history from strategy."
 clearorders!(strat::Strategy) = begin
@@ -63,9 +64,12 @@ reload!(strat::Strategy) = begin
     end
 end
 
+## Strategy interface
 process(::Strategy, date::DateTime, orders::Vector{Order}=[]) = orders
 assets(::Strategy, e::ExchangeID=nothing) = Asset[]
 marketsid(::Strategy) = String[]
+exchange(::Strategy) = nothing
+load(::Strategy) = nothing
 
 macro notfound(path)
     quote
@@ -90,6 +94,9 @@ function find_path(file, cfg)
     realpath(file)
 end
 
+Base.nameof(t::Type{Strategy}) = t.parameters[1]
+Base.nameof(s::Strategy) = name(typeof(s))
+
 function loadstrategy!(src::Symbol, cfg=config)
     file = get(cfg.sources, src, nothing)
     if isnothing(file)
@@ -98,7 +105,8 @@ function loadstrategy!(src::Symbol, cfg=config)
     path = find_path(file, cfg)
     mod = @eval begin
         include($path)
-        using .$src: $src
+        using .$src
+        # Core.eval(Main, :(using .$(nameof($src))))
         if isdefined(Main, :Revise)
             Core.eval(Main, :(Revise.track($$src)))
         end
@@ -109,11 +117,12 @@ end
 function loadstrategy!(mod::Module, cfg=config)
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
-        cfg.exchange = mod.exc
+        cfg.exchange = exchange(mod.S)
     end
-    @assert isdefined(mod, :name) && mod.name isa Symbol "Source $src does not define a strategy name."
-    pairs = Base.invokelatest(mod.marketids, Strategy{mod.name})
-    Strategy(mod, pairs, cfg)
+    strat_exc = invokelatest(mod.exchange, mod.S).sym
+    @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
+    @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
+    invokelatest(mod.load, mod.S, cfg)
 end
 
 function Base.display(strat::Strategy)
