@@ -5,17 +5,18 @@ using DataFrames: index
 using TimeTicks
 using Lang
 import Base: getindex
+import TimeTicks: timeframe, timeframe!
 
 @doc "Get the column names for dataframe as symbols."
 colnames(df::AbstractDataFrame) = index(df).names
 
-firstdate(df::AbstractDataFrame) = df[begin, :timestamp]
-lastdate(df::AbstractDataFrame) = df[end, :timestamp]
+firstdate(df::AbstractDataFrame) = df.timestamp[begin]
+lastdate(df::AbstractDataFrame) = df.timestamp[end]
 
 @doc "Returns the timeframe of a dataframe according to its metadata.
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
 If the timeframe can't be inferred, a `TimeFrame(0)` is returned. "
-function TimeTicks.timeframe(df::AbstractDataFrame)::TimeFrame
+function timeframe(df::AbstractDataFrame)::TimeFrame
     if hasproperty(df, :timestamp)
         md = @lget!(colmetadata(df), :timestamp, Dict{String,Any}())
         @something get(md, "timeframe", nothing) begin
@@ -27,32 +28,51 @@ function TimeTicks.timeframe(df::AbstractDataFrame)::TimeFrame
         end
     end
 end
-function TimeTicks.timeframe!(df::T, t::F) where {T<:AbstractDataFrame,F<:TimeFrame}
+function timeframe!(df::AbstractDataFrame, t::TimeFrame)
     colmetadata!(df, :timestamp, "timeframe", t)
     t
 end
-TimeTicks.timeframe!(df::T where {T<:AbstractDataFrame}) = begin
+function timeframe!(df::AbstractDataFrame)
+    @something colmetadata(df, :timestamp, "timeframe", nothing) begin
+        tf = @infertf(df)
+        colmetadata!(df, :timestamp, "timeframe", tf)
+        tf
+    end
+end
+timeframe!!(df::AbstractDataFrame) = begin
     tf = @infertf(df)
     timeframe!(df, tf)
     tf
 end
 
 @doc "Get the position of date in the `:timestamp` column of the dataframe."
-function dateindex(df::T where {T<:AbstractDataFrame}, date::DateTime)
+function dateindex(df::AbstractDataFrame, date::DateTime)
     (date - firstdate(df)) ÷ timeframe(df).period + 1
 end
 
+valueorview(df::DataFrame, idx, col::String) = getproperty(df, col)[idx]
+valueorview(df::DataFrame, idx, col::Symbol) = getproperty(df, col)[idx]
+valueorview(df::DataFrame, idx, cols) = @view df[idx, cols]
 # NOTE: We should subtype an abstract dataframe...arr
-@doc "While indexing ohlcv data we have to consider the *time of arrival* of a candle. In general candles collect the price *up to* its timestamp. E.g. the candle at time `2000-01-01` would have tracked time from `1999-12-31T00:00:00` to `2000-01-01T00:00:00`. Therefore what we return is always the *left adjacent* timestamp of the queried one."
-function getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime, cols)
-    tf = timeframe(df)
+function getindex(df::AbstractDataFrame, idx::DateTime, cols)
+    v = valueorview(df, searchsortedlast(df.timestamp, idx), cols)
+    @ifdebug @assert v == getdate(df, idx, cols)
+    v
+end
+
+@doc """While indexing ohlcv data we have to consider the *time of arrival* of a candle.
+In general candles collect the price *up to* its timestamp.
+E.g. the candle at time `2000-01-01` would have tracked time from `1999-12-31T00:00:00` to `2000-01-01T00:00:00`.
+Therefore what we return is always the *left adjacent* timestamp of the queried one."""
+function getdate(df::AbstractDataFrame, idx::DateTime, cols, tf::TimeFrame=timeframe!(df))
     @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
+    # start = df.timestamp[begin]
     start <= idx || throw(ArgumentError("$idx not found in dataframe."))
     int_idx = (idx - start) ÷ tf.period + 1
     int_idx > size(df)[1] && throw(ArgumentError("$idx not found in dataframe."))
     @ifdebug @assert df.timestamp[int_idx] == idx
-    @view df[int_idx, cols]
+    valueorview(df, int_idx, cols)
 end
 
 @doc """Indexing by date ranges allows to query ohlcv using the timestamp column as index, assuming that the data has no missing values and is already sorted.
@@ -62,8 +82,7 @@ df[dtr"1999-.."] # Starting from 1999 up to the end
 df[dtr"..1999-"] # From the beginning up to 1999
 df[dtr"1999-..2000-"] # The Year 1999
 """
-function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
-    tf = timeframe(df)
+function getdate(df::AbstractDataFrame, dr::DateRange, cols, tf=timeframe!(df))
     @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     stop = lastdate(df)
@@ -92,14 +111,22 @@ function getindex(df::T where {T<:AbstractDataFrame}, dr::DateRange, cols)
     @view df[start_idx:stop_idx, cols]
 end
 
-function getindex(df::T where {T<:AbstractDataFrame}, idx::DateTime)
+function getindex(df::AbstractDataFrame, dr::DateRange, cols)
+    start_idx = searchsortedfirst(df.timestamp, dr.start)
+    stop_idx = searchsortedlast(df.timestamp, dr.stop)
+    v = @view df[start_idx:stop_idx, cols]
+    @ifdebug @assert v == getdate(df, dr, cols)
+    v
+end
+
+function getindex(df::AbstractDataFrame, idx::DateTime)
     getindex(df, idx, Symbol.(names(df)))
 end
-function getindex(df::T where {T<:AbstractDataFrame}, idx::DateRange)
+function getindex(df::AbstractDataFrame, idx::DateRange)
     getindex(df, idx, Symbol.(names(df)))
 end
 
-function daterange(df::T where {T<:AbstractDataFrame})
+function daterange(df::AbstractDataFrame)
     DateRange(df.timestamp[begin], df.timestamp[end], timeframe(df))
 end
 
@@ -135,6 +162,6 @@ end
 @doc "See `_mutatemax!`"
 pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
 
-export firstdate, lastdate, timeframe, timeframe!, getindex, dateindex, daterange, colnames
+export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate
 
 end
