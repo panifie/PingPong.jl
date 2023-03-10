@@ -1,21 +1,21 @@
 import Base.getproperty
 
 using Reexport
-using TimeTicks
-using DataFrames: DataFrame
-using Ccxt
 @reexport using ExchangeTypes
+using TimeTicks
+using Ccxt
 using ExchangeTypes: OptionsDict, exc
 using JSON
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
+using Data: DataFrame
 using Instruments
 using Python
-using Python.PythonCall: pycopy!, pyisnone
+using Python.PythonCall: pyisnone
 using Serialization: deserialize, serialize
 using TimeToLive: TTL
 
 const exclock = ReentrantLock()
-const tickers_cache = TTL{String,T where T<:AbstractDict}(Minute(100))
+const tickers_cache = TTL{String,AbstractDict}(Minute(100))
 
 @doc "Define an exchange variable set to its matching exchange instance."
 macro exchange!(name)

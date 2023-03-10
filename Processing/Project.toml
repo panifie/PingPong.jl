@@ -5,10 +5,6 @@ version = "0.1.0"
 
 [deps]
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
-DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 Pbar = "7aed521b-3ea6-427a-8031-5ecc7305f19e"

@@ -1,6 +1,6 @@
 module TradesOHLCV
 using TimeTicks
-using DataFrames
+using Data.DataFrames
 using ..Processing: isincomplete
 
 @doc "Returns the index where the data is *assumed* to end being contiguous.

@@ -1,5 +1,6 @@
 module Data
 
+using DataStructures: DataStructures
 include("utils.jl")
 include("data.jl")
 include("dataframes.jl")

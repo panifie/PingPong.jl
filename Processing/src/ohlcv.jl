@@ -1,9 +1,9 @@
-using DataFramesMeta
-using TimeTicks: Period, now, timeframe, apply
-using DataFrames: clear_pt_conf!
-using Base: _cleanup_locked
 using TimeTicks
+using TimeTicks: Period, now, timeframe, apply
+using Data.DataFramesMeta
+using Data.DataFrames: clear_pt_conf!
 using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils
+using Base: _cleanup_locked
 using .DFUtils: appendmax!
 
 @doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.

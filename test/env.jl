@@ -1,15 +1,14 @@
-using PingPong: PingPong, Exchanges
-using .Exchanges
-using .Exchanges.Instruments
-using .Instruments.Derivatives
-using PingPong.Engine: Engine, Strategies, Collections, Instances
-using .Collections
-using .Collections.TimeTicks
-using .Instances
-using PingPong.Data
-using .Data.DFUtils
-using Processing
-using Misc
+using PingPong
+using TimeTicks
+using Instruments
+using Instruments.Derivatives
+using PingPong.Engine: Engine, Strategies as strat, Collections as co, Instances as ista
+using Data: Data as da, DFUtils as dfu
+using Processing: Processing as pro
+using Misc: Misc as mi
+
+const istr = Instruments
+const der = Derivatives
 
 setexchange!(:kucoinfutures)
 cfg = loadconfig!(nameof(exc.id); cfg=Config())

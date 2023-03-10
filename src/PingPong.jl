@@ -1,9 +1,10 @@
 module PingPong
 
-Base.Experimental.@compiler_options optimize = 1 compile = min
+# Base.Experimental.@compiler_options optimize = 1 compile = min
 
-using Python
-@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine, Watchers).args
+using Pkg: Pkg as Pkg
+using Python # must be loaded synchronously
+@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine).args
     @async eval(:(using $m))
 end
 include("repl.jl")
@@ -15,8 +16,10 @@ function __init__()
         loadconfig!(exc)
         setexchange!(exc)
     end
+    @debug "Initializing python async..."
     Python._async_init()
     # default to using lmdb store for data
+    @debug "Initializing LMDB zarr instance..."
     Data.zi[] = Data.zilmdb()
 end
 

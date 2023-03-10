@@ -1,11 +1,10 @@
 module Alignments
-using Dates
-using DataStructures
-using DataFrames
-using Misc
 using TimeTicks
-using Data: PairData, @with
 using Lang
+using Misc
+using Data.DataStructures
+using Data.DataFrames
+using Data: PairData, @with
 
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 

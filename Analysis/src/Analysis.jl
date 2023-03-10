@@ -2,11 +2,10 @@ module Analysis
 
 using Requires
 using TimeTicks: td_tf, timefloat, @as_td
-using Data: @to_mat, data_td, save_ohlcv, PairData, empty_ohlcv
 using ExchangeTypes: Exchange, exc
-using DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
+using Data: @to_mat, data_td, save_ohlcv, PairData, empty_ohlcv, DataFrames
+using .DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
-using LegibleLambdas
 
 function __init__()
     ## InformationMeasures.jl ...
@@ -28,7 +27,7 @@ function Base.filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Re
             push!(flt, (v, p))
         end
     end
-    sort!(flt; by=@λ(x -> x[1]))
+    sort!(flt; by=x -> x[1])
 end
 
 @doc "Return the summary of a filtered vector of pairdata."
