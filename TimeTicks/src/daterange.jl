@@ -26,8 +26,9 @@ end
 Base.display(dr::DateRange) = Base.show(dr)
 iterate(dr::DateRange) = begin
     @assert !isnothing(dr.start) && !isnothing(dr.stop)
-    dr.current_date[1] = dr.start + dr.step
-    (dr.start, dr)
+    this = @something dr.current_date[1] dr.start
+    dr.current_date[1] = this + dr.step
+    (this, dr)
 end
 
 iterate(dr::DateRange, ::DateRange) = begin
@@ -50,6 +51,7 @@ collect(dr::DateRange) = begin
 end
 
 reset(dr::DateRange) = dr.current_date[1] = dr.start
+reset(dr::DateRange, d) = dr.current_date[1] = d
 function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
 end
