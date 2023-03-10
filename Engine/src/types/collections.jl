@@ -10,11 +10,12 @@ using DataStructures: SortedDict
 using TimeTicks
 using Misc: Iterable, swapkeys
 using ExchangeTypes
-using Instruments: fiatnames
+using Instruments: fiatnames, AbstractAsset
 using Instruments.Derivatives
 using ..Instances
 using Processing: resample
 
+# TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
 struct AssetCollection2
     data::DataFrame
@@ -56,12 +57,12 @@ AssetCollection = AssetCollection2
 
 @enum AssetCollectionColumn exchange = 1 asset = 2 instance = 3
 const AssetCollectionTypes = OrderedDict([
-    exchange => ExchangeID, asset => Asset, instance => AssetInstance
+    exchange => ExchangeID, asset => AbstractAsset, instance => AssetInstance
 ])
 const AssetCollectionColumns4 = Symbol.(keys(sort!(AssetCollectionTypes)))
 AssetCollectionColumns = AssetCollectionColumns4
 const AssetCollectionRow = @NamedTuple{
-    exchange::ExchangeID, asset::Asset, instance::AssetInstance
+    exchange::ExchangeID, asset::AbstractAsset, instance::AssetInstance
 }
 
 using Instruments: isbase, isquote
@@ -132,7 +133,7 @@ function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
     out
 end
 
-Base.first(ac::AssetCollection, a::Asset)::DataFrame = first(first(ac[a].instance).data)[2]
+Base.first(ac::AssetCollection, a::AbstractAsset)::DataFrame = first(first(ac[a].instance).data)[2]
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
