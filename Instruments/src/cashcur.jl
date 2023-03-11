@@ -49,6 +49,8 @@ Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Real} = N # C
 Base.convert(::Type{Cash{S}}, c::Real) where {S} = Cash(S, c)
 Base.convert(::Type{T}, c::Cash) where {T<:Real} = convert(T, c.value)
 Base.isless(a::Cash{T}, b::Cash{T}) where {T} = isless(a.value, b.value)
+Base.isless(a::Cash, b) = isless(promote(a, b)...)
+Base.isless(b, a::Cash) = isless(promote(b, a)...)
 
 Base.abs(c::Cash) = abs(c.value)
 Base.real(c::Cash) = real(c.value)
