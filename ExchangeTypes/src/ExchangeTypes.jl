@@ -33,7 +33,11 @@ struct ExchangeID{I}
 end
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
 Base.nameof(::T) where {T<:ExchangeID} = T.parameters[1]
-Base.display(id::ExchangeID) = Base.display(id.sym)
+Base.show(io::IO, id::ExchangeID) = begin
+    write(io, "ExchangeID(:")
+    write(io, id.sym)
+    write(io, ")")
+end
 Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
 Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
@@ -109,20 +113,14 @@ exc = Exchange(pynew())
 @doc "Global var holding Exchange instances. Used as a cache."
 const exchanges = Dict{Symbol,Exchange}()
 
-Base.display(exc::Exchange) = begin
-    out = IOBuffer()
-    try
-        write(out, "Exchange: ")
-        write(out, exc.name)
-        write(out, " | ")
-        write(out, "$(length(exc.markets)) markets")
-        write(out, " | ")
-        tfs = collect(exc.timeframes)
-        write(out, "$(length(tfs)) timeframes")
-        Base.print(String(take!(out)))
-    finally
-        close(out)
-    end
+Base.show(out::IO, exc::Exchange) = begin
+    write(out, "Exchange: ")
+    write(out, exc.name)
+    write(out, " | ")
+    write(out, "$(length(exc.markets)) markets")
+    write(out, " | ")
+    tfs = collect(exc.timeframes)
+    write(out, "$(length(tfs)) timeframes")
 end
 
 export Exchange, ExchangeID, ExcPrecisionMode, exchanges, globalexchange!
