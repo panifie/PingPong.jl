@@ -43,18 +43,18 @@ end
 Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(c.value)")
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
-# Base.promote(c::C, n::N) where {C<:Cash,N<:Number} = (c.value, n)
+# Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
 # NOTE: we *demote* Cash to the other number for speed
-Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Number} = N # C
-Base.convert(::Type{Cash{S}}, c::Number) where {S} = Cash(S, c)
+Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Real} = N # C
+Base.convert(::Type{Cash{S}}, c::Real) where {S} = Cash(S, c)
 Base.convert(::Type{T}, c::Cash) where {T<:Real} = convert(T, c.value)
 Base.isless(a::Cash{T}, b::Cash{T}) where {T} = isless(a.value, b.value)
 
 Base.abs(c::Cash) = abs(c.value)
 Base.real(c::Cash) = real(c.value)
 
--(a::Cash, b::Number) = a.value - b
-÷(a::Cash, b::Number) = a.value ÷ b
+-(a::Cash, b::Real) = a.value - b
+÷(a::Cash, b::Real) = a.value ÷ b
 
 ==(a::Cash{S}, b::Cash{S}) where {S} = b.value == a.value
 ÷(a::Cash{S}, b::Cash{S}) where {S} = a.value ÷ b.value
