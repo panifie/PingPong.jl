@@ -5,6 +5,7 @@ using TimeTicks
 using Instruments
 using Exchanges
 using Lang: Lang, @exportenum
+using ..Instances
 
 @doc "A type to specify the reason why a buy or sell event has happened."
 @enum OrderKind begin
@@ -15,6 +16,7 @@ using Lang: Lang, @exportenum
     Rebalance
 end
 
+# TYPENUM
 @doc """An Order is either a buy or sell event, for an `AssetInstance`,
 of a specif `OrderKind`. Positive amount is a buy, negative is a sell.
 
@@ -38,22 +40,31 @@ of a specif `OrderKind`. Positive amount is a buy, negative is a sell.
  """
 struct Order4{A<:AbstractAsset,E<:ExchangeID}
     asset::A
-    exc::ExchangeID
+    exc::E
     kind::OrderKind
     price::Float64
     amount::Float64
     date::DateTime
-    function Order4(a::A, e::E, args...) where {A<:AbstractAsset,E<:ExchangeID}
+    function Order4(a::AbstractAsset, e::ExchangeID, args...)
         new{A,E}(a, e, args...)
     end
     function Order4(
-        a::A, e::E; amount=config.base_amount, price=0.0, kind=Take, date=now()
-    ) where {A<:AbstractAsset,E<:ExchangeID}
+        a::AbstractAsset,
+        e::ExchangeID;
+        amount=config.base_amount,
+        price=0.0,
+        kind=Take,
+        date=now(),
+    )
         new{A,E}(a, e, kind, price, amount, date)
+    end
+    function Order4(ai::AssetInstance; kwargs...)
+        Order(ai.asset, ai.exchange[].id; kwargs...)
     end
 end
 Order = Order4
 
+# TYPENUM
 @doc """An order, successfully executed from a strategy request.
 Entry trades: The date when the order was actually opened, during backtesting, it is usually `date + tf.period`
     where the timeframe depends on the backtesting `Context`. It should match a candle.
@@ -78,6 +89,7 @@ struct Trade7{O<:Order}
 end
 Trade = Trade7
 
+# TYPENUM
 @doc "A composite trade groups all the trades belonging to an order request.
 - `trades`: the sequence of trades that matched the order.
 - `rateavg`: the average price across all trades.
