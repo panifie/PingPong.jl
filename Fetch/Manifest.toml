@@ -159,10 +159,6 @@ path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
 
-    [deps.Data.weakdeps]
-    Scrapers = "38b379f7-ca41-4278-b0dc-774ced1e32bb"
-    Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
-
 [[deps.DataAPI]]
 git-tree-sha1 = "e08915633fcb3ea83bf9d6126292e5bc5c739922"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"

@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-beta4"
+julia_version = "1.9.0-rc1"
 manifest_format = "2.0"
 project_hash = "07d86064ebb4eb3fdd31115f2438569390f7b836"
 
@@ -123,7 +123,7 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "Dates", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -180,12 +180,6 @@ version = "0.9.3"
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
-
-[[deps.ExchangeTypes]]
-deps = ["Ccxt", "FunctionalCollections", "Lang", "Python"]
-path = "../ExchangeTypes"
-uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
-version = "0.1.0"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "56559bbef6ca5ea0c0818fa5c90320398a6fbf8d"
@@ -265,7 +259,7 @@ uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 version = "1.4.0"
 
 [[deps.Instruments]]
-deps = ["Misc"]
+deps = ["Lang", "Misc"]
 path = "../Instruments"
 uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 version = "0.1.0"
@@ -426,7 +420,7 @@ version = "1.1.7"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.0+0"
+version = "2.28.2+0"
 
 [[deps.MicroMamba]]
 deps = ["Pkg", "Scratch", "micromamba_jll"]
@@ -477,7 +471,7 @@ version = "1.12.9"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.21+0"
+version = "0.3.21+4"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -509,8 +503,8 @@ uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.5.7"
 
 [[deps.Pbar]]
-deps = ["Dates", "Lang", "Misc", "Term", "TimeTicks"]
-path = "../Misc/Pbar"
+deps = ["Lang", "Misc", "Term", "TimeTicks"]
+path = "../Pbar"
 uuid = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 version = "0.1.0"
 
@@ -548,8 +542,8 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "ExchangeTypes", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
-path = "../Analysis/Processing"
+deps = ["Data", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
+path = "../Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
 

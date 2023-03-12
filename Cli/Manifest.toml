@@ -152,7 +152,7 @@ uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "Dates", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -239,7 +239,7 @@ uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 version = "1.1.0"
 
 [[deps.Fetch]]
-deps = ["Ccxt", "Data", "Dates", "ExchangeTypes", "Instruments", "Lang", "Misc", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
+deps = ["Ccxt", "Data", "ExchangeTypes", "Exchanges", "Instruments", "Lang", "Misc", "Pbar", "Processing", "Python", "Temporal", "TimeTicks"]
 path = "../Fetch"
 uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 version = "0.1.0"
@@ -578,7 +578,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "DataFrames", "DataFramesMeta", "DataStructures", "Dates", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
+deps = ["Data", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
 path = "../Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"

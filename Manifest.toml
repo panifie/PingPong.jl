@@ -414,7 +414,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderedCollections", "Pkg", "Processing", "Reexport", "StatsBase", "TimeTicks"]
+deps = ["Accessors", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "StatsBase", "TimeTicks"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"

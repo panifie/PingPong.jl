@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-beta4"
+julia_version = "1.9.0-rc1"
 manifest_format = "2.0"
 project_hash = "536c426b175368994463a3f5e38bd9d9b0c5dcc0"
 
@@ -29,7 +29,7 @@ uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.4.0"
 
 [[deps.Analysis]]
-deps = ["CausalityTools", "Data", "DataFrames", "DataFramesMeta", "EffectSizes", "ExchangeTypes", "Indicators", "LegibleLambdas", "Logging", "Misc", "ProgressMeter", "Requires", "StatsBase", "StatsModels", "Temporal", "TimeTicks"]
+deps = ["CausalityTools", "Data", "EffectSizes", "ExchangeTypes", "Indicators", "Lang", "Logging", "Misc", "Requires", "StatsBase", "StatsModels", "Temporal", "TimeTicks"]
 path = "../Analysis"
 uuid = "d4fe19c2-883d-48d3-92d7-80b36677371b"
 version = "0.1.0"
@@ -248,7 +248,7 @@ uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.7.8"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "Dates", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -651,12 +651,6 @@ version = "0.1.12"
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
-[[deps.LegibleLambdas]]
-deps = ["MacroTools"]
-git-tree-sha1 = "7946db4829eb8de47c399f92c19790f9cc0bbd07"
-uuid = "f1f30506-32fe-5131-bd72-7c197988f9e5"
-version = "0.3.0"
-
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
@@ -746,7 +740,7 @@ version = "1.1.7"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.0+0"
+version = "2.28.2+0"
 
 [[deps.Measurements]]
 deps = ["Calculus", "LinearAlgebra", "Printf", "RecipesBase", "Requires"]
@@ -827,7 +821,7 @@ version = "1.12.8"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.21+0"
+version = "0.3.21+4"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
