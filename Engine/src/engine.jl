@@ -6,10 +6,10 @@ using TimeTicks
 # include("consts.jl")
 # include("funcs.jl")
 include("types/types.jl")
+include("checks/checks.jl")
+include("sim/sim.jl")
 include("live/live.jl")
 include("strategies/strategies.jl");
-include("sim/sim.jl")
-include("checks/checks.jl")
 
 @reexport using .Strategies;
 using .Strategies
@@ -47,19 +47,17 @@ function backtest!(strat::Strategy, ctx::Context; trim_universe=false)
         local data = flatten(strat.universe)
         !check_alignment(data) && trim!(data)
     end
-    reset(ctx)
-    for date in ctx
-        while true
-            orders::Vector{Order} = process(strat, date)
-            length(orders) == 0 && break
-        end
+    reset(ctx.range, ctx.range.start + warmup(strat))
+    orders = Order[]
+    trades = []
+    for date in ctx.range
+        process(strat, date, orders, trades)
     end
 end
 
-@doc "Backtest passing a context arguments as a tuple."
-backtest!(strat; ctx, kwargs...) = begin
-    ctx = Context(ctx...)
-    backtest!(strat, ctx; kwargs...)
+@doc "Backtest with context of all data loaded in the strategy universe."
+backtest!(strat; kwargs...) = begin
+    backtest!(strat, Context(strat); kwargs...)
 end
 
 function execute(strat::Strategy, orders::Vector{LiveOrder})
