@@ -1,16 +1,17 @@
 module Collections
 
+using TimeTicks
 using Lang: @lget!, MatchString
 using Base.Enums: namemap
 using Data.DataFrames
 using Data.DataFramesMeta
 using Data: load, zi
+using Data.DFUtils
 using OrderedCollections: OrderedDict
 using DataStructures: SortedDict
-using TimeTicks
 using Misc: Iterable, swapkeys
 using ExchangeTypes
-using Instruments: fiatnames, AbstractAsset
+using Instruments: fiatnames, AbstractAsset, Asset
 using Instruments.Derivatives
 using ..Instances
 using Processing: resample
@@ -133,7 +134,8 @@ function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
     out
 end
 
-Base.first(ac::AssetCollection, a::AbstractAsset)::DataFrame = first(first(ac[a].instance).data)[2]
+Base.first(ac::AssetCollection, a::AbstractAsset)::DataFrame =
+    first(first(ac[a].instance).data)[2]
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
@@ -166,6 +168,20 @@ function stub!(ac::AssetCollection, src)
             append!(inst.data[tf], new_data)
         end
     end
+end
+
+@doc "Makes a daterange that spans the common min and max dates of the collection."
+function TimeTicks.DateRange(ac::AssetCollection, tf=nothing)
+    m = typemin(DateTime)
+    M = typemax(DateTime)
+    for ai in ac.data.instance
+        d_min = firstdate(first(values(ai.data)))
+        d_min > m && (m = d_min)
+        d_max = lastdate(last(ai.data).second)
+        d_max < M && (M = d_max)
+    end
+    tf = @something tf first(ac.data[begin, :instance].data).first
+    DateRange(m, M, tf)
 end
 
 export AssetCollection, flatten, stub!
