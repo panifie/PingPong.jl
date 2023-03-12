@@ -9,6 +9,7 @@ using Data.DFUtils: daterange, timeframe
 using Data: DataFrame
 using DataStructures: SortedDict
 using Instruments
+import Instruments: _hashtuple
 using Misc: config
 using Processing
 using Reexport
@@ -26,36 +27,42 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance27{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance34{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
-    history::Vector{Trade{Order{T,E}}}
+    history::Vector{Trade{Order{OrderType, T,E}}}
     cash::Vector{Float64}
     exchange::Ref{Exchange{E}}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    function AssetInstance27(
-        a::T, data, e::Exchange{I}
-    ) where {T<:AbstractAsset,I<:ExchangeID}
+    function AssetInstance34(
+        a::A, data, e::Exchange{E}
+    ) where {A<:AbstractAsset,E<:ExchangeID}
         limits = market_limits(a.raw, e)
         precision = market_precision(a.raw, e)
         fees = market_fees(a.raw, e)
-        new{T,I}(a, data, Trade{Order{T,I}}[], Float64[0], e, limits, precision, fees)
+        new{A,E}(
+            a, data, Trade{Order{OrderType,A,E}}[], Float64[0], e, limits, precision, fees
+        )
     end
-    function AssetInstance27(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        AssetInstance27(a.asset, args...; kwargs...)
+    function AssetInstance34(a::A, args...; kwargs...) where {A<:AbstractAsset}
+        AssetInstance34(a.asset, args...; kwargs...)
     end
-    function AssetInstance27(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance34(s::S, t::S, e::S) where {S<:AbstractString}
         a = Asset(s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance27(a, data, exc)
+        AssetInstance34(a, data, exc)
     end
-    AssetInstance27(s, t) = AssetInstance27(s, t, exc)
+    AssetInstance34(s, t) = AssetInstance34(s, t, exc)
 end
-AssetInstance = AssetInstance27
+AssetInstance = AssetInstance34
+
+_hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
+Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
+Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 
 function instance(exc::Exchange, a::AbstractAsset)
     data = Dict()
@@ -143,6 +150,10 @@ function _load_rest!(i, tfs, from_tf, from_data)
             end
         end
     end
+end
+
+function Orders.Order(ai::AssetInstance; kwargs...)
+    Order(ai.asset, ai.exchange[].id; kwargs...)
 end
 
 @doc "Pulls data from storage, or resample from the shortest timeframe available."

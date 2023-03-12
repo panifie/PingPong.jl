@@ -1,48 +1,7 @@
 module Instruments
 using Lang: @lget!
-import Base.==
-
-struct Cash4
-    name::Symbol
-    value::Vector{Float64}
-    Cash4(s, val::Real) = new(Symbol(s), [val])
-end
-
-@doc """A variable quantity of some currency.
-
-```julia
-> ca = c"USDT"
-> typeof(ca)
-# Instruments.Cash{:USDT}
-```
-
-"""
-Cash = Cash4
-Base.hash(c::Cash, h::UInt) = hash(c.name, h)
-Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
-Base.getproperty(c::Cash, s::Symbol) = begin
-    if s === :value
-        getfield(c, :value)[1]
-    elseif s === :id
-        c.name
-    else
-        getfield(c, s) ## throws
-    end
-end
-@doc """Macro to instantiate `Cash` statically.
-
-Don't put spaces between the id and the value.
-
-```julia
-> ca = c"USDT"1000
-USDT: 1000.0
-```
-"""
-macro c_str(sym, val=0)
-    :($(Cash(Symbol(sym), val)))
-end
-Base.print(c::Cash) = print("$(c.name): $(c.value)")
-Base.display(c::Cash) = print(c)
+import Base: ==, +, -, ÷, /, *
+include("cashcur.jl")
 
 @doc "A symbol checked to be a valid quote currency."
 const QuoteCurrency = Symbol
@@ -119,8 +78,9 @@ function Base.parse(
     end
     throw(InexactError(:Asset, Asset, s))
 end
-Base.hash(a::AbstractAsset) = hash((a.bc, a.qc))
-Base.hash(a::AbstractAsset, h::UInt) = Base.hash((a.bc, a.qc), h)
+_hashtuple(a::AbstractAsset) = (a.bc, a.qc)
+Base.hash(a::AbstractAsset) = hash(_hashtuple(a))
+Base.hash(a::AbstractAsset, h::UInt) = hash(_hashtuple(a), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.show(buf::IO, a::AbstractAsset) = write(buf, "Asset($(a.bc)/$(a.qc))")
 Base.display(a::AbstractAsset) = show(stdout, a)

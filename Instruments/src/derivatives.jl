@@ -100,8 +100,11 @@ end
 function ==(a::Derivative, b::Derivative)
     a.qc == b.qc && a.bc == b.bc && a.sc == b.sc
 end
-Base.hash(a::Derivative) = Base.hash((a.bc, a.qc, a.sc))
-Base.hash(a::Derivative, h::UInt64) = Base.hash((a.bc, a.qc, a.sc), h)
+function Instruments._hashtuple(a::Derivative)
+    (Instruments._hashtuple(getfield(a, :asset))..., getfield(a, :sc))
+end
+Base.hash(a::Derivative) = hash(_hashtuple(a))
+Base.hash(a::Derivative, h::UInt64) = hash(_hashtuple(a), h)
 Base.show(buf::IO, a::Derivative) = begin
     write(buf, "Derivative($(a.raw))")
 end
