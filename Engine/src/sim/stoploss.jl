@@ -1,20 +1,38 @@
 
 # TYPENUM
-struct Stoploss2{T}
+mutable struct Stoploss3{T}
+    const minloss::T
+    const maxloss::T
     loss::T
     loss_target::T
     trailing_loss::T
     trailing_loss_target::T
     trailing_offset::T
-    function Stoploss2(loss, trailing_loss=NaN, trailing_offset=0.0)
-        @assert loss > 0 "Stoploss below 0? How much do you plan to loose?"
-        @assert loss < 1 "Stoploss must be within (0, 1) percentage range."
-        new{eltype(loss)}(loss, 1 - loss, trailing_loss, 1 - trailing_loss, trailing_offset)
+    function Stoploss3(
+        loss::T, trailing_loss=NaN, trailing_offset=0.0; min=0.01, max=0.99
+    ) where {T}
+        loss = clamp(loss, min, max)
+        trailing_loss = clamp(trailing_loss, min, max)
+        trailing_offset = clamp(trailing_offset, min, max)
+        new{T}(min, max, loss, 1 - loss, trailing_loss, 1 - trailing_loss, trailing_offset)
     end
 end
-Stoploss = Stoploss2
+Stoploss = Stoploss3
 
-stopat(open , stop::Stoploss) = open * stop.target
+stop!(stop::Stoploss, loss) = begin
+    loss = clamp(loss, stop.minloss, stop.maxloss)
+    stop.loss = loss
+    stop.loss_target = 1 - loss
+end
+trailing!(stop::Stoploss, loss) = begin
+    loss = clamp(loss, stop.minloss, stop.maxloss)
+    stop.trailing_loss = loss
+    stop.trailing_loss_target = 1 - loss
+end
+function offset!(stop::Stoploss, ofs)
+    stop.trailing_offset = clamp(ofs, stop.minloss, stop.maxloss)
+end
+stopat(open, stop::Stoploss) = open * stop.target
 stopat(cdl::Candle, stop::Stoploss) = stoplossat(cdl.open, stop)
 
 @doc "For stoploss to trigger, the low must be lower or equal the target price."
