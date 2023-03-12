@@ -2,13 +2,15 @@ module Checks
 using ..Instances
 using ..Orders
 using Accessors: setproperties
-using Lang: Option
+using Lang: Option, @ifdebug
 
-toprecision(n::Int, prec::Int) = n - mod(n, prec)
+toprecision(n::Integer, prec::Integer) = n - mod(n, prec)
 @doc "When precision is a float it represents the pip."
-toprecision(n::Float64, prec::Float64) = n - mod(n, prec)
-@doc "When precision is a Integer it represents the number of decimals."
-toprecision(n::Float64, prec::Int) = round(n; digits=prec)
+function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
+    n - mod(n, prec)
+end
+@doc "When precision is a Integereger it represents the number of decimals."
+toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
 
 @doc """Price and amount value of an order are adjusted by subtraction.
 
@@ -16,20 +18,24 @@ Which means that their output values will always be lower than their input, **ex
 for the case in which their values would fall below the exchange minimums. In such case \
 the exchange minimum is returned.
 """
-function sanitize_price_amount(inst::AssetInstance, price, amount)
-    sanitized_price = if inst.limits.price.min > 0 && price < inst.limits.price.min
-        inst.limits.price.min
-    else
-        max(toprecision(price, inst.precision.price), inst.limit.price.min)
-    end
-    sanitized_amount = if inst.limits.amount.min > 0 && amount < inst.limits.amount.min
+function sanitize_amount(inst::AssetInstance, amount)
+    if inst.limits.amount.min > 0 && amount < inst.limits.amount.min
         inst.limits.amount.min
     elseif inst.precision.amount < 0 # has to be a multiple of 10
         max(toprecision(Int(amount), 10), inst.limits.amount.min)
     else
         toprecision(amount, inst.precision.amount)
     end
-    return (sanitized_price, sanitized_amount)
+end
+
+@doc """ See `sanitize_amount`.
+"""
+function sanitize_price(inst::AssetInstance, price)
+    if inst.limits.price.min > 0 && price < inst.limits.price.min
+        inst.limits.price.min
+    else
+        max(toprecision(price, inst.precision.price), inst.limits.price.min)
+    end
 end
 
 function check_cost(inst::AssetInstance, price, amount)
