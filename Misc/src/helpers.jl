@@ -93,3 +93,17 @@ function swapkeys(dict::AbstractDict{K,V}, k_type::Type, f; dict_type=Dict) wher
     end
     out
 end
+
+function isstrictlysorted(itr...)
+    y = iterate(itr)
+    y === nothing && return true
+    prev, state = y
+    y = iterate(itr, state)
+    while y !== nothing
+        this, state = y
+        prev < this || return false
+        prev = this
+        y = iterate(itr, state)
+    end
+    return true
+end

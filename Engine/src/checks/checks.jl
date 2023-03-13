@@ -3,6 +3,10 @@ using ..Instances
 using ..Orders
 using Accessors: setproperties
 using Lang: Option, @ifdebug
+using Misc: isstrictlysorted
+
+struct SanitizeOn end
+struct SanitizeOff end
 
 toprecision(n::Integer, prec::Integer) = n - mod(n, prec)
 @doc "When precision is a float it represents the pip."
@@ -38,21 +42,44 @@ function sanitize_price(inst::AssetInstance, price)
     end
 end
 
-function check_cost(inst::AssetInstance, price, amount)
-    @assert price * amount >= inst.limits.cost.min "The cost of the order ($(inst.asset)) \
-        is below market minimum of $(inst.limits.cost.min)"
+function _cost_msg(asset, direction, value)
+    "The cost of the order ($asset) is $direction market minimum of $value"
 end
 
-@doc "Ensures the order respect the minimum limits (not the maximum!) and precision for the market."
-function sanitize_order(
-    inst::AssetInstance{A,E}, o::Order{A,E}
-)::Option{Order{A,E}} where {A,E}
-    (price, amount) = sanitize_price_amount(inst, o.price, o.amount)
-    o = setproperties(o; price, amount)
-    check_cost(inst, o.price, o.amount)
-    return o
+@doc """ The cost of the order should not be below the minimum for the exchange.
+"""
+function checkmincost(inst::AssetInstance, price, amount)
+    iszero(inst.limits.cost.min) ||
+        @assert price * amount >= inst.limits.cost.min _cost_msg(
+            inst.asset, "below", inst.limits.cost.min
+        )
+end
+@doc """ The cost of the order should not be above the maximum for the exchange.
+"""
+function checkmaxcost(inst::AssetInstance, price, amount)
+    iszero(inst.limits.cost.max) || @assert price * amount < inst.limits.cost.min _cost_msg(
+        inst.asset, "above", inst.limits.cost.max
+    )
 end
 
-export sanitize_order
+@doc """ Checks that the last price given is below maximum, and the first is above minimum.
+In other words, it expects all given prices to be already sorted."""
+function checkcost(inst::AssetInstance, amount, p1, prices...)
+    for p in Iterators.reverse(prices)
+        isnothing(p) || (checkmaxcost(inst, amount, p); break)
+    end
+    checkmincost(inst, amount, p1)
+end
+function checkcost(inst::AssetInstance, amount, p1)
+    checkmaxcost(inst, amount, p1)
+    checkmincost(inst, amount, p1)
+end
+
+@doc """ Checks that the given prices are sorted. """
+function check_monotonic(prices...)
+    @assert isstrictlysorted(Iterators.filter(!isnothing, prices)...) "Prices should be sorted, e.g. stoploss < price < takeprofit"
+end
+
+export SanitizeOn, SanitizeOff
 
 end
