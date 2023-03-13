@@ -9,29 +9,31 @@ using ..Collections
 using ..Instances
 using ..Orders
 using ..LiveOrders
+using ..Engine
 using Instruments
 using TimeTicks
 
-const AssetInstanceDict{E} = Dict{
-    AbstractAsset,Ref{AssetInstance{AbstractAsset,ExchangeID{E}}}
-}
+const ExchangeAsset{E} = AssetInstance{AbstractAsset,E}
+const ExchangeOrder{E} = Order{OrderType,AbstractAsset,E}
 # TYPENUM
-struct Strategy48{M,E}
+struct Strategy54{M,E<:ExchangeID}
     mod::Module
     universe::AssetCollection
-    balances::AssetInstanceDict{E}
-    orders::AssetInstanceDict{E}
+    holdings::Dict{AbstractAsset,ExchangeAsset{E}}
+    orders::Dict{AbstractAsset,Vector{ExchangeOrder{E}}}
+    timeframe::TimeFrame
     cash::Cash
     config::Config
-    function Strategy48(mod::Module, assets::Union{Dict,Iterable{String}}, config::Config)
+    function Strategy54(mod::Module, assets::Union{Dict,Iterable{String}}, config::Config)
         exc = getexchange!(config.exchange)
         uni = AssetCollection(assets; exc)
         ca = Cash(config.qc, config.initial_cash)
         eid = typeof(exc.id)
-        pf = AssetInstanceDict{eid}()
-        orders = AssetInstanceDict{eid}()
+        holdings = Dict{AbstractAsset,ExchangeAsset{eid}}()
+        orders = Dict{AbstractAsset,Vector{ExchangeOrder{eid}}}()
         name = nameof(mod)
-        new{name,exc.id}(mod, uni, pf, orders, ca, config)
+        timeframe = @something mod.TF config.timeframe first(config.timeframes)
+        new{name,eid}(mod, uni, holdings, orders, timeframe, ca, config)
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -43,17 +45,24 @@ The strategy type is concrete according to:
 The exchange and the quote cash should be specified from the config, or the strategy module.
 
 - `universe`: All the assets that the strategy knows about
-- `balances`: assets with open orders or non zero balance.
-- `orders`: all active orders
+- `holdings`: assets with non zero balance.
+- `orders`: active orders
+- `timeframe`: the smallest timeframe the strategy uses
 - `cash`: the quote currency used for trades
+
+Conventions for strategy defined attributes:
+- `NAME`: the name of the strategy could be different from module name
+- `S`: the strategy type.
+- `EXCID`: same as `exchange(S)`
+- `TF`: the smallest `timeframe` that the strategy uses
 """
-Strategy = Strategy48
+Strategy = Strategy54
 
 @doc "Clears all orders history from strategy."
-clearorders!(strat::Strategy) = begin
+resethistory!(strat::Strategy) = begin
     empty!(strat.orders)
     for inst in strat.universe.data.instance
-        empty!(inst.orders)
+        empty!(inst.history)
     end
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
@@ -64,12 +73,33 @@ reload!(strat::Strategy) = begin
     end
 end
 
+@doc "Creates a context within the available data loaded into the strategy universe with the smallest timeframe available."
+Engine.Context(s::Strategy) = begin
+    dr = DateRange(s.universe)
+    Engine.Context(dr)
+end
+
 ## Strategy interface
-process(::Strategy, date::DateTime, orders::Vector{Order}=[]) = orders
-assets(::Strategy, e::ExchangeID=nothing) = Asset[]
-marketsid(::Strategy) = String[]
+@doc "Called on each timestep iteration, possible multiple times.
+Receives:
+- `current_time`: the current timestamp to evaluate (the current candle would be `current_time - timeframe`).
+- `orders`: orders that failed on the previous call.
+- `trades`: the dict of active trades, the strategy can access, but should not modify."
+process(::Strategy, current_time) = nothing
+@doc "On which assets the strategy should be active."
+assets(::Strategy) = AbstractAsset[]
+@doc "On which exchange the strategy should be active."
 exchange(::Strategy) = nothing
+@doc "Called to construct the strategy, should return the strategy instance."
 load(::Strategy) = nothing
+@doc "How much lookback data the strategy needs. Used for backtesting."
+warmup(s::Strategy) = s.timeframe.period
+
+macro interface()
+    quote
+        import Engine.Strategies: process, assets, exchange, load, warmup
+    end
+end
 
 macro notfound(path)
     quote
@@ -103,23 +133,27 @@ function loadstrategy!(src::Symbol, cfg=config)
         throw(ArgumentError("Symbol $src not found in config $(config.path)."))
     end
     path = find_path(file, cfg)
-    mod = @eval begin
-        include($path)
-        using .$src
-        # Core.eval(Main, :(using .$(nameof($src))))
-        if isdefined(Main, :Revise)
-            Core.eval(Main, :(Revise.track($$src)))
+    mod = if !isdefined(@__MODULE__, src)
+        @eval begin
+            include($path)
+            using .$src
+            # Core.eval(Main, :(using .$(nameof($src))))
+            if isdefined(Main, :Revise)
+                Core.eval(Main, :(Revise.track($$src)))
+            end
+            $src
         end
-        $src
+    else
+        @eval $src
     end
     loadstrategy!(mod, cfg)
 end
 function loadstrategy!(mod::Module, cfg=config)
+    strat_exc = invokelatest(mod.exchange, mod.S).sym
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
-        cfg.exchange = exchange(mod.S)
+        cfg.exchange = strat_exc
     end
-    strat_exc = invokelatest(mod.exchange, mod.S).sym
     @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.load, mod.S, cfg)
@@ -134,7 +168,7 @@ function Base.display(strat::Strategy)
         write(out, string(Collections.prettydf(strat.universe)))
         write(out, "\n")
         write(out, "Balances:\n")
-        write(out, string(strat.balances))
+        write(out, string(strat.holdings))
         write(out, "\n")
         write(out, "Orders:\n")
         write(out, string(strat.orders))
@@ -144,6 +178,8 @@ function Base.display(strat::Strategy)
     end
 end
 
-export Strategy, loadstrategy!, process, assets
+include("orders/orders.jl")
+
+export Strategy, loadstrategy!, process, assets, exchange, load, warmup, @interface
 
 end
