@@ -35,7 +35,7 @@ const exc  = ExchangeID(:bybit)
 const S = Strategy{name, exc}
 
 function load(::Type{S}, cfg)
-    pairs = marketids(S)
+    pairs = marketsid(S)
     Strategy(MyStrategy, pairs, cfg)
 end
 

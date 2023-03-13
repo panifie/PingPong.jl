@@ -25,8 +25,8 @@ function leverage_func(exc, with_leveraged, with_futures)
     end
 end
 
-marketids(args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
-marketids(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+marketsid(args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+marketsid(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
 tickers(quot::Symbol, args...; kwargs...) = tickers(exc, quot, args...; kwargs...)
 
 aspair(k, v) = k => v

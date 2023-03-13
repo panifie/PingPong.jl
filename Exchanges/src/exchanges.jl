@@ -134,18 +134,16 @@ macro tickers(force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
-        begin
-            local $tickers
-            let nm = $(exc).name
-                if $force || nm ∉ keys(tickers_cache)
-                    @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                    tickers_cache[nm] =
-                        $tickers = pyconvert(
-                            Dict{String,Dict{String,Any}}, pyfetch($(exc).fetchTickers)
-                        )
-                else
-                    $tickers = tickers_cache[nm]
-                end
+        local $tickers
+        let nm = $(exc).name
+            if $force || nm ∉ keys(tickers_cache)
+                @assert hastickers($exc) "Exchange doesn't provide tickers list."
+                tickers_cache[nm] =
+                    $tickers = pyconvert(
+                        Dict{String,Dict{String,Any}}, pyfetch($(exc).fetchTickers)
+                    )
+            else
+                $tickers = tickers_cache[nm]
             end
         end
     end
