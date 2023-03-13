@@ -137,19 +137,44 @@ macro exportenum(enums...)
     end
     expr
 end
-
-@doc "Import all instances of an enum type."
-macro importenum(T)
-    ex = quote end
-    mod = T.args[1]
-    for val in instances(Core.eval(__module__, T))
-        str = Meta.parse("import $mod.$val")
-        ex = quote
-            Core.eval($__module__, $str)
-            $ex
+function firsthead(expr::Expr, sym::Symbol)
+    if sym == expr.head
+        return expr
+    end
+    for arg in expr.args
+        if isa(arg, Expr)
+            e = firsthead(arg, sym)
+            isnothing(e) || return e
         end
     end
-    return ex
+    return nothing
+end
+
+@doc "Import all instances of an enum type."
+macro importenum(stmt)
+    ex = quote
+        $stmt
+    end
+    @assert stmt.head ∈ (:import, :using)
+    enums = firsthead(stmt, :(:))
+    for e in enums.args
+        push!(
+            ex.args,
+            quote
+                for i in instances($e)
+                    using i: i
+                end
+            end,
+        )
+    end
+    # for val in instances(Core.eval(__module__, T))
+    #     str = Meta.parse("import .$mod.$val")
+    #     ex = quote
+    #         Core.eval($__module__, $str)
+    #         $ex
+    #     end
+    # end
+    return stmt
 end
 
 macro as(sym, val)
@@ -197,7 +222,9 @@ macro sym_str(s)
 end
 
 @doc "A `MatchString` should be used to dispatch string specific functions with some supertype context."
-struct MatchString{S<:AbstractString} s::S end
+struct MatchString{S<:AbstractString}
+    s::S
+end
 @doc "A string literal as a `MatchString`."
 macro m_str(s)
     :(MatchString($s))
