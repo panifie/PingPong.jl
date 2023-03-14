@@ -1,3 +1,16 @@
+# countdecimals(num::Float64) = abs(Base.Ryu.reduce_shortest(num)[2])
+# insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
+
+function _find_module(sym)
+    hasproperty(@__MODULE__, sym) && return getproperty(@__MODULE__, sym)
+    hasproperty(Main, sym) && return getproperty(Main, sym)
+    try
+        return @eval (using $sym; $sym)
+    catch
+    end
+    nothing
+end
+
 function queryfromstruct(T::Type, sep=","; kwargs...)
     query = try
         T(; kwargs...)
@@ -107,3 +120,4 @@ function isstrictlysorted(itr...)
     end
     return true
 end
+

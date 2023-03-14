@@ -1,6 +1,11 @@
 using TimeTicks
 const td_tf = TimeTicks.td_tf
 
+abstract type ExecMode end
+struct Sim <: ExecMode end
+struct Paper <: ExecMode end
+struct Live <: ExecMode end
+
 const StrOrVec = Union{AbstractString,AbstractVector}
 
 default_local_dir(args...) = "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...))"
@@ -28,3 +33,4 @@ end
 include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
+export ExecMode, Sim, Paper, Live

@@ -28,6 +28,7 @@ function keys_path(exc_name::AbstractString)
     joinpath(cfg_dir, file)
 end
 
+# TODO: should be unified into a single `secrets.toml` file
 function exchange_keys(name)::Dict{String,Any}
     try
         local cfg
@@ -63,7 +64,7 @@ end
 """
 @kwdef mutable struct Config17
     path::String = ""
-    mode::ExecMode = Sim
+    mode::ExecMode = Sim()
     exchange::Symbol = Symbol()
     qc::Symbol = :USDT
     margin::Bool = false
@@ -116,7 +117,7 @@ end
 function _parse(k, v)
     if k == :exec
         mode = Symbol(titlecase(string(v)))
-        @eval Misc.$mode
+        @eval Misc.$mode()
     else
         v
     end
