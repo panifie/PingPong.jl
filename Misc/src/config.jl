@@ -42,20 +42,28 @@ function exchange_keys(name)::Dict{String,Any}
 end
 
 @doc """The config main structure:
-- `window`: The default number of candles (OHLCV).
-- `timeframe`: The default timeframe of the candles.
+- `path`: File path that loaded this config.
+- `mode`: Execution mode (`Sim`, `Paper`, `Live`)
+- `exchange`: A symbol to instantiate an exchange (a raw ExchangeID symbol)
 - `qc`: The default quote currency.
 - `margin`: If margin is enabled, only margin pairs are considered.
 - `leverage`:
-    - `:yes` : leveraged pairs will not be filtered.
+    - `:yes` : Leveraged pairs will not be filtered.
     - `:only` : ONLY leveraged will not be filtered.
     - `:from` : Selects non leveraged pairs, that also have a leveraged siblings.
-- `futures`: Selects the futures version of an Exchange.
+- `futures`: Selects the futures version of an Exchange and/or markets.
+- `vol_min`: A minimum acceptable volume, e.g. for filtering markets.
+- `initial_cash`: Starting cash, used when instantiating a strategy.
+- `base_amount`: Default order size.
+- `base_timeframe`: The default (shortest) timeframe of the candles.
+- `timeframes`: Vector of sorted timeframes that the strategy uses (for loading data).
+- `window`: (deprecated) The default number of candles (OHLCV).
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config15
+@kwdef mutable struct Config17
     path::String = ""
+    mode::ExecMode = Sim
     exchange::Symbol = Symbol()
     qc::Symbol = :USDT
     margin::Bool = false
@@ -76,7 +84,7 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config15
+Config = Config17
 
 @doc "Global configuration instance."
 const config = Config()
@@ -105,16 +113,25 @@ function _toml!(cfg, name)
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end
 end
+function _parse(k, v)
+    if k == :exec
+        mode = Symbol(titlecase(string(v)))
+        @eval Misc.$mode
+    else
+        v
+    end
+end
 function _options!(cfg, name)
     options = fieldnames(Config)
     for (opt, val) in cfg.toml[name]
         sym = Symbol(opt)
         if sym ∈ options
-            config!(cfg, sym, val)
+            config!(cfg, sym, _parse(sym, val))
         else
             cfg.attrs[opt] = val
         end
     end
+    sort!(cfg.timeframes)
 end
 _sources!(cfg, name) = begin
     for (k, v) in cfg.toml["sources"]
