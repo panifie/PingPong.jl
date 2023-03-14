@@ -177,4 +177,4 @@ function __init__()
     resetconfig!()
 end
 
-export Config, loadconfig!, resetconfig!, exchange_keys
+export Config, config, loadconfig!, resetconfig!, exchange_keys

@@ -1,4 +1,5 @@
 module Backtest
+using Misc
 using Processing.Alignments
 using ..Executors: Executors
 using ..Executors.Engine.Types

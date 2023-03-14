@@ -47,13 +47,14 @@ struct Order14{OrderType,A<:AbstractAsset,E<:ExchangeID}
     function Order14(
         a::A,
         e::E;
+        type=Limit,
         date=now(),
         price=0.0,
         amount=(config.base_amount),
         attrs=(;),
         kwargs...,
     ) where {A<:AbstractAsset,E<:ExchangeID}
-        new{Limit,A,E}(a, e, date, price, amount, attrs)
+        new{type,A,E}(a, e, date, price, amount, attrs)
     end
 end
 Order = Order14
