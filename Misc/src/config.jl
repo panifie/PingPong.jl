@@ -54,7 +54,7 @@ end
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config14
+@kwdef mutable struct Config15
     path::String = ""
     exchange::Symbol = Symbol()
     qc::Symbol = :USDT
@@ -65,7 +65,7 @@ end
     initial_cash::Float64 = 100.0
     base_amount::Float64 = 10.0
     base_timeframe::TimeFrame = tf"1m"
-    timeframes::Tuple{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
+    timeframes::Vector{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
     window::Period = Day(7) # deprecated
     # - `slope/min/max`: Used in Analysios/slope.
     # - `ct`: Used in Analysis/corr.
@@ -76,11 +76,15 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config14
+Config = Config15
 
 @doc "Global configuration instance."
 const config = Config()
 const SourcesDict = Dict{Symbol,String}
+
+@doc "Sets a single config value."
+config!(c::Config, k, v) = setproperty!(c, k, v)
+globalconfig!(k, v) = config!(config, k, v)
 
 _path!(cfg, path) = begin
     if !isfile(path)
@@ -106,7 +110,7 @@ function _options!(cfg, name)
     for (opt, val) in cfg.toml[name]
         sym = Symbol(opt)
         if sym ∈ options
-            setcfg!(cfg, sym, val)
+            config!(cfg, sym, val)
         else
             cfg.attrs[opt] = val
         end
@@ -137,7 +141,7 @@ end
 function resetconfig!(c=config)
     default = Config()
     for k in fieldnames(Config)
-        setcfg!(c, k, getproperty(default, k))
+        config!(c, k, getproperty(default, k))
     end
 end
 
@@ -151,10 +155,8 @@ macro lev!()
     :(config.leverage = !config.leverage)
 end
 
-@doc "Sets a single config value."
-setcfg!(c::Config, k, v) = setproperty!(c, k, v)
-globalcfg!(k, v) = setcfg!(config, k, v)
-
-resetconfig!()
+function __init__()
+    resetconfig!()
+end
 
 export Config, loadconfig!, resetconfig!, exchange_keys

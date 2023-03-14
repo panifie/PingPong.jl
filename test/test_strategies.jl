@@ -4,7 +4,7 @@ end
 function test_strategies()
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Sim: Sim as sim
+        using PingPong.Engine.Simulations: Simulations as sim
         using Data: Data as da
     end
 

@@ -260,7 +260,7 @@ end
 function _fetch_ohlcv_with_delay(exc::Exchange, args...; kwargs...)
     limit = get(kwargs, :limit, nothing)
     limit = fetch_limit(exc, limit)
-    timeframe = get(kwargs, :timeframe, config.timeframe)
+    timeframe = get(kwargs, :timeframe, config.base_timeframe)
     params = get(kwargs, :params, PyDict())
     function fetch_func(pair, since, limit)
         pyfetch(exc.py.fetchOHLCV, pair; since, limit, timeframe, params)

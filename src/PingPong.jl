@@ -23,7 +23,7 @@ function __init__()
 end
 
 export Engine,
-    marketids,
+    marketsid,
     tickers,
     load_ohlcv,
     user!,

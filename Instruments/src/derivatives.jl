@@ -103,8 +103,8 @@ end
 function Instruments._hashtuple(a::Derivative)
     (Instruments._hashtuple(getfield(a, :asset))..., getfield(a, :sc))
 end
-Base.hash(a::Derivative) = hash(_hashtuple(a))
-Base.hash(a::Derivative, h::UInt64) = hash(_hashtuple(a), h)
+Base.hash(a::Derivative) = hash(Instruments._hashtuple(a))
+Base.hash(a::Derivative, h::UInt64) = hash(Instruments._hashtuple(a), h)
 Base.show(buf::IO, a::Derivative) = begin
     write(buf, "Derivative($(a.raw))")
 end

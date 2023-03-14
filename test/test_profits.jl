@@ -22,7 +22,7 @@ end
 test_profits() = @testset "profits" begin
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Sim: Sim as sim
+        using PingPong.Engine.Simulations: Simulations as sim
         using Data: Data as da
     end
     _highfirst_1()

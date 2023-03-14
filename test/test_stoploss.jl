@@ -27,7 +27,7 @@ end
 test_stoploss() = @testset "stoploss" begin
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Sim: Sim as sim
+        using PingPong.Engine.Simulations: Simulations as sim
         using Data: Data as da
     end
     _stoploss_1()
