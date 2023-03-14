@@ -16,7 +16,7 @@ end
 
 """
 Cash = Cash8
-Base.nameof(_::Cash{S}) where {S} = S.parameters[1]
+Base.nameof(_::Cash{S}) where {S} = S
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
 Base.getproperty(c::Cash, s::Symbol) = begin
