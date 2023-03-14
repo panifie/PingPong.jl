@@ -1,4 +1,4 @@
-module Sim
+module Simulations
 
 include("mootils.jl")
 using .Mootils: Mootils as mt

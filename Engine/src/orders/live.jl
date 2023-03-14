@@ -12,16 +12,18 @@ using ..Orders
 `delay`: how much time has passed since the order request \
           and the exchange execution of the order (to account for api issues).
 """
-mutable struct LiveOrder5{A<:AbstractAsset,E<:ExchangeID}
+mutable struct LiveOrder5{O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
     asset::Ref{AssetInstance{A,E}}
-    order::Order{A,E}
+    order::Order{O,A,E}
     delay::Millisecond
-    function LiveOrder5(i::AssetInstance, o::Order; delay=Millisecond(0))
-        new{A,E}(i, o, date, delay)
+    function LiveOrder5(
+        i::AssetInstance{A,E}, o::Order{O,A,E}; delay=ms(0)
+    ) where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
+        new{O,A,E}(i, o, date, delay)
     end
-    function LiveOrder5(a::AssetInstance, amt::Float64; kwargs...)
-        order = Order(a.asset, a.exc.id, kind, amt)
-        LiveOrder5(order, kwargs...)
+    function LiveOrder5(a::AssetInstance, amount::Float64; delay=ms(0), kwargs...)
+        order = Order(a.asset, a.exc.id; amount, kwargs...)
+        LiveOrder5(order; delay)
     end
 end
 

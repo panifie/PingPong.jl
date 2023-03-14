@@ -1,4 +1,3 @@
-
 # """ Should only be called when cash is available """
 # function buyat(i, c, ctx, trades::Dict{Symbol, Trade})
 #     if trades[c].status == 1

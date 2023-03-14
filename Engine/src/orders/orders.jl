@@ -1,6 +1,12 @@
-using ..Orders
-using ..Instances
-using .Engine.Checks: sanitize_price, sanitize_amount, check_cost
+module Orders
+using Lang: @lget!
+using ..Types.Orders
+using ..Types.Instances
+using ..Engine: Engine
+using ..Engine.Checks
+using ..Engine.Checks: sanitize_price, sanitize_amount, checkcost, check_monotonic
+using ..Engine.Strategies: Strategy
+using ..Engine.Executors: Executors
 
 function _docheck(checker, ai, whats...)
     ai = esc(ai)
@@ -8,7 +14,9 @@ function _docheck(checker, ai, whats...)
     expr = quote end
     for w in whats
         w = esc(w)
-        push!(expr.args, :($w = $checker($ai, $w)))
+        push!(expr.args, :(isnothing($w) || begin
+            $w = $checker($ai, $w)
+        end))
     end
     expr
 end
@@ -23,3 +31,5 @@ macro amount!(ai, amounts...)
 end
 
 include("limit.jl")
+
+end

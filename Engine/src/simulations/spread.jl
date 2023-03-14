@@ -2,7 +2,7 @@ using Lang
 using TimeTicks
 # using ..Strategies
 # using ..Collections
-using ..Instances
+using ..Types.Instances
 using Data.DFUtils
 using Instruments
 

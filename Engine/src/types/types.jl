@@ -1,3 +1,4 @@
+module Types
 using Reexport
 
 include("context.jl")
@@ -8,4 +9,5 @@ include("collections.jl")
 for m in (:Orders, :Instances, :Collections)
     @eval @reexport using .$m
 end
-export Context
+
+end

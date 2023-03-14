@@ -1,6 +1,6 @@
 module Checks
-using ..Instances
-using ..Orders
+using ..Types.Instances
+using ..Types.Orders
 using Accessors: setproperties
 using Lang: Option, @ifdebug
 using Misc: isstrictlysorted
@@ -8,10 +8,15 @@ using Misc: isstrictlysorted
 struct SanitizeOn end
 struct SanitizeOff end
 
-toprecision(n::Integer, prec::Integer) = n - mod(n, prec)
+_minusmod(n, prec) = begin
+    m = mod(n, prec)
+    isapprox(m, prec) ? n : n - m
+end
+
+toprecision(n::Integer, prec::Integer) = _minusmod(n, prec)
 @doc "When precision is a float it represents the pip."
 function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
-    n - mod(n, prec)
+    _minusmod(n, prec)
 end
 @doc "When precision is a Integereger it represents the number of decimals."
 toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
