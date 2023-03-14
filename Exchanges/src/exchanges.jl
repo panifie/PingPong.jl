@@ -130,7 +130,7 @@ end
 end
 
 @doc "Fetch and cache tickers data."
-macro tickers(force=false)
+macro tickers!(force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
     quote
@@ -154,7 +154,7 @@ end
 function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
-    @tickers
+    @tickers!
     f_markets = Dict()
     for (p, info) in markets
         _, pquot = split(p, sep)
@@ -173,7 +173,7 @@ end
 
 @doc "Get price ranges using tickers data from exchange."
 function price_ranges(pair::AbstractString, args...; kwargs...)
-    tkrs = @tickers true
+    tkrs = @tickers! true
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
 end
 

@@ -52,7 +52,7 @@ function tickers(
     as_vec=false,
 )::Union{Dict,Vector}
     # swap exchange in case of futures
-    @tickers
+    @tickers!
     pairlist = []
     quot = string(quot)
 
