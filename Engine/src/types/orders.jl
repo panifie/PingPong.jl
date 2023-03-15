@@ -4,15 +4,14 @@ using Data: Candle
 using TimeTicks
 using Instruments
 using Exchanges
-using Lang: Lang, @exportenum
+using Lang: Lang
 
-@enum OrderType begin
-    Limit
-    Market
-    Stop
-    Ladder
-    Rebalance
-end
+abstract type OrderType end
+struct LimitOrder <: OrderType end
+struct MarketOrder <: OrderType end
+struct StopOrder <: OrderType end
+struct LadderOrder <: OrderType end
+struct RebalanceOrder <: OrderType end
 
 # TYPENUM
 @doc """An Order is a container for trades, tied to an `AssetInstance`.
@@ -37,7 +36,7 @@ Positive amount is a buy, negative is a sell.
     @assert isequal(avail_ohlcv.timestamp[end] + tf.period, dt"2020-05-24T02:30:00")
     ```
  """
-struct Order14{OrderType,A<:AbstractAsset,E<:ExchangeID}
+struct Order14{T<:OrderType,A<:AbstractAsset,E<:ExchangeID}
     asset::A
     exc::E
     date::DateTime
@@ -47,14 +46,14 @@ struct Order14{OrderType,A<:AbstractAsset,E<:ExchangeID}
     function Order14(
         a::A,
         e::E;
-        type=Limit,
+        _::O=LimitOrder(),
         date=now(),
         price=0.0,
         amount=(config.min_amount),
         attrs=(;),
         kwargs...,
-    ) where {A<:AbstractAsset,E<:ExchangeID}
-        new{type,A,E}(a, e, date, price, amount, attrs)
+    ) where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
+        new{O,A,E}(a, e, date, price, amount, attrs)
     end
 end
 Order = Order14
@@ -98,7 +97,6 @@ struct CompositeTrade2{O<:Order}
 end
 CompositeTrade = CompositeTrade2
 
-@exportenum OrderType
-export Order, OrderType, Trade
+export Order, OrderType, LimitOrder, MarketOrder, StopOrder, Trade
 
 end
