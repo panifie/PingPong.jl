@@ -20,13 +20,13 @@ macro excfilter(exc_name)
     end
     quote
         local trg
-        @info "timeframe: $(config.base_timeframe), window: $(config.window), quote: $(config.qc), min_vol: $(config.vol_min)"
+        @info "timeframe: $(config.min_timeframe), window: $(config.window), quote: $(config.qc), min_vol: $(config.min_vol)"
         @exchange! $exc_name
 
         # How should we filter the pairs?
         pred = @λ(x -> slopeangle(x; n=config.window)[end])
         # load the data from exchange with the quote currency and timeframe from config
-        data = ((x -> $bt.load_ohlcv($bt.Data.zi, $exc_name, x, config.base_timeframe))(
+        data = ((x -> $bt.load_ohlcv($bt.Data.zi, $exc_name, x, config.min_timeframe))(
             $bt.Exchanges.tickers($exc_name, config.qc)
         ))
         # apply the filter

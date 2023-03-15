@@ -50,7 +50,7 @@ struct Order14{OrderType,A<:AbstractAsset,E<:ExchangeID}
         type=Limit,
         date=now(),
         price=0.0,
-        amount=(config.base_amount),
+        amount=(config.min_amount),
         attrs=(;),
         kwargs...,
     ) where {A<:AbstractAsset,E<:ExchangeID}

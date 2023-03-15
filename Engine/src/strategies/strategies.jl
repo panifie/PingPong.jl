@@ -28,8 +28,10 @@ struct Strategy56{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         self::Module, mode=Sim; assets::Union{Dict,Iterable{String}}, config::Config
     )
         exc = getexchange!(config.exchange)
-        timeframe = @something self.TF config.base_timeframe first(config.timeframes)
-        uni = AssetCollection(assets; timeframe=string(timeframe), exc)
+        timeframe = @something self.TF config.min_timeframe first(config.timeframes)
+        uni = AssetCollection(
+            assets; timeframe=string(timeframe), exc, min_amount=config.min_amount
+        )
         ca = Cash(config.qc, config.initial_cash)
         eid = typeof(exc.id)
         holdings = Dict{AbstractAsset,ExchangeAsset{eid}}()
@@ -81,10 +83,13 @@ instances(s::Strategy) = s.universe.data.instance
 @doc "Strategy main exchange id."
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
 
+@doc "Returns the strategy execution mode."
+Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
+
 @doc "Creates a context within the available data loaded into the strategy universe with the smallest timeframe available."
-Types.Context(s::Strategy) = begin
+Types.Context(s::Strategy{<:ExecMode}) = begin
     dr = DateRange(s.universe)
-    Types.Context(dr)
+    Types.Context(execmode(s), dr)
 end
 
 ## Strategy interface
@@ -167,7 +172,7 @@ end
 
 function Base.show(out::IO, strat::Strategy)
     write(out, "Strategy name: $(typeof(strat))\n")
-    write(out, "Base Amount: $(strat.config.base_amount)\n")
+    write(out, "Base Amount: $(strat.config.min_amount)\n")
     n_inst = nrow(strat.universe)
     n_exc = length(unique(strat.universe.exchange))
     write(out, "Universe: $n_inst instances, $n_exc exchanges")
@@ -181,5 +186,7 @@ end
 
 export Strategy, loadstrategy!, resethistory!
 export @interface, assets, exchange
+
+include("utils.jl")
 
 end

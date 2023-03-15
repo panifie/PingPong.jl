@@ -1,11 +1,14 @@
 module Orders
+using Reexport
 using Lang: @lget!
-using ..Types.Orders
+using Misc
+using ExchangeTypes
+@reexport using ..Types.Orders
 using ..Types.Instances
 using ..Engine: Engine
 using ..Engine.Checks
 using ..Engine.Checks: sanitize_price, sanitize_amount, checkcost, check_monotonic
-using ..Engine.Strategies: Strategy
+using ..Engine.Strategies: Strategy, ExchangeOrder, Strategies as st
 using ..Engine.Executors: Executors
 
 function _docheck(checker, ai, whats...)

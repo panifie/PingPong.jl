@@ -93,9 +93,9 @@ end
 function _remove_incomplete_candle(in_df, tf)
     df = in_df isa SubDataFrame ? copy(in_df) : in_df
     if isincomplete(df[end, :timestamp], tf)
-        last_candle = copy(df[end, :])
+        lastcandle = copy(df[end, :])
         deleteat!(df, lastindex(df, 1))
-        @debug "Dropping last candle ($(last_candle[:timestamp] |> string)) because it is incomplete."
+        @debug "Dropping last candle ($(lastcandle[:timestamp] |> string)) because it is incomplete."
     end
     df
 end

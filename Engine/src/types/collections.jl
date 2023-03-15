@@ -40,6 +40,7 @@ struct AssetCollection2
         assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
         timeframe="15m",
         exc::Exchange=ExchangeTypes.exc,
+        min_amount=config.min_amount,
     )
         if eltype(assets) == String
             assets = [parse(AbstractAsset, name) for name in assets]
@@ -48,7 +49,7 @@ struct AssetCollection2
         tf = convert(TimeFrame, timeframe)
         function getInstance(ast::AbstractAsset)
             data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
-            AssetInstance(ast, data, exc)
+            AssetInstance(ast, data, exc; min_amount)
         end
         instances = [getInstance(ast) for ast in assets]
         AssetCollection2(instances)

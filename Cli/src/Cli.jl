@@ -137,7 +137,7 @@ Downsamples ohlcv data from a timeframe to another.
 )
     @splitexchanges!
 
-    vol = config.vol_min
+    vol = config.min_vol
     @choosepairs
 
     for (exc, prs) in pairs

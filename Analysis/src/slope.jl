@@ -3,7 +3,7 @@ const ind = Indicators;
 using DataFrames: DataFrame, AbstractDataFrame
 
 function slopefilter(
-    timeframe=config.base_timeframe; qc=config.qc, minv=10.0, maxv=90.0, window=20
+    timeframe=config.min_timeframe; qc=config.qc, minv=10.0, maxv=90.0, window=20
 )
     @assert exc.issset "Global exchange variable is not set."
     pairs = tickers(exc, qc)

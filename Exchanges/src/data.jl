@@ -16,7 +16,7 @@ function load_ohlcv(
     load_ohlcv(zi, exc, pairs, timeframe)
 end
 @doc "Load all pairs from exchange according to config quote currency and timeframe."
-load_ohlcv() = load_ohlcv(tickers(config.qc), convert(String, config.base_timeframe))
+load_ohlcv() = load_ohlcv(tickers(config.qc), convert(String, config.min_timeframe))
 function load_ohlcv(zi, exc, pairs::AbstractDict, timeframe)
     load_ohlcv(zi, exc, keys(pairs), timeframe)
 end

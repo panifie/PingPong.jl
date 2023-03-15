@@ -53,10 +53,10 @@ end
     - `:only` : ONLY leveraged will not be filtered.
     - `:from` : Selects non leveraged pairs, that also have a leveraged siblings.
 - `futures`: Selects the futures version of an Exchange and/or markets.
-- `vol_min`: A minimum acceptable volume, e.g. for filtering markets.
+- `min_vol`: A minimum acceptable volume, e.g. for filtering markets.
 - `initial_cash`: Starting cash, used when instantiating a strategy.
-- `base_amount`: Default order size.
-- `base_timeframe`: The default (shortest) timeframe of the candles.
+- `min_amount`: Default order size.
+- `min_timeframe`: The default (shortest) timeframe of the candles.
 - `timeframes`: Vector of sorted timeframes that the strategy uses (for loading data).
 - `window`: (deprecated) The default number of candles (OHLCV).
 - `attrs`: Generic metadata container.
@@ -70,10 +70,10 @@ end
     margin::Bool = false
     leverage::Symbol = :no # FIXME: Should be enum
     futures::Bool = false
-    vol_min::Float64 = 10e4
     initial_cash::Float64 = 100.0
-    base_amount::Float64 = 10.0
-    base_timeframe::TimeFrame = tf"1m"
+    min_vol::Float64 = 10e4
+    min_amount::Float64 = 10.0
+    min_timeframe::TimeFrame = tf"1m"
     timeframes::Vector{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
     window::Period = Day(7) # deprecated
     # - `slope/min/max`: Used in Analysios/slope.

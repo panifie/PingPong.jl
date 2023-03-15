@@ -30,16 +30,16 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 struct AssetInstance34{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
-    history::Vector{Trade{Order{OrderType, T,E}}}
+    history::Vector{Trade{Order{OrderType,T,E}}}
     cash::Vector{Float64}
     exchange::Ref{Exchange{E}}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
     function AssetInstance34(
-        a::A, data, e::Exchange{E}
+        a::A, data, e::Exchange{E}; min_amount=config.min_amount
     ) where {A<:AbstractAsset,E<:ExchangeID}
-        limits = market_limits(a.raw, e)
+        limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
         precision = market_precision(a.raw, e)
         fees = market_fees(a.raw, e)
         new{A,E}(
@@ -50,7 +50,7 @@ struct AssetInstance34{T<:AbstractAsset,E<:ExchangeID}
         AssetInstance34(a.asset, args...; kwargs...)
     end
     function AssetInstance34(s::S, t::S, e::S) where {S<:AbstractString}
-        a = Asset(s)
+        a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
@@ -99,13 +99,13 @@ Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
 end
 
 @doc "Get the last available candle strictly lower than `apply(tf, date)`"
-function last_candle(i::AssetInstance, tf::TimeFrame, date::DateTime)
+function lastcandle(i::AssetInstance, tf::TimeFrame, date::DateTime)
     i.data[tf][available(tf, date)]
 end
 
-@inline function last_candle(i::AssetInstance, date::DateTime)
+function lastcandle(i::AssetInstance, date::DateTime)
     tf = first(keys(i.data))
-    last_candle(i, tf, date)
+    lastcandle(i, tf, date)
 end
 
 function _check_timeframes(tfs, from_tf)
@@ -165,5 +165,5 @@ function Base.fill!(i::AssetInstance, tfs...)
     _load_rest!(i, tfs, from_tf, from_data)
 end
 
-export AssetInstance, isactive, instance, load!, last_candle
+export AssetInstance, isactive, instance, load!, lastcandle
 end
