@@ -123,15 +123,34 @@ function py_str_to_float(py::Py)
     (x -> Base.parse(Float64, x))(pyconvert(String, py))
 end
 
+const DEFAULT_LEVERAGE = (; min=0.0, max=100.0)
+const DEFAULT_AMOUNT = (; min=1e-15, max=Inf)
+const DEFAULT_PRICE = (; min=1e-15, max=Inf)
+const DEFAULT_COST = (; min=1e-15, max=Inf)
+
+function _minmax_pair(mkt, l, default)
+    Symbol(l) => (;
+        min=pyconvert(Float64, (@py get(mkt[l], "min", default.min))),
+        max=pyconvert(Float64, (@py get(mkt[l], "max", default.max))),
+    )
+end
+
 @doc "Minimum order size of the of the market."
-function market_limits(pair::AbstractString, exc::Exchange=exc)
+function market_limits(
+    pair::AbstractString,
+    exc::Exchange=exc;
+    default_leverage=DEFAULT_LEVERAGE,
+    default_amount=DEFAULT_AMOUNT,
+    default_price=DEFAULT_PRICE,
+    default_cost=DEFAULT_COST,
+)
     mkt = exc.markets[pair]["limits"]
     (;
         (
-            Symbol(l) => (;
-                min=pyconvert(Float64, (@py get(mkt[l], "min", 0.0))),
-                max=pyconvert(Float64, (@py get(mkt[l], "max", 0.0))),
-            ) for l in ("leverage", "amount", "price", "cost")
+            _minmax_pair(mkt, "leverage", default_leverage),
+            _minmax_pair(mkt, "amount", default_amount),
+            _minmax_pair(mkt, "price", default_price),
+            _minmax_pair(mkt, "cost", default_cost),
         )...
     )
 end
