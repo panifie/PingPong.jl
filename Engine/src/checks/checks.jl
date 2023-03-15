@@ -62,7 +62,7 @@ end
 @doc """ The cost of the order should not be above the maximum for the exchange.
 """
 function checkmaxcost(inst::AssetInstance, price, amount)
-    iszero(inst.limits.cost.max) || @assert price * amount < inst.limits.cost.min _cost_msg(
+    iszero(inst.limits.cost.max) || @assert price * amount < inst.limits.cost.max _cost_msg(
         inst.asset, "above", inst.limits.cost.max
     )
 end
