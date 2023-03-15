@@ -5,6 +5,7 @@ abstract type ExecMode end
 struct Sim <: ExecMode end
 struct Paper <: ExecMode end
 struct Live <: ExecMode end
+const execmode = Returns(Sim)
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 
@@ -33,4 +34,4 @@ end
 include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
-export ExecMode, Sim, Paper, Live
+export ExecMode, execmode, Sim, Paper, Live
