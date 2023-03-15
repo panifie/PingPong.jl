@@ -3,7 +3,7 @@ using Misc
 using Processing.Alignments
 using ..Executors: Executors
 using ..Executors.Engine.Types
-using ..Executors.Engine.Strategies: Strategy, warmup, ping!
+using ..Executors.Engine.Strategies: Strategy, warmup, ping!, resethistory!
 using ..Executors.Engine.Simulations: Simulations as sim
 
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
@@ -44,15 +44,6 @@ end
 
 @doc "Backtest with context of all data loaded in the strategy universe."
 backtest!(strat; kwargs...) = backtest!(strat, Context(strat); kwargs...)
-
-@doc "Called from the strategy, tells the executor to process "
-function Executors.pong!(s::Strategy{Sim}, ctx, args...; kwargs...)
-    for o in s.orders
-        # Each order
-        cdl = last_candle(o.asset, o.date)
-        # spread = sim.spread(cdl.high, cdl.low, cdl.close)
-    end
-end
 
 export backtest!
 

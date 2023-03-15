@@ -3,7 +3,7 @@ using ..Types
 using ..Strategies: Strategy
 using ..Engine: Engine
 
-pong!(s::Strategy, ctx, args...; kwargs...) = error("Not Implemented")
+const pong! = Returns(ErrorException("Not Implemented"))
 
 const execute! = pong!
 
