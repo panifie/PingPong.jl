@@ -9,10 +9,9 @@ end
 _profitat() = begin
     open = 100
     close = 90
-    amount = 1
     fee = 0.01
     digits = 4
-    p = sim.profitat(open, close, amount, fee; digits)
+    p = sim.profitat(open, close, fee; digits)
     @test p ≈ -0.1178
     spl = string(p)
     parts = split(spl, ".", limit=2)

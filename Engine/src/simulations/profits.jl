@@ -1,13 +1,12 @@
 @doc "When the candle is _red_, `high` happens before `low`."
 ishighfirst(open, close) = close <= open
-using Core: @__doc__
 
 @doc "Calc the profits given the open and close price, with amounts and fees.
 
 - The `*_price` is the _quote_ price, usually within OHLC boundaries.
-- The `amount` is the *quantity* of the _quote_ currency."
-function profitat(open_price::Real, close_price, amount, fee; digits=8)
-    shares = amount / open_price
+"
+function profitat(open_price::Real, close_price, fee; digits=8)
+    shares = 1. / open_price
     # How much the trade is worth at open
     open_value = shares * open_price
     # How much the trade is worth at close
