@@ -2,110 +2,17 @@ using Requires
 
 include("zarr_utils.jl")
 
-using DataFrames: DataFrameRow
+using DataFrames: DataFrameRow, AbstractDataFrame
 using DataFramesMeta
 using TimeTicks
 using Lang: @as, @ifdebug
 using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
 
-const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
-const OHLCV_COLUMNS_COUNT = length(OHLCV_COLUMNS)
-const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
-const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
-
-@kwdef struct Candle{T<:AbstractFloat}
-    timestamp::DateTime
-    open::T
-    high::T
-    low::T
-    close::T
-    volume::T
-    Candle(args...; kwargs...) = begin
-        new{Float64}(args...; kwargs...)
-    end
-    Candle(t::NamedTuple) = Candle(t...)
-    Candle(t::Tuple) = Candle(t...)
-end
-
-default(::Type{Candle}) = Candle(DateTime(0), 0, 0, 0, 0, 0)
-@doc "Similar to a StructArray (and should probably be replaced by it), used for fast conversion."
-const OHLCVTuple = Tuple{Vector{DateTime},Vararg{Vector{Float64},5}}
-OHLCVTuple()::OHLCVTuple = (DateTime[], (Float64[] for _ in 2:length(OHLCV_COLUMNS))...)
-Base.append!(a::T, b::T) where {T<:OHLCVTuple} = foreach(splat(append!), zip(a, b))
-Base.axes(o::OHLCVTuple) = ((Base.OneTo(size(v, 1)) for v in o)...,)
-Base.axes(o::OHLCVTuple, i) = Base.OneTo(size(o[i], 1))
-Base.getindex(o::OHLCVTuple, i, j) = o[j][i]
-
-@kwdef struct PairData
-    name::String
-    tf::String # string
-    data::Union{Nothing,AbstractDataFrame} # in-memory data
-    z::Union{Nothing,ZArray} # reference zarray
-end
-
-function Base.convert(
-    ::Type{AbstractDict{String,N}}, d::AbstractDict{String,PairData}
-) where {N<:AbstractDataFrame}
-    Dict(p.name => p.data for p in values(d))
-end
-
-macro check_td(args...)
-    local check_data
-    if !isempty(args)
-        check_data = esc(args[1])
-    else
-        check_data = esc(:za)
-    end
-    col = esc(:saved_col)
-    td = esc(:td)
-    quote
-        if size($check_data, 1) > 1
-            timeframe_match = timefloat($check_data[2, $col] - $check_data[1, $col]) == $td
-            if !timeframe_match
-                @warn "Saved date not matching timeframe, resetting."
-                throw(
-                    TimeFrameError(
-                        string($check_data[1, $col]),
-                        string($check_data[2, $col]),
-                        convert(Second, Millisecond($td)),
-                    ),
-                )
-            end
-        end
-    end
-end
-
-@doc "Redefines given variable to a Matrix with type of the underlying container type."
-macro as_mat(data)
-    tp = esc(:type)
-    d = esc(data)
-    quote
-        # Need to convert to Matrix otherwise assignement throws dimensions mismatch...
-        # this allocates...
-        if !(typeof($d) <: Matrix{$tp})
-            $d = Matrix{$tp}($d)
-        end
-    end
-end
-
-@doc "Same as `as_mat` but returns the new matrix."
-macro to_mat(data, tp=nothing)
-    if tp === nothing
-        tp = esc(:type)
-    else
-        tp = esc(tp)
-    end
-    d = esc(data)
-    quote
-        # Need to convert to Matrix otherwise assignement throws dimensions mismatch...
-        # this allocates...
-        if !(typeof($d) <: Matrix{$tp})
-            Matrix{$tp}($d)
-        else
-            $d
-        end
-    end
-end
+include("candles.jl")
+include("ohlcv.jl")
+include("pairdata.jl")
+include("matrices.jl")
+include("timedeltas.jl")
 
 function nearestl2(n)
     log2 = round(log(n) / log(2))
@@ -120,60 +27,6 @@ function chunksize(data; parts=100, def=DEFAULT_CHUNK_SIZE[1])
     len = nearestl2(n) ÷ n_rest
     # If we multiply the size of all the dimensions we should get a number close to a power of 2
     (max(def, round(Int, len)), sz_rest...)
-end
-
-@doc "The time interval of the dataframe, guesses from the difference between the first two rows."
-function data_td(data)
-    @ifdebug @assert size(data, 1) > 1 "Need a timeseries of at least 2 points to find a time delta."
-    data.timestamp[2] - data.timestamp[1]
-end
-
-@doc "`combinerows` of two (OHLCV) dataframes over using `:timestamp` column as index."
-function combine_data(prev, data)
-    df1 = DataFrame(prev, OHLCV_COLUMNS; copycols=false)
-    df2 = DataFrame(data, OHLCV_COLUMNS; copycols=false)
-    combinerows(df1, df2; idx=:timestamp)
-end
-
-@doc "(Right)Merge two dataframes on key, assuming the key is ordered and unique in both dataframes."
-function combinerows(df1, df2; idx::Symbol)
-    # all columns
-    columns = union(names(df1), names(df2))
-    empty_tup2 = (; zip(Symbol.(names(df2)), Array{Missing}(missing, size(df2)[2]))...)
-    l2 = size(df2)[1]
-
-    c2 = 1
-    i2 = df2[c2, idx]
-    rows = []
-    for (n, r1) in enumerate(Tables.namedtupleiterator(df1))
-        i1 = getindex(r1, idx)
-        if i1 < i2
-            push!(rows, merge(empty_tup2, r1))
-        elseif i1 === i2
-            push!(rows, merge(r1, df2[c2, :]))
-        elseif c2 < l2 # bring the df2 index to the df1 position
-            c2 += 1
-            i2 = df2[c2, idx]
-            while i2 < i1 && c2 < l2
-                c2 += 1
-                i2 = df2[c2, idx]
-            end
-            i2 === i1 && push!(rows, merge(r1, df2[c2, :]))
-        else # merge the rest of df1
-            for rr1 in Tables.namedtupleiterator(df1[n:end, :])
-                push!(rows, merge(empty_tup2, rr1))
-            end
-            break
-        end
-    end
-    # merge the rest of df2
-    if c2 < l2
-        empty_tup1 = (; zip(Symbol.(names(df1)), Array{Missing}(missing, size(df1)[2]))...)
-        for r2 in Tables.namedtupleiterator(df2[c2:end, :])
-            push!(rows, merge(empty_tup1, r2))
-        end
-    end
-    DataFrame(rows; copycols=false)
 end
 
 mutable struct TimeFrameError <: Exception
@@ -426,13 +279,6 @@ end
 @doc "Construct a `DataFrame` without copying."
 df!(args...; kwargs...) = DataFrame(args...; copycols=false, kwargs...)
 
-function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
-    df = DataFrame(data; copycols=false)
-    df.timestamp[:] = apply.(timeframe, df.timestamp)
-    df
-end
-to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
-
 function __ensure_ohlcv_zarray(zi, key)
     function get(reset)
         _get_zarray(zi, key, OHLCV_CHUNK_SIZE; overwrite=true, type=Float64, reset)[1]
@@ -531,11 +377,6 @@ function _check_contiguity(
         throw(LeftContiguityException(dt(saved_last_ts), dt(data_first_ts)))
 end
 
-@enum CandleField cdl_ts = 1 cdl_o = 2 cdl_h = 3 cdl_lo = 4 cdl_cl = 5 cdl_vol = 6
-
-const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
-
-Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 
 export ZarrInstance, zilmdb, PairData
 export df!, @as_mat, @to_mat
