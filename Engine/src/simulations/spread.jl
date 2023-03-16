@@ -112,18 +112,15 @@ spread(::Val{:edge2}, args...; kwargs...) = edge2spread(args...; kwargs...)
 spread(::Val{:abra}, args...; kwargs...) = abraspread(args...; kwargs...)
 spread(::Val{:opcl}, args...; kwargs...) = opclspread(args...; kwargs...)
 
-function spreadat(v::Val{:log}, df::AbstractDataFrame, date)
-    idx = dateindex(df, date)
+function spreadat(v::Val{:log}, df::AbstractDataFrame, idx)
     spread(v, (@splatpairs df idx :high :low :close)...)
 end
 
-function spreadat(v::Union{Val{:abra},Val{:raw}}, df::AbstractDataFrame, date)
-    idx = dateindex(df, date)
+function spreadat(v::Union{Val{:abra},Val{:raw}}, df::AbstractDataFrame, idx)
     spread(v, df.high[idx], df.low[idx], df.close[idx])
 end
 
-function spreadat(v::Val{:opcl}, df::AbstractDataFrame, date; nonzero=false)
-    idx = dateindex(df, date)
+function spreadat(v::Val{:opcl}, df::AbstractDataFrame, idx; nonzero=false)
     s = spread(v, df.close[idx - 1], df.open[idx])
     nonzero || return s
     while s == 0.0
@@ -133,50 +130,52 @@ function spreadat(v::Val{:opcl}, df::AbstractDataFrame, date; nonzero=false)
     return s
 end
 
-@views function spreadat(v::Val{:cosch}, df, date; window=5)
-    idx = dateindex(df, date)
+@views function spreadat(v::Val{:cosch}, df, idx; window=5)
     high = df.high[(idx - window + 1):idx]
     low = df.low[(idx - window + 1):idx]
     spread(v, high, low; window=0)
 end
 
-_closewin(df, date, window) = begin
-    idx = dateindex(df, date)
+_closewin(df, idx, window) = begin
     @view df.close[(idx - window + 1):idx]
 end
 
-spreadat(v::Val{:roll}, df, date; window=5) = spread(v, _closewin(df, date, window))
-spreadat(v::Val{:sqrt}, df, date; window=5) = spread(v, _closewin(df, date, window))
+spreadat(v::Val{:roll}, df, idx; window=5) = spread(v, _closewin(df, idx, window))
+spreadat(v::Val{:sqrt}, df, idx; window=5) = spread(v, _closewin(df, idx, window))
 
-function spreadat(v::Val{:edge}, df::AbstractDataFrame, date; window=5)
-    idx = dateindex(df, date)
+function spreadat(v::Val{:edge}, df::AbstractDataFrame, idx; window=5, kwargs...)
     if window > 0
         start = idx - window + 1
         high = df.high[start:idx]
         low = df.low[start:idx]
-        spread(v, high, low)
+        spread(v, high, low; kwargs...)
     else
-        spread(v, df.high[idx], df.low[idx])
+        spread(v, df.high[idx], df.low[idx]; kwargs...)
     end
 end
 
-function spreadat(v::Val{:edge2}, df::AbstractDataFrame, date)
-    idx = dateindex(df, date)
+function spreadat(v::Val{:edge2}, df::AbstractDataFrame, idx; kwargs...)
     prev_idx = idx - 1
-    spread(v, df.high[idx], df.low[idx], df.high[prev_idx], df.low[prev_idx])
+    spread(v, df.high[idx], df.low[idx], df.high[prev_idx], df.low[prev_idx]; kwargs...)
+end
+
+function spreadat(inst::AssetInstance, idx, v::Val=Val(:opcl); kwargs...)
+    spreadat(v, inst.ohlcv, idx; kwargs...)
 end
 
 @doc "Calc the spread of an asset instance at a specified date.
 
 If date is not provided, the last available date will be considered."
-function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:opcl))
-    spreadat(v, inst.ohlcv, date)
+function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:opcl); kwargs...)
+    idx = dateindex(df, date)
+    spreadat(v, inst.ohlcv, idx; kwargs...)
 end
 
-function spreadat(inst::AssetInstance, v::Val=Val(:opcl))
+function spreadat(inst::AssetInstance, v::Val=Val(:opcl); kwargs...)
     data = inst.ohlcv
     date = data.timestamp[end]
-    spreadat(v, data, date)
+    idx = dateindex(df, date)
+    spreadat(v, data, idx; kwargs...)
 end
 
 export spread, spreadat
