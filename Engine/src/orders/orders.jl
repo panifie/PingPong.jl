@@ -10,6 +10,7 @@ using ..Engine.Checks
 using ..Engine.Checks: sanitize_price, sanitize_amount, checkcost, check_monotonic
 using ..Engine.Strategies: Strategy, ExchangeOrder, Strategies as st
 using ..Engine.Executors: Executors
+using ..Engine.Simulations: Simulations as sim
 
 function _docheck(checker, ai, whats...)
     ai = esc(ai)
@@ -33,6 +34,7 @@ macro amount!(ai, amounts...)
     _docheck(:sanitize_amount, ai, amounts...)
 end
 
+include("utils.jl")
 include("limit.jl")
 
 end
