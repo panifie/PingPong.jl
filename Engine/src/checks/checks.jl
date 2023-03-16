@@ -69,11 +69,13 @@ end
 
 @doc """ Checks that the last price given is below maximum, and the first is above minimum.
 In other words, it expects all given prices to be already sorted."""
-function checkcost(inst::AssetInstance, amount, p1, prices...)
+function checkcost(inst::AssetInstance, amount, prices...)
     for p in Iterators.reverse(prices)
         isnothing(p) || (checkmaxcost(inst, amount, p); break)
     end
-    checkmincost(inst, amount, p1)
+    for p in prices
+        isnothing(p) || (checkmincost(inst, amount, p); break)
+    end
 end
 function checkcost(inst::AssetInstance, amount, p1)
     checkmaxcost(inst, amount, p1)
