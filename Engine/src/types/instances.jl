@@ -86,6 +86,8 @@ isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
 Base.getproperty(a::AssetInstance, f::Symbol) = begin
     if f == :cash
         getfield(a, :cash)[1]
+    elseif f == :ohlcv
+        first(getfield(a, :data)).second
     else
         getfield(a, f)
     end
