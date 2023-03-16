@@ -97,6 +97,8 @@ struct CompositeTrade2{O<:Order}
 end
 CompositeTrade = CompositeTrade2
 
-export Order, OrderType, LimitOrder, MarketOrder, StopOrder, Trade
+const ordersdefault! = Returns(nothing)
+
+export Order, OrderType, LimitOrder, MarketOrder, StopOrder, Trade, ordersdefault!
 
 end
