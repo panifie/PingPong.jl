@@ -3,7 +3,7 @@ module Analysis
 using Requires
 using TimeTicks: td_tf, timefloat, @as_td
 using ExchangeTypes: Exchange, exc
-using Data: @to_mat, data_td, save_ohlcv, PairData, empty_ohlcv, DataFrames
+using Data: @to_mat, save_ohlcv, PairData, empty_ohlcv, DataFrames
 using .DataFrames: DataFrame, groupby, combine, Not, select!, index, rename!
 using Logging: NullLogger, with_logger
 

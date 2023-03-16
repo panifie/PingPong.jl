@@ -1,7 +1,7 @@
 using TimeTicks
 using Data: AbstractDataFrame
 const DF = Union{DateTime,Float64}
-const PricePair = NamedTuple{(:prev, :next),Tuple{DF,DF}}
+const PricePair = NamedTuple{(:prev, :this),Tuple{DF,DF}}
 LastTwo = @NamedTuple begin
     timestamp::PricePair
     open::PricePair
@@ -31,3 +31,9 @@ macro splatpairs(data, idx, syms...)
         ]...,
     )
 end
+
+# @doc "Get two adjacent candles of a ohlcv table."
+# function attwo(data::T where {T<:AbstractDataFrame}, date::DateTime)
+#     (; (field => lasttwo(getproperty(data, field)) for field in fieldnames(LastTwo))...)
+# end
+#

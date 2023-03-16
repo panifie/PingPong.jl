@@ -26,19 +26,20 @@ julia> t - tf"1m".period
 ```
 To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, instead of apply.
 """
-function backtest!(strat::Strategy, ctx::Context; trim_universe=false, doreset=true)
+function backtest!(s::Strategy, ctx::Context; trim_universe=false, doreset=true)
     # ensure that universe data start at the same time
     if trim_universe
-        let data = flatten(strat.universe)
+        let data = flatten(s.universe)
             !check_alignment(data) && trim!(data)
         end
     end
     if doreset
-        reset(ctx.range, ctx.range.start + warmup(strat))
-        resethistory!(strat)
+        reset(ctx.range, ctx.range.start + warmup(s))
+        resethistory!(s)
     end
+    ordersdefault!(s)
     for date in ctx.range
-        ping!(strat, date, ctx)
+        ping!(s, date, ctx)
     end
 end
 

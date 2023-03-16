@@ -1,7 +1,7 @@
 using TimeTicks
 using Lang: passkwargs, @ifdebug
 using Base: beginsym
-using Data: zi, data_td, save_ohlcv, PairData, empty_ohlcv, DataFrames
+using Data: zi, save_ohlcv, PairData, empty_ohlcv, DataFrames
 using Data.DFUtils
 using .DataFrames
 using Pbar

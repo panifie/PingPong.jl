@@ -17,8 +17,8 @@ _test_ohlcv_exc() = begin
     @assert pd.z isa ZArray
     @assert names(pd.data) == String.(OHLCV_COLUMNS)
     @assert size(pd.data)[1] > (count / 10 * 9) # if its less there is something wrong
-    last_candle = pd.data[end, :][1]
-    @assert islast(last_candle, timeframe)
+    lastcandle = pd.data[end, :][1]
+    @assert islast(lastcandle, timeframe)
     true
 end
 
