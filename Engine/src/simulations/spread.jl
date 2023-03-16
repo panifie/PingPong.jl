@@ -1,7 +1,5 @@
 using Lang
 using TimeTicks
-# using ..Strategies
-# using ..Collections
 using ..Types.Instances
 using Statistics: cov, mean
 using Data.DFUtils
@@ -171,11 +169,11 @@ end
 @doc "Calc the spread of an asset instance at a specified date.
 
 If date is not provided, the last available date will be considered."
-function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:raw))
+function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:opcl))
     spreadat(v, inst.ohlcv, date)
 end
 
-function spreadat(inst::AssetInstance, v::Val=Val(:raw))
+function spreadat(inst::AssetInstance, v::Val=Val(:opcl))
     data = inst.ohlcv
     date = data.timestamp[end]
     spreadat(v, data, date)

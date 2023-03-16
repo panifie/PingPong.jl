@@ -4,6 +4,7 @@ using TimeTicks
 using ExchangeTypes
 using Exchanges: getexchange!
 using Misc
+using Data.DataFrames: nrow
 using Instruments: AbstractAsset, Cash
 using ..Types
 using ..Types.Collections: AssetCollection
@@ -139,6 +140,9 @@ end
 Base.nameof(t::Type{Strategy}) = t.parameters[1]
 Base.nameof(s::Strategy) = name(typeof(s))
 
+@doc "Set strategy defaults."
+default!(::Strategy) = begin end
+
 function loadstrategy!(src::Symbol, cfg=config)
     file = get(cfg.sources, src, nothing)
     if isnothing(file)
@@ -170,18 +174,16 @@ function loadstrategy!(mod::Module, cfg=config)
     invokelatest(mod.load, mod.S, cfg)
 end
 
-function Base.show(out::IO, strat::Strategy)
-    write(out, "Strategy name: $(typeof(strat))\n")
-    write(out, "Base Amount: $(strat.config.min_amount)\n")
-    n_inst = nrow(strat.universe)
-    n_exc = length(unique(strat.universe.exchange))
+function Base.show(out::IO, s::Strategy)
+    write(out, "Strategy name: $(typeof(s))\n")
+    write(out, "Base Amount: $(s.config.min_amount)\n")
+    n_inst = nrow(s.universe.data)
+    n_exc = length(unique(s.universe.data.exchange))
     write(out, "Universe: $n_inst instances, $n_exc exchanges")
     write(out, "\n")
-    balance = isempty(strat.holdings) ? 0 : sum(a.cash for a in values(strat.holdings))
-    write(out, "Holdings: $balance \n")
-    write(out, "\n")
-    write(out, "Orders:\n")
-    write(out, string(strat.orders))
+    balance = isempty(s.holdings) ? 0 : sum(a.cash for a in values(s.holdings))
+    write(out, "Holdings: $balance $(s.cash)\n")
+    write(out, "Orders: $(length(s.orders))")
 end
 
 export Strategy, loadstrategy!, resethistory!
