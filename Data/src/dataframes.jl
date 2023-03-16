@@ -47,6 +47,11 @@ end
 
 @doc "Get the position of date in the `:timestamp` column of the dataframe."
 function dateindex(df::AbstractDataFrame, date::DateTime)
+    searchsortedlast(df.timestamp, date)
+end
+
+@doc "Get the position of date in the `:timestamp` column of the dataframe."
+function dateindex(df::AbstractDataFrame, date::DateTime, ::Val{:timeframe})
     (date - firstdate(df)) ÷ timeframe(df).period + 1
 end
 
