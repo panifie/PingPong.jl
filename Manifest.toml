@@ -287,7 +287,7 @@ uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.7.8"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "LRUCache", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -430,7 +430,7 @@ uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "StatsBase", "TimeTicks"]
+deps = ["Accessors", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "Statistics", "StatsBase", "TimeTicks"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"

@@ -1,4 +1,5 @@
+
 [pip.deps]
-uvloop = ""
 ccxt = ""
 numpy = ""
+uvloop = ""
