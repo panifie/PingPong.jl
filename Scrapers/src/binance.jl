@@ -38,7 +38,7 @@ const KIND = (;
     premium="premiumIndexKlines",
 )
 # syms availble for each path
-const QUERY_SYMS = IdDict{URI,Vector{String}}()
+const QUERY_SYMS = IdDict{Any,Vector{String}}()
 const CDN_URL = Ref(URI())
 const COLS = [1, 2, 3, 4, 5, 6]
 
@@ -86,16 +86,27 @@ function symlinkslist(s; kwargs...)
 end
 
 function binancesyms(; kwargs...)
-    url = make_url(; kwargs...)
-    @lget! QUERY_SYMS url begin
-        body = HTTP.get(url).body
-        html = ez.parsexml(body)
-        els = ez.elements(ez.elements(html.node)[1])
-        symname(el) = begin
-            sp = split(el.content, '/')
-            isempty(sp[end]) ? sp[end - 1] : sp[end]
+    @lget! QUERY_SYMS kwargs begin
+        key = key_path("allsyms"; kwargs...)
+        cached = ca.load_cache(key; raise=false, agemax=Week(1))
+        if isnothing(cached)
+            url = make_url(; kwargs...)
+            body = HTTP.get(url).body
+            html = ez.parsexml(body)
+            els = ez.elements(ez.elements(html.node)[1])
+            symname(el) = begin
+                sp = split(el.content, '/')
+                isempty(sp[end]) ? sp[end - 1] : sp[end]
+            end
+            Main.display!("binance.jl:101")
+            allsyms = [symname(el) for el in els if el.name == "CommonPrefixes"]
+            Main.display!("binance.jl:103")
+            ca.save_cache(key, allsyms)
+            Main.display!("binance.jl:105")
+            allsyms
+        else
+            cached
         end
-        [symname(el) for el in els if el.name == "CommonPrefixes"]
     end
 end
 
@@ -141,6 +152,7 @@ function binancesave(sym, ohlcv; reset=false, zi=zi[], path_kws...)
 end
 
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
+    cdn!()
     path_kws = filterkws(:market, :freq, :kind; kwargs)
     all_syms = binancesyms(; path_kws...)
     selected = selectsyms(syms, all_syms; quote_currency)
