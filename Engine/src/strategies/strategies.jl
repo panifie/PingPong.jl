@@ -5,7 +5,7 @@ using ExchangeTypes
 using Exchanges: getexchange!
 using Misc
 using Data.DataFrames: nrow
-using Instruments: AbstractAsset, Cash
+using Instruments: AbstractAsset, Cash, cash!
 using ..Types
 using ..Types.Collections: AssetCollection
 using ..Types.Instances: AssetInstance
@@ -14,18 +14,19 @@ using ..Engine: Engine
 
 abstract type AbstractStrategy end
 
-const ExchangeAsset{E} = AssetInstance{AbstractAsset,E}
-const ExchangeOrder{E} = Order{OrderType,AbstractAsset,E}
+const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
+const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 # TYPENUM
-struct Strategy56{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
+struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
-    universe::AssetCollection
-    holdings::Dict{AbstractAsset,ExchangeAsset{E}}
-    orders::Dict{AbstractAsset,Vector{ExchangeOrder{E}}}
-    timeframe::TimeFrame
-    cash::Cash
     config::Config
-    function Strategy56(
+    timeframe::TimeFrame
+    cash::Cash{S,Float64} where {S}
+    cash_committed::Cash{S,Float64} where {S}
+    orders::Dict{ExchangeAsset{E},Vector{ExchangeOrder{E}}}
+    holdings::Set{ExchangeAsset{E}}
+    universe::AssetCollection
+    function Strategy64(
         self::Module, mode=Sim; assets::Union{Dict,Iterable{String}}, config::Config
     )
         exc = getexchange!(config.exchange)
@@ -34,11 +35,12 @@ struct Strategy56{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
             assets; timeframe=string(timeframe), exc, min_amount=config.min_amount
         )
         ca = Cash(config.qc, config.initial_cash)
+        ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
-        holdings = Dict{AbstractAsset,ExchangeAsset{eid}}()
-        orders = Dict{AbstractAsset,Vector{ExchangeOrder{eid}}}()
+        holdings = Set{ExchangeAsset{eid}}()
+        orders = Dict{ExchangeAsset,Vector{ExchangeOrder{eid}}}()
         name = nameof(self)
-        new{mode,name,eid}(self, uni, holdings, orders, timeframe, ca, config)
+        new{mode,name,eid}(self, config, timeframe, ca, ca_comm, orders, holdings, uni)
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -60,18 +62,21 @@ Conventions for strategy defined attributes:
 - `S`: the strategy type.
 - `TF`: the smallest `timeframe` that the strategy uses
 """
-Strategy = Strategy56
+Strategy = Strategy64
 
-@doc "Clears all orders history from strategy."
-resethistory!(strat::Strategy) = begin
-    empty!(strat.orders)
-    for inst in strat.universe.data.instance
+@doc "Resets strategy."
+reset!(s::Strategy) = begin
+    empty!(s.orders)
+    empty!(s.holdings)
+    for inst in s.universe.data.instance
         empty!(inst.history)
+        cash!(inst.cash, 0.0)
     end
+    cash!(s.cash, s.config.initial_cash)
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
-reload!(strat::Strategy) = begin
-    for inst in strat.universe.data.instance
+reload!(s::Strategy) = begin
+    for inst in s.universe.data.instance
         empty!(inst.data)
         load!(inst; reset=true)
     end
@@ -101,14 +106,16 @@ Receives:
 "
 ping!(::Strategy, current_time, ctx, args...; kwargs...) = error("Not implemented")
 const evaluate! = ping!
+struct LoadStrategy <: ExecAction end
 @doc "Called to construct the strategy, should return the strategy instance."
-load(::Type{<:Strategy}) = nothing
-@doc "How much lookback data the strategy needs. Used for backtesting."
-warmup(s::Strategy) = s.timeframe.period
+ping!(::Type{<:Strategy}, ::LoadStrategy, ctx) = nothing
+struct WarmupPeriod <: ExecAction end
+@doc "How much lookback data the strategy needs."
+ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
 
 macro interface()
     quote
-        import Engine.Strategies: ping!, evaluate!, load, warmup
+        import Engine.Strategies: ping!, evaluate!
         using Engine.Strategies: assets, exchange
         using Engine: pong!, execute!
     end
@@ -137,8 +144,8 @@ function find_path(file, cfg)
     realpath(file)
 end
 
-Base.nameof(t::Type{Strategy}) = t.parameters[1]
-Base.nameof(s::Strategy) = name(typeof(s))
+Base.nameof(t::Type{<:Strategy}) = t.parameters[2]
+Base.nameof(s::Strategy) = nameof(typeof(s))
 
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end
@@ -171,24 +178,14 @@ function loadstrategy!(mod::Module, cfg=config)
     end
     @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
-    invokelatest(mod.load, mod.S, cfg)
+    invokelatest(mod.ping!, mod.S, LoadStrategy(), cfg)
 end
-
-function Base.show(out::IO, s::Strategy)
-    write(out, "Strategy name: $(typeof(s))\n")
-    write(out, "Base Amount: $(s.config.min_amount)\n")
-    n_inst = nrow(s.universe.data)
-    n_exc = length(unique(s.universe.data.exchange))
-    write(out, "Universe: $n_inst instances, $n_exc exchanges")
-    write(out, "\n")
-    balance = isempty(s.holdings) ? 0 : sum(a.cash for a in values(s.holdings))
-    write(out, "Holdings: $balance $(s.cash)\n")
-    write(out, "Orders: $(length(s.orders))")
-end
-
-export Strategy, loadstrategy!, resethistory!
-export @interface, assets, exchange
 
 include("utils.jl")
+include("print.jl")
+
+export Strategy, loadstrategy!, reset!
+export @interface, assets, exchange
+export LoadStrategy, WarmupPeriod
 
 end
