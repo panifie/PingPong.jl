@@ -1,5 +1,6 @@
 @doc "Import the module directly. `Cache` does not export any function."
 module Cache
+using TimeTicks
 using Misc: local_dir
 using CodecZlib
 using ..Data: tobytes, todata
@@ -21,12 +22,21 @@ function save_cache(k, data)
     end
 end
 
-function load_cache(k; raise=true)
+function load_cache(k; raise=true, agemax=nothing)
     key_path = joinpath(CACHE_PATH[], k)
     if !ispath(key_path)
         if raise
             throw(ArgumentError("Key $k does not exist."))
         else
+            return nothing
+        end
+    end
+    if !isnothing(agemax)
+        age = now() - unix2datetime(stat(key_path).mtime)
+        if age > agemax # TODO: what is the timezone returned by mtime?
+            if raise
+                throw(ArgumentError("Key $k data is older than $agemax."))
+            end
             return nothing
         end
     end
