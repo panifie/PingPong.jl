@@ -70,5 +70,6 @@ mul!(c::Cash, v) = (getfield(c, :value)[1] *= v; c)
 rdiv!(c::Cash, v) = (getfield(c, :value)[1] /= v; c)
 div!(c::Cash, v) = (getfield(c, :value)[1] ÷= v; c)
 mod!(c::Cash, v) = (getfield(c, :value)[1] %= v; c)
+cash!(c::Cash, v) = (getfield(c, :value)[1] = v; c)
 
-export add!, sub!, mul!, rdiv!, div!, mod!
+export add!, sub!, mul!, rdiv!, div!, mod!, cash!
