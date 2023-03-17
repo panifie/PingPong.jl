@@ -30,10 +30,28 @@ function _candleidx(df, idx, date)
 end
 
 @doc "Get the candle at given date from a ohlcv dataframe as a `Candle`."
-function candleat(df::AbstractDataFrame, date::DateTime)
+function candleat(df::AbstractDataFrame, date::DateTime; return_idx=false)
     idx = searchsortedlast(df.timestamp, date)
-    _candleidx(df, idx, date)
+    cdl = _candleidx(df, idx, date)
+    return_idx ? (cdl, idx) : cdl
 end
+
+macro candleat(col)
+    df = esc(:df)
+    date = esc(:date)
+    return_idx = esc(:return_idx)
+    quote
+        idx = searchsortedlast($df.timestamp, $date)
+        v = $df.$col[idx]
+        $return_idx ? (v, idx) : v
+    end
+end
+
+openat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat open
+highat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat high
+lowat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat low
+closeat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat close
+volumeat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat volume
 
 @doc "Same as `candleat` but also fetches the previous candle, returning a `Tuple{Candle, Candle}`."
 function candlepair(df::AbstractDataFrame, date::DateTime)
@@ -41,4 +59,4 @@ function candlepair(df::AbstractDataFrame, date::DateTime)
     (; prev=_candleidx(df, idx - 1, date), this=_candleidx(df, idx, date))
 end
 
-export Candle, candleat
+export Candle, candleat, openat, highat, lowat, closeat, volumeat
