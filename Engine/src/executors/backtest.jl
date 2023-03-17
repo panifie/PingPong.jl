@@ -3,7 +3,7 @@ using Misc
 using Processing.Alignments
 using ..Executors: Executors
 using ..Executors.Engine.Types
-using ..Executors.Engine.Strategies: Strategy, warmup, ping!, resethistory!
+using ..Executors.Engine.Strategies: Strategy, ping!, reset!, WarmupPeriod
 using ..Executors.Engine.Simulations: Simulations as sim
 
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
@@ -34,13 +34,14 @@ function backtest!(s::Strategy, ctx::Context; trim_universe=false, doreset=true)
         end
     end
     if doreset
-        reset(ctx.range, ctx.range.start + warmup(s))
-        resethistory!(s)
+        reset(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
+        reset!(s)
     end
     ordersdefault!(s)
     for date in ctx.range
         ping!(s, date, ctx)
     end
+    s
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."

@@ -1,6 +1,8 @@
 using Misc
 using TimeTicks
 
+abstract type ExecAction end
+
 # TYPENUM
 @doc """The configuration against which a strategy is tested.
 - `range`: The date range to backtest around.
@@ -33,4 +35,4 @@ struct Context10{M<:ExecMode}
 end
 Context = Context10
 
-export Context
+export Context, ExecAction
