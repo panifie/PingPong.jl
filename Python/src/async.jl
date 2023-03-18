@@ -63,6 +63,17 @@ end
 pytask(f::Py, args...; kwargs...) = pytask(f(args...; kwargs...), Val(:coro))
 pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
+# function isrunning_func(running)
+#     @pyexec (running) => """
+#     global jl, jlrunning
+#     import juliacall as jl
+#     jlrunning = running
+#     def isrunning(fut):
+#         if fut.done():
+#             jlrunning[0] = False
+#     """ => isrunning
+# end
+
 @doc "Main async loop function, sleeps indefinitely and closes loop on exception."
 function async_main_func()
     @pyexec () => """
