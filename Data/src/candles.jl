@@ -59,4 +59,29 @@ function candlepair(df::AbstractDataFrame, date::DateTime)
     (; prev=_candleidx(df, idx - 1, date), this=_candleidx(df, idx, date))
 end
 
-export Candle, candleat, openat, highat, lowat, closeat, volumeat
+@doc "Get the last candle from a ohlcv dataframe as a `Candle`."
+function candlelast(df::AbstractDataFrame)
+    idx = lastindex(df.timestamp)
+    _candleidx(df, idx, df.timestamp[idx])
+end
+
+macro candlelast(col)
+    df = esc(:df)
+    quote
+        idx = lastindex($df.timestamp)
+        $df.$col[idx]
+    end
+end
+
+openlast(df::AbstractDataFrame) = @candlelast open
+highlast(df::AbstractDataFrame) = @candlelast high
+lowlast(df::AbstractDataFrame) = @candlelast low
+closelast(df::AbstractDataFrame) = @candlelast close
+volumelast(df::AbstractDataFrame) = @candlelast volume
+
+candleavl(df::AbstractDataFrame, tf::TimeFrame, date) = candleat(df, available(tf, date))
+rowavl(df::AbstractDataFrame, tf::TimeFrame, date) = @view df[available(tf, date), :]
+
+export Candle, candleat, candlelast, candleavl, rowavl
+export openat, highat, lowat, closeat, volumeat
+export openlast, highlast, lowlast, closelast, volumelast
