@@ -47,24 +47,29 @@ function sanitize_price(inst::AssetInstance, price)
     end
 end
 
-function _cost_msg(asset, direction, value)
-    "The cost of the order ($asset) is $direction market minimum of $value"
+function _cost_msg(asset, direction, value, cost)
+    "The cost ($cost) of the order ($asset) is $direction market minimum of $value"
 end
 
 @doc """ The cost of the order should not be below the minimum for the exchange.
 """
 function checkmincost(inst::AssetInstance, price, amount)
-    iszero(inst.limits.cost.min) ||
-        @assert price * amount >= inst.limits.cost.min _cost_msg(
-            inst.asset, "below", inst.limits.cost.min
+    iszero(inst.limits.cost.min) || begin
+        cost = price * amount
+        @assert cost >= inst.limits.cost.min _cost_msg(
+            inst.asset, "below", inst.limits.cost.min, cost
         )
+    end
 end
 @doc """ The cost of the order should not be above the maximum for the exchange.
 """
 function checkmaxcost(inst::AssetInstance, price, amount)
-    iszero(inst.limits.cost.max) || @assert price * amount < inst.limits.cost.max _cost_msg(
-        inst.asset, "above", inst.limits.cost.max
-    )
+    iszero(inst.limits.cost.max) || begin
+        cost = price * amount
+        @assert cost < inst.limits.cost.max _cost_msg(
+            inst.asset, "above", inst.limits.cost.max, cost
+        )
+    end
 end
 
 @doc """ Checks that the last price given is below maximum, and the first is above minimum.
