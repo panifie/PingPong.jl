@@ -1,5 +1,5 @@
 using Misc: config
-using Lang: @get, @multiget, @lget!
+using Lang: @get, @multiget, @lget!, Option
 
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
 isquote(id, qc) = lowercase(id) == qc
@@ -130,8 +130,8 @@ const DEFAULT_COST = (; min=1e-15, max=Inf)
 
 function _minmax_pair(mkt, l, default)
     Symbol(l) => (;
-        min=pyconvert(Float64, (@py get(mkt[l], "min", default.min))),
-        max=pyconvert(Float64, (@py get(mkt[l], "max", default.max))),
+        min=(@something pyconvert(Option{Real}, (@py mkt[l].get("min"))) default.min),
+        max=(@something pyconvert(Option{Real}, (@py mkt[l].get("max"))) default.max),
     )
 end
 
