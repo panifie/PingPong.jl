@@ -4,15 +4,13 @@ using TimeTicks
 using ExchangeTypes
 using ExchangeTypes: exc
 using Exchanges: market_fees, market_limits, market_precision, is_pair_active, getexchange!
-using Data: load, zi, empty_ohlcv
+using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
-using Data: DataFrame
-using DataStructures: SortedDict
+using .DataStructures: SortedDict
 using Instruments
 import Instruments: _hashtuple
 using Misc: config
 using Processing
-using Reexport
 using ..Orders
 
 const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
@@ -27,38 +25,47 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance34{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance40{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
-    history::Vector{Trade{Order{OrderType,T,E}}}
-    cash::Vector{Float64}
+    history::Vector{Trade{<:OrderType,T,E}}
+    cash::Cash{S,Float64} where {S}
+    cash_committed::Cash{S,Float64} where {S}
     exchange::Ref{Exchange{E}}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    function AssetInstance34(
+    function AssetInstance40(
         a::A, data, e::Exchange{E}; min_amount=config.min_amount
     ) where {A<:AbstractAsset,E<:ExchangeID}
         limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
         precision = market_precision(a.raw, e)
         fees = market_fees(a.raw, e)
         new{A,E}(
-            a, data, Trade{Order{OrderType,A,E}}[], Float64[0], e, limits, precision, fees
+            a,
+            data,
+            Trade{OrderType,A,E}[],
+            Cash{a.bc,Float64}(0.0),
+            Cash{a.bc,Float64}(0.0),
+            e,
+            limits,
+            precision,
+            fees,
         )
     end
-    function AssetInstance34(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        AssetInstance34(a.asset, args...; kwargs...)
+    function AssetInstance40(a::A, args...; kwargs...) where {A<:AbstractAsset}
+        AssetInstance40(a.asset, args...; kwargs...)
     end
-    function AssetInstance34(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance40(s::S, t::S, e::S) where {S<:AbstractString}
         a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance34(a, data, exc)
+        AssetInstance40(a, data, exc)
     end
-    AssetInstance34(s, t) = AssetInstance34(s, t, exc)
+    AssetInstance40(s, t) = AssetInstance40(s, t, exc)
 end
-AssetInstance = AssetInstance34
+AssetInstance = AssetInstance40
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -84,30 +91,21 @@ function load!(a::AssetInstance; reset=true)
 end
 isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
 Base.getproperty(a::AssetInstance, f::Symbol) = begin
-    if f == :cash
-        getfield(a, :cash)[1]
-    elseif f == :ohlcv
+    if f == :ohlcv
         first(getfield(a, :data)).second
     else
         getfield(a, f)
     end
 end
-Base.setproperty!(a::AssetInstance, f::Symbol, v) = begin
-    if f == :cash
-        getfield(a, :cash)[1] = v
-    else
-        setfield!(a, f, v)
-    end
-end
 
 @doc "Get the last available candle strictly lower than `apply(tf, date)`"
-function lastcandle(i::AssetInstance, tf::TimeFrame, date::DateTime)
-    i.data[tf][available(tf, date)]
+function Data.candlelast(ai::AssetInstance, tf::TimeFrame, date::DateTime)
+    Data.candlelast(ai.data[tf], tf, date)
 end
 
-function lastcandle(i::AssetInstance, date::DateTime)
-    tf = first(keys(i.data))
-    lastcandle(i, tf, date)
+function Data.candlelast(ai::AssetInstance, date::DateTime)
+    tf = first(keys(ai.data))
+    Data.candlelast(ai, tf, date)
 end
 
 function _check_timeframes(tfs, from_tf)
@@ -154,18 +152,22 @@ function _load_rest!(i, tfs, from_tf, from_data)
     end
 end
 
-function Orders.Order(ai::AssetInstance; kwargs...)
-    Order(ai.asset, ai.exchange[].id; kwargs...)
+function Orders.Order(ai::AssetInstance, type; kwargs...)
+    Order(ai.asset, ai.exchange[].id, type; kwargs...)
 end
 
 @doc "Pulls data from storage, or resample from the shortest timeframe available."
-function Base.fill!(i::AssetInstance, tfs...)
+function Base.fill!(ai::AssetInstance, tfs...)
     # asset timeframes dict is sorted
-    (from_tf, from_data) = first(i.data)
+    (from_tf, from_data) = first(ai.data)
     _check_timeframes(tfs, from_tf)
-    _load_smallest!(i, tfs, from_data, from_tf) || return nothing
-    _load_rest!(i, tfs, from_tf, from_data)
+    _load_smallest!(ai, tfs, from_data, from_tf) || return nothing
+    _load_rest!(ai, tfs, from_tf, from_data)
 end
+
+Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
+Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
+Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
 
 export AssetInstance, isactive, instance, load!, lastcandle
 end
