@@ -1,4 +1,5 @@
-import Data: candleat, openat, highat, lowat, closeat, volumeat
+import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
+using Instruments
 
 function candleat(ai::AssetInstance, date, tf; kwargs...)
     candleat(ai.data[tf], date; kwargs...)
@@ -33,3 +34,11 @@ for sym in (openat, highat, lowat, closeat, volumeat)
     @eval @define_candle_func $sym
 end
 
+current_worth(s::Strategy) = begin
+    worth = Cash(s.cash, 0.0)
+    for ai in s.holdings
+        add!(worth, ai.cash * closelast(ai.ohlcv))
+    end
+    add!(worth, s.cash)
+    worth
+end
