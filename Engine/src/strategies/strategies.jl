@@ -14,8 +14,8 @@ using ..Engine: Engine
 
 abstract type AbstractStrategy end
 
-const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
-const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
+ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 # TYPENUM
 struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
@@ -73,6 +73,7 @@ reset!(s::Strategy) = begin
         cash!(inst.cash, 0.0)
     end
     cash!(s.cash, s.config.initial_cash)
+    cash!(s.cash_committed, 0.0)
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
 reload!(s::Strategy) = begin
@@ -158,15 +159,24 @@ function loadstrategy!(src::Symbol, cfg=config)
     path = find_path(file, cfg)
     mod = if !isdefined(@__MODULE__, src)
         @eval begin
-            include($path)
-            using .$src
             if isdefined(Main, :Revise)
-                Core.eval(Main, :(Revise.track($$src)))
+                @eval Main begin
+                    Revise.includet($path)
+                    using Main.$src
+                    Main.$src
+                end
+            else
+                include($path)
+                using .$src
+                $src
             end
-            $src
         end
     else
-        @eval $src
+        if isdefined(Main, :Revise)
+            Core.eval(Main, src)
+        else
+            @eval $src
+        end
     end
     loadstrategy!(mod, cfg)
 end
