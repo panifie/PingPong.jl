@@ -189,6 +189,13 @@ function TimeTicks.DateRange(ac::AssetCollection, tf=nothing)
     DateRange(m, M, tf)
 end
 
+Base.iterate(ac::AssetCollection) = iterate(ac.data.instance)
+Base.iterate(ac::AssetCollection, s) = iterate(ac.data.instance, s)
+Base.first(ac::AssetCollection) = first(ac.data.instance)
+Base.last(ac::AssetCollection) = last(ac.data.instance)
+Base.length(ac::AssetCollection) = nrow(ac.data)
+Base.size(ac::AssetCollection) = size(ac.data)
+
 export AssetCollection, flatten, stub!
 
 end
