@@ -40,7 +40,34 @@ USDT: 1000.0
 macro c_str(sym, val=0.0)
     :($(Cash(Symbol(sym), val)))
 end
-Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(c.value)")
+prettycash(c::Cash) = begin
+    val = c.value
+    if val < 1e3
+        "$val"
+    elseif val < 1e6
+        q, r = divrem(val, 1e3)
+        "$(Int(q)),$(Int(r))(K)"
+    elseif val < 1e9
+        q, r = divrem(val, 1e6)
+        r /= 1e3
+        "$(Int(q)),$(round(Int, r))(M)"
+    elseif val < 1e12
+        q, r = divrem(val, 1e9)
+        r /= 1e6
+        "$(Int(q)),$(round(Int, r))(B)"
+    elseif val < 1e15
+        q, r = divrem(val, 1e12)
+        r /= 1e9
+        "$(Int(q)),$(round(Int, r))(T)"
+    elseif val < 1e18
+        q, r = divrem(val, 1e15)
+        r /= 1e12
+        "$(Int(q)),$(round(Int, r))(Q)"
+    else
+        "$val"
+    end
+end
+Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(prettycash(c))")
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
 # Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
@@ -64,7 +91,7 @@ Base.real(c::Cash) = real(c.value)
 /(a::Cash{S}, b::Cash{S}) where {S} = a.value / b.value
 +(a::Cash{S}, b::Cash{S}) where {S} = a.value + b.value
 
-add!(c::Cash, v) =  (getfield(c, :value)[1] += v; c)
+add!(c::Cash, v) = (getfield(c, :value)[1] += v; c)
 sub!(c::Cash, v) = (getfield(c, :value)[1] -= v; c)
 mul!(c::Cash, v) = (getfield(c, :value)[1] *= v; c)
 rdiv!(c::Cash, v) = (getfield(c, :value)[1] /= v; c)
