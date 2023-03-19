@@ -38,9 +38,9 @@ struct AssetCollection2
     end
     function AssetCollection2(
         assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
-        timeframe="15m",
-        exc::Exchange=ExchangeTypes.exc,
-        min_amount=config.min_amount,
+        timeframe="1m",
+        exc::Exchange,
+        min_amount=1e-8,
     )
         if eltype(assets) == String
             assets = [parse(AbstractAsset, name) for name in assets]
