@@ -31,9 +31,7 @@ struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     )
         exc = getexchange!(config.exchange)
         timeframe = @something self.TF config.min_timeframe first(config.timeframes)
-        uni = AssetCollection(
-            assets; timeframe=string(timeframe), exc, min_amount=config.min_amount
-        )
+        uni = AssetCollection(assets; timeframe=string(timeframe), exc)
         ca = Cash(config.qc, config.initial_cash)
         ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
@@ -68,9 +66,10 @@ Strategy = Strategy64
 reset!(s::Strategy) = begin
     empty!(s.orders)
     empty!(s.holdings)
-    for inst in s.universe.data.instance
-        empty!(inst.history)
-        cash!(inst.cash, 0.0)
+    for ai in s.universe
+        empty!(ai.history)
+        cash!(ai.cash, 0.0)
+        cash!(ai.cash_committed, 0.0)
     end
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
