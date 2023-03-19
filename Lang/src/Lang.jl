@@ -240,6 +240,10 @@ macro ifdebug(a, b=nothing)
     _isdebug() ? esc(a) : b
 end
 
+macro deassert(args...)
+    :(@ifdebug @assert $(args...))
+end
+
 @doc "`errormonitor` wrapped `@async` call."
 macro asyncm(expr)
     :(errormonitor(@async $(esc(expr))))
@@ -308,6 +312,6 @@ end
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws
 export @as, @sym_str, @exportenum
-export Option, toggle, @asyncm, @ifdebug, @argstovec
+export Option, toggle, @asyncm, @ifdebug, @deassert, @argstovec
 
 end
