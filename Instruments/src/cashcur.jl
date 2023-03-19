@@ -70,9 +70,10 @@ end
 Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(prettycash(c))")
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
-# Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
-# NOTE: we *demote* Cash to the other number for speed
-Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Real} = N # C
+Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
+Base.promote(n::N, c::C) where {C<:Cash,N<:Real} = (n, c.value)
+# NOTE: we *demote* Cash to the other number for speed (but it still slower than dispatching promotion function directly)
+# Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Real} = N # C
 Base.convert(::Type{Cash{S}}, c::Real) where {S} = Cash(S, c)
 Base.convert(::Type{T}, c::Cash) where {T<:Real} = convert(T, c.value)
 Base.isless(a::Cash{T}, b::Cash{T}) where {T} = isless(a.value, b.value)
