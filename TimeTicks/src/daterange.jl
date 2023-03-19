@@ -1,4 +1,4 @@
-import Base: length, iterate, collect, reset
+import Base: length, iterate, collect
 const OptDate = Union{Nothing,DateTime}
 const DateTuple = NamedTuple{(:start, :stop),NTuple{2,DateTime}}
 struct DateRange
@@ -50,8 +50,8 @@ collect(dr::DateRange) = begin
     out
 end
 
-reset(dr::DateRange) = dr.current_date[1] = dr.start
-reset(dr::DateRange, d) = dr.current_date[1] = d
+reset!(dr::DateRange) = dr.current_date[1] = dr.start
+reset!(dr::DateRange, d) = dr.current_date[1] = d
 function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
 end
@@ -86,4 +86,4 @@ macro dtr_str(s::String)
     :($dr)
 end
 
-export DateRange, DateTuple, @dtr_str
+export DateRange, DateTuple, @dtr_str, reset!
