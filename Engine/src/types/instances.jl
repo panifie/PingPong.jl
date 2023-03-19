@@ -25,7 +25,7 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance40{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance41{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{<:OrderType,T,E}}
@@ -35,8 +35,8 @@ struct AssetInstance40{T<:AbstractAsset,E<:ExchangeID}
     limits::Limits
     precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
     fees::Float64
-    function AssetInstance40(
-        a::A, data, e::Exchange{E}; min_amount=config.min_amount
+    function AssetInstance41(
+        a::A, data, e::Exchange{E}; min_amount=1e-8
     ) where {A<:AbstractAsset,E<:ExchangeID}
         limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
         precision = market_precision(a.raw, e)
@@ -53,19 +53,18 @@ struct AssetInstance40{T<:AbstractAsset,E<:ExchangeID}
             fees,
         )
     end
-    function AssetInstance40(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        AssetInstance40(a.asset, args...; kwargs...)
+    function AssetInstance41(a::A, args...; kwargs...) where {A<:AbstractAsset}
+        AssetInstance41(a.asset, args...; kwargs...)
     end
-    function AssetInstance40(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance41(s::S, t::S, e::S) where {S<:AbstractString}
         a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance40(a, data, exc)
+        AssetInstance41(a, data, exc)
     end
-    AssetInstance40(s, t) = AssetInstance40(s, t, exc)
 end
-AssetInstance = AssetInstance40
+AssetInstance = AssetInstance41
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -134,19 +133,19 @@ function _load_smallest!(i, tfs, from_data, from_tf)
     end
 end
 
-function _load_rest!(i, tfs, from_tf, from_data)
-    exc = i.exchange[]
-    pairname = i.asset.raw
+function _load_rest!(ai, tfs, from_tf, from_data)
+    exc_name = ai.exchange[].name
+    name = ai.asset.raw
     dr = daterange(from_data)
     for to_tf in tfs
-        if to_tf ∉ Set(keys(i.data)) # current tfs
+        if to_tf ∉ Set(keys(ai.data)) # current tfs
             from_sto = load(
-                zi, exc.name, i.asset.raw, string(to_tf); from=dr.start, to=dr.stop
+                zi, exc_name, ai.asset.raw, string(to_tf); from=dr.start, to=dr.stop
             )
-            i.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
+            ai.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
                 from_sto
             else
-                resample(exc, pairname, from_data, from_tf, to_tf; save=true)
+                resample(from_data, from_tf, to_tf; exc_name, name)
             end
         end
     end

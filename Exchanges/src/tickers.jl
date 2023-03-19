@@ -113,7 +113,7 @@ end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 
 @doc "Precision of the (base, quote) currencies of the market."
-function market_precision(pair::AbstractString, exc::Exchange=exc)
+function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
     p_amount = pyconvert(Real, @py mkt["amount"])
     p_price = pyconvert(Real, @py mkt["price"])
@@ -141,7 +141,7 @@ end
 @doc "Minimum order size of the of the market."
 function market_limits(
     pair::AbstractString,
-    exc::Exchange=exc;
+    exc::Exchange;
     default_leverage=DEFAULT_LEVERAGE,
     default_amount=DEFAULT_AMOUNT,
     default_price=DEFAULT_PRICE,
