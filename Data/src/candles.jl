@@ -80,8 +80,23 @@ closelast(df::AbstractDataFrame) = @candlelast close
 volumelast(df::AbstractDataFrame) = @candlelast volume
 
 candleavl(df::AbstractDataFrame, tf::TimeFrame, date) = candleat(df, available(tf, date))
-rowavl(df::AbstractDataFrame, tf::TimeFrame, date) = @view df[available(tf, date), :]
+
+macro candleavl(col)
+    df = esc(:df)
+    tf = esc(:tf)
+    date = esc(:date)
+    quote
+        idx = searchsortedlast($df.timestamp, available($tf, $date))
+        $df.$col[idx]
+    end
+end
+openavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl open
+highavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl high
+lowavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl low
+closeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl close
+volumeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl volume
 
 export Candle, candleat, candlelast, candleavl, rowavl
 export openat, highat, lowat, closeat, volumeat
 export openlast, highlast, lowlast, closelast, volumelast
+export openavl, highavl, lowavl, closeavl, volumeavl
