@@ -105,10 +105,12 @@ const activeCache1Min = TTL{String,Bool}(Minute(1))
 function market!(pair::AbstractString, exc::Exchange=exc)
     @lget! marketsCache1Min pair exc.py.market(pair)
 end
+market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
 function ticker!(pair::AbstractString, exc::Exchange)
     @lget! tickersCache1Min pair pyfetch(exc.py.fetchTicker, pair)
 end
+ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange=exc)
@@ -117,6 +119,7 @@ function market_precision(pair::AbstractString, exc::Exchange=exc)
     p_price = pyconvert(Real, @py mkt["price"])
     (; amount=p_amount, price=p_price)
 end
+market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
 
 py_str_to_float(n::Real) = n
 function py_str_to_float(py::Py)
@@ -154,6 +157,9 @@ function market_limits(
         )...
     )
 end
+function market_limits(a::AbstractAsset, args...; kwargs...)
+    market_limits(a.raw, args...; kwargs...)
+end
 
 @doc ""
 function is_pair_active(pair::AbstractString, exc::Exchange=exc)
@@ -161,6 +167,8 @@ function is_pair_active(pair::AbstractString, exc::Exchange=exc)
         pyconvert(Bool, market!(pair)["active"])
     end
 end
+is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
 
 @doc "Taker fees for market."
 market_fees(pair::AbstractString, exc::Exchange=exc) = exc.markets[pair]["taker"]::Float64
+market_fees(a::AbstractAsset, args...) = market_fees(a.raw, args...)
