@@ -4,5 +4,6 @@ futures = false
 futures = true
 [binance]
 leveraged = "from"
+[bybit]
 [sources]
 Example = "cfg/strategies/Example.jl" # the name of the module
