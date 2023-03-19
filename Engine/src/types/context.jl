@@ -9,7 +9,7 @@ abstract type ExecAction end
 """
 struct Context10{M<:ExecMode}
     range::DateRange
-    function Context10(::M, d::DateRange) where {M<:ExecMode}
+    function Context10(::M, d::DateRange; kwargs...) where {M<:ExecMode}
         new{M}(d)
     end
     function Context10(mode, tf, from_date, to_date; kwargs...)

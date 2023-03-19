@@ -1,4 +1,5 @@
 module Backtest
+using TimeTicks: TimeTicks as tt
 using Misc
 using Processing.Alignments
 using ..Executors: Executors
@@ -26,7 +27,7 @@ julia> t - tf"1m".period
 ```
 To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, instead of apply.
 """
-function backtest!(s::Strategy, ctx::Context; trim_universe=false, doreset=true)
+function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
     # ensure that universe data start at the same time
     if trim_universe
         let data = flatten(s.universe)
@@ -34,7 +35,7 @@ function backtest!(s::Strategy, ctx::Context; trim_universe=false, doreset=true)
         end
     end
     if doreset
-        reset(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
+        tt.reset!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
         reset!(s)
     end
     ordersdefault!(s)
@@ -45,7 +46,18 @@ function backtest!(s::Strategy, ctx::Context; trim_universe=false, doreset=true)
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."
-backtest!(strat; kwargs...) = backtest!(strat, Context(strat); kwargs...)
+backtest!(s; kwargs...) = backtest!(s, Context(s); kwargs...)
+function backtest!(s, count::Integer; kwargs...)
+    if count > 0
+        from = first(s.universe.data.instance).ohlcv.timestamp[begin]
+        to = from + s.timeframe.period * count
+    else
+        to = last(s.universe.data.instance).ohlcv.timestamp[end]
+        from = to + s.timeframe.period * count
+    end
+    ctx = Context(Sim(), s.timeframe, from, to)
+    backtest!(s, ctx; kwargs...)
+end
 
 export backtest!
 
