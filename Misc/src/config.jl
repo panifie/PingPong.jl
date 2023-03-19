@@ -55,14 +55,14 @@ end
 - `futures`: Selects the futures version of an Exchange and/or markets.
 - `min_vol`: A minimum acceptable volume, e.g. for filtering markets.
 - `initial_cash`: Starting cash, used when instantiating a strategy.
-- `min_amount`: Default order size.
+- `min_size`: Default order size.
 - `min_timeframe`: The default (shortest) timeframe of the candles.
 - `timeframes`: Vector of sorted timeframes that the strategy uses (for loading data).
 - `window`: (deprecated) The default number of candles (OHLCV).
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config17
+@kwdef mutable struct Config18
     path::String = ""
     mode::ExecMode = Sim()
     exchange::Symbol = Symbol()
@@ -72,7 +72,7 @@ end
     futures::Bool = false
     initial_cash::Float64 = 100.0
     min_vol::Float64 = 10e4
-    min_amount::Float64 = 10.0
+    min_size::Float64 = 10.0
     min_timeframe::TimeFrame = tf"1m"
     timeframes::Vector{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
     window::Period = Day(7) # deprecated
@@ -85,7 +85,7 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config17
+Config = Config18
 
 @doc "Global configuration instance."
 const config = Config()
