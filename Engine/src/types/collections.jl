@@ -163,10 +163,14 @@ function stub!(ac::AssetCollection, src)
     end)
     for inst in ac.data.instance
         for tf in keys(inst.data)
-            empty!(inst.data[tf])
             pd = src_dict[(inst.asset.bc, inst.asset.qc)]
             new_data = resample(pd, tf)
-            append!(inst.data[tf], new_data)
+            try
+                empty!(inst.data[tf])
+                append!(inst.data[tf], new_data)
+            catch
+                inst.data[tf] = new_data
+            end
         end
     end
 end
