@@ -9,8 +9,8 @@ const execmode = Returns(Sim)
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 
-default_local_dir(args...) = "$(joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...))"
-local_dir(args...) = get(ENV, "XDG_CACHE_DIR", default_local_dir(args...))
+default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...)
+local_dir(args...) = @something get(ENV, "XDG_CACHE_DIR", nothing) default_local_dir(args...)
 const DATA_PATH = local_dir("data")
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T},Tuple{Vararg{T}}} where {T}
