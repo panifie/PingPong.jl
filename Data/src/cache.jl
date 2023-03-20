@@ -10,8 +10,8 @@ function __init__()
     ispath(CACHE_PATH[]) || mkpath(CACHE_PATH[])
 end
 
-function save_cache(k, data)
-    key_path = joinpath(CACHE_PATH[], k)
+function save_cache(k, data; cache_path=CACHE_PATH[])
+    key_path = joinpath(cache_path, k)
     let dir = dirname(key_path)
         ispath(dir) || mkpath(dir)
     end
@@ -22,8 +22,8 @@ function save_cache(k, data)
     end
 end
 
-function load_cache(k; raise=true, agemax=nothing)
-    key_path = joinpath(CACHE_PATH[], k)
+function load_cache(k; raise=true, agemax=nothing, cache_path=CACHE_PATH[])
+    key_path = joinpath(cache_path, k)
     if !ispath(key_path)
         if raise
             throw(ArgumentError("Key $k does not exist."))
@@ -44,8 +44,8 @@ function load_cache(k; raise=true, agemax=nothing)
     transcode(GzipDecompressor, bytes) |> todata
 end
 
-function delete_cache!(k)
-    rm(joinpath(CACHE_PATH[], k); recursive=true)
+function delete_cache!(k; cache_path=CACHE_PATH[])
+    rm(joinpath(cache_path, k); recursive=true)
 end
 
 end
