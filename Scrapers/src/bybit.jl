@@ -117,7 +117,7 @@ function fetchsym(sym; reset=false, path=PATHS.trading)
     end
     isnothing(files) && return (nothing, nothing)
     out = dofetchfiles(sym, files; func=fetch_ohlcv, path)
-    (mergechunks(files, out), last(files))
+    (mergechunks(files, out), last(files), out)
 end
 
 key(sym, args...) = join((sym, args...), '_')
@@ -141,11 +141,17 @@ function bybitdownload(
     @withpbar! selected desc = "Symbols" begin
         for s in selected
             @acquire SEM begin
-                fetchandsave(s) = begin
-                    ohlcv, last_file = fetchsym(s; reset, path)
+                function fetchandsave(s)
+                    ohlcv, last_file, tmpdata = fetchsym(s; reset, path)
                     if !(isnothing(ohlcv) || isnothing(last_file))
                         bybitsave(s, ohlcv; path)
                         ca.save_cache(cache_key(s; path), last_file)
+                    else
+                        tmppath = joinpath(_tempdir(), "pingpong")
+                        mkpath(tmppath)
+                        name = basename(tempname())
+                        ca.save_cache(name; cache_path=tmppath)
+                        @info "Saving temp data to $(joinpath(tmppath, name))"
                     end
                     @pbupdate!
                 end

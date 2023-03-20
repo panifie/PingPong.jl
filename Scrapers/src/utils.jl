@@ -3,6 +3,7 @@ using CodecZlib: CodecZlib as zlib
 using ZipFile: ZipFile as zip
 using Lang: @ifdebug, @acquire
 using CSV
+using Data.Cache: Cache as ca
 using Data.DFUtils: lastdate, firstdate
 using Data.DataFrames
 using Processing: TradesOHLCV as tra, cleanup_ohlcv_data, trail!
@@ -96,9 +97,13 @@ function glue_ohlcv(out)
     out
 end
 
+_tempdir() = Base.Sys.isunix() ? "/tmp" : tempdir()
+
 function mergechunks(files, out; strict=false)
-    strict &&
-        @assert length(out) == length(files) "Couldn't download all chunks! $(length(out)) < $(length(files))"
+    if strict && length(out) == length(files)
+        @error "Couldn't download all chunks! $(length(out)) < $(length(files))"
+        return nothing
+    end
     sorted = sort(out)
     glue_ohlcv(sorted)
     merged = vcat(values(sorted)...)
