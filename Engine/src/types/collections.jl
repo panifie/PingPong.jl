@@ -11,7 +11,7 @@ using OrderedCollections: OrderedDict
 using DataStructures: SortedDict
 using Misc: Iterable, swapkeys
 using ExchangeTypes
-using Instruments: fiatnames, AbstractAsset, Asset
+using Instruments: fiatnames, AbstractAsset, Asset, Cash
 using Instruments.Derivatives
 using ..Instances
 using Processing: resample
@@ -196,6 +196,16 @@ Base.last(ac::AssetCollection) = last(ac.data.instance)
 Base.length(ac::AssetCollection) = nrow(ac.data)
 Base.size(ac::AssetCollection) = size(ac.data)
 
-export AssetCollection, flatten, stub!
+@doc "Checks that all assets in the universe match the cash."
+iscashable(c::Cash, ac::AssetCollection) = begin
+    for ai in ac
+        if ai.asset.qc != nameof(c)
+            return false
+        end
+        return true
+    end
+end
+
+export AssetCollection, flatten, stub!, iscashable
 
 end
