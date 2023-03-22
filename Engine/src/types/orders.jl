@@ -51,10 +51,10 @@ Order = Order15
 function Order15(
     a::A,
     e::E,
-    ::Type{Order{T}}=LimitOrder{Buy};
+    ::Type{Order{T}};
     price,
-    date=now(),
-    amount=(config.min_amount),
+    date,
+    amount,
     attrs=(;),
     kwargs...,
 ) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID}
