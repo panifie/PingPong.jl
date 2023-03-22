@@ -1,9 +1,9 @@
 
-struct Cash8{S,T} <: Number
+struct Cash10{S,T} <: Number
     value::Vector{T}
-    Cash8{C,N}(val) where {C,N} = new{C,N}([val])
-    Cash8(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}([val])
-    Cash8(_::Cash8{C,N}, val::R) where {C,N,R} = new{C,N}([convert(N, val)])
+    Cash10{C,N}(val) where {C,N} = new{C,N}([val])
+    Cash10(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}([val])
+    Cash10(_::Cash10{C,N}, val::R) where {C,N,R} = new{C,N}([convert(N, val)])
 end
 
 @doc """A variable quantity of some currency.
@@ -15,10 +15,10 @@ end
 ```
 
 """
-Cash = Cash8
+Cash = Cash10
 Base.nameof(_::Cash{S}) where {S} = S
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
-Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[1] = v
+Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[] = v
 Base.getproperty(c::Cash, s::Symbol) = begin
     if s === :value
         getfield(c, :value)[1]
@@ -40,13 +40,12 @@ USDT: 1000.0
 macro c_str(sym, val=0.0)
     :($(Cash(Symbol(sym), val)))
 end
-prettycash(c::Cash) = begin
-    val = c.value
+compactnum(val) =
     if val < 1e3
         "$val"
     elseif val < 1e6
         q, r = divrem(val, 1e3)
-        "$(Int(q)),$(Int(r))(K)"
+        "$(Int(q)),$(round(Int, r))(K)"
     elseif val < 1e9
         q, r = divrem(val, 1e6)
         r /= 1e3
@@ -66,8 +65,8 @@ prettycash(c::Cash) = begin
     else
         "$val"
     end
-end
-Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(prettycash(c))")
+
+Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(compactnum(c.value))")
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
 Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
