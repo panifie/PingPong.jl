@@ -15,6 +15,7 @@ using ..Orders
 
 const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
 const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
+const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -33,7 +34,7 @@ struct AssetInstance41{T<:AbstractAsset,E<:ExchangeID}
     cash_committed::Cash{S,Float64} where {S}
     exchange::Ref{Exchange{E}}
     limits::Limits
-    precision::NamedTuple{(:amount, :price),Tuple{Real,Real}}
+    precision::Precision
     fees::Float64
     function AssetInstance41(
         a::A, data, e::Exchange{E}; min_amount=1e-8
