@@ -7,15 +7,15 @@ using Misc
 using Data.DataFrames: nrow
 using Instruments: AbstractAsset, Cash, cash!
 using ..Types
-using ..Types.Collections: AssetCollection
+using ..Types.Collections: AssetCollection, Collections as coll
 using ..Types.Instances: AssetInstance
 using ..Types.Orders: Order, OrderType
 using ..Engine: Engine
 
 abstract type AbstractStrategy end
 
-ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
-ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
+const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 # TYPENUM
 struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
@@ -33,6 +33,9 @@ struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         timeframe = @something self.TF config.min_timeframe first(config.timeframes)
         uni = AssetCollection(assets; timeframe=string(timeframe), exc)
         ca = Cash(config.qc, config.initial_cash)
+        if !coll.iscashable(ca, uni)
+            @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
+        end
         ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
         holdings = Set{ExchangeAsset{eid}}()
@@ -81,7 +84,7 @@ reload!(s::Strategy) = begin
         load!(inst; reset=true)
     end
 end
-
+coll.iscashable(s::Strategy) = coll.iscashable(s.cash, s.universe)
 @doc "Assets loaded by the strategy."
 assets(s::Strategy) = s.universe.data.asset
 @doc "Strategy assets instance."
