@@ -2,7 +2,7 @@ using TimeTicks
 using TimeTicks: Period, now, timeframe, apply
 using Data.DataFramesMeta
 using Data.DataFrames: clear_pt_conf!
-using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils, ZArray, _load_ohlcv
+using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils, ZArray, _load_ohlcv, _save_ohlcv, zi
 using Base: _cleanup_locked
 using .DFUtils: appendmax!
 
@@ -157,9 +157,10 @@ function cleanup_ohlcv_data(data, tf::AbstractString; kwargs...)
 end
 
 function cleanup_ohlcv!(z::ZArray, timeframe::AbstractString)
-    data = _load_ohlcv(z, timeframe)
-    cleanup_ohlcv_data(data, convert(TimeFrame, timeframe))
-    return nothing
+    tf = convert(TimeFrame, timeframe)
+    ohlcv = _load_ohlcv(z, timeframe)
+    ohlcv = cleanup_ohlcv_data(ohlcv, tf)
+    _save_ohlcv(z::ZArray, timefloat(tf), ohlcv)
 end
 
 isincomplete(d::DateTime, tf::TimeFrame, ::Val{:raw}) = d + tf > now()

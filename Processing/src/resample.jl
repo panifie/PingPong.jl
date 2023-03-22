@@ -39,9 +39,10 @@ function _deltas(data, to_tf)
 end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(data, from_tf, to_tf)
+function resample(data, from_tf, to_tf, cleanup=false)
     @ifdebug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
         "Resampling assumptions are not met, expecting cleaned data."
+    cleanup && (data = cleanup_ohlcv_data(data, from_tf))
 
     frame_size, src_td, td, abort = _deltas(data, to_tf)
     isnothing(abort) || return abort

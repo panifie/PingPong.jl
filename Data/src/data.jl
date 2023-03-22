@@ -72,32 +72,20 @@ const check_all_flag = :all
 const check_flags = (check_bounds_flag, check_all_flag)
 
 function _save_ohlcv(
-    zi::ZarrInstance,
-    key,
+    za::ZArray,
     td,
     data;
-    type=Float64,
-    chunk_size=nothing,
     data_col=1,
     saved_col=data_col,
+    type=Float64,
+    existing=true,
     overwrite=true,
     reset=false,
     check=check_bounds_flag,
-    input=nothing,
 )
-    local za
     isempty(data) && return nothing
     !reset && @check_td(data)
 
-    if !(input isa ZArray)
-        za, existing = _get_zarray(
-            zi, key, @something(chunk_size, chunksize(data)); type, overwrite, reset
-        )
-    else
-        za, existing = input, true
-    end
-
-    @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && size(za, 1) > 0
         local data_view
         saved_first_ts = za[begin, saved_col]
@@ -172,6 +160,30 @@ function _save_ohlcv(
         _contiguous_ts(@view(za[:, saved_col]), td)
     end
     return za
+end
+
+function _save_ohlcv(
+    zi::ZarrInstance,
+    key,
+    td,
+    data;
+    overwrite=true,
+    reset=false,
+    type=Float64,
+    chunk_size=nothing,
+    input=nothing,
+    kwargs...,
+)
+    local za
+    if !(input isa ZArray)
+        za, existing = _get_zarray(
+            zi, key, @something(chunk_size, chunksize(data)); type, overwrite, reset
+        )
+    else
+        za, existing = input, true
+    end
+    @debug "Zarr dataset for key $key, len: $(size(data))."
+    _save_ohlcv(za, td, data; overwrite, existing, reset, type, kwargs...)
 end
 
 @doc "Normalizes or special characthers separators to `_`."
