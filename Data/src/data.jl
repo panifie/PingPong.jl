@@ -289,17 +289,12 @@ function __ensure_ohlcv_zarray(zi, key)
 end
 
 @doc """ Load ohlcv pair data from zarr instance.
-`zi`: The zarr instance to use
+`za`: The zarr array holding the data
 `key`: the name of the array to load from the zarr instance (in the format exchange/timeframe/pair)
 `td`: the timeframe (as integer in milliseconds) of the target ohlcv table to be loaded
 `from`, `to`: date range
 """
-function _load_ohlcv(
-    zi::ZarrInstance, key, td; from="", to="", saved_col=1, as_z=false, with_z=false
-)
-    @debug "Loading data from $(zi.path):$(key)"
-    za = __ensure_ohlcv_zarray(zi, key)
-
+function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, with_z=false)
     if size(za, 1) < 2
         as_z && return za, (0, 0)
         with_z && return (empty_ohlcv(), za)
@@ -335,6 +330,11 @@ function _load_ohlcv(
 
     with_z && return (to_ohlcv(data), za)
     to_ohlcv(data)
+end
+function _load_ohlcv(zi::ZarrInstance, key, args...; kwargs...)
+    @debug "Loading data from $(zi.path):$(key)"
+    za = __ensure_ohlcv_zarray(zi, key)
+    _load_ohlcv(za, args...; kwargs...)
 end
 function _load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...)
     _load_ohlcv(zi[], args...; kwargs...)
@@ -376,7 +376,6 @@ function _check_contiguity(
         data_last_ts + td < saved_first_ts &&
         throw(LeftContiguityException(dt(saved_last_ts), dt(data_first_ts)))
 end
-
 
 export ZarrInstance, zilmdb, PairData
 export df!, @as_mat, @to_mat
