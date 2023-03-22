@@ -2,7 +2,7 @@ using TimeTicks
 using TimeTicks: Period, now, timeframe, apply
 using Data.DataFramesMeta
 using Data.DataFrames: clear_pt_conf!
-using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils
+using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils, ZArray, _load_ohlcv
 using Base: _cleanup_locked
 using .DFUtils: appendmax!
 
@@ -17,7 +17,7 @@ function fill_missing_candles!(df, prd::Period; strategy=:close)
     _fill_missing_candles(df, prd; strategy, inplace=true)
 end
 
-function fill_missing_candles!(df, timeframe::AbstractString; strategy=:close)
+function _fill_missing_candles!(df, timeframe::AbstractString; strategy=:close)
     @as_td
     _fill_missing_candles(df, prd; strategy, inplace=true)
 end
@@ -39,7 +39,7 @@ _append_cap!(::Val{:capped}, cap, args...) = appendmax!(args..., cap)
 @doc "Appends empty candles to df up to `to` datetime (excluded).
 `cap`: max capacity of `df`
 "
-trail!(df, tf::TimeFrame; to, from=df[end, :timestamp], cap=0) = begin
+function trail!(df, tf::TimeFrame; to, from=df[end, :timestamp], cap=0)
     prd = period(tf)
     n_to_append = (to - from) ÷ prd - 1
     if n_to_append > 0
@@ -65,7 +65,18 @@ end
 novol_candle(ts, n) = Candle(ts, n, n, n, n, 0)
 nan_candle(ts, _) = Candle(ts, NaN, NaN, NaN, NaN, NaN)
 
-function _fill_missing_candles(df, prd::Period; strategy, inplace)
+_isunixepoch(ts) = ts.instant.periods.value == TimeTicks.Dates.UNIXEPOCH
+trimzeros!(df) = begin
+    idx = 1
+    for t in df.timestamp
+        _isunixepoch(t) || break
+        idx += 1
+    end
+    idx > 1 && deleteat!(df, 1:(idx - 1))
+end
+
+function _fill_missing_candles(df::DataFrame, prd::Period; strategy, inplace)
+    trimzeros!(df)
     size(df, 1) == 0 && return empty_ohlcv()
     ordered_rows = Candle[]
     # fill the row by previous close or with NaNs
@@ -76,7 +87,7 @@ function _fill_missing_candles(df, prd::Period; strategy, inplace)
         # NOTE: we assume that ALL timestamps are multiples of the timedelta!
         while ts_cur < ts_end
             if ts_cur != :timestamp[ts_idx]
-                close = :close[ts_idx-1]
+                close = :close[ts_idx - 1]
                 push!(ordered_rows, build_candle(ts_cur, close))
             else
                 ts_idx += 1
@@ -84,9 +95,16 @@ function _fill_missing_candles(df, prd::Period; strategy, inplace)
             ts_cur += prd
         end
     end
-    inplace || (df = deepcopy(df); true)
-    append!(df, ordered_rows)
+    inplace || (df = deepcopy(df))
+    try
+        append!(df, ordered_rows)
+    catch
+        # In case the dataframe is backed by a matrix we have to copy
+        df = DataFrame(df; copycols=true)
+        append!(df, ordered_rows)
+    end
     sort!(df, :timestamp)
+    trimzeros!(df)
     return df
 end
 
@@ -122,18 +140,26 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
         :low => minimum,
         :close => last,
         :volume => maximum;
-        renamecols=false
+        renamecols=false,
     )
     # check again after de-duplication
     df = _remove_incomplete_candle(df, tf)
 
     if fill_missing != false
         fill_missing_candles!(df, tf.period; strategy=fill_missing)
+    else
+        trimzeros!(df)
     end
     df
 end
 function cleanup_ohlcv_data(data, tf::AbstractString; kwargs...)
     cleanup_ohlcv_data(data, convert(TimeFrame, tf); kwargs...)
+end
+
+function cleanup_ohlcv!(z::ZArray, timeframe::AbstractString)
+    data = _load_ohlcv(z, timeframe)
+    cleanup_ohlcv_data(data, convert(TimeFrame, timeframe))
+    return nothing
 end
 
 isincomplete(d::DateTime, tf::TimeFrame, ::Val{:raw}) = d + tf > now()
@@ -158,4 +184,5 @@ isleftadj(a, b, tf::TimeFrame) = a + tf == b
 isrightadj(a, b, tf::TimeFrame) = isleftadj(b, a, tf)
 isadjacent(a, b, tf::TimeFrame) = isleftadj(a, b, tf) || isrightadj(a, b, tf)
 
-export cleanup_ohlcv_data, isincomplete, iscomplete, islast, isleftadj, isrightadj, isadjacent
+export cleanup_ohlcv_data,
+    isincomplete, iscomplete, islast, isleftadj, isrightadj, isadjacent
