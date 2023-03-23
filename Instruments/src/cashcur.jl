@@ -90,6 +90,7 @@ Base.real(c::Cash) = real(c.value)
 *(a::Cash{S}, b::Cash{S}) where {S} = a.value * b.value
 /(a::Cash{S}, b::Cash{S}) where {S} = a.value / b.value
 +(a::Cash{S}, b::Cash{S}) where {S} = a.value + b.value
+-(a::Cash{S}, b::Cash{S}) where {S} = a.value - b.value
 
 add!(c::Cash, v) = (getfield(c, :value)[1] += v; c)
 sub!(c::Cash, v) = (getfield(c, :value)[1] -= v; c)
