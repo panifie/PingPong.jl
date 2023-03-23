@@ -16,6 +16,8 @@ const fiatnames = Set([
     "USDJ",
 ])
 
+const fiatsyms = Set(Symbol.(fiatnames))
+
 const DEFAULT_MARKET_SEPARATOR = raw"/"
 const ALL_MARKET_SEPARATORS = raw"/\-_."
 const SETTLEMENT_SEPARATOR = raw":"

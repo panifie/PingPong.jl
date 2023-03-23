@@ -6,7 +6,7 @@ isquote(id, qc) = lowercase(id) == qc
 ismargin(mkt) = Bool(@get mkt "margin" false)
 
 function has_leverage(pair, pairs_with_leverage)
-    !is_leveraged_pair(pair) && pair ∈ pairs_with_leverage
+    !islegeragedpair(pair) && pair ∈ pairs_with_leverage
 end
 function leverage_func(exc, with_leveraged, with_futures)
     # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
@@ -70,13 +70,13 @@ function tickers(
             (with_leverage == :only && !islev) ||
             !leverage_check(spot) ||
             (spot ∈ keys(tickers) && quotevol(tickers[spot]) <= min_vol) ||
-            (skip_fiat && is_fiat_pair(spot)) ||
+            (skip_fiat && isfiatpair(spot)) ||
             (with_margin && Bool(@get(mkt, "margin", false)))
     end
 
     for (sym, mkt) in exc.markets
         spot = spotsymbol(sym, mkt)
-        islev = is_leveraged_pair(spot)
+        islev = islegeragedpair(spot)
         skip_check(spot, islev, mkt) && continue
         addto(pairlist, sym, mkt, lquot)
     end
@@ -130,6 +130,7 @@ const DEFAULT_LEVERAGE = (; min=0.0, max=100.0)
 const DEFAULT_AMOUNT = (; min=1e-15, max=Inf)
 const DEFAULT_PRICE = (; min=1e-15, max=Inf)
 const DEFAULT_COST = (; min=1e-15, max=Inf)
+const DEFAULT_FIAT_COST = (; min=1.0, max=Inf)
 
 function _minmax_pair(mkt, l, default)
     Symbol(l) => (;

@@ -40,8 +40,8 @@ struct Asset5 <: AbstractAsset
     function Asset5(s::SubString, b::T, q::T) where {T<:AbstractString}
         B = Symbol(b)
         Q = Symbol(q)
-        fiat = is_fiat_pair(b, q)
-        lev = is_leveraged_pair(s)
+        fiat = isfiatpair(b, q)
+        lev = islegeragedpair(s)
         unlev = lev ? deleverage_pair(s; split=true)[1] : B
         new(s, B, Q, fiat, lev, Symbol(unlev))
     end
@@ -55,13 +55,13 @@ _check_parse(pair, s) = begin
     end
 end
 function Base.parse(::Type{Asset}, s::AbstractString)
-    pair = split_pair(s)
+    pair = splitpair(s)
     _check_parse(pair, s)
     Asset(SubString(s), pair[1], pair[2])
 end
 const symbol_rgx_cache = Dict{String,Regex}()
 function Base.parse(::Type{Asset}, s::AbstractString, qc::AbstractString; raise=true)
-    pair = split_pair(s)
+    pair = splitpair(s)
     m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)(?:settled?)?\$", "i")), pair[1])
     if isnothing(m)
         raise && throw(InexactError(:Asset, Asset, s))
@@ -102,12 +102,12 @@ isquote(a::AbstractAsset, q) = a.qc == q
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
-is_leveraged_pair(pair) = !isnothing(match(leverage_pair_rgx, pair))
-split_pair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
+islegeragedpair(pair) = !isnothing(match(leverage_pair_rgx, pair))
+splitpair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
 
 @doc "Remove leveraged pair pre/suffixes from base currency."
 @inline function deleverage_pair(pair::T; split=false, sep="/") where {T<:AbstractString}
-    dlv = split_pair(replace(pair, leverage_pair_rgx => s"\1"))
+    dlv = splitpair(replace(pair, leverage_pair_rgx => s"\1"))
     # HACK: assume that BEAR/BULL represent BTC
     if isempty(dlv[1])
         @warn "Deleveraging pair $pair failed, assuming base currency is BTC."
@@ -122,11 +122,13 @@ end
 deleverage_qc(pair::AbstractString) = deleverage_pair(pair; split=true)[1]
 
 @doc "Check if both base and quote are fiat currencies."
-is_fiat_pair(b::T, q::T) where {T<:AbstractString} = begin
+isfiatpair(b::T, q::T) where {T<:AbstractString} = begin
     b ∈ fiatnames && q ∈ fiatnames
 end
-is_fiat_pair(p::Vector{T}) where {T<:AbstractString} = is_fiat_pair(p[1], p[2])
-is_fiat_pair(pair::AbstractString) = is_fiat_pair(split_pair(pair))
+isfiatpair(p::Vector{T}) where {T<:AbstractString} = isfiatpair(p[1], p[2])
+isfiatpair(pair::AbstractString) = isfiatpair(splitpair(pair))
+isfiatquote(pair::AbstractString) = splitpair(pair)[2] ∈ fiatnames
+isfiatquote(aa::AbstractAsset) = aa.qc ∈ fiatsyms
 
 @doc """Parses `pair` to an `Asset` type.
 ```julia
@@ -148,7 +150,7 @@ macro pusdt_str(sym)
 end
 
 export Cash, Asset, AbstractAsset
-export is_fiat_pair, deleverage_pair, is_leveraged_pair
+export isfiatpair, deleverage_pair, islegeragedpair
 export @a_str, @c_str
 
 include("derivatives.jl")
