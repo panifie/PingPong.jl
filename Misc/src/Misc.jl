@@ -11,6 +11,7 @@ const results = Dict{String,Any}()
 
 __init__() = begin
     ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
+    empty!(config)
 end
 
 export results

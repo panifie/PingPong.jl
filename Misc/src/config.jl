@@ -87,6 +87,11 @@ end
 end
 Config = Config18
 
+function Config18(profile::Union{Symbol,String}; path::String=config_path())
+    cfg = Config18()
+    config!(profile; cfg, path)
+end
+
 @doc "Global configuration instance."
 const config = Config()
 const SourcesDict = Dict{Symbol,String}
@@ -151,11 +156,6 @@ function config!(
     cfg
 end
 
-function Config(profile::Union{Symbol,String}; path::String=config_path())
-    cfg = Config()
-    config!(profile; cfg, path)
-end
-
 @doc "Reset config to default values."
 function Base.empty!(c::Config)
     default = Config()
@@ -174,8 +174,5 @@ macro lev!()
     :(config.leverage = !config.leverage)
 end
 
-function __init__()
-    empty!(config)
-end
 
 export Config, config, config!, exchange_keys
