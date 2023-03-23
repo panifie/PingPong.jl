@@ -1,9 +1,8 @@
+using TimeTicks
 using Data.DataFrames
-using Data: AbstractDataFrame
 using Data.DFUtils
+using Data: AbstractDataFrame
 using Processing: resample
-using Makie: parent_scene, shift_project, update_tooltip_alignment!
-using WGLMakie
 using Instruments: compactnum as cn
 
 function candle_str(row)
@@ -32,7 +31,7 @@ function candle_tooltip_func(df)
         proj_pos = shift_project(scene, plot, pos[1])
         update_tooltip_alignment!(inspector, proj_pos)
         # Set the tooltip content to the candle OHLCV values
-        tt.text[] = candle_str(df[df_idx, :])
+        tt.text[] = candle_str(df[true_idx, :])
         tt.triangle_size = 3.0
         # Show the tooltip
         tt.visible[] = true
@@ -49,13 +48,24 @@ function ohlcv_point(width, x, y1, y2)
 end
 
 function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
-    df = resample(df, tf"1m", tf"1h")
+    df = resample(df, tf"1m", tf)
     fig = Figure(; resolution=(1900, 900))
     firstdate = df.timestamp[begin]
     # Formats the timestamps for the X axis
     xidxtodate(t) = [string(firstdate + tf.period * round(Int, tt)) for tt in t]
     # Formates the Y axis values
-    yidxcompact(t) = Instruments.compactnum.(t)
+    yidxcompact(t) = cn.(t)
+    # Axis creation (Order is important)
+    vol_ax = Axis(
+        fig[1, 1];
+        ytickformat=yidxcompact,
+        ylabel="Volume",
+        ypanlock=true,
+        yzoomlock=true,
+        yaxisposition=:right,
+        xrectzoom=false,
+        yrectzoom=false
+    )
     price_ax = Axis(
         fig[1, 1];
         xtickformat=xidxtodate,
@@ -67,9 +77,7 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
         # Only scroll and zoom horizontally
         ypanlock=true,
         yzoomlock=true,
-    )
-    vol_ax = Axis(
-        fig[2, 1]; ytickformat=yidxcompact, ylabel="Volume", ypanlock=true, yzoomlock=true
+        yrectzoom=false
     )
     # OHLCV doesn't need spines
     hidespines!(price_ax)
@@ -99,19 +107,21 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
     # get the candle tooltip function, for the DF we are plotting
     candle_tooltip = candle_tooltip_func(df)
     poly_kwargs = (; inspector_hover=candle_tooltip) # inspector_clear=candle_tooltip_clear)
-    # Constructs all the polygons from the candles Points
+    # Constructs all the polygons from the candles Points (order is important)
+    poly!(vol_ax, vol_points; color=(:grey, 0.5), inspectable=false, poly_kwargs...)
+    poly!(price_ax, hl_points; color=colors, inspectable=false, poly_kwargs...)
     poly!(price_ax, oc_points; color=colors, poly_kwargs...)
-    poly!(price_ax, hl_points; color=colors, poly_kwargs...)
-    poly!(vol_ax, vol_points; color=:grey, poly_kwargs...)
     # Ansure that volume and price axies are linked
     # such that when we zoom/pan they move together
     linkxaxes!(price_ax, vol_ax)
     # Reduce the size of the volume axis which will appear
     # smaller at the bottom
-    rowsize!(fig.layout, 2, Aspect(1, 0.05))
+    # rowsize!(fig.layout, 2, Aspect(1, 0.05))
     # Make sure the volume and price axis are close together
-    rowgap!(fig.layout, 1, 0.0)
+    # rowgap!(fig.layout, 1, 0.0)
     # Enables the tooltip function on the figure
     DataInspector(fig)
     fig
 end
+
+export plot_ohclv
