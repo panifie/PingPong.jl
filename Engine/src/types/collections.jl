@@ -68,16 +68,21 @@ const AssetCollectionRow = @NamedTuple{
 }
 
 using Instruments: isbase, isquote
-Base.getindex(pf::AssetCollection, i::ExchangeID) = @view pf.data[pf.data.exchange .== i, :]
-Base.getindex(pf::AssetCollection, i::AbstractAsset) = @view pf.data[pf.data.asset .== i, :]
-function Base.getindex(pf::AssetCollection, i::AbstractString)
-    @view pf.data[pf.data.asset .== i, :]
+function Base.getindex(ac::AssetCollection, i::ExchangeID, col=Colon())
+    @view ac.data[ac.data.exchange .== i, col]
 end
-function Base.getindex(pf::AssetCollection, i::MatchString)
-    v = @view pf.data[startswith.(getproperty.(pf.data.asset, :raw), uppercase(i.s)), :]
+function Base.getindex(ac::AssetCollection, i::AbstractAsset, col=Colon())
+    @view ac.data[ac.data.asset .== i, col]
+end
+function Base.getindex(ac::AssetCollection, i::AbstractString, col=Colon())
+    @view ac.data[ac.data.asset .== i, col]
+end
+function Base.getindex(ac::AssetCollection, i::MatchString, col=Colon())
+    v = @view ac.data[startswith.(getproperty.(ac.data.asset, :raw), uppercase(i.s)), :]
     isempty(v) && return v
-    @view v[begin, :]
+    @view v[begin, col]
 end
+Base.getindex(ac::AssetCollection, i, i2, i3) = ac[i, i2][i3]
 
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
@@ -104,27 +109,27 @@ bqe(df::DataFrame, b::T, ::Nothing, e::Nothing) where {T<:Symbol} = begin
 end
 
 function Base.getindex(
-    pf::AssetCollection;
+    ac::AssetCollection;
     b::Union{Symbol,Nothing}=nothing,
     q::Union{Symbol,Nothing}=nothing,
     e::Union{Symbol,Nothing}=nothing,
 )
-    idx = bqe(pf.data, b, q, e)
-    @view pf.data[idx, :]
+    idx = bqe(ac.data, b, q, e)
+    @view ac.data[idx, :]
 end
 
-function prettydf(pf::AssetCollection; full=false)
-    limit = full ? size(pf.data)[1] : displaysize(stdout)[1] - 1
-    limit = min(size(pf.data)[1], limit)
+function prettydf(ac::AssetCollection; full=false)
+    limit = full ? size(ac.data)[1] : displaysize(stdout)[1] - 1
+    limit = min(size(ac.data)[1], limit)
     DataFrame(
         begin
-            row = @view pf.data[n, :]
+            row = @view ac.data[n, :]
             (; cash=row.instance.cash, name=row.asset.raw, exchange=row.exchange.id)
         end for n in 1:limit
     )
 end
 
-Base.display(pf::AssetCollection) = Base.show(prettydf(pf))
+Base.show(io::IO, ac::AssetCollection) = write(io, string(prettydf(ac)))
 
 @doc "Returns a Dict{TimeFrame, DataFrame} of all the OHLCV dataframes present in the asset collection."
 function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
@@ -163,7 +168,8 @@ function stub!(ac::AssetCollection, src)
     end)
     for inst in ac.data.instance
         for tf in keys(inst.data)
-            pd = src_dict[(inst.asset.bc, inst.asset.qc)]
+            pd = get(src_dict, (inst.asset.bc, inst.asset.qc), nothing)
+            isnothing(pd) && continue
             new_data = resample(pd, tf)
             try
                 empty!(inst.data[tf])
