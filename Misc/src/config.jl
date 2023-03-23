@@ -7,13 +7,13 @@ using FunctionalCollections: PersistentHashMap
 
 _config_dir() = begin
     ppath = Pkg.project().path
-    joinpath(dirname(ppath), "cfg")
+    joinpath(dirname(ppath), "user")
 end
 
 @doc "The config path (TOML), relative to the current project directory."
 function config_path()
     cfg_dir = _config_dir()
-    path = joinpath(cfg_dir, "backtest.toml")
+    path = joinpath(cfg_dir, "config.toml")
     if !ispath(path)
         @warn "Config file not found at $path, creating anew."
         mkpath(cfg_dir)

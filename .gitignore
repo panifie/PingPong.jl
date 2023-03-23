@@ -1,8 +1,8 @@
-/cfg/*
-/cfg/strategies/*
-!cfg/backtest.toml
-!cfg/strategies
-!cfg/strategies/Example.jl
+/user/*
+/user/strategies/*
+!user/config.toml
+!user/strategies
+!user/strategies/Example.jl
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
