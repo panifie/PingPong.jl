@@ -6,6 +6,6 @@ futures = true
 leveraged = "from"
 [bybit]
 [Example]
-include_file = "cfg/strategies/Example.jl"
+include_file = "strategies/Example.jl"
 # [sources] # Alternative method to load strategy
 # Example = "cfg/strategies/Example.jl" # the name of the module
