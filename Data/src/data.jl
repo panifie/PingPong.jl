@@ -191,7 +191,9 @@ end
 
 @doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
 @inline function key_path(exc_name, pair, timeframe)
-    @ifdebug @assert !isempty(exc_name)
+    # ensure no key path constructed starts with `/`
+    # otherwise ZGroup creation does not halt
+    isempty(exc_name) && (exc_name = "unknown")
     "$exc_name/$(snakecased(pair))/ohlcv/tf_$timeframe"
 end
 
