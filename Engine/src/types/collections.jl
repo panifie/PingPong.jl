@@ -63,9 +63,12 @@ const AssetCollectionTypes = OrderedDict([
 ])
 const AssetCollectionColumns4 = Symbol.(keys(sort!(AssetCollectionTypes)))
 AssetCollectionColumns = AssetCollectionColumns4
-const AssetCollectionRow = @NamedTuple{
-    exchange::ExchangeID, asset::AbstractAsset, instance::AssetInstance
-}
+# HACK: const/types definitions inside macros can't be revised
+if !isdefined(@__MODULE__, :AssetCollectionRow)
+    const AssetCollectionRow = @NamedTuple{
+        exchange::ExchangeID, asset::AbstractAsset, instance::AssetInstance
+    }
+end
 
 using Instruments: isbase, isquote
 function Base.getindex(ac::AssetCollection, i::ExchangeID, col=Colon())
@@ -157,7 +160,7 @@ using Strategies
 using Exchanges
 setexchange!(:binanceusdm)
 cfg = Config(nameof(exc.id))
-strat = loadstrategy!(:Example, cfg)
+strat = strategy!(:Example, cfg)
 data = bn.binanceload()
 stub!(strat.universe, data)
 ```

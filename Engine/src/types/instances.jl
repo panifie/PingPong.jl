@@ -26,17 +26,17 @@ const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance41{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
-    history::Vector{Trade{<:OrderType,T,E}}
-    cash::Cash{S,Float64} where {S}
-    cash_committed::Cash{S,Float64} where {S}
+    history::Vector{Trade{O,T,E} where O<:OrderType}
+    cash::Cash{S1,Float64} where {S1}
+    cash_committed::Cash{S2,Float64} where {S2}
     exchange::Ref{Exchange{E}}
     limits::Limits
     precision::Precision
     fees::Float64
-    function AssetInstance41(
+    function AssetInstance48(
         a::A, data, e::Exchange{E}; min_amount=1e-8
     ) where {A<:AbstractAsset,E<:ExchangeID}
         limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
@@ -54,18 +54,18 @@ struct AssetInstance41{T<:AbstractAsset,E<:ExchangeID}
             fees,
         )
     end
-    function AssetInstance41(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        AssetInstance41(a.asset, args...; kwargs...)
+    function AssetInstance48(a::A, args...; kwargs...) where {A<:AbstractAsset}
+        AssetInstance48(a.asset, args...; kwargs...)
     end
-    function AssetInstance41(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance48(s::S, t::S, e::S) where {S<:AbstractString}
         a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance41(a, data, exc)
+        AssetInstance48(a, data, exc)
     end
 end
-AssetInstance = AssetInstance41
+AssetInstance = AssetInstance48
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -169,5 +169,5 @@ Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
 Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
 Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
 
-export AssetInstance, isactive, instance, load!, lastcandle
+export AssetInstance, isactive, instance, load!
 end
