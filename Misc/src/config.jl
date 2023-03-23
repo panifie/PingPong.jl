@@ -131,7 +131,7 @@ function _options!(cfg, name)
     sort!(cfg.timeframes)
 end
 _sources!(cfg, name) = begin
-    for (k, v) in cfg.toml["sources"]
+    for (k, v) in get(cfg.toml, "sources", ())
         cfg.sources[Symbol(k)] = v
     end
     for k in setdiff(keys(cfg.toml), Set([name, "sources"]))

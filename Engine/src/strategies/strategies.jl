@@ -153,10 +153,15 @@ Base.nameof(s::Strategy) = nameof(typeof(s))
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end
 
-function loadstrategy!(src::Symbol, cfg=config)
-    file = get(cfg.sources, src, nothing)
+function strategy!(src::Symbol, cfg::Config)
+    file = get(cfg.attrs, "include_file", nothing)
     if isnothing(file)
-        throw(ArgumentError("Symbol $src not found in config $(config.path)."))
+        file = get(cfg.sources, src, nothing)
+        if isnothing(file)
+            throw(ArgumentError("Section `$src` does not declare an `include_file` and \
+                                section `sources` does not declare a `$src` key or \
+                                its value is not a valid file."))
+        end
     end
     path = find_path(file, cfg)
     mod = if !isdefined(@__MODULE__, src)
@@ -180,9 +185,9 @@ function loadstrategy!(src::Symbol, cfg=config)
             @eval $src
         end
     end
-    loadstrategy!(mod, cfg)
+    strategy!(mod, cfg)
 end
-function loadstrategy!(mod::Module, cfg=config)
+function strategy!(mod::Module, cfg::Config)
     strat_exc = exchange(mod.S{typeof(config.mode)})
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
@@ -192,11 +197,12 @@ function loadstrategy!(mod::Module, cfg=config)
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.ping!, mod.S, LoadStrategy(), cfg)
 end
+strategy(src::Union{Symbol,Module}; kwargs...) = strategy!(src, Config(src, kwargs...))
 
 include("utils.jl")
 include("print.jl")
 
-export Strategy, loadstrategy!, reset!
+export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange
 export LoadStrategy, WarmupPeriod
 

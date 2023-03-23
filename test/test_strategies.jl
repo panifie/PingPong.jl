@@ -12,7 +12,7 @@ function test_strategies()
         @test begin
             @eval using PingPong.Engine
             cfg::Config = Config(Symbol(exc.id))
-            s = loadstrategy!(:Example, cfg)
+            s = strategy!(:Example, cfg)
             [k.raw for k in s.universe.data.asset] == ["ETH/USDT", "BTC/USDT", "XMR/USDT"]
         end
     end

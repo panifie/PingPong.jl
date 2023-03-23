@@ -31,7 +31,7 @@ export Engine,
     setexchange!,
     config,
     Strategy,
-    loadstrategy!,
+    strategy!,
     config!,
     Config,
     exc
