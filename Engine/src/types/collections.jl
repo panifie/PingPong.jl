@@ -156,7 +156,7 @@ using Scrapers.BinanceData as bn
 using Strategies
 using Exchanges
 setexchange!(:binanceusdm)
-cfg = loadconfig!(nameof(exc.id); cfg=Config())
+cfg = Config(nameof(exc.id))
 strat = loadstrategy!(:Example, cfg)
 data = bn.binanceload()
 stub!(strat.universe, data)

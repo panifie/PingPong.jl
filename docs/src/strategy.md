@@ -4,7 +4,7 @@
 The strategy is instantiated by loading a julia module at runtime.
 ```julia
 using PingPong
-cfg = loadconfig!(:kucoin, cfg=Config()) # Load the configuration, choosing kucoin as exchange
+cfg = Config(:kucoin) # Load the configuration, choosing kucoin as exchange
 loadstrategy!(:Example, cfg) # Load the Example strategy
 ```
 The strategy is looked up inside the config under the `sources` key:

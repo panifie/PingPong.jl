@@ -91,10 +91,6 @@ Config = Config18
 const config = Config()
 const SourcesDict = Dict{Symbol,String}
 
-@doc "Sets a single config value."
-config!(c::Config, k, v) = setproperty!(c, k, v)
-globalconfig!(k, v) = config!(config, k, v)
-
 _path!(cfg, path) = begin
     if !isfile(path)
         throw("Config file not found at path $(config.path)")
@@ -127,7 +123,7 @@ function _options!(cfg, name)
     for (opt, val) in cfg.toml[name]
         sym = Symbol(opt)
         if sym ∈ options
-            config!(cfg, sym, _parse(sym, val))
+            setproperty!(cfg, sym, _parse(sym, val))
         else
             cfg.attrs[opt] = val
         end
@@ -143,10 +139,10 @@ _sources!(cfg, name) = begin
     end
 end
 
-@doc "Parses the toml file and populates the global `config`."
-function loadconfig!(
-    profile::T; path::String=config_path(), cfg::Config=config
-) where {T<:Union{Symbol,String}}
+@doc "Parses the toml file and populates the config `cfg` (defaults to global config)."
+function config!(
+    profile::Union{Symbol,String}; cfg::Config=config, path::String=config_path()
+)
     _path!(cfg, path)
     name = _namestring(profile)
     _toml!(cfg, name)
@@ -155,11 +151,16 @@ function loadconfig!(
     cfg
 end
 
-@doc "Reset global config to default values."
-function resetconfig!(c=config)
+function Config(profile::Union{Symbol,String}; path::String=config_path())
+    cfg = Config()
+    config!(profile; cfg, path)
+end
+
+@doc "Reset config to default values."
+function Base.empty!(c::Config)
     default = Config()
     for k in fieldnames(Config)
-        config!(c, k, getproperty(default, k))
+        setproperty!(c, k, getproperty(default, k))
     end
 end
 
@@ -174,7 +175,7 @@ macro lev!()
 end
 
 function __init__()
-    resetconfig!()
+    empty!(config)
 end
 
-export Config, config, loadconfig!, resetconfig!, exchange_keys
+export Config, config, config!, exchange_keys

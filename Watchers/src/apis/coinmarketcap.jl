@@ -3,7 +3,7 @@ using Watchers
 using HTTP
 using URIs
 using LazyJSON
-using Misc: Config, config, loadconfig!, queryfromstruct
+using Misc: Config, config, queryfromstruct
 using Lang: Option
 
 const API_HEADER = "X-CMC_PRO_API_KEY"
@@ -21,7 +21,7 @@ function setapikey!(from_env=false, config_path="cfg/backtest.toml")
     apikey = if from_env
         get(ENV, "CMC_API_KEY")
     else
-        cfg = loadconfig!(:default; path=config_path, cfg=Config())
+        cfg = Config(:default; path=config_path)
         @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in [default] configuration."
         cfg.attrs[API_KEY_CONFIG]
     end

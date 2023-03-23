@@ -5,7 +5,7 @@ using HTTP
 using URIs
 using LazyJSON
 using Data: Candle
-using Misc: Config, config, loadconfig!, queryfromstruct
+using Misc: Config, config, queryfromstruct
 using Lang: Option, @kget!
 using TimeTicks
 

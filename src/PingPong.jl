@@ -12,7 +12,7 @@ include("repl.jl")
 function __init__()
     if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
         exc = Symbol(get!(ENV, "JULIA_BACKTEST_EXC", :kucoin))
-        loadconfig!(exc)
+        Config(exc)
         setexchange!(exc)
     end
     @debug "Initializing python async..."
@@ -32,7 +32,7 @@ export Engine,
     config,
     Strategy,
     loadstrategy!,
-    loadconfig!,
+    config!,
     Config,
     exc
 

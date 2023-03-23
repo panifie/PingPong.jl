@@ -19,7 +19,7 @@ macro setup(exc)
     mr = esc(:mrkts_r)
     mvp = esc(:mvp)
     quote
-        Misc.loadconfig($exc)
+        Misc.Config($exc)
         $a = an
         setexchange!($exc)
         $m = load_ohlcv("15m")
