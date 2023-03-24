@@ -1,9 +1,14 @@
+using Lang: @lget!
+
+Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
 assets(s::Strategy) = s.universe.data.asset
 @doc "Strategy assets instance."
 instances(s::Strategy) = s.universe.data.instance
 @doc "Strategy main exchange id."
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
+@doc "Cash that is not committed, and therefore free to use for new orders."
+freecash(s::Strategy) = s.cash - s.cash_committed
 
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
@@ -20,7 +25,8 @@ Base.nameof(s::Strategy) = nameof(typeof(s))
 
 @doc "Resets strategy."
 reset!(s::Strategy) = begin
-    empty!(s.orders)
+    empty!(s.buyorders)
+    empty!(s.sellorders)
     empty!(s.holdings)
     for ai in s.universe
         empty!(ai.history)
@@ -39,3 +45,5 @@ reload!(s::Strategy) = begin
 end
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end
+Base.fill!(s::Strategy) = coll.fill!(s.universe, s.timeframe, s.config.timeframes)
+

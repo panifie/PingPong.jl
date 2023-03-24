@@ -70,6 +70,7 @@ AssetInstance = AssetInstance48
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
+Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
 function instance(exc::Exchange, a::AbstractAsset)
     data = Dict()
@@ -168,6 +169,7 @@ end
 Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
 Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
 Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
+freecash(ai::AssetInstance) = ai.cash - ai.cash_committed
 
 export AssetInstance, isactive, instance, load!
 end

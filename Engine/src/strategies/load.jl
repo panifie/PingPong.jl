@@ -1,6 +1,6 @@
 macro notfound(path)
     quote
-        throw(LoadError("Strategy not found at $(esc(file))"))
+        throw(LoadError("Strategy not found at $(esc(path))"))
     end
 end
 

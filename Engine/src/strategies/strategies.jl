@@ -14,19 +14,22 @@ using ..Engine: Engine
 
 abstract type AbstractStrategy end
 
-const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
-const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+ExchangeAsset(E) = AssetInstance{T,E} where {T}
+ExchangeOrder(E) = Order{O,T,E} where {O,T}
+ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O,T}
+ExchangeSellOrder(E) = SellOrder{O,T,E} where {O,T}
 # TYPENUM
-struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
+struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
-    cash::Cash{S,Float64} where {S}
-    cash_committed::Cash{S,Float64} where {S}
-    orders::Dict{ExchangeAsset{E},Vector{ExchangeOrder{E}}}
-    holdings::Set{ExchangeAsset{E}}
+    cash::Cash{S1,Float64} where {S1}
+    cash_committed::Cash{S2,Float64} where {S2}
+    buyorders::Dict{ExchangeAsset(E),Set{ExchangeBuyOrder(E)}}
+    sellorders::Dict{ExchangeAsset(E),Set{ExchangeSellOrder(E)}}
+    holdings::Set{ExchangeAsset(E)}
     universe::AssetCollection
-    function Strategy64(
+    function Strategy69(
         self::Module, mode=Sim; assets::Union{Dict,Iterable{String}}, config::Config
     )
         exc = getexchange!(config.exchange)
@@ -38,10 +41,13 @@ struct Strategy64{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         end
         ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
-        holdings = Set{ExchangeAsset{eid}}()
-        orders = Dict{ExchangeAsset,Vector{ExchangeOrder{eid}}}()
+        holdings = Set{ExchangeAsset(eid)}()
+        buyorders = Dict{ExchangeAsset(eid),Set{ExchangeBuyOrder(eid)}}()
+        sellorders = Dict{ExchangeAsset(eid),Set{ExchangeSellOrder(eid)}}()
         name = nameof(self)
-        new{mode,name,eid}(self, config, timeframe, ca, ca_comm, orders, holdings, uni)
+        new{mode,name,eid}(
+            self, config, timeframe, ca, ca_comm, buyorders, sellorders, holdings, uni
+        )
     end
 end
 @doc """The strategy is the core type of the framework.
@@ -63,7 +69,7 @@ Conventions for strategy defined attributes:
 - `S`: the strategy type.
 - `TF`: the smallest `timeframe` that the strategy uses
 """
-Strategy = Strategy64
+Strategy = Strategy69
 
 include("methods.jl")
 include("interface.jl")

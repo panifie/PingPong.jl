@@ -47,18 +47,16 @@ struct Order15{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:Exchange
     amount::Float64
     attrs::NamedTuple
 end
+
 Order = Order15
 function Order15(
-    a::A,
-    e::E,
-    ::Type{Order{T}};
-    price,
-    date,
-    amount,
-    attrs=(;),
-    kwargs...,
+    a::A, e::E, ::Type{Order{T}}; price, date, amount, attrs=(;), kwargs...
 ) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID}
     Order{T,A,E}(a, e, date, price, amount, attrs)
+end
+Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.amount))
+function Base.hash(o::Order{T}, h::UInt) where {T}
+    hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
 const BuyOrder{O,A,E} =
     Order{O,A,E} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID}
@@ -68,7 +66,10 @@ macro deforders(types...)
     out = quote end
     for t in types
         type_str = string(t)
-        type = esc(Symbol(type_str * "Order"))
+        type_sym = Symbol(type_str * "Order")
+        # HACK: const/types definitions inside macros can't be revised
+        isdefined(@__MODULE__, type_sym) && continue
+        type = esc(type_sym)
         supertype = esc(Symbol(type_str * "OrderType"))
         push!(
             out.args,
@@ -127,9 +128,11 @@ CompositeTrade = CompositeTrade3
 
 const ordersdefault! = Returns(nothing)
 
+orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
+
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, BuyTrade, SellTrade
 export LimitOrder, MarketOrder, FOKOrder, Trade
-export ordersdefault!
+export ordersdefault!, orderside
 
 end

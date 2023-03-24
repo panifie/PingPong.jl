@@ -38,7 +38,8 @@ function Base.show(out::IO, s::Strategy)
         out,
         "Holdings: assets(trades): $(mmh.count)($(n_trades)), min $(mmh.min), max $(mmh.max)\n",
     )
-    write(out, "Orders: $(length(s.orders))\n")
+    write(out, "Pending buys: $(length(s.buyorders))\n")
+    write(out, "Pending sells: $(length(s.sellorders))\n")
     write(out, "$(s.cash) (Cash)\n")
     write(out, "$(current_worth(s)) (Worth)")
 end
