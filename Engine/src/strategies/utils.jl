@@ -34,7 +34,7 @@ for sym in (openat, highat, lowat, closeat, volumeat)
     @eval @define_candle_func $sym
 end
 
-current_worth(s::Strategy) = begin
+current_total(s::Strategy) = begin
     worth = Cash(s.cash, 0.0)
     for ai in s.holdings
         add!(worth, ai.cash * closelast(ai.ohlcv))

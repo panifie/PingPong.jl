@@ -6,9 +6,9 @@ minmax_holdings(s::Strategy) = begin
     min_hold = (nameof(s.cash), Inf)
     for ai in s.holdings
         val = ai.cash * closelast(ai.ohlcv)
-        isapprox(val, 0.0, atol=1e-12) && continue
+        isapprox(val, 0.0; atol=1e-12) && continue
         n_holdings += 1
-        if  val > max_hold[2]
+        if val > max_hold[2]
             max_hold = (ai.asset.bc, val)
         end
         if 0 < val < min_hold[2]
@@ -52,12 +52,17 @@ function Base.show(out::IO, s::Strategy)
     write(out, "\n")
     mmh = minmax_holdings(s)
     n_trades = trades_total(s)
-    write(
-        out,
-        "Holdings: assets(trades): $(mmh.count)($(n_trades)), min $(Cash(mmh.min...))($cur), max $(Cash(mmh.max...))($cur)\n",
-    )
+    write(out, "Holdings: assets(trades): $(mmh.count)($(n_trades))")
+    if mmh.min[1] != cur
+        write(out, ", min $(Cash(mmh.min...))($cur)")
+    end
+    if mmh.max[1] != cur
+        write(out, ", max $(Cash(mmh.max...))($cur)\n")
+    else
+        write(out, "\n")
+    end
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    write(out, "$(current_worth(s)) (Worth)")
+    write(out, "$(current_total(s)) (Total)")
 end

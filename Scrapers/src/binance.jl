@@ -98,11 +98,8 @@ function binancesyms(; kwargs...)
                 sp = split(el.content, '/')
                 isempty(sp[end]) ? sp[end - 1] : sp[end]
             end
-            Main.display!("binance.jl:101")
             allsyms = [symname(el) for el in els if el.name == "CommonPrefixes"]
-            Main.display!("binance.jl:103")
             ca.save_cache(key, allsyms)
-            Main.display!("binance.jl:105")
             allsyms
         else
             cached
