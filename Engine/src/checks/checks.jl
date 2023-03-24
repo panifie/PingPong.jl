@@ -27,23 +27,23 @@ Which means that their output values will always be lower than their input, **ex
 for the case in which their values would fall below the exchange minimums. In such case \
 the exchange minimum is returned.
 """
-function sanitize_amount(inst::AssetInstance, amount)
-    if inst.limits.amount.min > 0 && amount < inst.limits.amount.min
-        inst.limits.amount.min
-    elseif inst.precision.amount < 0 # has to be a multiple of 10
-        max(toprecision(Int(amount), 10), inst.limits.amount.min)
+function sanitize_amount(ai::AssetInstance, amount)
+    if ai.limits.amount.min > 0 && amount < ai.limits.amount.min
+        ai.limits.amount.min
+    elseif ai.precision.amount < 0 # has to be a multiple of 10
+        max(toprecision(Int(amount), 10), ai.limits.amount.min)
     else
-        toprecision(amount, inst.precision.amount)
+        toprecision(amount, ai.precision.amount)
     end
 end
 
 @doc """ See `sanitize_amount`.
 """
-function sanitize_price(inst::AssetInstance, price)
-    if inst.limits.price.min > 0 && price < inst.limits.price.min
-        inst.limits.price.min
+function sanitize_price(ai::AssetInstance, price)
+    if ai.limits.price.min > 0 && price < ai.limits.price.min
+        ai.limits.price.min
     else
-        max(toprecision(price, inst.precision.price), inst.limits.price.min)
+        max(toprecision(price, ai.precision.price), ai.limits.price.min)
     end
 end
 
@@ -51,45 +51,71 @@ function _cost_msg(asset, direction, value, cost)
     "The cost ($cost) of the order ($asset) is $direction market minimum of $value"
 end
 
+function ismincost(ai::AssetInstance, price, amount)
+    iszero(ai.limits.cost.min) || begin
+        cost = price * amount
+        cost >= ai.limits.cost.min
+    end
+end
 @doc """ The cost of the order should not be below the minimum for the exchange.
 """
-function checkmincost(inst::AssetInstance, price, amount)
-    iszero(inst.limits.cost.min) || begin
+function checkmincost(ai::AssetInstance, price, amount)
+    @assert ismincost(ai, price, amount) _cost_msg(
+        ai.asset, "below", ai.limits.cost.min, price * amount
+    )
+    return true
+end
+function ismaxcost(ai::AssetInstance, price, amount)
+    iszero(ai.limits.cost.max) || begin
         cost = price * amount
-        @assert cost >= inst.limits.cost.min _cost_msg(
-            inst.asset, "below", inst.limits.cost.min, cost
-        )
+        cost < ai.limits.cost.max
     end
 end
 @doc """ The cost of the order should not be above the maximum for the exchange.
 """
-function checkmaxcost(inst::AssetInstance, price, amount)
-    iszero(inst.limits.cost.max) || begin
-        cost = price * amount
-        @assert cost < inst.limits.cost.max _cost_msg(
-            inst.asset, "above", inst.limits.cost.max, cost
-        )
+function checkmaxcost(ai::AssetInstance, price, amount)
+    @assert ismaxcost(ai, price, amount) _cost_msg(
+        ai.asset, "above", ai.limits.cost.max, price * amount
+    )
+    return true
+end
+
+function _checkcost(fmin, fmax, ai::AssetInstance, amount, prices...)
+    ok = false
+    for p in Iterators.reverse(prices)
+        isnothing(p) || (fmax(ai, amount, p) && (ok = true; break))
     end
+    ok || return false
+    ok = false
+    for p in prices
+        isnothing(p) || (fmin(ai, amount, p) && (ok = true; break))
+    end
+    ok
 end
 
 @doc """ Checks that the last price given is below maximum, and the first is above minimum.
 In other words, it expects all given prices to be already sorted."""
-function checkcost(inst::AssetInstance, amount, prices...)
-    for p in Iterators.reverse(prices)
-        isnothing(p) || (checkmaxcost(inst, amount, p); break)
-    end
-    for p in prices
-        isnothing(p) || (checkmincost(inst, amount, p); break)
-    end
+function checkcost(ai::AssetInstance, amount, prices...)
+    _checkcost(checkmincost, checkmaxcost, ai, amount, prices...)
 end
-function checkcost(inst::AssetInstance, amount, p1)
-    checkmaxcost(inst, amount, p1)
-    checkmincost(inst, amount, p1)
+function checkcost(ai::AssetInstance, amount, p1)
+    checkmaxcost(ai, amount, p1)
+    checkmincost(ai, amount, p1)
+end
+function iscost(ai::AssetInstance, amount, prices...)
+    _checkcost(ismincost, ismaxcost, ai, amount, prices...)
+    true
+end
+function iscost(ai::AssetInstance, amount, p1)
+    ismaxcost(ai, amount, p1)
+    ismincost(ai, amount, p1)
 end
 
+ismonotonic(prices...) = isstrictlysorted(Iterators.filter(!isnothing, prices)...)
 @doc """ Checks that the given prices are sorted. """
 function check_monotonic(prices...)
-    @assert isstrictlysorted(Iterators.filter(!isnothing, prices)...) "Prices should be sorted, e.g. stoploss < price < takeprofit"
+    @assert ismonotonic(prices...) "Prices should be sorted, e.g. stoploss < price < takeprofit"
+    return true
 end
 
 export SanitizeOn, SanitizeOff
