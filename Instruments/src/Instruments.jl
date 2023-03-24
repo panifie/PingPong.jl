@@ -127,8 +127,8 @@ isfiatpair(b::T, q::T) where {T<:AbstractString} = begin
 end
 isfiatpair(p::Vector{T}) where {T<:AbstractString} = isfiatpair(p[1], p[2])
 isfiatpair(pair::AbstractString) = isfiatpair(splitpair(pair))
-isfiatquote(pair::AbstractString) = splitpair(pair)[2] ∈ fiatnames
 isfiatquote(aa::AbstractAsset) = aa.qc ∈ fiatsyms
+isfiatquote(pair::AbstractString) = isfiatquote(parse(AbstractAsset, pair))
 
 @doc """Parses `pair` to an `Asset` type.
 ```julia

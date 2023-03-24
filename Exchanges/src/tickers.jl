@@ -1,5 +1,6 @@
 using Misc: config
 using Lang: @get, @multiget, @lget!, Option
+using Instruments: isfiatquote
 
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
 isquote(id, qc) = lowercase(id) == qc
@@ -146,7 +147,7 @@ function market_limits(
     default_leverage=DEFAULT_LEVERAGE,
     default_amount=DEFAULT_AMOUNT,
     default_price=DEFAULT_PRICE,
-    default_cost=DEFAULT_COST,
+    default_cost=(isfiatquote(pair) ? DEFAULT_FIAT_COST : DEFAULT_COST),
 )
     mkt = exc.markets[pair]["limits"]
     (;
