@@ -19,8 +19,8 @@ function limitorder(
     take=nothing,
     stop=nothing,
 )
-    ismonotonic(stop, price, take) || return
-    iscost(ai, amount, stop, price, take) || return
+    ismonotonic(stop, price, take) || return nothing
+    iscost(ai, amount, stop, price, take) || return nothing
     Orders.Order(
         ai,
         side;
@@ -66,14 +66,14 @@ end
 # _pricebyside(::Type{<:BuyOrder}, ai, date) = st.highat(ai, date)
 _pricebyside(::Type{<:Order}, ai, date) = st.openat(ai, date)
 
-function limitorder(s::Strategy, ai, amount; date, side, kwargs...)
-    price = _pricebyside(side, ai, date)
+function limitorder(
+    s::Strategy, ai, amount; date, side, price=_pricebyside(side, ai, date), kwargs...
+)
     committed = committment(side, price, amount, ai.fees)
     if iscommittable(s, side, committed, ai)
         limitorder(ai, price, amount, committed; date, side, kwargs...)
     end
 end
-
 
 filled(o::LimitOrder) = o.attrs.filled[1]
 committed(o::LimitOrder) = o.attrs.committed[1]
@@ -109,7 +109,11 @@ end
 
 @doc "Executes a limit order at a particular time only if price is lower(buy) than order price."
 function limitorder_ifprice!(s::Strategy{Sim}, o::LimitOrder, date, ai)
-    _istriggered(o, date, ai) && limitorder_ifvol!(s, o, date, ai)
+    if _istriggered(o, date, ai)
+        limitorder_ifvol!(s, o, date, ai)
+    else
+        missing
+    end
 end
 
 @doc "Executes a limit order at a particular time according to volume (called by `limitorder_ifprice!`)."
@@ -121,5 +125,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, date, ai)
         trade!(s, o, ai; date, amount)
     elseif avl_volume > 0.0 # Partial fill
         trade!(s, o, ai; date, amount=avl_volume)
+    else
+        missing
     end
 end
