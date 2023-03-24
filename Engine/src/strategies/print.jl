@@ -1,14 +1,18 @@
+using Data: closelast
+
 minmax_holdings(s::Strategy) = begin
     n_holdings = 0
-    max_hold = 0.0
-    min_hold = Inf
+    max_hold = (nameof(s.cash), 0.0)
+    min_hold = (nameof(s.cash), Inf)
     for ai in s.holdings
+        val = ai.cash * closelast(ai.ohlcv)
+        isapprox(val, 0.0, atol=1e-12) && continue
         n_holdings += 1
-        if ai.cash.value > max_hold
-            max_hold = ai.cash
+        if  val > max_hold[2]
+            max_hold = (ai.asset.bc, val)
         end
-        if 0 < ai.cash.value < min_hold
-            min_hold = ai.cash
+        if 0 < val < min_hold[2]
+            min_hold = (ai.asset.bc, val)
         end
     end
     (min=min_hold, max=max_hold, count=n_holdings)
@@ -22,11 +26,25 @@ trades_total(s::Strategy) = begin
     n_trades
 end
 
+orders(s::Strategy, ::Type{Buy}) = s.buyorders
+orders(s::Strategy, ::Type{Sell}) = s.sellorders
+
+function Base.count(s::Strategy, side::Type{<:OrderSide})
+    n = 0
+    for ords in values(orders(s, side))
+        n += length(ords)
+    end
+    n
+end
+
+_ascash((val, sym)) = Cash(val, sym)
+
 function Base.show(out::IO, s::Strategy)
     write(out, "Name: $(nameof(s))\n")
+    cur = nameof(s.cash)
     write(
         out,
-        "Config: $(s.config.min_size)(Base Size), $(s.config.initial_cash)(Initial Cash)\n",
+        "Config: $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
     )
     n_inst = nrow(s.universe.data)
     n_exc = length(unique(s.universe.data.exchange))
@@ -36,10 +54,10 @@ function Base.show(out::IO, s::Strategy)
     n_trades = trades_total(s)
     write(
         out,
-        "Holdings: assets(trades): $(mmh.count)($(n_trades)), min $(mmh.min), max $(mmh.max)\n",
+        "Holdings: assets(trades): $(mmh.count)($(n_trades)), min $(Cash(mmh.min...))($cur), max $(Cash(mmh.max...))($cur)\n",
     )
-    write(out, "Pending buys: $(length(s.buyorders))\n")
-    write(out, "Pending sells: $(length(s.sellorders))\n")
+    write(out, "Pending buys: $(count(s, Buy))\n")
+    write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
     write(out, "$(current_worth(s)) (Worth)")
 end

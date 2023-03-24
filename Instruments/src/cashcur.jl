@@ -41,8 +41,20 @@ macro c_str(sym, val=0.0)
     :($(Cash(Symbol(sym), val)))
 end
 compactnum(val) =
-    if val < 1e3
-        "$val"
+    if val < 1e-12
+        q, r = divrem(val, 1e-12)
+        "$(Int(q)),$(round(Int, r))(p)"
+    elseif val < 1e-9
+        q, r = divrem(val, 1e-9)
+        "$(Int(q)),$(round(Int, r))(n)"
+    elseif val < 1e-6
+        q, r = divrem(val, 1e-6)
+        "$(Int(q)),$(round(Int, r))(μ)"
+    elseif val < 1e-3
+        q, r = divrem(val, 1e-3)
+        "$(Int(q)),$(round(Int, r))(m)"
+    elseif val < 1e3
+        "$(round(val, digits=3))"
     elseif val < 1e6
         q, r = divrem(val, 1e3)
         "$(Int(q)),$(round(Int, r))(K)"
