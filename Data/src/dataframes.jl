@@ -29,13 +29,13 @@ function timeframe(df::AbstractDataFrame)::TimeFrame
     end
 end
 function timeframe!(df::AbstractDataFrame, t::TimeFrame)
-    colmetadata!(df, :timestamp, "timeframe", t)
+    colmetadata!(df, :timestamp, "timeframe", t, style=:note)
     t
 end
 function timeframe!(df::AbstractDataFrame)
     @something colmetadata(df, :timestamp, "timeframe", nothing) begin
         tf = @infertf(df)
-        colmetadata!(df, :timestamp, "timeframe", tf)
+        colmetadata!(df, :timestamp, "timeframe", tf, style=:note)
         tf
     end
 end
