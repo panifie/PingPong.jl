@@ -1,6 +1,41 @@
 # PingPong docs
 
-This backtest framework is comprised of different modules:
+## Quickstart
+Launch julia and activate the package:
+```bash
+git clone https://github.com/untoreh/PingPong.jl
+cd PingPong.jl
+julia --project=.
+```
+Instantiate dependencies:
+```julia
+using Pkg: Pkg
+Pkg.instantiate()
+using PingPong
+```
+Load the default strategy, which you can look up at `./user/strategies/Example.jl`
+```julia
+using Engine.Strategies
+s = strategy(:Example)
+```
+Download some data:
+```julia
+using Instruments
+pairs = raw.(s.universe.data.asset)
+using Scrapers: BinanceData as bn
+bn.binancedownload(pairs)
+```
+Load the data into the strategy universe:
+```julia
+using Engine.Types.Collections: stub!
+let data = bn.binanceload(pairs)
+    stub!(s.universe, data)
+end
+```
+Backtest the strategy within the period available from the loaded data.
+```julia
+bt.backtest!(s)
+```
 
 ## Main Libraries
 - [Engine](./engine/engine.md): The actual backtest engine (to be built).
