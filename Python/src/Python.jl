@@ -1,4 +1,5 @@
 module Python
+
 "PYTHONPATH" ∈ keys(ENV) && pop!(ENV, "PYTHONPATH")
 using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
@@ -14,18 +15,20 @@ const PYTHONPATH = ".:$(joinpath(envdir(), "lib"))/python$(py_v)"
 setpypath!() = ENV["PYTHONPATH"] = PYTHONPATH
 setpypath!()
 using PythonCall: Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
-const pypaths = Vector{String}()
+const pymodpaths = Ref{Union{Nothing, PyList}}(nothing)
 
 @doc "Remove wrong python version libraries dirs from python loading path."
 function clearpypath!()
-    isempty(pypaths) &&
-        append!(pypaths, (x -> pyconvert(Vector{String}, x))(pyimport("sys").path))
+    global pymodpaths
+    if isnothing(pymodpaths[])
+        pymodpaths[] = PyList()
+        append!(pymodpaths[], pyimport("sys").path)
+    end
     ENV["PYTHONPATH"] = ".:$(envdir())/python$(py_v)"
 
-    path_list = PyList(pyimport("sys")."path")
-    gpaths = [pystr(x) for x in pypaths]
-    empty!(path_list)
-    @py append!(path_list, gpaths)
+    sys_path_list = PyList(pyimport("sys")."path")
+    empty!(sys_path_list)
+    append!(sys_path_list, pymodpaths[])
 end
 
 include("async.jl")
@@ -61,5 +64,6 @@ include("functions.jl")
 using Reexport
 @reexport using PythonCall
 export @pymodule, clearpypath!
+
 
 end
