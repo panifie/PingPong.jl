@@ -32,21 +32,6 @@ function limitorder(
     )
 end
 
-function limitorder(
-    ai::AssetInstance,
-    price,
-    amount,
-    committed;
-    date,
-    take=nothing,
-    stop=nothing,
-    side=LimitOrder{Buy},
-)
-    @price! ai price take stop
-    @amount! ai amount
-    limitorder(ai, price, amount, committed, SanitizeOff(); date, side, take, stop)
-end
-
 function committment(::Type{LimitOrder{Buy}}, price, amount, fees)
     [withfees(cost(price, amount), fees)]
 end
@@ -57,21 +42,31 @@ end
 function iscommittable(s::Strategy, ::Type{<:BuyOrder}, commit, _)
     st.freecash(s) >= commit[1]
 end
-function iscommittable(s::Strategy, ::Type{<:SellOrder}, commit, ai)
+function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
     Instances.freecash(ai) >= commit[1]
 end
 
 # Pessimistic buy_high/sell_low
 # _pricebyside(::Type{<:SellOrder}, ai, date) = st.lowat(ai, date)
 # _pricebyside(::Type{<:BuyOrder}, ai, date) = st.highat(ai, date)
-_pricebyside(::Type{<:Order}, ai, date) = st.openat(ai, date)
+_pricebyside(::Type{<:Order}, ai, date) = st.closeat(ai, date)
 
 function limitorder(
-    s::Strategy, ai, amount; date, side, price=_pricebyside(side, ai, date), kwargs...
+    s::Strategy,
+    ai,
+    amount;
+    date,
+    side,
+    price=_pricebyside(side, ai, date - s.timeframe),
+    take=nothing,
+    stop=nothing,
+    kwargs...,
 )
+    @price! ai price take stop
+    @amount! ai amount
     committed = committment(side, price, amount, ai.fees)
     if iscommittable(s, side, committed, ai)
-        limitorder(ai, price, amount, committed; date, side, kwargs...)
+        limitorder(ai, price, amount, committed, SanitizeOff(); date, side, kwargs...)
     end
 end
 
