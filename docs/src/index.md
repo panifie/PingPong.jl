@@ -1,8 +1,6 @@
-# PingPong docs
-
 ## Quickstart
 Launch julia and activate the package:
-```bash
+```shell
 git clone https://github.com/untoreh/PingPong.jl
 cd PingPong.jl
 julia --project=.
@@ -34,6 +32,7 @@ end
 ```
 Backtest the strategy within the period available from the loaded data.
 ```julia
+using Engine.Executors.Backtest: Backtest as bt
 bt.backtest!(s)
 ```
 
