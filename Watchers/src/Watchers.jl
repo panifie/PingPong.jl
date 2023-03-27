@@ -1,5 +1,7 @@
 @doc "Watchers are data feeds, that keep track of stale data."
 module Watchers
+occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
+
 using Python
 using TimeTicks
 using DataStructures
@@ -52,7 +54,7 @@ function _timer!(w)
         # NOTE: the callback for the timer requires 1 arg (the timer itself)
         (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
         0;
-        interval=convert(Second, w.interval.fetch).value
+        interval=convert(Second, w.interval.fetch).value,
     )
 end
 
@@ -105,7 +107,6 @@ end
  """
 Watcher = Watcher20
 
-
 @doc """ Instantiate a watcher.
 
 - `T`: The type of the underlying `CircularBuffer`
@@ -129,7 +130,7 @@ function watcher(
     flush_interval=Second(360),
     buffer_capacity=100,
     view_capacity=1000,
-    attrs=Dict()
+    attrs=Dict(),
 )
     _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
     @debug "new watcher: $name"
@@ -144,7 +145,7 @@ function watcher(
             threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
         _val=Val(Symbol(name)),
-        attrs
+        attrs,
     )
     @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
         with id $(w.name) (It must accept a `Watcher` as argument, and return a boolean)."

@@ -1,4 +1,5 @@
 module PingPong
+occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
 
 # Base.Experimental.@compiler_options optimize = 1 compile = min
 
@@ -10,16 +11,18 @@ end
 include("repl.jl")
 
 function __init__()
+    @debug "Initializing python async..."
+    t = @async Python._async_init()
     if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
         exc = Symbol(get!(ENV, "JULIA_BACKTEST_EXC", :kucoin))
         Config(exc)
+        wait(t)
         setexchange!(exc)
     end
-    @debug "Initializing python async..."
-    Python._async_init()
     # default to using lmdb store for data
     @debug "Initializing LMDB zarr instance..."
     Data.zi[] = Data.zilmdb()
+    wait(t)
 end
 
 export Engine,
