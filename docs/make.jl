@@ -1,3 +1,4 @@
+include("noprecomp.jl")
 using Pkg: Pkg;
 let dse = "~/.julia/environments/$(VERSION)/"
     if dse ∉ LOAD_PATH
@@ -41,7 +42,7 @@ use(:Engine, "Engine")
 use(:Watchers, "Watchers")
 use(:Pbar, "Pbar")
 use(:Stats, "Stats")
-using DataStructures
+using PingPong.Data.DataStructures
 @eval using Base: Timer
 
 function filter_strategy(t)
