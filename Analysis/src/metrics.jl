@@ -1,7 +1,6 @@
 using Indicators: Indicators;
 const ind = Indicators;
 using Data.DataFramesMeta
-using ProgressMeter
 using Misc: config
 using Data: @to_mat, PairData
 using Lang
@@ -146,7 +145,7 @@ end
 
 function gridrenko(data::AbstractDict; as_df=false, kwargs...)
     out = Dict()
-    @showprogress for (_, p) in data
+    for (_, p) in data
         trials = gridrenko(p.data; kwargs...)
         length(trials) > 0 && setindex!(out, trials, p.name)
     end
@@ -198,7 +197,7 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.0], c
     else
         postproc = (_, _) -> (nothing, nothing, nothing)
     end
-    p = Progress(length(n_range) * length(sigma_range))
+    # p = Progress(length(n_range) * length(sigma_range))
     th = []
     l = ReentrantLock()
     for n in n_range, sigma in sigma_range
@@ -208,7 +207,7 @@ function gridbbands(df::AbstractDataFrame; n_range=2:2:100, sigma_range=[1.0], c
             lock(l)
             push!(out_df, (; n, sigma, co...))
             size(bb, 1) > 0 && setindex!(out, bb, (; n, sigma))
-            next!(p)
+            # next!(p)
             unlock(l)
         end)
     end
