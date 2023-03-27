@@ -1,12 +1,13 @@
 using HTTP
 using CodecZlib: CodecZlib as zlib
 using ZipFile: ZipFile as zip
-using Lang: @ifdebug, @acquire
+using Lang: @ifdebug, @acquire, splitkws
 using CSV
 using Data.Cache: Cache as ca
 using Data.DFUtils: lastdate, firstdate
 using Data.DataFrames
 using Processing: TradesOHLCV as tra, cleanup_ohlcv_data, trail!
+using Instruments
 using Pbar
 
 function selectsyms(syms, all_syms; quote_currency="usdt", perps_only=true)
@@ -131,4 +132,36 @@ function dofetchfiles(sym, files; func, kwargs...)
         end
     end
     return out
+end
+
+function fromassets(aa::AbstractVector{<:AbstractAsset})
+    syms = string.(bc.(aa))
+    quote_currency = let qsyms = qc.(aa)
+        @assert length(Set(qsyms)) == 1 "All assets should have the same quote currency"
+        string(first(qsyms))
+    end
+    (; syms, quote_currency)
+end
+
+function swapfname!(ex, idx, fname)
+    if ex isa Symbol
+        ex[idx] = fname
+    else
+        ex[idx].args[end] = QuoteNode(fname)
+    end
+end
+
+macro fromassets(fname)
+    mod = __module__
+    this = @__MODULE__
+    ex = quote
+        function $mod.func(aa::AbstractVector{<:AbstractAsset}; kwargs...)
+            _, kwargs = $this.splitkws(:quote_currency; kwargs)
+            syms, quote_currency = $this.fromassets(aa)
+            $mod.func(syms; quote_currency, kwargs...)
+        end
+    end
+    swapfname!(ex.args[2].args[1].args, 1, fname)
+    swapfname!(ex.args[2].args[2].args[7].args, 1, fname)
+    ex
 end

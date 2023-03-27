@@ -84,6 +84,9 @@ Base.hash(a::AbstractAsset, h::UInt) = hash(_hashtuple(a), h)
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.show(buf::IO, a::AbstractAsset) = write(buf, "Asset($(a.bc)/$(a.qc))")
 Base.display(a::AbstractAsset) = show(stdout, a)
+raw(a::AbstractAsset) = convert(String, a)
+qc(a::AbstractAsset) = a.qc
+bc(a::AbstractAsset) = a.bc
 
 const QuoteTuple = @NamedTuple{q::Symbol}
 const BaseTuple = @NamedTuple{b::Symbol}
@@ -150,6 +153,7 @@ macro pusdt_str(sym)
 end
 
 export Cash, Asset, AbstractAsset
+export raw, bc, qc
 export isfiatpair, deleverage_pair, islegeragedpair
 export @a_str, @c_str
 

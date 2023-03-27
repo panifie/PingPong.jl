@@ -8,6 +8,7 @@ using TimeTicks
 using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
 using Data.DataFrames
 using Pbar
+using Instruments
 using ..Scrapers:
     selectsyms,
     WORKERS,
@@ -22,7 +23,8 @@ using ..Scrapers:
     zipdecode,
     timestamp!,
     cleanup_ohlcv_data,
-    mergechunks
+    mergechunks,
+    @fromassets
 
 const BASE_URL = URI("https://data.binance.vision")
 
@@ -169,6 +171,8 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
     end
     nothing
 end
+@fromassets binancedownload
+
 @argstovec binancedownload AbstractString
 
 @doc "Load previously downloaded data from binance."
@@ -179,6 +183,7 @@ function binanceload(syms::AbstractVector; zi=zi[], quote_currency="usdt", kwarg
     end
     load_ohlcv(zi, NAME, key.(selected; path_kws...), string(TF[]); rest_kws...)
 end
+@fromassets binanceload
 @argstovec binanceload AbstractString
 
 export binancedownload, binanceload, binancesyms

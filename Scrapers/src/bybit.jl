@@ -25,7 +25,8 @@ using ..Scrapers:
     glue_ohlcv,
     dofetchfiles,
     symfiles,
-    @acquire
+    @acquire,
+    @fromassets
 
 const NAME = "Bybit"
 const BASE_URL = URI("https://public.bybit.com/")
@@ -160,6 +161,7 @@ function bybitdownload(
         end
     end
 end
+@fromassets bybitdownload
 @argstovec bybitdownload AbstractString
 
 @doc "Load previously downloaded data from bybit."
@@ -171,6 +173,7 @@ function bybitload(
     end
     load_ohlcv(zi, NAME, key.(selected, path), string(TF[]); kwargs...)
 end
+@fromassets bybitload
 @argstovec bybitload AbstractString
 
 export bybitdownload, bybitload, bybitallsyms
