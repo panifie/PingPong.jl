@@ -56,7 +56,7 @@ function Base.show(out::IO, s::Strategy)
     if mmh.min[1] != cur
         write(out, ", min $(Cash(mmh.min...))($cur)")
     end
-    if mmh.max[1] != cur
+    if mmh.max[1] != cur && mmh.max[1] != mmh.min[1]
         write(out, ", max $(Cash(mmh.max...))($cur)\n")
     else
         write(out, "\n")
