@@ -1,9 +1,9 @@
 using TimeTicks
 using Lang: passkwargs, @ifdebug
 using Base: beginsym
-using Data: zi, save_ohlcv, PairData, empty_ohlcv, DataFrames
+using Data: zi, save_ohlcv, PairData, empty_ohlcv
 using Data.DFUtils
-using .DataFrames
+using Data.DataFrames
 using Pbar
 
 # remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
@@ -105,6 +105,8 @@ function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false
     end
     rs
 end
+
+resample(df::AbstractDataFrame, tf::TimeFrame) = resample(df, timeframe!(df), tf)
 
 # resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 # macro resample(mkts::AbstractDict{String,PairData}, timeframe::String, args...)

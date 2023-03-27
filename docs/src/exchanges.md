@@ -2,17 +2,19 @@
 
 ## Exchange Types
 Basic exchange types, and global exchange vars.
+
+### API
 ```@autodocs
 Modules = [Exchanges.ExchangeTypes]
 Pages = ["ExchangeTypes.jl"]
 ```
-## Exchange functions
+#### Exchange functions
 ```@autodocs
 Modules = [Exchanges]
 Pages = ["exchanges.jl", "pairlist.jl", "-data.jl"]
 ```
 
-## Data
+#### Data
 
 Extensions for the top level [Data](./data.md) module.
 
@@ -21,7 +23,7 @@ Modules = [PingPong.Exchanges]
 Pages = ["data.jl"]
 ```
 
-## Fetching
+#### Fetching
 
 Helper module for downloading data off exchanges.
 ```@autodocs

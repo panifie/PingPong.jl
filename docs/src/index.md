@@ -1,6 +1,5 @@
 # PingPong docs
 
-
 This backtest framework is comprised of different modules:
 
 ## Main Libraries
@@ -16,3 +15,8 @@ This backtest framework is comprised of different modules:
 - [Watchers](./watchers/watchers.md): Services for data pipelines, from sources to storage.
 - [Misc](./misc.md): Ancillary stuff, like configuration, and some UI bits.
 - [Analysis](./analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`.
+
+## Infos
+- [troubleshooting](./troubleshooting.md)
+- [devnotes](./devnotes.md)
+- [contacts](./contacts.md)

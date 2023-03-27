@@ -49,7 +49,8 @@ As a rule of thumb if the method should be called before the strategy is constru
 - `exchange`: returns the `ExchangeID` of the strategy.
 - `process`
 
-## Data structures
+
+### API
 
 ``` @docs
 Strategy

@@ -1,6 +1,7 @@
 # Types
-Learning the types is all that's required to start backtesting or live trading.
+By learning the main types you get to know the building blocks to start composing your strategy for backtesting and/or live trading.
 
+### API
 ```@autodocs
 Modules = [Instruments, Instruments.Derivatives]
 Order = [:type]

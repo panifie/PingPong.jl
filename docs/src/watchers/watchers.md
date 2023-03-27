@@ -37,6 +37,7 @@ To implement a custom watcher you have to define the functions such that dispatc
 
 Look in the `Watchers` and `WatchersImpls` modules for helper functions:
 
+### API
 ```@autodocs
 Modules = [Watchers, Watchers.WatchersImpls]
 ```
