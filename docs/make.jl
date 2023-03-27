@@ -22,10 +22,11 @@ function use(name, args...)
         @eval using $name
     end
     catch
+        prev = Pkg.project().path
         Pkg.activate(path)
         Pkg.instantiate()
         @eval using $name
-        Pkg.activate(".")
+        Pkg.activate(prev)
     end
 end
 use(:Prices, "Data", "src", "prices.jl")

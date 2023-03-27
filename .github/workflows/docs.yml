@@ -43,13 +43,13 @@ jobs:
         sudo apt-get install -y xvfb xauth
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        xvfb-run julia --compile=min --project=. docs/setup.jl
+        xvfb-run julia --project=. docs/setup.jl
     - name: Build docs
       run: |
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
         export JULIA_CONDAPKG_OFFLINE=yes
-        julia --compile=min --project=. docs/make.jl
+        julia --project=. docs/make.jl
     - name: Save julia docs cache
       uses: actions/cache/save@v3
       with:
