@@ -724,7 +724,7 @@ uuid = "fc60dff9-86e7-5f2f-a8a0-edeadbb75bd9"
 version = "1.0.3"
 
 [[deps.Long]]
-deps = ["Data", "DataFramesMeta", "Indicators", "Lang", "MVP", "Misc", "Processing", "Short"]
+deps = ["Data", "Indicators", "Lang", "MVP", "Misc", "Processing", "Short"]
 path = "Long"
 uuid = "4332194b-c649-4273-a126-4843709b406e"
 version = "0.1.0"
@@ -1114,7 +1114,7 @@ uuid = "1277b4bf-5013-50f5-be3d-901d8477a67a"
 version = "2.0.0"
 
 [[deps.Short]]
-deps = ["Data", "DataFrames", "DataFramesMeta", "Lang", "Misc", "Statistics"]
+deps = ["Data", "Lang", "Misc", "Processing", "Statistics"]
 path = "Short"
 uuid = "669a2027-c4b8-428d-ba58-693007de5487"
 version = "0.1.0"

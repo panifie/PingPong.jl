@@ -43,7 +43,7 @@ jobs:
         sudo apt-get install -y xvfb xauth
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        xvfb-run julia --project=. -e 'using Pkg; Pkg.add(["Documenter", "DocStringExtensions"]); Pkg.instantiate(); Pkg.precompile(); Pkg.precompile()'
+        xvfb-run julia --project=. docs/setup.jl
     - name: Build docs
       run: |
         # FIXME

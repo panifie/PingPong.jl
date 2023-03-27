@@ -832,7 +832,7 @@ git-tree-sha1 = "11fc3c7450f8eb6d11e4c882a0ff3be097937e5e"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaIO/Zarr.jl"
 uuid = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
-version = "0.8.0"
+version = "99.0.0"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]

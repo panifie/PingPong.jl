@@ -16,6 +16,7 @@ function use(name, args...)
         @eval using .$name
     else
         path ∉ LOAD_PATH && push!(LOAD_PATH, path)
+        Pkg.instantiate(string(name))
         @eval using $name
     end
 end
