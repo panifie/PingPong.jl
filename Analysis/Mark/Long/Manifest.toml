@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc1"
 manifest_format = "2.0"
-project_hash = "499d20250c2bff1f494b2b7480312cca71f75285"
+project_hash = "3ea17a40b2baa9a00d76ed368775529dd88ad1bf"
 
 [[deps.AWSCore]]
 deps = ["Base64", "Dates", "HTTP", "IniFile", "JSON", "LazyJSON", "MbedTLS", "Mocking", "OrderedCollections", "Retry", "Sockets", "SymDict", "UUIDs", "XMLDict"]
@@ -510,7 +510,7 @@ version = "0.7.0"
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [[deps.Short]]
-deps = ["Data", "DataFrames", "DataFramesMeta", "Lang", "Misc", "Statistics"]
+deps = ["Data", "Lang", "Misc", "Processing", "Statistics"]
 path = "../Short"
 uuid = "669a2027-c4b8-428d-ba58-693007de5487"
 version = "0.1.0"

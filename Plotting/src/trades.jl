@@ -80,9 +80,9 @@ function trades_fig(df, fig=makefig())
 end
 
 @doc "Plots a subset of trades history of an asset instance.
-`from`: the first index in the trade history to plot [`1`]
-`to`: the last index in the trade history to plot [`lastindex`]
-`force`: plots very large dataframes [`false`]
+- `from`: the first index in the trade history to plot [`1`]
+- `to`: the last index in the trade history to plot [`lastindex`]
+- `force`: plots very large dataframes [`false`]
 "
 function plot_trades_range(s::Strategy, aa; from=1, to=nothing, force=false)
     ai = s.universe[aa, :instance, 1]

@@ -9,7 +9,9 @@ using Data.DFUtils
 using Data: DataFrame
 
 using Engine
+using Engine.Strategies: Strategies as st
 using Engine.Strategies
+using Engine.Types.Instances: Instances as inst
 using Engine.Executors
 using Engine.Orders: limitorder, LimitOrder, Buy, Sell
 
@@ -32,14 +34,20 @@ function ping!(::Type{S}, ::LoadStrategy, config)
 end
 
 function buy!(s::S, ai, ats, ts)
+    st.pop!(s, ai, Sell)
     @deassert ai.asset.qc == nameof(s.cash)
-    amount = s.cash / closeat(ai.ohlcv, ats) / 10.0
-    pong!(s, LimitOrder{Buy}, ai; amount, date=ts)
+    amount = st.freecash(s) / 10.0 / closeat(ai.ohlcv, ats)
+    if amount > 0.0
+        t = pong!(s, LimitOrder{Buy}, ai; amount, date=ts)
+    end
 end
 
 function sell!(s::S, ai, ats, ts)
-    amount = ai.cash / 10.0
-    pong!(s, LimitOrder{Sell}, ai; amount, date=ts)
+    st.pop!(s, ai, Buy)
+    amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
+    if amount > 0.0
+        t = pong!(s, LimitOrder{Sell}, ai; amount, date=ts)
+    end
 end
 
 function marketsid(::Type{S})
@@ -47,7 +55,9 @@ function marketsid(::Type{S})
 end
 marketsid(::S) = marketsid(S)
 
-ping!(::S, ::WarmupPeriod) = Day(1)
+ping!(_::S, ::WarmupPeriod) = begin
+    Day(1)
+end
 
 function ping!(s::S, ts, _)
     pong!(s, ts, UpdateOrders())
@@ -65,7 +75,7 @@ end
 const this_close = Ref{Option{Float64}}(nothing)
 const prev_close = Ref{Option{Float64}}(nothing)
 
-function closepair(ai, ats, tf=tf"15m")
+function closepair(ai, ats, tf=tf"1m")
     data = ai.data[tf]
     prev_date = ats - tf
     if data.timestamp[begin] > prev_date
@@ -81,17 +91,17 @@ function isbuy(s::S, ai, ats)
     if s.cash > s.config.min_size
         closepair(ai, ats)
         isnothing(this_close[]) && return false
-        this_close[] / prev_close[] > 1.01
+        this_close[] / prev_close[] > 1.005
     else
         false
     end
 end
 
-function issell(_::S, ai, ats)
+function issell(s::S, ai, ats)
     if ai.cash > 0.0
         closepair(ai, ats)
         isnothing(this_close[]) && return false
-        prev_close[] / this_close[] > 1.01
+        prev_close[] / this_close[] > 1.005
     else
         false
     end

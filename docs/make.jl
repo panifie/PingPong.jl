@@ -8,7 +8,6 @@ using Documenter, DocStringExtensions
 
 # Modules
 using PingPong
-using Pbar
 project_path = dirname(Pkg.project().path)
 function use(name, args...)
     path = joinpath(project_path, args...)
@@ -21,25 +20,31 @@ function use(name, args...)
     end
 end
 use(:Prices, "Data", "src", "prices.jl")
-use(:Fetch, "Exchanges", "Fetch")
+use(:Fetch, "Fetch")
 use(:Short, "Analysis", "Mark", "Short")
 use(:Long, "Analysis", "Mark", "Long")
 use(:MVP, "Analysis", "Mark", "MVP")
-use(:Processing, "Analysis", "Processing")
+use(:Processing, "Processing")
 use(:Instruments, "Instruments")
 use(:Exchanges, "Exchanges")
 use(:Plotting, "Plotting")
 use(:Analysis, "Analysis")
 use(:Engine, "Engine")
 use(:Watchers, "Watchers")
+use(:Pbar, "Pbar")
+use(:Stats, "Stats")
 using DataStructures
 @eval using Base: Timer
 
 function filter_strategy(t)
-    if startswith(string(nameof(t)), "Strategy")
+    try
+        if startswith(string(nameof(t)), "Strategy")
+            false
+        else
+            true
+        end
+    catch
         false
-    else
-        true
     end
 end
 

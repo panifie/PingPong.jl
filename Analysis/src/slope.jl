@@ -1,6 +1,6 @@
 using Indicators;
 const ind = Indicators;
-using DataFrames: DataFrame, AbstractDataFrame
+using Data.DataFrames: DataFrame, AbstractDataFrame
 
 function slopefilter(
     timeframe=config.min_timeframe; qc=config.qc, minv=10.0, maxv=90.0, window=20

@@ -2,8 +2,8 @@
 module Short
 
 using Statistics: std, mean
-using DataFrames: DataFrame, AbstractDataFrame, index
-using DataFramesMeta
+using Data.DataFrames: DataFrame, AbstractDataFrame, index
+using Data.DataFramesMeta
 using Data: PairData
 using Processing: maptf
 using Lang

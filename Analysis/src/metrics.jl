@@ -1,6 +1,6 @@
 using Indicators: Indicators;
 const ind = Indicators;
-using DataFramesMeta
+using Data.DataFramesMeta
 using ProgressMeter
 using Misc: config
 using Data: @to_mat, PairData

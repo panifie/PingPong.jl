@@ -1,5 +1,5 @@
 module Prices
-using DataFrames
+using Data.DataFrames
 
 const pranges_futures = (0.98, 0.985, 1.015, 1.02, 1.025)
 const pranges_bal = (0.94, 0.95, 0.955, 1.045, 1.05, 1.06)

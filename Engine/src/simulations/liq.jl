@@ -20,3 +20,5 @@ function illiqat(idx::Integer, close::T, volume::T; window=120) where {T<:Abstra
     return sum(returns_volume_ratio) / window * 1e6
 end
 
+
+# liquidation price = entry price - (1/leverage ratio) * entry price
