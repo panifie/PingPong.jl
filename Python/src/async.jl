@@ -8,6 +8,7 @@ const pyrunner = pynew()
 const pyrunner_thread = pynew()
 const pyloop = pynew()
 const pycoro_type = pynew()
+const AsyncInitialized = Ref(false)
 
 function _async_init()
     if pyisnull(pyaio)
@@ -15,6 +16,7 @@ function _async_init()
         pycopy!(pyuv, pyimport("uvloop"))
         pycopy!(pythreads, pyimport("threading"))
         py_start_loop()
+        AsyncInitialized[] = true
     end
 end
 
