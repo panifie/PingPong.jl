@@ -1,6 +1,6 @@
 # Plotting
 
-Plotting module is based on (py)echarts.
+Plotting module is based on Makie.
 
 ```@autodocs
 Modules = [Plotting]
