@@ -17,7 +17,7 @@ function recurse_projects(
     top && Pkg.activate(pwd())
 end
 
-function _update_project(path, fullpath; precomp, doupdate)
+function _update_project(path, fullpath; precomp, inst, doupdate)
     projpath = dirname(joinpath(path, fullpath))
     Pkg.activate(projpath)
     Pkg.resolve()
@@ -26,13 +26,12 @@ function _update_project(path, fullpath; precomp, doupdate)
         Pkg.update()
         Pkg.offline(true)
     end
-    precomp && begin
-        Pkg.precompile()
-    end
+    precomp && Pkg.precompile()
+    inst && Pkg.instantiate()
 end
 
-function update_projects(path="."; doupdate=false, precomp=false)
-    recurse_projects(_update_project, path; doupdate, precomp)
+function update_projects(path="."; doupdate=false, inst=false, precomp=false)
+    recurse_projects(_update_project, path; doupdate, inst, precomp)
 end
 
 function _project_name!(path, fullpath; projects)

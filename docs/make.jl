@@ -11,13 +11,20 @@ using PingPong
 project_path = dirname(Pkg.project().path)
 function use(name, args...)
     path = joinpath(project_path, args...)
+    try
     if endswith(args[end], ".jl")
         include(path)
         @eval using .$name
     else
         path ∉ LOAD_PATH && push!(LOAD_PATH, path)
-        Pkg.instantiate(string(name))
+        Pkg.instantiate()
         @eval using $name
+    end
+    catch
+        Pkg.activate(path)
+        Pkg.instantiate()
+        @eval using $name
+        Pkg.activate(".")
     end
 end
 use(:Prices, "Data", "src", "prices.jl")
