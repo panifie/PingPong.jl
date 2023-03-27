@@ -3,7 +3,6 @@ using Data.DataFrames
 using Data.DFUtils
 using Data: AbstractDataFrame
 using Processing: resample
-using Instruments: compactnum as cn
 
 function candle_str(row)
     """O: $(cn(row.open))
@@ -16,25 +15,11 @@ end
 
 function candle_tooltip_func(df)
     function f(inspector, plot, idx, _)
-        # Get the tooltip plot
-        tt = inspector.plot
-
-        # Get the scene BarPlot lives in
-        scene = parent_scene(plot)
-        candle_idx_middle, rem = divrem(idx, 4)
-        # A candle is made of 4 points, if hover is not on the last poly, we have to shift forward
-        true_idx = rem == 0 ? candle_idx_middle : candle_idx_middle + 1
-        # fetch the position of the candle mesh
-        pos = plot[1][][true_idx]
-        # The mesh has 4 points, (a rectangle) anyone of them is ok
-        # We use the shifted point to change the tooltip position
-        proj_pos = shift_project(scene, plot, pos[1])
-        update_tooltip_alignment!(inspector, proj_pos)
-        # Set the tooltip content to the candle OHLCV values
-        tt.text[] = candle_str(df[true_idx, :])
-        tt.triangle_size = 3.0
-        # Show the tooltip
-        tt.visible[] = true
+        try
+            idx = tooltip_position!(inspector, plot, idx; vertices=4)
+            tooltip_text!(inspector, candle_str(df[idx, :]); size=3.0)
+        catch
+        end
         return true
     end
 end
@@ -47,12 +32,11 @@ function ohlcv_point(width, x, y1, y2)
     Point2f[(x - width, y1), (x + width, y1), (x + width, y2), (x - width, y2)]
 end
 
-function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
-    df = resample(df, tf"1m", tf)
-    fig = Figure(; resolution=(1900, 900))
+function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
+    isnothing(tf) || (df = resample(df, timeframe(df), tf))
     firstdate = df.timestamp[begin]
     # Formats the timestamps for the X axis
-    xidxtodate(t) = [string(firstdate + tf.period * round(Int, tt)) for tt in t]
+    xidxtodate(t) = [string(firstdate + timeframe(df).period * round(Int, tt)) for tt in t]
     # Formates the Y axis values
     yidxcompact(t) = cn.(t)
     # Axis creation (Order is important)
@@ -63,8 +47,6 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
         ypanlock=true,
         yzoomlock=true,
         yaxisposition=:right,
-        xrectzoom=false,
-        yrectzoom=false
     )
     price_ax = Axis(
         fig[1, 1];
@@ -77,13 +59,15 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
         # Only scroll and zoom horizontally
         ypanlock=true,
         yzoomlock=true,
-        yrectzoom=false
+        yrectzoom=false,
     )
     # OHLCV doesn't need spines
     hidespines!(price_ax)
     hidespines!(vol_ax)
     # We already have X from the price axis
     hidexdecorations!(vol_ax)
+    # This volume interactions since it is in the background
+    deregister_interaction!(vol_ax, :rectanglezoom)
 
     # Now we iterate over the dataframe, to construct
     # candles polygons from their values
@@ -114,6 +98,8 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
     # Ansure that volume and price axies are linked
     # such that when we zoom/pan they move together
     linkxaxes!(price_ax, vol_ax)
+
+
     # Reduce the size of the volume axis which will appear
     # smaller at the bottom
     # rowsize!(fig.layout, 2, Aspect(1, 0.05))
@@ -121,7 +107,7 @@ function plot_ohclv(df::AbstractDataFrame, tf=tf"1d")
     # rowgap!(fig.layout, 1, 0.0)
     # Enables the tooltip function on the figure
     DataInspector(fig)
-    fig
+    fig, price_ax
 end
 
-export plot_ohclv
+export plot_ohlcv
