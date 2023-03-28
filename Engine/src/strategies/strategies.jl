@@ -30,11 +30,13 @@ struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     holdings::Set{ExchangeAsset(E)}
     universe::AssetCollection
     function Strategy69(
-        self::Module, mode=Sim; assets::Union{Dict,Iterable{String}}, config::Config
+        self::Module,
+        mode::Type{<:ExecMode},
+        timeframe::TimeFrame,
+        exc::Exchange,
+        uni::AssetCollection;
+        config::Config,
     )
-        exc = getexchange!(config.exchange)
-        timeframe = @something self.TF config.min_timeframe first(config.timeframes)
-        uni = AssetCollection(assets; timeframe=string(timeframe), exc)
         ca = Cash(config.qc, config.initial_cash)
         if !coll.iscashable(ca, uni)
             @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
@@ -48,6 +50,14 @@ struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         new{mode,name,eid}(
             self, config, timeframe, ca, ca_comm, buyorders, sellorders, holdings, uni
         )
+    end
+    function Strategy69(
+        self::Module, assets::Union{Dict,Iterable{String}}; mode=Sim, config::Config
+    )
+        exc = getexchange!(config.exchange)
+        timeframe = @something self.TF config.min_timeframe first(config.timeframes)
+        uni = AssetCollection(assets; timeframe=string(timeframe), exc)
+        Strategy69(self, mode, timeframe, exc, uni; config)
     end
 end
 @doc """The strategy is the core type of the framework.

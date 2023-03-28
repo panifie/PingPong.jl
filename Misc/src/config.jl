@@ -156,12 +156,20 @@ function config!(
     cfg
 end
 
+const _default_config = Config()
 @doc "Reset config to default values."
 function Base.empty!(c::Config)
-    default = Config()
     for k in fieldnames(Config)
-        setproperty!(c, k, getproperty(default, k))
+        setproperty!(c, k, getproperty(_default_config, k))
     end
+end
+
+@doc "Shallow copies the config, and top level containers fields `timeframes` and `attrs`."
+Base.copy(c::Config) = begin
+    c = Config((f=getfield(c, f) for f in fieldnames(Config))...)
+    c.timeframes = copy(c.timeframes)
+    c.attrs = copy(c.attrs)
+    c
 end
 
 @doc "Toggle config margin flag."
@@ -173,6 +181,5 @@ end
 macro lev!()
     :(config.leverage = !config.leverage)
 end
-
 
 export Config, config, config!, exchange_keys

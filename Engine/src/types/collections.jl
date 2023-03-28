@@ -30,7 +30,7 @@ struct AssetCollection2
     function AssetCollection2(instances::Iterable{<:AssetInstance})
         AssetCollection2(
             DataFrame(
-                (; exchange=inst.exchange[].id, asset=inst.asset, instance=inst) for
+                (; exchange=inst.exchange.id, asset=inst.asset, instance=inst) for
                 inst in instances;
                 copycols=false,
             ),
@@ -49,7 +49,7 @@ struct AssetCollection2
         tf = convert(TimeFrame, timeframe)
         function getInstance(ast::AbstractAsset)
             data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
-            AssetInstance(ast, data, exc; min_amount)
+            AssetInstance(ast; data, exc, min_amount)
         end
         instances = [getInstance(ast) for ast in assets]
         AssetCollection2(instances)
@@ -204,6 +204,10 @@ Base.first(ac::AssetCollection) = first(ac.data.instance)
 Base.last(ac::AssetCollection) = last(ac.data.instance)
 Base.length(ac::AssetCollection) = nrow(ac.data)
 Base.size(ac::AssetCollection) = size(ac.data)
+Base.similar(ac::AssetCollection) = begin
+    AssetCollection(similar.(ac.data.instance))
+end
+
 
 @doc "Checks that all assets in the universe match the cash."
 iscashable(c::Cash, ac::AssetCollection) = begin

@@ -26,7 +26,7 @@ const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance49{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
@@ -36,7 +36,7 @@ struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
     limits::Limits
     precision::Precision
     fees::Float64
-    function AssetInstance48(
+    function AssetInstance49(
         a::A, data, e::Exchange{E}; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID}
         new{A,E}(
@@ -51,24 +51,21 @@ struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
             fees,
         )
     end
-    function AssetInstance48(a, data, e; min_amount=1e-15)
-        limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
-        precision = market_precision(a.raw, e)
-        fees = market_fees(a.raw, e)
-        AssetInstance48(a, data, e; limits, precision, fees)
+    function AssetInstance49(a; data, exc, min_amount=1e-15)
+        limits = market_limits(a.raw, exc; default_amount=(min=min_amount, max=Inf))
+        precision = market_precision(a.raw, exc)
+        fees = market_fees(a.raw, exc)
+        AssetInstance49(a, data, exc; limits, precision, fees)
     end
-    function AssetInstance48(a::A, args...; kwargs...) where {A<:AbstractAsset}
-        AssetInstance48(a.asset, args...; kwargs...)
-    end
-    function AssetInstance48(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance49(s::S, t::S, e::S) where {S<:AbstractString}
         a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance48(a, data, exc)
+        AssetInstance49(a, data, exc)
     end
 end
-AssetInstance = AssetInstance48
+AssetInstance = AssetInstance49
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))

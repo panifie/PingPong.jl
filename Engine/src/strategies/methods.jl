@@ -43,7 +43,35 @@ reload!(s::Strategy) = begin
         load!(inst; reset=true)
     end
 end
+const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end
 Base.fill!(s::Strategy) = coll.fill!(s.universe, s.timeframe, s.config.timeframes)
-
+function Base.getproperty(s::Strategy, sym::Symbol)
+    if sym == :attrs
+        getfield(s, :config).attrs
+    elseif sym == :exchange
+        getfield(s, :config).exchange
+    elseif sym == :path
+        getfield(s, :config).path
+    elseif sym == :initial_cash
+        getfield(s, :config).initial_cash
+    elseif sym == :min_size
+        getfield(s, :config).min_size
+    elseif sym == :min_vol
+        getfield(s, :config).min_vol
+    elseif sym == :qc
+        getfield(s, :config).qc
+    elseif sym == :mode
+        getfield(s, :config).mode
+    else
+        getfield(s, sym)
+    end
+end
+function Base.similar(
+    s::Strategy, mode=s.mode, timeframe=s.timeframe, exc=getexchange!(s.exchange)
+)
+    s = Strategy(
+        s.self, typeof(mode), timeframe, exc, similar(s.universe); config=copy(s.config)
+    )
+end
