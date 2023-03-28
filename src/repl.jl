@@ -24,20 +24,47 @@ function user!()
     nothing
 end
 
-function plots!()
-    if !isdefined(Main, :plo)
+# macro module!(sym, bind)
+#     quote
+#         if !isdefined(Main, $(QuoteNode(bind)))
+#             projpath = dirname(dirname(pathof(PingPong)))
+#             @info "Adding $($(string(sym))) project into `LOAD_PATH`"
+#             modpath = joinpath(projpath, string($(QuoteNode(sym))))
+#             modpath ∉ LOAD_PATH && push!(LOAD_PATH, modpath)
+#             try
+#                 @eval Main using $sym: $sym as $bind
+#             catch
+#                 prev = Pkg.project().path
+#                 Pkg.activate(modpath)
+#                 Pkg.instantiate()
+#                 Pkg.activate(prev)
+#                 @eval Main using $sym: $sym as $bind
+#             end
+#         end
+#     end
+# end
+
+function module!(sym, bind)
+    if !isdefined(Main, bind)
         projpath = dirname(dirname(pathof(PingPong)))
-        @info "Adding Plotting project into `LOAD_PATH`"
-        plotspath = joinpath(projpath, "Plotting")
-        plotspath ∉ LOAD_PATH && push!(LOAD_PATH, plotspath)
+        @info "Adding $(string(sym)) project into `LOAD_PATH`"
+        modpath = joinpath(projpath, string(sym))
+        modpath ∉ LOAD_PATH && push!(LOAD_PATH, modpath)
         try
-            @eval Main using Plotting: Plotting as plo
+            @eval Main using $sym: $sym as $bind
         catch
             prev = Pkg.project().path
-            Pkg.activate(plotspath)
+            Pkg.activate(modpath)
             Pkg.instantiate()
             Pkg.activate(prev)
-            @eval Main using Plotting: Plotting as plo
+            @eval Main using $sym: $sym as $bind
         end
     end
+    @info "`$sym` module bound to `$bind`"
 end
+
+plots!() = module!(:Plotting, :plo)
+stats!() = module!(:Stats, :ss)
+engine!() = module!(:Engine, :egn)
+
+export plots!, stats!, engine!
