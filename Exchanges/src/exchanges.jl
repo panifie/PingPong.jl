@@ -3,6 +3,7 @@ import Base.getproperty
 using Reexport
 @reexport using ExchangeTypes
 using TimeTicks
+using Lang: @lget!
 using Ccxt
 using ExchangeTypes: OptionsDict, exc
 using JSON
@@ -84,7 +85,7 @@ It uses a WS instance if available, otherwise an async instance.
 
 """
 function getexchange!(x::Symbol, args...; kwargs...)
-    get!(
+    @lget!(
         exchanges,
         x,
         begin
