@@ -1,4 +1,4 @@
-[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/VURFt4wQ) [![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://www.unto.re/PingPong.jl)
+[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/VURFt4wQ) [![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://untoreh.github.io/PingPong.jl/)
 
 **Supported julia version: 1.9**
 
