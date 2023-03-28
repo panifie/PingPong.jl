@@ -164,7 +164,7 @@ function aggtrades_tooltip_func(trades_df)
             true_idx = tooltip_position!(
                 inspector, plot, idx; vertices=100, shift_func=ellipsis_middle
             )
-            tooltip_text!(inspector, aggtrades_str(trades_df[true_idx, :]))
+            tooltip_text!(inspector, aggtrades_str(trades_df[true_idx, :]);)
         catch
         end
         return true
@@ -188,7 +188,7 @@ function plot_aggtrades(s::Strategy, aa, tf=tf"1d"; force=false)
     poscolors = Tuple{Symbol,Float32}[]
     neganchors = makevec()
     negcolors = Tuple{Symbol,Float32}[]
-    for row  in eachrow(trades_df)
+    for row in eachrow(trades_df)
         idx = dateindex(df, row.timestamp)
         if row.quote_balance < 0.0
             push!(neganchors.points, anchor(Val(:neg), idx, row.norm_qv * mm * 0.01))

@@ -16,9 +16,7 @@ function tooltip_position!(
 )
     # Get the scene BarPlot lives in
     scene = parent_scene(plot)
-    candle_idx_middle, rem = divrem(idx, vertices)
-    # A candle is made of 4 points, if hover is not on the last poly, we have to shift forward
-    true_idx = rem == 0 ? candle_idx_middle : candle_idx_middle + 1
+    true_idx = div(idx - 1, vertices) + 1
     # fetch the position of the candle mesh
     pos = plot[1][][true_idx]
     proj_pos = shift_project(scene, plot, shift_func(pos))
