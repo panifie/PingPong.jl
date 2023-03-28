@@ -32,16 +32,13 @@ struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
-    exchange::Ref{Exchange{E}}
+    exchange::Exchange{E}
     limits::Limits
     precision::Precision
     fees::Float64
     function AssetInstance48(
-        a::A, data, e::Exchange{E}; min_amount=1e-8
+        a::A, data, e::Exchange{E}; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID}
-        limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
-        precision = market_precision(a.raw, e)
-        fees = market_fees(a.raw, e)
         new{A,E}(
             a,
             data,
@@ -53,6 +50,12 @@ struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
             precision,
             fees,
         )
+    end
+    function AssetInstance48(a, data, e; min_amount=1e-15)
+        limits = market_limits(a.raw, e; default_amount=(min=min_amount, max=Inf))
+        precision = market_precision(a.raw, e)
+        fees = market_fees(a.raw, e)
+        AssetInstance48(a, data, e; limits, precision, fees)
     end
     function AssetInstance48(a::A, args...; kwargs...) where {A<:AbstractAsset}
         AssetInstance48(a.asset, args...; kwargs...)
@@ -67,7 +70,7 @@ struct AssetInstance48{T<:AbstractAsset,E<:ExchangeID}
 end
 AssetInstance = AssetInstance48
 
-_hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange[].id)
+_hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
@@ -136,7 +139,7 @@ function _load_smallest!(i, tfs, from_data, from_tf)
 end
 
 function _load_rest!(ai, tfs, from_tf, from_data)
-    exc_name = ai.exchange[].name
+    exc_name = ai.exchange.name
     name = ai.asset.raw
     dr = daterange(from_data)
     for to_tf in tfs
@@ -154,7 +157,7 @@ function _load_rest!(ai, tfs, from_tf, from_data)
 end
 
 function Orders.Order(ai::AssetInstance, type; kwargs...)
-    Order(ai.asset, ai.exchange[].id, type; kwargs...)
+    Order(ai.asset, ai.exchange.id, type; kwargs...)
 end
 
 @doc "Pulls data from storage, or resample from the shortest timeframe available."
@@ -164,6 +167,18 @@ function Base.fill!(ai::AssetInstance, tfs...)
     _check_timeframes(tfs, from_tf)
     _load_smallest!(ai, tfs, from_data, from_tf) || return nothing
     _load_rest!(ai, tfs, from_tf, from_data)
+end
+
+@doc "Returns a similar asset instance with cash and orders reset."
+function Base.similar(ai::AssetInstance)
+    AssetInstance(
+        ai.asset,
+        ai.data,
+        ai.exchange;
+        limits=ai.limits,
+        precision=ai.precision,
+        fees=ai.fees,
+    )
 end
 
 Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
