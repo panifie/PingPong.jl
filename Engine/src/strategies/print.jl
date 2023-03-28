@@ -5,7 +5,7 @@ minmax_holdings(s::Strategy) = begin
     max_hold = (nameof(s.cash), 0.0)
     min_hold = (nameof(s.cash), Inf)
     for ai in s.holdings
-        val = ai.cash * closelast(ai.ohlcv)
+        val = (ai.cash + ai.cash_committed) * closelast(ai.ohlcv)
         isapprox(val, 0.0; atol=1e-12) && continue
         n_holdings += 1
         if val > max_hold[2]
