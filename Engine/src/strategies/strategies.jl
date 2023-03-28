@@ -14,10 +14,10 @@ using ..Engine: Engine
 
 abstract type AbstractStrategy end
 
-ExchangeAsset(E) = AssetInstance{T,E} where {T}
-ExchangeOrder(E) = Order{O,T,E} where {O,T}
-ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O,T}
-ExchangeSellOrder(E) = SellOrder{O,T,E} where {O,T}
+ExchangeAsset(E) = AssetInstance{T,E} where {T<:AbstractAsset}
+ExchangeOrder(E) = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+ExchangeSellOrder(E) = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 # TYPENUM
 struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module

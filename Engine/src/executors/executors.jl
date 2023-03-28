@@ -3,7 +3,7 @@ using ..Types
 using ..Strategies: Strategy
 using ..Engine: Engine
 
-const pong! = Returns(ErrorException("Not Implemented"))
+pong!(args...; kwargs...) = error("Not implemented")
 const execute! = pong!
 
 struct UpdateOrders <: ExecAction end

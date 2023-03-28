@@ -42,13 +42,3 @@ function trade!(s::Strategy, o, ai; date=o.date, price=o.price, amount=o.amount)
     fullfill!(s, ai, o)
     return trade
 end
-
-@doc "Iterates over all pending orders checking for new fills. Should be called only once, precisely at the beginning of a `ping!` function."
-function Executors.pong!(s::Strategy{Sim}, date, ::UpdateOrders)
-    for (ai, o) in s.buyorders
-        pong!(s, o, date, ai)
-    end
-    for (ai, o) in s.sellorders
-        pong!(s, o, date, ai)
-    end
-end

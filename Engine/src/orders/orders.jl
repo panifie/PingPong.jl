@@ -45,5 +45,6 @@ struct OrderCancelled <: OrderError end
 include("state.jl")
 include("trades.jl")
 include("limit.jl")
+include("pong.jl") # Always place at the end
 
 end

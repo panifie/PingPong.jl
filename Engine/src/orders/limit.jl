@@ -1,4 +1,4 @@
-
+using ..Types.Orders: LimitOrderType
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
 const _LimitOrderState9 = NamedTuple{
     (:take, :stop, :committed, :filled, :trades),
@@ -64,9 +64,9 @@ function limitorder(
 )
     @price! ai price take stop
     @amount! ai amount
-    committed = committment(side, price, amount, ai.fees)
-    if iscommittable(s, side, committed, ai)
-        limitorder(ai, price, amount, committed, SanitizeOff(); date, side, kwargs...)
+    comm = committment(side, price, amount, ai.fees)
+    if iscommittable(s, side, comm, ai)
+        limitorder(ai, price, amount, comm, SanitizeOff(); date, side, kwargs...)
     end
 end
 
@@ -97,7 +97,7 @@ end
 
 @doc "Progresses a simulated limit order."
 function Executors.pong!(
-    s::Strategy{Sim}, o::Order{<:LimitOrder}, date::DateTime, ai; kwargs...
+    s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
 )
     limitorder_ifprice!(s, o, date, ai)
 end

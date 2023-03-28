@@ -40,7 +40,9 @@ Base.pop!(s::Strategy, ai) = begin
     pop!(s, ai, Sell)
 end
 @doc "Inserts an order into the order set of the asset instance."
-Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S} = push!(orders(s, ai, S), o)
+function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSide}
+    push!(orders(s, ai, S), o)
+end
 
 commit!(s::Strategy, o::BuyOrder, _) = add!(s.cash_committed, committed(o))
 commit!(::Strategy, o::SellOrder, ai) = add!(ai.cash_committed, committed(o))
