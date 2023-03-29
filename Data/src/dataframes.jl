@@ -131,8 +131,8 @@ function getindex(df::AbstractDataFrame, idx::DateRange)
     getindex(df, idx, Symbol.(names(df)))
 end
 
-function daterange(df::AbstractDataFrame)
-    DateRange(df.timestamp[begin], df.timestamp[end], timeframe(df))
+function daterange(df::AbstractDataFrame, tf=timeframe(df))
+    DateRange(df.timestamp[begin], df.timestamp[end], tf)
 end
 
 function _make_room(df, capacity, n)
