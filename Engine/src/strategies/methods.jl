@@ -68,6 +68,20 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         getfield(s, sym)
     end
 end
+function Base.propertynames(s::Strategy)
+    (
+        fieldnames(Strategy)...,
+        :attrs,
+        :exchange,
+        :path,
+        :initial_cash,
+        :min_size,
+        :min_vol,
+        :qc,
+        :mode,
+        :config,
+    )
+end
 function Base.similar(
     s::Strategy, mode=s.mode, timeframe=s.timeframe, exc=getexchange!(s.exchange)
 )

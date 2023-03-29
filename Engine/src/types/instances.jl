@@ -70,6 +70,7 @@ AssetInstance = AssetInstance49
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
+Base.propertynames(ai::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
 function instance(exc::Exchange, a::AbstractAsset)
