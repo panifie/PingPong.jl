@@ -107,10 +107,16 @@ Base.real(c::Cash) = real(c.value)
 
 add!(c::Cash, v) = (getfield(c, :value)[1] += v; c)
 sub!(c::Cash, v) = (getfield(c, :value)[1] -= v; c)
+@doc "Never subtract below zero."
+subzero!(c::Cash, v) = begin
+    sub!(c, v)
+    c < 0.0 && cash!(c, 0.0)
+    c
+end
 mul!(c::Cash, v) = (getfield(c, :value)[1] *= v; c)
 rdiv!(c::Cash, v) = (getfield(c, :value)[1] /= v; c)
 div!(c::Cash, v) = (getfield(c, :value)[1] ÷= v; c)
 mod!(c::Cash, v) = (getfield(c, :value)[1] %= v; c)
 cash!(c::Cash, v) = (getfield(c, :value)[1] = v; c)
 
-export add!, sub!, mul!, rdiv!, div!, mod!, cash!
+export add!, sub!, subzero!, mul!, rdiv!, div!, mod!, cash!
