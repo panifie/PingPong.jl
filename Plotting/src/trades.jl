@@ -6,6 +6,8 @@ using Data.DFUtils
 using Data.DataFrames
 using Lang: Option
 using Processing: normalize, normalize!
+using Stats: trades_balance
+using Makie: point_in_triangle, point_in_quad_parameter
 
 function trade_str(trade)
     """Trade Date: $(trade.date)
@@ -171,6 +173,20 @@ function aggtrades_tooltip_func(trades_df)
     end
 end
 
+function profits_tooltip_func(dates, profits)
+    function f(inspector, plot, idx, _)
+        try
+            true_idx = tooltip_position!(
+                inspector, plot, idx; vertices=4, shift_func=identity
+            )
+            tooltip_text!(inspector, profits_str(dates[true_idx], profits[true_idx]);)
+        catch e
+            display(e)
+        end
+        return true
+    end
+end
+
 @doc "Plots all trades aggregating data to the provided timeframe [`1d`]."
 function plot_aggtrades(s::Strategy, aa, tf=tf"1d"; force=false)
     ai = s.universe[aa, :instance, 1]
@@ -217,6 +233,58 @@ function plot_aggtrades(s::Strategy, aa, tf=tf"1d"; force=false)
         inspector_hover=aggtrades_tooltip_func(posanchors.trades),
     )
     linkaxes!(trades_ax, price_ax)
+
+    profits_df = trades_balance(ai, tf; df, asdf=true, s.initial_cash)
+    profits = profits_df.cum_total
+    cash = profits_df.cum_quote
+    base_value = profits_df.cum_base_value
+    timestamp = df.timestamp
+    profits_ax = Axis(
+        fig[2, 1]; ylabel="Balance", ypanlock=true, yzoomlock=true, yrectzoom=false
+    )
+    hidespines!(profits_ax)
+    hidexdecorations!(profits_ax)
+    function make_tooltip_func(arr, str_func)
+        (self, p, i, _) -> begin
+            scene = parent_scene(p)
+            pos = mouseposition(scene)
+            idx = round(Int, pos[1] + 0.5, RoundDown)
+            proj_pos = shift_project(scene, p, Point2f(idx, arr[idx]))
+            update_tooltip_alignment!(self, proj_pos)
+            tooltip_text!(self, str_func(idx))
+            true
+        end
+    end
+    cash_str(idx) = """
+    Cash: $(cn(cash[idx]))
+    Total: $(cn(profits[idx]))
+    Base: $(cn(base_value[idx]))
+    T: $(timestamp[idx])"""
+    upper_cash = Point2f[Point2f(n, max(0.0, cash[n])) for n in 1:length(cash)]
+    band!(
+        profits_ax,
+        Point2f[Point2f(n, 0.0) for n in 1:length(cash)], # lower
+        upper_cash; # upper
+        color=(:orange, 0.5),
+        inspector_hover=make_tooltip_func(cash, cash_str),
+        # FIXME: this doesn't work
+        highclip=(:green, 0.5),
+        lowclip=(:red, 0.5),
+    )
+    base_str(idx) = begin """
+    Base Value: $(cn(base_value[idx]))
+    T: $(timestamp[idx])"""
+    end
+    band!(
+        profits_ax,
+        upper_cash,
+        [Point2f(n, profits[n]) for n in 1:length(base_value)];
+        color=(:blue, 0.5),
+        highclip=(:green, 0.5),
+        lowclip=(:red, 0.5),
+        inspector_hover=make_tooltip_func(profits, base_str),
+    )
+    linkxaxes!(profits_ax, price_ax)
     fig
 end
 

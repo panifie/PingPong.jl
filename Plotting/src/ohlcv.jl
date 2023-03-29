@@ -106,7 +106,7 @@ function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     # Make sure the volume and price axis are close together
     # rowgap!(fig.layout, 1, 0.0)
     # Enables the tooltip function on the figure
-    DataInspector(fig)
+    DataInspector(price_ax; priority=-1)
     fig, price_ax
 end
 
