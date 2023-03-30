@@ -1,6 +1,6 @@
 [![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://untoreh.github.io/PingPong.jl/)
 
-![Ping Pong](./docs/pingponglogo-transparent.png)
+![Ping Pong](./docs/pingponglogo-384.png)
 
 **Supported julia version: 1.9**
 
