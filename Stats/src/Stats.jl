@@ -3,6 +3,14 @@ occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__
 
 using TimeTicks
 using Processing: normalize!, resample
+using Statistics
+
+using Data.DataFrames
+using Engine.Types.Orders
+using Engine.Types.Instances
+using Engine.Strategies
+using .Strategies: Strategies as st, Strategy
+
 include("trades_resample.jl")
 include("trades_balance.jl")
 
