@@ -8,7 +8,7 @@
 - Help you write data feeds to monitor exchanges or 3rd party apis.
 - Download data from external archives in parallel, and api wrappers for crypto apis.
 - Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
-- Organize your strategy using a predefined type hierarchy for instruments, exchanges, strategies.
+- Organize your strategy using a predefined type hierarchy for instruments, exchanges, orders.
 - Backtesting (to be improved)
 - Optimization (not implemented)
 - Plotting (to be improved)
