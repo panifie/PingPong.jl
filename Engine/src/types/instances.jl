@@ -7,7 +7,7 @@ using Exchanges: market_fees, market_limits, market_precision, is_pair_active, g
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 using .DataStructures: SortedDict
-using Instruments
+using Instruments: compactnum
 import Instruments: _hashtuple
 using Misc: config
 using Processing
@@ -95,6 +95,10 @@ isactive(a::AssetInstance) = is_pair_active(a.asset.raw, a.exchange)
 Base.getproperty(a::AssetInstance, f::Symbol) = begin
     if f == :ohlcv
         first(getfield(a, :data)).second
+    elseif f == :bc
+        a.asset.bc
+    elseif f == :qc
+        a.asset.qc
     else
         getfield(a, f)
     end
@@ -183,6 +187,11 @@ Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
 Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
 Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
 freecash(ai::AssetInstance) = ai.cash - ai.cash_committed
+
+function Base.string(ai::AssetInstance)
+    "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
+end
+Base.show(io::IO, ai::AssetInstance) = write(io, string(ai))
 
 export AssetInstance, isactive, instance, load!
 end

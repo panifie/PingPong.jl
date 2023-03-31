@@ -105,9 +105,8 @@ function Instruments._hashtuple(a::Derivative)
 end
 Base.hash(a::Derivative) = hash(Instruments._hashtuple(a))
 Base.hash(a::Derivative, h::UInt64) = hash(Instruments._hashtuple(a), h)
-Base.show(buf::IO, a::Derivative) = begin
-    write(buf, "Derivative($(a.raw))")
-end
+Base.string(a::Derivative) = "Derivative($(a.raw))"
+Base.show(buf::IO, a::Derivative) = write(buf, string(a))
 Base.Broadcast.broadcastable(q::Derivative) = Ref(q)
 
 export Derivative, DerivativeKind, @d_str, perpetual
