@@ -52,7 +52,8 @@ function module!(sym, bind)
         modpath ∉ LOAD_PATH && push!(LOAD_PATH, modpath)
         try
             @eval Main using $sym: $sym as $bind
-        catch
+        catch e
+            display(e)
             prev = Pkg.project().path
             Pkg.activate(modpath)
             Pkg.instantiate()

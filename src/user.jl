@@ -27,5 +27,6 @@ macro setup(exc)
     end
 end
 
-export @excfilter,
-    price_ranges, @bbranges, vcons, gprofit, smvp, cbot, cpek, @otime, @setup, last_day_roc
+export @excfilter, @bbranges,@otime, @setup
+export vcons, smvp
+export price_ranges, gprofit, cbot, cpek, last_day_roc
