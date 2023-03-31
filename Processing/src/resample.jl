@@ -38,8 +38,25 @@ function _deltas(data, to_tf)
     result(frame_size, src_td, td)
 end
 
-@doc "Resamples ohlcv data from a smaller to a higher timeframe."
-function resample(data, from_tf, to_tf, cleanup=false)
+function resample_style(style)
+    if style == :ohlcv
+        (
+            :timestamp => first,
+            :open => first,
+            :high => maximum,
+            :low => minimum,
+            :close => last,
+            :volume => sum,
+        )
+    else
+        style
+    end
+end
+
+@doc "Resamples ohlcv data from a smaller to a higher timeframe.
+- `style`: how to modify the data, (arguments to the grouped dataframe) [`:ohlcv`]
+"
+function resample(data, from_tf, to_tf, cleanup=false; style=:ohlcv)
     @ifdebug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
         "Resampling assumptions are not met, expecting cleaned data."
     cleanup && (data = cleanup_ohlcv_data(data, from_tf))
@@ -54,16 +71,7 @@ function resample(data, from_tf, to_tf, cleanup=false)
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
     gb = groupby(data, :sample)
-    df = combine(
-        gb,
-        :timestamp => first,
-        :open => first,
-        :high => maximum,
-        :low => minimum,
-        :close => last,
-        :volume => sum;
-        renamecols=false,
-    )
+    df = combine(gb, resample_style(style)...; renamecols=false)
     select!(data, Not(:sample))
     select!(df, Not(:sample))
     @debug "last 2 candles: " df[end - 1, :timestamp] df[end, :timestamp]
@@ -106,7 +114,7 @@ function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false
     rs
 end
 
-resample(df::AbstractDataFrame, tf::TimeFrame) = resample(df, timeframe!(df), tf)
+resample(df::AbstractDataFrame, tf::TimeFrame; kwargs...) = resample(df, timeframe!(df), tf; kwargs...)
 
 # resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
 # macro resample(mkts::AbstractDict{String,PairData}, timeframe::String, args...)
