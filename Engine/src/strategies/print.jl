@@ -1,11 +1,12 @@
 using Data: closelast
 
-minmax_holdings(s::Strategy) = begin
+function minmax_holdings(s::Strategy)
     n_holdings = 0
     max_hold = (nameof(s.cash), 0.0)
     min_hold = (nameof(s.cash), Inf)
+    datef = lasttrade_func(s)
     for ai in s.holdings
-        val = (ai.cash + ai.cash_committed) * closelast(ai.ohlcv)
+        val = (ai.cash + ai.cash_committed) * closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
         isapprox(val, 0.0; atol=1e-12) && continue
         n_holdings += 1
         if val > max_hold[2]

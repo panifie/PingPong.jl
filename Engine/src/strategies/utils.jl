@@ -34,15 +34,25 @@ for sym in (openat, highat, lowat, closeat, volumeat)
     @eval @define_candle_func $sym
 end
 
-current_total(s::Strategy) = begin
+function current_total(s::Strategy)
     worth = Cash(s.cash, 0.0)
     for ai in s.holdings
-        add!(worth, ai.cash * closelast(ai.ohlcv))
-        add!(worth, ai.cash_committed * closelast(ai.ohlcv))
+        price = closeat(ai, lasttrade_date(ai))
+        add!(worth, ai.cash * price)
+        add!(worth, ai.cash_committed * price)
     end
     add!(worth, s.cash)
     add!(worth, s.cash_committed)
     worth
+end
+
+function lasttrade_date(ai)
+    isempty(ai.history) ? ai.ohlcv.timestamp[end] : last(ai.history).date
+end
+
+function lasttrade_func(s)
+    last_trade = tradesedge(s)[2]
+    isnothing(last_trade) ? lastindex : Returns(last_trade.date)
 end
 
 @doc "Returns the first and last trade of any asset in the strategy universe."
