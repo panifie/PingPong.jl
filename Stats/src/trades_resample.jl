@@ -72,6 +72,13 @@ end
 #         :name => name, (p => getproperty(trade, p) for p in propertynames(trade))...
 #     ))
 # end
+#
+
+function expand(df, tf=timeframe!(df))
+    outerjoin(
+        DataFrame(:timestamp => collect(DateTime, daterange(df, tf))), df; on=:timestamp
+    )
+end
 
 @doc """ Aggregates all trades of a strategy in a single dataframe
 
@@ -79,7 +86,12 @@ end
 to the full df.
 """
 function resample_trades(
-    s::Strategy, tf=tf"1d"; style=:full, byinstance=Returns(nothing), custom=()
+    s::Strategy,
+    tf=tf"1d";
+    style=:full,
+    byinstance=Returns(nothing),
+    custom=(),
+    expand_dates=false,
 )
     df = DataFrame()
     for ai in s.universe
@@ -98,6 +110,7 @@ function resample_trades(
     )
     sort!(df, :timestamp)
     applytimeframe!(df, tf)
+    expand_dates ? expand(df, tf) : df
 end
 
 export tradesdf, resample_trades
