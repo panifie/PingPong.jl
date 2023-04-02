@@ -174,7 +174,7 @@ function bybitload(
     load_ohlcv(zi, NAME, key.(selected, path), string(TF[]); kwargs...)
 end
 @fromassets bybitload
-@argstovec bybitload AbstractString
+@argstovec bybitload AbstractString x->first(x).second
 
 export bybitdownload, bybitload, bybitallsyms
 end

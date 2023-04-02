@@ -184,7 +184,7 @@ function binanceload(syms::AbstractVector; zi=zi[], quote_currency="usdt", kwarg
     load_ohlcv(zi, NAME, key.(selected; path_kws...), string(TF[]); rest_kws...)
 end
 @fromassets binanceload
-@argstovec binanceload AbstractString
+@argstovec binanceload AbstractString x->first(x).second
 
 export binancedownload, binanceload, binancesyms
 end

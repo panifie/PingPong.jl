@@ -224,11 +224,11 @@ macro buffer!(v, code)
     end
 end
 
-macro argstovec(fname, type)
+macro argstovec(fname, type, outf=identity)
     fname = esc(fname)
     type = esc(type)
     quote
-        $fname(args::$type...; kwargs...) = $fname([args...]; kwargs...)
+        $fname(args::$type...; kwargs...) = $outf($fname([args...]; kwargs...))
     end
 end
 
