@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc1"
 manifest_format = "2.0"
-project_hash = "582ed263c2c8f9b775c48c95fea9810b2ca7473f"
+project_hash = "0805ac6cbca44243ebb6bfa17b7044cdaebe8636"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -1799,7 +1799,7 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.9.0"
 
 [[deps.Stats]]
-deps = ["Data", "Engine", "Lang", "Processing", "TimeTicks"]
+deps = ["Data", "Engine", "Lang", "Processing", "Statistics", "TimeTicks"]
 path = "../Stats"
 uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 version = "0.1.0"

@@ -1,13 +1,16 @@
 using Engine: Strategies as st
 using Engine.Strategies: Strategy
 using Engine.Types.Orders
+using Exchanges: getexchange!
 using Instruments
 using Data.DFUtils
 using Data.DataFrames
+using Data: load, zi
 using Lang: Option
 using Processing: normalize, normalize!
-using Stats: trades_balance
+using Stats: trades_balance, expand
 using Makie: point_in_triangle, point_in_quad_parameter
+using Random: seed!
 
 function trade_str(trade)
     """Trade Date: $(trade.date)
@@ -28,7 +31,7 @@ function trades_tooltip_func(trades)
     function f(inspector, plot, idx, _)
         try
             true_idx = tooltip_position!(
-                inspector, plot, idx; vertices=3, shift_func=triangle_middle
+                inspector, plot, idx; vertices=3, pos_func1=triangle_middle
             )
             tooltip_text!(inspector, trade_str(trades[true_idx]))
         catch
@@ -71,14 +74,18 @@ function check_df(df, force=false)
     end
 end
 
-function trades_fig(df, fig=makefig())
-    fig, price_ax = plot_ohlcv(df, nothing; fig)
+function make_trades_ax(fig)
     trades_ax = Axis(fig[1, 1]; ypanlock=true, yzoomlock=true, yrectzoom=false)
     hidespines!(trades_ax)
     hidedecorations!(trades_ax)
     deregister_interaction!(trades_ax, :rectanglezoom)
+    trades_ax
+end
+
+function trades_fig(df, fig=makefig(); tf=nothing)
+    fig, price_ax = plot_ohlcv(df, tf; fig)
     @deassert price_ax.title == "OHLC"
-    fig, trades_ax, price_ax
+    fig, make_trades_ax(fig), price_ax
 end
 
 @doc "Plots a subset of trades history of an asset instance.
@@ -86,7 +93,7 @@ end
 - `to`: the last index in the trade history to plot [`lastindex`]
 - `force`: plots very large dataframes [`false`]
 "
-function plot_trades_range(s::Strategy, aa; from=1, to=nothing, force=false)
+function tradesticks(s::Strategy, aa; from=1, to=nothing, force=false)
     ai = s.universe[aa, :instance, 1]
     df, to = trades_ohlcv(s.timeframe, ai, from, to)
     check_df(df, force)
@@ -145,8 +152,11 @@ ellipsis(cx, cy, rx, ry) = begin
     Point2f.(zip(getellipsepoints(cx, cy, rx, ry, θ)...))
 end
 
-aggtrades_str(row) = begin
-    """Trades Count: $(cn(row.trades_count, 1))
+_tradeasset(row, ai) = string(@something ai row.instance)
+
+aggtrades_str(row, ai=nothing) = begin
+    """Asset: $(_tradeasset(row, ai))
+    Trades Count: $(cn(row.trades_count, 1))
     Buy/Sell: $(cn(row.buys, 1))/$(cn(row.sells, 1))
     Quote Balance: $(cn(row.quote_balance))
     Base Balance: $(cn(row.base_balance))
@@ -160,26 +170,45 @@ ellipsis_middle(pos) = begin
     (pos[1] + pos[50]) / 2.0
 end
 
-function aggtrades_tooltip_func(trades_df)
+# This make sure the tooltip is at the bottom of the balloon for negative groups (cyan)
+# and at the top of the baloon for positive groups (magenta)
+function ellipsis_edge(ispos, ofs=0.2)
+    (pos, proj_pos) -> begin
+        diff = pos[50][2] - pos[1][2]
+        Makie.Vec(
+            proj_pos[1],
+            if ispos
+                proj_pos[2] + diff * ofs
+            else
+                proj_pos[2] - diff * ofs
+            end,
+        )
+    end
+end
+
+function balloons_tooltip_func(
+    trades_df; ai=nothing, ispos=false, pos_func2=ellipsis_edge(ispos)
+)
     function f(inspector, plot, idx, _)
         try
             true_idx = tooltip_position!(
-                inspector, plot, idx; vertices=100, shift_func=ellipsis_middle
+                inspector, plot, idx; vertices=100, pos_func1=ellipsis_middle, pos_func2
             )
-            tooltip_text!(inspector, aggtrades_str(trades_df[true_idx, :]);)
+            row = trades_df[true_idx, :]
+            tooltip_text!(inspector, aggtrades_str(row, @something(ai, row.instance));)
         catch
         end
         return true
     end
 end
 
-function profits_tooltip_func(dates, profits)
+function balance_tooltip_func(dates, balance)
     function f(inspector, plot, idx, _)
         try
             true_idx = tooltip_position!(
-                inspector, plot, idx; vertices=4, shift_func=identity
+                inspector, plot, idx; vertices=4, pos_func1=identity
             )
-            tooltip_text!(inspector, profits_str(dates[true_idx], profits[true_idx]);)
+            tooltip_text!(inspector, balance_str(dates[true_idx], balance[true_idx]);)
         catch e
             display(e)
         end
@@ -187,16 +216,14 @@ function profits_tooltip_func(dates, profits)
     end
 end
 
-@doc "Plots all trades aggregating data to the provided timeframe [`1d`]."
-function plot_aggtrades(s::Strategy, aa, tf=tf"1d"; force=false)
-    ai = s.universe[aa, :instance, 1]
-    df = resample(ai.ohlcv, s.timeframe, tf)
-    check_df(df, force)
-    fig, trades_ax, price_ax = trades_fig(df)
-    trades_df = resample_trades(ai, tf)
-    mm = maximum(df.close)
+function _normtrades!(trades_df)
     trades_df[!, :norm_qv] = normalize(trades_df.quote_volume; unit=true)
     trades_df[!, :norm_tc] = normalize(Float32.(trades_df.trades_count); unit=true)
+end
+
+@doc "Draws data when there is a single dataframe to draw over (a benchmark)."
+function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
+    mm = maximum(df.close)
     anchor(::Val{:pos}, x, n) = ellipsis(x, df[x, :high] + 36n, n / 16, 32n)
     anchor(::Val{:neg}, x, n) = ellipsis(x, df[x, :low] - 36n, n / 16, 32n)
     makevec() = (points=Vector{Point2f}[], trades=DataFrame())
@@ -204,88 +231,282 @@ function plot_aggtrades(s::Strategy, aa, tf=tf"1d"; force=false)
     poscolors = Tuple{Symbol,Float32}[]
     neganchors = makevec()
     negcolors = Tuple{Symbol,Float32}[]
+    # We track the quote volume, and then order the ballons polygons
+    # by bigger volume to smaller volume, such that the smaller
+    # baloons are drawn last, which puts them at the top of the Z axis.
+    # This ensures that bigger baloons don't prevent smaller ballons from displaying
+    # their tooltips.
+    pos_z_index = Union{Int,Float64}[]
+    neg_z_index = Union{Int,Float64}[]
+    _normtrades!(trades_df)
     for row in eachrow(trades_df)
         idx = dateindex(df, row.timestamp)
         if row.quote_balance < 0.0
             push!(neganchors.points, anchor(Val(:neg), idx, row.norm_qv * mm * 0.01))
             push!(neganchors.trades, row)
             push!(negcolors, (:cyan, max(0.1, row.norm_tc)))
+            push!(neg_z_index, row.quote_volume)
         else
             push!(posanchors.points, anchor(Val(:pos), idx, row.norm_qv * mm * 0.01))
             push!(posanchors.trades, row)
             push!(poscolors, (:deeppink, max(0.1, row.norm_tc)))
+            push!(pos_z_index, row.quote_volume)
         end
     end
+    neg_z_index[:] = sortperm(neg_z_index; rev=true)
     poly!(
         trades_ax,
-        neganchors.points;
-        color=negcolors,
+        view(neganchors.points, neg_z_index);
+        color=view(negcolors, neg_z_index),
         strokecolor=:black,
         strokewidth=0.33,
-        inspector_hover=aggtrades_tooltip_func(neganchors.trades),
+        inspector_hover=balloons_tooltip_func(
+            @view(neganchors.trades[neg_z_index, :]); ai, ispos=false
+        ),
     )
+    pos_z_index[:] = sortperm(pos_z_index; rev=true)
     poly!(
         trades_ax,
-        posanchors.points;
-        color=poscolors,
+        view(posanchors.points, pos_z_index);
+        color=view(poscolors, pos_z_index),
         strokecolor=:black,
         strokewidth=0.33,
-        inspector_hover=aggtrades_tooltip_func(posanchors.trades),
+        inspector_hover=balloons_tooltip_func(
+            @view(posanchors.trades[pos_z_index, :]); ai, ispos=true
+        ),
     )
+end
+
+function make_tooltip_func(arr, str_func)
+    (self, p, i, _) -> begin
+        scene = parent_scene(p)
+        pos = mouseposition(scene)
+        idx = round(Int, pos[1] + 0.5, RoundDown)
+        proj_pos = shift_project(scene, p, Point2f(idx, arr[idx]))
+        update_tooltip_alignment!(self, proj_pos)
+        tooltip_text!(self, str_func(idx))
+        true
+    end
+end
+
+@doc "Plots all trades for a single asset instance, aggregating data to the provided timeframe [`1d`]."
+function balloons(s::Strategy, aa; tf=tf"1d", force=false)
+    ai = s.universe[aa, :instance, 1]
+    df = resample(ai.ohlcv, s.timeframe, tf)
+    check_df(df, force)
+    fig, trades_ax, price_ax = trades_fig(df)
+    trades_df = resample_trades(ai, tf)
+    _draw_trades!(df, trades_df, trades_ax, ai)
     linkaxes!(trades_ax, price_ax)
 
-    profits_df = trades_balance(ai, tf; df, asdf=true, s.initial_cash)
-    profits = profits_df.cum_total
-    cash = profits_df.cum_quote
-    base_value = profits_df.cum_base_value
-    timestamp = df.timestamp
-    profits_ax = Axis(
-        fig[2, 1]; ylabel="Balance", ypanlock=true, yzoomlock=true, yrectzoom=false
-    )
-    hidespines!(profits_ax)
-    hidexdecorations!(profits_ax)
-    function make_tooltip_func(arr, str_func)
-        (self, p, i, _) -> begin
-            scene = parent_scene(p)
-            pos = mouseposition(scene)
-            idx = round(Int, pos[1] + 0.5, RoundDown)
-            proj_pos = shift_project(scene, p, Point2f(idx, arr[idx]))
-            update_tooltip_alignment!(self, proj_pos)
-            tooltip_text!(self, str_func(idx))
-            true
-        end
-    end
-    cash_str(idx) = """
-    Cash: $(cn(cash[idx]))
-    Total: $(cn(profits[idx]))
-    Base: $(cn(base_value[idx]))
-    T: $(timestamp[idx])"""
-    upper_cash = Point2f[Point2f(n, max(0.0, cash[n])) for n in 1:length(cash)]
-    band!(
-        profits_ax,
-        Point2f[Point2f(n, 0.0) for n in 1:length(cash)], # lower
-        upper_cash; # upper
-        color=(:orange, 0.5),
-        inspector_hover=make_tooltip_func(cash, cash_str),
-        # FIXME: this doesn't work
-        highclip=(:green, 0.5),
-        lowclip=(:red, 0.5),
-    )
-    base_str(idx) = begin """
-    Base Value: $(cn(base_value[idx]))
-    T: $(timestamp[idx])"""
-    end
-    band!(
-        profits_ax,
-        upper_cash,
-        [Point2f(n, profits[n]) for n in 1:length(base_value)];
-        color=(:blue, 0.5),
-        highclip=(:green, 0.5),
-        lowclip=(:red, 0.5),
-        inspector_hover=make_tooltip_func(profits, base_str),
-    )
-    linkxaxes!(profits_ax, price_ax)
+    balance_df = trades_balance(ai; tf, df, return_all=true, s.initial_cash)
+    value_balance = balance_df.cum_value_balance
+    ai_value_func(idx, _=nothing) = value_balance[idx]
+    color_func = Returns((:blue, 0.5))
+    balance_ax = _draw_balance!(s, fig, balance_df, ai_value_func, color_func, [ai])
+    linkxaxes!(balance_ax, price_ax)
     fig
 end
 
-export plot_trades_range, plot_aggtrades
+@doc "Load benchmark according to input being a dataframe or a symbol (`:all`, ...)"
+function _load_benchmark(
+    s::Strategy, tf::TimeFrame, benchmark; start_date, stop_date, force
+)
+    df = if benchmark isa DataFrame
+        benchmark
+    elseif benchmark isa Symbol
+        if benchmark == :all
+            return nothing
+        else
+            let sym = Symbol(uppercase(string(benchmark))),
+                idx = findfirst(ai -> ai.bc == sym, s.universe.data.instance)
+
+                if isnothing(idx)
+                    load(
+                        zi,
+                        getexchange!(s.exchange),
+                        "$(uppercase(string(benchmark)))/$(nameof(s.cash))",
+                        string(s.timeframe);
+                        from=start_date,
+                        to=stop_date,
+                    )
+                else
+                    s.universe.data.instance[idx].ohlcv
+                end
+            end
+        end
+    else
+        throw(ArgumentError("Incorrect benchmark value ($benchmark)"))
+    end
+    @assert !isempty(df) "Benchmark dataframe cannot be empty!"
+    df = resample(df, tf)
+    check_df(df, force)
+    return df
+end
+
+@doc "Draws data when when benchmark is `:all`."
+function _draw_trades!(
+    ax_closes::Dict, tf::TimeFrame, trades_df, trades_ax, dates, colors_dict
+)
+    anchor(ai, x, n) = begin
+        v = ax_closes[ai].norm[x]
+        ellipsis(x, v, n, n)
+    end
+    anchors = Vector{Point2f}[]
+    colors = RGBAf[]
+    z_index = Union{Int,Float64}[]
+    chart_timestamps = apply.(tf, dates)
+    _normtrades!(trades_df)
+    for row in eachrow(trades_df)
+        ai = row.instance
+        x = dateindex(chart_timestamps, row.timestamp)
+        push!(anchors, anchor(ai, x, row.norm_qv))
+        clr = colors_dict[ai]
+        push!(colors, (RGBAf(clr.r, clr.g, clr.b, max(0.1, row.norm_tc))))
+        push!(z_index, row.norm_qv)
+    end
+    z_index[:] = sortperm(z_index; rev=true)
+    poly!(
+        trades_ax,
+        view(anchors, z_index);
+        color=view(colors, z_index),
+        strokecolor=:black,
+        strokewidth=0.33,
+        inspector_hover=balloons_tooltip_func(@view(trades_df[z_index, :]);),
+    )
+end
+
+function price_tooltip_func(ohlcv, asset)
+    function f(inspector, plot, idx)
+        try
+            true_idx = tooltip_position!(
+                inspector, plot, idx; vertices=1, pos_func1=identity
+            )
+            tooltip_text!(inspector, candle_str(ohlcv[true_idx, :], asset))
+        catch e
+            display(e)
+        end
+        return true
+    end
+end
+
+function _pricelines!(s, fig; tf)
+    dates = st.tradesrange(s, tf; stop_pad=2)
+    ax_closes = Dict(
+        ai => (
+            let r = ai.ohlcv[dates], ohlcv = resample(r, tf)
+                (ax=axis!(fig), norm=normalize(ohlcv.close; unit=true), ohlcv)
+            end
+        ) for ai in s.universe
+    )
+    colors = Dict()
+    let s = 0
+        for (ai, (ax, norm, ohlcv)) in ax_closes
+            colors[ai] = color = RGBf(rand(seed!(s), 3)...)
+            lines!(
+                ax,
+                norm;
+                color,
+                label=ai.asset.raw,
+                inspector_hover=price_tooltip_func(ohlcv, ai.asset),
+            )
+
+            s += 1
+        end
+    end
+    price_ax = makepriceax(fig; xticksargs=(dates.start, tf))
+    hideydecorations!(price_ax)
+    deregister_interaction!(price_ax, :rectanglezoom)
+    (ax_closes, price_ax, dates, colors)
+end
+
+_allfields(v) = getfield.(v, propertynames(v))
+_nonzero(d) = count(x -> x - 1e-12 > 0, values(d))
+function _draw_balance!(s, fig, balance_df, ai_value_func, ai_color_func, ais=s.universe)
+    balance = balance_df.cum_total
+    cash = balance_df.cum_quote
+    timestamp = balance_df.timestamp
+    balance_ax = Axis(
+        fig[2, 1];
+        ylabel="Balance ($(nameof(s.cash)))",
+        ypanlock=true,
+        yzoomlock=true,
+        yrectzoom=false,
+    )
+    hidespines!(balance_ax)
+    hidexdecorations!(balance_ax)
+    cash_str(idx) = """
+    Cash: $(cn(cash[idx]))
+    Assets($(_nonzero(ai_value_func(idx)))): $(cn(sum(values(ai_value_func(idx)))))
+    Total: $(cn(balance[idx]))
+    T: $(timestamp[idx])"""
+    make_str_func(ai) = begin
+        (idx) -> """
+     $(ai.asset.bc): $(cn(ai_value_func(idx, ai)))
+     T: $(timestamp[idx])"""
+    end
+    function drawband!(lower, upper, ytooltip=cash, ai=nothing)
+        band!(
+            balance_ax,
+            lower, # lower
+            upper; # upper
+            color=(isnothing(ai) ? :orange : ai_color_func(ai)),
+            inspector_hover=make_tooltip_func(
+                ytooltip, isnothing(ai) ? cash_str : make_str_func(ai)
+            ),
+        )
+    end
+    # Draw cash at bottom
+    last_upper = Point2f[Point2f(n, max(0.0, cash[n])) for n in 1:length(cash)]
+    drawband!(
+        Point2f[Point2f(n, 0.0) for n in 1:length(cash)], # lower
+        last_upper, # upper
+    )
+    # Draw assets
+    for ai in ais
+        y = Float32[]
+        upper = [
+            Point2f(n, push!(y, last_upper[n][2] + ai_value_func(n, ai))[n]) for
+            n in 1:length(timestamp)
+        ]
+        drawband!(last_upper, upper, y, ai)
+        last_upper = upper
+    end
+    balance_ax
+end
+
+@doc "Plots all trades for all strategy assets, aggregating data to the provided timeframe [`1d`].
+`benchmark`[`:all`]: either
+   - DataFrame ohlcv data over which to plot trades.
+   - `:all` to plot every asset price overlapping each one.
+   - or a specific symbol to load ohlcv data from storage.
+"
+function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
+    start_date, stop_date = st.tradesedge(DateTime, s)
+    df = _load_benchmark(s, tf, benchmark; start_date, stop_date, force)
+    if benchmark == :all
+        fig = Figure()
+        trades_ax = make_trades_ax(fig)
+        ax_closes, price_ax, dates, colors = _pricelines!(s, fig; tf)
+    else
+        fig, trades_ax, price_ax = trades_fig(df)
+    end
+    trades_df = resample_trades(s, tf)
+
+    _draw_trades!(ax_closes, tf, trades_df, trades_ax, dates, colors)
+
+    linkaxes!(trades_ax, getfield.(values(ax_closes), :ax)..., price_ax)
+
+    balance_df = trades_balance(s, tf; return_all=true, byasset=true)
+    @deassert all(balance_df.timestamp .== first(values(ax_closes)).ohlcv.timestamp)
+    byasset = balance_df.byasset
+    ai_value_func(idx, ai=nothing) = isnothing(ai) ? byasset[idx] : byasset[idx][ai]
+    color_func = ai -> RGBAf(_allfields(colors[ai])..., 0.5)
+    balance_ax = _draw_balance!(s, fig, balance_df, ai_value_func, color_func)
+    linkxaxes!(balance_ax, price_ax)
+
+    DataInspector(fig)
+    fig
+end
+
+export tradesticks, balloons

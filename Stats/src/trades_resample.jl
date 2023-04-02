@@ -75,9 +75,10 @@ end
 #
 
 function expand(df, tf=timeframe!(df))
-    outerjoin(
+    df = outerjoin(
         DataFrame(:timestamp => collect(DateTime, daterange(df, tf))), df; on=:timestamp
     )
+    sort!(df, :timestamp)
 end
 
 @doc """ Aggregates all trades of a strategy in a single dataframe
@@ -108,9 +109,8 @@ function resample_trades(
     df = combine(
         gb, transforms(style, (:instance => first, custom...))...; renamecols=false
     )
-    sort!(df, :timestamp)
     applytimeframe!(df, tf)
-    expand_dates ? expand(df, tf) : df
+    expand_dates ? expand(df, tf) : sort!(df, :timestamp)
 end
 
 export tradesdf, resample_trades
