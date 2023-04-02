@@ -4,8 +4,9 @@ using Data.DFUtils
 using Data: AbstractDataFrame
 using Processing: resample
 
-function candle_str(row)
-    """O: $(cn(row.open))
+maybe_asset(a) = isnothing(a) ? "" : "Asset: $(a)\n"
+function candle_str(row, asset=nothing)
+    """$(maybe_asset(asset))O: $(cn(row.open))
     H: $(cn(row.high))
     L: $(cn(row.low))
     C: $(cn(row.close))
@@ -34,33 +35,16 @@ end
 
 function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     isnothing(tf) || (df = resample(df, timeframe(df), tf))
-    firstdate = df.timestamp[begin]
-    # Formats the timestamps for the X axis
-    xidxtodate(t) = [string(firstdate + timeframe(df).period * round(Int, tt)) for tt in t]
-    # Formates the Y axis values
-    yidxcompact(t) = cn.(t)
     # Axis creation (Order is important)
     vol_ax = Axis(
         fig[1, 1];
-        ytickformat=yidxcompact,
+        ytickformat=ytickscompact,
         ylabel="Volume",
         ypanlock=true,
         yzoomlock=true,
         yaxisposition=:right,
     )
-    price_ax = Axis(
-        fig[1, 1];
-        xtickformat=xidxtodate,
-        ytickformat=yidxcompact,
-        title="OHLC",
-        xlabel="Time",
-        xaxisposition=:top,
-        ylabel="Price",
-        # Only scroll and zoom horizontally
-        ypanlock=true,
-        yzoomlock=true,
-        yrectzoom=false,
-    )
+    price_ax = makepriceax(fig; xticksargs=(df.timestamp[begin], timeframe(df)))
     # OHLCV doesn't need spines
     hidespines!(price_ax)
     hidespines!(vol_ax)
@@ -98,7 +82,6 @@ function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     # Ansure that volume and price axies are linked
     # such that when we zoom/pan they move together
     linkxaxes!(price_ax, vol_ax)
-
 
     # Reduce the size of the volume axis which will appear
     # smaller at the bottom
