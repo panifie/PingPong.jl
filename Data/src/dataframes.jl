@@ -55,6 +55,11 @@ function dateindex(df::AbstractDataFrame, date::DateTime, ::Val{:timeframe})
     (date - firstdate(df)) ÷ timeframe(df).period + 1
 end
 
+# TODO: move dateindex to TimeTicks
+function dateindex(v::AbstractVector, date::DateTime)
+    searchsortedlast(v, date)
+end
+
 valueorview(df::DataFrame, idx, col::String) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, col::Symbol) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, cols) = @view df[idx, cols]

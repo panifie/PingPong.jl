@@ -73,9 +73,12 @@ function tradesedge(s::Strategy)
     first_trade, last_trade
 end
 
-function tradesrange(s::Strategy)
-    start_date, stop_date = let edges = tradesedge(s)
-        edges[1].date, edges[2].date
-    end
-    DateRange(start_date, stop_date, s.timeframe)
+function tradesedge(::Type{DateTime}, s::Strategy)
+    edges = tradesedge(s)
+    edges[1].date, edges[2].date
+end
+
+function tradesrange(s::Strategy, tf=s.timeframe; start_pad=0, stop_pad=0)
+    edges = tradesedge(DateTime, s)
+    DateRange(edges[1] + tf * start_pad, edges[2] + tf * stop_pad, tf)
 end

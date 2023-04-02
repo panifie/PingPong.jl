@@ -7,7 +7,7 @@ using Exchanges: market_fees, market_limits, market_precision, is_pair_active, g
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 using .DataStructures: SortedDict
-using Instruments: compactnum
+using Instruments: Instruments, compactnum, AbstractAsset, Cash
 import Instruments: _hashtuple
 using Misc: config
 using Processing
@@ -187,6 +187,8 @@ Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
 Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
 Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
 freecash(ai::AssetInstance) = ai.cash - ai.cash_committed
+Data.DFUtils.firstdate(ai::AssetInstance) = first(ai.ohlcv.timestamp)
+Data.DFUtils.lastdate(ai::AssetInstance) = last(ai.ohlcv.timestamp)
 
 function Base.string(ai::AssetInstance)
     "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
