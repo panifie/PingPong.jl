@@ -74,6 +74,7 @@ function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv)
     df = combine(gb, resample_style(style, to_tf)...; renamecols=false)
     select!(data, Not(:sample))
     select!(df, Not(:sample))
+    timeframe!(df, to_tf)
     @debug "last 2 candles: " df[end - 1, :timestamp] df[end, :timestamp]
     df
 end
