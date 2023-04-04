@@ -11,6 +11,10 @@ on:
 
 jobs:
   build:
+    permissions:
+      actions: write
+      deployments: write
+      pages: write
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1.9
