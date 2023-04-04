@@ -2,6 +2,7 @@ using TimeTicks
 using Data.DataFrames
 using Data.DFUtils
 using Data: AbstractDataFrame
+using Data.DataFramesMeta
 using Processing: resample
 
 maybe_asset(a) = isnothing(a) ? "" : "Asset: $(a)\n"
@@ -33,25 +34,35 @@ function ohlcv_point(width, x, y1, y2)
     Point2f[(x - width, y1), (x + width, y1), (x + width, y2), (x - width, y2)]
 end
 
-function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
-    isnothing(tf) || (df = resample(df, timeframe(df), tf))
+@doc """
+$(TYPEDSIGNATURES)
+Plots ohlcv data from dataframe `df`, resampling to `tf`.
+"""
+ohlcv(df::AbstractDataFrame, tf=tf"1d"; kwargs...) = ohlcv!(makefig(), df, tf; kwargs...)
+
+# function definescaler(f; limits=(0.0, 100.0), interval=-Inf .. Inf)
+#     @eval begin
+#         Makie.defaultlimits(::typeof($f)) = $limits
+#         Makie.defined_interval(::typeof($f)) = $interval
+#     end
+# end
+
+@doc """
+$(TYPEDSIGNATURES)
+Same as `ohlcv` but over input `Figure`
+"""
+function ohlcv!(fig::Figure, df::AbstractDataFrame, tf=tf"1d")
+    isnothing(tf) || (df = resample(df, timeframe!(df), tf))
     # Axis creation (Order is important)
-    vol_ax = Axis(
-        fig[1, 1];
-        ytickformat=ytickscompact,
-        ylabel="Volume",
-        ypanlock=true,
-        yzoomlock=true,
-        yaxisposition=:right,
-    )
-    price_ax = makepriceax(fig; xticksargs=(df.timestamp[begin], timeframe(df)))
+    price_ax = makepriceax(fig; xticksargs=(df.timestamp[begin], timeframe!(df)))
+    vol_ax = Axis(fig[1, 1]; ytickformat=ytickscompact, ylabel="Volume", yaxisposition=:right)
     # OHLCV doesn't need spines
     hidespines!(price_ax)
     hidespines!(vol_ax)
     # We already have X from the price axis
     hidexdecorations!(vol_ax)
-    # This volume interactions since it is in the background
-    deregister_interaction!(vol_ax, :rectanglezoom)
+    # Disable volume interactions since it is in the background
+    deregister_interactions!(vol_ax, ())
 
     # Now we iterate over the dataframe, to construct
     # candles polygons from their values
@@ -63,14 +74,16 @@ function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     hl_points = makevec(Vector{Point2f})
     vol_points = makevec(Vector{Point2f})
     colors = makevec(Symbol)
-    for (n, row) in enumerate(eachrow(df))
-        date = n
-        open = row.open
-        close = row.close
-        colors[n] = open < close ? :green : :red
-        oc_points[n] = ohlcv_point(width, date, open, close)
-        hl_points[n] = ohlcv_point(width / 10.0, date, row.high, row.low)
-        vol_points[n] = vol_point(width, date, row.volume)
+    # FIXME: Can't seem able to escape symbols using ^() syntax in the macro
+    let n = 1, red = :red, green = :green
+        @eachrow df begin
+            date = n
+            colors[n] = :open < :close ? green : red
+            oc_points[n] = ohlcv_point(width, date, :open, :close)
+            hl_points[n] = ohlcv_point(width / 10.0, date, :high, :low)
+            vol_points[n] = vol_point(width, date, :volume)
+            n += 1
+        end
     end
     # get the candle tooltip function, for the DF we are plotting
     candle_tooltip = candle_tooltip_func(df)
@@ -81,6 +94,7 @@ function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     poly!(price_ax, oc_points; color=colors, poly_kwargs...)
     # Ansure that volume and price axies are linked
     # such that when we zoom/pan they move together
+    # But only link x axes to keep vol always in the background when zooming
     linkxaxes!(price_ax, vol_ax)
 
     # Reduce the size of the volume axis which will appear
@@ -89,8 +103,9 @@ function plot_ohlcv(df::AbstractDataFrame, tf=tf"1d"; fig=makefig())
     # Make sure the volume and price axis are close together
     # rowgap!(fig.layout, 1, 0.0)
     # Enables the tooltip function on the figure
-    DataInspector(price_ax; priority=-1)
-    fig, price_ax
+    di = DataInspector(price_ax; priority=-1)
+    fig.attributes[:inspector] = di
+    fig
 end
 
-export plot_ohlcv
+export ohlcv, ohlcv!

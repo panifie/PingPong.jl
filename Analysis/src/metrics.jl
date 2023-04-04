@@ -167,7 +167,7 @@ function bbands!(df::AbstractDataFrame; kwargs...)
     df
 end
 
-function bbands(df::AbstractDataFrame; kwargs...)
+function Indicators.bbands(df::AbstractDataFrame; kwargs...)
     Indicators.bbands(df.close; kwargs...)
 end
 

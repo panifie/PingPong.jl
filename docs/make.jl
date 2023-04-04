@@ -13,14 +13,14 @@ project_path = dirname(Pkg.project().path)
 function use(name, args...)
     path = joinpath(project_path, args...)
     try
-    if endswith(args[end], ".jl")
-        include(path)
-        @eval using .$name
-    else
-        path ∉ LOAD_PATH && push!(LOAD_PATH, path)
-        Pkg.instantiate()
-        @eval using $name
-    end
+        if endswith(args[end], ".jl")
+            include(path)
+            @eval using .$name
+        else
+            path ∉ LOAD_PATH && push!(LOAD_PATH, path)
+            Pkg.instantiate()
+            @eval using $name
+        end
     catch
         prev = Pkg.project().path
         Pkg.activate(path)
@@ -61,21 +61,30 @@ end
 makedocs(;
     sitename="PingPong.jl",
     pages=[
-        "index.md",
-        "types.md",
-        "strategy.md",
-        "engine/engine.md",
-        "exchanges.md",
-        "data.md",
-        "processing.md",
+        "Introduction" => "index.md",
+        "Types" => "types.md",
+        "Strategies" => "strategy.md",
+        "Engine" => "engine/engine.md",
+        "Exchanges" => "exchanges.md",
+        "Data" => "data.md",
+        "Processing" => "processing.md",
         "Watchers" => [
-            "watchers/watchers.md",
-            "watchers/apis/coingecko.md",
-            "watchers/apis/coinpaprika.md",
-            "watchers/apis/coinmarketcap.md",
+            "Interface" => "watchers/watchers.md",
+            "Apis" => [
+                "watchers/apis/coingecko.md",
+                "watchers/apis/coinpaprika.md",
+                "watchers/apis/coinmarketcap.md",
+            ],
         ],
-        "misc.md",
-        "plotting.md",
-        "analysis.md",
+        "Stats" => "stats.md",
+        "Plotting" => "plotting.md",
+        "Indicators" => "analysis.md",
+        "Misc" => [
+            "Config" => "misc.md",
+            "Troubleshooting" => "troubleshooting.md",
+            "Devdocs" => "devdocs.md",
+            "Contacts" => "contacts.md",
+        ],
     ],
+    format=Documenter.HTML(; sidebar_sitename=false),
 )

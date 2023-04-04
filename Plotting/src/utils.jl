@@ -43,28 +43,26 @@ function makexticks(start_date, tf)
     (t) -> [string(start_date + tf.period * round(Int, tt)) for tt in t]
 end
 
-@doc "Formates the Y axis values"
+@doc "Formats the Y axis values"
 ytickscompact(t) = cn.(t)
 
-# @doc "Formates the Y axis values"
+# @doc "Formats the Y axis values"
 # function makeyticks()
 #     (t) -> cn.(t)
 # end
 
-function makepriceax(fig; xticksargs)
-    Axis(
+_price_ax(fig::Figure) = fig.attributes[:price_ax][]
+function makepriceax(fig; xticksargs, title="OHLC", ylabel="Price")
+    ax = Axis(
         fig[1, 1];
         xtickformat=makexticks(xticksargs...),
         ytickformat=ytickscompact,
-        title="OHLC",
+        title,
         xlabel="Time",
         xaxisposition=:top,
-        ylabel="Price",
-        # Only scroll and zoom horizontally
-        ypanlock=true,
-        yzoomlock=true,
-        yrectzoom=false,
+        ylabel,
     )
+    fig.attributes[:price_ax] = ax
 end
 
 function axis!(fig, idx=(1, 1))

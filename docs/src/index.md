@@ -1,5 +1,3 @@
-## PingPong.jl
-
 ## Quickstart
 
 Launch julia and activate the package:
@@ -57,15 +55,12 @@ PingPong.plots!()
 
 ```
 
-## Main Libraries
+## Packages
 
-- [Engine](./engine/engine.md): The actual backtest engine (to be built).
+- [Engine](./engine/engine.md): The actual backtest engine.
 - [Strategies](./strategy.md): Types and concept for building strategies.
 - [Exchanges](./exchanges.md): Loads exchanges instances, markets and pairlists, based on [ccxt](https://docs.ccxt.com/en/latest/manual.html).
 - [Plotting](./plotting.md): Output plots for ohlcv data, indicators, backtests, based on [Makie](https://github.com/MakieOrg/Makie.jl).
-
-## Helper libraries
-
 - [Data](./data.md): Loading and saving ohlcv data (and more), based Zarr.
 - [Stats](./stats.md): Statistics about backtests, and live operations.
 - [Processing](./processing.md): Data cleanup, normalization, resampling functions.
@@ -75,6 +70,6 @@ PingPong.plots!()
 
 ## Infos
 
-- [troubleshooting](./troubleshooting.md)
-- [devnotes](./devnotes.md)
-- [contacts](./contacts.md)
+- [Troubleshooting](./troubleshooting.md)
+- [Devdocs](./devdocs.md)
+- [Contacts](./contacts.md)

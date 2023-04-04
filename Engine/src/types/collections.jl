@@ -15,6 +15,7 @@ using Instruments: fiatnames, AbstractAsset, Asset, Cash
 using Instruments.Derivatives
 using ..Instances
 using Processing: resample
+import Data: stub!
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."

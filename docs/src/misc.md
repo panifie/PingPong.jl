@@ -1,4 +1,4 @@
-# Misc
+# Configuration
 
 ### API
 ```@autodocs

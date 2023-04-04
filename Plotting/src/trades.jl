@@ -75,29 +75,37 @@ function check_df(df, force=false)
 end
 
 function make_trades_ax(fig)
-    trades_ax = Axis(fig[1, 1]; ypanlock=true, yzoomlock=true, yrectzoom=false)
+    trades_ax = Axis(fig[1, 1];)
     hidespines!(trades_ax)
     hidedecorations!(trades_ax)
-    deregister_interaction!(trades_ax, :rectanglezoom)
+    deregister_interactions!(trades_ax, ())
+    fig.attributes[:trades_ax] = trades_ax
     trades_ax
 end
 
 function trades_fig(df, fig=makefig(); tf=nothing)
-    fig, price_ax = plot_ohlcv(df, tf; fig)
+    fig = ohlcv!(fig, df, tf)
+    price_ax = fig.attributes[:price_ax][]
     @deassert price_ax.title == "OHLC"
     fig, make_trades_ax(fig), price_ax
 end
 
-@doc "Plots a subset of trades history of an asset instance.
+@doc """
+$(TYPEDSIGNATURES)
+Plots a subset of trades history of an asset instance.
 - `from`: the first index in the trade history to plot [`1`]
 - `to`: the last index in the trade history to plot [`lastindex`]
 - `force`: plots very large dataframes [`false`]
-"
-function tradesticks(s::Strategy, aa; from=1, to=nothing, force=false)
+"""
+function tradesticks(s::Strategy, args...; kwargs...)
+    tradesticks!(makefig(), s, args...; kwargs...)
+end
+@doc "Same as `tradesticks` over an input `Figure`."
+function tradesticks!(fig::Figure, s::Strategy, aa; from=1, to=nothing, force=false)
     ai = s.universe[aa, :instance, 1]
     df, to = trades_ohlcv(s.timeframe, ai, from, to)
     check_df(df, force)
-    fig, trades_ax, price_ax = trades_fig(df)
+    fig, trades_ax, price_ax = trades_fig(df, fig)
     linkaxes!(trades_ax, price_ax)
     function makevec(side)
         NamedTuple{(:trades, :points),Tuple{Vector{side},Vector{Vector{Point2f}}}}(([], []))
@@ -105,17 +113,20 @@ function tradesticks(s::Strategy, aa; from=1, to=nothing, force=false)
     flags = (buys=makevec(BuyTrade), sells=makevec(SellTrade))
     low = df.low
     high = df.high
+    ofs, height = let h = maximum(df.high)
+        h * 0.0015, h * 0.001
+    end
     gety(::BuyTrade, idx) = low[idx]
     gety(::SellTrade, idx) = high[idx]
-    triangleofs(::BuyTrade, y) = y - 0.01y
-    triangleofs(::SellTrade, y) = y + 0.01y
+    triangleofs(::BuyTrade, y) = y - ofs
+    triangleofs(::SellTrade, y) = y + ofs
     ld = lastdate(df)
     for t in @view ai.history[from:to]
         t.date > ld && break
         x = dateindex(df, t.date)
         y = gety(t, x)
         y = triangleofs(t, y)
-        triangle(t, x - 0.5, y, flags, 1.0)
+        triangle(t, x - 0.5, y, flags, height)
     end
     poly!(
         trades_ax,
@@ -224,8 +235,8 @@ end
 @doc "Draws data when there is a single dataframe to draw over (a benchmark)."
 function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
     mm = maximum(df.close)
-    anchor(::Val{:pos}, x, n) = ellipsis(x, df[x, :high] + 36n, n / 16, 32n)
-    anchor(::Val{:neg}, x, n) = ellipsis(x, df[x, :low] - 36n, n / 16, 32n)
+    anchor(::Val{:pos}, x, n) = ellipsis(x, df[x, :high] + 32n, n / 16, 32n)
+    anchor(::Val{:neg}, x, n) = ellipsis(x, df[x, :low] - 32n, n / 16, 32n)
     makevec() = (points=Vector{Point2f}[], trades=DataFrame())
     posanchors = makevec()
     poscolors = Tuple{Symbol,Float32}[]
@@ -239,17 +250,18 @@ function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
     pos_z_index = Union{Int,Float64}[]
     neg_z_index = Union{Int,Float64}[]
     _normtrades!(trades_df)
+    c = mm * 0.004
     for row in eachrow(trades_df)
         idx = dateindex(df, row.timestamp)
         if row.quote_balance < 0.0
-            push!(neganchors.points, anchor(Val(:neg), idx, row.norm_qv * mm * 0.01))
+            push!(neganchors.points, anchor(Val(:neg), idx, row.norm_qv * c))
             push!(neganchors.trades, row)
             push!(negcolors, (:cyan, max(0.1, row.norm_tc)))
             push!(neg_z_index, row.quote_volume)
         else
-            push!(posanchors.points, anchor(Val(:pos), idx, row.norm_qv * mm * 0.01))
+            push!(posanchors.points, anchor(Val(:pos), idx, row.norm_qv * c))
             push!(posanchors.trades, row)
-            push!(poscolors, (:deeppink, max(0.1, row.norm_tc)))
+            push!(poscolors, (:deeppink, max(0.1, min(0.8, row.norm_tc))))
             push!(pos_z_index, row.quote_volume)
         end
     end
@@ -278,7 +290,7 @@ function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
 end
 
 function make_tooltip_func(arr, str_func)
-    (self, p, i, _) -> begin
+    (self, p, _...) -> begin
         scene = parent_scene(p)
         pos = mouseposition(scene)
         idx = round(Int, pos[1] + 0.5, RoundDown)
@@ -289,7 +301,10 @@ function make_tooltip_func(arr, str_func)
     end
 end
 
-@doc "Plots all trades for a single asset instance, aggregating data to the provided timeframe [`1d`]."
+@doc """
+$(TYPEDSIGNATURES)
+Plots all trades for a single asset instance, aggregating data to the provided timeframe [`1d`].
+"""
 function balloons(s::Strategy, aa; tf=tf"1d", force=false)
     ai = s.universe[aa, :instance, 1]
     df = resample(ai.ohlcv, s.timeframe, tf)
@@ -391,7 +406,16 @@ function price_tooltip_func(ohlcv, asset)
 end
 
 function _pricelines!(s, fig; tf)
+    # deregister_interaction!(price_ax, :rectanglezoom)
     dates = st.tradesrange(s, tf; stop_pad=2)
+    # Ax order is important
+    price_ax = makepriceax(
+        fig;
+        xticksargs=(dates.start, tf),
+        title="Aggregated trades",
+        ylabel="Price (normalized)",
+    )
+    # hideydecorations!(price_ax)
     ax_closes = Dict(
         ai => (
             let r = ai.ohlcv[dates], ohlcv = resample(r, tf)
@@ -403,6 +427,7 @@ function _pricelines!(s, fig; tf)
     let s = 0
         for (ai, (ax, norm, ohlcv)) in ax_closes
             colors[ai] = color = RGBf(rand(seed!(s), 3)...)
+            deregister_interactions!(ax, ())
             lines!(
                 ax,
                 norm;
@@ -414,9 +439,6 @@ function _pricelines!(s, fig; tf)
             s += 1
         end
     end
-    price_ax = makepriceax(fig; xticksargs=(dates.start, tf))
-    hideydecorations!(price_ax)
-    deregister_interaction!(price_ax, :rectanglezoom)
     (ax_closes, price_ax, dates, colors)
 end
 
@@ -475,27 +497,32 @@ function _draw_balance!(s, fig, balance_df, ai_value_func, ai_color_func, ais=s.
     balance_ax
 end
 
-@doc "Plots all trades for all strategy assets, aggregating data to the provided timeframe [`1d`].
-`benchmark`[`:all`]: either
+@doc """
+$(TYPEDSIGNATURES)
+Plots all trades for all strategy assets, aggregating data to the provided timeframe [`1d`].
+- `benchmark`[`:all`]: either
    - DataFrame ohlcv data over which to plot trades.
    - `:all` to plot every asset price overlapping each one.
    - or a specific symbol to load ohlcv data from storage.
-"
+"""
 function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
     start_date, stop_date = st.tradesedge(DateTime, s)
-    df = _load_benchmark(s, tf, benchmark; start_date, stop_date, force)
+    trades_df = resample_trades(s, tf)
     if benchmark == :all
         fig = Figure()
-        trades_ax = make_trades_ax(fig)
         ax_closes, price_ax, dates, colors = _pricelines!(s, fig; tf)
+        trades_ax = make_trades_ax(fig)
+        _draw_trades!(ax_closes, tf, trades_df, trades_ax, dates, colors)
+        axes = getfield.(values(ax_closes), :ax)
     else
+        df = _load_benchmark(s, tf, benchmark; start_date, stop_date, force)
         fig, trades_ax, price_ax = trades_fig(df)
+        _draw_trades!(df, trades_df, trades_ax)
+        axes = ()
+        colors = Dict(ai => RGBf(rand(seed!(n), 3)...) for (n, ai) in enumerate(s.universe))
     end
-    trades_df = resample_trades(s, tf)
 
-    _draw_trades!(ax_closes, tf, trades_df, trades_ax, dates, colors)
-
-    linkaxes!(trades_ax, getfield.(values(ax_closes), :ax)..., price_ax)
+    linkaxes!(trades_ax, axes..., price_ax)
 
     balance_df = trades_balance(s, tf; return_all=true, byasset=true)
     @deassert all(balance_df.timestamp .== first(values(ax_closes)).ohlcv.timestamp)
@@ -504,9 +531,10 @@ function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
     color_func = ai -> RGBAf(_allfields(colors[ai])..., 0.5)
     balance_ax = _draw_balance!(s, fig, balance_df, ai_value_func, color_func)
     linkxaxes!(balance_ax, price_ax)
+    rowsize!(fig.layout, 2, Aspect(1, 0.1))
 
     DataInspector(fig)
     fig
 end
 
-export tradesticks, balloons
+export tradesticks, tradesticks!, balloons

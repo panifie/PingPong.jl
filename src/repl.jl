@@ -67,5 +67,6 @@ end
 plots!() = module!(:Plotting, :plo)
 stats!() = module!(:Stats, :ss)
 engine!() = module!(:Engine, :egn)
+analysis!() = module!(:Analysis, :an)
 
-export plots!, stats!, engine!
+export plots!, stats!, engine!, analysis!

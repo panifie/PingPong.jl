@@ -12,6 +12,7 @@ import Instruments: _hashtuple
 using Misc: config
 using Processing
 using ..Orders
+import Data: stub!
 
 const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
 const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
@@ -194,6 +195,10 @@ function Base.string(ai::AssetInstance)
     "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
 end
 Base.show(io::IO, ai::AssetInstance) = write(io, string(ai))
+stub!(ai::AssetInstance, df) = begin
+    tf = timeframe!(df)
+    ai.data[tf] = df
+end
 
 export AssetInstance, isactive, instance, load!
 end
