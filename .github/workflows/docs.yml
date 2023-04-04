@@ -54,11 +54,11 @@ jobs:
       uses: actions/cache/save@v3
       with:
         path: |
-          $HOME/.julia
-          $HOME/.CondaPkg
+          ~/.julia
+          ~/.CondaPkg
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
     - name: Checkout gh-pages branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: gh-pages
         path: ghpages
