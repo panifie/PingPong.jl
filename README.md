@@ -11,8 +11,8 @@
 - Organize your strategy using a predefined type hierarchy for instruments, exchanges, orders.
 - Backtesting (to be improved)
 - Optimization (not implemented)
-- Plotting (to be improved)
-- Dry run (not implemented)
+- Plotting (OHLCV, custom indicators, trades history, asset balance history)
+- Paper mode (not implemented)
 - Live (not implemented)
 - Telegram Bot (not implemented)
 - Dashboard (not implemented)
