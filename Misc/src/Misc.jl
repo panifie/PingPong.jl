@@ -1,5 +1,6 @@
 module Misc
 
+include("docs.jl")
 include("lists.jl")
 include("types.jl")
 include("config.jl")

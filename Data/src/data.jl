@@ -275,6 +275,7 @@ function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
 end
 
 load(zi::Ref{ZarrInstance}, args...; kwargs...) = load(zi[], args...; kwargs...)
+load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = load_ohlcv(zi[], args...; kwargs...)
 
 @doc "Convert raw ccxt OHLCV data (matrix) to a dataframe."
 function to_ohlcv(data::Matrix)

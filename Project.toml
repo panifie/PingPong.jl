@@ -24,7 +24,7 @@ TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 
 [weakdeps]
 Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
+Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 Plotting = "8ada5bfb-e60b-44be-8979-616e14670061"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
-Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"

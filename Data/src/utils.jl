@@ -1,6 +1,8 @@
 using Serialization
 using Lang
 
+stub!() = error("not implemented")
+
 tobytes(buf::IOBuffer, data) = begin
     @ifdebug @assert position(buf) == 0
     serialize(buf, data)

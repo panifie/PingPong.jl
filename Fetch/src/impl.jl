@@ -19,7 +19,7 @@ using TimeTicks
 using Lang: @distributed, @parallel, Option, filterkws
 using Misc
 using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
-using TimeTicks: TimeFrameOrStr, timestamp
+using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
 using Python
 using TimeTicks
 @debug using TimeTicks: dt
@@ -27,7 +27,7 @@ using Pbar
 using Processing: cleanup_ohlcv_data, islast
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
-const SINCE_INC = Millisecond(Day(30)).value
+const SINCE_MIN_PERIOD = Millisecond(Day(30))
 
 function _to_candle(py, idx, range)
     Candle(dt(pyconvert(Float64, py[idx])), (pyconvert(Float64, py[n]) for n in range)...)
@@ -91,10 +91,11 @@ end
 @doc "Should return the oldest possible timestamp for a pair, or something close to it."
 function find_since(exc::Exchange, pair)
     data = ()
+    actual = now()
     tfs, periods = __ordered_timeframes(exc)
-    as_int(v) = Int(timefloat(v))
+    as_int(v) = round(Int, timefloat(v))
     for (t, p) in zip(tfs, periods)
-        old_ts = as_int(Millisecond(p))
+        old_ts = as_int(actual - 1000 * Millisecond(p))
         # fetch the first available candles using a long (1w) timeframe
         data = _fetch_ohlcv_with_delay(
             exc, pair; timeframe=t, since=old_ts, df=true, retry=false
@@ -207,16 +208,21 @@ function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, 
     if retry && (!dpl || length(data) == 0)
         @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
         sleep(sleep_t)
-        sleep_t = (sleep_t + 1) * 2
+        since_arg = (; since=round(Int, since * 1.005))
+        if since_arg.since > dtstamp(now())
+            since_arg = ()
+            limit = fetch_limit(exc, nothing)
+        end
+        # sleep_t = (sleep_t + 1) * 2
         return (
             true,
             _fetch_with_delay(
                 fetch_func,
                 pair;
-                since=since + SINCE_INC,
+                since_arg...,
                 df,
                 sleep_t,
-                limit=(limit ÷ 2),
+                limit=max(10, limit ÷ 2),
                 converter,
             ),
         )
@@ -342,8 +348,6 @@ __print_progress_1(pairs) = begin
     @info "Downloading data for $(length(pairs)) pairs."
     @pbar! pairs "Pairlist download progress" "pair"
     pb_job
-end
-function __print_progress_2(pb_job, name, exc_name)
 end
 function __get_ohlcv(exc, name, timeframe, from_date, to; out=empty_ohlcv(), cleanup=true)
     @debug "Fetching pair $name."

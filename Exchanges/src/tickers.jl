@@ -51,7 +51,7 @@ function tickers(
     with_futures=config.futures,
     with_leverage=config.leverage,
     as_vec=false,
-)::Union{Dict,Vector}
+) # ::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers!
     pairlist = []
