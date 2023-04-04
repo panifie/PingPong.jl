@@ -19,6 +19,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Set up Julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        version: '1'
+        include-all-prereleases: true
     - uses: actions/cache@v3
       id: julia-cache
       if: always()
@@ -31,11 +36,6 @@ jobs:
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
           ${{ runner.os }}-
-    - name: Set up Julia
-      uses: julia-actions/setup-julia@v1
-      with:
-        version: '1'
-        include-all-prereleases: true
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
