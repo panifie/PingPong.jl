@@ -291,12 +291,15 @@ end
 
 function make_tooltip_func(arr, str_func)
     (self, p, _...) -> begin
-        scene = parent_scene(p)
-        pos = mouseposition(scene)
-        idx = round(Int, pos[1] + 0.5, RoundDown)
-        proj_pos = shift_project(scene, p, Point2f(idx, arr[idx]))
-        update_tooltip_alignment!(self, proj_pos)
-        tooltip_text!(self, str_func(idx))
+        try
+            scene = parent_scene(p)
+            pos = mouseposition(scene)
+            idx = round(Int, pos[1] + 0.5, RoundDown)
+            proj_pos = shift_project(scene, p, Point2f(idx, arr[idx]))
+            update_tooltip_alignment!(self, proj_pos)
+            tooltip_text!(self, str_func(idx))
+        catch
+        end
         true
     end
 end
@@ -385,6 +388,7 @@ function _draw_trades!(
         trades_ax,
         view(anchors, z_index);
         color=view(colors, z_index),
+        yscale=log10,
         strokecolor=:black,
         strokewidth=0.33,
         inspector_hover=balloons_tooltip_func(@view(trades_df[z_index, :]);),
