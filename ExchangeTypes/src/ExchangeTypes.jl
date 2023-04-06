@@ -97,6 +97,9 @@ function Base.getproperty(e::Exchange, k::Symbol)
         getproperty(getfield(e, :py), k)
     end
 end
+function Base.propertynames(e::Exchange)
+    (fieldnames(Exchange)..., propertynames(e.py)...)
+end
 
 @doc "Updates the global exchange `exc` variable."
 globalexchange!(new::Exchange) = begin
