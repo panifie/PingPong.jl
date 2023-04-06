@@ -29,7 +29,7 @@ function keys_path(exc_name::AbstractString)
 end
 
 # TODO: should be unified into a single `secrets.toml` file
-function exchange_keys(name; sandbox=false)::Dict{String,Any}
+function exchange_keys(name; sandbox)::Dict{String,Any}
     try
         local cfg
         name = sandbox ? "$(name)_sandbox" : string(name)

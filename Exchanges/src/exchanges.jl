@@ -84,7 +84,7 @@ getexchange() = exc
 It uses a WS instance if available, otherwise an async instance.
 
 """
-function getexchange!(x::Symbol, args...; sandbox=false, kwargs...)
+function getexchange!(x::Symbol, args...; sandbox=true, kwargs...)
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
@@ -213,7 +213,7 @@ function exckeys!(exc, key, secret, pass)
     nothing
 end
 
-function exckeys!(exc; sandbox=false)
+function exckeys!(exc; sandbox=issandbox(exc))
     exc_keys = exchange_keys(exc.id; sandbox)
     # Check the exchange->futures mapping to re-use keys
     if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
@@ -223,7 +223,7 @@ function exckeys!(exc; sandbox=false)
     end
     if !isempty(exc_keys)
         @debug "Setting exchange keys..."
-        exckeys!(exc, values(exc_keys)...)
+        exckeys!(exc, (exc_keys[k] for k in ("apiKey", "secret", "password"))...)
     end
 end
 
