@@ -84,13 +84,14 @@ getexchange() = exc
 It uses a WS instance if available, otherwise an async instance.
 
 """
-function getexchange!(x::Symbol, args...; kwargs...)
+function getexchange!(x::Symbol, args...; sandbox=false, kwargs...)
     @lget!(
-        exchanges,
+        sandbox ? sb_exchanges : exchanges,
         x,
         begin
             py = ccxt_exchange(x, args...; kwargs...)
             e = Exchange(py)
+            sandbox && sandbox!(e, true, remove_keys=false)
             setexchange!(e)
         end,
     )
@@ -212,13 +213,13 @@ function exckeys!(exc, key, secret, pass)
     nothing
 end
 
-function exckeys!(exc)
-    exc_keys = exchange_keys(exc.id)
+function exckeys!(exc; sandbox=false)
+    exc_keys = exchange_keys(exc.id; sandbox)
     # Check the exchange->futures mapping to re-use keys
     if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
         sym = Symbol(exc.id)
         id = argmax(x -> x[2] == sym, futures_exchange)
-        merge!(exc_keys, exchange_keys(id.first))
+        merge!(exc_keys, exchange_keys(id.first; sandbox))
     end
     if !isempty(exc_keys)
         @debug "Setting exchange keys..."
@@ -226,14 +227,18 @@ function exckeys!(exc)
     end
 end
 
-@doc "Enable sandbox mode for exchange"
-function sandbox!(exc::Exchange=exc, flag=true)
+@doc "Enable sandbox mode for exchange. Should only be called on exchange construction."
+function sandbox!(exc::Exchange=exc, flag=!issandbox(exc); remove_keys=true)
     exc.py.setSandboxMode(flag)
-    loadmarkets!(exc)
+    if flag
+        remove_keys && exckeys!(exc, "", "", "")
+    elseif isempty(exc.py.secret)
+        exckeys!(exc)
+    end
 end
-@doc "Check if sandbox mode is enabled for exchange."
+@doc "Check if exchange is in sandbox mode."
 function issandbox(exc::Exchange=exc)
-    pyconvert(Bool, exc.py.urls.get("test", "") == exc.py.urls["api"])
+    "apiBackup" in exc.py.urls.keys()
 end
 
 @doc "Enable or disable rate limit."
@@ -258,5 +263,5 @@ include("data.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, pairlist, pairs
-export sandbox!, issandbox, ratelimit!
+export issandbox, ratelimit!
 export timestamp, timeout!, check_timeout

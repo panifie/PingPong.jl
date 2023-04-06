@@ -29,10 +29,10 @@ function keys_path(exc_name::AbstractString)
 end
 
 # TODO: should be unified into a single `secrets.toml` file
-function exchange_keys(name)::Dict{String,Any}
+function exchange_keys(name; sandbox=false)::Dict{String,Any}
     try
         local cfg
-        name = string(name)
+        name = sandbox ? "$(name)_sandbox" : string(name)
         open(keys_path(name)) do f
             cfg = JSON.parse(f)
         end
@@ -166,7 +166,7 @@ end
 
 @doc "Shallow copies the config, and top level containers fields `timeframes` and `attrs`."
 Base.copy(c::Config) = begin
-    c = Config((f=getfield(c, f) for f in fieldnames(Config))...)
+    c = Config((f = getfield(c, f) for f in fieldnames(Config))...)
     c.timeframes = copy(c.timeframes)
     c.attrs = copy(c.attrs)
     c

@@ -115,6 +115,8 @@ is used as the default for some functions when the exchange argument is omitted.
 exc = Exchange(pynew())
 @doc "Global var holding Exchange instances. Used as a cache."
 const exchanges = Dict{Symbol,Exchange}()
+@doc "Global var holding Sandbox Exchange instances. Used as a cache."
+const sb_exchanges = Dict{Symbol,Exchange}()
 
 Base.show(out::IO, exc::Exchange) = begin
     write(out, "Exchange: ")
@@ -126,5 +128,5 @@ Base.show(out::IO, exc::Exchange) = begin
     write(out, "$(length(tfs)) timeframes")
 end
 
-export Exchange, ExchangeID, ExcPrecisionMode, exchanges, globalexchange!
+export Exchange, ExchangeID, ExcPrecisionMode, exchanges, sb_exchanges, globalexchange!
 end # module ExchangeTypes
