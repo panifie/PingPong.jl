@@ -12,7 +12,9 @@ abstract type Sell <: OrderSide end
 
 abstract type OrderType{S<:OrderSide} end
 abstract type LimitOrderType{S} <: OrderType{S} end
-abstract type FOKOrderType{S} <: OrderType{S} end
+abstract type GTCOrderType{S} <: LimitOrderType{S} end
+abstract type FOKOrderType{S} <: LimitOrderType{S} end
+abstract type IOCOrderType{S} <: LimitOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
 # struct LadderOrder <: OrderType end
 # struct RebalanceOrder <: OrderType end
@@ -62,7 +64,8 @@ const BuyOrder{O,A,E} =
     Order{O,A,E} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID}
 const SellOrder{O,A,E} =
     Order{O,A,E} where {O<:OrderType{Sell},A<:AbstractAsset,E<:ExchangeID}
-macro deforders(types...)
+macro deforders(issuper, types...)
+    @assert issuper isa Bool
     out = quote end
     for t in types
         type_str = string(t)
@@ -70,19 +73,24 @@ macro deforders(types...)
         # HACK: const/types definitions inside macros can't be revised
         isdefined(@__MODULE__, type_sym) && continue
         type = esc(type_sym)
-        supertype = esc(Symbol(type_str * "OrderType"))
+        ordertype = esc(Symbol(type_str * "OrderType"))
+        orderexpr = if issuper
+            :(Order{<:$ordertype{S},A,E})
+        else
+            :(Order{$ordertype{S},A,E})
+        end
         push!(
             out.args,
             quote
-                const $type{S,A,E} = Order{
-                    $supertype{S},A,E
-                } where {S<:OrderSide,A<:AbstractAsset,E<:ExchangeID}
+                const $type{S,A,E} =
+                    $orderexpr where {S<:OrderSide,A<:AbstractAsset,E<:ExchangeID}
             end,
         )
     end
     out
 end
-@deforders Limit FOK Market
+@deforders false GTC FOK IOC Market
+@deforders true Limit
 
 # TYPENUM
 @doc """An order, successfully executed from a strategy request.
@@ -90,7 +98,7 @@ Entry trades: The date when the order was actually opened, during backtesting, i
     where the timeframe depends on the backtesting `Context`. It should match a candle.
 Exit trades: It should match the candle when the buy or sell happened.
 
-- request: The order that spawned this trade.
+- order: The order that spawned this trade.
 - date: The date at which the trade (usually its last order) was completed.
 - amount: The quantity of the base currency being exchanged
 - size: The total quantity of quote currency exchanged (With fees and other additional costs.)
@@ -130,9 +138,36 @@ const ordersdefault! = Returns(nothing)
 
 orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
 
+abstract type OrderError end
+@doc "There wasn't enough cash to setup the order."
+@kwdef struct NotEnoughCash{T<:Real} <: OrderError
+    required::T
+end
+@doc "Couldn't fullfill the order within the requested period."
+@kwdef struct OrderTimeOut <: OrderError
+    order::O where {O<:Order}
+end
+@doc "Price and amount at execution time was outside the available ranges. (FOK)"
+@kwdef struct NotMatched{T<:Real} <: OrderError
+    price::T
+    this_price::T
+    amount::T
+    this_volume::T
+end
+@doc "There wasn't enough volume to fill the order completely. (IOC)"
+@kwdef struct NotFilled{T<:Real} <: OrderError
+    amount::T
+    this_volume::T
+end
+@doc "A generic error order prevented the order from being setup."
+@kwdef struct OrderFailed <: OrderError
+    msg::String
+end
+
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, BuyTrade, SellTrade
-export LimitOrder, MarketOrder, FOKOrder, Trade
+export LimitOrder, MarketOrder, GTCOrder, IOCOrder, FOKOrder, Trade
+export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
 export ordersdefault!, orderside
 
 end

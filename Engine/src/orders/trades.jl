@@ -2,13 +2,15 @@ using Base: negate
 
 cost(price, amount) = price * amount
 withfees(cost, fees) = muladd(cost, fees, cost)
+spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
+spreadopt(n::T, args...) where {T<:Real} = n
+spreadopt(v, args...) = error("`base_slippage` option value not supported ($v)")
 
-# takevol specifies how much of a candle volume should we assume "we can take" to fill our orders
-# If our orders exceede this, they should be considered partially filled.
-_takevol!(s) = @lget! s.config.attrs :max_take_vol 0.05
-_takevol(s) = s.config.attrs[:max_take_vol]
+function _base_slippage(s::Strategy, date::DateTime, ai)
+    spreadopt(s.attrs[:base_slippage], date, ai)
+end
 Orders.ordersdefault!(s::Strategy{Sim}) = begin
-    @assert 0.0 < _takevol!(s) <= 1.0
+    s.attrs[:base_slippage] = Val(:spread)
 end
 
 tradesize(::BuyOrder, ai, cost) = muladd(cost, ai.fees, cost)
@@ -39,6 +41,6 @@ function trade!(s::Strategy, o, ai; date=o.date, price=o.price, amount=o.amount)
     push!(ai.history, trade)
     push!(o.attrs.trades, trade)
     # finalize order if complete
-    fullfill!(s, ai, o)
+    fullfill!(s, ai, o, trade)
     return trade
 end

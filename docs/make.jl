@@ -64,7 +64,8 @@ makedocs(;
         "Introduction" => "index.md",
         "Types" => "types.md",
         "Strategies" => "strategy.md",
-        "Engine" => "engine/engine.md",
+        "Engine" =>
+            ["Executors" => "engine/engine.md", "Backtesting" => "engine/backtesting.md"],
         "Exchanges" => "exchanges.md",
         "Data" => "data.md",
         "Processing" => "processing.md",

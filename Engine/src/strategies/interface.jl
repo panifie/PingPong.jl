@@ -1,3 +1,5 @@
+using Engine.Types.Orders: OrderError
+
 ## Strategy interface
 @doc "Called on each timestep iteration, possible multiple times.
 Receives:
@@ -12,6 +14,7 @@ ping!(::Type{<:Strategy}, ::LoadStrategy, ctx) = nothing
 struct WarmupPeriod <: ExecAction end
 @doc "How much lookback data the strategy needs."
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
+ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = err
 
 macro interface()
     quote

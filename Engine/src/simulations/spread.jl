@@ -182,7 +182,11 @@ end
 
 @doc "Check for possible fake open/close, data, where the open is just the close of the previous candle."
 function isfakeoc(df::AbstractDataFrame)
-    all(@view(df.close[1:(end - 1)]) .== @view(df.open[2:end]))
+    open, close = df.open, df.close
+    @inbounds for i in 2:lastindex(df, 1)
+        open[i] != close[i - 1] && return false
+    end
+    true
 end
 isfakeoc(ai::AssetInstance) = isfakeoc(ai.ohlcv)
 

@@ -10,7 +10,7 @@ using ..Types.Instances
 using ..Engine: Engine
 using ..Engine.Checks
 using ..Engine.Checks: sanitize_price, sanitize_amount, iscost, ismonotonic
-using ..Engine.Strategies: Strategy, ExchangeOrder, Strategies as st
+using ..Engine.Strategies: Strategy, ExchangeOrder, Strategies as st, ping!
 using ..Engine.Executors: Executors, UpdateOrders
 using ..Engine.Simulations: Simulations as sim
 using .Executors: pong!
@@ -37,10 +37,6 @@ macro amount!(ai, amounts...)
     _doclamp(:sanitize_amount, ai, amounts...)
 end
 
-abstract type OrderError end
-struct NotEnoughCash <: OrderError end
-struct OrderTimeOut <: OrderError end
-struct OrderCancelled <: OrderError end
 
 include("state.jl")
 include("trades.jl")

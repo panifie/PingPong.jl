@@ -32,6 +32,8 @@ end
 Base.pop!(s::Strategy, ai, o::SellOrder) = begin
     pop!(orders(s, ai, Sell), o)
     sub!(ai.cash_committed, committed(o))
+    # If we don't have cash for this asset, it should be released from holdings
+    release!(s, ai, o)
 end
 @doc "Remove all buy/sell orders for an asset instance."
 Base.pop!(s::Strategy, ai, t::Type{<:OrderSide}) = pop!.(s, ai, orders(s, ai, t))
@@ -49,9 +51,11 @@ commit!(::Strategy, o::SellOrder, ai) = add!(ai.cash_committed, committed(o))
 iscommittable(s::Strategy, o::BuyOrder, _) = st.freecash(s) >= committed(o)
 iscommittable(::Strategy, o::SellOrder, ai) = Instances.freecash(ai) >= committed(o)
 hold!(s::Strategy, ai, ::BuyOrder) = push!(s.holdings, ai)
-hold!(_::Strategy, _, ::SellOrder) = nothing
+hold!(::Strategy, _, ::SellOrder) = nothing
+release!(::Strategy, _, ::BuyOrder) = nothing
+release!(s::Strategy, ai, ::SellOrder) = isapprox(ai.cash, 0.0) && pop!(s.holdings, ai)
 @doc "Check if this is the last trade of the order and if so unqueue it."
-fullfill!(s::Strategy, ai, o::Order) = isfilled(o) && pop!(s, ai, o)
+fullfill!(s::Strategy, ai, o::Order, ::Trade) = isfilled(o) && pop!(s, ai, o)
 
 @doc "Add order to the pending orders of the strategy."
 function queue!(s::Strategy, o::Order{<:OrderType{S}}, ai) where {S<:OrderSide}
@@ -61,4 +65,12 @@ function queue!(s::Strategy, o::Order{<:OrderType{S}}, ai) where {S<:OrderSide}
     commit!(s, o, ai)
     push!(s, ai, o)
     return true
+end
+
+@doc "Cancel an order with given error."
+function cancel!(
+    s::Strategy, o::Order, ai; err::OrderError
+)
+    pop!(s, ai, o)
+    ping!(s, o, err, ai)
 end

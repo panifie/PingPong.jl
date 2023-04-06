@@ -1,27 +1,33 @@
-relslippage(trade_vol, candle_vol) = trade_vol / candle_vol
-tradeslippage(trade_vol; fn=sqrt) = fn(trade_vol)
-
-function slippage(trade_vol, candle_vol, args...; kwargs...)
-    slippage(Val(:rel), trade_vol, candle_vol)
+function slippage_rate(::Val{:below}, target, total; n=2.828145, fn=x -> x^2)
+    @deassert target < total
+    fn(target / (n * total))
 end
 
-function slippageat(::Val{:rel}, df, idx, trade_vol; kwargs...)
-    relslippage(trade_vol, df.volume[idx])
-end
-function slippageat(::Val{:trade}, df, idx, trade_vol; kwargs...)
-    tradeslippage(trade_vol; kwargs...)
+function slippage_rate(::Val{:above}, target, total; n=0.5, fn=x -> x^3)
+    @deassert target >= total
+    fn(n * (target / total))
 end
 
-function slippageat(inst::AssetInstance, date::DateTime, v::Val=Val(:rel); kwargs...)
+@doc "Given two numbers (trade amount, candle volume) or (limit price, candle price) get a rate
+that signifies slippage magnitude."
+function slippage_rate(target, total)
+    if target < total
+        slippage_rate(Val(:below), target, total)
+    else
+        slippage_rate(Val(:above), target, total)
+    end
+end
+
+function slippageat(inst::AssetInstance, date::DateTime; kwargs...)
     idx = dateindex(df, date)
-    slippageat(v, inst.ohlcv, idx; kwargs...)
+    slippageat(inst.ohlcv, idx; kwargs...)
 end
 
-function slippageat(inst::AssetInstance, v::Val=Val(:trade); kwargs...)
+function slippageat(inst::AssetInstance; kwargs...)
     data = inst.ohlcv
     date = data.timestamp[end]
     idx = dateindex(df, date)
-    slippageat(v, data, idx; kwargs...)
+    slippageat(data, idx; kwargs...)
 end
 
 export slippage, slippageat
