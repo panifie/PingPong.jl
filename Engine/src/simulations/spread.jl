@@ -160,6 +160,7 @@ function spreadat(v::Val{:edge2}, df::AbstractDataFrame, idx; kwargs...)
 end
 
 function spreadat(inst::AssetInstance, idx, v::Val=Val(:opcl); kwargs...)
+    @deassert inst.ohlcv.volume[idx] > 0
     spreadat(v, inst.ohlcv, idx; kwargs...)
 end
 
@@ -167,15 +168,22 @@ end
 
 If date is not provided, the last available date will be considered."
 function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:opcl); kwargs...)
+    df = inst.ohlcv
     idx = dateindex(df, date)
-    spreadat(v, inst.ohlcv, idx; kwargs...)
+    spreadat(v, df, idx; kwargs...)
 end
 
 function spreadat(inst::AssetInstance, v::Val=Val(:opcl); kwargs...)
-    data = inst.ohlcv
-    date = data.timestamp[end]
+    df = inst.ohlcv
+    date = df.timestamp[end]
     idx = dateindex(df, date)
-    spreadat(v, data, idx; kwargs...)
+    spreadat(v, df, idx; kwargs...)
 end
 
-export spread, spreadat
+@doc "Check for possible fake open/close, data, where the open is just the close of the previous candle."
+function isfakeoc(df::AbstractDataFrame)
+    all(@view(df.close[1:(end - 1)]) .== @view(df.open[2:end]))
+end
+isfakeoc(ai::AssetInstance) = isfakeoc(ai.ohlcv)
+
+export spread, spreadat, isfakeoc
