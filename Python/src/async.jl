@@ -37,11 +37,13 @@ function py_start_loop()
     pycopy!(pyloop, pyrunner.get_loop())
 end
 
+# FIXME: This doesn't work if we pass `args...; kwargs...`
 macro pytask(code)
     @assert code.head == :call
     Expr(:call, :pytask, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
+# FIXME: This doesn't work if we pass `args...; kwargs...`
 macro pyfetch(code)
     @assert code.head == :call
     Expr(:call, :pyfetch, esc(code.args[1]), esc.(code.args[2:end])...)
