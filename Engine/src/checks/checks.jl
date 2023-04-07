@@ -1,6 +1,6 @@
 module Checks
-using ..Types.Instances
-using ..Types.Orders
+using Instances
+using ..Types.OrderTypes
 using Accessors: setproperties
 using Lang: Option, @ifdebug
 using Misc: isstrictlysorted

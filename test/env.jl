@@ -1,5 +1,6 @@
 using PingPong
 using TimeTicks
+using TimeTicks: TimeTicks as tt
 using Instruments
 using Instruments: Instruments as istr
 using Instruments.Derivatives
@@ -29,5 +30,5 @@ function dostub!(pairs=["eth", "btc", "xmr"])
     GC.gc()
     qc = string(nameof(s.cash))
     data = invokelatest(scr.BinanceData.binanceload, pairs; quote_currency=qc)
-    co.stub!(s.universe, data)
+    egn.Types.stub!(s.universe, data)
 end

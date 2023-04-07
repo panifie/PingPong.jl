@@ -13,12 +13,6 @@ freecash(s::Strategy) = s.cash - s.cash_committed
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
 
-@doc "Creates a context within the available data loaded into the strategy universe with the smallest timeframe available."
-Types.Context(s::Strategy{<:ExecMode}) = begin
-    dr = DateRange(s.universe)
-    Types.Context(execmode(s), dr)
-end
-
 coll.iscashable(s::Strategy) = coll.iscashable(s.cash, s.universe)
 Base.nameof(t::Type{<:Strategy}) = t.parameters[2]
 Base.nameof(s::Strategy) = nameof(typeof(s))
@@ -68,7 +62,7 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         getfield(s, sym)
     end
 end
-function Base.propertynames(s::Strategy)
+function Base.propertynames(::Strategy)
     (
         fieldnames(Strategy)...,
         :attrs,
@@ -80,12 +74,5 @@ function Base.propertynames(s::Strategy)
         :qc,
         :mode,
         :config,
-    )
-end
-function Base.similar(
-    s::Strategy, mode=s.mode, timeframe=s.timeframe, exc=getexchange!(s.exchange)
-)
-    s = Strategy(
-        s.self, typeof(mode), timeframe, exc, similar(s.universe); config=copy(s.config)
     )
 end

@@ -23,5 +23,5 @@ To realize the `pong!` dispatch convention, you can expect the first argument of
     
 ### API
 ```@autodocs
-Modules = [PingPong.Engine, PingPong.Engine.Types.Instances, PingPong.Engine.Types.Collections]
+Modules = [PingPong.Engine, PingPong.Engine.Instances, PingPong.Engine.Collections]
 ```

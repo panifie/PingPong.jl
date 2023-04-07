@@ -1,16 +1,12 @@
-module Strategies
 using Pkg: Pkg
 using TimeTicks
 using ExchangeTypes
-using Exchanges: getexchange!
 using Misc
 using Data.DataFrames: nrow
 using Instruments: AbstractAsset, Cash, cash!
-using ..Types
-using ..Types.Collections: AssetCollection, Collections as coll
-using ..Types.Instances: AssetInstance
-using ..Types.Orders: Order, OrderType
-using ..Engine: Engine
+using Instances: AssetInstance
+using Collections: AssetCollection, Collections as coll
+using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
 
 abstract type AbstractStrategy end
 
@@ -51,14 +47,6 @@ struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
             self, config, timeframe, ca, ca_comm, buyorders, sellorders, holdings, uni
         )
     end
-    function Strategy69(
-        self::Module, assets::Union{Dict,Iterable{String}}; mode=Sim, config::Config
-    )
-        exc = getexchange!(config.exchange)
-        timeframe = @something self.TF config.min_timeframe first(config.timeframes)
-        uni = AssetCollection(assets; timeframe=string(timeframe), exc)
-        Strategy69(self, mode, timeframe, exc, uni; config)
-    end
 end
 @doc """The strategy is the core type of the framework.
 
@@ -90,5 +78,3 @@ include("print.jl")
 export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange
 export LoadStrategy, WarmupPeriod
-
-end

@@ -8,14 +8,12 @@ using Data.DataFramesMeta
 using Data: load, zi
 using Data.DFUtils
 using OrderedCollections: OrderedDict
-using DataStructures: SortedDict
+using Data.DataStructures: SortedDict
 using Misc: Iterable, swapkeys
 using ExchangeTypes
 using Instruments: fiatnames, AbstractAsset, Asset, Cash
 using Instruments.Derivatives
-using ..Instances
-using Processing: resample
-import Data: stub!
+using Instances
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
@@ -147,44 +145,6 @@ end
 Base.first(ac::AssetCollection, a::AbstractAsset)::DataFrame =
     first(first(ac[a].instance).data)[2]
 
-@doc """[`Main.Engine.Types.Instances.fill!`](@ref Main.Engine.Types.Instances.fill!) all the instances with given timeframes data..."""
-Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
-
-@doc "Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
-
-`src`: The mapping, should be a pair `TimeFrame => Dict{String, PairData}`.
-
-Example:
-```julia
-using Scrapers.BinanceData as bn
-using Strategies
-using Exchanges
-setexchange!(:binanceusdm)
-cfg = Config(nameof(exc.id))
-strat = strategy!(:Example, cfg)
-data = bn.binanceload()
-stub!(strat.universe, data)
-```
-"
-function stub!(ac::AssetCollection, src)
-    src_dict = swapkeys(src, NTuple{2,Symbol}, k -> let a = parse(Asset, k, fiatnames)
-        (a.bc, a.qc)
-    end)
-    for inst in ac.data.instance
-        for tf in keys(inst.data)
-            pd = get(src_dict, (inst.asset.bc, inst.asset.qc), nothing)
-            isnothing(pd) && continue
-            new_data = resample(pd, tf)
-            try
-                empty!(inst.data[tf])
-                append!(inst.data[tf], new_data)
-            catch
-                inst.data[tf] = new_data
-            end
-        end
-    end
-end
-
 @doc "Makes a daterange that spans the common min and max dates of the collection."
 function TimeTicks.DateRange(ac::AssetCollection, tf=nothing)
     m = typemin(DateTime)
@@ -209,7 +169,6 @@ Base.similar(ac::AssetCollection) = begin
     AssetCollection(similar.(ac.data.instance))
 end
 
-
 @doc "Checks that all assets in the universe match the cash."
 iscashable(c::Cash, ac::AssetCollection) = begin
     for ai in ac
@@ -220,6 +179,6 @@ iscashable(c::Cash, ac::AssetCollection) = begin
     end
 end
 
-export AssetCollection, flatten, stub!, iscashable
+export AssetCollection, flatten, iscashable
 
 end

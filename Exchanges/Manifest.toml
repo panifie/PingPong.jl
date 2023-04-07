@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-rc1"
+julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "aa2cecd2fb9595d40daf0a61fba77929b799ac6e"
+project_hash = "d2da45898064e010ac020650addd1ba18a8bbc19"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -430,7 +430,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "JSON", "Logging", "Pkg", "TOML", "TimeTicks"]
+deps = ["DataFrames", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -727,12 +727,6 @@ deps = ["Dates", "Lang", "Reexport", "Serialization", "TimeFrames"]
 path = "../TimeTicks"
 uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 version = "0.1.0"
-
-[[deps.TimeToLive]]
-deps = ["Dates"]
-git-tree-sha1 = "1f1389007d16385ec02e497bef6c2caffba99b65"
-uuid = "37f0c46e-897f-50ef-b453-b26c3eed3d6c"
-version = "0.3.0"
 
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]

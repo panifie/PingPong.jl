@@ -1,7 +1,6 @@
 using Misc
 using TimeTicks
 
-abstract type ExecAction end
 
 # TYPENUM
 @doc """The configuration against which a strategy is tested.

@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-rc1"
+julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "db5b084925a5dceb63db5c2467efe56d58a685f3"
+project_hash = "9a699bc3aef878ef9f67d4b48c6c531b4df9c777"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -112,6 +112,12 @@ git-tree-sha1 = "9c209fb7536406834aa938fb149964b985de6c83"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
 version = "0.7.1"
 
+[[deps.Collections]]
+deps = ["Data", "ExchangeTypes", "Instances", "Instruments", "Lang", "Misc", "OrderedCollections", "Processing", "TimeTicks"]
+path = "../Collections"
+uuid = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
+version = "0.1.0"
+
 [[deps.Compat]]
 deps = ["UUIDs"]
 git-tree-sha1 = "7a60c856b9fa189eb34f5f8a6f6b5529b7942957"
@@ -217,7 +223,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "Statistics", "StatsBase", "TimeTicks"]
+deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instances", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
 path = "../Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -229,7 +235,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks", "TimeToLive"]
+deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -298,6 +304,12 @@ deps = ["Parsers"]
 git-tree-sha1 = "9cc2baf75c6d09f9da536ddf58eb2f29dedaf461"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 version = "1.4.0"
+
+[[deps.Instances]]
+deps = ["Data", "ExchangeTypes", "Instruments", "Misc", "OrderTypes", "Processing", "TimeTicks"]
+path = "../Instances"
+uuid = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
+version = "0.1.0"
 
 [[deps.Instruments]]
 deps = ["Lang", "Misc"]
@@ -476,7 +488,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "FunctionalCollections", "JSON", "Logging", "Pkg", "TOML", "TimeTicks"]
+deps = ["DataFrames", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -543,6 +555,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "9ff31d101d987eb9d66bd8b176ac7c277beccd09"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 version = "1.1.20+0"
+
+[[deps.OrderTypes]]
+deps = ["Data", "ExchangeTypes", "Instruments", "Lang", "Misc", "TimeTicks"]
+path = "../OrderTypes"
+uuid = "fba5cb4a-2089-4510-9d41-52be7ff19328"
+version = "0.1.0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
@@ -720,6 +738,12 @@ git-tree-sha1 = "d1bf48bfcc554a3761a133fe3a9bb01488e06916"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.33.21"
 
+[[deps.Strategies]]
+deps = ["Collections", "Data", "ExchangeTypes", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Pkg", "TimeTicks"]
+path = "../Strategies"
+uuid = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
+version = "0.1.0"
+
 [[deps.StringManipulation]]
 git-tree-sha1 = "46da2434b41f41ac3594ee9816ce5541c6096123"
 uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
@@ -791,12 +815,6 @@ deps = ["Dates", "Lang", "Reexport", "Serialization", "TimeFrames"]
 path = "../TimeTicks"
 uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 version = "0.1.0"
-
-[[deps.TimeToLive]]
-deps = ["Dates"]
-git-tree-sha1 = "1f1389007d16385ec02e497bef6c2caffba99b65"
-uuid = "37f0c46e-897f-50ef-b453-b26c3eed3d6c"
-version = "0.3.0"
 
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]

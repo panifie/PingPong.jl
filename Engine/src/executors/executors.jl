@@ -1,4 +1,6 @@
 module Executors
+using ..TimeTicks
+using ..Misc
 using ..Types
 using ..Strategies: Strategy
 using ..Engine: Engine
@@ -8,6 +10,7 @@ const execute! = pong!
 
 struct UpdateOrders <: ExecAction end
 
+include("utils.jl")
 include("backtest.jl")
 
 export pong!, execute!, UpdateOrders

@@ -2,12 +2,13 @@ module Types
 using Reexport
 
 include("context.jl")
-include("orders.jl")
-include("instances.jl")
-include("collections.jl")
 
-for m in (:Orders, :Instances, :Collections)
-    @eval @reexport using .$m
+for m in (:OrderTypes, :Instances, :Collections, :Strategies)
+    @eval @reexport using $m
 end
+
+include("constructors.jl")
+include("datahandlers.jl")
+
 
 end

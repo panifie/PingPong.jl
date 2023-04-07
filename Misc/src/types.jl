@@ -1,6 +1,7 @@
 using TimeTicks
 const td_tf = TimeTicks.td_tf
 
+abstract type ExecAction end
 abstract type ExecMode end
 struct Sim <: ExecMode end
 struct Paper <: ExecMode end
@@ -34,4 +35,4 @@ end
 include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
-export ExecMode, execmode, Sim, Paper, Live
+export ExecMode, execmode, ExecAction, Sim, Paper, Live

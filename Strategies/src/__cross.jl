@@ -12,11 +12,9 @@ struct CrossStrategy1{M}
     function CrossStrategy1(
         src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config
     )
-        begin
-            exc = getexchange!(config.exchange)
-            uni = AssetCollection(assets; exc)
-            new{src}(uni, Dict(), Dict(), Dict(), config)
-        end
+        exc = getexchange!(config.exchange)
+        uni = AssetCollection(assets; exc)
+        new{src}(uni, Dict(), Dict(), Dict(), config)
     end
 end
 CrossStrategy = CrossStrategy1

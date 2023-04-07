@@ -1,4 +1,4 @@
-using Engine.Types.Orders: OrderError
+using OrderTypes: OrderError
 
 ## Strategy interface
 @doc "Called on each timestep iteration, possible multiple times.
@@ -18,8 +18,8 @@ ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = err
 
 macro interface()
     quote
-        import Engine.Strategies: ping!, evaluate!
-        using Engine.Strategies: assets, exchange
+        import .Strategies: ping!, evaluate!
+        using .Strategies: assets, exchange
         using Engine: pong!, execute!
     end
 end

@@ -35,7 +35,7 @@ bn.binancedownload(pairs)
 Load the data into the strategy universe:
 
 ```julia
-using Engine.Types.Collections: stub!
+using Engine.Collections: stub!
 let data = bn.binanceload(pairs)
     stub!(s.universe, data)
 end

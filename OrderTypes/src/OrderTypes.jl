@@ -1,10 +1,10 @@
-module Orders
+module OrderTypes
+using Lang: Lang
+using TimeTicks
 using Misc: config
 using Data: Candle
-using TimeTicks
 using Instruments
-using Exchanges
-using Lang: Lang
+using ExchangeTypes
 
 abstract type OrderSide end
 abstract type Buy <: OrderSide end

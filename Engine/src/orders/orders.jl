@@ -4,9 +4,9 @@ using Lang: @lget!, Option, @deassert
 using TimeTicks
 using Misc
 using ExchangeTypes
-@reexport using ..Types.Orders
+@reexport using ..Types.OrderTypes
 using Instruments
-using ..Types.Instances
+using Instances
 using ..Engine: Engine
 using ..Engine.Checks
 using ..Engine.Checks: sanitize_price, sanitize_amount, iscost, ismonotonic

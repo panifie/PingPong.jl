@@ -1,6 +1,6 @@
 using Lang
 using TimeTicks
-using ..Types.Instances
+using Instances
 using Statistics: cov, mean
 using Data.DFUtils
 using Instruments

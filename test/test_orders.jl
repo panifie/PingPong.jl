@@ -3,9 +3,9 @@ using Test
 function _test_orders_1()
     @eval setexchange!(:kucoinfutures)
     @eval using Instruments
-    @eval using PingPong.Engine: Orders, Instances
+    @eval using PingPong.Engine: OrderTypes, Instances
     @eval using PingPong.Exchanges
-    @eval using .Orders
+    @eval using .OrderTypes
     @eval using .Instances
     @eval using PingPong.Python
     s = "BTC/USDT:USDT"

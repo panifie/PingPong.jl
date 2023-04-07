@@ -1,6 +1,6 @@
 using Engine: Strategies as st
 using Engine.Strategies: Strategy
-using Engine.Types.Orders
+using OrderTypes
 using Exchanges: getexchange!
 using Instruments
 using Data.DFUtils

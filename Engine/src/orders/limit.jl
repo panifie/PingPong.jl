@@ -1,4 +1,4 @@
-using ..Types.Orders: LimitOrderType, NotFilled, IOCOrder
+using ..Types.OrderTypes: LimitOrderType, NotFilled, IOCOrder
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
 const _LimitOrderState9 = NamedTuple{
     (:take, :stop, :committed, :filled, :trades),
