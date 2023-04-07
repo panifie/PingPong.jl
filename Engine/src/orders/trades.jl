@@ -13,8 +13,8 @@ Orders.ordersdefault!(s::Strategy{Sim}) = begin
     s.attrs[:base_slippage] = Val(:spread)
 end
 
-tradesize(::BuyOrder, ai, cost) = muladd(cost, ai.fees, cost)
-tradesize(::SellOrder, ai, cost) = muladd(negate(cost), ai.fees, cost)
+tradesize(::BuyOrder, ai, cost) = muladd(cost, maxfees(ai), cost)
+tradesize(::SellOrder, ai, cost) = muladd(negate(cost), maxfees(ai), cost)
 
 function maketrade(s::Strategy, o::BuyOrder, ai; date, price, amount)
     size = tradesize(o, ai, cost(price, amount))

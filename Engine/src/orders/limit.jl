@@ -75,7 +75,7 @@ function limitorder(
 )
     @price! ai price take stop
     @amount! ai amount
-    comm = committment(type, price, amount, ai.fees)
+    comm = committment(type, price, amount, maxfees(ai))
     if iscommittable(s, type, comm, ai)
         limitorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end

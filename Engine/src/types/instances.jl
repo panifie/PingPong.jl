@@ -17,6 +17,7 @@ import Data: stub!
 const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
 const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
+const Fees = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,Real}}
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -27,7 +28,7 @@ const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance49{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance50{T<:AbstractAsset,E<:ExchangeID}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
@@ -36,8 +37,8 @@ struct AssetInstance49{T<:AbstractAsset,E<:ExchangeID}
     exchange::Exchange{E}
     limits::Limits
     precision::Precision
-    fees::Float64
-    function AssetInstance49(
+    fees::Fees
+    function AssetInstance50(
         a::A, data, e::Exchange{E}; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID}
         new{A,E}(
@@ -52,21 +53,21 @@ struct AssetInstance49{T<:AbstractAsset,E<:ExchangeID}
             fees,
         )
     end
-    function AssetInstance49(a; data, exc, min_amount=1e-15)
+    function AssetInstance50(a; data, exc, min_amount=1e-15)
         limits = market_limits(a.raw, exc; default_amount=(min=min_amount, max=Inf))
         precision = market_precision(a.raw, exc)
         fees = market_fees(a.raw, exc)
-        AssetInstance49(a, data, exc; limits, precision, fees)
+        AssetInstance50(a, data, exc; limits, precision, fees)
     end
-    function AssetInstance49(s::S, t::S, e::S) where {S<:AbstractString}
+    function AssetInstance50(s::S, t::S, e::S) where {S<:AbstractString}
         a = parse(AbstractAsset, s)
         tf = convert(TimeFrame, t)
         exc = getexchange!(Symbol(e))
         data = Dict(tf => load(zi, exc.name, a.raw, t))
-        AssetInstance49(a, data, exc)
+        AssetInstance50(a, data, exc)
     end
 end
-AssetInstance = AssetInstance49
+AssetInstance = AssetInstance50
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -199,6 +200,11 @@ stub!(ai::AssetInstance, df) = begin
     tf = timeframe!(df)
     ai.data[tf] = df
 end
+takerfees(ai::AssetInstance) = ai.fees.taker
+makerfees(ai::AssetInstance) = ai.fees.maker
+minfees(ai::AssetInstance) = ai.fees.min
+maxfees(ai::AssetInstance) = ai.fees.max
 
 export AssetInstance, isactive, instance, load!
+export takerfees, makerfees, maxfees, minfees
 end

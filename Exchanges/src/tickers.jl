@@ -165,5 +165,16 @@ end
 is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
 
 @doc "Taker fees for market."
-market_fees(pair::AbstractString, exc::Exchange=exc) = exc.markets[pair]["taker"]::Float64
-market_fees(a::AbstractAsset, args...) = market_fees(a.raw, args...)
+function market_fees(pair::AbstractString, exc::Exchange=exc; taker=nothing)
+    m = exc.markets[pair]
+    if isnothing(taker)
+        taker = m["taker"]
+        maker = m["maker"]
+        (; taker, maker, min=min(taker, maker), max=max(taker, maker))
+    elseif taker
+        m["taker"]
+    else
+        m["maker"]
+    end
+end
+market_fees(a::AbstractAsset, args...; kwargs...) = market_fees(a.raw, args...; kwargs...)
