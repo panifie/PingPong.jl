@@ -10,10 +10,8 @@ using JSON
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
 using Data: DataFrame
 using Instruments
-using Python
-using Python.PythonCall: pyisnone
 using Serialization: deserialize, serialize
-using TimeToLive: TTL
+using Misc.TimeToLive
 
 const exclock = ReentrantLock()
 const tickers_cache = TTL{String,AbstractDict}(Minute(100))
@@ -91,7 +89,7 @@ function getexchange!(x::Symbol, args...; sandbox=true, kwargs...)
         begin
             py = ccxt_exchange(x, args...; kwargs...)
             e = Exchange(py)
-            sandbox && sandbox!(e, true, remove_keys=false)
+            sandbox && sandbox!(e, true; remove_keys=false)
             setexchange!(e)
         end,
     )
@@ -231,6 +229,7 @@ end
 function sandbox!(exc::Exchange=exc, flag=!issandbox(exc); remove_keys=true)
     exc.py.setSandboxMode(flag)
     if flag
+        @assert issandbox(exc) "Exchange sandbox mode couldn't be enabled. (disable sandbox mode with `sandbox=false`)"
         remove_keys && exckeys!(exc, "", "", "")
     elseif isempty(exc.py.secret)
         exckeys!(exc)
@@ -262,6 +261,6 @@ include("tickers.jl")
 include("data.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
-export loadmarkets!, pairlist, pairs
+export loadmarkets!, tickers, pairs
 export issandbox, ratelimit!
 export timestamp, timeout!, check_timeout

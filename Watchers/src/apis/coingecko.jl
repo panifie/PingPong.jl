@@ -4,9 +4,9 @@ using HTTP
 using URIs
 using Watchers
 using LazyJSON
-using TimeToLive: TTL
 using Lang: @kget!, Option
 using Misc
+using Misc.TimeToLive
 using TimeTicks
 using TimeTicks: timestamp
 using Instruments
