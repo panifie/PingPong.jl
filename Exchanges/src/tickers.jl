@@ -92,13 +92,6 @@ function tickers(
     result(pairlist, as_vec)
 end
 
-using Python.PythonCall: pystr
-const pyCached = Dict{String,Py}()
-macro pystr(k)
-    s = esc(k)
-    :(@lget! pyCached $s pystr($s))
-end
-
 const marketsCache1Min = TTL{String,Py}(Minute(1))
 const tickersCache1Min = TTL{String,Py}(Minute(1))
 const activeCache1Min = TTL{String,Bool}(Minute(1))

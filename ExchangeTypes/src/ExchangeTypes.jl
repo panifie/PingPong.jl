@@ -66,7 +66,7 @@ struct Exchange8{I<:ExchangeID}
     timeframes::Set{String}
     markets::OptionsDict
     Exchange8() = new{typeof(ExchangeID())}(pynew()) # FIXME: this should be None
-    Exchange8(x::Py) = begin
+    function Exchange8(x::Py)
         id = ExchangeID(x)
         name = pyisnull(x) ? "" : pyconvert(String, pygetattr(x, "name"))
         new{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
