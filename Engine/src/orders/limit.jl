@@ -133,15 +133,45 @@ function limitorder_ifprice!(s::Strategy{Sim}, o::LimitOrder, date, ai)
     end
 end
 
+@doc """
+If the buy (sell) price is higher (lower) than current price, starting from
+current price we add (remove) slippage. We ensure that price after slippage
+adjustement doesn't exceed the *limit* order price.
+=== Buy ===
+buy_order_price
+...
+slip_price
+...
+current_price
+...
+slip_price
+...
+sell_order_price
+=== Sell ===
+"""
+function _check_slipprice(slip_price, o::LimitOrder{Buy}, ai, date)
+    price = st.lowat(ai, date)
+    ((o.price >= price) && (price <= slip_price <= o.price)) ||
+        ((o.price < price) && slip_price == o.price)
+end
+
+function _check_slipprice(slip_price, o::LimitOrder{Sell}, ai, date)
+    price = st.highat(ai, date)
+    ((o.price <= price) && (o.price <= slip_price <= price)) ||
+        ((o.price > price) && slip_price == o.price)
+end
+
 @doc "Executes a limit order at a particular time according to volume (called by `limitorder_ifprice!`)."
 function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, price, date, ai)
     cdl_vol = st.volumeat(ai, date)
     amount = o.amount - filled(o)
     if amount < cdl_vol # One trade fills the order completely
         price = _pricebyslippage(s, o, ai, price, amount, cdl_vol)
+        @assert _check_slipprice(price, o, ai, date)
         trade!(s, o, ai; date, price=price, amount)
     elseif cdl_vol > 0.0 && !(o isa FOKOrder)  # Partial fill (Skip partial fills for FOK orders)
         price = _pricebyslippage(s, o, ai, price, amount, cdl_vol)
+        @assert _check_slipprice(price, o, ai, date)
         tr = trade!(s, o, ai; date, price, amount=cdl_vol)
         # Cancel IOC orders after partial fill
         o isa IOCOrder && cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
