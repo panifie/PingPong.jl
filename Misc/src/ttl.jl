@@ -14,8 +14,8 @@ isexpired(v::Node) = now() > v.expiry
 isexpired(time::DateTime) = v::Node -> time > v.expiry
 
 """
-    TTL(ttl::Period; refresh_on_access::Bool=true)
-    TTL{K, V}(ttl::Period; refresh_on_access::Bool=true)
+    TTL(ttl::Period; refresh_on_access::Bool=false)
+    TTL{K, V}(ttl::Period; refresh_on_access::Bool=false)
 
 An associative [TTL](https://en.wikipedia.org/wiki/Time_to_live) cache.
 If `refresh_on_access` is set, expiries are reset whenever they are accessed.
@@ -25,9 +25,9 @@ struct TTL{K, V, P<:Period} <: AbstractDict{K, V}
     ttl::P
     refresh::Bool
 
-    TTL{K, V}(ttl::P; refresh_on_access::Bool=true) where {K, V, P <: Period} =
+    TTL{K, V}(ttl::P; refresh_on_access::Bool=false) where {K, V, P <: Period} =
         new{K, V, P}(Dict{K, Node{V}}(), ttl, refresh_on_access)
-    TTL(ttl::Period; refresh_on_access::Bool=true) =
+    TTL(ttl::Period; refresh_on_access::Bool=false) =
         TTL{Any, Any}(ttl; refresh_on_access=refresh_on_access)
 end
 
