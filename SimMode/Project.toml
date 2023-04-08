@@ -1,4 +1,4 @@
-name = "Backtest"
+name = "SimMode"
 uuid = "70084082-5615-4098-a9f0-eda0197c0e82"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"

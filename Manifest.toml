@@ -69,9 +69,9 @@ version = "2.0.2"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
-[[deps.Backtest]]
+[[deps.SimMode]]
 deps = ["Executors", "Lang", "Misc", "OrderTypes", "Processing", "Simulations", "Strategies", "TimeTicks"]
-path = "Backtest"
+path = "SimMode"
 uuid = "70084082-5615-4098-a9f0-eda0197c0e82"
 version = "0.1.0"
 
@@ -240,7 +240,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Backtest", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "LRUCache", "Lang", "Live", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "Paper", "Pbar", "Pkg", "Processing", "Reexport", "Simulations", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
+deps = ["Accessors", "SimMode", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "LRUCache", "Lang", "LiveMode", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "PaperMode", "Pbar", "Pkg", "Processing", "Reexport", "Simulations", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
 path = "Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -464,9 +464,9 @@ version = "1.16.1+2"
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
-[[deps.Live]]
+[[deps.LiveMode]]
 deps = ["Collections", "Data", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Python", "Strategies", "TimeTicks"]
-path = "Live"
+path = "LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 version = "0.1.0"
 
@@ -608,9 +608,9 @@ git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
 
-[[deps.Paper]]
+[[deps.PaperMode]]
 deps = ["Executors"]
-path = "Paper"
+path = "PaperMode"
 uuid = "b2ae67eb-72da-414f-85db-6054cbf44090"
 version = "0.1.0"
 

@@ -22,7 +22,7 @@ end
 
 ```julia
 using Engine.Strategies
-using Engine.Executors: Backtest as bt
+using Engine.Executors: SimMode as bt
 s = strategy(:Example)
 # Load data in the strategy universe (you need to already have it)
 fill!(s) # or stub!(s.universe, datadict)

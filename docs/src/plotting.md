@@ -35,7 +35,7 @@ We plot trades history as triangles pointing up for buys and down for sells.
 ```julia
 using Lang
 using Strategies
-using Engine.Executors.Backtest: Backtest as bt
+using Engine.Executors.SimMode: SimMode as bt
 s = st.strategy(:Example)
 ai = s.universe[m"eth"].instance
 bt.backtest!(s)

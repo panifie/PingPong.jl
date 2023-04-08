@@ -1,4 +1,4 @@
-name = "Live"
+name = "LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"

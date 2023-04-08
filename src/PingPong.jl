@@ -44,7 +44,7 @@ macro environment!()
             Engine as egn,
             Strategies as st,
             Simulations as sim,
-            Backtest as bt,
+            SimMode as bt,
             Collections as co
     end
 end

@@ -24,8 +24,8 @@ end
 
 _pricebyside(::BuyOrder, date, ai) = st.lowat(ai, date)
 _pricebyside(::SellOrder, date, ai) = st.highat(ai, date)
-_istriggered(o::LimitOrder{Buy}, date, ai) = _pricebyside(o, ai, date) <= o.price
-_istriggered(o::LimitOrder{Sell}, date, ai) = _pricebyside(o, ai, date) >= o.price
+_istriggered(o::LimitOrder{Buy}, date, ai) = _pricebyside(o, date, ai) <= o.price
+_istriggered(o::LimitOrder{Sell}, date, ai) = _pricebyside(o, date, ai) >= o.price
 
 @doc "Executes a limit order at a particular time only if price is lower(buy) than order price."
 function limitorder_ifprice!(s::Strategy{Sim}, o::LimitOrder, date, ai)
@@ -33,7 +33,7 @@ function limitorder_ifprice!(s::Strategy{Sim}, o::LimitOrder, date, ai)
         # Order might trigger on high/low, but execution uses the *close* price.
         limitorder_ifvol!(s, o, st.closeat(ai, date), date, ai)
     elseif o isa Union{FOKOrder,IOCOrder}
-        cancel!(s, o, ai; err=NotMatched(o.price, _pricebyside(o, ai, date), 0.0, 0.0))
+        cancel!(s, o, ai; err=NotMatched(o.price, _pricebyside(o, date, ai), 0.0, 0.0))
     else
         missing
     end

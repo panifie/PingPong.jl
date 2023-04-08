@@ -4,9 +4,9 @@ using Misc
 using Simulations
 using Executors
 using OrderTypes
-using Backtest
-using Paper
-using Live
+using SimMode 
+using PaperMode
+using LiveMode
 
 # include("consts.jl")
 # include("funcs.jl")

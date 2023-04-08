@@ -44,7 +44,7 @@ end
 Backtest the strategy within the period available from the loaded data.
 
 ```julia
-using Engine.Executors.Backtest: Backtest as bt
+using Engine.Executors.SimMode: SimMode as bt
 bt.backtest!(s)
 ```
 
