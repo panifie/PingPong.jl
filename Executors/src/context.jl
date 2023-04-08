@@ -1,5 +1,6 @@
 using Misc
 using TimeTicks
+using Strategies: Strategy
 
 
 # TYPENUM
@@ -33,5 +34,11 @@ struct Context10{M<:ExecMode}
     end
 end
 Context = Context10
+
+@doc "Creates a context within the available data loaded into the strategy universe with the smallest timeframe available."
+Executors.Context(s::Strategy{<:ExecMode}) = begin
+    dr = DateRange(s.universe)
+    Executors.Context(execmode(s), dr)
+end
 
 export Context, ExecAction

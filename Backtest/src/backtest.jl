@@ -1,12 +1,3 @@
-module Backtest
-using TimeTicks: TimeTicks as tt
-using Misc
-using Processing.Alignments
-using ..Executors: Executors
-using ..Executors.Engine.Types
-using ..Executors.Engine.Strategies: Strategy, ping!, reset!, WarmupPeriod
-using ..Executors.Engine.Simulations: Simulations as sim
-
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
 
 On every iteration, the strategy is queried for the _current_ timestamp.
@@ -57,8 +48,4 @@ function backtest!(s, count::Integer; kwargs...)
     end
     ctx = Context(Sim(), s.timeframe, from, to)
     backtest!(s, ctx; kwargs...)
-end
-
-export backtest!
-
 end

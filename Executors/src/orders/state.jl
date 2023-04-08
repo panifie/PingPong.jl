@@ -1,10 +1,16 @@
-function Instruments.cash!(s::Strategy, ai, t::BuyTrade)
+using Lang: @deassert, @lget!, Option
+using OrderTypes
+using Strategies: Strategies as st
+import Instruments: cash!
+using Instruments
+
+function cash!(s::Strategy, ai, t::BuyTrade)
     sub!(s.cash, t.size)
     sub!(s.cash_committed, t.size)
     @deassert s.cash >= 0.0 && s.cash_committed >= 0.0
     add!(ai.cash, t.amount)
 end
-function Instruments.cash!(s::Strategy, ai, t::SellTrade)
+function cash!(s::Strategy, ai, t::SellTrade)
     add!(s.cash, t.size)
     sub!(ai.cash, t.amount)
     sub!(ai.cash_committed, t.amount)
@@ -68,9 +74,9 @@ function queue!(s::Strategy, o::Order{<:OrderType{S}}, ai) where {S<:OrderSide}
 end
 
 @doc "Cancel an order with given error."
-function cancel!(
-    s::Strategy, o::Order, ai; err::OrderError
-)
+function cancel!(s::Strategy, o::Order, ai; err::OrderError)
     pop!(s, ai, o)
-    ping!(s, o, err, ai)
+    st.ping!(s, o, err, ai)
 end
+
+export queue!, cancel!

@@ -12,6 +12,5 @@ include("spread.jl")
 include("slippage.jl")
 include("liq.jl")
 include("skew.jl")
-include("buy.jl")
 
 end

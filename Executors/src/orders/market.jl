@@ -26,21 +26,3 @@ function marketorder(
         attrs=limit_order_state(take, stop, committed),
     )
 end
-
-
-@doc "Creates a simulated market order."
-function Executors.pong!(
-    s::Strategy{Sim}, t::Type{<:Order{<:MarketOrder}}, ai; amount, kwargs...
-)
-    o = marketorder(s, ai, amount; type=t, kwargs...)
-    isnothing(o) && return nothing
-    queue!(s, o, ai)
-    limitorder_ifprice!(s, o, o.date, ai)
-end
-
-@doc "Progresses a simulated market order."
-function Executors.pong!(
-    s::Strategy{Sim}, o::Order{<:MarketOrder}, date::DateTime, ai; kwargs...
-)
-    limitorder_ifprice!(s, o, date, ai)
-end

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "a401022088ad24c89e63057ea215ad9c5de63d8f"
+project_hash = "f8c2aebb428f25da660952ac8feaaee3735edc48"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -63,6 +63,12 @@ version = "2.0.2"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+
+[[deps.Backtest]]
+deps = ["Executors", "Lang", "Misc", "OrderTypes", "Processing", "Simulations", "Strategies", "TimeTicks"]
+path = "../Backtest"
+uuid = "70084082-5615-4098-a9f0-eda0197c0e82"
+version = "0.1.0"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -237,9 +243,15 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
+deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "OrderTypes", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+version = "0.1.0"
+
+[[deps.Executors]]
+deps = ["Accessors", "Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
+path = "../Executors"
+uuid = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
 version = "0.1.0"
 
 [[deps.ExprTools]]
@@ -425,6 +437,12 @@ version = "1.16.1+2"
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
+[[deps.Live]]
+deps = ["Collections", "Data", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Python", "Strategies", "TimeTicks"]
+path = "../Live"
+uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
+version = "0.1.0"
+
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
 git-tree-sha1 = "946607f84feb96220f480e0422d3484c49c00239"
@@ -553,6 +571,12 @@ git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.4.1"
 
+[[deps.Paper]]
+deps = ["Executors"]
+path = "../Paper"
+uuid = "b2ae67eb-72da-414f-85db-6054cbf44090"
+version = "0.1.0"
+
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
@@ -675,6 +699,12 @@ uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
 version = "1.1.0"
+
+[[deps.Simulations]]
+deps = ["Data", "Instances", "Instruments", "IterTools", "Lang", "Misc", "Statistics", "StatsBase", "TimeTicks"]
+path = "../Simulations"
+uuid = "a69aad36-f532-4133-ba48-77171b778e6d"
+version = "0.1.0"
 
 [[deps.SnoopPrecompile]]
 git-tree-sha1 = "f604441450a3c0569830946e5b33b78c928e1a85"

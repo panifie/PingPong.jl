@@ -25,18 +25,30 @@ function __init__()
     wait(t)
 end
 
-export Engine,
-    marketsid,
-    tickers,
-    load_ohlcv,
-    user!,
-    getexchange!,
-    setexchange!,
-    config,
-    Strategy,
-    strategy!,
-    config!,
-    Config,
-    exc
+macro environment!()
+    quote
+        using Lang: @m_str
+        using TimeTicks
+        using TimeTicks: TimeTicks as tt
+        using Misc
+        using Misc: Misc as mi
+        using Instruments
+        using Instruments: Instruments as im
+        using Instruments.Derivatives
+        using Instruments.Derivatives: Derivatives as der
+        using Data: Data as da, DFUtils as du
+        using Processing: Processing as pro
+        using PingPong.Exchanges
+        using PingPong.Exchanges: Exchanges as exs
+        using PingPong.Engine:
+            Engine as egn,
+            Strategies as st,
+            Simulations as sim,
+            Backtest as bt,
+            Collections as co
+    end
+end
+
+export @environment!
 
 end # module

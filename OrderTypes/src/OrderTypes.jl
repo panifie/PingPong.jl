@@ -137,6 +137,7 @@ CompositeTrade = CompositeTrade3
 const ordersdefault! = Returns(nothing)
 
 orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
+ordertype(::Order{T}) where {T<:OrderType} = T
 
 abstract type OrderError end
 @doc "There wasn't enough cash to setup the order."
@@ -163,6 +164,7 @@ end
 @kwdef struct OrderFailed <: OrderError
     msg::String
 end
+
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, BuyTrade, SellTrade

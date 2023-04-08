@@ -217,7 +217,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
+deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "OrderTypes", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -514,6 +514,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "f6e9dba33f9f2c44e08a020b0caf6903be540004"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 version = "1.1.19+0"
+
+[[deps.OrderTypes]]
+deps = ["Data", "ExchangeTypes", "Instruments", "Lang", "Misc", "TimeTicks"]
+path = "../OrderTypes"
+uuid = "fba5cb4a-2089-4510-9d41-52be7ff19328"
+version = "0.1.0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"

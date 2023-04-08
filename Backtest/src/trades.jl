@@ -1,7 +1,8 @@
 using Base: negate
+using Executors.Checks: cost, withfees
+using Executors.Instances
+using Executors.Instruments
 
-cost(price, amount) = price * amount
-withfees(cost, fees) = muladd(cost, fees, cost)
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n
 spreadopt(v, args...) = error("`base_slippage` option value not supported ($v)")
@@ -9,7 +10,7 @@ spreadopt(v, args...) = error("`base_slippage` option value not supported ($v)")
 function _base_slippage(s::Strategy, date::DateTime, ai)
     spreadopt(s.attrs[:base_slippage], date, ai)
 end
-Orders.ordersdefault!(s::Strategy{Sim}) = begin
+OrderTypes.ordersdefault!(s::Strategy{Sim}) = begin
     s.attrs[:base_slippage] = Val(:spread)
 end
 

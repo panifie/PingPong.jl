@@ -1,15 +1,17 @@
 using Reexport
 using TimeTicks
 using Misc
-using Strategies: Strategies
+using Simulations
+using Executors
+using OrderTypes
+using Backtest
+using Paper
+using Live
 
 # include("consts.jl")
 # include("funcs.jl")
-include("types/types.jl")
-include("checks/checks.jl")
-include("simulations/simulations.jl")
-include("executors/executors.jl")
-include("orders/orders.jl")
+include("types/constructors.jl")
+include("types/datahandlers.jl")
 
-@reexport using .Strategies
-@reexport using .Executors
+# @reexport using .Strategies
+# @reexport using .Executors

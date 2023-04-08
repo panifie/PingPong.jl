@@ -11,10 +11,9 @@ using Data.DataFrames
 using Engine
 using Engine.Strategies: Strategies as st
 using Engine.Strategies
-using Engine.Types.Instances: Instances as inst
+using Engine.Instances: Instances as inst
 using Engine.Executors
-using Engine.Types.OrderTypes
-using Engine.Orders
+using Engine.OrderTypes
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
@@ -65,9 +64,9 @@ function buy!(s::S, ai, ats, ts)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
     if amount > 0.0
-        t = pong!(s, GTCOrder{Buy}, ai; amount, date=ts, price=1.02price)
+        # t = pong!(s, GTCOrder{Buy}, ai; amount, date=ts, price=1.02price)
         # t = pong!(s, FOKOrder{Buy}, ai; amount, date=ts)
-        # t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
+        t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
     end
 end
 
@@ -76,9 +75,9 @@ function sell!(s::S, ai, ats, ts)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     price = closeat(ai.ohlcv, ats)
     if amount > 0.0
-        t = pong!(s, GTCOrder{Sell}, ai; amount, date=ts, price=0.99price)
+        # t = pong!(s, GTCOrder{Sell}, ai; amount, date=ts, price=0.99price)
         # t = pong!(s, FOKOrder{Sell}, ai; amount, date=ts)
-        # t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
+        t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
     end
 end
 

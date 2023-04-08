@@ -7,7 +7,7 @@ using Data.DFUtils
 using Processing: resample
 using Instruments: Asset, fiatnames
 
-@doc """[`Main.Engine.Types.Instances.fill!`](@ref Main.Engine.Types.Instances.fill!) all the instances with given timeframes data..."""
+@doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
 
 @doc "Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.

@@ -1,4 +1,8 @@
 using Lang: @lget!, splitkws
+using TimeTicks
+using ExchangeTypes
+using Misc.TimeToLive
+using Python
 
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
 const BalanceTTL = Ref(Second(5))
@@ -44,7 +48,7 @@ function balance(
     d = _symdict!(exc)
     @lget! d (sym, status, type) begin
         b = balance(exc, args...; type, status, kwargs...)
-        pyconvert(Float64, b[@pystr(string(sym))])
+        pyconvert(Float64, b.get(@pystr(string(sym)), 0.0))
     end
 end
 
@@ -63,7 +67,7 @@ function balance!(
 )
     b = balance!(exc, args...; type, status, kwargs...)
     d = _symdict!(exc)
-    v = pyconvert(Float64, b[@pystr(string(sym))])
+    v = pyconvert(Float64, b.get(@pystr(string(sym)), 0.0))
     d[(sym, status, type)] = v
     v
 end

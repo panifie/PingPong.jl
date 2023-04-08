@@ -1,16 +1,17 @@
-using Engine: Strategies as st
-using Engine.Strategies: Strategy
-using OrderTypes
-using Exchanges: getexchange!
-using Instruments
+using Random: seed!
+using Stats: trades_balance, expand
+using Makie: point_in_triangle, point_in_quad_parameter
+
+using Lang: Option
 using Data.DFUtils
 using Data.DataFrames
 using Data: load, zi
-using Lang: Option
 using Processing: normalize, normalize!
-using Stats: trades_balance, expand
-using Makie: point_in_triangle, point_in_quad_parameter
-using Random: seed!
+
+using Instruments
+using Exchanges: getexchange!
+using OrderTypes
+using Strategies: Strategy, Strategies as st
 
 function trade_str(trade)
     """Trade Date: $(trade.date)

@@ -33,3 +33,4 @@ function Base.similar(
         s.self, typeof(mode), timeframe, exc, similar(s.universe); config=copy(s.config)
     )
 end
+

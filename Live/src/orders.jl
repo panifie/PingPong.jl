@@ -4,7 +4,7 @@ using ExchangeTypes
 using Instances: AssetInstance
 using TimeTicks
 using Instruments
-using ..OrderTypes
+using OrderTypes
 
 # TYPENUM
 @doc """ Live orders can hold additional info about live execution. They are short lived

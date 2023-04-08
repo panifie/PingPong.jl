@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "4ef287e36856e113244d7f0f36fd975e32912863"
+project_hash = "c5421cb45e05a94337284c59a154893270d293d5"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -478,12 +478,6 @@ git-tree-sha1 = "3e6a5d8dff78e508473c5a15f91debed1b464c46"
 uuid = "e248de7e-9197-5860-972e-353a2af44d75"
 version = "1.0.0"
 
-[[deps.Engine]]
-deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instances", "Instruments", "IterTools", "LRUCache", "Lang", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "Pbar", "Pkg", "Processing", "Reexport", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
-path = "../Engine"
-uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
-version = "0.1.0"
-
 [[deps.Entropies]]
 deps = ["DelayEmbeddings", "Distances", "LinearAlgebra", "Neighborhood", "QuadGK", "SparseArrays", "SpecialFunctions", "StaticArrays", "Statistics", "StatsBase", "Wavelets"]
 git-tree-sha1 = "ca95997c3c3655e26886775f2d2efb1e2b412328"
@@ -507,7 +501,7 @@ uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
 
 [[deps.Exchanges]]
-deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
+deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "OrderTypes", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
@@ -1263,18 +1257,6 @@ git-tree-sha1 = "887579a3eb005446d514ab7aeac5d1d027658b8f"
 uuid = "e7412a2a-1a6e-54c0-be00-318e2571c051"
 version = "1.3.5+1"
 
-[[deps.OnlineStats]]
-deps = ["AbstractTrees", "Dates", "LinearAlgebra", "OnlineStatsBase", "OrderedCollections", "Random", "RecipesBase", "Statistics", "StatsBase"]
-git-tree-sha1 = "e81f7f4179becdb6c365fb5a44042cfe7d50b77a"
-uuid = "a15396b6-48d5-5d58-9928-6d29437db91e"
-version = "1.5.14"
-
-[[deps.OnlineStatsBase]]
-deps = ["AbstractTrees", "Dates", "LinearAlgebra", "OrderedCollections", "Statistics", "StatsBase"]
-git-tree-sha1 = "60e587c99ea261d1c452d2acb1f3a481e772660c"
-uuid = "925886fa-5bf2-5e8e-b522-a9147a512338"
-version = "1.5.0"
-
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
@@ -1763,7 +1745,7 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.9.0"
 
 [[deps.Stats]]
-deps = ["Data", "Engine", "Instances", "Lang", "OrderTypes", "Processing", "Statistics", "TimeTicks"]
+deps = ["Data", "Instances", "Lang", "OrderTypes", "Processing", "Statistics", "Strategies", "TimeTicks"]
 path = "../Stats"
 uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 version = "0.1.0"

@@ -1,12 +1,15 @@
 module Checks
-using Instances
-using ..Types.OrderTypes
 using Accessors: setproperties
 using Lang: Option, @ifdebug
 using Misc: isstrictlysorted
+using Instances
+using OrderTypes
 
 struct SanitizeOn end
 struct SanitizeOff end
+
+cost(price, amount) = price * amount
+withfees(cost, fees) = muladd(cost, fees, cost)
 
 _minusmod(n, prec) = begin
     m = mod(n, prec)
@@ -118,6 +121,6 @@ function check_monotonic(prices...)
     return true
 end
 
-export SanitizeOn, SanitizeOff
+export SanitizeOn, SanitizeOff, cost, withfees
 
 end
