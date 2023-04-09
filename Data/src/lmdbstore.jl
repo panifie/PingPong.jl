@@ -42,11 +42,16 @@ function Base.setindex!(d::LMDBDictStore, v, i::AbstractString)
     end
 end
 
-Base.filter!(f, d::lm.LMDBDict) = begin
+Base.filter(f, d::lm.LMDBDict{K,V}) where {K,V} = begin
     collect(v for v in pairs(d) if f(v))
 end
 
 Base.delete!(store::LMDBDictStore, k; recursive=false) = delete!(store.a, k; prefix=k)
+
+_withsuffix(p, sf='/') = (isempty(p) || endswith(p, sf)) ? p : p * sf
+
+za._pkeys(d::LMDBDictStore, p) = keys(d.a; prefix=_withsuffix(p))
+za._pdict(d::LMDBDictStore, p) = dictview(d.a, keys(d.a; prefix=_withsuffix(p)))
 
 get_zgroup(store) = begin
     if !Zarr.is_zgroup(store, "")

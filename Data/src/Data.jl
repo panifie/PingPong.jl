@@ -4,6 +4,7 @@ using DataStructures: DataStructures
 include("utils.jl")
 include("data.jl")
 include("dataframes.jl")
+include("dictview.jl")
 include("lmdbstore.jl")
 include("series.jl")
 include("cache.jl")
