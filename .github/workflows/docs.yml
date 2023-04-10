@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1.9
-      CONDA_PKG_ENV: "$HOME/.CondaPkg"
+      JULIA_CONDAPKG_ENV: "$HOME/.conda"
     permissions: write-all
 
     steps:
