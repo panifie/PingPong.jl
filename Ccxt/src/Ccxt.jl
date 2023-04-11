@@ -4,11 +4,8 @@ using Python: pynew, pycoro_type, pywait_fut, pyschedule
 using Python.PythonCall: pyisnull, pycopy!
 using Misc: DATA_PATH
 
-const ccxt = pynew()
-const ccxt_ws = pynew()
-const ccxt_errors = Set{String}()
-
-function __init__()
+function _init()
+    async_init_task = @async Python._async_init()
     clearpypath!()
     if pyisnull(ccxt)
         @pymodule ccxt
@@ -18,6 +15,15 @@ function __init__()
             Set(string.(pydir(pyimport("ccxt.base.errors"))))
         )
         mkpath(joinpath(DATA_PATH, "markets"))
+    end
+    wait(async_init_task)
+end
+
+function __init__()
+    if Python.initialized[]
+        _init()
+    else
+        push!(Python.callbacks, _init)
     end
 end
 
@@ -98,4 +104,19 @@ function choosefunc(exc, suffix, inputs...; kwargs...)
 end
 
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
+
+using SnoopPrecompile
+@precompile_setup begin
+    const ccxt = pynew()
+    const ccxt_ws = pynew()
+    const ccxt_errors = Set{String}()
+    @precompile_all_calls begin
+        __init__()
+        while pyisnull(ccxt_ws)
+            sleep(0.001)
+        end
+    end
+    @precompile_all_calls ccxt_exchange(:binance)
+end
+
 end # module Ccxt
