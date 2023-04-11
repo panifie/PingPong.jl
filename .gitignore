@@ -7,6 +7,7 @@
 /render.html
 /**/__pycache__/*
 /**/.CondaPkg/*
+/**/.conda/*
 /**/deps/precompiles/*
 !/**/deps/precompiles/*_PingPong*.jl
 /**/*.log
