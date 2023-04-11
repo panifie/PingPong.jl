@@ -246,11 +246,10 @@ export compact
 include("daterange.jl")         #
 
 using Lang: @preset, @precomp
-@preset begin
+@preset let
     tf = tf"1m"
     m = Minute(1)
     s = "1m"
-    parsetf(s::AbstractString) = Base.parse(TimeFrame, s)
     @precomp begin
         string(tf)
         timeframe(s)
