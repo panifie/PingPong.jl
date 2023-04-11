@@ -2,8 +2,16 @@ module Lang
 
 using Distributed: @distributed
 using Logging: with_logger, NullLogger
+using SnoopPrecompile
 
 const Option{T} = Union{Nothing,T} where {T}
+
+macro preset(code)
+    :(@precompile_setup $(esc(code)))
+end
+macro precomp(code)
+    :(@precompile_all_calls $(esc(code)))
+end
 
 macro parallel(flag, body)
     b = esc(body)
@@ -237,6 +245,7 @@ function toggle!(value, name)
     setproperty!(value, name, ifelse(getproperty(value, name), false, true))
 end
 
+export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws
 export @as, @sym_str, @exportenum

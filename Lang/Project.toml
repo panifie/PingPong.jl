@@ -6,3 +6,4 @@ version = "0.1.0"
 [deps]
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
