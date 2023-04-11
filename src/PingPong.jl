@@ -45,7 +45,8 @@ macro environment!()
             Strategies as st,
             Simulations as sim,
             SimMode as bt,
-            Collections as co
+            Collections as co,
+            Executors as ect
     end
 end
 
