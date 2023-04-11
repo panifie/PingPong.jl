@@ -106,7 +106,7 @@ function from_to_dt(prd::Period, from, to)
     from, to
 end
 from_to_dt(from, to) = from_to_dt(Second(0), from, to)
-from_to_dt(timeframe, from, to) = begin
+function from_to_dt(timeframe, from, to)
     from_to_dt(convert(TimeFrame, timeframe).period, from, to)
 end
 from_to_dt(tf::TimeFrame, args...) = from_to_dt(tf.period, args...)
@@ -244,5 +244,23 @@ export now, available, from_to_dt
 export compact
 
 include("daterange.jl")         #
+
+using Lang: @preset, @precomp
+@preset begin
+    tf = tf"1m"
+    m = Minute(1)
+    s = "1m"
+    parsetf(s::AbstractString) = Base.parse(TimeFrame, s)
+    @precomp begin
+        string(tf)
+        timeframe(s)
+        compact(m)
+        available(tf"1m", dt"2020-01-01")
+        from_to_dt(Day(1), 1000, 2000)
+        let timeframe = "1m"
+            @as_td
+        end
+    end
+end
 
 end # module TimeTicks
