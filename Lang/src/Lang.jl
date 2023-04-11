@@ -1,7 +1,7 @@
 module Lang
 
 using Distributed: @distributed
-using Logging: with_logger, NullLogger
+using Logging: Logging, with_logger, NullLogger
 using SnoopPrecompile
 
 const Option{T} = Union{Nothing,T} where {T}
