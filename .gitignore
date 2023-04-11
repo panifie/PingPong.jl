@@ -20,3 +20,4 @@
 /vendor/*
 !/vendor/.gitkeep
 !/vendor/Temporal/
+test/test.jl
