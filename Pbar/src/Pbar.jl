@@ -3,12 +3,23 @@ module Pbar
 
 using Term.Progress
 using TimeTicks: now, Millisecond, Second, DateTime
-using Lang: toggle!
+using Lang: toggle!, @preset, @precomp, SnoopPrecompile
+SnoopPrecompile.verbose[] = true
+
+@preset begin
+    @precomp begin
+        Ref(DateTime(0))
+        Ref(Millisecond(0))
+        Ref{Union{Nothing,ProgressBar}}(nothing)
+        ReentrantLock()
+    end
+end
 
 const last_render = Ref(DateTime(0))
 const min_delta = Ref(Millisecond(0))
 const pbar = Ref{Union{Nothing,ProgressBar}}(nothing)
 const pbar_lock = ReentrantLock()
+
 @kwdef mutable struct RunningJob
     job::ProgressJob
     counter::Int = 1
@@ -34,6 +45,8 @@ function __init__()
     pbar!()
     @debug "Pbar: Loaded."
 end
+
+@preset @precomp __init__()
 
 macro pbinit!()
     :($(__init__)())
