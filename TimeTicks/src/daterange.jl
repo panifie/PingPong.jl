@@ -56,14 +56,7 @@ function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
 end
 
-@doc """Create a `DateRange` using notation `FROM..TO;STEP`.
-
-example:
-1999-..2000-;1d
-1999-12-01..2000-02-01;1d
-1999-12-01T12..2000-02-01T10;1d
-"""
-macro dtr_str(s::String)
+function Base.parse(::Type{DateRange}, s::AbstractString)
     local to = step = ""
     (from, tostep) = split(s, "..")
     if !isempty(tostep)
@@ -82,8 +75,19 @@ macro dtr_str(s::String)
     if !isempty(step)
         push!(args, convert(TimeFrame, step))
     end
-    dr = DateRange(args...)
-    :($dr)
+    DateRange(args...)
+end
+
+
+@doc """Create a `DateRange` using notation `FROM..TO;STEP`.
+
+example:
+1999-..2000-;1d
+1999-12-01..2000-02-01;1d
+1999-12-01T12..2000-02-01T10;1d
+"""
+macro dtr_str(s::String)
+    :($(parse(DateRange, s)))
 end
 
 export DateRange, DateTuple, @dtr_str, reset!
