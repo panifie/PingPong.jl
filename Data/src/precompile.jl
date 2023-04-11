@@ -1,6 +1,7 @@
 using Lang: SnoopPrecompile, @preset, @precomp
 
 @preset let
+    using Lang: Logging
     @precomp begin
         ZarrInstance()
         zilmdb()
@@ -11,11 +12,12 @@ using Lang: SnoopPrecompile, @preset, @precomp
     end
     tuple(c::Candle) = ((getproperty(c, p) for p in propertynames(c))...,)
     ohlcv_data = [makecandle(n) for n in (1, 2, 3)]
-    tmp_zi = Ref(zilmdb(mktempdir()))
     exc_name = "abc"
     pair = "AAA/BBB:CCC"
     tfr = "1d"
+    tmp_zi = Ref(zilmdb(mktempdir()))
     args = (tmp_zi[], exc_name, pair, tfr)
+    Logging.disable_logging(Logging.Error)
     try
         df = Ref{DataFrame}()
         @precomp df[] = df!((ohlcv_data))
@@ -90,13 +92,13 @@ using Lang: SnoopPrecompile, @preset, @precomp
         bad_data = [(123, start_date += prd) for _ in 1:3]
         k = "somekey"
         @precomp begin
-            save_data(tmp_zi[], k, good_data, serialize=true)
+            save_data(tmp_zi[], k, good_data; serialize=true)
             try
-                save_data(tmp_zi[], k, bad_data, serialize=true)
+                save_data(tmp_zi[], k, bad_data; serialize=true)
             catch
             end
-            load_data(tmp_zi[], k, serialized=true, as_z=true)
-            load_data(tmp_zi[], k, serialized=true)
+            load_data(tmp_zi[], k; serialized=true, as_z=true)
+            load_data(tmp_zi[], k; serialized=true)
         end
         k = "test_abc"
         @precomp begin
@@ -106,6 +108,7 @@ using Lang: SnoopPrecompile, @preset, @precomp
             Cache.delete_cache!(k)
         end
     finally
+        Logging.disable_logging(Logging.Debug)
         rm(tmp_zi[].store.a)
     end
 end
