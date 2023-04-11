@@ -33,7 +33,8 @@ end
 
 Base.delete!(t::TTL, key) = (delete!(t.dict, key); t)
 Base.empty!(t::TTL) = (empty!(t.dict); t)
-Base.get(f, t::TTL, key) = haskey(t, key) ? t[key] : f()
+# Specifying ::Function fixes some method invalidations
+Base.get(f::Function, t::TTL, key) = haskey(t, key) ? t[key] : f()
 Base.get!(t::TTL, key, default) = haskey(t, key) ? t[key] : (t[key] = default)
 Base.length(t::TTL) = count(!isexpired(now()), values(t.dict))
 Base.push!(t::TTL, p::Pair) = (t[p.first] =  p.second; t)

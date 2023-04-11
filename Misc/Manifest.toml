@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "ae975501e4a04eafc0837f36fa14cb5370f30224"
+project_hash = "68396b00fb5b0ddd2664f3cf9abdd31cd2c271d4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -116,7 +116,7 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging"]
+deps = ["Distributed", "Logging", "SnoopPrecompile"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"

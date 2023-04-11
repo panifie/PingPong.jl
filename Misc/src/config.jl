@@ -92,6 +92,8 @@ function Config18(profile::Union{Symbol,String}; path::String=config_path())
     config!(profile; cfg, path)
 end
 
+@precompile_setup @precompile_all_calls Config()
+
 @doc "Global configuration instance."
 const config = Config()
 const SourcesDict = Dict{Symbol,String}
