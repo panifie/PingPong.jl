@@ -1,3 +1,4 @@
+
 using PythonCall:
     Py, pynew, pyimport, pycopy!, pyisnull, @pyexec, pybuiltins, @pyeval, pyconvert
 
@@ -11,6 +12,7 @@ const pycoro_type = pynew()
 const AsyncInitialized = Ref(false)
 
 function _async_init()
+    AsyncInitialized[] && return nothing
     if pyisnull(pyaio)
         pycopy!(pyaio, pyimport("asyncio"))
         pycopy!(pyuv, pyimport("uvloop"))
