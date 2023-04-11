@@ -1,12 +1,10 @@
-using Zarr
-using Serialization
-using TimeTicks
-using Core: _setsuper!
-using Base: GenericIOBuffer
+using Reexport
+@reexport using Zarr
 using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub, ZArray
+using TimeTicks
 using Misc: DATA_PATH, isdirempty
 using Lang: @lget!, Option
-import Base.delete!, Base.isempty, Base.empty!
+import Base: delete!, isempty, empty!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
@@ -65,7 +63,7 @@ function zdelete!(
     by=identity,
     select=x -> view(x, :, 1),
     serialized=false,
-    buffer::Option{IOBuffer}=nothing
+    buffer::Option{IOBuffer}=nothing,
 )
     selected::AbstractVector = select(z)
     buffer, close_buffer = _setup_buffer(serialized, buffer)
@@ -87,7 +85,7 @@ function zdelete!(
             else
                 # Delete all entries where dates are less than `to`
                 to_idx = search_to(firstindex(selected))
-                tail_range = (to_idx+1):lastindex(z, 1)
+                tail_range = (to_idx + 1):lastindex(z, 1)
                 tail_len = length(tail_range)
                 if tail_len > 0
                     z[begin:tail_len, :] = view(z, tail_range, :)
@@ -105,7 +103,7 @@ function zdelete!(
             # and less than `to`
             from_idx = search_from()
             to_idx = search_to(from_idx)
-            right_range = (to_idx+1):lastindex(z, 1)
+            right_range = (to_idx + 1):lastindex(z, 1)
             # the last idx of the copied over data
             end_idx = from_idx + length(right_range) - 1
             if length(right_range) > 0
@@ -169,9 +167,6 @@ mutable struct ZarrInstance{S<:AbstractStore}
     end
 end
 
-const zi = Ref{ZarrInstance}()
-const zcache = Dict{String,ZarrInstance}()
-
 function _addkey!(zi::ZarrInstance, z::ZArray)
     z.path ∉ keys(zi.group.arrays) && (zi.group.arrays[z.path] = z)
 end
@@ -189,7 +184,7 @@ macro zcreate()
                 fill_value=default($(esc(:type))),
                 fill_as_missing=false,
                 path=$key,
-                compressor=compressor
+                compressor=compressor,
             )
             _addkey!($zi, z)
             resize!(z, 0, $(sz)[2:end]...)
@@ -245,3 +240,8 @@ function Base.unique!(by::Function, z::ZArray; dims=1)
     slice_len = length(first(u))
     z[:] = reduce(vcat, [reshape(el, (1, slice_len)) for el in u])
 end
+
+include("lmdbstore.jl")
+
+const zi = Ref{Option{ZarrInstance}}()
+const zcache = Dict{String,ZarrInstance}()

@@ -46,6 +46,7 @@ Base.filter(f, d::lm.LMDBDict{K,V}) where {K,V} = begin
     collect(v for v in pairs(d) if f(v))
 end
 
+# FIXME: check if the kwargs can be removed (it might be need for disambiguation)
 Base.delete!(store::LMDBDictStore, k; recursive=false) = delete!(store.a, k; prefix=k)
 
 _withsuffix(p, sf='/') = (isempty(p) || endswith(p, sf)) ? p : p * sf
@@ -98,11 +99,22 @@ function delete!(store::LMDBDictStore, paths::Vararg{AbstractString}; recursive=
     end
 end
 
-function Base.empty!(d::lm.LMDBDict{K}) where {K}
+function Base.empty!(d::lm.LMDBDict)
     lm.txn_dbi_do(d; readonly=false) do txn, dbi
         lm.drop(txn, dbi; delete=true)
     end
     lm.sync(d.env, true)
+end
+
+function Base.rm(d::lm.LMDBDict)
+    path = d.env.path
+    empty!(d)
+    delete!(zcache, path)
+    # delete all lmdb files
+    mdbfiles = filter(x -> endswith(x, ".mdb"), readdir(path, join=true))
+    foreach(rm, mdbfiles)
+    # only delete dir if is empty
+    isdirempty(path) && rm(path)
 end
 
 export zilmdb

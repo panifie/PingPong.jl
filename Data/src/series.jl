@@ -10,7 +10,7 @@ function _check_size(data, arr::ZArray)
         chunk_len = arr.metadata.chunks[1]
         chunk_size = 0
         chunk_count = 0
-        maxsize = _getmapsize(arr.storage)
+        maxsize = mapsize(arr.storage)
         for n in 1:size(data, 1)
             chunk_size += mapreduce(length, +, data[n])
             chunk_count += 1

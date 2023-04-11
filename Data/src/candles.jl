@@ -96,7 +96,7 @@ lowavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl low
 closeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl close
 volumeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl volume
 
-export Candle, candleat, candlelast, candleavl, rowavl
+export Candle, candleat, candlelast, candleavl
 export openat, highat, lowat, closeat, volumeat
 export openlast, highlast, lowlast, closelast, volumelast
 export openavl, highavl, lowavl, closeavl, volumeavl

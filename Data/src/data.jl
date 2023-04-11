@@ -1,11 +1,9 @@
-using Requires
-
 include("zarr_utils.jl")
 
 using DataFrames: DataFrameRow, AbstractDataFrame
 using DataFramesMeta
 using TimeTicks
-using Lang: @as, @ifdebug
+using Lang: Option, @as, @ifdebug
 using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
 
 include("candles.jl")
@@ -22,7 +20,7 @@ end
 @doc "Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2."
 function chunksize(data; parts=100, def=DEFAULT_CHUNK_SIZE[1])
     sz_rest = size(data)[2:end]
-    n_rest = reduce(*, sz_rest)
+    n_rest = isempty(sz_rest) ? 1.0 : reduce(*, sz_rest)
     n = (size(data, 1) ÷ parts) * n_rest
     len = nearestl2(n) ÷ n_rest
     # If we multiply the size of all the dimensions we should get a number close to a power of 2
@@ -64,7 +62,9 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
         __handle_save_ohlcv_error(e, zi, key, pair, td, data; kwargs...)
     end
 end
-save_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = save_ohlcv(zi[], args...; kwargs...)
+function save_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
+    save_ohlcv(zi[], args...; kwargs...)
+end
 
 const OHLCV_CHUNK_SIZE = (2730, OHLCV_COLUMNS_COUNT)
 const check_bounds_flag = :bounds
@@ -206,21 +206,22 @@ function empty_ohlcv()
     )
 end
 
-function _load_pairdata(out::Dict, k, zi, exc_name, timeframe)
-    (pair_df, za) = load(zi, exc_name, k, timeframe; with_z=true)
+function _load_pairdata(out::Dict, k, zi, exc_name, timeframe; kwargs...)
+    (pair_df, za) = load(zi, exc_name, k, timeframe; with_z=true, kwargs...)
     out[k] = PairData(k, timeframe, pair_df, za)
 end
 
-function _load_zarr(out::Dict, k, zi, exc_name, timeframe)
-    (out[k], _) = load(zi, exc_name, k, timeframe; as_z=true)
+function _load_zarr(out::Dict, k, zi, exc_name, timeframe; kwargs...)
+    (out[k], _) = load(zi, exc_name, k, timeframe; as_z=true, kwargs...)
 end
 
 @doc "Load data from given zarr instance, exchange, pairs list and timeframe."
-function load_ohlcv(zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false)
+function load_ohlcv(zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false, kwargs...)
     out = Dict{String,raw ? za.ZArray : PairData}()
     load_func = raw ? _load_zarr : _load_pairdata
+    pairs isa AbstractString && (pairs = [pairs])
     @sync for p in pairs
-        @async load_func(out, p, zi, exc_name, timeframe)
+        @async load_func(out, p, zi, exc_name, timeframe; kwargs...)
     end
     out
 end
@@ -262,7 +263,9 @@ function _wrap_load(zi::ZarrInstance, key::String, td::Float64; kwargs...)
         __handle_error(e, zi, key, kwargs)
     end
 end
-_wrap_load(zi::Ref{ZarrInstance}, args...; kwargs...) = _wrap_load(zi[], args...; kwargs...)
+function _wrap_load(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
+    _wrap_load(zi[], args...; kwargs...)
+end
 
 @doc "Load a pair ohlcv data from storage.
 `as_z`: returns the ZArray
@@ -274,8 +277,10 @@ function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
     fetch(t)
 end
 
-load(zi::Ref{ZarrInstance}, args...; kwargs...) = load(zi[], args...; kwargs...)
-load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...) = load_ohlcv(zi[], args...; kwargs...)
+load(zi::Ref{Option{ZarrInstance}}, args...; kwargs...) = load(zi[], args...; kwargs...)
+function load_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
+    load_ohlcv(zi[], args...; kwargs...)
+end
 
 @doc "Convert raw ccxt OHLCV data (matrix) to a dataframe."
 function to_ohlcv(data::Matrix)
@@ -351,7 +356,7 @@ function _load_ohlcv(zi::ZarrInstance, key, args...; kwargs...)
     za = __ensure_ohlcv_zarray(zi, key)
     _load_ohlcv(za, args...; kwargs...)
 end
-function _load_ohlcv(zi::Ref{ZarrInstance}, args...; kwargs...)
+function _load_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
     _load_ohlcv(zi[], args...; kwargs...)
 end
 
