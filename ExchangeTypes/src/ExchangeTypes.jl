@@ -129,4 +129,19 @@ Base.show(out::IO, exc::Exchange) = begin
 end
 
 export Exchange, ExchangeID, ExcPrecisionMode, exchanges, sb_exchanges, globalexchange!
+
+using Lang: @preset, @precomp
+@preset begin
+    e = :bybit
+    @precomp ExchangeID(:bybit)
+    id = ExchangeID(:bybit)
+    @precomp begin
+        nameof(id)
+        string(id)
+    end
+    @precomp Exchange(ccxt.bybit())
+    e = Exchange(ccxt.bybit())
+    @precomp hash(e)
+end
+
 end # module ExchangeTypes
