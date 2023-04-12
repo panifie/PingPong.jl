@@ -3,8 +3,6 @@ module Python
 function _setup!()
     @eval begin
         "PYTHONPATH" ∈ keys(ENV) && pop!(ENV, "PYTHONPATH")
-        "JULIA_CONDAPKG_ENV" ∉ keys(ENV) &&
-            setindex!(ENV, joinpath(dirname(Base.active_project()), ".conda"))
         using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
         # NOTE: Make sure conda libs precede system libs
@@ -39,6 +37,7 @@ setpypath!() = ENV["PYTHONPATH"] = PYTHONPATH
 function __init__()
     initialized[] && return nothing
     try
+        _setup!()
         clearpypath!()
         for f in callbacks
             f()
@@ -53,10 +52,9 @@ end
 using SnoopPrecompile
 # SnoopPrecompile.verbose[] = true
 @precompile_setup begin
-    @precompile_all_calls @eval begin
-        using PythonCall
-        using PythonCall: PyList, pynew
-    end
+    "JULIA_CONDAPKG_ENV" ∉ keys(ENV) &&
+        setindex!(ENV, joinpath(dirname(Base.active_project()), ".conda"), "JULIA_CONDAPKG_ENV")
+    @precompile_all_calls @eval using PythonCall: PyList, pynew
     const initialized = Ref(false)
     const callbacks = Function[]
     const pymodpaths = String[]
@@ -70,7 +68,6 @@ using SnoopPrecompile
         __init__()
         _async_init()
     end
-    _setup!()
 end
 
 @doc "Import a python module over a variable defined in global scope."

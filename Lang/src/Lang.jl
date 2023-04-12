@@ -245,6 +245,13 @@ function toggle!(value, name)
     setproperty!(value, name, ifelse(getproperty(value, name), false, true))
 end
 
+@doc "Waits for ref to be true."
+function Base.wait(flag::Ref)
+    while !(flag[])
+        sleep(0.001)
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws

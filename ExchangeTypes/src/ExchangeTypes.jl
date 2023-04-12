@@ -1,8 +1,8 @@
 module ExchangeTypes
 using Python
 using Python: pynew, pyisnull
+using Ccxt: Ccxt, ccxt
 using FunctionalCollections
-using Ccxt: ccxt
 using Lang: Option
 
 @doc "An ExchangeID is a symbol checked to match a ccxt exchange class."
@@ -130,11 +130,17 @@ end
 
 export Exchange, ExchangeID, ExcPrecisionMode, exchanges, sb_exchanges, globalexchange!
 
+function __init__()
+    wait(Ccxt.initialized)
+    @assert !pyisnull(ccxt)
+end
+
 using Lang: @preset, @precomp
-@preset begin
+@preset let
     e = :bybit
-    @precomp ExchangeID(:bybit)
-    id = ExchangeID(:bybit)
+    @precomp __init__()
+    @precomp ExchangeID(e)
+    id = ExchangeID(e)
     @precomp begin
         nameof(id)
         string(id)
