@@ -246,8 +246,15 @@ function toggle!(value, name)
 end
 
 @doc "Waits for ref to be true."
-function Base.wait(flag::Ref)
+function waitref(flag::Ref)
     while !(flag[])
+        sleep(0.001)
+    end
+end
+
+@doc "Waits for function to return true."
+function waitfunc(flag::Function)
+    while !(flag())
         sleep(0.001)
     end
 end

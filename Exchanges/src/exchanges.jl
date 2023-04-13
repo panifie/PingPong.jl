@@ -1,19 +1,19 @@
-import Base.getproperty
+import Base: getproperty
 
+using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
+using Data: DataFrame
+using Ccxt: ccxt_exchange
 using Reexport
 @reexport using ExchangeTypes
+using Instruments
+using JSON
+using Serialization: deserialize, serialize
 using TimeTicks
 using Lang: @lget!
-using Ccxt
-using Python
-using .PythonCall: pyisnone
-using ExchangeTypes: OptionsDict, exc
-using JSON
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
-using Data: DataFrame
-using Instruments
-using Serialization: deserialize, serialize
 using Misc.TimeToLive
+using Python.PythonCall: pyisnone
+using ExchangeTypes: OptionsDict, exc
 
 const exclock = ReentrantLock()
 const tickers_cache = TTL{String,AbstractDict}(Minute(100))
@@ -41,10 +41,6 @@ end
 
 function isfileyounger(f::AbstractString, p::Period)
     isfile(f) && dt(stat(f).mtime) < now() - p
-end
-
-function py_except_name(e::PyException)
-    string(pygetattr(pytype(e), "__name__"))
 end
 
 @doc "Load exchange markets:
@@ -84,7 +80,7 @@ getexchange() = exc
 It uses a WS instance if available, otherwise an async instance.
 
 """
-function getexchange!(x::Symbol, args...; sandbox=true, kwargs...)
+function getexchange!(x::Symbol, args...; sandbox=true, markets=true, kwargs...)
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
@@ -92,7 +88,7 @@ function getexchange!(x::Symbol, args...; sandbox=true, kwargs...)
             py = ccxt_exchange(x, args...; kwargs...)
             e = Exchange(py)
             sandbox && sandbox!(e, true; remove_keys=false)
-            setexchange!(e)
+            setexchange!(e; markets)
         end,
     )
 end
@@ -103,7 +99,7 @@ end
 - Sets the exchange timeframes.
 - Sets exchange api keys.
 "
-function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
+function setexchange!(exc::Exchange, args...; markets=:yes, kwargs...)
     empty!(exc.timeframes)
     tfkeys = if pyisnone(exc.py.timeframes)
         Set{String}()
@@ -112,7 +108,9 @@ function setexchange!(exc::Exchange, args...; markets=true, kwargs...)
     end
     isempty(tfkeys) || push!(exc.timeframes, tfkeys...)
     @debug "Loading Markets..."
-    markets && loadmarkets!(exc)
+    if markets in (:yes, :force)
+        loadmarkets!(exc; cache=(markets != :force))
+    end
     @debug "Loaded $(length(exc.markets))."
     precision = getfield(exc, :precision)
     precision[1] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
@@ -135,6 +133,7 @@ end
 macro tickers!(force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
+    @assert force isa Bool
     quote
         local $tickers
         let nm = $(exc).name
@@ -153,7 +152,7 @@ end
 
 @doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
 "
-function get_markets(exc; min_volume=10e4, quot="USDT", sep='/')
+function filter_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers!
@@ -197,8 +196,8 @@ end
     end
 end
 
-function is_timeframe_supported(timeframe, exc)
-    timeframe ∈ exc.timeframes
+function issupported(tf::TimeFrame, exc)
+    tf ∈ exc.timeframes
 end
 
 @doc "Set exchange api keys."
@@ -247,7 +246,7 @@ ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
 @doc "Set exchange timouet"
 timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
 function check_timeout(exc::Exchange=exc, interval=Second(5))
-    @assert Bool(Millisecond(interval).value <= exc.timeout) "Watcher interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
+    @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
 
 timestamp(exc::Exchange) = pyconvert(Int64, pyfetch(exc.py.fetchTime))
@@ -266,3 +265,6 @@ export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, tickers, pairs
 export issandbox, ratelimit!
 export timestamp, timeout!, check_timeout
+
+using Reexport
+@reexport using ExchangeTypes

@@ -216,7 +216,9 @@ function _load_zarr(out::Dict, k, zi, exc_name, timeframe; kwargs...)
 end
 
 @doc "Load data from given zarr instance, exchange, pairs list and timeframe."
-function load_ohlcv(zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false, kwargs...)
+function load_ohlcv(
+    zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false, kwargs...
+)
     out = Dict{String,raw ? za.ZArray : PairData}()
     load_func = raw ? _load_zarr : _load_pairdata
     pairs isa AbstractString && (pairs = [pairs])

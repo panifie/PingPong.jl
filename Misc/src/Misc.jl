@@ -1,11 +1,11 @@
 module Misc
+using Reexport
+@reexport using DocStringExtensions
+using JSON
+using TimeTicks
 using SnoopPrecompile
-@precompile_setup @precompile_all_calls begin
-    @eval using Reexport
-    @eval @reexport using DocStringExtensions
-end
+using FunctionalCollections: PersistentHashMap
 
-include("docs.jl")
 include("lists.jl")
 include("types.jl")
 include("config.jl")

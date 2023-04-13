@@ -1,5 +1,12 @@
 module Python
 
+function _ensure_env!()
+    "JULIA_CONDAPKG_ENV" ∉ keys(ENV) && setindex!(
+        ENV, joinpath(dirname(Base.active_project()), ".conda"), "JULIA_CONDAPKG_ENV"
+    )
+end
+_ensure_env!()
+
 function _setup!()
     @eval begin
         "PYTHONPATH" ∈ keys(ENV) && pop!(ENV, "PYTHONPATH")
@@ -34,41 +41,45 @@ end
 
 setpypath!() = ENV["PYTHONPATH"] = PYTHONPATH
 
+function isinitialized()
+    _initialized[]
+end
+
 function __init__()
-    initialized[] && return nothing
+    _ensure_env!()
+    isinitialized() && return nothing
     try
-        _setup!()
         clearpypath!()
         for f in callbacks
             f()
         end
         empty!(callbacks)
-        initialized[] = true
     catch e
         @debug e
     end
+    _initialized[] = true
 end
 
 using SnoopPrecompile
-# SnoopPrecompile.verbose[] = true
-@precompile_setup begin
-    "JULIA_CONDAPKG_ENV" ∉ keys(ENV) &&
-        setindex!(ENV, joinpath(dirname(Base.active_project()), ".conda"), "JULIA_CONDAPKG_ENV")
-    @precompile_all_calls @eval using PythonCall: PyList, pynew
-    const initialized = Ref(false)
-    const callbacks = Function[]
-    const pymodpaths = String[]
-    const py_v = Ref("")
-    const pynull = pynew()
+using PythonCall: PyList, pynew, Py
+using PythonCall.C.CondaPkg: envdir
+const _initialized = Ref(false)
+const callbacks = Function[]
+const pymodpaths = String[]
+const py_v = Ref("")
+const pynull = pynew()
 
-    using PythonCall.C.CondaPkg: envdir
-    include("async.jl")
-    @precompile_all_calls begin
-        _setup!()
-        __init__()
-        _async_init()
-    end
+include("async.jl")
+@precompile_all_calls begin
+    _ensure_env!()
+    _setup!()
+    __init__()
+    # NOTE: This should not be precompiled here, but only on the most upstream pkg
+    # that imports python (e.g. Exchanges)
+    # __init__()
+    # _async_init(gpa)
 end
+_setup!()
 
 @doc "Import a python module over a variable defined in global scope."
 macro pymodule(name, modname=nothing)

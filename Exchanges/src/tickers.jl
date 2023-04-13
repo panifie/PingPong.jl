@@ -1,5 +1,5 @@
-using Misc: config
 using Lang: @get, @multiget, @lget!, Option
+using Misc: config
 using Instruments: isfiatquote
 
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"

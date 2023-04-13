@@ -1,9 +1,9 @@
 @doc "Import the module directly. `Cache` does not export any function."
 module Cache
+using ..Data: tobytes, todata
+using CodecZlib
 using TimeTicks
 using Misc: local_dir
-using CodecZlib
-using ..Data: tobytes, todata
 const CACHE_PATH = Ref(local_dir("cache"))
 
 function __init__()

@@ -1,10 +1,10 @@
 module TimeTicks
-using Base: AbstractCmd
-using Serialization
 using Reexport
 @reexport using Dates
 using TimeFrames: TimeFrames, TimeFrame, apply, TimePeriodFrame
 using Lang: @lget!
+using Serialization
+using Base: AbstractCmd
 import Base: convert, isless, ==
 using Base.Meta: parse
 

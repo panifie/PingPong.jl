@@ -1,7 +1,7 @@
 module Data
 
 using Lang: @preset, @precomp
-@preset @precomp using DataStructures: DataStructures
+using DataStructures: DataStructures
 include("utils.jl")
 include("dictview.jl")
 include("data.jl")

@@ -3,9 +3,9 @@ module DFUtils
 using DataFrames
 using DataFrames: index
 using TimeTicks
+import TimeTicks: timeframe, timeframe!
 using Lang
 import Base: getindex
-import TimeTicks: timeframe, timeframe!
 
 @doc "Get the column names for dataframe as symbols."
 colnames(df::AbstractDataFrame) = index(df).names

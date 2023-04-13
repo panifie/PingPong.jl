@@ -1,58 +1,51 @@
 module Ccxt
-using Python
-using Python: pynew, pycoro_type, pywait_fut, pyschedule
-using Python.PythonCall: pyisnull, pycopy!
-using Misc: DATA_PATH
 
-const initialized = Ref(false)
-const ccxt = pynew()
-const ccxt_ws = pynew()
+using Python
+using Misc: DATA_PATH
+using Python: pynew
+using Python.PythonCall: pyisnull, pycopy!
+
+const ccxt = Ref{Union{Nothing,Py}}(nothing)
+const ccxt_ws = Ref{Union{Nothing,Py}}(nothing)
 const ccxt_errors = Set{String}()
 
+function isinitialized()
+    !isnothing(ccxt[]) && !pyisnull(ccxt[])
+end
+
 function _init()
-    async_init_task = @async Python._async_init()
     clearpypath!()
-    if pyisnull(ccxt)
-        @pymodule ccxt ccxt
-        pycopy!(ccxt, pyimport("ccxt.async_support"))
-        @pymodule ccxt_ws ccxt.pro
+    if isnothing(ccxt[]) || pyisnull(ccxt[])
+        pyimport("ccxt")
+        ccxt[] = pyimport("ccxt.async_support")
+        ccxt_ws[] = pyimport("ccxt.pro")
         (errors -> union(ccxt_errors, errors))(
             Set(string.(pydir(pyimport("ccxt.base.errors"))))
         )
         mkpath(joinpath(DATA_PATH, "markets"))
     end
-    wait(async_init_task)
-    pycopy!(ccxt, pyimport("ccxt"))
-    initialized[] = true
+    Python._async_init(Python.PythonAsync())
 end
 
 function __init__()
-    if Python.initialized[]
+    isinitialized() && return nothing
+    if Python.isinitialized()
         _init()
     else
         push!(Python.callbacks, _init)
     end
 end
 
-function close_exc(e::Py)
-    @async if !pyisnull(e) && pyhasattr(e, "close")
-        co = e.close()
-        if !pyisnull(co) && pyisinstance(co, pycoro_type)
-            wait(pytask(co, Val(:coro)))
-        end
-    end
-end
-
-_issupported(has::Py, k) = k in has && Bool(has[k])
-issupported(exc, k) = _issupported(exc.py.has, k)
-
-@doc "Instantiate a ccxt exchange class matching name."
-function ccxt_exchange(name::Symbol, params=nothing; kwargs...)
-    @debug "Instantiating Exchange $name..."
-    exc_cls =
-        hasproperty(ccxt_ws, name) ? getproperty(ccxt_ws, name) : getproperty(ccxt, name)
-    finalizer(close_exc, isnothing(params) ? exc_cls() : exc_cls(params))
-end
+include("exchange_funcs.jl")
+# There isn't anything worth precompiling here
+# we can't precompile init functions because python runtime
+# using SnoopPrecompile
+# @precompile_setup begin
+#     @precompile_all_calls begin
+#         __init__()
+#         ccxt_exchange(:binance)
+#     end
+# end
 
 @doc "Choose correct ccxt function according to what the exchange supports."
 function _multifunc(exc, suffix, hasinputs=false)
@@ -111,16 +104,5 @@ function choosefunc(exc, suffix, inputs...; kwargs...)
 end
 
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
-
-using SnoopPrecompile
-@precompile_setup begin
-    @precompile_all_calls begin
-        __init__()
-        while pyisnull(ccxt_ws)
-            sleep(0.001)
-        end
-    end
-    @precompile_all_calls ccxt_exchange(:binance)
-end
 
 end # module Ccxt
