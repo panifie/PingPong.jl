@@ -1,3 +1,15 @@
+using Python
+using Python: pylist_to_matrix, py_except_name
+using Ccxt
+using Lang: @distributed, @parallel, Option, filterkws, @ifdebug
+using Pbar
+using ExchangeTypes: Exchange
+using Exchanges: setexchange!, tickers, getexchange!, issupported, save_ohlcv
+using TimeTicks
+using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
+@ifdebug using TimeTicks: dt
+using Misc
+using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using Data:
     Data,
     load,
@@ -9,21 +21,6 @@ using Data:
     Candle,
     OHLCV_COLUMNS,
     OHLCVTuple
-using Ccxt
-using Python
-using Python: pylist_to_matrix
-using ExchangeTypes: Exchange
-using Exchanges:
-    setexchange!, tickers, getexchange!, is_timeframe_supported, py_except_name, save_ohlcv
-using TimeTicks
-using Lang: @distributed, @parallel, Option, filterkws
-using Misc
-using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
-using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
-using Python
-using TimeTicks
-@debug using TimeTicks: dt
-using Pbar
 using Processing: cleanup_ohlcv_data, islast
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
@@ -34,10 +31,12 @@ function _to_candle(py, idx, range)
 end
 Base.convert(::Type{Candle}, py::PyList) = _to_candle(py, 1, 2:6)
 Base.convert(::Type{Candle}, py::Py) = _to_candle(py, 0, 1:5)
+_pytoval(::Type{DateTime}, v) = dt(pyconvert(Float64, v))
+_pytoval(t::Type, v) = pyconvert(t, v)
 @doc "This is the fastest (afaik) way to convert ccxt lists to dataframe friendly format."
 function Base.convert(::Type{OHLCVTuple}, py::Py)
     vecs = OHLCVTuple()
-    loopcols((c, v)) = push!(vecs[c], pyconvert(eltype(vecs[c]), v))
+    loopcols((c, v)) = push!(vecs[c], _pytoval(eltype(vecs[c]), v))
     looprows(cdl) = foreach(loopcols, enumerate(cdl))
     foreach(looprows, py)
     vecs
@@ -88,17 +87,21 @@ function __ordered_timeframes(exc)
     tfs, periods
 end
 
+function _since_timestamp(actual::DateTime, p::Period)
+    date = max(actual - Year(20), actual - 1000 * Millisecond(p))
+    dtstamp(date)
+end
+
 @doc "Should return the oldest possible timestamp for a pair, or something close to it."
 function find_since(exc::Exchange, pair)
     data = ()
     actual = now()
     tfs, periods = __ordered_timeframes(exc)
-    as_int(v) = round(Int, timefloat(v))
     for (t, p) in zip(tfs, periods)
-        old_ts = as_int(actual - 1000 * Millisecond(p))
+        since_ts = _since_timestamp(actual, p)
         # fetch the first available candles using a long (1w) timeframe
         data = _fetch_ohlcv_with_delay(
-            exc, pair; timeframe=t, since=old_ts, df=true, retry=false
+            exc, pair; timeframe=t, since=since_ts, df=true, retry=false
         )
         !isempty(data) && break
     end
@@ -107,7 +110,7 @@ function find_since(exc::Exchange, pair)
         data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
     end
     # default to 1 day
-    as_int(isempty(data) ? now() - Day(1) : data[begin, 1])
+    dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1])
 end
 
 function fetch_limit(exc::Exchange, limit::Option{Int})
@@ -202,7 +205,7 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
 end
 
 function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, retry)
-    @debug "Calling into ccxt to fetch data: $pair since $since, max: $limit"
+    @debug "Calling into ccxt to fetch data: $pair since $(dt(since)), max: $limit"
     data = fetch_func(pair, since, limit)
     dpl = pyisinstance(data, @py(list))
     if retry && (!dpl || length(data) == 0)
@@ -321,11 +324,11 @@ function fetch_ohlcv(
     t
 end
 
-function __ensure_dates(exc, timeframe, from, to)
-    if !is_timeframe_supported(timeframe, exc)
-        error("Timeframe $timeframe not supported by exchange $(exc.name).")
+function __ensure_dates(exc, tf, from, to)
+    if !issupported(string(tf), exc)
+        error("Timeframe $tf not supported by exchange $(exc.name).")
     end
-    from_to_dt(timeframe, from, to)
+    from_to_dt(tf, from, to)
 end
 
 function __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
