@@ -1,15 +1,10 @@
+using Ccxt
+using Pbar
 using Python
 using Python: pylist_to_matrix, py_except_name
-using Ccxt
-using Lang: @distributed, @parallel, Option, filterkws, @ifdebug
-using Pbar
-using ExchangeTypes: Exchange
 using Exchanges: setexchange!, tickers, getexchange!, issupported, save_ohlcv
-using TimeTicks
-using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
-@ifdebug using TimeTicks: dt
-using Misc
-using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
+using ExchangeTypes: Exchange
+using Processing: cleanup_ohlcv_data, islast
 using Data:
     Data,
     load,
@@ -20,8 +15,14 @@ using Data:
     empty_ohlcv,
     Candle,
     OHLCV_COLUMNS,
-    OHLCVTuple
-using Processing: cleanup_ohlcv_data, islast
+    OHLCVTuple,
+    ohlcvtuple
+using Misc
+using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
+using TimeTicks
+using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
+using Lang: @distributed, @parallel, Option, filterkws, @ifdebug
+@ifdebug using TimeTicks: dt
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_MIN_PERIOD = Millisecond(Day(30))
@@ -35,7 +36,7 @@ _pytoval(::Type{DateTime}, v) = dt(pyconvert(Float64, v))
 _pytoval(t::Type, v) = pyconvert(t, v)
 @doc "This is the fastest (afaik) way to convert ccxt lists to dataframe friendly format."
 function Base.convert(::Type{OHLCVTuple}, py::Py)
-    vecs = OHLCVTuple()
+    vecs = ohlcvtuple()
     loopcols((c, v)) = push!(vecs[c], _pytoval(eltype(vecs[c]), v))
     looprows(cdl) = foreach(loopcols, enumerate(cdl))
     foreach(looprows, py)
@@ -89,7 +90,7 @@ end
 
 function _since_timestamp(actual::DateTime, p::Period)
     date = max(actual - Year(20), actual - 1000 * Millisecond(p))
-    dtstamp(date)
+    dtstamp(date, Val(:round))
 end
 
 @doc "Should return the oldest possible timestamp for a pair, or something close to it."
@@ -110,7 +111,7 @@ function find_since(exc::Exchange, pair)
         data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
     end
     # default to 1 day
-    dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1])
+    dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1], Val(:round))
 end
 
 function fetch_limit(exc::Exchange, limit::Option{Int})
@@ -255,7 +256,7 @@ function _fetch_with_delay(
         )
         handled && return data
         # Apply conversion to fetched data
-        data = converter(data)
+        data::Union{Py,OHLCVTuple,<:AbstractArray,DataFrame} = converter(data)
         handle_empty(data) = df ? empty_ohlcv() : data
         handle_empty(data::DataFrame) = data
         handle_data(data) = df ? to_ohlcv(data) : data
@@ -394,6 +395,7 @@ function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
     data[name] = p
 end
 
+using Data: ZarrInstance, ZArray
 @doc """Fetch ohlcv data from exchange for a list of pairs.
 - `from`, `to`: Can represent a date. A negative `from` number implies fetching the last N=`from` candles.
 - `update`: If true, will check for cached data, and fetch only missing candles. (`false`)
@@ -401,7 +403,7 @@ end
 - `reset`: if true, will remove cached data before fetching. (`false`)
 """
 function fetch_ohlcv(
-    exc::Exchange,
+    @nospecialize(exc::Exchange),
     timeframe::AbstractString,
     pairs::Iterable;
     zi=zi[],
@@ -416,14 +418,15 @@ function fetch_ohlcv(
     exc_name = exc.name
     from, to = __ensure_dates(exc, timeframe, from, to)
     from_date = __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
-    data = Dict{String,PairData}()
+    data::Dict{String,PairData} = Dict{String,PairData}()
     progress && (pb_job = __print_progress_1(pairs))
+    function data!(name)
+        ohlcv, z = __get_ohlcv(exc, name, timeframe, from_date, to)
+        __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
+        progress && @pbupdate!
+    end
     try
-        for name in pairs
-            ohlcv, z = __get_ohlcv(exc, name, timeframe, from_date, to)
-            __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
-            progress && @pbupdate!
-        end
+        foreach(data!, pairs)
     finally
         progress && @pbstop!
     end
