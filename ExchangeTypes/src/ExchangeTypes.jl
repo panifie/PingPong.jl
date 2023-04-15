@@ -2,9 +2,8 @@ module ExchangeTypes
 
 using Ccxt
 using Python: Py, pybuiltins, pyconvert, Python, pyhasattr, pygetattr
-using Ccxt: Ccxt
-using FunctionalCollections
 using Python.PythonCall: pyisnone, pyisnull
+using FunctionalCollections
 using Lang: Option, waitfunc, @preset, @precomp
 
 @doc "All possible exchanges that can be instantiated by ccxt."
@@ -43,7 +42,7 @@ Base.show(io::IO, id::ExchangeID) = begin
     write(io, id.sym)
     write(io, ")")
 end
-Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
+Base.convert(::Type{<:AbstractString}, id::ExchangeID) = string(id.sym)
 Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
 function Base.display(
@@ -56,8 +55,8 @@ function Base.display(
     Base.display(s)
 end
 Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
-import Base.==
-==(id::ExchangeID, s::Symbol) = Base.isequal(nameof(id), s)
+# import Base.==
+# ==(id::ExchangeID, s::Symbol) = Base.isequal(nameof(id), s)
 
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
@@ -142,16 +141,25 @@ end
 
 @preset let
     e = :bybit
-    @precomp __init__()
-    @precomp ExchangeID(e)
+    @precomp begin
+        __init__()
+        ExchangeID(e)
+    end
     id = ExchangeID(e)
     @precomp begin
         nameof(id)
         string(id)
+        id.sym
+        id == :bybit
+        convert(Symbol, id)
+        convert(String, id)
     end
     @precomp Exchange(ccxt[].bybit())
     e = Exchange(ccxt[].bybit())
-    @precomp hash(e)
+    @precomp begin
+        hash(e)
+        e.has
+    end
 end
 
 end # module ExchangeTypes
