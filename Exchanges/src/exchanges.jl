@@ -1,19 +1,19 @@
 import Base: getproperty
 
-using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
-using Data: DataFrame
-using Ccxt: ccxt_exchange
 using Reexport
 @reexport using ExchangeTypes
-using Instruments
+using ExchangeTypes: OptionsDict, exc
+using Ccxt: ccxt_exchange
+using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
+using Python.PythonCall: pyisnone
+using Data: DataFrame
 using JSON
 using Serialization: deserialize, serialize
 using TimeTicks
-using Lang: @lget!
+using Instruments
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
 using Misc.TimeToLive
-using Python.PythonCall: pyisnone
-using ExchangeTypes: OptionsDict, exc
+using Lang: @lget!
 
 const exclock = ReentrantLock()
 const tickers_cache = TTL{String,AbstractDict}(Minute(100))
@@ -60,6 +60,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     end
     if isfileyounger(mkt, agemax) && cache
         try
+            @debug "Loading markets from cache."
             cached_dict = deserialize(mkt) # this should be a PyDict
             merge!(exc.markets, pyconvert(OptionsDict, cached_dict))
             exc.py.markets = pydict(cached_dict)
@@ -69,6 +70,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
             force_load()
         end
     else
+        @debug cache ? "Force loading markets." : "Loading markets because cache is stale."
         force_load()
     end
     nothing
@@ -80,7 +82,7 @@ getexchange() = exc
 It uses a WS instance if available, otherwise an async instance.
 
 """
-function getexchange!(x::Symbol, args...; sandbox=true, markets=true, kwargs...)
+function getexchange!(x::Symbol, args...; sandbox=true, markets=:yes, kwargs...)
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
@@ -92,6 +94,9 @@ function getexchange!(x::Symbol, args...; sandbox=true, markets=true, kwargs...)
         end,
     )
 end
+function getexchange!(x::ExchangeID, args...; kwargs...)
+    getexchange!(nameof(x), args...; kwargs...)
+end
 
 @doc "Instantiate an exchange struct. it sets:
 - The matching ccxt class.
@@ -99,7 +104,7 @@ end
 - Sets the exchange timeframes.
 - Sets exchange api keys.
 "
-function setexchange!(exc::Exchange, args...; markets=:yes, kwargs...)
+function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     empty!(exc.timeframes)
     tfkeys = if pyisnone(exc.py.timeframes)
         Set{String}()
@@ -196,9 +201,8 @@ end
     end
 end
 
-function issupported(tf::TimeFrame, exc)
-    tf ∈ exc.timeframes
-end
+issupported(tf::AbstractString, exc) = tf ∈ exc.timeframes
+issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
 @doc "Set exchange api keys."
 function exckeys!(exc, key, secret, pass)
