@@ -1,16 +1,13 @@
 module Simulations
 
-include("mootils.jl")
-using .Mootils: Mootils as mt
-using Data: Candle
-
-include("types.jl")
-include("rois.jl")
-include("stoploss.jl")
-include("profits.jl")
-include("spread.jl")
-include("slippage.jl")
-include("liq.jl")
-include("skew.jl")
+if get(ENV, "JULIA_NOPRECOMP", "") == "all"
+    __init__() = begin
+        include(joinpath(@__DIR__, "simulations.jl"))
+    end
+else
+    occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
+    include("simulations.jl")
+    function __init__() end
+end
 
 end

@@ -1,6 +1,6 @@
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.2.0"
 
 [deps]
@@ -15,12 +15,16 @@ JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Scrapers = "38b379f7-ca41-4278-b0dc-774ced1e32bb"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+
+[extras]
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 
 [weakdeps]
 Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"

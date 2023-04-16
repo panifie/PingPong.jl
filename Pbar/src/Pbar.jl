@@ -5,7 +5,7 @@ using Term.Progress
 using TimeTicks: now, Millisecond, Second, DateTime
 using Lang: toggle!, @preset, @precomp
 
-@preset begin
+@preset let
     @precomp begin
         Ref(DateTime(0))
         Ref(Millisecond(0))
@@ -44,8 +44,6 @@ function __init__()
     pbar!()
     @debug "Pbar: Loaded."
 end
-
-@preset @precomp __init__()
 
 macro pbinit!()
     :($(__init__)())
@@ -183,6 +181,17 @@ end
 macro pbclose!()
     quote
         $pbclose!($pbj.job, $pbar[])
+    end
+end
+
+@preset let
+    @precomp begin
+        __init__()
+        @withpbar! [1, 2, 3] desc = "asd" begin
+            @pbupdate!
+            @pbupdate!
+            @pbupdate!
+        end
     end
 end
 

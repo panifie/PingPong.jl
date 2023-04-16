@@ -29,4 +29,7 @@ using Lang: wait, @preset, @precomp
         market_fees(pair, e)
         is_pair_active(pair, e)
     end
+    # remove dangling pointers
+    empty!(exchanges)
+    empty!(sb_exchanges)
 end
