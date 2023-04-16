@@ -12,7 +12,6 @@ include("repl.jl")
 
 function __init__()
     @debug "Initializing python async..."
-    t = @async Python._async_init()
     if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
         exc = Symbol(get!(ENV, "JULIA_BACKTEST_EXC", :kucoin))
         Config(exc)
@@ -22,7 +21,6 @@ function __init__()
     # default to using lmdb store for data
     @debug "Initializing LMDB zarr instance..."
     Data.zi[] = Data.zilmdb()
-    wait(t)
 end
 
 macro environment!()
