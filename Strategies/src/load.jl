@@ -32,26 +32,18 @@ function strategy!(src::Symbol, cfg::Config)
         end
     end
     path = find_path(file, cfg)
-    mod = if !isdefined(@__MODULE__, src)
-        @eval begin
+    mod = if !isdefined(Main, src)
+        @eval Main begin
             if isdefined(Main, :Revise)
-                @eval Main begin
-                    Revise.includet($path)
-                    using Main.$src
-                    Main.$src
-                end
+                Revise.includet($path)
             else
                 include($path)
-                using .$src
-                $src
             end
+            using Main.$src
+            Main.$src
         end
     else
-        if isdefined(Main, :Revise)
-            Core.eval(Main, src)
-        else
-            @eval $src
-        end
+        @eval Main $src
     end
     strategy!(mod, cfg)
 end

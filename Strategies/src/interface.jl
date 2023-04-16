@@ -20,6 +20,6 @@ macro interface()
     quote
         import .Strategies: ping!, evaluate!
         using .Strategies: assets, exchange
-        using Engine: pong!, execute!
+        using .Executors: pong!, execute!
     end
 end

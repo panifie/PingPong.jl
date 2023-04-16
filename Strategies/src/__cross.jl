@@ -1,5 +1,5 @@
 @doc """
-Differently from the [`Engine.Strategies.Strategy`](@ref) type. The cross strategy works
+Differently from the [`Strategies.Strategy`](@ref) type. The cross strategy works
 over multiple exchanges, so portfolio and orders are mapped to exchanges.
 Instead of a single quote currency for cash, it holds one collection of Cash currency per exchange.
 """

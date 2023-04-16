@@ -1,4 +1,6 @@
 module Example
+# const pp = @eval Main PingPong
+
 using Lang
 using Misc
 using TimeTicks
@@ -8,17 +10,17 @@ using Data
 using Data.DFUtils
 using Data.DataFrames
 
-using Engine
-using Engine.Strategies: Strategies as st
-using Engine.Strategies
-using Engine.Instances: Instances as inst
-using Engine.Executors
-using Engine.OrderTypes
+using PingPong.Engine
+using .Engine.Strategies
+using .Engine: Strategies as st
+using .Engine.Instances: Instances as inst
+using .Engine.Executors
+using .Engine.OrderTypes
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
 
-# NOTE: do not export anything
+# # NOTE: do not export anything
 @interface
 
 const NAME = :Example
@@ -26,7 +28,7 @@ const EXCID = ExchangeID(:bybit)
 const S{M} = Strategy{M,NAME,typeof(EXCID)}
 const TF = tf"1m"
 
-function __init__() end
+# function __init__() end
 
 function ping!(::Type{S}, ::LoadStrategy, config)
     assets = marketsid(S)

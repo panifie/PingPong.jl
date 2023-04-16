@@ -1,12 +1,12 @@
 using Pkg: Pkg
 using TimeTicks
 using ExchangeTypes
-using Misc
+using Collections: AssetCollection, Collections as coll
+using Instances: AssetInstance
+using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
 using Data.DataFrames: nrow
 using Instruments: AbstractAsset, Cash, cash!
-using Instances: AssetInstance
-using Collections: AssetCollection, Collections as coll
-using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
+using Misc
 
 abstract type AbstractStrategy end
 
@@ -14,8 +14,26 @@ ExchangeAsset(E) = AssetInstance{T,E} where {T<:AbstractAsset}
 ExchangeOrder(E) = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 ExchangeSellOrder(E) = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-# TYPENUM
-struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
+@doc """The strategy is the core type of the framework.
+
+The strategy type is concrete according to:
+- Name (Symbol)
+- Exchange (ExchangeID), read from config
+- Quote cash (Symbol), read from config
+The exchange and the quote cash should be specified from the config, or the strategy module.
+
+- `universe`: All the assets that the strategy knows about
+- `holdings`: assets with non zero balance.
+- `orders`: active orders
+- `timeframe`: the smallest timeframe the strategy uses
+- `cash`: the quote currency used for trades
+
+Conventions for strategy defined attributes:
+- `NAME`: the name of the strategy could be different from module name
+- `S`: the strategy type.
+- `TF`: the smallest `timeframe` that the strategy uses
+"""
+struct Strategy{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
@@ -25,7 +43,7 @@ struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     sellorders::Dict{ExchangeAsset(E),Set{ExchangeSellOrder(E)}}
     holdings::Set{ExchangeAsset(E)}
     universe::AssetCollection
-    function Strategy69(
+    function Strategy(
         self::Module,
         mode::Type{<:ExecMode},
         timeframe::TimeFrame,
@@ -48,26 +66,6 @@ struct Strategy69{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         )
     end
 end
-@doc """The strategy is the core type of the framework.
-
-The strategy type is concrete according to:
-- Name (Symbol)
-- Exchange (ExchangeID), read from config
-- Quote cash (Symbol), read from config
-The exchange and the quote cash should be specified from the config, or the strategy module.
-
-- `universe`: All the assets that the strategy knows about
-- `holdings`: assets with non zero balance.
-- `orders`: active orders
-- `timeframe`: the smallest timeframe the strategy uses
-- `cash`: the quote currency used for trades
-
-Conventions for strategy defined attributes:
-- `NAME`: the name of the strategy could be different from module name
-- `S`: the strategy type.
-- `TF`: the smallest `timeframe` that the strategy uses
-"""
-Strategy = Strategy69
 
 include("methods.jl")
 include("interface.jl")
