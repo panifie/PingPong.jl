@@ -1,4 +1,5 @@
 module ExchangeTypes
+occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
 
 using Ccxt
 using Python: Py, pybuiltins, pyconvert, Python, pyhasattr, pygetattr
