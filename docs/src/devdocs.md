@@ -12,6 +12,8 @@ Precompilation can be skipped for some modules, by setting `JULIA_NOPRECOMP` env
 ```julia
 ENV["JULIA_NOPRECOMP"] = (:PingPong, :Scrapers, :Engine, :Watchers, :Plotting, :Stats)
 ```
+or use direnv, (see the `.envrc` in the repository).
+Setting `JULIA_NOPRECOMP=all` disables precompilation _entirely_ for some packages, it should be used only when modifying low level pieces of the modules stack.
 
 ## Methods invalidations
 The sequence of `using ...` statements to load modules can be important to consider, although only for the first instance for a particular module is critical. That's because when a module is loaded, methods insertion can trigger invalidation. If you order the modules loading from the _most_ likley to invalidate, to the _least_ one, less methods will be invalidated and the top module will load faster. 
