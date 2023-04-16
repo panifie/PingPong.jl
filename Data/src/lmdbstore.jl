@@ -54,7 +54,7 @@ _withsuffix(p, sf='/') = (isempty(p) || endswith(p, sf)) ? p : p * sf
 za._pkeys(d::LMDBDictStore, p) = keys(d.a; prefix=_withsuffix(p))
 za._pdict(d::LMDBDictStore, p) = dictview(d.a, keys(d.a; prefix=_withsuffix(p)))
 
-get_zgroup(store) = begin
+get_zgroup(store::za.AbstractStore) = begin
     if !Zarr.is_zgroup(store, "")
         zgroup(store, "")
     end
@@ -67,7 +67,7 @@ end
 `force`: resets the underlying store."
 function zilmdb(path::AbstractString=joinpath(DATA_PATH, "lmdb"); force=false)
     @lget! zcache path begin
-        get(force) = begin
+        get(force::Bool) = begin
             store = LMDBDictStore(path; reset=force)
             g = get_zgroup(store)
             ZarrInstance(path, store, g)

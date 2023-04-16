@@ -1,9 +1,9 @@
 
-function _tradesdf(trades; custom_cols=())
+function _tradesdf(trades::AbstractVector; custom_cols=())
     df = select!(DataFrame(trades), [:date, :amount, :size, :order, custom_cols...])
     rename!(df, :date => :timestamp)
 end
-function tradesdf(ai, from=firstindex(ai.history), to=lastindex(ai.history))
+function _tradesdf(ai::AssetInstance, from=firstindex(ai.history), to=lastindex(ai.history))
     length(from:to) < 1 && return nothing
     _tradesdf(@view ai.history[from:to])
 end

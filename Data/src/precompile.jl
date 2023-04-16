@@ -1,12 +1,13 @@
-using Lang: SnoopPrecompile, @preset, @precomp
+using Lang: @preset, @precomp
 
-@preset let
+@preset begin
     using Lang: Logging
     @precomp begin
         ZarrInstance()
         zilmdb()
         __init__()
     end
+    empty!(zcache) # Need to empty otherwise compile cache keeps dangling pointers
     function makecandle(n)
         Candle(parse(TimeTicks.DateTime, "2020-01-0$n"), 1.0, 2.0, 0.5, 1.1, 123.0)
     end

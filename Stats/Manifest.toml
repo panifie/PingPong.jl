@@ -333,7 +333,7 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging"]
+deps = ["Distributed", "Logging", "SnoopPrecompile"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
