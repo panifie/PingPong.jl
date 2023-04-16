@@ -1,6 +1,5 @@
 @doc "Implements the universe filtering strategy by Mark Minervini."
 module Mark
-using Requires
 using Long
 using Short
 using Analysis
