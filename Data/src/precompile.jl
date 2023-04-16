@@ -11,7 +11,7 @@ using Lang: @preset, @precomp
     function makecandle(n)
         Candle(parse(TimeTicks.DateTime, "2020-01-0$n"), 1.0, 2.0, 0.5, 1.1, 123.0)
     end
-    tuple(c::Candle) = ((getproperty(c, p) for p in propertynames(c))...,)
+    maketuple(c::Candle) = ((getproperty(c, p) for p in propertynames(c))...,)
     ohlcv_data = [makecandle(n) for n in (1, 2, 3)]
     exc_name = "abc"
     pair = "AAA/BBB:CCC"
@@ -34,12 +34,12 @@ using Lang: @preset, @precomp
             catch
             end
         end
-        push!(df[], tuple(makecandle(4)))
+        push!(df[], maketuple(makecandle(4)))
         @precomp try
             save_ohlcv(args..., df[])
         catch
         end
-        push!(df[], tuple(makecandle(8)))
+        push!(df[], maketuple(makecandle(8)))
         @precomp try
             save_ohlcv(args..., df[])
         catch
