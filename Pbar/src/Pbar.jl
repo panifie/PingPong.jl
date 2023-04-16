@@ -3,8 +3,7 @@ module Pbar
 
 using Term.Progress
 using TimeTicks: now, Millisecond, Second, DateTime
-using Lang: toggle!, @preset, @precomp, SnoopPrecompile
-SnoopPrecompile.verbose[] = true
+using Lang: toggle!, @preset, @precomp
 
 @preset begin
     @precomp begin
