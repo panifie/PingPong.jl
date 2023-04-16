@@ -53,3 +53,12 @@ Likely a bug with `WGLMakie`, use `GLMakie` instead:
 using GLMakie
 GLMakie.activate!()
 ```
+
+## Precompilation fails
+
+- If you are not doing it already, try to load the repl passing the project as arg, e.g.:
+
+```julia
+julia --project=.
+```
+Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
