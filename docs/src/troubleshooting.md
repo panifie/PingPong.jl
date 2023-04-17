@@ -9,6 +9,17 @@ include("resolve.jl")
 recurse_projects() # optional ;update=true
 ```
 
+- If you are not doing it already, try to load the repl passing the project as arg, e.g.:
+
+```julia
+julia --project=.
+```
+Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
+
+- Precompilation of things that depend on python (like exchange functions) can cause segfaults. Some famous suspects that can cause dangling pointers in the precompiled code are:
+  - global caches, like the `tickers_cache`, since the content of global constants is serialized by precompilation, make sure that those constants are *empty* during precompilation.
+  - macros like `@py` can rewrite code putting _in place_ python objects. Avoid use of those macros in functions that you want precompiled.
+
 ## Python can't find modules
 
 - If python complains about missing dependencies, while in the julia REPL, with this repository as the activated project, do this:
@@ -54,11 +65,3 @@ using GLMakie
 GLMakie.activate!()
 ```
 
-## Precompilation fails
-
-- If you are not doing it already, try to load the repl passing the project as arg, e.g.:
-
-```julia
-julia --project=.
-```
-Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
