@@ -14,7 +14,10 @@ using Lang: @preset, @precomp
         convert(Symbol, id)
         convert(String, id)
     end
-    @precomp Exchange(ccxt[].bybit())
+    @precomp let
+        e = Exchange(ccxt[].bybit())
+        pyfetch(e.close)
+    end
     e = Exchange(ccxt[].bybit())
     @precomp begin
         hash(e)
