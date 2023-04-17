@@ -1,6 +1,7 @@
 using Lang: @get, @multiget, @lget!, Option
 using Misc: config
 using Instruments: isfiatquote
+using Python: @pystr
 
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
 isquote(id, qc) = lowercase(id) == qc
@@ -109,8 +110,8 @@ ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
-    p_amount = pyconvert(Real, @py mkt["amount"])
-    p_price = pyconvert(Real, @py mkt["price"])
+    p_amount = pyconvert(Real, mkt[@pystr("amount")])
+    p_price = pyconvert(Real, mkt[@pystr("price")])
     (; amount=p_amount, price=p_price)
 end
 market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
@@ -127,9 +128,10 @@ const DEFAULT_COST = (; min=1e-15, max=Inf)
 const DEFAULT_FIAT_COST = (; min=1.0, max=Inf)
 
 function _minmax_pair(mkt, l, default)
+    k = @pystr(l)
     Symbol(l) => (;
-        min=(@something pyconvert(Option{Real}, (@py mkt[l].get("min"))) default.min),
-        max=(@something pyconvert(Option{Real}, (@py mkt[l].get("max"))) default.max),
+        min=(@something pyconvert(Option{Real}, mkt[k].get("min")) default.min),
+        max=(@something pyconvert(Option{Real}, mkt[k].get("max")) default.max),
     )
 end
 
