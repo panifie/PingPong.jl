@@ -1,15 +1,3 @@
-using HTTP
-using CodecZlib: CodecZlib as zlib
-using ZipFile: ZipFile as zip
-using Lang: @ifdebug, @acquire, splitkws
-using CSV
-using Data.Cache: Cache as ca
-using Data.DFUtils: lastdate, firstdate
-using Data.DataFrames
-using Processing: TradesOHLCV as tra, cleanup_ohlcv_data, trail!
-using Instruments
-using Pbar
-
 function selectsyms(syms, all_syms; quote_currency="usdt", perps_only=true)
     qc = uppercase(quote_currency)
     selected = Set(uppercase.(syms))

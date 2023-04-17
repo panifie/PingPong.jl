@@ -1,19 +1,19 @@
 module Scrapers
-occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
 
-using Data: zi, zilmdb
-using TimeTicks
+using Lang: SnoopPrecompile, @preset, @precomp
 
-const WORKERS = Ref(10)
-const TF = Ref(tf"1m")
-const SEM = Base.Semaphore(3)
-
-function __init__()
-    zi[] = zilmdb()
+if get(ENV, "JULIA_NOPRECOMP", "") == "all"
+    __init__() = begin
+        include(joinpath(@__DIR__, "scrapers.jl"))
+        @eval _doinit()
+    end
+else
+    occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
+    @precomp begin
+        include("scrapers.jl")
+        __init__() = _doinit()
+        include("precompile.jl")
+    end
 end
-
-include("utils.jl")
-include("bybit.jl")
-include("binance.jl")
 
 end # module Scrapers

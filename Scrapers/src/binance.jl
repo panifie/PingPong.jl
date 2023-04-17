@@ -1,14 +1,4 @@
 module BinanceData
-using URIs
-using HTTP
-using CodecZlib: CodecZlib as zlib
-using EzXML: EzXML as ez
-using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
-using TimeTicks
-using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
-using Data.DataFrames
-using Pbar
-using Instruments
 using ..Scrapers:
     selectsyms,
     WORKERS,
@@ -25,6 +15,16 @@ using ..Scrapers:
     cleanup_ohlcv_data,
     mergechunks,
     @fromassets
+using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
+using Data.DataFrames
+using Pbar
+using EzXML: EzXML as ez
+using Instruments
+using URIs
+using HTTP
+using CodecZlib: CodecZlib as zlib
+using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
+using TimeTicks
 
 const BASE_URL = URI("https://data.binance.vision")
 
@@ -184,7 +184,7 @@ function binanceload(syms::AbstractVector; zi=zi[], quote_currency="usdt", kwarg
     load_ohlcv(zi, NAME, key.(selected; path_kws...), string(TF[]); rest_kws...)
 end
 @fromassets binanceload
-@argstovec binanceload AbstractString x->first(x).second
+@argstovec binanceload AbstractString x -> first(x).second
 
 export binancedownload, binanceload, binancesyms
 end

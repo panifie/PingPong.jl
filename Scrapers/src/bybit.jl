@@ -1,14 +1,14 @@
 @doc "Downloads bybit trading data archives converts it to ohlcv and stores it locally."
 module BybitData
 
+using Data.DataFrames
+using Pbar
+using EzXML
 using URIs
 using HTTP
-using EzXML
 using Data: DataFrame, zi
 using Data: save_ohlcv, Cache as ca, load_ohlcv
-using Data.DataFrames
 using TimeTicks
-using Pbar
 using Lang
 using ..Scrapers:
     selectsyms,
@@ -174,7 +174,7 @@ function bybitload(
     load_ohlcv(zi, NAME, key.(selected, path), string(TF[]); kwargs...)
 end
 @fromassets bybitload
-@argstovec bybitload AbstractString x->first(x).second
+@argstovec bybitload AbstractString x -> first(x).second
 
 export bybitdownload, bybitload, bybitallsyms
 end
