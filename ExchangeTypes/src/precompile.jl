@@ -20,4 +20,5 @@ using Lang: @preset, @precomp
         hash(e)
         e.has
     end
+    pyfetch(e.close)
 end

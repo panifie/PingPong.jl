@@ -2,26 +2,25 @@
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
 
 const OptionsDict = Dict{String,Dict{String,Any}}
-struct Exchange8{I<:ExchangeID}
+@doc """The exchange type wraps a ccxt exchange instance. Some attributes frequently accessed
+are copied over to avoid round tripping python. More attributes might be added in the future.
+To instantiate an exchange call `getexchange!` or `setexchange!`.
+
+"""
+struct Exchange{I<:ExchangeID}
     py::Py
     id::I
     name::String
     precision::Vector{ExcPrecisionMode}
     timeframes::Set{String}
     markets::OptionsDict
-    Exchange8() = new{typeof(ExchangeID())}(pybuiltins.None) # FIXME: this should be None
-    function Exchange8(x::Py)
+    Exchange() = new{typeof(ExchangeID())}(pybuiltins.None) # FIXME: this should be None
+    function Exchange(x::Py)
         id = ExchangeID(x)
         name = pyisnone(x) ? "" : pyconvert(String, pygetattr(x, "name"))
         new{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
     end
 end
-@doc """The exchange type wraps a ccxt exchange instance. Some attributes frequently accessed
-are copied over to avoid round tripping python. More attributes might be added in the future.
-To instantiate an exchange call `getexchange!` or `setexchange!`.
-
-"""
-Exchange = Exchange8
 
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
 
