@@ -1,5 +1,6 @@
 using Lang: @preset, @precomp
 @preset let
+    using Python: pyfetch
     e = :bybit
     @precomp begin
         __init__()

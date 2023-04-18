@@ -35,16 +35,6 @@ function _doinit()
 end
 
 include("exchange_funcs.jl")
-# There isn't anything worth precompiling here
-# we can't precompile init functions because python runtime
-using SnoopPrecompile
-@precompile_setup begin
-    @precompile_all_calls begin
-        __init__()
-    end
-    ccxt[] = nothing
-    ccxt_ws[] = nothing
-end
 
 @doc "Choose correct ccxt function according to what the exchange supports."
 function _multifunc(exc, suffix, hasinputs=false)
