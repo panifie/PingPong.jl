@@ -19,6 +19,8 @@ Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
 - Precompilation of things that depend on python (like exchange functions) can cause segfaults. Some famous suspects that can cause dangling pointers in the precompiled code are:
   - global caches, like the `tickers_cache`, since the content of global constants is serialized by precompilation, make sure that those constants are *empty* during precompilation.
   - macros like `@py` can rewrite code putting _in place_ python objects. Avoid use of those macros in functions that you want precompiled.
+  
+- If some package keeps skipping precompilation, it is likely that the `JULIA_NOPRECOMP` env var contains dependencies of such package.
 
 ## Python can't find modules
 
