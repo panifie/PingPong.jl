@@ -54,8 +54,8 @@ Same as `ohlcv` but over input `Figure`
 function ohlcv!(fig::Figure, df::AbstractDataFrame, tf=tf"1d")
     isnothing(tf) || (df = resample(df, timeframe!(df), tf))
     # Axis creation (Order is important)
-    price_ax = makepriceax(fig; xticksargs=(df.timestamp[begin], timeframe!(df)))
     vol_ax = Axis(fig[1, 1]; ytickformat=ytickscompact, ylabel="Volume", yaxisposition=:right)
+    price_ax = makepriceax(fig; xticksargs=(df.timestamp[begin], timeframe!(df)))
     # OHLCV doesn't need spines
     hidespines!(price_ax)
     hidespines!(vol_ax)

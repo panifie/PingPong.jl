@@ -199,7 +199,7 @@ uuid = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
 version = "1.5.0"
 
 [[deps.Ccxt]]
-deps = ["Misc", "Python"]
+deps = ["Misc", "Python", "SnoopPrecompile"]
 path = "../Ccxt"
 uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 version = "0.1.0"
@@ -354,7 +354,7 @@ uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.7.8"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "LRUCache", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "LRUCache", "Lang", "Misc", "Reexport", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -504,6 +504,12 @@ version = "0.1.0"
 deps = ["Accessors", "Ccxt", "Data", "ExchangeTypes", "FunctionalCollections", "Instruments", "JSON", "Lang", "Misc", "OrderTypes", "Pbar", "Processing", "Python", "Reexport", "Serialization", "Temporal", "TimeTicks"]
 path = "../Exchanges"
 uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+version = "0.1.0"
+
+[[deps.Executors]]
+deps = ["Accessors", "Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
+path = "../Executors"
+uuid = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
 version = "0.1.0"
 
 [[deps.Expat_jll]]
@@ -978,7 +984,7 @@ uuid = "2ee39098-c373-598a-b85f-a56591580800"
 version = "1.12.5"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging"]
+deps = ["Distributed", "Logging", "Preferences", "SnoopPrecompile"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
@@ -1166,7 +1172,7 @@ uuid = "978d7f02-9e05-4691-894f-ae31a51d76ca"
 version = "0.4.0"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "TOML", "TimeTicks"]
+deps = ["DataFrames", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -1460,7 +1466,7 @@ uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport"]
+deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
@@ -1645,6 +1651,12 @@ git-tree-sha1 = "d263a08ec505853a5ff1c1ebde2070419e3f28e9"
 uuid = "73760f76-fbc4-59ce-8f25-708e95d2df96"
 version = "0.4.0"
 
+[[deps.SimMode]]
+deps = ["Executors", "Lang", "Misc", "OrderTypes", "Processing", "Simulations", "Strategies", "TimeTicks"]
+path = "../SimMode"
+uuid = "70084082-5615-4098-a9f0-eda0197c0e82"
+version = "0.1.0"
+
 [[deps.SimpleBufferStream]]
 git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
@@ -1667,6 +1679,12 @@ deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "5d7e3f4e11935503d3ecaf7186eac40602e7d231"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
+
+[[deps.Simulations]]
+deps = ["Data", "Instances", "Instruments", "IterTools", "Lang", "Misc", "Processing", "Random", "Statistics", "StatsBase", "TimeTicks"]
+path = "../Simulations"
+uuid = "a69aad36-f532-4133-ba48-77171b778e6d"
+version = "0.1.0"
 
 [[deps.Sixel]]
 deps = ["Dates", "FileIO", "ImageCore", "IndirectArrays", "OffsetArrays", "REPL", "libsixel_jll"]
@@ -1745,7 +1763,7 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.9.0"
 
 [[deps.Stats]]
-deps = ["Data", "Instances", "Lang", "OrderTypes", "Processing", "Statistics", "Strategies", "TimeTicks"]
+deps = ["Data", "Instances", "Lang", "OrderTypes", "Processing", "SimMode", "Simulations", "Statistics", "Strategies", "TimeTicks"]
 path = "../Stats"
 uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 version = "0.1.0"

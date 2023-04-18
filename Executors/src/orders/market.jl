@@ -3,6 +3,10 @@ const _MarketOrderState1 = NamedTuple{
     Tuple{Option{Float64},Option{Float64},Vector{Float64},Vector{Trade}},
 }
 
+function market_order_state(take, stop, filled=[0.0], trades=Trade[])
+    _MarketOrderState1((take, stop, filled, trades))
+end
+
 function marketorder(
     ai::AssetInstance,
     price,
@@ -16,13 +20,13 @@ function marketorder(
 )
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
-    Orders.Order(
+    OrderTypes.Order(
         ai,
         type;
         date,
         price,
         amount,
         committed,
-        attrs=limit_order_state(take, stop, committed),
+        attrs=market_order_state(take, stop, committed),
     )
 end

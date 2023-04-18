@@ -8,12 +8,14 @@
 # using PaperMode
 # using LiveMode
 
-@sync for m in
-          :(
-    TimeTicks, Misc, Simulations, Executors, OrderTypes, SimMode, PaperMode, LiveMode
-).args
-    @async eval(:(using $m))
-end
+using SimMode
+using PaperMode
+using LiveMode
+using OrderTypes
+using Executors
+using Simulations
+using Misc
+using TimeTicks
 
 # include("consts.jl")
 # include("funcs.jl")

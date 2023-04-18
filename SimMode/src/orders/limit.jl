@@ -80,7 +80,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, price, date, ai)
         @deassert _check_slipprice(price, o, ai, date)
         tr = trade!(s, o, ai; date, price, amount=cdl_vol)
         # Cancel IOC orders after partial fill
-        o isa IOCOrder && cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
+        o isa IOCOrder && !isfilled(o) && cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
         tr
     elseif o isa Union{FOKOrder,IOCOrder}
         cancel!(s, o, ai; err=NotMatched(price, price, amount, cdl_vol))

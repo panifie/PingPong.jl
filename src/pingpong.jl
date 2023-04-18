@@ -1,8 +1,10 @@
 using Pkg: Pkg as Pkg
+using Engine
 using Python # must be loaded synchronously
-@sync for m in :(Misc, Data, ExchangeTypes, Exchanges, Engine).args
-    @async eval(:(using $m))
-end
+using Misc
+using Data
+using Exchanges
+
 include("repl.jl")
 
 function _doinit()

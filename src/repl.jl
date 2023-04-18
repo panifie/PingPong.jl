@@ -53,7 +53,7 @@ function module!(sym, bind)
         try
             @eval Main using $sym: $sym as $bind
         catch e
-            display(e)
+            Base.showerror(stdout, e)
             prev = Pkg.project().path
             Pkg.activate(modpath)
             Pkg.instantiate()

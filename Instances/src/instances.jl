@@ -1,4 +1,3 @@
-
 using TimeTicks
 using ExchangeTypes
 using ExchangeTypes: exc

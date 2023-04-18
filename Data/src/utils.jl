@@ -1,7 +1,7 @@
 using Serialization
 using Lang
 
-stub!() = error("not implemented")
+stub!(args...; kwargs...) = error("not implemented")
 
 tobytes(buf::IOBuffer, data) = begin
     @ifdebug @assert position(buf) == 0

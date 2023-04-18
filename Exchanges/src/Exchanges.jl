@@ -8,7 +8,6 @@ else
     occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
     include("exchanges.jl")
     include("precompile.jl")
-    __init__() = nothing
 end
 
 end # module Exchanges

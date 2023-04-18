@@ -1,16 +1,12 @@
 module Plotting
-occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
 
-using Lang
-using TimeTicks
-using Misc
-using Makie
-using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
-using Stats
-
-include("utils.jl")
-include("ohlcv.jl")
-include("trades.jl")
-include("inds.jl")
+if get(ENV, "JULIA_NOPRECOMP", "") == "all"
+    __init__() = begin
+        include(joinpath(@__DIR__, "plotting.jl"))
+    end
+else
+    occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
+    include("plotting.jl")
+end
 
 end # module Plotting

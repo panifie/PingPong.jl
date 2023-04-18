@@ -10,5 +10,10 @@ Base.append!(a::T, b::T) where {T<:OHLCVTuple} = foreach(splat(append!), zip(a, 
 Base.axes(o::OHLCVTuple) = ((Base.OneTo(size(v, 1)) for v in o)...,)
 Base.axes(o::OHLCVTuple, i) = Base.OneTo(size(o[i], 1))
 Base.getindex(o::OHLCVTuple, i, j) = o[j][i]
+Base.push!(o::OHLCVTuple, tup::Tuple) = begin
+    for i in 1:length(tup)
+        push!(o[i], tup[i])
+    end
+end
 
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)

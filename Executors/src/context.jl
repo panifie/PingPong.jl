@@ -41,4 +41,4 @@ Executors.Context(s::Strategy{<:ExecMode}) = begin
     Executors.Context(execmode(s), dr)
 end
 
-export Context, ExecAction
+export Context
