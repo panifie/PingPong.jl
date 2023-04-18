@@ -15,6 +15,7 @@ jobs:
     env:
       JULIA_VERSION: 1.9
       JULIA_CONDAPKG_ENV: "$HOME/.conda"
+      JULIA_NOPRECOMP: "all"
     permissions: write-all
 
     steps:
