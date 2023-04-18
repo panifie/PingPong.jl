@@ -39,8 +39,6 @@ ENV["JULIA_CONDAPKG_ENV"] = joinpath(dirname(Base.active_project()), ".conda")
 import Pkg; Pkg.instantiate()
 ```
 
-## Contributing
+## Warning
 The api is *not* stable. If you want more stability around some functionality open an issue for the function of interest such that I can add a test around it. 
 
-### Adding dependencies
-Only add a dependency to one of the subpackages, when using the same dependency from another subpackage, add the subpackage that already has that dependency instead of the dependency itself.

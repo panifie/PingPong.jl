@@ -51,3 +51,5 @@ using Data.DataFrames
 end
 ```
 
+### Adding dependencies
+Only add a dependency to one of the subpackages, when using the same dependency from another subpackage, add the subpackage that already has that dependency instead of the dependency itself.
