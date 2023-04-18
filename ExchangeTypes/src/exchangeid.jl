@@ -34,7 +34,7 @@ Base.show(io::IO, id::ExchangeID) = begin
     write(io, id.sym)
     write(io, ")")
 end
-Base.convert(::T, id::ExchangeID) where {T<:AbstractString} = string(id.sym)
+Base.convert(::Type{<:AbstractString}, id::ExchangeID) = string(id.sym)
 Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
 function Base.display(
