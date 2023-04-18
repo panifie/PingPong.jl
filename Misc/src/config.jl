@@ -62,7 +62,7 @@ end
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config18
+@kwdef mutable struct Config
     path::String = ""
     mode::ExecMode = Sim()
     exchange::Symbol = Symbol()
@@ -85,18 +85,12 @@ end
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
 end
-Config = Config18
 
-function Config18(profile::Union{Symbol,String}; path::String=config_path())
-    cfg = Config18()
+function Config(profile::Union{Symbol,String}; path::String=config_path())
+    cfg = Config()
     config!(profile; cfg, path)
 end
 
-@precompile_setup @precompile_all_calls Config()
-
-@doc "Global configuration instance."
-const config = Config()
-const SourcesDict = Dict{Symbol,String}
 
 _path!(cfg, path) = begin
     if !isfile(path)
@@ -158,7 +152,6 @@ function config!(
     cfg
 end
 
-const _default_config = Config()
 @doc "Reset config to default values."
 function Base.empty!(c::Config)
     for k in fieldnames(Config)

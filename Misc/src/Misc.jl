@@ -3,6 +3,7 @@ module Misc
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
         include(joinpath(@__DIR__, "misc.jl"))
+        include(joinpath(@__DIR__, "consts.jl"))
         @eval _doinit()
     end
 else
@@ -10,6 +11,8 @@ else
     include("misc.jl")
     __init__() = _doinit()
     include("precompile.jl")
+    include("consts.jl")
 end
+
 
 end
