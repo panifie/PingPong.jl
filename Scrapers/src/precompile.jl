@@ -1,4 +1,5 @@
-let
+using Lang: @precomp, @preset
+@preset let
     pairs = ["eth", "btc"]
     qc = "USDT"
     @precomp begin
