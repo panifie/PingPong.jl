@@ -3,7 +3,7 @@ using Lang: @lget!, MatchString
 using Base.Enums: namemap
 using Data.DataFrames
 using Data.DataFramesMeta
-using Data: load, zi
+using Data: load, zi, empty_ohlcv
 using Data.DFUtils
 using OrderedCollections: OrderedDict
 using Data.DataStructures: SortedDict
@@ -15,17 +15,17 @@ using Instances
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
-struct AssetCollection2
+struct AssetCollection
     data::DataFrame
-    function AssetCollection2(
+    function AssetCollection(
         df=DataFrame(;
             exchange=ExchangeID[], asset=AbstractAsset[], instance=AssetInstance[]
         ),
     )
         new(df)
     end
-    function AssetCollection2(instances::Iterable{<:AssetInstance})
-        AssetCollection2(
+    function AssetCollection(instances::Iterable{<:AssetInstance})
+        AssetCollection(
             DataFrame(
                 (; exchange=inst.exchange.id, asset=inst.asset, instance=inst) for
                 inst in instances;
@@ -33,26 +33,31 @@ struct AssetCollection2
             ),
         )
     end
-    function AssetCollection2(
+    function AssetCollection(
         assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
         timeframe="1m",
         exc::Exchange,
         min_amount=1e-8,
+        load_data=true,
     )
         if eltype(assets) == String
             assets = [parse(AbstractAsset, name) for name in assets]
         end
 
         tf = convert(TimeFrame, timeframe)
-        function getInstance(ast::AbstractAsset)
-            data = SortedDict(tf => load(zi, exc.name, ast.raw, timeframe))
-            AssetInstance(ast; data, exc, min_amount)
+        load_func = if load_data
+            (aa) -> load(zi, exc.name, aa.raw, timeframe)
+        else
+            (_) -> empty_ohlcv()
+        end
+        function getInstance(aa::AbstractAsset)
+            data = SortedDict(tf => load_func(aa))
+            AssetInstance(aa; data, exc, min_amount)
         end
         instances = [getInstance(ast) for ast in assets]
-        AssetCollection2(instances)
+        AssetCollection(instances)
     end
 end
-AssetCollection = AssetCollection2
 
 @enum AssetCollectionColumn exchange = 1 asset = 2 instance = 3
 const AssetCollectionTypes = OrderedDict([

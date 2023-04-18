@@ -1,4 +1,4 @@
-using Exchanges: market_fees, market_limits, market_precision, getexchange!
+using Exchanges: Exchanges, market_fees, market_limits, market_precision, getexchange!
 using Instances
 using Strategies
 using Collections
@@ -18,11 +18,15 @@ function Instances.AssetInstance(s::S, t::S, e::S) where {S<:AbstractString}
 end
 
 function Strategies.Strategy(
-    self::Module, assets::Union{Dict,Iterable{String}}; mode=Sim, config::Config
+    self::Module,
+    assets::Union{Dict,Iterable{String}};
+    mode=Sim,
+    load_data=true,
+    config::Config,
 )
     exc = getexchange!(config.exchange)
     timeframe = @something self.TF config.min_timeframe first(config.timeframes)
-    uni = AssetCollection(assets; timeframe=string(timeframe), exc)
+    uni = AssetCollection(assets; load_data, timeframe=string(timeframe), exc)
     Strategy(self, mode, timeframe, exc, uni; config)
 end
 
@@ -33,4 +37,3 @@ function Base.similar(
         s.self, typeof(mode), timeframe, exc, similar(s.universe); config=copy(s.config)
     )
 end
-

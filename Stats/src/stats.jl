@@ -1,7 +1,7 @@
-using Strategies: Strategies as st, Strategy
+using Engine.Strategies: Strategies as st, Strategy
 using Processing: normalize!, resample
-using Instances
-using OrderTypes
+using Engine.Instances
+using Engine.OrderTypes
 
 using Data
 using Data.DFUtils
