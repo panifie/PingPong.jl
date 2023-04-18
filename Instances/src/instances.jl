@@ -126,7 +126,7 @@ function Base.string(ai::AssetInstance)
     "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
 end
 Base.show(io::IO, ai::AssetInstance) = write(io, string(ai))
-stub!(ai::AssetInstance, df) = begin
+stub!(ai::AssetInstance, df::DataFrame) = begin
     tf = timeframe!(df)
     ai.data[tf] = df
 end
