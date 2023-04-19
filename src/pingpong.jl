@@ -1,9 +1,9 @@
-using Pkg: Pkg as Pkg
 using Engine
-using Python # must be loaded synchronously
-using Misc
-using Data
 using Exchanges
+using Python
+using Data
+using Misc
+using Pkg: Pkg as Pkg
 
 include("repl.jl")
 

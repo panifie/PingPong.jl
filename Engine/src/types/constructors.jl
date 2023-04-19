@@ -1,8 +1,3 @@
-using Exchanges: Exchanges, market_fees, market_limits, market_precision, getexchange!
-using Instances
-using Strategies
-using Collections
-
 function Instances.AssetInstance(a; data, exc, min_amount=1e-15)
     limits = market_limits(a.raw, exc; default_amount=(min=min_amount, max=Inf))
     precision = market_precision(a.raw, exc)

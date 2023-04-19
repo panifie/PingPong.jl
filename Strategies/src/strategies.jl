@@ -1,12 +1,19 @@
-using Pkg: Pkg
-using TimeTicks
-using ExchangeTypes
 using Collections: AssetCollection, Collections as coll
+
 using Instances: AssetInstance
 using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
-using Data.DataFrames: nrow
+using OrderTypes: OrderError
+using ExchangeTypes
+using TimeTicks
+using Instruments
 using Instruments: AbstractAsset, Cash, cash!
+
+import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
+using Data.DataFrames: nrow
+using Data: closelast
 using Misc
+using Lang: @lget!
+using Pkg: Pkg
 
 abstract type AbstractStrategy end
 

@@ -1,12 +1,11 @@
 @doc "User module, use only to import and export preferred functions inside the repl."
 
-using DataFrames
-using DataFrames: index
-using DataFramesMeta
-using LegibleLambdas
-using Misc: @lev!, @margin!
 using Processing
 using Statistics: mean
+using Data.DataFramesMeta
+using Data.DataFrames
+using Data.DataFrames: index
+using Misc: @lev!, @margin!
 export @margin!, @lev!
 
 if !isdefined(@__MODULE__, :an)

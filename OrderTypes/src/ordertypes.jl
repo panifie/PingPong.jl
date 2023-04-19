@@ -1,9 +1,10 @@
-using Lang: Lang
-using TimeTicks
-using Misc: config
-using Data: Candle
-using Instruments
 using ExchangeTypes
+using Instruments
+using Data: Candle
+
+using Misc: config
+using TimeTicks
+using Lang: Lang
 
 abstract type OrderSide end
 abstract type Buy <: OrderSide end
@@ -163,7 +164,6 @@ end
 @kwdef struct OrderFailed <: OrderError
     msg::String
 end
-
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, BuyTrade, SellTrade

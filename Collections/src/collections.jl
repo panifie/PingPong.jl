@@ -1,17 +1,19 @@
-using TimeTicks
-using Lang: @lget!, MatchString
-using Base.Enums: namemap
+using Instances
+
 using Data.DataFrames
 using Data.DataFramesMeta
 using Data: load, zi, empty_ohlcv
 using Data.DFUtils
-using OrderedCollections: OrderedDict
 using Data.DataStructures: SortedDict
-using Misc: Iterable, swapkeys
+
 using ExchangeTypes
 using Instruments: fiatnames, AbstractAsset, Asset, Cash
 using Instruments.Derivatives
-using Instances
+using TimeTicks
+using Misc: Iterable, swapkeys
+using Lang: @lget!, MatchString
+using Base.Enums: namemap
+using OrderedCollections: OrderedDict
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."

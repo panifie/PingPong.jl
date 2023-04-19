@@ -1,14 +1,15 @@
-using TimeTicks
 using ExchangeTypes
+using OrderTypes
+
 using ExchangeTypes: exc
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
-using .DataStructures: SortedDict
+import Data: stub!
+using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash
 import Instruments: _hashtuple
 using Misc: config
-using OrderTypes
-import Data: stub!
+using .DataStructures: SortedDict
 
 const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
 const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
@@ -97,7 +98,6 @@ function Data.candlelast(ai::AssetInstance, date::DateTime)
     tf = first(keys(ai.data))
     Data.candlelast(ai, tf, date)
 end
-
 
 function OrderTypes.Order(ai::AssetInstance, type; kwargs...)
     Order(ai.asset, ai.exchange.id, type; kwargs...)

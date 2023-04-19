@@ -1,12 +1,3 @@
-import Data: stub!
-using Misc: swapkeys
-using ExchangeTypes: exc
-using Data: load, zi, empty_ohlcv
-using Data.DataFramesMeta
-using Data.DFUtils
-using Processing: resample
-using Instruments: Asset, fiatnames
-
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
 

@@ -1,6 +1,9 @@
 using Serialization
 using Lang
 
+# Required by external modules
+using DataStructures: DataStructures
+
 stub!(args...; kwargs...) = error("not implemented")
 
 tobytes(buf::IOBuffer, data) = begin

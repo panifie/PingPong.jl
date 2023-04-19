@@ -1,4 +1,4 @@
-using Data: @to_mat
+using .Data: @to_mat
 using Lang: @ifdebug
 
 function _check_size(data, arr::ZArray)
