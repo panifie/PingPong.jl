@@ -70,7 +70,7 @@ end
 instance(a) = instance(exc, a)
 
 @doc "Load ohlcv data of asset instance."
-function load!(a::AssetInstance; reset=true)
+function load!(a::AssetInstance; reset=true, zi=zi)
     for (tf, df) in a.data
         reset && empty!(df)
         loaded = load(zi, a.exchange.name, a.raw, string(tf))

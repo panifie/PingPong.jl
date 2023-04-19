@@ -180,8 +180,8 @@ iscashable(c::Cash, ac::AssetCollection) = begin
         if ai.asset.qc != nameof(c)
             return false
         end
-        return true
     end
+    return true
 end
 
 export AssetCollection, flatten, iscashable
