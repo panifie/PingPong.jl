@@ -62,7 +62,7 @@ function ohlcv!(fig::Figure, df::AbstractDataFrame, tf=tf"1d")
     # We already have X from the price axis
     hidexdecorations!(vol_ax)
     # Disable volume interactions since it is in the background
-    deregister_interactions!(vol_ax, ())
+    deregister_interactions!(vol_ax, (:scrollzoom, ))
 
     # Now we iterate over the dataframe, to construct
     # candles polygons from their values

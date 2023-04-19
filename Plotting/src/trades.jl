@@ -1,5 +1,6 @@
 using Random: seed!
 using Stats: trades_balance, expand
+using Base: remove_linenums!
 using Makie: point_in_triangle, point_in_quad_parameter
 
 using Lang: Option
@@ -11,7 +12,7 @@ using Processing: normalize, normalize!
 using Instruments
 using Exchanges: getexchange!
 using OrderTypes
-using Strategies: Strategy, Strategies as st
+using Strategies: Strategy, Strategies as st, AssetInstance
 
 function trade_str(trade)
     """Trade Date: $(trade.date)
@@ -98,13 +99,21 @@ Plots a subset of trades history of an asset instance.
 - `to`: the last index in the trade history to plot [`lastindex`]
 - `force`: plots very large dataframes [`false`]
 """
-function tradesticks(s::Strategy, args...; kwargs...)
-    tradesticks!(makefig(), s, args...; kwargs...)
+function tradesticks(s::Strategy, fig::Figure=makefig(), args...; kwargs...)
+    tradesticks!(fig, first(s.universe), args...; kwargs...)
+end
+function tradesticks(s::Strategy, aa, fig::Figure=makefig(), args...; kwargs...)
+    ai = s.universe[aa, :instance, 1]
+    tradesticks!(fig, ai, args...; kwargs...)
+end
+function tradesticks(ai::AssetInstance, fig::Figure=makefig(), args...; kwargs...)
+    tradesticks!(fig, ai, args...; kwargs...)
 end
 @doc "Same as `tradesticks` over an input `Figure`."
-function tradesticks!(fig::Figure, s::Strategy, aa; from=1, to=nothing, force=false)
-    ai = s.universe[aa, :instance, 1]
-    df, to = trades_ohlcv(s.timeframe, ai, from, to)
+function tradesticks!(
+    fig::Figure, ai::AssetInstance, tf=timeframe(ai.ohlcv); from=1, to=nothing, force=false
+)
+    df, to = trades_ohlcv(tf, ai, from, to)
     check_df(df, force)
     fig, trades_ax, price_ax = trades_fig(df, fig)
     linkaxes!(trades_ax, price_ax)
@@ -309,8 +318,7 @@ end
 $(TYPEDSIGNATURES)
 Plots all trades for a single asset instance, aggregating data to the provided timeframe [`1d`].
 """
-function balloons(s::Strategy, aa; tf=tf"1d", force=false)
-    ai = s.universe[aa, :instance, 1]
+function balloons(s::Strategy, ai::AssetInstance; tf=tf"1d", force=false)
     df = resample(ai.ohlcv, s.timeframe, tf)
     check_df(df, force)
     fig, trades_ax, price_ax = trades_fig(df)
@@ -325,6 +333,11 @@ function balloons(s::Strategy, aa; tf=tf"1d", force=false)
     balance_ax = _draw_balance!(s, fig, balance_df, ai_value_func, color_func, [ai])
     linkxaxes!(balance_ax, price_ax)
     fig
+end
+
+function balloons(s::Strategy, aa; kwargs...)
+    ai = s.universe[aa, :instance, 1]
+    balloons(s, ai; kwargs...)
 end
 
 @doc "Load benchmark according to input being a dataframe or a symbol (`:all`, ...)"
@@ -375,10 +388,11 @@ function _draw_trades!(
     colors = RGBAf[]
     z_index = Union{Int,Float64}[]
     chart_timestamps = apply.(tf, dates)
+    max_x = length(first(ax_closes).second.norm)
     _normtrades!(trades_df)
     for row in eachrow(trades_df)
         ai = row.instance
-        x = dateindex(chart_timestamps, row.timestamp)
+        x = min(max_x, dateindex(chart_timestamps, row.timestamp))
         push!(anchors, anchor(ai, x, row.norm_qv))
         clr = colors_dict[ai]
         push!(colors, (RGBAf(clr.r, clr.g, clr.b, max(0.1, row.norm_tc))))
@@ -502,6 +516,15 @@ function _draw_balance!(s, fig, balance_df, ai_value_func, ai_color_func, ais=s.
     balance_ax
 end
 
+# Remove trades which trades is outside known OHLCV data
+function remove_outofbounds!(trades, max_date)
+    while last(trades.timestamp) > max_date
+        pop!(trades)
+        @debug "Removing trades that exceed max date ($max_date)" maxlog = 1
+    end
+    trades
+end
+
 @doc """
 $(TYPEDSIGNATURES)
 Plots all trades for all strategy assets, aggregating data to the provided timeframe [`1d`].
@@ -512,7 +535,13 @@ Plots all trades for all strategy assets, aggregating data to the provided timef
 """
 function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
     start_date, stop_date = st.tradesedge(DateTime, s)
-    trades_df = resample_trades(s, tf)
+    trades_df = let
+        byinstance(trades, ai) = begin
+            max_date = apply(tf, last(ai.ohlcv.timestamp))
+            remove_outofbounds!(trades, max_date)
+        end
+        resample_trades(s, tf; byinstance)
+    end
     if benchmark == :all
         fig = Figure()
         ax_closes, price_ax, dates, colors = _pricelines!(s, fig; tf)
