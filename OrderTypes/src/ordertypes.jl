@@ -19,7 +19,6 @@ abstract type MarketOrderType{S} <: OrderType{S} end
 # struct LadderOrder <: OrderType end
 # struct RebalanceOrder <: OrderType end
 
-# TYPENUM
 @doc """An Order is a container for trades, tied to an asset and an exchange.
 Its execution depends on the order implementation.
 
@@ -41,7 +40,7 @@ Its execution depends on the order implementation.
     @assert isequal(avail_ohlcv.timestamp[end] + tf.period, dt"2020-05-24T02:30:00")
     ```
  """
-struct Order15{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
+struct Order{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
     asset::A
     exc::E
     date::DateTime
@@ -50,8 +49,7 @@ struct Order15{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:Exchange
     attrs::NamedTuple
 end
 
-Order = Order15
-function Order15(
+function Order(
     a::A, e::E, ::Type{Order{T}}; price, date, amount, attrs=(;), kwargs...
 ) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID}
     Order{T,A,E}(a, e, date, price, amount, attrs)
@@ -103,16 +101,16 @@ Exit trades: It should match the candle when the buy or sell happened.
 - amount: The quantity of the base currency being exchanged
 - size: The total quantity of quote currency exchanged (With fees and other additional costs.)
 """
-struct Trade10{O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
+struct Trade{O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
     order::Order{O,A,E}
     date::DateTime
     amount::Float64
     size::Float64
-    function Trade10(o::Order{O,A,E}, date, amount, size) where {O,A,E}
+    function Trade(o::Order{O,A,E}, date, amount, size) where {O,A,E}
         new{O,A,E}(o, date, amount, size)
     end
 end
-Trade = Trade10
+
 const BuyTrade{O,A,E} =
     Trade{O,A,E} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID}
 const SellTrade{O,A,E} =
@@ -125,14 +123,13 @@ const SellTrade{O,A,E} =
 - `feestot`: sum of all fees incurred order trades.
 - `amounttot`: sum of all the trades amount (~ Order amount).
 "
-struct CompositeTrade3{O<:Order}
+struct CompositeTrade{O<:Order}
     request::O
     trades::Vector{Trade{O}}
     priceavg::Float64
     feestot::Float64
     amounttot::Float64
 end
-CompositeTrade = CompositeTrade3
 
 const ordersdefault! = Returns(nothing)
 
