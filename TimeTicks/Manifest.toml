@@ -20,7 +20,7 @@ deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "SnoopPrecompile"]
+deps = ["Distributed", "Logging", "Preferences", "SnoopPrecompile"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"

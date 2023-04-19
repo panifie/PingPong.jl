@@ -1,30 +1,40 @@
-authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.2.0"
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+Ccxt = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
+Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
 Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
+Executors = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
+Instances = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+LiveMode = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
+OrderTypes = "fba5cb4a-2089-4510-9d41-52be7ff19328"
+PaperMode = "b2ae67eb-72da-414f-85db-6054cbf44090"
+Pbar = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Scrapers = "38b379f7-ca41-4278-b0dc-774ced1e32bb"
+SimMode = "70084082-5615-4098-a9f0-eda0197c0e82"
+Simulations = "a69aad36-f532-4133-ba48-77171b778e6d"
+Strategies = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
+Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
-
-[extras]
-SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 
 [weakdeps]
 Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
@@ -32,3 +42,6 @@ Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 Plotting = "8ada5bfb-e60b-44be-8979-616e14670061"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
+
+[extras]
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"

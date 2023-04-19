@@ -24,32 +24,10 @@ function user!()
     nothing
 end
 
-# macro module!(sym, bind)
-#     quote
-#         if !isdefined(Main, $(QuoteNode(bind)))
-#             projpath = dirname(dirname(pathof(PingPong)))
-#             @info "Adding $($(string(sym))) project into `LOAD_PATH`"
-#             modpath = joinpath(projpath, string($(QuoteNode(sym))))
-#             modpath ∉ LOAD_PATH && push!(LOAD_PATH, modpath)
-#             try
-#                 @eval Main using $sym: $sym as $bind
-#             catch
-#                 prev = Pkg.project().path
-#                 Pkg.activate(modpath)
-#                 Pkg.instantiate()
-#                 Pkg.activate(prev)
-#                 @eval Main using $sym: $sym as $bind
-#             end
-#         end
-#     end
-# end
-
 function module!(sym, bind)
     if !isdefined(Main, bind)
         projpath = dirname(dirname(pathof(PingPong)))
-        @info "Adding $(string(sym)) project into `LOAD_PATH`"
         modpath = joinpath(projpath, string(sym))
-        modpath ∉ LOAD_PATH && push!(LOAD_PATH, modpath)
         try
             @eval Main using $sym: $sym as $bind
         catch e
@@ -68,5 +46,6 @@ plots!() = module!(:Plotting, :plo)
 stats!() = module!(:Stats, :ss)
 engine!() = module!(:Engine, :egn)
 analysis!() = module!(:Analysis, :an)
+stubs!() = module!(:Stubs, :stubs)
 
 export plots!, stats!, engine!, analysis!

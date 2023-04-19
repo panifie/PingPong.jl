@@ -39,6 +39,10 @@ function trades_balance(
     isempty(ai.history) && return nothing
     trades = resample_trades(ai, tf; style=:minimal)
     df = outerjoin(df, trades; on=:timestamp, order=:left)
+    while ismissing(df.close[end])
+        @debug "Removing trades at the end since there is no matching candle." maxlog=1
+        pop!(df)
+    end
     transform!(
         df,
         :quote_balance => zeromissing!,

@@ -7,6 +7,16 @@ using FunctionalCollections: PersistentHashMap
 
 _config_dir() = begin
     ppath = Pkg.project().path
+    ppath = if isempty(ppath)
+        get(ENV, "JULIA_PROJECT", "")
+    else
+        dirname(ppath)
+    end
+    if isempty(ppath)
+        ppath = "."
+    else
+        ppath = ppath * "/../"
+    end
     joinpath(dirname(ppath), "user")
 end
 
@@ -90,7 +100,6 @@ function Config(profile::Union{Symbol,String}; path::String=config_path())
     cfg = Config()
     config!(profile; cfg, path)
 end
-
 
 _path!(cfg, path) = begin
     if !isfile(path)

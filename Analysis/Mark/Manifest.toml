@@ -150,7 +150,7 @@ uuid = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
 version = "1.6.0"
 
 [[deps.Ccxt]]
-deps = ["Misc", "Python"]
+deps = ["Misc", "Python", "SnoopPrecompile"]
 path = "../../Ccxt"
 uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 version = "0.1.0"
@@ -253,7 +253,7 @@ uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.7.8"
 
 [[deps.Data]]
-deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "LRUCache", "Lang", "Misc", "Reexport", "Requires", "Serialization", "Temporal", "TimeTicks", "Zarr"]
+deps = ["CodecZlib", "DataFrames", "DataFramesMeta", "DataStructures", "LMDB", "LRUCache", "Lang", "Misc", "Reexport", "Serialization", "Temporal", "TimeTicks", "Zarr"]
 path = "../../Data"
 uuid = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 version = "0.1.1"
@@ -645,7 +645,7 @@ uuid = "2ee39098-c373-598a-b85f-a56591580800"
 version = "1.13.0"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "SnoopPrecompile"]
+deps = ["Distributed", "Logging", "Preferences", "SnoopPrecompile"]
 path = "../../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
@@ -786,7 +786,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["DataFrames", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "TOML", "TimeTicks"]
+deps = ["Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
 path = "../../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -981,7 +981,7 @@ uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport"]
+deps = ["CondaPkg", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile"]
 path = "../../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

@@ -2,7 +2,7 @@ using Lang: SnoopPrecompile, @preset, @precomp
 
 @preset let
     using Data: Data as da
-    path = joinpath(@__DIR__, "../../test/stubs/ohlcv.jls")
+    path = joinpath(@__DIR__, "../../PingPong/test/stubs/ohlcv.jls")
     df = read(path) |> da.todata
     @precomp begin
         resample(df, tf"1d")
