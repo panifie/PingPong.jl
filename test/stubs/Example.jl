@@ -2,8 +2,7 @@ module Example
 # const pp = @eval Main PingPong
 
 using Engine.Misc
-using Lang
-using TimeTicks
+using Engine.TimeTicks
 using Engine.Instances.Instruments
 using Engine.Exchanges.ExchangeTypes
 using Data
@@ -15,6 +14,8 @@ using Engine: Strategies as st
 using Engine.Instances: Instances as inst
 using Engine.Executors
 using Engine.OrderTypes
+
+using Lang
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
@@ -116,5 +117,6 @@ function closepair(ai, ats, tf=tf"1m")
     prev_close[] = closeat(data, prev_date)
     nothing
 end
+
 
 end
