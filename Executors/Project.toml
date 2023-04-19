@@ -4,7 +4,6 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
-Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
 Instances = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"

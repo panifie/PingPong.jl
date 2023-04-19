@@ -19,4 +19,11 @@ Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 Strategies = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
+Stubs = "19a5ee1f-efca-4178-b297-263c7ceb508d"
 TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+
+[weakdeps]
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+
+[extensions]
+MakieBackend = "WGLMakie"

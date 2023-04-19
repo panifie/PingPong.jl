@@ -1,5 +1,4 @@
 module Checks
-using Accessors: setproperties
 using Lang: Option, @ifdebug
 using Misc: isstrictlysorted
 using Instances
