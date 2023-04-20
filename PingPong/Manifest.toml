@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "247a3f48125c8d8697729a12674467f361d3075d"
+project_hash = "079e25fe14f98bb8e08fee5f9aedec763bdb29de"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -252,7 +252,7 @@ uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
 
 [[deps.Executors]]
-deps = ["Accessors", "Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
+deps = ["Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
 path = "../Executors"
 uuid = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
 version = "0.1.0"
@@ -335,7 +335,7 @@ uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 version = "1.4.0"
 
 [[deps.Instances]]
-deps = ["Data", "ExchangeTypes", "Instruments", "Misc", "OrderTypes", "Processing", "TimeTicks"]
+deps = ["Data", "ExchangeTypes", "Instruments", "Lang", "Misc", "OrderTypes", "Processing", "TimeTicks"]
 path = "../Instances"
 uuid = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 version = "0.1.0"
@@ -813,6 +813,12 @@ deps = ["Dates", "UUIDs"]
 git-tree-sha1 = "ca4bccb03acf9faaf4137a9abc1881ed1841aa70"
 uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 version = "1.10.0"
+
+[[deps.Stubs]]
+deps = ["CSV", "Data", "Engine", "Lang", "Pkg"]
+path = "../Stubs"
+uuid = "19a5ee1f-efca-4178-b297-263c7ceb508d"
+version = "0.1.0"
 
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
