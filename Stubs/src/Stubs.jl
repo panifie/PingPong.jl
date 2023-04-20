@@ -86,8 +86,14 @@ end
 
 @preset let
     @precomp let
-        s = stub_strategy()
-        gensave_trades(; s, dosave=false)
+        try
+            s = stub_strategy()
+            gensave_trades(; s, dosave=false)
+        catch
+            s = stub_strategy(; dostub=false)
+            gensave_trades(; s, dosave=true)
+            stub_strategy(; dostub=true)
+        end
     end
 end
 
