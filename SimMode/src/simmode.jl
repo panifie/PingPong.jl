@@ -20,6 +20,7 @@ import Executors: pong!
 include("trades.jl")
 include("orders/limit.jl")
 include("orders/pong.jl")
+include("orders/default.jl")
 include("backtest.jl")
 
 export backtest!

@@ -1,6 +1,7 @@
 import Executors: pong!
 using Executors
 using OrderTypes: LimitOrderType, MarketOrderType
+using Lang: @lget!
 
 @doc "Creates a simulated limit order."
 function pong!(
@@ -36,9 +37,12 @@ function pong!(
     limitorder_ifprice!(s, o, date, ai)
 end
 
+_lastupdate!(s, date) = s.attrs[:sim_last_orders_update] = date
+_lastupdate(s) = s.attrs[:sim_last_orders_update]
 
 @doc "Iterates over all pending orders checking for new fills. Should be called only once, precisely at the beginning of a `ping!` function."
 function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
+    _lastupdate(s) >= date && error("Tried to update orders multiple times on the same date.")
     for (ai, ords) in s.sellorders
         for o in ords
             pong!(s, o, date, ai)
@@ -49,4 +53,5 @@ function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
             pong!(s, o, date, ai)
         end
     end
+    _lastupdate!(s, date)
 end
