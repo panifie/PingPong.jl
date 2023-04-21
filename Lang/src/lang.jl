@@ -165,7 +165,7 @@ macro m_str(s)
 end
 
 _asbool(v::Bool) = v
-_asbool(v::String) = tryparse(Bool, v)
+_asbool(v::String) = @something tryparse(Bool, v) v == "all"
 function _isdebug()
     @something _asbool(@something get(ENV, "JULIA_DEBUG", nothing) false) false
 end
