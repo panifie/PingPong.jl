@@ -171,11 +171,22 @@ function _isdebug()
 end
 
 macro ifdebug(a, b=nothing)
-    _isdebug() ? esc(a) : b
+    esc(_isdebug() ? a : b)
 end
 
-macro deassert(args...)
-    :(@ifdebug @assert $(args...))
+macro deassert(condition, msg=nothing)
+    if _isdebug()
+        if isnothing(msg)
+            quote
+                # @assert $(esc(condition))
+                @assert $(esc(condition)) $(string(condition))
+            end
+        else
+            quote
+                @assert $(esc(condition)) $(esc(msg))
+            end
+        end
+    end
 end
 
 @doc "`errormonitor` wrapped `@async` call."
