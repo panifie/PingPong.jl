@@ -31,9 +31,9 @@ jobs:
         path: |
           ~/.julia
           ~/.conda
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('PingPong/Project.toml') }}
         restore-keys: |
-          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('PingPong/Project.toml') }}
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
           ${{ runner.os }}-
     - name: Setup tmate session
