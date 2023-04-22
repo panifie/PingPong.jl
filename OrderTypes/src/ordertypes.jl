@@ -9,6 +9,7 @@ using Lang: Lang
 abstract type OrderSide end
 abstract type Buy <: OrderSide end
 abstract type Sell <: OrderSide end
+abstract type Both <: OrderSide end
 
 abstract type OrderType{S<:OrderSide} end
 abstract type LimitOrderType{S} <: OrderType{S} end
