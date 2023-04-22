@@ -2,8 +2,9 @@ using Base: negate
 using Executors.Checks: cost, withfees
 using Executors.Instances
 using Executors.Instruments
-using Strategies: lowat, highat
+using Strategies: lowat, highat, closeat, openat, volumeat
 
+include("orders/slippage.jl")
 
 tradesize(::BuyOrder, ai, cost) = muladd(cost, maxfees(ai), cost)
 tradesize(::SellOrder, ai, cost) = muladd(negate(cost), maxfees(ai), cost)
@@ -24,7 +25,7 @@ end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
 function trade!(s::Strategy, o, ai; date, price, actual_amount)
-    actual_price = clamp(price, lowat(ai, date), highat(ai, date))
+    actual_price = with_slippage(s, o, ai; date, price, actual_amount)
     trade = maketrade(s, o, ai; date, actual_price, actual_amount)
     isnothing(trade) && return nothing
     # update strategy and asset cash/cash_committed

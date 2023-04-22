@@ -13,8 +13,6 @@ function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date)
 end
 priceat(s::Strategy{Sim}, o::Order, args...) = priceat(s, typeof(o), args...)
 
-_pricebyside(::BuyOrder, date, ai) = st.lowat(ai, date)
-_pricebyside(::SellOrder, date, ai) = st.highat(ai, date)
 _istriggered(o::LimitOrder{Buy}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
     pbs, (pbs <= o.price)

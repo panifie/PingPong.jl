@@ -17,4 +17,6 @@ const execute! = pong!
 struct UpdateOrders <: ExecAction end
 
 export pong!, execute!, UpdateOrders
-export limitorder, filled, committed, isfilled, islastfill, isfirstfill, fullfill!
+export limitorder,
+    marketorder, filled, committed, isfilled, islastfill, isfirstfill, fullfill!, commit!
+export queue!, cancel!

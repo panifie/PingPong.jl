@@ -68,7 +68,8 @@ function buy!(s::S, ai, ats, ts)
     if amount > 0.0
         # t = pong!(s, GTCOrder{Buy}, ai; amount, date=ts, price=1.02price)
         # t = pong!(s, FOKOrder{Buy}, ai; amount, date=ts)
-        t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
+        # t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
+        t = pong!(s, MarketOrder{Buy}, ai; amount, date=ts)
     end
 end
 
@@ -79,7 +80,8 @@ function sell!(s::S, ai, ats, ts)
     if amount > 0.0
         # t = pong!(s, GTCOrder{Sell}, ai; amount, date=ts, price=0.99price)
         # t = pong!(s, FOKOrder{Sell}, ai; amount, date=ts)
-        t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
+        # t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
+        t = pong!(s, MarketOrder{Sell}, ai; amount, date=ts)
     end
 end
 

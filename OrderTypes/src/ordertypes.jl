@@ -163,7 +163,7 @@ end
 end
 
 export Order, OrderType, OrderSide, Buy, Sell
-export BuyOrder, SellOrder, BuyTrade, SellTrade
-export LimitOrder, MarketOrder, GTCOrder, IOCOrder, FOKOrder, Trade
+export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
+export LimitOrder, GTCOrder, IOCOrder, FOKOrder, MarketOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
 export ordersdefault!, orderside

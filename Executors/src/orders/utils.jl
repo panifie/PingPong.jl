@@ -1,4 +1,5 @@
-using .Checks: sanitize_price, sanitize_amount, iscost, ismonotonic, SanitizeOff, cost, withfees
+using .Checks:
+    sanitize_price, sanitize_amount, iscost, ismonotonic, SanitizeOff, cost, withfees
 
 function _doclamp(clamper, ai, whats...)
     ai = esc(ai)
@@ -20,4 +21,18 @@ end
 @doc "Ensures amount is within correct boundaries."
 macro amount!(ai, amounts...)
     _doclamp(:sanitize_amount, ai, amounts...)
+end
+
+function committment(::Type{<:BuyOrder}, price, amount, fees)
+    [withfees(cost(price, amount), fees)]
+end
+function committment(::Type{<:SellOrder}, _, amount, _)
+    [amount]
+end
+
+function iscommittable(s::Strategy, ::Type{<:BuyOrder}, commit, _)
+    st.freecash(s) >= commit[1]
+end
+function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
+    Instances.freecash(ai) >= commit[1]
 end

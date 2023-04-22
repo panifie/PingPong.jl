@@ -4,7 +4,7 @@ using Lang: @preset, @precomp
     a = Instruments.parse(Asset, "BTC/USDT")
     e = ExchangeID(:bybit)
     date = dt"2020-01-"
-    for T in (MarketOrderType, IOCOrderType, FOKOrderType, GTCOrderType), S in (Buy, Sell)
+    for T in (MarketOrderType, GTCOrderType, IOCOrderType, FOKOrderType), S in (Buy, Sell)
         @precomp begin
             o = Order(a, e, Order{T{S}}; price=10.0, date, amount=100.0, attrs=(;))
             hash(o)

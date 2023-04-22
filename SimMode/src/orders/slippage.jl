@@ -1,3 +1,5 @@
+using Lang: @ifdebug
+
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n
 spreadopt(v, args...) = error("`base_slippage` option value not supported ($v)")
@@ -6,44 +8,98 @@ function _base_slippage(s::Strategy, date::DateTime, ai)
     spreadopt(s.attrs[:sim_base_slippage], date, ai)
 end
 
-_addslippage(o::LimitOrder{Buy}, slp) = o.price + slp
-_addslippage(o::LimitOrder{Sell}, slp) = o.price - slp
+_volumeskew(actual_amount, volume) =
+    if volume == 0.0
+        1.0
+    else
+        min(1.0, actual_amount / volume)
+    end
+_priceskew(ai, date) = 1.0 - lowat(ai, date) / highat(ai, date)
 
-function _pricebyslippage(s::Strategy{Sim}, o::Order, ai, trigger_price, amount, volume)
-    negative_skew = sim.slippage_rate(amount, volume)
-    positive_skew = sim.slippage_rate(trigger_price, o.price)
+_addslippage(::LimitOrder{Buy}, price, slp) = price - slp
+_addslippage(::LimitOrder{Sell}, price, slp) = price + slp
+_isfavorable(::LimitOrder{Buy}, ai, date) = closeat(ai, date) < openat(ai, date)
+_isfavorable(::LimitOrder{Sell}, ai, date) = closeat(ai, date) > openat(ai, date)
+
+@doc "Limit orders can only incur into favorable slippage."
+function _with_slippage(
+    s::Strategy{Sim}, o::LimitOrder, ai, ::Val; clamp_price, actual_amount, date
+)
+    # slippage on limit orders can only happen on date of creation
+    date == o.date || return clamp_price
+    # buy/sell orders can have favorable slippage respectively only on red/green candles
+    _isfavorable(o, ai, date) || return clamp_price
+    # slippage is skewed by price volatility
+    price_skew = _priceskew(ai, date)
+    # less volume decreases the likelyhood of favorable slippage
+    volume = volumeat(ai, date)
+    volume_skew = _volumeskew(actual_amount, volume)
+    skew_rate = price_skew - volume_skew
+    # If skew is negative there is no slippage since limit orders
+    # can't have unfavorable slippage
+    if skew_rate <= 0.0
+        clamp_price
+    else
+        bs = _base_slippage(s, date, ai)
+        slp = bs * (1.0 + skew_rate)
+        @deassert slp >= 0.0
+        slp_price = _addslippage(o, clamp_price, slp)
+        @deassert volume > 0
+        volume > 0.0 ? clamp(slp_price, lowat(ai, date), highat(ai, date)) : slp_price
+    end
+end
+
+function _with_slippage(s::Strategy{Sim}, o::MarketOrder, ai, ::Val{:avg}; date, kwargs...)
+    m = openat(ai, date)
+    diff1 = abs(closeat(ai, date - s.timeframe) - openat(ai, date))
+    diff2 = abs(closeat(ai, date) - openat(ai, date + s.timeframe))
+    slp = (diff1 + diff2) / 2.0
+    _addslippage(o, m, slp)
+end
+
+_addslippage(::MarketOrder{Buy}, price, slp) = price + slp
+_addslippage(::MarketOrder{Sell}, price, slp) = price - slp
+@doc "Slippage for market orders is always zero or negative."
+function _with_slippage(
+    s::Strategy{Sim}, o::MarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
+)
+    @deassert o.price == priceat(s, o, ai, date)
+    volume = volumeat(ai, date)
+    volume_skew = _volumeskew(actual_amount, volume)
+    price_skew = _priceskew(ai, date)
     # neg skew makes the price _increase_ while pos skew makes it decrease
-    skew_rate = 1.0 + negative_skew - positive_skew
+    skew_rate = volume_skew + price_skew
     bs = _base_slippage(s, o.date, ai)
-    slp = bs * skew_rate
+    slp = if skew_rate <= 0.0
+        bs
+    else
+        bs_skew = clamp_price * skew_rate
+        muladd(bs, bs_skew > 10.0 ? log10(bs_skew) : bs_skew / 10.0, bs)
+    end
+    @assert !isnan(slp)
     @deassert slp >= 0.0
-    _addslippage(o, slp)
+    slp_price = _addslippage(o, clamp_price, slp)
+    # We only go outside candle high/low boundaries if the candle
+    # has very little volume, otherwise assume that liquidity is deep enough
+    if o isa BuyOrder
+        @assert slp_price >= clamp_price (slp_price, clamp_price)
+    else
+        @assert slp_price <= clamp_price (slp_price, clamp_price)
+    end
+    if volume_skew < 1e-3
+        clamp(slp_price, lowat(ai, date), highat(ai, date))
+    else
+        slp_price
+    end
 end
 
-@doc """
-If the buy (sell) price is higher (lower) than current price, starting from
-current price we add (remove) slippage. We ensure that price after slippage
-adjustement doesn't exceed the *limit* order price.
-=== Buy ===
-buy_order_price
-...
-slip_price
-...
-current_price
-...
-slip_price
-...
-sell_order_price
-=== Sell ===
-"""
-function _check_slipprice(slip_price, o::LimitOrder{Buy}, ai, date)
-    price = st.lowat(ai, date)
-    ((o.price >= price) && (price <= slip_price <= o.price)) ||
-        ((o.price < price) && slip_price == o.price)
-end
+_doclamp(::LimitOrder, price, ai, date) = clamp(price, lowat(ai, date), highat(ai, date))
+_doclamp(::MarketOrder, price, args...) = price
 
-function _check_slipprice(slip_price, o::LimitOrder{Sell}, ai, date)
-    price = st.highat(ai, date)
-    ((o.price <= price) && (o.price <= slip_price <= price)) ||
-        ((o.price > price) && slip_price == o.price)
+@doc "Add slippage to given `price` w.r.t. a specific order, date and amount."
+function with_slippage(s::Strategy{Sim}, o, ai; date, price, actual_amount)
+    clamp_price = _doclamp(o, price, ai, date)
+    _with_slippage(
+        s, o, ai, s.attrs[:sim_market_slippage]; clamp_price, actual_amount, date
+    )
 end
