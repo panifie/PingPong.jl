@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1.9
-      JULIA_CONDAPKG_ENV: "$HOME/.conda"
       JULIA_NOPRECOMP: "all"
     permissions: write-all
 
@@ -31,7 +30,7 @@ jobs:
       with:
         path: |
           ~/.julia
-          ~/.CondaPkg
+          ~/.conda
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
         restore-keys: |
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
@@ -40,6 +39,9 @@ jobs:
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+    - name: CONDAPKG env var
+      run: |
+        echo "JULIA_CONDAPKG_ENV=$GITHUB_WORKSPACE/.conda" >> $GITHUB_ENV
     - name: Install dependencies
       run: |
         git submodule update --init;
@@ -51,7 +53,7 @@ jobs:
       run: |
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        export JULIA_CONDAPKG_OFFLINE=yes
+        # export JULIA_CONDAPKG_OFFLINE=yes
         julia --project=PingPong docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v3
