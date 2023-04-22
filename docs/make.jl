@@ -6,14 +6,14 @@ let dse = "~/.julia/environments/$(VERSION)/"
         push!(LOAD_PATH, dse)
     end
 end
-using Documenter, DocStringExtensions
+using Documenter, DocStringExtensions, Suppressor
 
 # Modules
 using PingPong
 project_path = dirname(dirname(Pkg.project().path))
 function use(name, args...)
     path = joinpath(project_path, args...)
-    try
+    @suppress try
         if endswith(args[end], ".jl")
             include(path)
             @eval using .$name
