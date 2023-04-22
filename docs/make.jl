@@ -24,9 +24,12 @@ function use(name, args...)
         end
     catch
         prev = Pkg.project().path
-        Pkg.activate(path)
-        Pkg.instantiate()
-        @eval using $name
+        try
+            Pkg.activate(path)
+            Pkg.instantiate()
+            @eval using $name
+        catch
+        end
         Pkg.activate(prev)
     end
 end
