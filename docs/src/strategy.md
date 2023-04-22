@@ -63,7 +63,7 @@ As a rule of thumb if the method should be called before the strategy is constru
 ### API
 
 ```@docs
-Strategy
+Engine.Strategy
 ```
 
 ```@autodocs

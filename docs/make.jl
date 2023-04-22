@@ -1,5 +1,6 @@
 include("noprecomp.jl")
 using Pkg: Pkg;
+Pkg.activate("PingPong")
 let dse = "~/.julia/environments/$(VERSION)/"
     if dse ∉ LOAD_PATH
         push!(LOAD_PATH, dse)
@@ -9,7 +10,7 @@ using Documenter, DocStringExtensions
 
 # Modules
 using PingPong
-project_path = dirname(Pkg.project().path)
+project_path = dirname(dirname(Pkg.project().path))
 function use(name, args...)
     path = joinpath(project_path, args...)
     try

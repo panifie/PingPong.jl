@@ -1,4 +1,4 @@
-## How should the backtest perform?
+# Backtesting overview
 
 ## Goals
 
@@ -10,25 +10,19 @@
 
 - for each `timestamp`:
   - while true:
-    - process(`strategy`, `timestamp`, `trades`)
-    - if `orders.size` == 0:
-      break
-    - execute(`orders`)
-            
-## Notes
-- The strategy holds all the state, the engine is just a timestamp feeder.
-- Because we use the `TimeFrames` abstraction, the step can be arbitrary, the strategy will just index into ohlcv data according to the last candle compatible with the given timestamp.
-- The engine is adversarial to the strategy, it is the job of the engine to decide __how much__ loss a trade has incurred.
+    - process(`strategy`, `timestamp`, `context`)
+    
+The loop is just a timestamp feeder!, and the strategy holds all the state.
+
+- Because we use the `TimeFrames` abstraction, the step can be arbitrary, the strategy will just index into ohlcv data according to the last candle compatible with the given timestamp. This is a performance trade-off, we prefer to always index with dates, and never with integers, because it reduces the assumptions to _the row data must match its timestamp_ (its not corrupted!) compared to spurious bugs that might arise by integer indexing.
+- The simulation is adversarial to the strategy, it is the job of the simulation to decide __how much__ loss a trade has incurred.
 
 ## Strategy General Considerations
 
-- The strategy must account for a  tie breaker to choose which trades to perform on the same candle since we don't know which pair we observed first.
-- we could make the backtest randomize the order of the universe at each step, but if the strategy applies some kind of internal sorting, it would be useless.
-- We should write ancillary functions for stop-loss and take-profit that are reusable across strategies.
+- The strategy must account for a  tie breaker to choose which trades to perform on the same candle since we don't know which pair we observed first. In general this is a good use case for MC.
 
 ## What does executing an order mean?
 When the engine executes an order, it does the following for every order:
 - Decide if order should be honored or fail
 - Perform simulations, like spread, slippage, market impact.
-- Choose the close price and amount according to the signal type and open/close the order accordingly
-- return the failed orders and the open trades to the strategy and repeat until the strategy gives no new orders.
+- Signal to the strategy about failed (canceled) orders.

@@ -19,7 +19,7 @@ end
 ```
 
 !!! info "Backtesting"
-It is based on [some assumptions](./engine_notes.md)
+    It is based on [some assumptions](./engine_notes.md)
 
 ```julia
 using Engine.Strategies
@@ -95,16 +95,16 @@ Before creating an order, some checks run to sanitize the values. If for example
 The fees come from the `AssetInstance` `fees` property, which itself comes from parsing the ccxt data about that particular symbol. Every trade accounts for such fees.
 
 ## Market Orders
-Despite the fact that CCXT allows setting `timeInForce` also for market orders, because in general exchanges allow to do so, there isn't definitive information about how a market order is handled in these cases. We can guess that it only matters when the orderbook doesn't have enough liquidity, otherwise they are always _immediate_ and _fully filled_ orders. For this reason we always consider market orders as FOK orders, and they will always have `timeInForce` set to FOK when executed live (through CCXT) to match the backtester.
+
+Despite the fact that ccxt allows setting `timeInForce` also for market orders, because in general exchanges allow to do so, there isn't definitive information about how a market order is handled in these cases, remember that we deal with crypto so some context like open and close times days is lost. We can guess that it only matters when the orderbook doesn't have enough liquidity, otherwise they are always _immediate_ and _fully filled_ orders. For this reason we always consider market orders as FOK orders, and they will always have `timeInForce` set to FOK when executed live (through ccxt) to match the backtester.
 
 !!! warning "Market orders can be surprising"
-    Market orders *always* go through in the backtest. If the candle has no volume the order incurs in *heavy* slippage, and the execution price of the trades _can_ exceed the candle high/low price.
+    Market orders _always_ go through in the backtest. If the candle has no volume the order incurs in _heavy_ slippage, and the execution price of the trades _can_ exceed the candle high/low price.
 
 ## Slippage
 
 Slippage is accounted for within the trade execution.
 
-- For *limit* orders there can only be positive slippage, when an order is created and the price is in your favor, the actual price of execution becomes slightly lower (for buy orders) or higher (for sell orders).
+- For _limit_ orders there can only be positive slippage, when an order is created and the price is in your favor, the actual price of execution becomes slightly lower (for buy orders) or higher (for sell orders).
   The slippage formula takes into account volatility (high / low) and fill ratio (amount / volume). The higher the volume the order takes from the candle, the lower the positive slippage will be, whereas the higher the volatility, the higher the positive slippage will be. Positive slippage is only added for candles that go _against_ the order side, which means that it will be only added on red candles for buys, and green candles for sells.
-- For *market* orders there can only be negative slippage. There is a minimum slippage always added (which by default corresponds to the difference between open and close (there are other formulas, check the api ref.) on top of which additional skew is added based on volume and volatility.
-
+- For _market_ orders there can only be negative slippage. There is a minimum slippage always added (which by default corresponds to the difference between open and close (there are other formulas, check the api ref) on top of which additional skew is added based on volume and volatility.
