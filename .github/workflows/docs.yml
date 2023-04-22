@@ -46,13 +46,13 @@ jobs:
         sudo apt-get install -y xvfb xauth
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        xvfb-run julia --project=. docs/setup.jl
+        xvfb-run julia --project=PingPong docs/setup.jl
     - name: Build docs
       run: |
         # FIXME
         [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
         export JULIA_CONDAPKG_OFFLINE=yes
-        julia --project=. docs/make.jl
+        julia --project=PingPong docs/make.jl
     - name: Checkout gh-pages branch
       uses: actions/checkout@v3
       with:
