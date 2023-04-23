@@ -157,8 +157,8 @@ dt(::Nothing) = :nothing
 dt(d::DateTime) = d
 dt(num::Real) = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
-dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1000
-dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d)) * 1000
+dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1_000
+dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d))
 
 timefloat(time::Float64) = time
 timefloat(time::Int64) = timefloat(Float64(time))
