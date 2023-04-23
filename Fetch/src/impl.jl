@@ -226,7 +226,7 @@ function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, 
                 since_arg...,
                 df,
                 sleep_t,
-                limit=max(10, limit ÷ 2),
+                limit=max(10, something(limit, 20) ÷ 2),
                 converter,
             ),
         )

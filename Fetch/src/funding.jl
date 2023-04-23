@@ -11,14 +11,14 @@ funding_data(exc, "BTC/USDT:USDT", :fundingRate, :markPrice)
 ```
 """
 function funding_data(exc::Exchange, s::AbstractString, syms...)
-    fr = pyfetch(exc.fetchFundingRate, s)[s]
-    syms[1] == :all && return pyconvert(Dict, fr)
+    fr = pyfetch(exc.fetchFundingRate, s)
+    isempty(syms) || syms[1] == :all && return pyconvert(Dict, fr)
     Dict(s => fr[string(s)] for s in syms)
 end
 funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
 funding_data(v, args...) = funding_data(exc, v, args...)
 function funding_rate(exc::Exchange, s::AbstractString)
-    pyconvert(Float64, pyfetch(exc.fetchFundingRate, s)[s]["fundingRate"])
+    pyconvert(Float64, pyfetch(exc.fetchFundingRate, s)["fundingRate"])
 end
 funding_rate(exc, a::Derivative) = funding_rate(exc, a.raw)
 funding_rate(v) = funding_rate(exc, v)
@@ -53,7 +53,7 @@ function fetch_funding(
     limit=nothing,
 )
     from, to = from_to_dt(FUNDING_PERIOD, from, to)
-    (from, to) = _check_from_to(from, to)
+    from, to = _check_from_to(from, to)
     ff =
         (pair, since, limit) -> begin
             try
@@ -81,7 +81,7 @@ function fetch_funding(
             a => _fetch_loop(
                 ff,
                 exc,
-                a.raw;
+                a;
                 from,
                 to,
                 sleep_t,
