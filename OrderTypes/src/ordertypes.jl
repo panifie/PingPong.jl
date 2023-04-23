@@ -91,77 +91,12 @@ end
 @deforders false GTC FOK IOC Market
 @deforders true Limit
 
-# TYPENUM
-@doc """An order, successfully executed from a strategy request.
-Entry trades: The date when the order was actually opened, during backtesting, it is usually `date + tf.period`
-    where the timeframe depends on the backtesting `Context`. It should match a candle.
-Exit trades: It should match the candle when the buy or sell happened.
-
-- order: The order that spawned this trade.
-- date: The date at which the trade (usually its last order) was completed.
-- amount: The quantity of the base currency being exchanged
-- size: The total quantity of quote currency exchanged (With fees and other additional costs.)
-"""
-struct Trade{O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
-    order::Order{O,A,E}
-    date::DateTime
-    amount::Float64
-    size::Float64
-    function Trade(o::Order{O,A,E}, date, amount, size) where {O,A,E}
-        new{O,A,E}(o, date, amount, size)
-    end
-end
-
-const BuyTrade{O,A,E} =
-    Trade{O,A,E} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID}
-const SellTrade{O,A,E} =
-    Trade{O,A,E} where {O<:OrderType{Sell},A<:AbstractAsset,E<:ExchangeID}
-
-# TYPENUM
-@doc "A composite trade groups all the trades belonging to an order request.
-- `trades`: the sequence of trades that matched the order.
-- `rateavg`: the average price across all trades.
-- `feestot`: sum of all fees incurred order trades.
-- `amounttot`: sum of all the trades amount (~ Order amount).
-"
-struct CompositeTrade{O<:Order}
-    request::O
-    trades::Vector{Trade{O}}
-    priceavg::Float64
-    feestot::Float64
-    amounttot::Float64
-end
-
 const ordersdefault! = Returns(nothing)
-
 orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
 ordertype(::Order{T}) where {T<:OrderType} = T
 
-abstract type OrderError end
-@doc "There wasn't enough cash to setup the order."
-@kwdef struct NotEnoughCash{T<:Real} <: OrderError
-    required::T
-end
-@doc "Couldn't fullfill the order within the requested period."
-@kwdef struct OrderTimeOut <: OrderError
-    order::O where {O<:Order}
-end
-@doc "Price and amount at execution time was outside the available ranges. (FOK)"
-@kwdef struct NotMatched{T<:Real} <: OrderError
-    price::T
-    this_price::T
-    amount::T
-    this_volume::T
-end
-@doc "There wasn't enough volume to fill the order completely. (IOC)"
-@kwdef struct NotFilled{T<:Real} <: OrderError
-    amount::T
-    this_volume::T
-end
-@doc "A generic error order prevented the order from being setup."
-@kwdef struct OrderFailed <: OrderError
-    msg::String
-end
+include("trades.jl")
+include("errors.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
