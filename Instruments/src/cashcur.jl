@@ -1,9 +1,12 @@
+using Misc: MVector
 
-struct Cash10{S,T} <: Number
-    value::Vector{T}
-    Cash10{C,N}(val) where {C,N} = new{C,N}([val])
-    Cash10(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}([val])
-    Cash10(_::Cash10{C,N}, val::R) where {C,N,R} = new{C,N}([convert(N, val)])
+struct Cash13{S,T} <: Number
+    value::MVector{1,T}
+    Cash13{C,N}(val) where {C,N} = new{C,N}(MVector{1}(val))
+    Cash13(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(MVector{1}(val))
+    function Cash13(_::Cash13{C,N}, val::R) where {C,N,R}
+        new{C,N}(MVector{1}(convert(eltype(N), val)))
+    end
 end
 
 @doc """A variable quantity of some currency.
@@ -15,7 +18,7 @@ end
 ```
 
 """
-Cash = Cash10
+Cash = Cash13
 Base.nameof(_::Cash{S}) where {S} = S
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
 Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[] = v
