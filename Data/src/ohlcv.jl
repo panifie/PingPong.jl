@@ -4,8 +4,10 @@ const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 @doc "Similar to a StructArray (and should probably be replaced by it), used for fast conversion."
-const OHLCVTuple = Tuple{Vector{DateTime},Vararg{Vector{Float64},5}}
-ohlcvtuple() = (DateTime[], (Float64[] for _ in 2:length(OHLCV_COLUMNS))...)
+const OHLCVTuple = Tuple{Vector{DateTime},(Vector{Float64} for _ in 1:5)...}
+function ohlcvtuple()
+    (DateTime[], (Float64[] for _ in 2:(length(OHLCV_COLUMNS)))...)
+end
 Base.append!(a::T, b::T) where {T<:OHLCVTuple} = foreach(splat(append!), zip(a, b))
 Base.axes(o::OHLCVTuple) = ((Base.OneTo(size(v, 1)) for v in o)...,)
 Base.axes(o::OHLCVTuple, i) = Base.OneTo(size(o[i], 1))
