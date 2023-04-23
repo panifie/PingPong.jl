@@ -142,6 +142,8 @@ default(t::Type) = begin
         (_...) -> nothing
     elseif applicable(t)
         t()
+    elseif t isa Union && t.a == Nothing
+        default(t.b)
     else
         throw(ArgumentError("No default value for type: $t"))
     end
