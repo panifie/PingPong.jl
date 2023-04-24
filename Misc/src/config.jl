@@ -177,8 +177,8 @@ end
 @doc "Toggle config margin flag."
 macro margin!()
     quote
-        let mode = config.margin
-            config.margin = if mode == NoMargin()
+        config.margin = let mode = config.margin
+            if mode == NoMargin()
                 Isolated()
             elseif mode == Isolated()
                 Cross()
@@ -191,7 +191,17 @@ end
 
 @doc "Toggle config leverage flag"
 macro lev!()
-    :(config.leverage = !config.leverage)
+    quote
+        config.leverage = let leverage = config.leverage
+            if 0 <= leverage < 10.0
+                10.0
+            elseif 10 <= leverage < 100.0
+                100.0
+            else
+                0.0
+            end
+        end
+    end
 end
 
 export Config, config, config!, exchange_keys

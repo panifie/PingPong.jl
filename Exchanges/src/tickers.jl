@@ -54,7 +54,7 @@ function tickers(
     quot;
     min_vol,
     skip_fiat=true,
-    with_margin=config.margin,
+    with_margin=config.margin != NoMargin(),
     with_leverage=:no,
     as_vec=false,
 ) # ::Union{Dict,Vector}
@@ -77,7 +77,7 @@ function tickers(
             !leverage_check(spot) ||
             (spot ∈ keys(tickers) && quotevol(tickers[spot]) <= min_vol) ||
             (skip_fiat && isfiatpair(spot)) ||
-            (with_margin != NoMargin() && Bool(@get(mkt, "margin", false)))
+            (with_margin && Bool(@get(mkt, "margin", false)))
     end
 
     for (sym, mkt) in exc.markets
