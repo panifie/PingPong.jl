@@ -13,14 +13,14 @@ function maketrade(s::Strategy, o::BuyOrder, ai; date, actual_price, actual_amou
     size = tradesize(o, ai, cost(actual_price, actual_amount))
     # check that we have enough global cash
     size > s.cash && return nothing
-    Trade(o, date, actual_amount, size)
+    Trade(o, date, actual_amount, actual_price, size)
 end
 
 function maketrade(::Strategy, o::SellOrder, ai; date, actual_price, actual_amount)
     # check that we have enough asset cash
     actual_amount > ai.cash && return nothing
     size = tradesize(o, ai, cost(actual_price, actual_amount))
-    Trade(o, date, actual_amount, size)
+    Trade(o, date, actual_amount, actual_price, size)
 end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
