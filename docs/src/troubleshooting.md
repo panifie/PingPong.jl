@@ -12,7 +12,7 @@ recurse_projects() # optional ;update=true
 - If you are not doing it already, try to load the repl passing the project as arg, e.g.:
 
 ```julia
-julia --project=.
+julia --project=./PingPong
 ```
 Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
 

@@ -5,7 +5,7 @@ Launch julia and activate the package:
 ```shell
 git clone https://github.com/panifie/PingPong.jl
 cd PingPong.jl
-julia --project=.
+julia --project=./PingPong
 ```
 
 Instantiate dependencies:
