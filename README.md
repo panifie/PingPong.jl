@@ -1,4 +1,4 @@
-[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status](https://github.com/untoreh/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/)
+[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
 
@@ -23,7 +23,7 @@ PingPong.jl is not in the julia registry, to install do the following:
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/untoreh/PingPong.jl PingPong
+git clone --recurse-submodules https://github.com/panifie/PingPong.jl PingPong
 ```
 - Activate the project:
 ```bash

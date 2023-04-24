@@ -1,6 +1,6 @@
 [submodule "vendor/Temporal"]
 	path = vendor/Temporal
-	url = https://github.com/untoreh/Temporal.jl
+	url = https://github.com/panifie/Temporal.jl
 [submodule "Data/vendor/zarr"]
 	path = Data/vendor/zarr
-	url = https://github.com/untoreh/Zarr.jl
+	url = https://github.com/panifie/Zarr.jl

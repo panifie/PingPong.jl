@@ -3,7 +3,7 @@
 Launch julia and activate the package:
 
 ```shell
-git clone https://github.com/untoreh/PingPong.jl
+git clone https://github.com/panifie/PingPong.jl
 cd PingPong.jl
 julia --project=.
 ```
