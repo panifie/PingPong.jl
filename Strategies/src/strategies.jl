@@ -1,6 +1,6 @@
 using Collections: AssetCollection, Collections as coll
 
-using Instances: AssetInstance
+using Instances: AssetInstance, Position, MarginMode, PositionSide
 using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError
 using ExchangeTypes
@@ -18,6 +18,11 @@ using Pkg: Pkg
 abstract type AbstractStrategy end
 
 ExchangeAsset(E) = AssetInstance{T,E} where {T<:AbstractAsset}
+function ExchangePosition(E)
+    Position{
+        T,S,M
+    } where {T<:AssetInstance{<:AbstractAsset,E},S<:PositionSide,M<:MarginMode}
+end
 ExchangeOrder(E) = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 ExchangeSellOrder(E) = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
@@ -44,11 +49,12 @@ struct Strategy{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
+    marginmode::MarginMode
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
     buyorders::Dict{ExchangeAsset(E),Set{ExchangeBuyOrder(E)}}
     sellorders::Dict{ExchangeAsset(E),Set{ExchangeSellOrder(E)}}
-    holdings::Set{ExchangeAsset(E)}
+    holdings::T where {T<:Union{Set{<:ExchangePosition(E)},Set{<:ExchangeAsset(E)}}}
     universe::AssetCollection
     function Strategy(
         self::Module,
@@ -64,12 +70,25 @@ struct Strategy{M<:ExecMode,S,E<:ExchangeID} <: AbstractStrategy
         end
         ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
-        holdings = Set{ExchangeAsset(eid)}()
+        holdings = if config.margin == NoMargin()
+            Set{ExchangeAsset(eid)}()
+        else
+            Set{ExchangePosition(eid)}()
+        end
         buyorders = Dict{ExchangeAsset(eid),Set{ExchangeBuyOrder(eid)}}()
         sellorders = Dict{ExchangeAsset(eid),Set{ExchangeSellOrder(eid)}}()
         name = nameof(self)
         new{mode,name,eid}(
-            self, config, timeframe, ca, ca_comm, buyorders, sellorders, holdings, uni
+            self,
+            config,
+            timeframe,
+            config.margin,
+            ca,
+            ca_comm,
+            buyorders,
+            sellorders,
+            holdings,
+            uni,
         )
     end
 end

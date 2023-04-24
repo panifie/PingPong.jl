@@ -56,6 +56,8 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         getfield(s, :config).min_vol
     elseif sym == :qc
         getfield(s, :config).qc
+    elseif sym == :margin
+        getfield(s, :config).margin
     elseif sym == :mode
         getfield(s, :config).mode
     else

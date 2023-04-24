@@ -16,6 +16,8 @@ const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
 const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
 const Fees = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,Real}}
 
+abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
+
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
 - `data`: ohlcv series
@@ -25,7 +27,7 @@ const Fees = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,Real}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance50{T<:AbstractAsset,E<:ExchangeID}
+struct AssetInstance{T<:AbstractAsset,E<:ExchangeID} <: AbstractInstance{T, E}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
@@ -35,7 +37,7 @@ struct AssetInstance50{T<:AbstractAsset,E<:ExchangeID}
     limits::Limits
     precision::Precision
     fees::Fees
-    function AssetInstance50(
+    function AssetInstance(
         a::A, data, e::Exchange{E}; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID}
         new{A,E}(
@@ -51,7 +53,6 @@ struct AssetInstance50{T<:AbstractAsset,E<:ExchangeID}
         )
     end
 end
-AssetInstance = AssetInstance50
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -134,6 +135,8 @@ takerfees(ai::AssetInstance) = ai.fees.taker
 makerfees(ai::AssetInstance) = ai.fees.maker
 minfees(ai::AssetInstance) = ai.fees.min
 maxfees(ai::AssetInstance) = ai.fees.max
+
+include("positions.jl")
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees

@@ -1,7 +1,14 @@
 using Lang: @get, @multiget, @lget!, Option
-using Misc: config
+using Misc: config, NoMargin
 using Instruments: isfiatquote
 using Python: @pystr
+
+@doc """A leveraged pair is a pair like `BTC3L/USD`.
+- `:yes` : Leveraged pairs will not be filtered.
+- `:only` : ONLY leveraged will be kept.
+- `:from` : Selects non leveraged pairs, that also have at least one leveraged sibling.
+"""
+const LEVERAGED_PAIR_OPTIONS = (:yes, :only, :from)
 
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
 isquote(id, qc) = lowercase(id) == qc
@@ -10,12 +17,11 @@ ismargin(mkt) = Bool(@get mkt "margin" false)
 function has_leverage(pair, pairs_with_leverage)
     !islegeragedpair(pair) && pair ∈ pairs_with_leverage
 end
-function leverage_func(exc, with_leveraged, with_futures)
+function leverage_func(exc, with_leveraged)
     # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
     # they have a leveraged counterpart
     if with_leveraged == :from
-        with_futures &&
-            @warn "Filtering by leveraged when futures markets are enabled, are you sure?"
+        @warn "Filtering by leveraged, are you sure?"
         pairs_with_leverage = Set()
         for k in keys(exc.markets)
             dlv = deleverage_pair(k)
@@ -49,8 +55,7 @@ function tickers(
     min_vol,
     skip_fiat=true,
     with_margin=config.margin,
-    with_futures=config.futures,
-    with_leverage=config.leverage,
+    with_leverage=:no,
     as_vec=false,
 ) # ::Union{Dict,Vector}
     # swap exchange in case of futures
@@ -59,13 +64,12 @@ function tickers(
     quot = string(quot)
 
     lquot = lowercase(quot)
-    exc = ifelse(with_futures, futures(exc), exc)
 
     as = ifelse(as_vec, askey, aspair)
     pushas(p, k, v, _) = push!(p, as(k, v))
     pushifquote(p, k, v, q) = isquote(quoteid(v), q) && pushas(p, k, v, nothing)
     addto = ifelse(isempty(quot), pushas, pushifquote)
-    leverage_check = leverage_func(exc, with_leverage, with_futures)
+    leverage_check = leverage_func(exc, with_leverage)
     # TODO: all this checks should be decomposed into functions transducer style
     function skip_check(spot, islev, mkt)
         (with_leverage == :no && islev) ||
@@ -73,7 +77,7 @@ function tickers(
             !leverage_check(spot) ||
             (spot ∈ keys(tickers) && quotevol(tickers[spot]) <= min_vol) ||
             (skip_fiat && isfiatpair(spot)) ||
-            (with_margin && Bool(@get(mkt, "margin", false)))
+            (with_margin != NoMargin() && Bool(@get(mkt, "margin", false)))
     end
 
     for (sym, mkt) in exc.markets

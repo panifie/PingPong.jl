@@ -56,13 +56,9 @@ end
 - `path`: File path that loaded this config.
 - `mode`: Execution mode (`Sim`, `Paper`, `Live`)
 - `exchange`: A symbol to instantiate an exchange (a raw ExchangeID symbol)
-- `qc`: The default quote currency.
-- `margin`: If margin is enabled, only margin pairs are considered.
-- `leverage`:
-    - `:yes` : Leveraged pairs will not be filtered.
-    - `:only` : ONLY leveraged will not be filtered.
-    - `:from` : Selects non leveraged pairs, that also have a leveraged siblings.
-- `futures`: Selects the futures version of an Exchange and/or markets.
+- `qc`: The quote currency for the strategy cash.
+- `margin`: configures the margin mode of the strategy (`NoMargin`, `Isolated` or `Cross`)
+- `leverage`: The default leverage that should be used when opening position with margin mode.
 - `min_vol`: A minimum acceptable volume, e.g. for filtering markets.
 - `initial_cash`: Starting cash, used when instantiating a strategy.
 - `min_size`: Default order size.
@@ -72,17 +68,16 @@ end
 - `attrs`: Generic metadata container.
 - `sources`: mapping of modules symbols name to (.jl) file paths
 """
-@kwdef mutable struct Config
+@kwdef mutable struct Config{T<:Real}
     path::String = ""
     mode::ExecMode = Sim()
     exchange::Symbol = Symbol()
+    margin::MarginMode = NoMargin()
+    leverage::T = 0.0
     qc::Symbol = :USDT
-    margin::Bool = false
-    leverage::Symbol = :no # FIXME: Should be enum
-    futures::Bool = false
-    initial_cash::Float64 = 100.0
-    min_vol::Float64 = 10e4
-    min_size::Float64 = 10.0
+    initial_cash::T = 100.0
+    min_vol::T = 10e4
+    min_size::T = 10.0
     min_timeframe::TimeFrame = tf"1m"
     timeframes::Vector{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
     window::Period = Day(7) # deprecated
@@ -94,6 +89,9 @@ end
     sources::Dict{Symbol,String} = Dict()
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
+    Config(args...; kwargs...) = begin
+        new{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
+    end
 end
 
 function Config(profile::Union{Symbol,String}; path::String=config_path())
@@ -178,7 +176,17 @@ end
 
 @doc "Toggle config margin flag."
 macro margin!()
-    :(config.margin = !config.margin)
+    quote
+        let mode = config.margin
+            config.margin = if mode == NoMargin()
+                Isolated()
+            elseif mode == Isolated()
+                Cross()
+            else
+                NoMargin()
+            end
+        end
+    end
 end
 
 @doc "Toggle config leverage flag"

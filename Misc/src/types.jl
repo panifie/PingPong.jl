@@ -9,10 +9,19 @@ struct Paper <: ExecMode end
 struct Live <: ExecMode end
 const execmode = Returns(Sim)
 
+abstract type MarginMode end
+struct Isolated <: MarginMode end
+struct Cross <: MarginMode end
+struct NoMargin <: MarginMode end
+const marginmode = Returns(NoMargin)
+
 const StrOrVec = Union{AbstractString,AbstractVector}
+const DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
 
 default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...)
-local_dir(args...) = @something get(ENV, "XDG_CACHE_DIR", nothing) default_local_dir(args...)
+function local_dir(args...)
+    @something get(ENV, "XDG_CACHE_DIR", nothing) default_local_dir(args...)
+end
 const DATA_PATH = local_dir("data")
 
 const Iterable = Union{AbstractVector{T},AbstractSet{T},Tuple{Vararg{T}}} where {T}
@@ -37,3 +46,4 @@ include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
 export ExecMode, execmode, ExecAction, Sim, Paper, Live
+export MarginMode, marginmode, Isolated, Cross, NoMargin

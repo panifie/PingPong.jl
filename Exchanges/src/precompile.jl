@@ -19,7 +19,6 @@ using Lang: wait, @preset, @precomp
         check_timeout(e)
         tickers(e, qc; min_vol=1e4)
         tickers(e, qc; min_vol=1e4, with_margin=true)
-        tickers(e, qc; min_vol=1e4, with_futures=true)
         tickers(e, qc; min_vol=1e4, with_leverage=:yes)
         tickers(e, qc; min_vol=1e4, with_leverage=:only)
         tickers(e, qc; min_vol=1e4, with_leverage=:from)
