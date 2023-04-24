@@ -24,10 +24,10 @@ macro amount!(ai, amounts...)
 end
 
 function committment(::Type{<:BuyOrder}, price, amount, fees)
-    [withfees(cost(price, amount), fees)]
+    MVector(withfees(cost(price, amount), fees))
 end
 function committment(::Type{<:SellOrder}, _, amount, _)
-    [amount]
+    MVector(amount)
 end
 
 function iscommittable(s::Strategy, ::Type{<:BuyOrder}, commit, _)

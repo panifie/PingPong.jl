@@ -2,9 +2,9 @@ using Instances
 using OrderTypes: LimitOrderType
 
 function limit_order_state(
-    take, stop, committed::Vector{T}, filled=[0.0], trades=Trade[]
-) where {T}
-    _BasicOrderState2{T}((take, stop, committed, filled, trades))
+    take, stop, committed::MVector{1, T}, filled=MVector(0.0), trades=Trade[]
+) where {T<:Real}
+    _BasicOrderState4{T}((take, stop, committed, filled, trades))
 end
 
 function limitorder(

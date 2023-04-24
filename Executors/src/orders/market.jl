@@ -1,14 +1,15 @@
 using OrderTypes: MarketOrderType
+using Misc: MVector
 
-const _MarketOrderState2{T} = NamedTuple{
+const _MarketOrderState4{T} = NamedTuple{
     (:take, :stop, :committed, :filled, :trades),
-    Tuple{Option{T},Option{T},T,Vector{T},Vector{Trade}},
+    Tuple{Option{T},Option{T},T,MVector{1, T},Vector{Trade}},
 }
 
 function market_order_state(
-    take, stop, committed::T, filled=[0.0], trades=Trade[]
+    take, stop, committed::T, filled=MVector(0.0), trades=Trade[]
 ) where {T}
-    _MarketOrderState2{T}((take, stop, committed, filled, trades))
+    _MarketOrderState4{T}((take, stop, committed, filled, trades))
 end
 
 function marketorder(
