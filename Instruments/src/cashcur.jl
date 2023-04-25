@@ -21,7 +21,7 @@ end
 Cash = Cash13
 Base.nameof(_::Cash{S}) where {S} = S
 Base.hash(c::Cash, h::UInt) = hash(c.name, h)
-Base.setproperty!(c::Cash, ::Symbol, v::Real) = getfield(c, :value)[] = v
+Base.setproperty!(::Cash, ::Symbol, v) = error("Cash is private.")
 Base.getproperty(c::Cash, s::Symbol) = begin
     if s === :value
         getfield(c, :value)[1]
@@ -122,4 +122,11 @@ div!(c::Cash, v) = (getfield(c, :value)[1] ÷= v; c)
 mod!(c::Cash, v) = (getfield(c, :value)[1] %= v; c)
 cash!(c::Cash, v) = (getfield(c, :value)[1] = v; c)
 
-export add!, sub!, subzero!, mul!, rdiv!, div!, mod!, cash!
+@doc """Cash should not be edited by a strategy, therefore functions that mutate its value should be
+explicitly imported.
+"""
+macro importcash!()
+    quote
+        import .Instruments: add!, sub!, subzero!, mul!, rdiv!, div!, mod!, cash!
+    end
+end

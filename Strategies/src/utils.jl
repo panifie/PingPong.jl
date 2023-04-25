@@ -1,5 +1,7 @@
 import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
 using Instruments
+using Instruments: @importcash!
+@importcash!
 
 function candleat(ai::AssetInstance, date, tf; kwargs...)
     candleat(ai.data[tf], date; kwargs...)

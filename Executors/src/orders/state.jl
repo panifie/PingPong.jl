@@ -2,8 +2,9 @@ using Lang: @deassert, @lget!, Option
 using OrderTypes
 using Strategies: Strategies as st
 using Misc: MVector
-import Instruments: cash!
 using Instruments
+using Instruments: @importcash!
+@importcash!
 
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState4{T} = NamedTuple{
@@ -52,7 +53,7 @@ commit!(s::Strategy, o::BuyOrder, _) = add!(s.cash_committed, committed(o))
 commit!(::Strategy, o::SellOrder, ai) = add!(ai.cash_committed, committed(o))
 iscommittable(s::Strategy, o::BuyOrder, _) = st.freecash(s) >= committed(o)
 iscommittable(::Strategy, o::SellOrder, ai) = Instances.freecash(ai) >= committed(o)
-hold!(s::Strategy, ai, ::BuyOrder) = push!(s.holdings, ai)
+hold!(s::Strategy, ai, ::BuyOrder) = s.holdings[ai] = ai.cash
 hold!(::Strategy, _, ::SellOrder) = nothing
 release!(::Strategy, _, ::BuyOrder) = nothing
 release!(s::Strategy, ai, ::SellOrder) = isapprox(ai.cash, 0.0) && pop!(s.holdings, ai)
