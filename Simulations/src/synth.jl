@@ -1,4 +1,4 @@
-using Data: ohlcvtuple, to_ohlcv
+using Data: ohlcvtuple, to_ohlcv, df!
 using Processing: resample
 using Random: rand
 using Base: DEFAULT_STABLE
@@ -101,4 +101,21 @@ function stub!(
             _setorappend(ai.data, t, resample(ohlcv, min_tf, t))
         end
     end
+end
+
+@doc """Hard coded EMA with n=6 and alpha=2/7.
+
+Can be used as an approximation of the mark price for perpetual contracts,
+where `prices` is a vector of `1m` candles.
+"""
+@views _price_ema(prices, idx) = begin
+    if length(prices[begin:idx]) < 13
+        return missing
+    end
+    sma = sum(prices[(idx - 12):(idx - 6)]) / 6.0
+    ema = sma
+    for p in prices[(idx - 6):idx]
+        ema = (p - ema) * (2.0 / 7.0) + ema
+    end
+    ema
 end
