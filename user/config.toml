@@ -7,5 +7,7 @@ leveraged = "from"
 [bybit]
 [Example]
 include_file = "strategies/Example.jl"
+[ExampleMargin]
+include_file = "strategies/ExampleMargin.jl"
 # [sources] # Alternative method to load strategy
 # Example = "cfg/strategies/Example.jl" # the name of the module

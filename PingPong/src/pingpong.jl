@@ -22,6 +22,17 @@ end
 
 macro environment!()
     quote
+        using PingPong
+        using PingPong.Exchanges
+        using PingPong.Exchanges: Exchanges as exs
+        using PingPong.Engine:
+            Engine as egn,
+            Strategies as st,
+            Simulations as sim,
+            SimMode as bt,
+            Collections as co,
+            Executors as ect
+
         using Lang: @m_str
         using TimeTicks
         using TimeTicks: TimeTicks as tt
@@ -33,16 +44,29 @@ macro environment!()
         using Instruments.Derivatives: Derivatives as der
         using Data: Data as da, DFUtils as du
         using Processing: Processing as pro
-        using PingPong.Exchanges
-        using PingPong.Exchanges: Exchanges as exs
-        using PingPong.Engine:
-            Engine as egn,
-            Strategies as st,
-            Simulations as sim,
-            SimMode as bt,
-            Collections as co,
-            Executors as ect
     end
 end
 
-export @environment!
+macro strategyenv!()
+    quote
+        using Engine
+        using Engine.Strategies
+        using Engine: Strategies as st
+        using Engine.Instances: Instances as inst
+        using Engine.Executors
+        using Engine.OrderTypes
+
+        using ExchangeTypes
+        using Data
+        using Data.DFUtils
+        using Data.DataFrames
+        using Instruments
+        using Misc
+        using TimeTicks
+        using Lang
+
+        $(@__MODULE__).Engine.Strategies.@interface
+    end
+end
+
+export @environment!, @strategyenv!
