@@ -89,12 +89,12 @@ end
     sources::Dict{Symbol,String} = Dict()
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
-    Config(args...; kwargs...) = begin
-        new{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
-    end
 end
 
-function Config(profile::Union{Symbol,String}; path::String=config_path())
+Config(args...; kwargs...) = begin
+    Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
+end
+function Config(profile::Union{Symbol,String}, path::String=config_path())
     cfg = Config()
     config!(profile; cfg, path)
 end
@@ -119,7 +119,7 @@ function _toml!(cfg, name)
     end
 end
 function _parse(k, v)
-    if k == :exec
+    if k == :exec || k == :margin
         mode = Symbol(titlecase(string(v)))
         @eval Misc.$mode()
     else

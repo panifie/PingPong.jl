@@ -1,4 +1,4 @@
-using StaticArrays: MVector
+using StaticArrays: MVector, StaticArrays
 using TimeTicks
 const td_tf = TimeTicks.td_tf
 
