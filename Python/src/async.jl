@@ -98,7 +98,19 @@ pytask(coro::Py, ::Val{:coro}) = begin
         fut.result()
     end
 end
+pytask(coro::Py, ::Val{:try}) = begin
+    @async try
+        fut = pyschedule(coro)
+        pywait_fut(fut)
+        fut.result()
+    catch e
+        e
+    end
+end
 pytask(f::Py, args...; kwargs...) = pytask(f(args...; kwargs...), Val(:coro))
+function pytask(f::Py, ::Val{:try}, args...; kwargs...)
+    pytask(f(args...; kwargs...), Val(:try))
+end
 pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
 
 # function isrunning_func(running)
