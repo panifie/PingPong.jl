@@ -40,12 +40,16 @@ end
 
 _ascash((val, sym)) = Cash(val, sym)
 
+Base.string(::Isolated) = "Isolated Margin"
+Base.string(::Cross) = "Cross Margin"
+Base.string(::NoMargin) = "No Margin"
+
 function Base.show(out::IO, s::Strategy)
     write(out, "Name: $(nameof(s))\n")
     cur = nameof(s.cash)
     write(
         out,
-        "Config: $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
+        "Config: $(string(s.margin)), $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
     )
     n_inst = nrow(s.universe.data)
     n_exc = length(unique(s.universe.data.exchange))
