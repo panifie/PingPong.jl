@@ -58,6 +58,8 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         getfield(s, :config).qc
     elseif sym == :margin
         getfield(s, :config).margin
+    elseif sym == :leverage
+        getfield(s, :config).leverage
     elseif sym == :mode
         getfield(s, :config).mode
     else

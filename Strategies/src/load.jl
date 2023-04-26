@@ -48,7 +48,13 @@ function strategy!(src::Symbol, cfg::Config)
     strategy!(mod, cfg)
 end
 function strategy!(mod::Module, cfg::Config)
-    strat_exc = exchange(mod.S{typeof(config.mode)})
+    strat_exc = let s_type = mod.S{typeof(config.mode)}
+        if isconcretetype(s_type)
+            exchange(s_type)
+        else
+            exchange(s_type{typeof(config.margin)})
+        end
+    end
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc
@@ -57,4 +63,6 @@ function strategy!(mod::Module, cfg::Config)
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.ping!, mod.S, LoadStrategy(), cfg)
 end
-strategy(src::Union{Symbol,Module}; kwargs...) = strategy!(src, Config(src, kwargs...))
+function strategy(src::Union{Symbol,Module,String}, config_args...)
+    strategy!(src, Config(src, config_args...))
+end

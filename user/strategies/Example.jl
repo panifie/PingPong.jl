@@ -9,8 +9,7 @@ const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin}
 const TF = tf"1m"
 __revise_mode__ = :eval
 
-eval(read(joinpath(@__DIR__, "common.jl")))
-# include("common.jl")
+include("common.jl")
 
 # function __init__() end
 

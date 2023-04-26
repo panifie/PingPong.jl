@@ -7,7 +7,7 @@ using ..ExchangeTypes.Ccxt: ccxt_exchange
 using ..TimeTicks
 using ..Strategies: AssetCollection
 import .Strategies: ping!
-using Misc: Sim
+using Misc: Sim, NoMargin
 const NAME = :BaseStrat
 const EXCID = ExchangeTypes.ExchangeID(:bybit)
 const S{M} = Strategy{M,NAME,typeof(EXCID)}
@@ -16,7 +16,8 @@ ping!(::S, args...; kwargs...) = nothing
 function ping!(::Type{S}, ::LoadStrategy, config)
     Strategy(
         BareStrat,
-        Sim,
+        Sim(),
+        NoMargin(),
         tf"1m",
         ExchangeTypes.Exchange(ccxt_exchange(:bybit)),
         AssetCollection();
