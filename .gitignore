@@ -3,6 +3,7 @@
 !user/config.toml
 !user/strategies
 !user/strategies/Example.jl
+!user/strategies/ExampleMargin.jl
 /src/__pycache__/
 /render.html
 /**/__pycache__/*

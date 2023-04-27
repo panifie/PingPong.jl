@@ -10,7 +10,7 @@ using ExchangeTypes
 using Instruments: fiatnames, AbstractAsset, Asset, Cash
 using Instruments.Derivatives
 using TimeTicks
-using Misc: Iterable, swapkeys
+using Misc: Iterable, swapkeys, MarginMode
 using Lang: @lget!, MatchString
 using Base.Enums: namemap
 using OrderedCollections: OrderedDict
@@ -39,6 +39,7 @@ struct AssetCollection
         assets::Union{Iterable{String},Iterable{<:AbstractAsset}};
         timeframe="1m",
         exc::Exchange,
+        margin::MarginMode,
         min_amount=1e-8,
         load_data=true,
     )
@@ -54,7 +55,7 @@ struct AssetCollection
         end
         function getInstance(aa::AbstractAsset)
             data = SortedDict(tf => load_func(aa))
-            AssetInstance(aa; data, exc, min_amount)
+            AssetInstance(aa; data, exc, margin, min_amount)
         end
         instances = [getInstance(ast) for ast in assets]
         AssetCollection(instances)
