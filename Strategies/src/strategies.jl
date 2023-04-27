@@ -17,20 +17,11 @@ using Pkg: Pkg
 
 abstract type AbstractStrategy end
 
-# ExchangeAsset(E) = AssetInstance{T,E} where {T<:AbstractAsset}
-# function ExchangePosition(E)
-#     Position{T,S,M} where {T<:AssetInstance{<:Derivative,E},S<:PositionSide,M<:MarginMode}
-# end
-# ExchangeOrder(E) = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-# ExchangeBuyOrder(E) = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-# ExchangeSellOrder(E) = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
-const ExchangePosition{E} =
-    Position{T,S,M} where {T<:AssetInstance{<:Derivative,E},S<:PositionSide,M<:MarginMode}
 const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 const ExchangeBuyOrder{E} = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
 const ExchangeSellOrder{E} = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-const ExchangeHoldings{E} = T where {T<:Union{Set{Cash},Set{ExchangePosition{E}}}}
+
 @doc """The strategy is the core type of the framework.
 
 The strategy type is concrete according to:
@@ -58,7 +49,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode} <: AbstractStrategy
     cash_committed::Cash{T3,Float64} where {T3}
     buyorders::Dict{ExchangeAsset{E},Set{ExchangeBuyOrder{E}}}
     sellorders::Dict{ExchangeAsset{E},Set{ExchangeSellOrder{E}}}
-    holdings::Dict{ExchangeAsset{E},ExchangeHoldings{E}}
+    holdings::Set{ExchangeAsset{E}}
     universe::AssetCollection
     function Strategy(
         self::Module,
@@ -75,11 +66,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode} <: AbstractStrategy
         end
         ca_comm = Cash(config.qc, 0.0)
         eid = typeof(exc.id)
-        holdings = if config.margin == NoMargin()
-            Dict{ExchangeAsset{eid},Cash}()
-        else
-            Dict{ExchangeAsset{eid},ExchangePosition{eid}}()
-        end
+        holdings = Set{ExchangeAsset{eid}}()
         buyorders = Dict{ExchangeAsset{eid},Set{ExchangeBuyOrder{eid}}}()
         sellorders = Dict{ExchangeAsset{eid},Set{ExchangeSellOrder{eid}}}()
         name = nameof(self)

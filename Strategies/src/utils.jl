@@ -38,7 +38,7 @@ end
 
 function current_total(s::Strategy)
     worth = Cash(s.cash, 0.0)
-    for ai in keys(s.holdings)
+    for ai in s.holdings
         price = closeat(ai, lasttrade_date(ai))
         add!(worth, ai.cash * price)
         add!(worth, ai.cash_committed * price)

@@ -5,7 +5,7 @@ function minmax_holdings(s::Strategy)
     max_hold = (nameof(s.cash), 0.0)
     min_hold = (nameof(s.cash), Inf)
     datef = lasttrade_func(s)
-    for ai in keys(s.holdings)
+    for ai in s.holdings
         val = (ai.cash + ai.cash_committed) * closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
         isapprox(val, 0.0; atol=1e-12) && continue
         n_holdings += 1
