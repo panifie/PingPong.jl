@@ -40,7 +40,7 @@ struct Asset5 <: AbstractAsset
         B = Symbol(b)
         Q = Symbol(q)
         fiat = isfiatpair(b, q)
-        lev = islegeragedpair(s)
+        lev = isleveragedpair(s)
         unlev = lev ? deleverage_pair(s; split=true)[1] : B
         new(s, B, Q, fiat, lev, Symbol(unlev))
     end
@@ -105,8 +105,10 @@ isquote(a::AbstractAsset, q) = a.qc == q
 const leverage_pair_rgx = r"(?:(?:BULL)|(?:BEAR)|(?:[0-9]+L)|(?:[0-9]+S)|(?:UP)|(?:DOWN)|(?:[0-9]+LONG)|(?:[0-9+]SHORT))([\/\-\_\.])"
 
 @doc "Test if pair has leveraged naming."
-islegeragedpair(pair) = !isnothing(match(leverage_pair_rgx, pair))
+isleveragedpair(pair) = !isnothing(match(leverage_pair_rgx, pair))
 splitpair(pair::AbstractString) = split(pair, r"\/|\-|\_|\.")
+@doc "Strips the settlement currency from a symbol."
+spotpair(pair::AbstractString) = split(pair, ":")[1]
 
 @doc "Remove leveraged pair pre/suffixes from base currency."
 @inline function deleverage_pair(pair::T; split=false, sep="/") where {T<:AbstractString}
@@ -154,8 +156,7 @@ end
 
 export Cash, Asset, AbstractAsset
 export raw, bc, qc
-export isfiatpair, deleverage_pair, islegeragedpair
+export isfiatpair, deleverage_pair, isleveragedpair
 export @a_str, @c_str
 
 include("derivatives.jl")
-
