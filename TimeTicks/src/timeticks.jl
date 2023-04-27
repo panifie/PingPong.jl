@@ -24,11 +24,11 @@ function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
         return TimeFrame(Millisecond(parse(n)))
     elseif t == "m"
         t = "T"
-    elseif t == "w" # Weeks
+    elseif t == "w" || t == "W" # Weeks
         mul = 7
     elseif t == "M" # Months
         mul = 30
-    elseif t == "y"
+    elseif t == "y" || t == "Y"
         mul = 365
     end
     if mul > 0
