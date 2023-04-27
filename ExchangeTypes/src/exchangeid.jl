@@ -49,3 +49,5 @@ end
 Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
 import Base.==
 ==(id::ExchangeID, s::Symbol) = Base.isequal(nameof(id), s)
+
+exchangeid(v) = error("not implemented")

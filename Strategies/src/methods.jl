@@ -1,4 +1,5 @@
 using Lang: @lget!
+import ExchangeTypes: exchangeid
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -7,6 +8,7 @@ assets(s::Strategy) = s.universe.data.asset
 instances(s::Strategy) = s.universe.data.instance
 @doc "Strategy main exchange id."
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
+exchangeid(t::Type{<:Strategy}) = exchange(t)
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
 

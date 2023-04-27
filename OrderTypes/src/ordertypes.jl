@@ -1,4 +1,5 @@
 using ExchangeTypes
+import ExchangeTypes: exchangeid
 using Instruments
 using Data: Candle
 
@@ -94,6 +95,7 @@ end
 const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
 ordertype(::Order{T}) where {T<:OrderType} = T
+exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 
 include("trades.jl")
 include("errors.jl")
