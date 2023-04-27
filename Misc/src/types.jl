@@ -17,6 +17,7 @@ const marginmode = Returns(NoMargin)
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 const DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
+const DFT = DEFAULT_FLOAT_TYPE
 
 default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...)
 function local_dir(args...)
