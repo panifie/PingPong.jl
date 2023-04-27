@@ -112,6 +112,9 @@ function pytask(f::Py, ::Val{:try}, args...; kwargs...)
     pytask(f(args...; kwargs...), Val(:try))
 end
 pyfetch(f::Py, args...; kwargs...) = fetch(pytask(f, args...; kwargs...))
+function pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
+    fetch(pytask(f, Val(:try), args...; kwargs...))
+end
 
 # function isrunning_func(running)
 #     @pyexec (running) => """
