@@ -6,6 +6,7 @@ version = "0.1.0"
 [deps]
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
+Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"

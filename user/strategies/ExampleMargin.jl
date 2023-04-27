@@ -4,7 +4,7 @@ using PingPong
 @strategyenv!
 
 const NAME = :ExampleMargin
-const EXCID = ExchangeID(:bybit)
+const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
 const TF = tf"1m"
 __revise_mode__ = :eval

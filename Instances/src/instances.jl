@@ -2,21 +2,24 @@ using ExchangeTypes
 using OrderTypes
 
 using ExchangeTypes: exc
+import ExchangeTypes: exchangeid
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash
 import Instruments: _hashtuple
-using Misc: config
+using Misc: config, MarginMode, NoMargin, DFT
 using .DataStructures: SortedDict
+using Lang: Option
 
-const MM = NamedTuple{(:min, :max),Tuple{Float64,Float64}}
-const Limits = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM}}
-const Precision = NamedTuple{(:amount, :price),Tuple{Real,Real}}
-const Fees = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,Real}}
+const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
+const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
+const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
+const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
+include("positions.jl")
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -27,32 +30,48 @@ abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance{T<:AbstractAsset,E<:ExchangeID} <: AbstractInstance{T, E}
+struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
     exchange::Exchange{E}
-    limits::Limits
-    precision::Precision
-    fees::Fees
+    longpos::Option{Position{Long,M}}
+    shortpos::Option{Position{Short,M}}
+    limits::Limits{DFT}
+    precision::Precision{DFT}
+    fees::Fees{DFT}
     function AssetInstance(
-        a::A, data, e::Exchange{E}; limits, precision, fees
-    ) where {A<:AbstractAsset,E<:ExchangeID}
-        new{A,E}(
+        a::A, data, e::Exchange{E}, ::M; limits, precision, fees
+    ) where {A<:AbstractAsset,E<:ExchangeID,M<:MarginMode}
+        longpos, shortpos = if M == NoMargin()
+            nothing, nothing
+        else
+            let pos_kwargs = (;
+                    asset=a, min_size=limits.amount.min, tiers=leverage_tiers(e, a.raw)
+                )
+                LongPosition{M}(; pos_kwargs...), ShortPosition{M}(; pos_kwargs...)
+            end
+        end
+        float_type = eltype(limits[1])
+        new{A,E,M}(
             a,
             data,
             Trade{OrderType,A,E}[],
             Cash{a.bc,Float64}(0.0),
             Cash{a.bc,Float64}(0.0),
             e,
+            longpos,
+            shortpos,
             limits,
             precision,
             fees,
         )
     end
 end
+
+const DerivativeInstance{E} = AssetInstance{D,E} where {D<:Derivative,E<:ExchangeID}
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -135,8 +154,7 @@ takerfees(ai::AssetInstance) = ai.fees.taker
 makerfees(ai::AssetInstance) = ai.fees.maker
 minfees(ai::AssetInstance) = ai.fees.min
 maxfees(ai::AssetInstance) = ai.fees.max
-
-include("positions.jl")
+exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees

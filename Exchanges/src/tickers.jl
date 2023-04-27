@@ -1,6 +1,6 @@
 using Lang: @get, @multiget, @lget!, Option
 using Misc: config, NoMargin
-using Instruments: isfiatquote
+using Instruments: isfiatquote, spotpair
 using Python: @pystr
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
@@ -15,13 +15,13 @@ isquote(id, qc) = lowercase(id) == qc
 ismargin(mkt) = Bool(@get mkt "margin" false)
 
 function has_leverage(pair, pairs_with_leverage)
-    !islegeragedpair(pair) && pair ∈ pairs_with_leverage
+    !isleveragedpair(pair) && pair ∈ pairs_with_leverage
 end
-function leverage_func(exc, with_leveraged)
+function leverage_func(exc, with_leveraged, verbose=true)
     # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
     # they have a leveraged counterpart
     if with_leveraged == :from
-        @warn "Filtering by leveraged, are you sure?"
+        verbose && @warn "Filtering by leveraged, are you sure?"
         pairs_with_leverage = Set()
         for k in keys(exc.markets)
             dlv = deleverage_pair(k)
@@ -57,6 +57,7 @@ function tickers(
     with_margin=config.margin != NoMargin(),
     with_leverage=:no,
     as_vec=false,
+    verbose=true,
 ) # ::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers!
@@ -69,7 +70,7 @@ function tickers(
     pushas(p, k, v, _) = push!(p, as(k, v))
     pushifquote(p, k, v, q) = isquote(quoteid(v), q) && pushas(p, k, v, nothing)
     addto = ifelse(isempty(quot), pushas, pushifquote)
-    leverage_check = leverage_func(exc, with_leverage)
+    leverage_check = leverage_func(exc, with_leverage, verbose)
     # TODO: all this checks should be decomposed into functions transducer style
     function skip_check(spot, islev, mkt)
         (with_leverage == :no && islev) ||
@@ -82,7 +83,7 @@ function tickers(
 
     for (sym, mkt) in exc.markets
         spot = spotsymbol(sym, mkt)
-        islev = islegeragedpair(spot)
+        islev = isleveragedpair(spot)
         skip_check(spot, islev, mkt) && continue
         addto(pairlist, sym, mkt, lquot)
     end
@@ -171,11 +172,26 @@ end
 is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
 
 @doc "Taker fees for market."
-function market_fees(pair::AbstractString, exc::Exchange=exc; taker=nothing)
+function market_fees(
+    pair::AbstractString, exc::Exchange=exc; only_taker::Union{Bool,Nothing}=nothing
+)
     m = exc.markets[pair]
-    if isnothing(taker)
+    if isnothing(only_taker)
         taker = m["taker"]
-        maker = m["maker"]
+        if isnothing(taker)
+            # Fall back to fees from spot market
+            m = get(exc.markets, spotpair(pair), nothing)
+            if isnothing(m)
+                # always ensure
+                @warn "Failed to fetch $pair fees from $(exc.name), defaulting to 0.001 fees."
+                taker, maker = 0.001, 0.001
+            else
+                taker = @something m["taker"] 0.001
+                maker = @something m["maker"] 0.001
+            end
+        else
+            maker = @something m["maker"] 0.001
+        end
         (; taker, maker, min=min(taker, maker), max=max(taker, maker))
     elseif taker
         m["taker"]
