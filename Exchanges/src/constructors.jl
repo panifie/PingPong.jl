@@ -217,7 +217,7 @@ function exckeys!(exc, key, secret, pass)
 end
 
 function exckeys!(exc; sandbox=issandbox(exc))
-    exc_keys = exchange_keys(exc.id; sandbox)
+    exc_keys = exchange_keys(nameof(exc.id); sandbox)
     # Check the exchange->futures mapping to re-use keys
     if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
         sym = Symbol(exc.id)
@@ -262,3 +262,33 @@ function futures(exc::Exchange)
     futures_sym != exc.id ? getexchange!(futures_sym) : exc
 end
 
+_checkfunc(exc, sym, out) = Bool(exc.has.get(string(sym), false)) || push!(out, sym)
+@doc "Checks if the python exchange instance supports all the calls required by PingPong."
+function check(exc::Py)
+    missing_funcs = Set()
+    _checkfunc(exc, :fetchOHLCV, missing_funcs)
+    _checkfunc(exc, :fetchBalance, missing_funcs)
+    _checkfunc(exc, :fetchPositions, missing_funcs)
+    _checkfunc(exc, :fetchPosition, missing_funcs)
+    _checkfunc(exc, :createOrder, missing_funcs)
+    _checkfunc(exc, :cancelOrder, missing_funcs)
+    _checkfunc(exc, :fetchMarkets, missing_funcs)
+    _checkfunc(exc, :fetchMarket, missing_funcs)
+    _checkfunc(exc, :watchTrades, missing_funcs)
+    _checkfunc(exc, :watchOrders, missing_funcs)
+    _checkfunc(exc, :fetchLeverageTiers, missing_funcs)
+    _checkfunc(exc, :fetchTickers, missing_funcs)
+    _checkfunc(exc, :fetchOrderBook, missing_funcs)
+    _checkfunc(exc, :fetchOrders, missing_funcs)
+    nmis = length(missing_funcs)
+    if nmis == 0
+        println("$(exc.name) supports all functions!")
+    else
+        println("$nmis functions are not supported by $(exc.name)")
+        for f in missing_funcs
+            println(stdout, string(f))
+        end
+        flush(stdout)
+    end
+    # _checkfunc(exc, :cancelOrders, missing_funcs)
+end
