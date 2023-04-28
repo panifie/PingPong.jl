@@ -162,6 +162,7 @@ function _fetch_loop(
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
     is_df = out isa DataFrame
     since = __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
+    since = since_param(exc, since)
     @debug "since time: ", since
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     function dofetch()
@@ -171,12 +172,16 @@ function _fetch_loop(
         size(fetched, 1) == 0 ? false : (append!(out, fetched); true)
     end
     lastts(out) = Int(timefloat(out[end, 1]))
-    while since < to
-        dofetch() || break
-        last_ts = lastts(out)
-        since == last_ts && break
-        since = last_ts
-        @debug "Downloaded data for pair $pair up to $(since |> dt) ($(last_fetched_count[]) of $limit) from $(exc.name)."
+    if isnothing(since)
+        dofetch()
+    else
+        while since < to
+            dofetch() || break
+            last_ts = lastts(out)
+            since == last_ts && break
+            since = last_ts
+            @debug "Downloaded data for pair $pair up to $(since |> dt) ($(last_fetched_count[]) of $limit) from $(exc.name)."
+        end
     end
     return out
 end
@@ -489,11 +494,11 @@ function fetch_candles(
     exc::Exchange,
     timeframe::AbstractString,
     pairs::Union{AbstractString,Iterable};
-    from::DateType="",
+    from::Option{DateType}="",
     to::DateType="",
     ohlcv_kind=:default,
 )
-    from, to = __ensure_dates(exc, timeframe, from, to)
+    from, to = __ensure_dates(exc, timeframe, something(from, ""), to)
     _fetch_candles(exc, timeframe, pairs; from, to, ohlcv_kind)
 end
 
