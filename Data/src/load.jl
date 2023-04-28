@@ -236,7 +236,7 @@ end
 
 const ResetErrors = Union{MethodError,DivideError,ArgumentError}
 function __handle_error(::ResetErrors, zi, key, kwargs)
-    delete!(zi.store, key) # ensure path does not exist
+    delete!(zi.store, key, recursive=true) # ensure path does not exist
     emptyz = zcreate(
         Float64,
         zi.store,

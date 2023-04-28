@@ -15,7 +15,7 @@ end
 
 isempty(z::ZArray) = size(z, 1) == 0
 
-function delete!(g::Zarr.ZGroup, key::AbstractString; force=true)
+function delete!(g::ZGroup, key::AbstractString; force=true)
     delete!(g.storage, g.path, key)
     if key ∈ keys(g.groups)
         delete!(g.groups, key)
@@ -24,22 +24,15 @@ function delete!(g::Zarr.ZGroup, key::AbstractString; force=true)
     end
 end
 
-function _delpaths(store, paths...; recursive=true)
+function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
     rm(joinpath(store.folder, paths...); force=true, recursive)
 end
 
-function delete!(store::Zarr.DirectoryStore, paths::Vararg{String}; recursive=true)
-    _delpaths(store, paths...; recursive)
-end
-function delete!(store::Zarr.DirectoryStore, path::String; recursive=true)
-    _delpaths(store, path; recursive)
-end
-
-function delete!(store::Zarr.AbstractStore, paths...; recursive=true)
+function delete!(store::AbstractStore, paths...; recursive=true)
     delete!(store, paths...; recursive)
 end
 
-function delete!(z::Zarr.ZArray; ok=true)
+function delete!(z::ZArray; ok=true)
     ok && begin
         delete!(z.storage, z.path; recursive=true)
         store_type = typeof(z.storage)
