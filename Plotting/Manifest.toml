@@ -519,7 +519,7 @@ uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
 
 [[deps.Executors]]
-deps = ["Accessors", "Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
+deps = ["Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
 path = "../Executors"
 uuid = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
 version = "0.1.0"
@@ -836,7 +836,7 @@ uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 version = "1.3.2"
 
 [[deps.Instances]]
-deps = ["Data", "ExchangeTypes", "Instruments", "Misc", "OrderTypes", "Processing", "TimeTicks"]
+deps = ["Data", "ExchangeTypes", "Exchanges", "Instruments", "Lang", "Misc", "OrderTypes", "Processing", "TimeTicks"]
 path = "../Instances"
 uuid = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 version = "0.1.0"
@@ -1190,7 +1190,7 @@ uuid = "978d7f02-9e05-4691-894f-ae31a51d76ca"
 version = "0.4.0"
 
 [[deps.Misc]]
-deps = ["Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
+deps = ["Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "StaticArrays", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
