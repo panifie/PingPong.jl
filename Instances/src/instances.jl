@@ -9,17 +9,16 @@ import Data: stub!
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash
 import Instruments: _hashtuple
-using Misc: config, MarginMode, NoMargin, DFT
+using Misc: config, MarginMode, NoMargin, MM, DFT, Isolated, Cross
 using .DataStructures: SortedDict
 using Lang: Option
 
-const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
+abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
+include("positions.jl")
+
 const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
 const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
-
-abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
-include("positions.jl")
 
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
@@ -71,7 +70,8 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     end
 end
 
-const DerivativeInstance{E} = AssetInstance{D,E} where {D<:Derivative,E<:ExchangeID}
+const NoMarginInstance{T,E} = AssetInstance{T,E,NoMargin}
+const MarginInstance{D,E,M<:Union{Isolated,Cross}} = AssetInstance{D,E,M}
 
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
@@ -79,13 +79,16 @@ Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
-function instance(exc::Exchange, a::AbstractAsset)
+@doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Executors`."
+function instance(
+    exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi, reset=false
+)
     data = Dict()
     @assert a.raw ∈ keys(exc.markets) "Market $(a.raw) not found on exchange $(exc.name)."
     for tf in config.timeframes
-        data[tf] = load(zi, exc.name, a.raw, string(tf))
+        data[tf] = load(zi, exc.name, a.raw, string(tf); reset)
     end
-    AssetInstance(a, data, exc)
+    AssetInstance(a; data, exc, margin=m)
 end
 instance(a) = instance(exc, a)
 

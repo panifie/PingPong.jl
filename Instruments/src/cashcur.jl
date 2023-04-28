@@ -1,16 +1,6 @@
 using Misc: MVector
 
-struct Cash13{S,T} <: Number
-    value::MVector{1,T}
-    Cash13{C,N}(val) where {C,N} = new{C,N}(MVector{1}(val))
-    Cash13(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(MVector{1}(val))
-    function Cash13(_::Cash13{C,N}, val::R) where {C,N,R}
-        new{C,N}(MVector{1}(convert(eltype(N), val)))
-    end
-end
-
 @doc """A variable quantity of some currency.
-
 ```julia
 > ca = c"USDT"
 > typeof(ca)
@@ -18,9 +8,17 @@ end
 ```
 
 """
-Cash = Cash13
+struct Cash{S,T} <: Number
+    value::MVector{1,T}
+    Cash{C,N}(val) where {C,N} = new{C,N}(MVector{1}(val))
+    Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(MVector{1}(val))
+    function Cash(_::Cash{C,N}, val::R) where {C,N,R}
+        new{C,N}(MVector{1}(convert(eltype(N), val)))
+    end
+end
+
 Base.nameof(_::Cash{S}) where {S} = S
-Base.hash(c::Cash, h::UInt) = hash(c.name, h)
+Base.hash(c::Cash, h::UInt) = hash(nameof(c), h)
 Base.setproperty!(::Cash, ::Symbol, v) = error("Cash is private.")
 Base.getproperty(c::Cash, s::Symbol) = begin
     if s === :value
@@ -81,8 +79,8 @@ compactnum(val) =
     end
 
 compactnum(val, n) = split(compactnum(val), ".")[n]
-
-Base.show(io::IO, c::Cash{C}) where {C} = write(io, "$C: $(compactnum(c.value))")
+Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
+Base.show(io::IO, c::Cash) = write(io, string(c))
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
 Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
