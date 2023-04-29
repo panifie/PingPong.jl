@@ -12,6 +12,7 @@ abstract type MarginMode end
 struct Isolated <: MarginMode end
 struct Cross <: MarginMode end
 struct NoMargin <: MarginMode end
+const WithMargin = Union{Cross, Isolated}
 const marginmode = Returns(NoMargin)
 
 const StrOrVec = Union{AbstractString,AbstractVector}
@@ -48,4 +49,4 @@ include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
 export ExecMode, execmode, ExecAction, Sim, Paper, Live
-export MarginMode, marginmode, Isolated, Cross, NoMargin
+export MarginMode, marginmode, Isolated, Cross, NoMargin, WithMargin

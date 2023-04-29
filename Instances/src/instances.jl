@@ -20,6 +20,7 @@ const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,
 const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
 
+# TYPENUM
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
 - `asset`: the identifier
 - `data`: ohlcv series
@@ -29,22 +30,22 @@ const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
+struct AssetInstance1{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
     exchange::Exchange{E}
-    longpos::Option{Position{Long,M}}
-    shortpos::Option{Position{Short,M}}
+    longpos::P1 where {P1<:Option{Position{Long,M}}}
+    shortpos::P2 where {P2<:Option{Position{Short,M}}}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
-    function AssetInstance(
+    function AssetInstance1(
         a::A, data, e::Exchange{E}, ::M; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID,M<:MarginMode}
-        longpos, shortpos = if M == NoMargin()
+        longpos, shortpos = if M == NoMargin
             nothing, nothing
         else
             let pos_kwargs = (;
@@ -69,6 +70,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
         )
     end
 end
+AssetInstance = AssetInstance1
 
 const NoMarginInstance{T,E} = AssetInstance{T,E,NoMargin}
 const MarginInstance{D,E,M<:Union{Isolated,Cross}} = AssetInstance{D,E,M}
@@ -79,14 +81,12 @@ Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
-@doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Executors`."
-function instance(
-    exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi, reset=false
-)
+@doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
+function instance(exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi)
     data = Dict()
     @assert a.raw ∈ keys(exc.markets) "Market $(a.raw) not found on exchange $(exc.name)."
     for tf in config.timeframes
-        data[tf] = load(zi, exc.name, a.raw, string(tf); reset)
+        data[tf] = load(zi, exc.name, a.raw, string(tf))
     end
     AssetInstance(a; data, exc, margin=m)
 end
