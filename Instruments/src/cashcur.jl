@@ -1,4 +1,4 @@
-using Misc: MVector
+abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
 ```julia
@@ -8,23 +8,25 @@ using Misc: MVector
 ```
 
 """
-struct Cash{S,T} <: Number
-    value::MVector{1,T}
-    Cash{C,N}(val) where {C,N} = new{C,N}(MVector{1}(val))
-    Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(MVector{1}(val))
+struct Cash{S,T} <: AbstractCash
+    value::Vector{T}
+    Cash{C,N}(val) where {C,N} = new{C,N}([val])
+    Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}([val])
     function Cash(_::Cash{C,N}, val::R) where {C,N,R}
-        new{C,N}(MVector{1}(convert(eltype(N), val)))
+        new{C,N}([convert(eltype(N), val)])
     end
 end
 
+_fvalue(c::Cash) = getfield(c, :value)
+value(c::Cash) = _fvalue(c)[]
 Base.nameof(_::Cash{S}) where {S} = S
 Base.hash(c::Cash, h::UInt) = hash(nameof(c), h)
 Base.setproperty!(::Cash, ::Symbol, v) = error("Cash is private.")
 Base.getproperty(c::Cash, s::Symbol) = begin
     if s === :value
-        getfield(c, :value)[1]
+        value(c)
     elseif s === :id
-        c.name
+        nameof(c)
     else
         getfield(c, s) ## throws
     end
@@ -83,42 +85,45 @@ Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
 
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
-Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (c.value, n)
-Base.promote(n::N, c::C) where {C<:Cash,N<:Real} = (n, c.value)
+Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (value(c), n)
+Base.promote(n::N, c::C) where {C<:Cash,N<:Real} = (n, value(c))
 # NOTE: we *demote* Cash to the other number for speed (but it still slower than dispatching promotion function directly)
 # Base.promote_rule(::Type{C}, ::Type{N}) where {C<:Cash,N<:Real} = N # C
 Base.convert(::Type{Cash{S}}, c::Real) where {S} = Cash(S, c)
-Base.convert(::Type{T}, c::Cash) where {T<:Real} = convert(T, c.value)
-Base.isless(a::Cash{T}, b::Cash{T}) where {T} = isless(a.value, b.value)
+Base.convert(::Type{T}, c::Cash) where {T<:Real} = convert(T, value(c))
+Base.isless(a::Cash{T}, b::Cash{T}) where {T} = isless(value(a), value(b))
 Base.isless(a::Cash, b::Number) = isless(promote(a, b)...)
 Base.isless(b::Number, a::Cash) = isless(promote(b, a)...)
 
-Base.abs(c::Cash) = abs(c.value)
-Base.real(c::Cash) = real(c.value)
+Base.abs(c::Cash) = abs(value(c))
+Base.real(c::Cash) = real(value(c))
 
--(a::Cash, b::Real) = a.value - b
-÷(a::Cash, b::Real) = a.value ÷ b
+-(a::Cash, b::Real) = value(a) - b
+÷(a::Cash, b::Real) = value(a) ÷ b
+/(a::Cash, b::Real) = value(a) / b
 
-==(a::Cash{S}, b::Cash{S}) where {S} = b.value == a.value
-÷(a::Cash{S}, b::Cash{S}) where {S} = a.value ÷ b.value
-*(a::Cash{S}, b::Cash{S}) where {S} = a.value * b.value
-/(a::Cash{S}, b::Cash{S}) where {S} = a.value / b.value
-+(a::Cash{S}, b::Cash{S}) where {S} = a.value + b.value
--(a::Cash{S}, b::Cash{S}) where {S} = a.value - b.value
+==(a::Cash{S}, b::Cash{S}) where {S} = value(b) == value(a)
+÷(a::Cash{S}, b::Cash{S}) where {S} = value(a) ÷ value(b)
+*(a::Cash{S}, b::Cash{S}) where {S} = value(a) * value(b)
+/(a::Cash{S}, b::Cash{S}) where {S} = value(a) / value(b)
++(a::Cash{S}, b::Cash{S}) where {S} = value(a) + value(b)
+-(a::Cash{S}, b::Cash{S}) where {S} = value(a) - value(b)
 
-add!(c::Cash, v) = (getfield(c, :value)[1] += v; c)
-sub!(c::Cash, v) = (getfield(c, :value)[1] -= v; c)
+add!(c::Cash, v) = (_fvalue(c)[] += v; c)
+sub!(c::Cash, v) = (_fvalue(c)[] -= v; c)
 @doc "Never subtract below zero."
-subzero!(c::Cash, v) = begin
+subzero!(c::AbstractCash, v) = begin
     sub!(c, v)
     c < 0.0 && cash!(c, 0.0)
     c
 end
-mul!(c::Cash, v) = (getfield(c, :value)[1] *= v; c)
-rdiv!(c::Cash, v) = (getfield(c, :value)[1] /= v; c)
-div!(c::Cash, v) = (getfield(c, :value)[1] ÷= v; c)
-mod!(c::Cash, v) = (getfield(c, :value)[1] %= v; c)
-cash!(c::Cash, v) = (getfield(c, :value)[1] = v; c)
+mul!(c::Cash, v) = (_fvalue(c)[] *= v; c)
+rdiv!(c::Cash, v) = (_fvalue(c)[] /= v; c)
+div!(c::Cash, v) = (_fvalue(c)[] ÷= v; c)
+mod!(c::Cash, v) = (_fvalue(c)[] %= v; c)
+cash!(c::Cash, v) = (_fvalue(c)[] = v; c)
+
+export value
 
 @doc """Cash should not be edited by a strategy, therefore functions that mutate its value should be
 explicitly imported.
