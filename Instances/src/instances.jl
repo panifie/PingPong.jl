@@ -3,6 +3,7 @@ using OrderTypes
 
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
+using OrderTypes: OrderOrSide
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
@@ -157,13 +158,43 @@ stub!(ai::AssetInstance, df::DataFrame) = begin
     tf = timeframe!(df)
     ai.data[tf] = df
 end
+@doc "Taker fees for the asset instance (usually higher than maker fees.)"
 takerfees(ai::AssetInstance) = ai.fees.taker
+@doc "Maker fees for the asset instance (usually lower than taker fees.)"
 makerfees(ai::AssetInstance) = ai.fees.maker
+@doc "The minimum fees for trading in the asset market (usually the highest vip level.)"
 minfees(ai::AssetInstance) = ai.fees.min
+@doc "The maximum fees for trading in the asset market (usually the lowest vip level.)"
 maxfees(ai::AssetInstance) = ai.fees.max
+@doc "ExchangeID for the asset instance."
 exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
+@doc "Asset instance long position."
+position(ai::MarginInstance, ::Type{Long}) = ai.longpos
+@doc "Asset instance short position."
+position(ai::MarginInstance, ::Type{Short}) = ai.shortpos
+@doc "Position liquidation price."
+function liquidation(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S()).liquidation_price[]
+end
+@doc "Position leverage."
+function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S).leverage[]
+end
+@doc "Position status (open or closed)."
+function status(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S).status[]
+end
+@doc "Position maintenance margin."
+function maintenance(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S).maintenance_margin[]
+end
+@doc "Position initial margin."
+function initial(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S).initial_margin[]
+end
 
 include("constructors.jl")
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees
+export Long, Short, position, liquidation, leverage

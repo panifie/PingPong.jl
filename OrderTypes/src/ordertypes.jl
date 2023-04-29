@@ -3,7 +3,7 @@ import ExchangeTypes: exchangeid
 using Instruments
 using Data: Candle
 
-using Misc: config
+using Misc: config, PositionSide, Long, Short
 using TimeTicks
 using Lang: Lang
 
@@ -42,7 +42,9 @@ Its execution depends on the order implementation.
     @assert isequal(avail_ohlcv.timestamp[end] + tf.period, dt"2020-05-24T02:30:00")
     ```
  """
-struct Order{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
+struct Order{
+    T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
+}
     asset::A
     exc::E
     date::DateTime
@@ -52,18 +54,26 @@ struct Order{T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID
 end
 
 function Order(
-    a::A, e::E, ::Type{Order{T}}; price, date, amount, attrs=(;), kwargs...
-) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID}
-    Order{T,A,E}(a, e, date, price, amount, attrs)
+    a::A, e::E, ::Type{Order{T}}, ::Type{P}=Long; price, date, amount, attrs=(;), kwargs...
+) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
+    Order{T,A,E,P}(a, e, date, price, amount, attrs)
 end
 Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.amount))
 function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
-const BuyOrder{O,A,E} =
-    Order{O,A,E} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID}
-const SellOrder{O,A,E} =
-    Order{O,A,E} where {O<:OrderType{Sell},A<:AbstractAsset,E<:ExchangeID}
+const BuyOrder{O,A,E,P} =
+    Order{O,A,E,P} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
+const SellOrder{O,A,E,P} =
+    Order{O,A,E} where {O<:OrderType{Sell},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
+const LongOrder{O,A,E} = Order{O,A,E,Long}
+const ShortOrder{O,A,E} = Order{O,A,E,Short}
+const LongBuyOrder{O,A,E} = BuyOrder{O,A,E,Long}
+const LongSellOrder{O,A,E} = SellOrder{O,A,E,Long}
+const ShortBuyOrder{O,A,E} = BuyOrder{O,A,E,Short}
+const ShortSellOrder{O,A,E} = SellOrder{O,A,E,Short}
+const OrderOrSide{S} = Union{S,Order{O,A,E,S}} where {O,A,E}
+
 macro deforders(issuper, types...)
     @assert issuper isa Bool
     out = quote end
@@ -75,15 +85,16 @@ macro deforders(issuper, types...)
         type = esc(type_sym)
         ordertype = esc(Symbol(type_str * "OrderType"))
         orderexpr = if issuper
-            :(Order{<:$ordertype{S},A,E})
+            :(Order{<:$ordertype{S},A,E,P})
         else
-            :(Order{$ordertype{S},A,E})
+            :(Order{$ordertype{S},A,E,P})
         end
         push!(
             out.args,
             quote
-                const $type{S,A,E} =
-                    $orderexpr where {S<:OrderSide,A<:AbstractAsset,E<:ExchangeID}
+                const $type{S,A,E,P} = $orderexpr where {
+                    S<:OrderSide,A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
+                }
             end,
         )
     end
@@ -93,8 +104,9 @@ end
 @deforders true Limit
 
 const ordersdefault! = Returns(nothing)
-orderside(::Order{T}) where {T<:OrderType{S}} where {S<:OrderSide} = nameof(S)
-ordertype(::Order{T}) where {T<:OrderType} = T
+orderside(::Order{T}) where {T<:OrderType{S}} where {S} = nameof(S)
+ordertype(::Order{T}) where {T} = T
+orderpos(::Order{T,A,E,P}) where {T,A,E,P} = P
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 
 include("trades.jl")
@@ -102,6 +114,7 @@ include("errors.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
+export LongOrder, ShortOrder, LongBuyorder, LongSellOrder, ShortBuyOrder, ShortSellOrder
 export LimitOrder, GTCOrder, IOCOrder, FOKOrder, MarketOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
 export ordersdefault!, orderside

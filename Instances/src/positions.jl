@@ -1,11 +1,8 @@
-using Misc: MarginMode, WithMargin
+using Misc: MarginMode, WithMargin, Long, Short, PositionSide
 using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 
-abstract type PositionSide end
-struct Long <: PositionSide end
-struct Short <: PositionSide end
 
 PositionSide(::Type{Buy}) = Long
 PositionSide(::Type{Sell}) = Short

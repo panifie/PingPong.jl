@@ -14,6 +14,9 @@ struct Cross <: MarginMode end
 struct NoMargin <: MarginMode end
 const WithMargin = Union{Cross,Isolated}
 const marginmode = Returns(NoMargin)
+abstract type PositionSide end
+struct Long <: PositionSide end
+struct Short <: PositionSide end
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 const DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
