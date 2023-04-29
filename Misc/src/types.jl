@@ -1,4 +1,3 @@
-using StaticArrays: MVector, StaticArrays
 using TimeTicks
 const td_tf = TimeTicks.td_tf
 
@@ -18,6 +17,8 @@ const marginmode = Returns(NoMargin)
 const StrOrVec = Union{AbstractString,AbstractVector}
 const DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
 const DFT = DEFAULT_FLOAT_TYPE
+
+const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
 
 default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...)
 function local_dir(args...)

@@ -280,6 +280,7 @@ function check(exc::Py)
     _checkfunc(exc, :fetchTickers, missing_funcs)
     _checkfunc(exc, :fetchOrderBook, missing_funcs)
     _checkfunc(exc, :fetchOrders, missing_funcs)
+    _checkfunc(exc, :fetchCurrencies, missing_funcs)
     nmis = length(missing_funcs)
     if nmis == 0
         println("$(exc.name) supports all functions!")

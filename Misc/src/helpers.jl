@@ -121,3 +121,15 @@ function isstrictlysorted(itr...)
     return true
 end
 
+_minusmod(n, prec) = begin
+    m = mod(n, prec)
+    isapprox(m, prec) ? n : n - m
+end
+
+toprecision(n::Integer, prec::Integer) = _minusmod(n, prec)
+@doc "When precision is a float it represents the pip."
+function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
+    _minusmod(n, prec)
+end
+@doc "When precision is a Integer it represents the number of decimals."
+toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)

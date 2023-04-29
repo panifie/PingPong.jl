@@ -17,7 +17,7 @@
 /docs/build/
 /Data/vendor/*
 !/Data/vendor/.gitkeep
-!/Data/vendor/zarr/
+!/Data/vendor/zarr/.gitkeep
 /vendor/*
 !/vendor/.gitkeep
 !/vendor/Temporal/

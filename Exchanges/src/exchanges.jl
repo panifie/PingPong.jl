@@ -1,4 +1,5 @@
 include("constructors.jl")
+include("currency.jl")
 include("tickers.jl")
 include("data.jl")
 include("utils.jl")
