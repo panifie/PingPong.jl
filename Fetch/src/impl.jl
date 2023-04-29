@@ -2,7 +2,7 @@ using Ccxt
 using Pbar
 using Python
 using Python: pylist_to_matrix, py_except_name
-using Exchanges: setexchange!, tickers, getexchange!, issupported, save_ohlcv
+using Exchanges: setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
 using ExchangeTypes: Exchange
 using Processing: cleanup_ohlcv_data, islast
 using Data:
@@ -27,13 +27,12 @@ using Lang: @distributed, @parallel, Option, filterkws, @ifdebug
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_MIN_PERIOD = Millisecond(Day(30))
 
-_to_float(py::Py) = something(pyconvert(Option{Float64}, py), 0.0)
 function _to_candle(py, idx, range)
-    Candle(dt(pyconvert(Float64, py[idx])), (_to_float(py[n]) for n in range)...)
+    Candle(dt(pyconvert(Float64, py[idx])), (to_float(py[n]) for n in range)...)
 end
 Base.convert(::Type{Candle}, py::PyList) = _to_candle(py, 1, 2:6)
 Base.convert(::Type{Candle}, py::Py) = _to_candle(py, 0, 1:5)
-_pytoval(::Type{DateTime}, v) = dt(_to_float(v))
+_pytoval(::Type{DateTime}, v) = dt(to_float(v))
 _pytoval(t::Type, v) = @something pyconvert(t, v) Data.default(t)
 const OHLCVTupleTypes = (DateTime, fill(Float64, 4)..., Option{Float64})
 # const OHLCVTupleTypes = (DateTime, (Float64 for _ in 1:4)..., Option{Float64})
