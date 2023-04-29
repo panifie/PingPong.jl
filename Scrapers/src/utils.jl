@@ -19,7 +19,7 @@ function workers!(n)
     SEM[] = Base.Semaphore(n)
     @info "Workers count set from $prev to $n"
 end
-function timeframe!(s)
+function TimeTicks.timeframe!(s)
     prev = TF[]
     TF[] = timeframe(s)
     @info "TimeFrame set from $prev to $(TF[])"
