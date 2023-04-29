@@ -1,4 +1,4 @@
-using Misc: MVector, MarginMode
+using Misc: MarginMode, WithMargin
 using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
@@ -12,7 +12,7 @@ PositionSide(::Type{Sell}) = Short
 PositionSide(::Order{OrderType{Buy}}) = Long
 PositionSide(::Order{OrderType{Sell}}) = Short
 
-const OneVec = MVector{1,T} where {T<:Union{DateTime,Real}}
+const OneVec = Vector{<:Union{DateTime,Real}}
 @enum PositionStatus OpenPosition ClosedPosition
 
 @doc "A position tracks the margin state of an asset instance:
@@ -21,16 +21,16 @@ const OneVec = MVector{1,T} where {T<:Union{DateTime,Real}}
 - `tiers`: sorted dict of all the leverage tiers
 For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?id=position-structure)
 "
-@kwdef struct Position{S<:PositionSide,M<:MarginMode}
-    status::MVector{1,PositionStatus} = MVector(ClosedPosition)
+@kwdef struct Position{S<:PositionSide,M<:WithMargin}
+    status::Vector{PositionStatus} = [ClosedPosition]
     asset::Derivative
-    timestamp::OneVec = OneVec(DateTime(0))
-    liquidation_price::OneVec = OneVec(0.0)
-    entryprice::OneVec = OneVec(0.0)
-    maintenance_margin::OneVec = OneVec(0.0)
-    initial_margin::OneVec = OneVec(0.0)
-    notional::OneVec = OneVec(0.0)
-    leverage::OneVec = OneVec(0.0)
+    timestamp::OneVec = [DateTime(0)]
+    liquidation_price::OneVec = [0.0]
+    entryprice::OneVec = [0.0]
+    maintenance_margin::OneVec = [0.0]
+    initial_margin::OneVec = [0.0]
+    notional::OneVec = [0.0]
+    leverage::OneVec = [0.0]
     min_size::T where {T<:Real}
     tiers::LeverageTiersDict
 end
@@ -41,8 +41,8 @@ function Position{S,M}(
     Position{S,M}(; asset, min_size)
 end
 
-const LongPosition{M} = Position{Long,M} where {M<:MarginMode}
-const ShortPosition{M} = Position{Short,M} where {M<:MarginMode}
+const LongPosition{M<:WithMargin} = Position{Long,M}
+const ShortPosition{M<:WithMargin} = Position{Short,M}
 
 maxleverage(po::Position, size::Real) = maxleverage(po.tiers, size)
 
@@ -59,3 +59,4 @@ end
 Base.isopen(po::Position) = po.status[] == OpenPosition
 islong(::Position{<:Long}) = true
 isshort(::Position{<:Short}) = true
+

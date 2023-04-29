@@ -1,4 +1,4 @@
-using ExchangeTypes
+using Exchanges
 using OrderTypes
 
 using ExchangeTypes: exc
@@ -30,31 +30,24 @@ const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance1{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
+struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
+       AbstractInstance{T,E}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
     exchange::Exchange{E}
-    longpos::P1 where {P1<:Option{Position{Long,M}}}
-    shortpos::P2 where {P2<:Option{Position{Short,M}}}
+    longpos::Option{Position{Long,<:WithMargin}}
+    shortpos::Option{Position{Short,<:WithMargin}}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
-    function AssetInstance1(
+    function AssetInstance15(
         a::A, data, e::Exchange{E}, ::M; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID,M<:MarginMode}
-        longpos, shortpos = if M == NoMargin
-            nothing, nothing
-        else
-            let pos_kwargs = (;
-                    asset=a, min_size=limits.amount.min, tiers=leverage_tiers(e, a.raw)
-                )
-                LongPosition{M}(; pos_kwargs...), ShortPosition{M}(; pos_kwargs...)
-            end
-        end
-        float_type = eltype(limits[1])
+        local longpos, shortpos
+        longpos, shortpos = positions(M, a, limits, e)
         new{A,E,M}(
             a,
             data,
@@ -62,19 +55,30 @@ struct AssetInstance1{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractI
             Cash{a.bc,Float64}(0.0),
             Cash{a.bc,Float64}(0.0),
             e,
-            longpos,
-            shortpos,
+            longpos::Option{Position{Long,<:WithMargin}},
+            shortpos::Option{Position{Short,<:WithMargin}},
             limits,
             precision,
             fees,
         )
     end
 end
-AssetInstance = AssetInstance1
+AssetInstance = AssetInstance15
 
 const NoMarginInstance{T,E} = AssetInstance{T,E,NoMargin}
 const MarginInstance{D,E,M<:Union{Isolated,Cross}} = AssetInstance{D,E,M}
 
+function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::Exchange)
+    if M == NoMargin
+        nothing, nothing
+    else
+        let pos_kwargs = (;
+                asset=a, min_size=limits.amount.min, tiers=leverage_tiers(e, a.raw)
+            )
+            LongPosition{M}(; pos_kwargs...), ShortPosition{M}(; pos_kwargs...)
+        end
+    end
+end
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
@@ -158,6 +162,8 @@ makerfees(ai::AssetInstance) = ai.fees.maker
 minfees(ai::AssetInstance) = ai.fees.min
 maxfees(ai::AssetInstance) = ai.fees.max
 exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
+
+include("constructors.jl")
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees

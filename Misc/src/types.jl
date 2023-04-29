@@ -12,7 +12,7 @@ abstract type MarginMode end
 struct Isolated <: MarginMode end
 struct Cross <: MarginMode end
 struct NoMargin <: MarginMode end
-const WithMargin = Union{Cross, Isolated}
+const WithMargin = Union{Cross,Isolated}
 const marginmode = Returns(NoMargin)
 
 const StrOrVec = Union{AbstractString,AbstractVector}
