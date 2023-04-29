@@ -82,8 +82,8 @@ const PaperStrategy{N,E<:ExchangeID,M<:MarginMode} = Strategy{Paper,N,E,M}
 const LiveStrategy{N,E<:ExchangeID,M<:MarginMode} = Strategy{Live,N,E,M}
 const IsolatedStrategy{X<:ExecMode,N,E<:ExchangeID} = Strategy{X,N,E,Isolated}
 const CrossStrategy{X<:ExecMode,N,E<:ExchangeID} = Strategy{X,N,E,Cross}
-const MarginStrategy{X<:ExecMode,N,E<:ExchangeID} =
-    Strategy{X,N,E,M} where {M<:Union{Isolated,Cross}}
+const MarginStrategy{X,N,E,M<:Union{Isolated,Cross}} = Strategy{X,N,E,M}
+const NoMarginStrategy{X,N,E} = Strategy{X,N,E,NoMargin}
 
 include("methods.jl")
 include("interface.jl")
