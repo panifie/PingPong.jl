@@ -10,7 +10,8 @@ Exit trades: It should match the candle when the buy or sell happened.
 - price: The actual price (quote currency) of the trade, after slippage.
 - size: The total quantity of quote currency exchanged (With fees and other additional costs.)
 """
-struct Trade{O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID}
+struct Trade{O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID} <:
+       AssetEvent{E}
     order::Order{O,A,E}
     date::DateTime
     amount::Float64

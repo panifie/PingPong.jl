@@ -7,6 +7,10 @@ using Misc: config, PositionSide, Long, Short
 using TimeTicks
 using Lang: Lang
 
+abstract type ExchangeEvent{E} end
+abstract type AssetEvent{E} <: ExchangeEvent{E} end
+abstract type StrategyEvent{E} <: ExchangeEvent{E} end
+
 abstract type OrderSide end
 abstract type Buy <: OrderSide end
 abstract type Sell <: OrderSide end
@@ -44,7 +48,7 @@ Its execution depends on the order implementation.
  """
 struct Order{
     T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
-}
+} <: AssetEvent{E}
     asset::A
     exc::E
     date::DateTime
@@ -110,6 +114,7 @@ orderpos(::Order{T,A,E,P}) where {T,A,E,P} = P
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 
 include("trades.jl")
+include("positions.jl")
 include("errors.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell
