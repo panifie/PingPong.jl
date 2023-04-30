@@ -11,12 +11,12 @@ using JSON
 using Serialization: deserialize, serialize
 using TimeTicks
 using Instruments
-using Misc: DATA_PATH, dt, futures_exchange, exchange_keys
+using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin
 using Misc.TimeToLive
 using Lang: @lget!
 
 const exclock = ReentrantLock()
-const tickers_cache = TTL{String,AbstractDict}(Minute(100))
+const tickers_cache = TTL{Tuple{String,Symbol},AbstractDict}(Minute(100))
 
 @doc "Define an exchange variable set to its matching exchange instance."
 macro exchange!(name)
@@ -134,22 +134,28 @@ end
     Bool(exc.has["fetchTickers"])
 end
 
+function markettype()
+    Misc.config.margin == NoMargin() ? :spot : :linear
+end
+
 @doc "Fetch and cache tickers data."
-macro tickers!(force=false)
+macro tickers!(type=markettype(), force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
+    type = esc(type)
     @assert force isa Bool
     quote
         local $tickers
-        let nm = $(exc).name
-            if $force || nm ∉ keys(tickers_cache)
+        let nm = $(exc).name, k = (nm, $type)
+            if $force || k ∉ keys(tickers_cache)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                tickers_cache[nm] =
+                tickers_cache[k] =
                     $tickers = pyconvert(
-                        Dict{String,Dict{String,Any}}, pyfetch($(exc).fetchTickers)
+                        Dict{String,Dict{String,Any}},
+                        pyfetch($(exc).fetchTickers, params=Dict("type" => $(type))),
                     )
             else
-                $tickers = tickers_cache[nm]
+                $tickers = tickers_cache[k]
             end
         end
     end
@@ -179,7 +185,8 @@ end
 
 @doc "Get price ranges using tickers data from exchange."
 function price_ranges(pair::AbstractString, args...; kwargs...)
-    tkrs = @tickers! true
+    type = markettype()
+    tkrs = @tickers! type true
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
 end
 

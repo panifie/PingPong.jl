@@ -32,6 +32,13 @@ function leverage_func(exc, with_leveraged, verbose=true)
         Returns(true)
     end
 end
+function hasvolume(sym, spot; tickers, min_vol)
+    if spot ∈ keys(tickers)
+        quotevol(tickers[spot]) <= min_vol
+    else
+        quotevol(tickers[sym]) <= min_vol
+    end
+end
 
 marketsid(args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
 marketsid(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
@@ -58,9 +65,10 @@ function tickers(
     with_leverage=:no,
     as_vec=false,
     verbose=true,
+    type=markettype(),
 ) # ::Union{Dict,Vector}
     # swap exchange in case of futures
-    @tickers!
+    @tickers! type
     pairlist = []
     quot = string(quot)
 
@@ -72,20 +80,24 @@ function tickers(
     addto = ifelse(isempty(quot), pushas, pushifquote)
     leverage_check = leverage_func(exc, with_leverage, verbose)
     # TODO: all this checks should be decomposed into functions transducer style
-    function skip_check(spot, islev, mkt)
+    function skip_check(sym, spot, islev, mkt)
         (with_leverage == :no && islev) ||
             (with_leverage == :only && !islev) ||
             !leverage_check(spot) ||
-            (spot ∈ keys(tickers) && quotevol(tickers[spot]) <= min_vol) ||
+            hasvolume(sym, spot; tickers, min_vol) ||
             (skip_fiat && isfiatpair(spot)) ||
             (with_margin && Bool(@get(mkt, "margin", false)))
     end
 
-    for (sym, mkt) in exc.markets
-        spot = spotsymbol(sym, mkt)
-        islev = isleveragedpair(spot)
-        skip_check(spot, islev, mkt) && continue
-        addto(pairlist, sym, mkt, lquot)
+    let markets = exc.markets
+        for (sym, mkt) in tickers
+            mkt = get(markets, sym, nothing)
+            isnothing(mkt) && continue
+            spot = spotsymbol(sym, mkt)
+            islev = isleveragedpair(spot)
+            skip_check(sym, spot, islev, mkt) && continue
+            addto(pairlist, sym, mkt, lquot)
+        end
     end
 
     function result(pairlist, as_vec)
