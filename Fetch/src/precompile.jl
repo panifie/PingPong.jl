@@ -12,6 +12,6 @@ using Lang: SnoopPrecompile, @preset, @precomp
             fetch_candles(e, "1d", [pair]; from=-100, to=-10)
         end
     finally
-        rm(tmp_zi)
+        rm(tmp_zi.store.a)
     end
 end
