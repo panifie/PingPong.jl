@@ -4,7 +4,7 @@ using PingPong
 @strategyenv!
 
 const NAME = :Example
-const EXCID = ExchangeID(:bybit)
+const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin}
 const TF = tf"1m"
 __revise_mode__ = :eval
@@ -37,7 +37,7 @@ function ping!(s::S, ts, _)
 end
 
 function marketsid(::Type{S})
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "XMR/USDT:USDT"]
+    ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
 end
 
 end
