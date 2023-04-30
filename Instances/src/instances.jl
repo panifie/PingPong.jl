@@ -3,7 +3,7 @@ using OrderTypes
 
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
-using OrderTypes: OrderOrSide
+using OrderTypes: OrderOrSide, AssetEvent
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
@@ -36,6 +36,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
+    logs::Vector{AssetEvent{E}}
     cash::Cash{S1,Float64} where {S1}
     cash_committed::Cash{S2,Float64} where {S2}
     exchange::Exchange{E}
@@ -53,6 +54,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
             a,
             data,
             Trade{OrderType,A,E}[],
+            AssetEvent{E}[],
             Cash{a.bc,Float64}(0.0),
             Cash{a.bc,Float64}(0.0),
             e,
@@ -191,6 +193,14 @@ end
 @doc "Position initial margin."
 function initial(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S).initial_margin[]
+end
+@doc "Position tier."
+function tier(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
+    tier(position(ai, S), size)
+end
+@doc "Position maintenance margin rate."
+function mmr(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
+    tier(ai, size, S).mmr
 end
 
 include("constructors.jl")

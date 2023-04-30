@@ -2,7 +2,7 @@ using Collections: AssetCollection, Collections as coll
 
 using Instances: AssetInstance, Position, MarginMode, PositionSide
 using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
-using OrderTypes: OrderError
+using OrderTypes: OrderError, StrategyEvent
 using ExchangeTypes
 using TimeTicks
 using Instruments
@@ -12,6 +12,7 @@ import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
 using Data.DataFrames: nrow
 using Data: closelast
 using Misc
+using Misc: DFT
 using Lang: @lget!
 using Pkg: Pkg
 
@@ -41,16 +42,17 @@ Conventions for strategy defined attributes:
 - `S`: the strategy type.
 - `TF`: the smallest `timeframe` that the strategy uses
 """
-struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode} <: AbstractStrategy
+struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
-    cash::Cash{T2,Float64} where {T2}
-    cash_committed::Cash{T3,Float64} where {T3}
+    cash::Cash{C,DFT}
+    cash_committed::Cash{C,DFT}
     buyorders::Dict{ExchangeAsset{E},Set{ExchangeBuyOrder{E}}}
     sellorders::Dict{ExchangeAsset{E},Set{ExchangeSellOrder{E}}}
     holdings::Set{ExchangeAsset{E}}
     universe::AssetCollection
+    logs::Vector{StrategyEvent{E}}
     function Strategy(
         self::Module,
         mode::ExecMode,
@@ -70,8 +72,17 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode} <: AbstractStrategy
         buyorders = Dict{ExchangeAsset{eid},Set{ExchangeBuyOrder{eid}}}()
         sellorders = Dict{ExchangeAsset{eid},Set{ExchangeSellOrder{eid}}}()
         name = nameof(self)
-        new{typeof(mode),name,eid,typeof(margin)}(
-            self, config, timeframe, ca, ca_comm, buyorders, sellorders, holdings, uni
+        new{typeof(mode),name,eid,typeof(margin),config.qc}(
+            self,
+            config,
+            timeframe,
+            ca,
+            ca_comm,
+            buyorders,
+            sellorders,
+            holdings,
+            uni,
+            StrategyEvent{eid}[],
         )
     end
 end

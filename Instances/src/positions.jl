@@ -56,4 +56,4 @@ end
 Base.isopen(po::Position) = po.status[] == OpenPosition
 islong(::Position{<:Long}) = true
 isshort(::Position{<:Short}) = true
-
+tier(pos::Position, size) = tier(pos.tiers, size)
