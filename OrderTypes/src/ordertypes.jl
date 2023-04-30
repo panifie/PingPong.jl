@@ -66,16 +66,14 @@ Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.a
 function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
-const BuyOrder{O,A,E,P} =
-    Order{O,A,E,P} where {O<:OrderType{Buy},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
-const SellOrder{O,A,E,P} =
-    Order{O,A,E} where {O<:OrderType{Sell},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
+const BuyOrder{A,E,P} = Order{O,A,E,P} where {O<:OrderType{Buy}}
+const SellOrder{A,E,P} = Order{O,A,E,P} where {O<:OrderType{Sell}}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
-const LongBuyOrder{O,A,E} = BuyOrder{O,A,E,Long}
-const LongSellOrder{O,A,E} = SellOrder{O,A,E,Long}
-const ShortBuyOrder{O,A,E} = BuyOrder{O,A,E,Short}
-const ShortSellOrder{O,A,E} = SellOrder{O,A,E,Short}
+const LongBuyOrder{A,E} = BuyOrder{A,E,Long}
+const LongSellOrder{A,E} = SellOrder{A,E,Long}
+const ShortBuyOrder{A,E} = BuyOrder{A,E,Short}
+const ShortSellOrder{A,E} = SellOrder{A,E,Short}
 const OrderOrSide{S} = Union{S,Order{O,A,E,S}} where {O,A,E}
 
 macro deforders(issuper, types...)
@@ -119,7 +117,7 @@ include("errors.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
-export LongOrder, ShortOrder, LongBuyorder, LongSellOrder, ShortBuyOrder, ShortSellOrder
+export LongOrder, ShortOrder, LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
 export LimitOrder, GTCOrder, IOCOrder, FOKOrder, MarketOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
 export ordersdefault!, orderside
