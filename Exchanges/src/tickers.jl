@@ -102,6 +102,7 @@ function tickers(
 
     function result(pairlist, as_vec)
         isempty(pairlist) &&
+            verbose &&
             @warn "No pairs found, check quote currency ($quot) and min volume parameters ($min_vol)."
         isempty(quot) && return pairlist
         as_vec && return unique!(pairlist)
