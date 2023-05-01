@@ -20,8 +20,8 @@ abstract type AbstractStrategy end
 
 const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
 const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-const ExchangeBuyOrder{E} = BuyOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-const ExchangeSellOrder{E} = SellOrder{O,T,E} where {O<:OrderType,T<:AbstractAsset}
+const ExchangeBuyOrder{E} = BuyOrder{T,E} where {T<:AbstractAsset}
+const ExchangeSellOrder{E} = SellOrder{T,E} where {T<:AbstractAsset}
 
 @doc """The strategy is the core type of the framework.
 
