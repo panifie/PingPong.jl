@@ -7,13 +7,11 @@ const NAME = :Example
 const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin}
 const TF = tf"1m"
-__revise_mode__ = :eval
 
+__revise_mode__ = :eval
 include("common.jl")
 
-# function __init__() end
-
-function ping!(::Type{S}, ::LoadStrategy, config)
+function ping!(::Type{<:S}, ::LoadStrategy, config)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
     s.attrs[:buydiff] = 1.01
@@ -23,7 +21,7 @@ end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
-function ping!(s::S, ts, _)
+function ping!(s::T where {T<:S}, ts, _)
     pong!(s, ts, UpdateOrders())
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
@@ -36,7 +34,7 @@ function ping!(s::S, ts, _)
     foreach(makeorders, s.universe.data.instance)
 end
 
-function marketsid(::Type{S})
+function marketsid(::Type{<:S})
     ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
 end
 

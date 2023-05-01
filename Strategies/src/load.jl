@@ -34,10 +34,8 @@ function strategy!(src::Symbol, cfg::Config)
     path = find_path(file, cfg)
     mod = if !isdefined(Main, src)
         @eval Main begin
-            if isdefined(Main, :includet)
-                includet($path)
-            elseif isdefined(Main, :Revise)
-                Revise.include($path)
+            if isdefined(Main, :Revise)
+                Main.Revise.includet($path)
             else
                 include($path)
             end
@@ -50,13 +48,10 @@ function strategy!(src::Symbol, cfg::Config)
     strategy!(mod, cfg)
 end
 function strategy!(mod::Module, cfg::Config)
-    strat_exc = let s_type = mod.S{typeof(config.mode)}
-        if isconcretetype(s_type)
-            exchange(s_type)
-        else
-            exchange(s_type{typeof(config.margin)})
-        end
+    s_type = let s_type = mod.S{typeof(config.mode)}
+        isconcretetype(s_type) ? s_type : s_type{typeof(config.margin)}
     end
+    strat_exc = exchange(s_type)
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc

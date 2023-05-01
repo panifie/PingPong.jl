@@ -1,4 +1,3 @@
-__revise_mode__ = :eval
 
 const CACHE = Dict{Symbol,Any}()
 
