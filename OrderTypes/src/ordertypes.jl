@@ -72,23 +72,19 @@ function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
 
-const BuyOrder{O<:OrderType{Buy},A,E,P<:PositionSide} = Order{O,A,E,P}
-const SellOrder{O<:OrderType{Sell},A,E,P<:PositionSide} = Order{O,A,E,P}
+const BuyOrder{A,E,P<:PositionSide} = Order{<:OrderType{Buy},A,E,P}
+const SellOrder{A,E,P<:PositionSide} = Order{<:OrderType{Sell},A,E,P}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
-const LongBuyOrder{O<:OrderType{Buy},A,E} = BuyOrder{O,A,E,Long}
-const LongSellOrder{O<:OrderType{Sell},A,E} = SellOrder{O,A,E,Long}
-const ShortBuyOrder{O<:OrderType{Buy},A,E} = BuyOrder{O,A,E,Short}
-const ShortSellOrder{O<:OrderType{Sell},A,E} = SellOrder{O,A,E,Short}
+const LongBuyOrder{A,E} = BuyOrder{A,E,Long}
+const LongSellOrder{A,E} = SellOrder{A,E,Long}
+const ShortBuyOrder{A,E} = BuyOrder{A,E,Short}
+const ShortSellOrder{A,E} = SellOrder{A,E,Short}
 
 @doc "An order that increases the size of a position."
-const IncreaseOrder{A,E} = Union{
-    LongBuyOrder{<:OrderType{Buy},A,E},ShortSellOrder{<:OrderType{Sell},A,E}
-} where {A,E}
+const IncreaseOrder{A,E} = Union{LongBuyOrder{A,E},ShortSellOrder{A,E}} where {A,E}
 @doc "An order that decreases the size of a position."
-const ReduceOrder{A,E} = Union{
-    LongSellOrder{<:OrderType{Sell},A,E},ShortBuyOrder{<:OrderType{Buy},A,E}
-} where {A,E}
+const ReduceOrder{A,E} = Union{LongSellOrder{A,E},ShortBuyOrder{A,E}} where {A,E}
 @doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
 const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
 

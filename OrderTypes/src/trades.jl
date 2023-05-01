@@ -35,11 +35,11 @@ struct Trade{
     end
 end
 
-const BuyTrade{O<:OrderType{Buy},A,E,P} = Trade{O,A,E,P}
-const SellTrade{O<:OrderType{Sell},A,E,P} = Trade{O,A,E,P}
-const LongBuyTrade{O,A,E} = BuyTrade{O,A,E,Long}
-const ShortBuyTrade{O,A,E} = BuyTrade{O,A,E,Short}
-const LongSellTrade{O,A,E} = SellTrade{O,A,E,Long}
-const ShortSellTrade{O,A,E} = SellTrade{O,A,E,Short}
+const BuyTrade{A,E,P} = Trade{<:OrderType{Buy},A,E,P}
+const SellTrade{A,E,P} = Trade{<:OrderType{Sell},A,E,P}
+const LongBuyTrade{A,E} = BuyTrade{A,E,Long}
+const ShortBuyTrade{A,E} = BuyTrade{A,E,Short}
+const LongSellTrade{A,E} = SellTrade{A,E,Long}
+const ShortSellTrade{A,E} = SellTrade{A,E,Short}
 
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E

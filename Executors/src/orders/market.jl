@@ -1,15 +1,15 @@
 using OrderTypes: MarketOrderType
-using Misc: MVector
+using Base: negate
 
 const _MarketOrderState4{T} = NamedTuple{
-    (:take, :stop, :committed, :filled, :trades),
-    Tuple{Option{T},Option{T},T,MVector{1, T},Vector{Trade}},
+    (:take, :stop, :committed, :unfilled, :trades),
+    Tuple{Option{T},Option{T},T,Vector{T},Vector{Trade}},
 }
 
 function market_order_state(
-    take, stop, committed::T, filled=MVector(0.0), trades=Trade[]
+    take, stop, committed::T, unfilled::Vector{T}, trades=Trade[]
 ) where {T}
-    _MarketOrderState4{T}((take, stop, committed, filled, trades))
+    _MarketOrderState4{T}((take, stop, committed, unfilled, trades))
 end
 
 function marketorder(
@@ -18,22 +18,26 @@ function marketorder(
     amount,
     committed,
     ::SanitizeOff;
-    type=MarketOrder{Buy},
+    type=MarketOrder{Buy,Long},
     date,
     take=nothing,
     stop=nothing,
 )
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
-    OrderTypes.Order(
-        ai,
-        type;
-        date,
-        price,
-        amount,
-        committed,
-        attrs=market_order_state(take, stop, committed[1]),
-    )
+    comm = committed[]
+    # reuse committed vector as _unfilled_
+    committed[] = -amount
+    let unfilled = committed
+        OrderTypes.Order(
+            ai,
+            type;
+            date,
+            price,
+            amount,
+            attrs=market_order_state(take, stop, comm, unfilled),
+        )
+    end
 end
 
 function marketorder(
@@ -43,35 +47,41 @@ function marketorder(
     @amount! ai amount
     price = priceat(s, type, ai, date)
     comm = committment(type, price, amount, maxfees(ai))
-    # @show type iscommittable(s, type, comm, ai) comm ai.cash ai.cash_committed s.cash s.cash_committed
     if iscommittable(s, type, comm, ai)
         marketorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end
 
-function cash!(s::Strategy, ai, t::BuyTrade{<:MarketOrderType{Buy}})
-    sub!(s.cash, t.size)
+function cash!(s::NoMarginStrategy, ai, t::Trade{<:MarketOrderType{Buy}})
+    @deassert t.size < 0.0
+    @deassert t.amount > 0.0
+    add!(s.cash, t.size)
     @deassert s.cash >= 0.0
     add!(ai.cash, t.amount)
 end
-function cash!(s::Strategy, ai, t::SellTrade{<:MarketOrderType{Sell}})
+function cash!(s::NoMarginStrategy, ai, t::Trade{<:MarketOrderType{Sell}})
+    @deassert t.size > 0.0
+    @deassert t.amount < 0.0
     add!(s.cash, t.size)
-    sub!(ai.cash, t.amount)
+    add!(ai.cash, t.amount)
     @deassert ai.cash >= 0.0
 end
 
 Base.fill!(o::MarketOrder{Buy}, t::BuyTrade) = begin
-    o.attrs.filled[1] += t.amount
+    @deassert o.attrs.unfilled[] <= 0.0
+    o.attrs.unfilled[] += t.amount
 end
 Base.fill!(o::MarketOrder{Sell}, t::SellTrade) = begin
-    o.attrs.filled[1] += t.amount
+    @deassert o.attrs.unfilled[] <= 0.0
+    o.attrs.unfilled[] -= t.amount
 end
 
 committed(o::MarketOrder) = o.attrs.committed
-filled(o::MarketOrder) = o.attrs.filled[1]
-Base.isopen(o::MarketOrder) = o.attrs.filled[1] == 0.0
-isfilled(o::MarketOrder) = o.attrs.filled[1] > 0.0
+unfilled(o::MarketOrder) = abs(o.attrs.unfilled[])
+# FIXME: Should this be ≈/≉?
+Base.isopen(o::MarketOrder) = unfilled(o) != 0.0
+isfilled(o::MarketOrder) = unfilled(o) == 0.0
 islastfill(o::MarketOrder, t::Trade) = true
 isfirstfill(o::MarketOrder, args...) = true
 @doc "Does nothing since market orders are never queued."
-fullfill!(::Strategy, _, ::MarketOrder, ::Trade) = nothing
+fullfill!(::Strategy, _, o::MarketOrder, ::Trade) = nothing
