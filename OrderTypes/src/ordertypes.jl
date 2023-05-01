@@ -62,41 +62,64 @@ function Order(
 ) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
     Order{T,A,E,P}(a, e, date, price, amount, attrs)
 end
+function Order(
+    a, e, ::Type{Order{T,<:AbstractAsset,<:ExchangeID,P}}; kwargs...
+) where {T<:OrderType,P<:PositionSide}
+    Order(a, e, Order{T}, P; kwargs...)
+end
 Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.amount))
 function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
-const BuyOrder{A,E,P} = Order{O,A,E,P} where {O<:OrderType{Buy}}
-const SellOrder{A,E,P} = Order{O,A,E,P} where {O<:OrderType{Sell}}
+
+const BuyOrder{O<:OrderType{Buy},A,E,P<:PositionSide} = Order{O,A,E,P}
+const SellOrder{O<:OrderType{Sell},A,E,P<:PositionSide} = Order{O,A,E,P}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
-const LongBuyOrder{A,E} = BuyOrder{A,E,Long}
-const LongSellOrder{A,E} = SellOrder{A,E,Long}
-const ShortBuyOrder{A,E} = BuyOrder{A,E,Short}
-const ShortSellOrder{A,E} = SellOrder{A,E,Short}
-const OrderOrSide{S} = Union{S,Order{O,A,E,S}} where {O,A,E}
+const LongBuyOrder{O<:OrderType{Buy},A,E} = BuyOrder{O,A,E,Long}
+const LongSellOrder{O<:OrderType{Sell},A,E} = SellOrder{O,A,E,Long}
+const ShortBuyOrder{O<:OrderType{Buy},A,E} = BuyOrder{O,A,E,Short}
+const ShortSellOrder{O<:OrderType{Sell},A,E} = SellOrder{O,A,E,Short}
+
+@doc "An order that increases the size of a position."
+const IncreaseOrder{A,E} = Union{
+    LongBuyOrder{<:OrderType{Buy},A,E},ShortSellOrder{<:OrderType{Sell},A,E}
+} where {A,E}
+@doc "An order that decreases the size of a position."
+const ReduceOrder{A,E} = Union{
+    LongSellOrder{<:OrderType{Sell},A,E},ShortBuyOrder{<:OrderType{Buy},A,E}
+} where {A,E}
+@doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
+const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
 
 macro deforders(issuper, types...)
     @assert issuper isa Bool
     out = quote end
     for t in types
         type_str = string(t)
-        type_sym = Symbol(type_str * "Order")
+        order_type_str = type_str * "Order"
+        type_sym = Symbol(order_type_str)
+        short_type_sym = Symbol("Short" * order_type_str)
         # HACK: const/types definitions inside macros can't be revised
         isdefined(@__MODULE__, type_sym) && continue
         type = esc(type_sym)
+        short_type = esc(short_type_sym)
         ordertype = esc(Symbol(type_str * "OrderType"))
-        orderexpr = if issuper
-            :(Order{<:$ordertype{S},A,E,P})
-        else
-            :(Order{$ordertype{S},A,E,P})
-        end
+        _orderexpr(pos_side) =
+            if issuper
+                :(Order{<:$ordertype{S},A,E,$pos_side})
+            else
+                :(Order{$ordertype{S},A,E,$pos_side})
+            end
+        long_orderexpr = _orderexpr(Long)
+        short_orderexpr = _orderexpr(Short)
         push!(
             out.args,
             quote
-                const $type{S,A,E,P} = $orderexpr where {
-                    S<:OrderSide,A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
-                }
+                const $type{S<:OrderSide,A<:AbstractAsset,E<:ExchangeID} = $long_orderexpr
+                const $short_type{S<:OrderSide,A<:AbstractAsset,E<:ExchangeID} =
+                    $short_orderexpr
+                export $type, $short_type
             end,
         )
     end
@@ -114,10 +137,12 @@ exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 include("trades.jl")
 include("positions.jl")
 include("errors.jl")
+include("print.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell
 export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
-export LongOrder, ShortOrder, LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
-export LimitOrder, GTCOrder, IOCOrder, FOKOrder, MarketOrder
+export LongBuyTrade, LongSellTrade, ShortBuyTrade, ShortSellTrade
+export LongOrder, ShortOrder, IncreaseOrder, ReduceOrder
+export LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
 export ordersdefault!, orderside
