@@ -1,7 +1,6 @@
 using Lang: @deassert, @lget!, Option
 using OrderTypes
 using Strategies: Strategies as st, MarginStrategy, IsolatedStrategy
-using Misc: MVector
 using Instruments
 using Instruments: @importcash!
 @importcash!
@@ -9,7 +8,7 @@ using Instruments: @importcash!
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState4{T} = NamedTuple{
     (:take, :stop, :committed, :filled, :trades),
-    Tuple{Option{T},Option{T},MVector{1,T},MVector{1,T},Vector{Trade}},
+    Tuple{Option{T},Option{T},Vector{T},Vector{T},Vector{Trade}},
 }
 
 @doc "Get strategy buy orders for asset."
