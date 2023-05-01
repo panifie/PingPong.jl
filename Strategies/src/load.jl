@@ -34,8 +34,10 @@ function strategy!(src::Symbol, cfg::Config)
     path = find_path(file, cfg)
     mod = if !isdefined(Main, src)
         @eval Main begin
-            if isdefined(Main, :Revise)
-                Revise.includet($path)
+            if isdefined(Main, :includet)
+                includet($path)
+            elseif isdefined(Main, :Revise)
+                Revise.include($path)
             else
                 include($path)
             end
