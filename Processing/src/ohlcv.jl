@@ -113,7 +113,7 @@ function _remove_incomplete_candle(in_df, tf)
     if isincomplete(df[end, :timestamp], tf)
         lastcandle = copy(df[end, :])
         deleteat!(df, lastindex(df, 1))
-        @debug "Dropping last candle ($(lastcandle[:timestamp] |> string)) because it is incomplete."
+        @debug "Dropping last candle ($(lastcandle.timestamp |> string)) because it is incomplete."
     end
     df
 end

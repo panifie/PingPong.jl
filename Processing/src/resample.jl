@@ -1,5 +1,5 @@
 using TimeTicks
-using Lang: passkwargs, @ifdebug
+using Lang: passkwargs, @deassert
 using Base: beginsym
 using Data: zi, save_ohlcv, PairData, empty_ohlcv
 using Data.DFUtils
@@ -57,8 +57,8 @@ end
 - `style`: how to modify the data, (arguments to the grouped dataframe) [`:ohlcv`]
 "
 function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv)
-    @ifdebug @assert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) \
-        "Resampling assumptions are not met, expecting cleaned data."
+    @deassert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
+
     cleanup && (data = cleanup_ohlcv_data(data, from_tf))
 
     frame_size, src_td, td, abort = _deltas(data, to_tf)
