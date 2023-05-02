@@ -6,15 +6,18 @@ function _printtrades(io, o)
         write(io, string(length(o.attrs.trades)))
     end
 end
+
+# vector or value
+_vv(v) = v isa Vector ? v[] : v
 function _printcommitted(io, o)
     hasproperty(o.attrs, :committed) && begin
         write(io, "\nCommitted: ")
-        write(io, string(cnum(o.attrs.committed)))
+        write(io, string(cnum(_vv(o.attrs.committed))))
     end
 end
-_printfilled(io, o) = hasproperty(o.attrs, :filled) && begin
+_printunfilled(io, o) = hasproperty(o.attrs, :filled) && begin
     write(io, "\nFilled: ")
-    write(io, cnum(o.attrs.filled[]))
+    write(io, cnum(_vv(o.attrs.unfilled)))
 end
 
 function Base.show(io::IO, o::Order)
@@ -30,7 +33,7 @@ function Base.show(io::IO, o::Order)
     write(io, " ~price\n")
     _printtrades(io, o)
     _printcommitted(io, o)
-    _printfilled(io, o)
+    _printunfilled(io, o)
     write(io, "\nDate: ")
     write(io, string(o.date))
     write(io, "\n")
