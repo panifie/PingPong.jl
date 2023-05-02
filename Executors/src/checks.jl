@@ -63,9 +63,11 @@ function _cost_msg(asset, direction, value, cost)
 end
 
 function ismincost(ai::AssetInstance, price, amount)
-    iszero(ai.limits.cost.min) || begin
-        cost = price * amount
-        cost >= ai.limits.cost.min
+    let min = ai.limits.cost.min
+        iszero(min) || begin
+            cost = price * amount
+            cost >= min
+        end
     end
 end
 @doc """ The cost of the order should not be below the minimum for the exchange.
@@ -77,9 +79,11 @@ function checkmincost(ai::AssetInstance, price, amount)
     return true
 end
 function ismaxcost(ai::AssetInstance, price, amount)
-    iszero(ai.limits.cost.max) || begin
-        cost = price * amount
-        cost < ai.limits.cost.max
+    let max = ai.limits.cost.max
+        iszero(max) || begin
+            cost = price * amount
+            cost < max
+        end
     end
 end
 @doc """ The cost of the order should not be above the maximum for the exchange.
