@@ -6,6 +6,7 @@ using Strategies:
     lowat, highat, closeat, openat, volumeat, IsolatedStrategy, NoMarginStrategy
 using .Instances: NoMarginInstance
 using OrderTypes: LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
+using OrderTypes: OrderTypes as ot
 
 include("orders/slippage.jl")
 
@@ -35,10 +36,8 @@ function iscashenough(_::IsolatedStrategy, ai, actual_amount, ::ShortBuyOrder)
     ai.cash >= actual_amount
 end
 
-using OrderTypes: OrderTypes as ot
-
 function maketrade(
-    s::Strategy{Sim}, o::ot.IncreaseOrder, ai; date, actual_price, actual_amount
+    s::Strategy{Sim}, o::IncreaseOrder, ai; date, actual_price, actual_amount
 )
     checkprice(s, ai, actual_price, o)
     net_cost = cost(actual_price, actual_amount)
@@ -47,9 +46,8 @@ function maketrade(
     Trade(o, date, actual_amount, actual_price, size)
 end
 
-function maketrade(
-    s::Strategy{Sim}, o::ot.ReduceOrder, ai; date, actual_price, actual_amount
-)
+function maketrade(s::Strategy{Sim}, o::ReduceOrder, ai; date, actual_price, actual_amount)
+    @deassert actual_amount >= 0
     checkprice(s, ai, actual_price, o)
     iscashenough(s, ai, actual_amount, o) || return nothing
     net_cost = cost(actual_price, actual_amount)
@@ -60,11 +58,13 @@ end
 @ifdebug begin
     const CTR = Ref(0)
     const cash_tracking = Float64[]
+    _vv(v) = v isa Vector ? v[] : v
     function _showcash(s, ai)
-        display(s.cash)
-        display(s.cash_committed)
-        display(ai.cash)
-        display(ai.cash_committed)
+        @show s.cash s.cash_committed ai.cash ai.cash_committed
+    end
+    function _showorder(o)
+        display(("comm: ", _vv(o.attrs.committed)))
+        display(("fill: ", _vv(o.attrs.unfilled)))
     end
 end
 
@@ -73,16 +73,25 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount)
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
     trade = maketrade(s, o, ai; date, actual_price, actual_amount)
     isnothing(trade) && return nothing
-    cash!(s, ai, trade)
+    @deassert trade.size != 0.0 "Trade must not be empty, size was $(trade.size)."
     @ifdebug begin
+        _showcash(s, ai)
+        _showorder(o)
         push!(cash_tracking, s.cash)
         CTR[] += 1
     end
     # record trade
     fill!(o, trade)
     push!(ai.history, trade)
-    push!(o.attrs.trades, trade)
+    push!(attr(o, :trades), trade)
     # finalize order if complete
     fullfill!(s, ai, o, trade)
+    # updated cash
+    cash!(s, ai, trade)
+    @ifdebug begin
+        _showorder(o)
+        _showcash(s, ai)
+        println("\n")
+    end
     return trade
 end

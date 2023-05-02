@@ -26,8 +26,9 @@ function marketorder(
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
     comm = committed[]
+    @deassert comm > 0.0
     # reuse committed vector as _unfilled_
-    committed[] = -amount
+    committed[] = negate(amount)
     let unfilled = committed
         OrderTypes.Order(
             ai,
@@ -77,11 +78,10 @@ Base.fill!(o::MarketOrder{Sell}, t::SellTrade) = begin
 end
 
 committed(o::MarketOrder) = o.attrs.committed
-unfilled(o::MarketOrder) = abs(o.attrs.unfilled[])
 # FIXME: Should this be ≈/≉?
 Base.isopen(o::MarketOrder) = unfilled(o) != 0.0
 isfilled(o::MarketOrder) = unfilled(o) == 0.0
-islastfill(o::MarketOrder, t::Trade) = true
-isfirstfill(o::MarketOrder, args...) = true
+islastfill(t::Trade) = true
+isfirstfill(t::Trade) = true
 @doc "Does nothing since market orders are never queued."
 fullfill!(::Strategy, _, o::MarketOrder, ::Trade) = nothing

@@ -6,8 +6,8 @@ using Instruments: @importcash!
 @importcash!
 
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
-const _BasicOrderState4{T} = NamedTuple{
-    (:take, :stop, :committed, :filled, :trades),
+const _BasicOrderState{T} = NamedTuple{
+    (:take, :stop, :committed, :unfilled, :trades),
     Tuple{Option{T},Option{T},Vector{T},Vector{T},Vector{Trade}},
 }
 
@@ -22,15 +22,19 @@ end
 sellorders(s::Strategy, ai) = orders(s, ai, Sell)
 @doc "Check if the asset instance has pending orders."
 hasorders(s::Strategy, ai, t::Type{Buy}) = !isempty(orders(s, ai, t))
-hasorders(::Strategy, ai, ::Type{Sell}) = ai.cash_committed > 0.0
+hasorders(::Strategy, ai, ::Type{Sell}) = ai.cash_committed != 0.0
 hasorders(s::Strategy, ai) = hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
 @doc "Remove a single order from the order queue."
 Base.pop!(s::Strategy, ai, o::BuyOrder) = begin
+    @deassert !(o isa MarketOrder) # Market Orders are never queued
     pop!(orders(s, ai, Buy), o)
-    sub!(s.cash_committed, committed(o))
+    @deassert committed(o) >= 0.0 committed(o)
+    subzero!(s.cash_committed, committed(o))
 end
 Base.pop!(s::Strategy, ai, o::SellOrder) = begin
+    @deassert !(o isa MarketOrder) # Market Orders are never queued
     pop!(orders(s, ai, Sell), o)
+    @deassert committed(o) >= 0.0 committed(o)
     sub!(ai.cash_committed, committed(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
@@ -46,7 +50,8 @@ function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSi
     push!(orders(s, ai, S), o)
 end
 
-filled(o::Order) = o.attrs.filled[1]
+attr(o::Order, sym) = getfield(getfield(o, :attrs), sym)
+unfilled(o::Order) = abs(o.attrs.unfilled[])
 commit!(s::Strategy, o::BuyOrder, _) = add!(s.cash_committed, committed(o))
 commit!(::Strategy, o::SellOrder, ai) = add!(ai.cash_committed, committed(o))
 iscommittable(s::Strategy, o::BuyOrder, _) = st.freecash(s) >= committed(o)

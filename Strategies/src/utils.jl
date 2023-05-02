@@ -54,7 +54,7 @@ end
 
 function lasttrade_func(s)
     last_trade = tradesedge(s)[2]
-    isnothing(last_trade) ? lastindex : Returns(last_trade.date)
+    isnothing(last_trade) ? last : Returns(last_trade.date)
 end
 
 @doc "Returns the first and last trade of any asset in the strategy universe."

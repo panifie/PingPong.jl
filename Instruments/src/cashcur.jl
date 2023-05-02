@@ -1,3 +1,4 @@
+using Lang: @deassert
 abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
@@ -119,16 +120,16 @@ Base.isapprox(a::Cash{S}, b::Cash{S}) where {S} = isapprox(value(a), value(b))
 
 add!(c::Cash, v) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v) = (_fvalue(c)[] -= v; c)
-approx!(c::Cash{S,T} where {S}, v=zero(T)) where {T<:Real} =
-    if c <= v
-        @assert isapprox(c, v) (c, v)
-        display("cashcur.jl:125")
+atleast!(c::Cash{S,T} where {S}, v=zero(T)) where {T<:Real} =
+    if value(c) < v
+        @debug value(c)
         cash!(c, v)
     end
 @doc "Add v to cash, approximating to zero if cash is a small value."
 addzero!(c::AbstractCash, v) = begin
     add!(c, v)
-    approx!(c)
+    atleast!(c)
+    @deassert v >= 0.0
     c
 end
 @doc "Sub v to cash, approximating to zero if cash is a small value."

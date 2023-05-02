@@ -1,7 +1,7 @@
-using Lang: @deassert
+using Lang: @deassert, @posassert, Lang
 using OrderTypes
 using Executors.Checks: cost, withfees
-import Executors: priceat
+import Executors: priceat, unfilled
 using Simulations: Simulations as sim
 using Strategies: Strategies as st
 
@@ -41,6 +41,7 @@ function _fill_happened(
 )
     # The higher the volume of the candle compared to the order amount
     # the more likely the trade will succeed
+    Lang.@posassert amount cdl_vol depth initial_amount max_depth max_reduction
     ratio = cdl_vol / amount
     if ratio > 100.0
         true, amount
@@ -62,7 +63,8 @@ end
 function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, date, ai)
     ans = missing
     cdl_vol = st.volumeat(ai, date)
-    amount = o.amount - filled(o)
+    amount = unfilled(o)
+    @deassert amount > 0.0
     if o isa FOKOrder # check for full fill
         # FOK can only be filled with max amount, so use max_depth=1
         triggered, actual_amount = _fill_happened(amount, cdl_vol; max_depth=1)

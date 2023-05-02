@@ -1,30 +1,58 @@
-
 const CACHE = Dict{Symbol,Any}()
+
+select_ordertype(s::S, os::Type{<:OrderSide}) = begin
+    let t = s.attrs[:ordertype]
+        if t == :market
+            MarketOrder{os}, t
+        elseif t == :ioc
+            IOCOrder{os}, t
+        elseif t == :fok
+            FOKOrder{os}, t
+        elseif t == :gtc
+            GTCOrder{os}, t
+        else
+            error("Wrong order type $t")
+        end
+    end
+end
+
+function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats)
+    if otsym == :gtc
+        (; price=1.02 * closeat(ai.ohlcv, ats))
+    else
+        ()
+    end
+end
+
+function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats)
+    if otsym == :gtc
+        (; price=0.99 * closeat(ai.ohlcv, ats))
+    else
+        ()
+    end
+end
 
 marketsid(::S) = marketsid(S)
 
 function buy!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Sell)
+    st.pop!(s, ai, Sell) # FIXME
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
     if amount > 0.0
-        # t = pong!(s, GTCOrder{Buy}, ai; amount, date=ts, price=1.02price)
-        # t = pong!(s, FOKOrder{Buy}, ai; amount, date=ts)
-        # t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
-        t = pong!(s, MarketOrder{Buy}, ai; amount, date=ts)
+        ot, otsym = select_ordertype(s, Buy)
+        kwargs = select_orderkwargs(otsym, Buy, ai, ats)
+        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
     end
 end
 
 function sell!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Buy)
+    st.pop!(s, ai, Buy) # FIXME
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
-    price = closeat(ai.ohlcv, ats)
     if amount > 0.0
-        # t = pong!(s, GTCOrder{Sell}, ai; amount, date=ts, price=0.99price)
-        # t = pong!(s, FOKOrder{Sell}, ai; amount, date=ts)
-        # t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
-        t = pong!(s, MarketOrder{Sell}, ai; amount, date=ts)
+        ot, otsym = select_ordertype(s, Sell)
+        kwargs = select_orderkwargs(otsym, Sell, ai, ats)
+        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
     end
 end
 
