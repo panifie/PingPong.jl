@@ -268,6 +268,15 @@ function waitfunc(flag::Function)
     end
 end
 
+@doc "Throws if all inputs aren't positive (only in debug)."
+macro posassert(args...)
+    quote
+        @ifdebug for a in $(esc.(args)...)
+            @assert a >= 0.0
+        end
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws
