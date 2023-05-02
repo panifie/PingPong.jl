@@ -1,4 +1,5 @@
 using Lang: @ifdebug
+using Strategies: MarginStrategy
 
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n
@@ -95,11 +96,15 @@ end
 
 _doclamp(::LimitOrder, price, ai, date) = clamp(price, lowat(ai, date), highat(ai, date))
 _doclamp(::MarketOrder, price, args...) = price
-
-@doc "Add slippage to given `price` w.r.t. a specific order, date and amount."
-function with_slippage(s::Strategy{Sim}, o, ai; date, price, actual_amount)
+function _do_slippage(s, o, ai; date, price, actual_amount)
     clamp_price = _doclamp(o, price, ai, date)
+    @deassert clamp_price > 0.0
     _with_slippage(
         s, o, ai, s.attrs[:sim_market_slippage]; clamp_price, actual_amount, date
     )
+end
+
+@doc "Add slippage to given `price` w.r.t. a specific order, date and amount."
+function with_slippage(s::Strategy{Sim}, o, ai; date, price, actual_amount)
+    _do_slippage(s, o, ai; date, price, actual_amount)
 end
