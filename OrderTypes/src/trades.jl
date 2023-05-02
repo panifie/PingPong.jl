@@ -1,13 +1,10 @@
 using Lang: @deassert
+using Base: negate
 
-signedamount(amount, ::LongBuyOrder) = amount
-signedamount(amount, ::LongSellOrder) = -amount
-signedamount(amount, ::ShortSellOrder) = -amount
-signedamount(amount, ::ShortBuyOrder) = amount
-signedsize(size, ::LongBuyOrder) = -size
-signedsize(size, ::LongSellOrder) = size
-signedsize(size, ::ShortSellOrder) = -size
-signedsize(size, ::ShortBuyOrder) = size
+signedamount(amount, ::BuyOrder) = amount
+signedamount(amount, ::SellOrder) = negate(amount)
+signedsize(size, ::IncreaseOrder) = negate(size)
+signedsize(size, ::ReduceOrder) = size
 
 @doc """An order, successfully executed from a strategy request.
 Entry trades: The date when the order was actually opened, during backtesting, it is usually `date + tf.period`

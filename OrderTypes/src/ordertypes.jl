@@ -82,9 +82,9 @@ const ShortBuyOrder{A,E} = BuyOrder{A,E,Short}
 const ShortSellOrder{A,E} = SellOrder{A,E,Short}
 
 @doc "An order that increases the size of a position."
-const IncreaseOrder{A,E} = Union{LongBuyOrder{A,E},ShortSellOrder{A,E}} where {A,E}
+const IncreaseOrder{A,E} = Union{LongBuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
-const ReduceOrder{A,E} = Union{LongSellOrder{A,E},ShortBuyOrder{A,E}} where {A,E}
+const ReduceOrder{A,E} = Union{LongSellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
 const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
 
