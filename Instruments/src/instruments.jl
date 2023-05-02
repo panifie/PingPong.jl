@@ -1,5 +1,5 @@
 using Lang: @lget!
-import Base: ==, +, -, ÷, /, *
+import Base: ==, +, -, ÷, /, *, ≈
 include("cashcur.jl")
 
 @doc "A symbol checked to be a valid quote currency."

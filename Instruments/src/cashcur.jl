@@ -84,6 +84,12 @@ compactnum(val, n) = split(compactnum(val), ".")[n]
 Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
 
+leaq(a, b) = a <= b || isapprox(a, b)
+⪅(a::T, b::T) where {T<:AbstractCash} = leaq(value(a), value(b))
+⪅(a::T, b::N) where {T<:AbstractCash,N<:Real} = leaq(value(a), b)
+⪅(a::N, b::T) where {T<:AbstractCash,N<:Real} = leaq(a, value(b))
+⪆(a, b) = b ⪅ a
+
 # Base.promote(a::C, b::C) where {C<:Cash} = (a.value, b.value)
 Base.promote(c::C, n::N) where {C<:Cash,N<:Real} = (value(c), n)
 Base.promote(n::N, c::C) where {C<:Cash,N<:Real} = (n, value(c))
@@ -108,15 +114,25 @@ Base.real(c::Cash) = real(value(c))
 /(a::Cash{S}, b::Cash{S}) where {S} = value(a) / value(b)
 +(a::Cash{S}, b::Cash{S}) where {S} = value(a) + value(b)
 -(a::Cash{S}, b::Cash{S}) where {S} = value(a) - value(b)
+display("cashcur.jl:117")
+Base.isapprox(a::Cash{S}, b::Cash{S}) where {S} = isapprox(value(a), value(b))
 
 add!(c::Cash, v) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v) = (_fvalue(c)[] -= v; c)
-@doc "Never subtract below zero."
-subzero!(c::AbstractCash, v) = begin
-    sub!(c, v)
-    c < 0.0 && cash!(c, 0.0)
+approx!(c::Cash{S,T} where {S}, v=zero(T)) where {T<:Real} =
+    if c <= v
+        @assert isapprox(c, v) (c, v)
+        display("cashcur.jl:125")
+        cash!(c, v)
+    end
+@doc "Add v to cash, approximating to zero if cash is a small value."
+addzero!(c::AbstractCash, v) = begin
+    add!(c, v)
+    approx!(c)
     c
 end
+@doc "Sub v to cash, approximating to zero if cash is a small value."
+subzero!(c::AbstractCash, v) = addzero!(c, -v)
 mul!(c::Cash, v) = (_fvalue(c)[] *= v; c)
 rdiv!(c::Cash, v) = (_fvalue(c)[] /= v; c)
 div!(c::Cash, v) = (_fvalue(c)[] ÷= v; c)
