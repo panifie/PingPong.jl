@@ -1,27 +1,36 @@
 module Checks
 using Lang: Option, @ifdebug
-using Misc: isstrictlysorted
+using Misc: isstrictlysorted, toprecision
 using Instances
+using Strategies: NoMarginStrategy, IsolatedStrategy
 using OrderTypes
+using Base: negate
 
 struct SanitizeOn end
 struct SanitizeOff end
 
-cost(price, amount) = price * amount
-withfees(cost, fees) = muladd(cost, fees, cost)
-
-_minusmod(n, prec) = begin
-    m = mod(n, prec)
-    isapprox(m, prec) ? n : n - m
+@doc "The cost of a trade is always *absolute*. (while fees can also be negative.)"
+cost(price, amount) = abs(price * amount)
+@doc "When increasing a position fees are added to the currency spent."
+function withfees(cost, fees, ::T) where {T<:Union{IncreaseOrder,Type{<:IncreaseOrder}}}
+    muladd(cost, fees, cost)
+end
+@doc "When exiting a position fees are deducted from the received currency."
+function withfees(cost, fees, ::T) where {T<:Union{ReduceOrder,Type{<:ReduceOrder}}}
+    muladd(negate(cost), fees, cost)
 end
 
-toprecision(n::Integer, prec::Integer) = _minusmod(n, prec)
-@doc "When precision is a float it represents the pip."
-function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
-    _minusmod(n, prec)
+checkprice(_::NoMarginStrategy, _, _, _) = nothing
+@doc "The price of a trade for long positions should never be below the liquidation price."
+function checkprice(_::IsolatedStrategy, ai, actual_price, ::LongOrder)
+    @assert actual_price > liquidation(ai, Long)
 end
-@doc "When precision is a Integereger it represents the number of decimals."
-toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
+@doc "The price of a trade for short positions should never be above the liquidation price."
+function checkprice(_::IsolatedStrategy, ai, actual_price, ::ShortOrder)
+    @assert actual_price < liquidation(ai, Short)
+end
+@doc "Amount changes sign only after trade creation, it is always given as *positive*."
+checkamount(actual_amount) = @assert actual_amount >= 0.0
 
 @doc """Price and amount value of an order are adjusted by subtraction.
 
@@ -120,6 +129,6 @@ function check_monotonic(prices...)
     return true
 end
 
-export SanitizeOn, SanitizeOff, cost, withfees
+export SanitizeOn, SanitizeOff, cost, withfees, checkprice, checkamount
 
 end
