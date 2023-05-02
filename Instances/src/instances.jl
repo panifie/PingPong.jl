@@ -145,12 +145,15 @@ function Base.similar(ai::AssetInstance)
     )
 end
 
-Instruments.cash!(ai::AssetInstance, v) = cash!(ai.cash, v)
-Instruments.add!(ai::AssetInstance, v) = add!(ai.cash, v)
-Instruments.sub!(ai::AssetInstance, v) = sub!(ai.cash, v)
-freecash(ai::AssetInstance) = ai.cash - ai.cash_committed
-Data.DFUtils.firstdate(ai::AssetInstance) = first(ai.ohlcv.timestamp)
-Data.DFUtils.lastdate(ai::AssetInstance) = last(ai.ohlcv.timestamp)
+cash(ai::AssetInstance) = getfield(ai, :cash)
+committed(ai::AssetInstance) = getfield(ai, :cash_committed)
+ohlcv(ai::AssetInstance) = getfield(first(getfield(ai, :data)), :second)
+Instruments.cash!(ai::AssetInstance, v) = cash!(cash(ai), v)
+Instruments.add!(ai::AssetInstance, v) = add!(cash(ai), v)
+Instruments.sub!(ai::AssetInstance, v) = sub!(cash(ai), v)
+freecash(ai::AssetInstance) = cash(ai) - committed(ai)
+Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
+Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)
 
 function Base.string(ai::AssetInstance)
     "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
