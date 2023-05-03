@@ -115,8 +115,9 @@ Base.real(c::Cash) = real(value(c))
 /(a::Cash{S}, b::Cash{S}) where {S} = value(a) / value(b)
 +(a::Cash{S}, b::Cash{S}) where {S} = value(a) + value(b)
 -(a::Cash{S}, b::Cash{S}) where {S} = value(a) - value(b)
-display("cashcur.jl:117")
-Base.isapprox(a::Cash{S}, b::Cash{S}) where {S} = isapprox(value(a), value(b))
+function Base.isapprox(a::Cash{S}, b::Cash{S}; kwargs...) where {S}
+    isapprox(value(a), value(b); kwargs...)
+end
 
 add!(c::Cash, v) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v) = (_fvalue(c)[] -= v; c)

@@ -104,5 +104,5 @@ include("print.jl")
 
 export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange
-export LoadStrategy, WarmupPeriod
+export LoadStrategy, ResetStrategy, WarmupPeriod
 export SimStrategy, PaperStrategy, LiveStrategy, IsolatedStrategy, CrossStrategy

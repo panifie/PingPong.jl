@@ -11,11 +11,11 @@ const TF = tf"1m"
 __revise_mode__ = :eval
 include("common.jl")
 
+ping!(s::S, ::ResetStrategy) = _reset!(s)
 function ping!(::Type{<:S}, ::LoadStrategy, config)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
-    s.attrs[:buydiff] = 1.01
-    s.attrs[:selldiff] = 1.005
+    _reset!(s)
     s
 end
 

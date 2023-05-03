@@ -5,16 +5,19 @@ using PingPong
 
 function loadbtc()
     @eval begin
-        s = strategy!(:Example, cfg)
-        fill!(s.universe, config.timeframes[(begin + 1):end]...)
-        btc = s.universe[d"BTC/USDT:USDT"].instance[1]
+        betc = let s = st.strategy!(:Example, cfg)
+            fill!(s.universe, config.timeframes[(begin + 1):end]...)
+            s.universe[d"BTC/USDT:USDT"].instance[1]
+        end
     end
 end
 
-function dostub!(pairs=["eth", "btc", "xmr"])
+function dostub!(pairs=["eth", "btc", "sol"])
     @eval using Scrapers: Scrapers as scr
-    GC.gc()
-    qc = string(nameof(s.cash))
-    data = invokelatest(scr.BinanceData.binanceload, pairs; quote_currency=qc)
-    egn.stub!(s.universe, data)
+    @eval let
+        GC.gc()
+        qc = string(nameof(s.cash))
+        data = scr.BinanceData.binanceload($pairs; quote_currency=qc)
+        egn.stub!(s.universe, data)
+    end
 end

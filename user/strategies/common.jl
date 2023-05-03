@@ -1,5 +1,12 @@
 const CACHE = Dict{Symbol,Any}()
 
+_reset!(s) = begin
+    s.attrs[:ordertype] = :fok
+    s.attrs[:buydiff] = 1.01
+    s.attrs[:selldiff] = 1.005
+    s
+end
+
 select_ordertype(s::S, os::Type{<:OrderSide}) = begin
     let t = s.attrs[:ordertype]
         if t == :market

@@ -9,6 +9,7 @@ Receives:
 ping!(::Strategy, current_time, ctx, args...; kwargs...) = error("Not implemented")
 const evaluate! = ping!
 struct LoadStrategy <: ExecAction end
+struct ResetStrategy <: ExecAction end
 @doc "Called to construct the strategy, should return the strategy instance."
 ping!(::Type{<:Strategy}, ::LoadStrategy, ctx) = nothing
 struct WarmupPeriod <: ExecAction end

@@ -34,6 +34,7 @@ reset!(s::Strategy, defaults=false) = begin
     defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
+    ping!(s, ResetStrategy())
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
 reload!(s::Strategy) = begin

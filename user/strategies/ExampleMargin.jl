@@ -13,6 +13,7 @@ include("common.jl")
 
 # function __init__() end
 
+ping!(s::S, ::ResetStrategy) = _reset!(s)
 function ping!(::Type{<:S}, ::LoadStrategy, config)
     assets = marketsid(S)
     config.margin = Isolated()
