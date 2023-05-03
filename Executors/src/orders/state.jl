@@ -40,11 +40,12 @@ Base.pop!(s::Strategy, ai, o::SellOrder) = begin
     release!(s, ai, o)
 end
 @doc "Remove all buy/sell orders for an asset instance."
-Base.pop!(s::Strategy, ai, t::Type{<:OrderSide}) = pop!.(s, ai, orders(s, ai, t))
-Base.pop!(s::Strategy, ai) = begin
+Base.pop!(s::Strategy, ai, t::Type{<:Union{Buy,Sell}}) = pop!.(s, ai, orders(s, ai, t))
+Base.pop!(s::Strategy, ai, _::Type{Both}) = begin
     pop!(s, ai, Buy)
     pop!(s, ai, Sell)
 end
+Base.pop!(s::Strategy, ai) = pop!(s, ai, Both)
 @doc "Inserts an order into the order set of the asset instance."
 function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSide}
     push!(orders(s, ai, S), o)

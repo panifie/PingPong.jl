@@ -41,7 +41,7 @@ _lastupdate!(s, date) = s.attrs[:sim_last_orders_update] = date
 _lastupdate(s) = s.attrs[:sim_last_orders_update]
 
 @doc "Iterates over all pending orders checking for new fills. Should be called only once, precisely at the beginning of a `ping!` function."
-function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
+function pong!(s::Strategy{Sim}, ::UpdateOrders, date)
     _lastupdate(s) >= date &&
         error("Tried to update orders multiple times on the same date.")
     for (ai, ords) in s.sellorders
@@ -55,4 +55,11 @@ function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
         end
     end
     _lastupdate!(s, date)
+end
+
+@doc "Cancel orders for a particular asset instance."
+function pong!(
+    s::Strategy{Sim}, ::CancelOrders, ai::AssetInstance, t::Type{<:OrderSide}=Both
+)
+    pop!(s, ai, t)
 end

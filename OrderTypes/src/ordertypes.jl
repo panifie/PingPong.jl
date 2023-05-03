@@ -135,7 +135,7 @@ include("positions.jl")
 include("errors.jl")
 include("print.jl")
 
-export Order, OrderType, OrderSide, Buy, Sell
+export Order, OrderType, OrderSide, Buy, Sell, Both
 export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
 export LongBuyTrade, LongSellTrade, ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, IncreaseOrder, ReduceOrder
