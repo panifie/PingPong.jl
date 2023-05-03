@@ -27,7 +27,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
         end
     end
     if doreset
-        tt.reset!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
+        tt.current!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
         st.reset!(s)
     end
     ordersdefault!(s)

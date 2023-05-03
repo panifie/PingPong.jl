@@ -16,7 +16,7 @@ const results = Dict{String,Any}()
 
 _doinit() = begin
     ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
-    isdefined(Misc, :config) && empty!(config)
+    isdefined(Misc, :config) && reset!(config)
 end
 
 export results

@@ -50,8 +50,8 @@ collect(dr::DateRange) = begin
     out
 end
 
-reset!(dr::DateRange) = dr.current_date[1] = dr.start
-reset!(dr::DateRange, d) = dr.current_date[1] = d
+@doc "Stats the current date of the DateRange (defaults to `start` value.)"
+current!(dr::DateRange, d=dr.start) = dr.current_date[1] = d
 function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
 end
@@ -78,7 +78,6 @@ function Base.parse(::Type{DateRange}, s::AbstractString)
     DateRange(args...)
 end
 
-
 @doc """Create a `DateRange` using notation `FROM..TO;STEP`.
 
 example:
@@ -90,4 +89,4 @@ macro dtr_str(s::String)
     :($(parse(DateRange, s)))
 end
 
-export DateRange, DateTuple, @dtr_str, reset!
+export DateRange, DateTuple, @dtr_str, current!

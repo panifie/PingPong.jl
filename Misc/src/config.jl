@@ -89,14 +89,31 @@ end
     sources::Dict{Symbol,String} = Dict()
     attrs::Dict{Any,Any} = Dict()
     toml = nothing
+    const defaults::NamedTuple = (;)
 end
 
-Config(args...; kwargs...) = begin
+function Config(args...; kwargs...)
     Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
 end
+
 function Config(profile::Union{Symbol,String}, path::String=config_path())
     cfg = Config()
     config!(profile; cfg, path)
+    cfg = Config(; defaults=_defaults(cfg))
+    config!(profile; cfg, path)
+end
+
+_copyval(v) =
+    if typeof(v) <: Union{AbstractDict,AbstractVector}
+        copy(v)
+    else
+        v
+    end
+
+function _defaults(cfg)
+    NamedTuple(
+        f => getfield(cfg, f) |> _copyval for f in fieldnames(Config) if f != :defaults
+    )
 end
 
 _path!(cfg, path) = begin
@@ -160,9 +177,13 @@ function config!(
 end
 
 @doc "Reset config to default values."
-function Base.empty!(c::Config)
+function reset!(c::Config)
     for k in fieldnames(Config)
-        setproperty!(c, k, getproperty(_default_config, k))
+        k == :defaults && continue
+        if hasproperty(_config_defaults, k)
+            def = getproperty(_config_defaults, k)
+            setproperty!(c, k, _copyval(def))
+        end
     end
 end
 
@@ -204,4 +225,4 @@ macro lev!()
     end
 end
 
-export Config, config, config!, exchange_keys
+export Config, config, config!, reset!, exchange_keys

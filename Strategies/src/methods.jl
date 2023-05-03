@@ -1,5 +1,6 @@
 using Lang: @lget!
 import ExchangeTypes: exchangeid
+import Misc: reset!
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -19,8 +20,9 @@ coll.iscashable(s::Strategy) = coll.iscashable(s.cash, s.universe)
 Base.nameof(t::Type{<:Strategy}) = t.parameters[2]
 Base.nameof(s::Strategy) = nameof(typeof(s))
 
-@doc "Resets strategy."
-reset!(s::Strategy) = begin
+@doc "Resets strategy state.
+`defaults`: if `true` reapply strategy config defaults."
+reset!(s::Strategy, defaults=false) = begin
     empty!(s.buyorders)
     empty!(s.sellorders)
     empty!(s.holdings)
@@ -29,6 +31,7 @@ reset!(s::Strategy) = begin
         cash!(ai.cash, 0.0)
         cash!(ai.cash_committed, 0.0)
     end
+    defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
 end
