@@ -1,5 +1,5 @@
 module Checks
-using Lang: Option, @ifdebug
+using Lang: Option, @ifdebug, @deassert
 using Misc: isstrictlysorted, toprecision
 using Instances
 using Strategies: NoMarginStrategy, IsolatedStrategy
@@ -13,10 +13,12 @@ struct SanitizeOff end
 cost(price, amount) = abs(price * amount)
 @doc "When increasing a position fees are added to the currency spent."
 function withfees(cost, fees, ::T) where {T<:Union{IncreaseOrder,Type{<:IncreaseOrder}}}
+    @deassert cost > 0.0
     muladd(cost, fees, cost)
 end
 @doc "When exiting a position fees are deducted from the received currency."
 function withfees(cost, fees, ::T) where {T<:Union{ReduceOrder,Type{<:ReduceOrder}}}
+    @deassert cost > 0.0
     muladd(negate(cost), fees, cost)
 end
 
@@ -113,17 +115,15 @@ In other words, it expects all given prices to be already sorted."""
 function checkcost(ai::AssetInstance, amount, prices...)
     _checkcost(checkmincost, checkmaxcost, ai, amount, prices...)
 end
-function checkcost(ai::AssetInstance, amount, p1)
-    checkmaxcost(ai, amount, p1)
-    checkmincost(ai, amount, p1)
+function checkcost(ai::AssetInstance; amount, price)
+    checkmaxcost(ai, amount, price)
+    checkmincost(ai, amount, price)
 end
 function iscost(ai::AssetInstance, amount, prices...)
     _checkcost(ismincost, ismaxcost, ai, amount, prices...)
-    true
 end
-function iscost(ai::AssetInstance, amount, p1)
-    ismaxcost(ai, amount, p1)
-    ismincost(ai, amount, p1)
+function iscost(ai::AssetInstance; amount, price)
+    ismaxcost(ai, amount, price) && ismincost(ai, amount, price)
 end
 
 ismonotonic(prices...) = isstrictlysorted(Iterators.filter(!isnothing, prices)...)
