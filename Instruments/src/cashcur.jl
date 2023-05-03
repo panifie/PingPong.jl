@@ -129,7 +129,7 @@ atleast!(c::Cash{S,T} where {S}, v=zero(T)) where {T<:Real} =
 addzero!(c::AbstractCash, v) = begin
     add!(c, v)
     atleast!(c)
-    @deassert v >= 0.0
+    @deassert c >= 0.0 v
     c
 end
 @doc "Sub v to cash, approximating to zero if cash is a small value."

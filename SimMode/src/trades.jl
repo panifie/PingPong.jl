@@ -63,8 +63,11 @@ end
         @show s.cash s.cash_committed ai.cash ai.cash_committed
     end
     function _showorder(o)
+        display(("price: ", o.price))
         display(("comm: ", _vv(o.attrs.committed)))
         display(("fill: ", _vv(o.attrs.unfilled)))
+        display(("amount: ", o.amount))
+        display(("trades: ", length(o.attrs.trades)))
     end
 end
 
@@ -73,12 +76,12 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount)
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
     trade = maketrade(s, o, ai; date, actual_price, actual_amount)
     isnothing(trade) && return nothing
-    @deassert trade.size != 0.0 "Trade must not be empty, size was $(trade.size)."
     @ifdebug begin
+        @assert trade.size != 0.0 "Trade must not be empty, size was $(trade.size)."
+        CTR[] += 1
         _showcash(s, ai)
         _showorder(o)
-        push!(cash_tracking, s.cash)
-        CTR[] += 1
+        push!(cash_tracking, actual_price)
     end
     # record trade
     fill!(o, trade)
@@ -86,7 +89,7 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount)
     push!(attr(o, :trades), trade)
     # finalize order if complete
     fullfill!(s, ai, o, trade)
-    # updated cash
+    # update cash
     cash!(s, ai, trade)
     @ifdebug begin
         _showorder(o)

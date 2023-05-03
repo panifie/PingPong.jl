@@ -24,7 +24,11 @@ function limitorder(
 )
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
-    @deassert committed[] > 0.0
+    @deassert if type <: BuyOrder
+        committed[] > ai.limits.cost.min
+    else
+        committed[] > ai.limits.amount.min
+    end "Order committment too low\n$(committed[]), $(ai.asset) $date"
     let unfilled = unfillment(type, amount)
         @deassert type <: BuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
         OrderTypes.Order(
@@ -83,9 +87,9 @@ function cash!(s::NoMarginStrategy, ai, t::Trade{<:LimitOrderType{Buy}})
     @deassert t.amount > 0.0
     @deassert committed(t.order) >= 0
     add!(s.cash, t.size)
-    add!(s.cash_committed, t.size)
+    addzero!(s.cash_committed, t.size)
     @deassert s.cash >= 0.0
-    @deassert s.cash_committed >= 0.0 s.cash_committed
+    @deassert s.cash_committed >= 0.0
     add!(ai.cash, t.amount)
 end
 # For isolated strategies cash is already deducted at the time the order is created (before being filled.)
