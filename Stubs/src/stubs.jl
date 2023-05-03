@@ -59,12 +59,14 @@ function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
     end
 end
 
-function stub!(s::Strategy, n=10_000)
+function stub!(s::Strategy, n=10_000; trades=true)
     for ai in s.universe
         sim.stub!(ai, n)
     end
-    for ai in s.universe
-        load_stubtrades!(ai)
+    if trades
+        for ai in s.universe
+            load_stubtrades!(ai)
+        end
     end
     s
 end

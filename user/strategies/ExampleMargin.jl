@@ -38,7 +38,7 @@ function ping!(s::T where {T<:S}, ts, _)
 end
 
 function marketsid(::Type{<:S})
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "XMR/USDT:USDT"]
+    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
 end
