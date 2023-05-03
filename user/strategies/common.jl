@@ -1,9 +1,12 @@
 const CACHE = Dict{Symbol,Any}()
 
 _reset!(s) = begin
-    s.attrs[:ordertype] = :fok
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
+    s.attrs[:ordertype] = :fok
+    for (k, v) in pairs(get(s.attrs, :overrides, ()))
+        s.attrs[k] = v
+    end
     s
 end
 
@@ -42,7 +45,7 @@ end
 marketsid(::S) = marketsid(S)
 
 function buy!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Sell) # FIXME
+    pong!(s, CancelOrders(), ai, Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
@@ -54,7 +57,7 @@ function buy!(s::S, ai, ats, ts)
 end
 
 function sell!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Buy) # FIXME
+    pong!(s, CancelOrders(), ai, Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     if amount > 0.0
         ot, otsym = select_ordertype(s, Sell)

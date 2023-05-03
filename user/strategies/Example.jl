@@ -22,7 +22,7 @@ end
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
 function ping!(s::T where {T<:S}, ts, _)
-    pong!(s, ts, UpdateOrders())
+    pong!(s, UpdateOrders(), ts)
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)

@@ -24,7 +24,7 @@ end
 _trades(s) = s.universe[m"eth"].instance.history
 _eq4(a, b) = isapprox(a, b; atol=1e-4)
 _test_nomargin_market(s) = begin
-    s.attrs[:ordertype] = :market
+    s.attrs[:overrides] = (; ordertype=:market)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.MarketOrder
     @test _eq4(Cash(:USDT, 9.044), s.cash.value)
@@ -39,7 +39,7 @@ _test_nomargin_market(s) = begin
 end
 
 _test_nomargin_gtc(s) = begin
-    s.attrs[:ordertype] = :gtc
+    s.attrs[:overrides] = (; ordertype=:gtc)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.GTCOrder
     @test _eq4(Cash(:USDT, 13607.8452), s.cash.value)
@@ -48,42 +48,42 @@ _test_nomargin_gtc(s) = begin
     mmh = st.minmax_holdings(s)
     @test mmh.count == 3
     @test mmh.min[1] == :SOL
-    @test mmh.min[2] ≈ 2.1545 atol=1e14
+    @test mmh.min[2] ≈ 2.1545 atol = 1e14
     @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 121.4197 atol=1e5
+    @test mmh.max[2] ≈ 121.4197 atol = 1e5
 end
 
 _test_nomargin_ioc(s) = begin
-    s.attrs[:ordertype] = :ioc
+    s.attrs[:overrides] = (; ordertype=:ioc)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.IOCOrder
-    @test Cash(:USDT, 8.9480) ≈ s.cash atol=1e-4
+    @test Cash(:USDT, 8.9480) ≈ s.cash atol = 1e-4
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
     @test st.trades_total(s) == 4290
     mmh = st.minmax_holdings(s)
     @test mmh.count == 2
     @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 261.615 atol=1e-3
+    @test mmh.min[2] ≈ 261.615 atol = 1e-3
     @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 741.876 atol=1e-3
+    @test mmh.max[2] ≈ 741.876 atol = 1e-3
 end
 
 _test_nomargin_fok(s) = begin
-    s.attrs[:ordertype] = :fok
+    s.attrs[:overrides] = (; ordertype=:fok)
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.FOKOrder
-    @test Cash(:USDT, 995.515) ≈ s.cash atol=1e-3
+    @test Cash(:USDT, 995.515) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
     @test st.trades_total(s) == 2150
     mmh = st.minmax_holdings(s)
     @test mmh.count == 3
     @test mmh.min[1] == :SOL
-    @test mmh.min[2] ≈ 0.0 atol=1e-8
+    @test mmh.min[2] ≈ 0.0 atol = 1e-8
     @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 28422 atol=9e-1
+    @test mmh.max[2] ≈ 28422 atol = 9e-1
     reset!(s, true)
 end
 
