@@ -3,7 +3,6 @@ using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 
-
 PositionSide(::Type{Buy}) = Long
 PositionSide(::Type{Sell}) = Short
 PositionSide(::Order{OrderType{Buy}}) = Long
@@ -27,7 +26,7 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     maintenance_margin::OneVec = [0.0]
     initial_margin::OneVec = [0.0]
     notional::OneVec = [0.0]
-    leverage::OneVec = [0.0]
+    leverage::OneVec = [1.0]
     min_size::T where {T<:Real}
     tiers::LeverageTiersDict
 end
