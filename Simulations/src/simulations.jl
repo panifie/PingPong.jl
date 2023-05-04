@@ -1,6 +1,7 @@
 include("mootils.jl")
 using .Mootils: Mootils as mt
 using Data: Candle
+using Random: Random
 
 include("types.jl")
 include("rois.jl")

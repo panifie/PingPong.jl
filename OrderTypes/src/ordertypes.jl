@@ -128,6 +128,7 @@ const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S} = nameof(S)
 ordertype(::Order{T}) where {T} = T
 orderpos(::Order{T,A,E,P}) where {T,A,E,P} = P
+pricetime(o::Order) = (price=o.price, time=o.date)
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 
 include("trades.jl")
@@ -141,4 +142,4 @@ export LongBuyTrade, LongSellTrade, ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, IncreaseOrder, ReduceOrder
 export LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
-export ordersdefault!, orderside
+export ordersdefault!, orderside, pricetime

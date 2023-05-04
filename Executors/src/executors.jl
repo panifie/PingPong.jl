@@ -15,9 +15,10 @@ pong!(args...; kwargs...) = error("Not implemented")
 const execute! = pong!
 
 struct UpdateOrders <: ExecAction end
+struct UpdateOrdersShuffled <: ExecAction end
 struct CancelOrders <: ExecAction end
 
-export pong!, execute!, UpdateOrders, CancelOrders
+export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export limitorder, marketorder
 export unfilled, committed, isfilled, islastfill, isfirstfill, attr
 export queue!, cancel!, fullfill!, commit!
