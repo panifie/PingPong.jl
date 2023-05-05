@@ -110,3 +110,17 @@ Slippage is accounted for within the trade execution.
 - For _limit_ orders there can only be positive slippage, when an order is created and the price is in your favor, the actual price of execution becomes slightly lower (for buy orders) or higher (for sell orders).
   The slippage formula takes into account volatility (high / low) and fill ratio (amount / volume). The higher the volume the order takes from the candle, the lower the positive slippage will be, whereas the higher the volatility, the higher the positive slippage will be. Positive slippage is only added for candles that go _against_ the order side, which means that it will be only added on red candles for buys, and green candles for sells.
 - For _market_ orders there can only be negative slippage. There is a minimum slippage always added (which by default corresponds to the difference between open and close (there are other formulas, check the api ref) on top of which additional skew is added based on volume and volatility.
+
+## Backtesting performance
+A local benchmark shows that the `:Example` strategy which:
+- uses FOK orders
+- runs over 3 assets
+- trades in spot markets
+- uses its simple logic which can you can read in the strategy code to execute orders
+
+Currently takes around `~8 seconds` to loop over `~1.3M * 3 (assets) ~= 3.9M candles` performing `~6000 trades` on a single x86 core.
+
+It is important to highlight that the kind of orders performed and the amount of trades executed can affect the runtime considerably (ignoring other obvious factors like additional strategy logic or number of assets).
+So beware when someone states that a backtester can run X rows in Y time without providing additional details. Moreover our order creation logic always checks that order inputs are within the boundsaries of exchanges [limits](https://docs.ccxt.com/#/README?id=precision-and-limits), and of course there is slippage an probability calculations too that allow the backtester to be "MC simmable". 
+
+It is inevitable that backtesting a strategy with margin will be slower since we have to account for all the calculations required like positions states and liquidation triggers.
