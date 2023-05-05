@@ -65,7 +65,7 @@ end
 makedocs(;
     sitename="PingPong.jl",
     pages=[
-        "Introduction" => "index.md",
+        "Introduction" => ["index.md", "disambiguation.md"],
         "Types" => "types.md",
         "Strategies" => "strategy.md",
         "Engine" =>
