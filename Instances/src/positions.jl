@@ -17,7 +17,7 @@ const OneVec = Vector{<:Union{DateTime,Real}}
 - `tiers`: sorted dict of all the leverage tiers
 For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?id=position-structure)
 "
-@kwdef struct Position{S<:PositionSide,M<:WithMargin}
+@kwdef struct Position{P<:PositionSide,M<:WithMargin}
     status::Vector{PositionStatus} = [ClosedPosition]
     asset::Derivative
     timestamp::OneVec = [DateTime(0)]
@@ -56,3 +56,27 @@ Base.isopen(po::Position) = po.status[] == OpenPosition
 islong(::Position{<:Long}) = true
 isshort(::Position{<:Short}) = true
 tier(pos::Position, size) = tier(pos.tiers, size)
+
+@doc "Position liquidation price."
+liquidation(pos::Position) = pos.liquidation_price[]
+@doc "Sets liquidation price."
+liquidation!(pos::Position, v) = pos.liquidation_price[] = v
+@doc "Position leverage."
+leverage(pos::Position) = pos.leverage[]
+@doc "Position status (open or closed)."
+status(pos::Position) = pos.status[]
+@doc "Position maintenance margin."
+maintenance(pos::Position) = pos.maintenance_margin[]
+@doc "Position initial margin."
+initial(pos::Position) = pos.initial_margin[]
+@doc "Position maintenance margin rate."
+mmr(pos::Position, size) = tier(pos, size)[2].mmr
+@doc "The price where the position is fully liquidated."
+function bankruptcy(pos::Position, price)
+    lev = leverage(pos)
+    @deassert lev != 0.0
+    price * (lev - 1.0) / lev
+end
+function bankruptcy(pos::Position, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
+    bankruptcy(pos, o.price)
+end

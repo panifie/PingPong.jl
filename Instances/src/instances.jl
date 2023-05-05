@@ -12,7 +12,7 @@ using Instruments: Instruments, compactnum, AbstractAsset, Cash
 import Instruments: _hashtuple
 using Misc: config, MarginMode, NoMargin, MM, DFT, Isolated, Cross
 using .DataStructures: SortedDict
-using Lang: Option
+using Lang: Option, @deassert
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 include("positions.jl")
@@ -174,40 +174,53 @@ maxfees(ai::AssetInstance) = ai.fees.max
 @doc "ExchangeID for the asset instance."
 exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
 @doc "Asset instance long position."
-position(ai::MarginInstance, ::Type{Long}) = ai.longpos
+position(ai::MarginInstance, ::Type{Long}) = getfield(ai, :lognpos)
 @doc "Asset instance short position."
-position(ai::MarginInstance, ::Type{Short}) = ai.shortpos
+position(ai::MarginInstance, ::Type{Short}) = getfield(ai, :shortpos)
+@doc "Position by order."
+position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = position(ai, S)
 @doc "Position liquidation price."
 function liquidation(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S()).liquidation_price[]
+    position(ai, S) |> liquidation
+end
+@doc "Sets liquidation price."
+function liquidation!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
+    liquidation!(position(ai, S), v)
 end
 @doc "Position leverage."
 function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S).leverage[]
+    position(ai, S) |> leverage
 end
 @doc "Position status (open or closed)."
 function status(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S).status[]
+    position(ai, S) |> status
 end
 @doc "Position maintenance margin."
 function maintenance(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S).maintenance_margin[]
+    position(ai, S) |> maintenance
 end
 @doc "Position initial margin."
 function initial(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S).initial_margin[]
+    position(ai, S) |> initial
 end
 @doc "Position tier."
 function tier(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
     tier(position(ai, S), size)
 end
 @doc "Position maintenance margin rate."
-function mmr(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
-    tier(ai, size, S).mmr
+function mmr(ai::MarginInstance, size, s::OrderOrSide)
+    mmr(position(ai, s), size)
+end
+@doc "The price where the position is fully liquidated."
+function bankruptcy(ai, price, ps::Type{P}) where {P<:PositionSide}
+    bankruptcy(position(ai, ps), price)
+end
+function bankruptcy(ai, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
+    bankruptcy(ai, o.price, P())
 end
 
 include("constructors.jl")
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees
-export Long, Short, position, liquidation, leverage
+export Long, Short, position, liquidation, leverage, bankruptcy
