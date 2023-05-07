@@ -4,6 +4,7 @@ using Instruments
 using Data: Candle
 
 using Misc: config, PositionSide, Long, Short
+import Misc: opposite
 using TimeTicks
 using Lang: Lang
 
@@ -72,19 +73,17 @@ function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
 
-const BuyOrder{A,E,P<:PositionSide} = Order{<:OrderType{Buy},A,E,P}
-const SellOrder{A,E,P<:PositionSide} = Order{<:OrderType{Sell},A,E,P}
+const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
+const SellOrder{A,E} = Order{<:OrderType{Sell},A,E,Long}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
-const LongBuyOrder{A,E} = BuyOrder{A,E,Long}
-const LongSellOrder{A,E} = SellOrder{A,E,Long}
-const ShortBuyOrder{A,E} = BuyOrder{A,E,Short}
-const ShortSellOrder{A,E} = SellOrder{A,E,Short}
+const ShortBuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Short}
+const ShortSellOrder{A,E} = Order{<:OrderType{Sell},A,E,Short}
 
 @doc "An order that increases the size of a position."
-const IncreaseOrder{A,E} = Union{LongBuyOrder{A,E},ShortSellOrder{A,E}}
+const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
-const ReduceOrder{A,E} = Union{LongSellOrder{A,E},ShortBuyOrder{A,E}}
+const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
 const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
 
@@ -125,21 +124,30 @@ end
 @deforders true Limit
 
 const ordersdefault! = Returns(nothing)
-orderside(::Order{T}) where {T<:OrderType{S}} where {S} = nameof(S)
+orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
 ordertype(::Order{T}) where {T} = T
-orderpos(::Order{T,A,E,P}) where {T,A,E,P} = P
+function orderpos(
+    ::Union{Type{O},O}
+) where {O<:Order{T,<:AbstractAsset,<:ExchangeID,P}} where {T,P}
+    P
+end
 pricetime(o::Order) = (price=o.price, time=o.date)
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
+commit!(args...; kwargs...) = error("not implemented")
+opposite(::Buy) = Sell()
+opposite(::Type{Buy}) = Sell
+opposite(::Sell) = Buy()
+opposite(::Type{Sell}) = Buy
 
 include("trades.jl")
 include("positions.jl")
 include("errors.jl")
 include("print.jl")
 
-export Order, OrderType, OrderSide, Buy, Sell, Both
-export BuyOrder, SellOrder, Trade, BuyTrade, SellTrade
-export LongBuyTrade, LongSellTrade, ShortBuyTrade, ShortSellTrade
-export LongOrder, ShortOrder, IncreaseOrder, ReduceOrder
-export LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
+export Order, OrderType, OrderSide, Buy, Sell, Both, Trade
+export BuyOrder, SellOrder, BuyTrade, SellTrade
+export ShortBuyTrade, ShortSellTrade
+export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
+export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
-export ordersdefault!, orderside, pricetime
+export ordersdefault!, orderside, orderpos, pricetime
