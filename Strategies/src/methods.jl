@@ -3,7 +3,7 @@ import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!
 using Instances: reset_commit!
-using OrderTypes: IncreaseTrade, ReduceTrade
+using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -57,10 +57,13 @@ cash!(s::Strategy, t::IncreaseTrade) = begin
     add!(s.cash, t.size)
     addzero!(s.cash_committed, t.size)
 end
-cash!(s::Strategy, t::ReduceTrade) = begin
+cash!(s::Strategy, t::SellTrade) = begin
     @deassert t.size > 0.0
     add!(s.cash, t.size)
-    subzero!(s.cash_committed, t.size)
+end
+cash!(s::Strategy, t::ShortBuyTrade) = begin
+    @deassert t.size < 0.0
+    add!(s.cash, t.size)
 end
 const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
