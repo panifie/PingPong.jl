@@ -11,6 +11,7 @@ struct SanitizeOff end
 
 @doc "The cost of a trade is always *absolute*. (while fees can also be negative.)"
 cost(price, amount) = abs(price * amount)
+cost(price, amount, leverage) = abs(price * amount) / leverage
 @doc "When increasing a position fees are added to the currency spent."
 function withfees(cost, fees, ::T) where {T<:Union{IncreaseOrder,Type{<:IncreaseOrder}}}
     @deassert cost > 0.0
@@ -25,11 +26,11 @@ end
 checkprice(_::NoMarginStrategy, _, _, _) = nothing
 @doc "The price of a trade for long positions should never be below the liquidation price."
 function checkprice(_::IsolatedStrategy, ai, actual_price, ::LongOrder)
-    @assert actual_price > liquidation(ai, Long)
+    @assert actual_price > liquidation(ai, Long())
 end
 @doc "The price of a trade for short positions should never be above the liquidation price."
 function checkprice(_::IsolatedStrategy, ai, actual_price, ::ShortOrder)
-    @assert actual_price < liquidation(ai, Short)
+    @assert actual_price < liquidation(ai, Short())
 end
 @doc "Amount changes sign only after trade creation, it is always given as *positive*."
 checkamount(actual_amount) = @assert actual_amount >= 0.0
@@ -120,6 +121,7 @@ function checkcost(ai::AssetInstance; amount, price)
     checkmincost(ai, amount, price)
 end
 function iscost(ai::AssetInstance, amount, prices...)
+    @ifdebug check_monotonic(prices...)
     _checkcost(ismincost, ismaxcost, ai, amount, prices...)
 end
 function iscost(ai::AssetInstance; amount, price)
