@@ -6,17 +6,19 @@ function minmax_holdings(s::Strategy)
     min_hold = (nameof(s.cash), Inf)
     datef = lasttrade_func(s)
     for ai in s.holdings
-        val = (ai.cash + ai.cash_committed) * closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
-        isapprox(val, 0.0; atol=1e-12) && continue
-        n_holdings += 1
-        if val > max_hold[2]
-            max_hold = (ai.asset.bc, val)
-        end
-        if 0 < val < min_hold[2]
-            min_hold = (ai.asset.bc, val)
+        for pos in (Long(), Short())
+            val = abs(cash(ai, pos)) * closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
+            isapprox(val, 0.0; atol=1e-12) && continue
+            n_holdings += 1
+            if val > max_hold[2]
+                max_hold = (ai.asset.bc, val)
+            end
+            if 0 < val < min_hold[2]
+                min_hold = (ai.asset.bc, val)
+            end
         end
     end
-    (min=min_hold, max=max_hold, count=n_holdings)
+    (min=min_hold, max=max_hold, count=n_holdings ÷ 2)
 end
 
 trades_total(s::Strategy) = begin

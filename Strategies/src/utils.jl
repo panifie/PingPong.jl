@@ -1,4 +1,5 @@
 import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
+using Instances: pnl, position
 using Instruments
 using Instruments: @importcash!
 @importcash!
@@ -36,7 +37,7 @@ for sym in (openat, highat, lowat, closeat, volumeat)
     @eval @define_candle_func $sym
 end
 
-function current_total(s::Strategy)
+function current_total(s::NoMarginStrategy)
     worth = Cash(s.cash, 0.0)
     for ai in s.holdings
         price = closeat(ai, lasttrade_date(ai))
@@ -45,6 +46,19 @@ function current_total(s::Strategy)
     end
     add!(worth, s.cash)
     add!(worth, s.cash_committed)
+    worth
+end
+
+function current_total(s::MarginStrategy)
+    worth = Cash(s.cash, 0.0)
+    for ai in s.holdings
+        for p in (Long, Short)
+            price = closeat(ai, lasttrade_date(ai))
+            pos = position(ai, p)
+            add!(worth, pnl(pos, price)) #,  ai.cash * price)
+        end
+    end
+    add!(worth, s.cash)
     worth
 end
 
