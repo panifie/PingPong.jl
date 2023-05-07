@@ -18,8 +18,8 @@ struct NoMargin <: MarginMode{NotHedged} end
 
 const Isolated = IsolatedMargin{NotHedged}
 const IsolatedHedged = IsolatedMargin{Hedged}
-const Cross = IsolatedMargin{NotHedged}
-const CrossHedged = IsolatedMargin{Hedged}
+const Cross = CrossMargin{NotHedged}
+const CrossHedged = CrossMargin{Hedged}
 const WithMargin = Union{Cross,Isolated}
 const marginmode = Returns(NoMargin)
 
