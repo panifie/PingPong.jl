@@ -32,11 +32,14 @@ struct Trade{
     end
 end
 
-const BuyTrade{A,E,P} = Trade{<:OrderType{Buy},A,E,P}
-const SellTrade{A,E,P} = Trade{<:OrderType{Sell},A,E,P}
-const LongBuyTrade{A,E} = BuyTrade{A,E,Long}
-const ShortBuyTrade{A,E} = BuyTrade{A,E,Short}
-const LongSellTrade{A,E} = SellTrade{A,E,Long}
-const ShortSellTrade{A,E} = SellTrade{A,E,Short}
+const BuyTrade{A,E} = Trade{<:OrderType{Buy},A,E,Long}
+const SellTrade{A,E} = Trade{<:OrderType{Sell},A,E,Long}
+const ShortBuyTrade{A,E} = Trade{<:OrderType{Buy},A,E,Short}
+const ShortSellTrade{A,E} = Trade{<:OrderType{Sell},A,E,Short}
+const IncreaseTrade{A,E} = Union{BuyTrade{A,E},ShortSellTrade{A,E}}
+const ReduceTrade{A,E} = Union{SellTrade{A,E},ShortBuyTrade{A,E}}
+const PositionTrade{P} = Trade{O,A,E,P} where {O,A,E}
 
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
+tradepos(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
+tradeside(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
