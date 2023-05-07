@@ -24,13 +24,17 @@ end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
+levat(ai, ats) = clamp(2.0 * highat(ai, ats) / lowat(ai, ats), 1.0, 100.0)
+
 function ping!(s::T where {T<:S}, ts, _)
     pong!(s, UpdateOrders(), ts)
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)
+            lev = levat(ai, ats)
             sell!(s, ai, ats, ts)
         elseif isbuy(s, ai, ats)
+            lev = levat(ai, ats)
             buy!(s, ai, ats, ts)
         end
     end

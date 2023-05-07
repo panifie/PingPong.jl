@@ -1,3 +1,5 @@
+using Lang: @ifdebug
+
 const CACHE = Dict{Symbol,Any}()
 
 _reset!(s) = begin
