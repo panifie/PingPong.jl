@@ -1,4 +1,4 @@
-using Lang: @deassert, @posassert, Lang
+using Lang: @deassert, @posassert, Lang, @ifdebug
 using OrderTypes
 using Executors.Checks: cost, withfees
 import Executors: priceat, unfilled
@@ -24,6 +24,7 @@ end
 
 @doc "Executes a limit order at a particular time only if price is lower(buy) than order price."
 function limitorder_ifprice!(s::Strategy{Sim}, o::LimitOrder, date, ai)
+    @ifdebug PRICE_CHECKS[] += 1
     pbs, triggered = _istriggered(o, date, ai)
     if triggered
         # Order might trigger on high/low, but execution uses the *close* price.
@@ -61,6 +62,7 @@ end
 
 @doc "Executes a limit order at a particular time according to volume (called by `limitorder_ifprice!`)."
 function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, date, ai)
+    @ifdebug VOL_CHECKS[] += 1
     ans = missing
     cdl_vol = st.volumeat(ai, date)
     amount = unfilled(o)

@@ -2,38 +2,37 @@ using Base: negate
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
-using Strategies:
-    lowat, highat, closeat, openat, volumeat, IsolatedStrategy, NoMarginStrategy
-using .Instances: NoMarginInstance
-using OrderTypes: LongBuyOrder, LongSellOrder, ShortBuyOrder, ShortSellOrder
-using OrderTypes: OrderTypes as ot
+using Strategies: lowat, highat, closeat, openat, volumeat
+using Strategies: IsolatedStrategy, NoMarginStrategy
+using Executors.Instances: NoMarginInstance
+using OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
+using OrderTypes: OrderTypes as ot, PositionSide
 
 include("orders/slippage.jl")
 
-function liqprice1(s::MarginStrategy{Sim}, ai::AssetInstance, size, price, ::LongOrder)
-    collateral = size / leverage(ai, Long)
-    (collateral - size * price) / (size * (mmr - position_side))
-end
+# function liqprice(ai, size, ::S) where {S<:PositionSide}
+#     size + maintenance(ai, S) - initial(ai, S)
+# end
 
 @doc "Check that we have enough cash in the strategy currency for buying."
-function iscashenough(s::NoMarginStrategy, _, size, ::LongBuyOrder)
+function iscashenough(s::NoMarginStrategy, _, size, ::BuyOrder)
     s.cash >= size
 end
 @doc "Check that we have enough asset hodlings that we want to sell (same with margin)."
-function iscashenough(_::Strategy, ai, actual_amount, ::LongSellOrder)
-    ai.cash >= actual_amount
+function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
+    cash(ai, Long()) >= actual_amount
 end
 @doc "A long buy adds to the long position by buying more contracts in QC. Check that we have enough QC."
-function iscashenough(s::IsolatedStrategy, ai, size, ::LongBuyOrder)
-    s.cash / leverage(ai, Long) >= size
+function iscashenough(s::IsolatedStrategy, ai, size, ::BuyOrder)
+    s.cash / leverage(ai, Long()) >= size
 end
 @doc "A short sell increases our position in the opposite direction, it spends QC to cover the short. Check that we have enough QC."
 function iscashenough(s::IsolatedStrategy, ai, size, ::ShortSellOrder)
-    s.cash / leverage(ai, Short) >= size
+    s.cash / leverage(ai, Short()) >= size
 end
 @doc "A short buy reduces the required capital by the leverage. But we shouldn't buy back more than what we have shorted."
 function iscashenough(_::IsolatedStrategy, ai, actual_amount, ::ShortBuyOrder)
-    ai.cash >= actual_amount
+    cash(ai, Short()) >= actual_amount
 end
 
 function maketrade(
@@ -55,34 +54,14 @@ function maketrade(s::Strategy{Sim}, o::ReduceOrder, ai; date, actual_price, act
     Trade(o, date, actual_amount, actual_price, size)
 end
 
-@ifdebug begin
-    const CTR = Ref(0)
-    const cash_tracking = Float64[]
-    _vv(v) = v isa Vector ? v[] : v
-    function _showcash(s, ai)
-        @show s.cash s.cash_committed ai.cash ai.cash_committed
-    end
-    function _showorder(o)
-        display(("price: ", o.price))
-        display(("comm: ", _vv(o.attrs.committed)))
-        display(("fill: ", _vv(o.attrs.unfilled)))
-        display(("amount: ", o.amount))
-        display(("trades: ", length(o.attrs.trades)))
-    end
-end
-
 @doc "Fills an order with a new trade w.r.t the strategy instance."
 function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount)
+    @ifdebug _afterorder()
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
     trade = maketrade(s, o, ai; date, actual_price, actual_amount)
     isnothing(trade) && return nothing
-    @ifdebug begin
-        @assert trade.size != 0.0 "Trade must not be empty, size was $(trade.size)."
-        CTR[] += 1
-        _showcash(s, ai)
-        _showorder(o)
-        push!(cash_tracking, actual_price)
-    end
+    @ifdebug _check_committments(s, ai)
+    @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     fill!(o, trade)
     push!(ai.history, trade)
@@ -91,10 +70,8 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount)
     fullfill!(s, ai, o, trade)
     # update cash
     cash!(s, ai, trade)
-    @ifdebug begin
-        _showorder(o)
-        _showcash(s, ai)
-        println("\n")
-    end
+    @ifdebug _aftertrade(s, ai, o)
+    @ifdebug _check_committments(s)
+    @ifdebug _check_committments(s, ai)
     return trade
 end

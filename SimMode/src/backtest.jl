@@ -20,7 +20,7 @@ To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, in
 """
 function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
     # ensure that universe data start at the same time
-    @ifdebug (CTR[] = 0; empty!(cash_tracking))
+    @ifdebug _resetglobals!()
     if trim_universe
         let data = flatten(s.universe)
             !check_alignment(data) && trim!(data)
