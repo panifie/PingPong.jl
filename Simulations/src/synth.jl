@@ -21,15 +21,12 @@ function synthcandle(
         m = seed_price + step
         m <= 0.0 ? seed_price : m
     end
-    @assert open > 0.0
     high = let step = rand(0:u_price:bound_price)
         open + step
     end
-    @assert high > 0.0
     low = let step = rand(0:u_price:bound_price), l = open - step
         l <= 0.0 ? open : l
     end
-    @assert low > 0.0
     close = let step = rand((-bound_price):u_price:bound_price)
         max(u_price, open + step * (high - low))
     end
