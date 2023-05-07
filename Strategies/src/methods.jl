@@ -1,8 +1,9 @@
-using Lang: @lget!
+using Lang: @lget!, @deassert
 import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
-import Instruments: cash!
-using OrderTypes: commit!
+import Instruments: cash!, add!, sub!, addzero!, subzero!
+using Instances: reset_commit!
+using OrderTypes: IncreaseTrade, ReduceTrade
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -10,6 +11,7 @@ assets(s::Strategy) = s.universe.data.asset
 @doc "Strategy assets instance."
 instances(s::Strategy) = s.universe.data.instance
 @doc "Strategy main exchange id."
+exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
 exchangeid(t::Type{<:Strategy}) = exchange(t)
 @doc "Cash that is not committed, and therefore free to use for new orders."
@@ -34,12 +36,13 @@ reset!(s::Strategy, defaults=false) = begin
         empty!(ai.history)
         cash!(ai, 0.0, Long())
         cash!(ai, 0.0, Short())
-        commit!(ai, 0.0, Long())
-        commit!(ai, 0.0, Short())
+        reset_commit!(ai, Long())
+        reset_commit!(ai, Short())
     end
     defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
+    s.config.exchange = exchange(s)
     ping!(s, ResetStrategy())
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
@@ -48,6 +51,16 @@ reload!(s::Strategy) = begin
         empty!(inst.data)
         load!(inst; reset=true)
     end
+end
+cash!(s::Strategy, t::IncreaseTrade) = begin
+    @deassert t.size < 0.0
+    add!(s.cash, t.size)
+    addzero!(s.cash_committed, t.size)
+end
+cash!(s::Strategy, t::ReduceTrade) = begin
+    @deassert t.size > 0.0
+    add!(s.cash, t.size)
+    subzero!(s.cash_committed, t.size)
 end
 const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
