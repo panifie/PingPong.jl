@@ -33,7 +33,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     ordersdefault!(s)
     let exc = getexchange!(s.exchange)
         for ai in s.universe
-            @assert get(exc.markets[ai.asset.raw], "linear", true) "Inverse contracts are not supported by SimMode."
+            @assert something(get(exc.markets[ai.asset.raw], "linear", true), true) "Inverse contracts are not supported by SimMode."
         end
     end
     for date in ctx.range
