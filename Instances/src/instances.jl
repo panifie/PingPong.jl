@@ -249,6 +249,10 @@ position(ai::MarginInstance, ::Type{Long}) = getfield(ai, :longpos)
 position(ai::MarginInstance, ::Type{Short}) = getfield(ai, :shortpos)
 @doc "Position by order."
 position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = position(ai, S)
+@doc "Check if an asset position is open."
+function Base.isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    isopen(position(ai, S))
+end
 @doc "Position liquidation price."
 function liquidation(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> liquidation
