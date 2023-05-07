@@ -1,4 +1,4 @@
-using Lang: @deassert
+using Lang: @deassert, @ifdebug
 abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
@@ -18,6 +18,7 @@ struct Cash{S,T} <: AbstractCash
     end
 end
 
+cash(args...; kwargs...) = error("not implemented")
 _fvalue(c::Cash) = getfield(c, :value)
 value(c::Cash) = _fvalue(c)[]
 Base.nameof(_::Cash{S}) where {S} = S
@@ -32,6 +33,9 @@ Base.getproperty(c::Cash, s::Symbol) = begin
         getfield(c, s) ## throws
     end
 end
+Base.zero(::Cash{S where S,T}) where {T} = zero(T)
+Base.iszero(c::Cash{S where S,T}) where {T} = isapprox(value(c), zero(T))
+
 @doc """Macro to instantiate `Cash` statically.
 
 Don't put spaces between the id and the value.
@@ -119,29 +123,30 @@ function Base.isapprox(a::Cash{S}, b::Cash{S}; kwargs...) where {S}
     isapprox(value(a), value(b); kwargs...)
 end
 
-add!(c::Cash, v) = (_fvalue(c)[] += v; c)
-sub!(c::Cash, v) = (_fvalue(c)[] -= v; c)
-atleast!(c::Cash{S,T} where {S}, v=zero(T)) where {T<:Real} =
+add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
+sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
+function atleast!(c::Cash{S,T} where {S}, v=zero(T), args...; kwargs...) where {T<:Real}
     if value(c) < v
-        @debug value(c)
+        @ifdebug value(c) < 0.0 && @debug value(c)
         cash!(c, v)
     end
+end
 @doc "Add v to cash, approximating to zero if cash is a small value."
-addzero!(c::AbstractCash, v) = begin
+addzero!(c::AbstractCash, v, args...; kwargs...) = begin
     add!(c, v)
     atleast!(c)
     @deassert c >= 0.0 v
     c
 end
 @doc "Sub v to cash, approximating to zero if cash is a small value."
-subzero!(c::AbstractCash, v) = addzero!(c, -v)
-mul!(c::Cash, v) = (_fvalue(c)[] *= v; c)
-rdiv!(c::Cash, v) = (_fvalue(c)[] /= v; c)
-div!(c::Cash, v) = (_fvalue(c)[] ÷= v; c)
-mod!(c::Cash, v) = (_fvalue(c)[] %= v; c)
-cash!(c::Cash, v) = (_fvalue(c)[] = v; c)
+subzero!(c::AbstractCash, v, args...) = addzero!(c, -v)
+mul!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] *= v; c)
+rdiv!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] /= v; c)
+div!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] ÷= v; c)
+mod!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] %= v; c)
+cash!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] = v; c)
 
-export value
+export value, cash
 
 @doc """Cash should not be edited by a strategy, therefore functions that mutate its value should be
 explicitly imported.
