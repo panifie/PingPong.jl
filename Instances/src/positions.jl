@@ -15,6 +15,7 @@ struct PositionOpen <: ExecAction end
 struct PositionUpdate <: ExecAction end
 struct PositionClose <: ExecAction end
 const PositionStatus = Union{PositionOpen,PositionClose}
+const PositionChange = Union{PositionOpen,PositionUpdate,PositionClose}
 opposite(::PositionOpen) = PositionClose()
 opposite(::PositionClose) = PositionOpen()
 
@@ -202,4 +203,4 @@ end
 
 export notional, price, notional!, ntlprice!, entryprice!
 export timestamp!, leverage!, tier!, liquidation!, margin!, maintenance!
-export PositionOpen, PositionClose, PositionUpdate
+export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange

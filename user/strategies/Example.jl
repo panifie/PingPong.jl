@@ -12,7 +12,7 @@ __revise_mode__ = :eval
 include("common.jl")
 
 ping!(s::S, ::ResetStrategy) = _reset!(s)
-function ping!(::Type{<:S}, ::LoadStrategy, config)
+function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
     _reset!(s)
@@ -22,7 +22,7 @@ end
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
 function ping!(s::T where {T<:S}, ts, _)
-    pong!(s, UpdateOrders(), ts)
+    pong!(s, ts, UpdateOrders())
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)
@@ -36,6 +36,48 @@ end
 
 function marketsid(::Type{<:S})
     ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
+end
+
+function buy!(s::S, ai, ats, ts)
+    pong!(s, ai, Sell, CancelOrders())
+    @deassert ai.asset.qc == nameof(s.cash)
+    price = closeat(ai.ohlcv, ats)
+    amount = st.freecash(s) / 10.0 / price
+    if amount > 0.0
+        ot, otsym = select_ordertype(s, Buy)
+        kwargs = select_orderkwargs(otsym, Buy, ai, ats)
+        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
+    end
+end
+
+function sell!(s::S, ai, ats, ts)
+    pong!(s, ai, Buy, CancelOrders())
+    amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
+    if amount > 0.0
+        ot, otsym = select_ordertype(s, Sell)
+        kwargs = select_orderkwargs(otsym, Sell, ai, ats)
+        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
+    end
+end
+
+function isbuy(s::S, ai, ats)
+    if s.cash > s.config.min_size
+        closepair(ai, ats)
+        isnothing(this_close[]) && return false
+        this_close[] / prev_close[] > s.attrs[:buydiff]
+    else
+        false
+    end
+end
+
+function issell(s::S, ai, ats)
+    if ai.cash > 0.0
+        closepair(ai, ats)
+        isnothing(this_close[]) && return false
+        prev_close[] / this_close[] > s.attrs[:selldiff]
+    else
+        false
+    end
 end
 
 end

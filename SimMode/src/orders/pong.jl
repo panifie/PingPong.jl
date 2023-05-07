@@ -96,7 +96,7 @@ Orders are evaluated sequentially, first sell orders than buy orders.
 
 For a randomized evaluation sequence use `UpdateOrdersShuffled`.
 "
-function pong!(s::Strategy{Sim}, ::UpdateOrders, date)
+function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
     _check_update_date(s, date)
     for (ai, ords) in s.sellorders
         @ifdebug prev_sell_price = 0.0
@@ -119,7 +119,7 @@ end
 
 @doc "Cancel orders for a particular asset instance."
 function pong!(
-    s::Strategy{Sim}, ::CancelOrders, ai::AssetInstance, t::Type{<:OrderSide}=Both
+    s::Strategy{Sim}, ai::AssetInstance, ::CancelOrders; t::Type{<:OrderSide}=Both
 )
     pop!(s, ai, t)
 end

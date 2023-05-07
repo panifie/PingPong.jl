@@ -30,7 +30,7 @@ const TF = tf"1m"
 
 # function __init__() end
 
-function ping!(::Type{S}, ::LoadStrategy, config)
+function ping!(::Type{S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(Example, assets; load_data=false, config)
     s.attrs[:buydiff] = 1.01

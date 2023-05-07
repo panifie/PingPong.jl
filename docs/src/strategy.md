@@ -55,10 +55,16 @@ See that the `load` method dispatches on the strategy _type_ with `cfg` as argum
 As a rule of thumb if the method should be called before the strategy is construct, then it dispatches to the strategy type (`Type{S}`), otherwise the strategy instance (`S`). For convention the module property `S` of your strategy module, declares the strategy type (`const S = Strategy{name, exc}`).
 
 ## Strategy interface
+Both `ping!` and `pong!` functions adhere to a convention for function signatures. The first argument is always 
+either an instance of the _subject_ or its type, followed by the arguments of the function, with the last *non kw* argument being the _verb_ which describes the purpose of the function. KW arguments are optional and don't have any requirements. We can see below that `Type{S}` is the _subject, `config` is an argument, and `::LoadStrategy` is the _verb_.
 
-- `ping!(::Type{S}, ::LoadStrategy, config)`: loads the strategy
+- `ping!(::Type{S}, config, ::LoadStrategy)`: loads the strategy
 - `ping!(::S, ::WarmupPeriod)`: returns how much data the strategy needs on startup
-- `ping!(::S, ::DateTime, ::Context)`: the "main" strategy function, called once per candle in backtest and once per _throttle_ during live.
+- `ping!(::S, ::DateTime, ::Context, args...)`: the "main" strategy function, called once per candle in backtest and once per _throttle_ during live.
+- `ping!(::S, ::ResetStrategy)`: before starting the backtest _after_ the strategy has been reset.
+- `ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...)`: after cancelling an order.
+- `ping!(::Strategy{<:ExecMode,N,<:ExchangeID,<:WithMargin}, ai, trade, ::Position, ::PositionChange`: after a position has been updated.
+
 
 ### API
 

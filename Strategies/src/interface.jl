@@ -11,7 +11,7 @@ const evaluate! = ping!
 struct LoadStrategy <: ExecAction end
 struct ResetStrategy <: ExecAction end
 @doc "Called to construct the strategy, should return the strategy instance."
-ping!(::Type{<:Strategy}, ::LoadStrategy, ctx) = nothing
+ping!(::Type{<:Strategy}, cfg, ::LoadStrategy) = nothing
 ping!(::Strategy, ::ResetStrategy) = nothing
 struct WarmupPeriod <: ExecAction end
 @doc "How much lookback data the strategy needs."
