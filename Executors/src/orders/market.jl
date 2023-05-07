@@ -1,4 +1,4 @@
-using OrderTypes: MarketOrderType
+using OrderTypes: MarketOrderType, ExchangeID
 using Base: negate
 
 const _MarketOrderState4{T} = NamedTuple{
@@ -47,7 +47,7 @@ function marketorder(
     @price! ai take stop
     @amount! ai amount
     price = priceat(s, type, ai, date)
-    comm = committment(type, price, amount, maxfees(ai))
+    comm = committment(type, ai, price, amount)
     if iscommittable(s, type, comm, ai)
         marketorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
@@ -68,6 +68,17 @@ function cash!(s::NoMarginStrategy, ai, t::Trade{<:MarketOrderType{Sell}})
     @deassert ai.cash >= 0.0
 end
 
+const LongMarketBuyTrade = Trade{<:MarketOrderType{Buy},<:AbstractAsset,<:ExchangeID,Long}
+const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:ExchangeID,Long}
+
+function cash!(s::IsolatedStrategy, ai, t::LongMarketBuyTrade)
+    # add!(s.cash, t.size)
+    # add!(ai.cash, t.amount)
+end
+function cash!(s::IsolatedStrategy, ai, t::Trade{<:MarketOrderType{Buy}})
+
+end
+
 Base.fill!(o::MarketOrder{Buy}, t::BuyTrade) = begin
     @deassert o.attrs.unfilled[] <= 0.0
     o.attrs.unfilled[] += t.amount
@@ -81,7 +92,7 @@ committed(o::MarketOrder) = o.attrs.committed
 # FIXME: Should this be ≈/≉?
 Base.isopen(o::MarketOrder) = unfilled(o) != 0.0
 isfilled(o::MarketOrder) = unfilled(o) == 0.0
-islastfill(t::Trade) = true
-isfirstfill(t::Trade) = true
+islastfill(t::Trade{<:MarketOrderType}) = true
+isfirstfill(t::Trade{<:MarketOrderType}) = true
 @doc "Does nothing since market orders are never queued."
 fullfill!(::Strategy, _, o::MarketOrder, ::Trade) = nothing
