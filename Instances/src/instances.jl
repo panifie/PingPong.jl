@@ -166,7 +166,8 @@ function Base.similar(ai::AssetInstance)
     )
 end
 
-cash(ai::NoMarginInstance, ::Long) = getfield(ai, :cash)
+cash(ai::NoMarginInstance) = getfield(ai, :cash)
+cash(ai::NoMarginInstance, ::Long) = cash(ai)
 cash(ai::NoMarginInstance, ::Short) = 0.0
 cash(ai::MarginInstance, p::PositionSide) = getfield(position(ai, p), :cash)
 committed(ai::NoMarginInstance) = getfield(ai, :cash_committed)

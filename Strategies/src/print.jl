@@ -18,7 +18,7 @@ function minmax_holdings(s::Strategy)
             end
         end
     end
-    (min=min_hold, max=max_hold, count=n_holdings ÷ 2)
+    (min=min_hold, max=max_hold, count=n_holdings)
 end
 
 trades_total(s::Strategy) = begin
