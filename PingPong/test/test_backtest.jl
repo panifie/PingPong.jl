@@ -17,13 +17,14 @@ end
 _backtest_strat(sym) = begin
     s = egn.strategy(sym)
     Random.seed!(1)
-    Stubs.stub!(s)
+    Stubs.stub!(s, trades=false)
     s
 end
 
 _trades(s) = s.universe[m"eth"].instance.history
 _eq4(a, b) = isapprox(a, b; atol=1e-4)
 _test_nomargin_market(s) = begin
+    @test marginmode(s) == egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.MarketOrder
@@ -39,21 +40,23 @@ _test_nomargin_market(s) = begin
 end
 
 _test_nomargin_gtc(s) = begin
+    @test marginmode(s) == egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:gtc)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.GTCOrder
-    @test _eq4(Cash(:USDT, 13607.8452), s.cash.value)
-    @test _eq4(Cash(:USDT, 12621.7844), s.cash_committed)
-    @test st.trades_total(s) == 4140
+    @test _eq4(Cash(:USDT, 13611.1249), s.cash.value)
+    @test _eq4(Cash(:USDT, 12624.8261), s.cash_committed)
+    @test st.trades_total(s) == 4134
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 3
-    @test mmh.min[1] == :SOL
+    @test mmh.count == 2
+    @test mmh.min[1] == :ETH
     @test mmh.min[2] ≈ 2.1545 atol = 1e14
     @test mmh.max[1] == :BTC
     @test mmh.max[2] ≈ 121.4197 atol = 1e5
 end
 
 _test_nomargin_ioc(s) = begin
+    @test marginmode(s) == egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:ioc)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.IOCOrder
@@ -69,6 +72,7 @@ _test_nomargin_ioc(s) = begin
 end
 
 _test_nomargin_fok(s) = begin
+    @test marginmode(s) == egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:fok)
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
@@ -79,18 +83,24 @@ _test_nomargin_fok(s) = begin
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
     @test st.trades_total(s) == 2150
     mmh = st.minmax_holdings(s)
+    reset!(s, true)
     @test mmh.count == 3
     @test mmh.min[1] == :SOL
     @test mmh.min[2] ≈ 0.0 atol = 1e-8
     @test mmh.max[1] == :BTC
     @test mmh.max[2] ≈ 28422 atol = 9e-1
-    reset!(s, true)
+end
+
+_test_margin_market(s) = begin
+    @test marginmode(s) == egn.Isolated
+    s.attrs[:overrides] = (; ordertype=:market)
+    egn.backtest!(s)
+    s
 end
 
 test_backtest() = @testset "backtest" begin
     @eval include(joinpath(@__DIR__, "env.jl"))
     s = _backtest_strat(:Example)
-    @test marginmode(s) == egn.NoMargin
     @testset _test_synth(s)
     @testset _test_nomargin_market(s)
     @testset _test_nomargin_gtc(s)
