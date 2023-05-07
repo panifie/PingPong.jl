@@ -5,9 +5,13 @@ import Executors: priceat, unfilled
 using Simulations: Simulations as sim
 using Strategies: Strategies as st
 
-# Pessimistic buy_high/sell_low
-# priceat(::Sim, ::Type{<:SellOrder}, ai, date) = st.lowat(ai, date)
-# priceat(::Sim, ::Type{<:BuyOrder}, ai, date) = st.highat(ai, date)
+function _create_sim_limit_order(s, t, ai; amount, kwargs...)
+    o = limitorder(s, ai, amount; type=t, kwargs...)
+    isnothing(o) && return nothing
+    queue!(s, o, ai) || return nothing
+    return o
+end
+
 function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date)
     st.closeat(ai, available(s.timeframe, date))
 end
