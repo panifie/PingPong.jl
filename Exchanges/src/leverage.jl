@@ -71,7 +71,7 @@ function leverage_tiers(exc::Exchange, sym::AbstractString)
 end
 
 function tier(tiers::SortedDict{Int,LeverageTier}, size::Real)
-    idx = findfirst(t -> t.max_notional > size, tiers)
+    idx = findfirst(t -> t.max_notional > abs(size), tiers)
     idx, tiers[idx]
 end
 
