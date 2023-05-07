@@ -1,9 +1,21 @@
 using Instances
-using OrderTypes: LimitOrderType
+import Instances: committed, PositionOpen, PositionClose
+using OrderTypes: LimitOrderType, PositionSide, ExchangeID, ShortSellOrder
 using Strategies: NoMarginStrategy
-using Lang: @ifdebug
 using Base: negate
-using Instruments: addzero!
+using Misc: Long, Short
+
+const IncreaseLimitOrder{A,E} = Union{LimitOrder{Buy,A,E},ShortLimitOrder{Sell,A,E}}
+const ReduceLimitOrder{A,E} = Union{LimitOrder{Sell,A,E},ShortLimitOrder{Buy,A,E}}
+
+const LimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Long}
+const ShortLimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Short}
+const LimitBuyTrade{A,E} = LimitTrade{Buy,A,E}
+const LimitSellTrade{A,E} = LimitTrade{Sell,A,E}
+const ShortLimitBuyTrade{A,E} = ShortLimitTrade{Buy,A,E}
+const ShortLimitSellTrade{A,E} = ShortLimitTrade{Sell,A,E}
+const IncreaseLimitTrade{A,E} = Union{LimitBuyTrade{A,E},ShortLimitSellTrade{A,E}}
+const ReduceLimitTrade{A,E} = Union{LimitSellTrade{A,E},ShortLimitBuyTrade{A,E}}
 
 function limit_order_state(
     take, stop, committed::Vector{T}, unfilled::Vector{T}, trades=Trade[]
@@ -55,24 +67,22 @@ function limitorder(
 )
     @price! ai price take stop
     @amount! ai amount
-    comm = committment(type, price, amount, maxfees(ai))
+    comm = committment(type, ai, price, amount)
     if iscommittable(s, type, comm, ai)
         limitorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end
 
-# NOTE: filled is always negative
-function Base.fill!(o::LimitOrder{Buy}, t::BuyTrade)
+# NOTE: unfilled is always negative
+function Base.fill!(o::IncreaseLimitOrder, t::IncreaseLimitTrade)
     @deassert o isa BuyOrder && attr(o, :unfilled)[] <= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
-    @deassert t.amount > 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
     @deassert attr(o, :unfilled)[] <= 0
-    @deassert t.size < 0.0
     attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
     @deassert committed(o) >= 0
 end
-function Base.fill!(o::LimitOrder{Sell}, t::SellTrade)
+function Base.fill!(o::LimitOrder{Sell}, t::LimitSellTrade)
     @deassert o isa SellOrder && attr(o, :unfilled)[] >= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
@@ -80,54 +90,31 @@ function Base.fill!(o::LimitOrder{Sell}, t::SellTrade)
     attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
     @deassert committed(o) >= 0
 end
-
-function cash!(s::NoMarginStrategy, ai, t::Trade{<:LimitOrderType{Buy}})
-    @deassert t.price <= t.order.price
-    @deassert t.size < 0.001
-    @deassert t.amount > 0.0
-    @deassert committed(t.order) >= 0
-    add!(s.cash, t.size)
-    addzero!(s.cash_committed, t.size)
-    @deassert s.cash >= 0.0
-    @deassert s.cash_committed >= 0.0
-    add!(ai.cash, t.amount)
+function Base.fill!(o::ShortLimitOrder{Buy}, t::ShortLimitBuyTrade)
+    @deassert o isa ShortBuyOrder && attr(o, :unfilled)[] >= 0.0
+    @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
+    @deassert attr(o, :unfilled)[] < 0.0
+    attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
+    @deassert attr(o, :unfilled)[] >= 0
+    # NOTE: committment is always positive so in case of reducing short in buy, we have to subtract
+    attr(o, :committed)[] -= t.amount # from pos to 0 (sell amount is neg)
+    @deassert committed(o) >= 0
 end
-# For isolated strategies cash is already deducted at the time the order is created (before being filled.)
-# function cash!(_::IsolatedStrategy, ai, t::Trade{<:LimitOrderType{Buy}})
-#     # FIXME
-#     @assert !(t isa LongSellTrade)
-#     add!(ai.cash, t.amount)
-# end
-function cash!(s::NoMarginStrategy, ai, t::Trade{<:LimitOrderType{Sell}})
-    @deassert t.price >= t.order.price
-    @deassert t.size > 0.0
-    @deassert t.amount < 0.0
-    @deassert committed(t.order) >= 0
-    add!(s.cash, t.size)
-    add!(ai.cash, t.amount)
-    add!(ai.cash_committed, t.amount)
-    @deassert ai.cash >= 0.0 && ai.cash_committed >= 0.0
-end
-# function cash!(s::IsolatedStrategy, ai, t::Trade{<:LimitOrderType{Sell}})
-#     add!(s.cash, t.size)
-#     add!(ai.cash, t.amount)
-#     add!(ai.cash_committed, t.amount)
-# end
 
 amount(o::Order) = getfield(o, :amount)
 committed(o::LimitOrder) = begin
     @deassert attr(o, :committed)[] >= 0.0
     attr(o, :committed)[]
 end
-Base.isopen(o::LimitOrder) = o.attrs.unfilled[] != 0.0
-isfilled(o::LimitOrder) = o.attrs.unfilled[] == 0.0
-islastfill(t::Trade) =
+Base.isopen(o::LimitOrder) = o.attrs.unfilled[] ≉ 0.0
+isfilled(o::LimitOrder) = o.attrs.unfilled[] ≈ 0.0
+islastfill(t::Trade{<:LimitOrderType}) =
     let o = t.order
         t.amount != o.amount && isfilled(o)
     end
-isfirstfill(t::Trade) =
+isfirstfill(t::Trade{<:LimitOrderType}) =
     let o = t.order
-        o.attrs.unfilled[] == negate(t.amount)
+        attr(o, :unfilled)[] == negate(t.amount)
     end
 @doc "Check if this is the last trade of the order and if so unqueue it."
 fullfill!(s::Strategy, ai, o::LimitOrder, ::Trade) = isfilled(o) && pop!(s, ai, o)
