@@ -12,6 +12,7 @@ struct LoadStrategy <: ExecAction end
 struct ResetStrategy <: ExecAction end
 @doc "Called to construct the strategy, should return the strategy instance."
 ping!(::Type{<:Strategy}, ::LoadStrategy, ctx) = nothing
+ping!(::Strategy, ::ResetStrategy) = nothing
 struct WarmupPeriod <: ExecAction end
 @doc "How much lookback data the strategy needs."
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period

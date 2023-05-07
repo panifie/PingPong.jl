@@ -1,6 +1,6 @@
 using Collections: AssetCollection, Collections as coll
 
-using Instances: AssetInstance, Position, MarginMode, PositionSide
+using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged
 using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError, StrategyEvent
 using ExchangeTypes
@@ -79,6 +79,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         uni::AssetCollection;
         config::Config,
     )
+        @assert !ishedged(margin) "Hedged margin not yet supported."
         ca = Cash(config.qc, config.initial_cash)
         if !coll.iscashable(ca, uni)
             @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
@@ -105,13 +106,13 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
 end
 
 # NOTE: it's possible these should be functors to avoid breaking Revise
-const SimStrategy{N,E<:ExchangeID,M<:MarginMode} = Strategy{Sim,N,E,M}
-const PaperStrategy{N,E<:ExchangeID,M<:MarginMode} = Strategy{Paper,N,E,M}
-const LiveStrategy{N,E<:ExchangeID,M<:MarginMode} = Strategy{Live,N,E,M}
-const IsolatedStrategy{X<:ExecMode,N,E<:ExchangeID} = Strategy{X,N,E,Isolated}
-const CrossStrategy{X<:ExecMode,N,E<:ExchangeID} = Strategy{X,N,E,Cross}
-const MarginStrategy{X,N,E,M<:Union{Isolated,Cross}} = Strategy{X,N,E,M}
-const NoMarginStrategy{X,N,E} = Strategy{X,N,E,NoMargin}
+const SimStrategy = Strategy{Sim}
+const PaperStrategy = Strategy{Paper}
+const LiveStrategy = Strategy{Live}
+const IsolatedStrategy = Strategy{<:ExecMode,N,<:ExchangeID,Isolated} where {N}
+const CrossStrategy = Strategy{<:ExecMode,N,<:ExchangeID,Cross} where {N}
+const MarginStrategy = Strategy{<:ExecMode,N,<:ExchangeID,<:Union{Isolated,Cross}} where {N}
+const NoMarginStrategy = Strategy{<:ExecMode,N,<:ExchangeID,NoMargin} where {N}
 
 include("methods.jl")
 include("interface.jl")

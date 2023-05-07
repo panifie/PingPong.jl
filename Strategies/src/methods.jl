@@ -1,6 +1,8 @@
 using Lang: @lget!
 import ExchangeTypes: exchangeid
-import Misc: reset!
+import Misc: reset!, Long, Short
+import Instruments: cash!
+using OrderTypes: commit!
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -12,6 +14,8 @@ exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
 exchangeid(t::Type{<:Strategy}) = exchange(t)
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
+@doc "Get the strategy margin mode."
+Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M
 
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
@@ -28,8 +32,10 @@ reset!(s::Strategy, defaults=false) = begin
     empty!(s.holdings)
     for ai in s.universe
         empty!(ai.history)
-        cash!(ai.cash, 0.0)
-        cash!(ai.cash_committed, 0.0)
+        cash!(ai, 0.0, Long())
+        cash!(ai, 0.0, Short())
+        commit!(ai, 0.0, Long())
+        commit!(ai, 0.0, Short())
     end
     defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)
