@@ -8,19 +8,31 @@ struct Paper <: ExecMode end
 struct Live <: ExecMode end
 const execmode = Returns(Sim)
 
-abstract type MarginMode end
-struct Isolated <: MarginMode end
-struct Cross <: MarginMode end
-struct NoMargin <: MarginMode end
+abstract type HedgedMode end
+struct Hedged <: HedgedMode end
+struct NotHedged <: HedgedMode end
+abstract type MarginMode{H<:HedgedMode} end
+struct IsolatedMargin{H} <: MarginMode{H} end
+struct CrossMargin{H} <: MarginMode{H} end
+struct NoMargin <: MarginMode{NotHedged} end
+
+const Isolated = IsolatedMargin{NotHedged}
+const IsolatedHedged = IsolatedMargin{Hedged}
+const Cross = IsolatedMargin{NotHedged}
+const CrossHedged = IsolatedMargin{Hedged}
 const WithMargin = Union{Cross,Isolated}
 const marginmode = Returns(NoMargin)
+
 abstract type PositionSide end
 struct Long <: PositionSide end
 struct Short <: PositionSide end
+opposite(::Type{Long}) = Short
+opposite(::Long) = Short()
+opposite(::Type{Short}) = Long
+opposite(::Short) = Long()
 
 const StrOrVec = Union{AbstractString,AbstractVector}
-const DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
-const DFT = DEFAULT_FLOAT_TYPE
+const DFT = DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
 
 const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
 
@@ -52,4 +64,6 @@ include("exceptions.jl")
 
 export Iterable, StrOrVec, ContiguityException
 export ExecMode, execmode, ExecAction, Sim, Paper, Live
-export MarginMode, marginmode, Isolated, Cross, NoMargin, WithMargin
+export MarginMode, marginmode, Isolated, Cross
+export NoMargin, WithMargin, Hedged, NotHedged
+export PositionSide, Long, Short, opposite

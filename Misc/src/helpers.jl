@@ -133,3 +133,12 @@ function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::Abstrac
 end
 @doc "When precision is a Integer it represents the number of decimals."
 toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
+
+add(a, b) = a + b
+add(a, b, ::Long) = a + b
+add(a, b, ::Short) = a - b
+sub(a, b) = a - b
+sub(a, b, ::Long) = a - b
+sub(a, b, ::Short) = a + b
+
+export add, sub
