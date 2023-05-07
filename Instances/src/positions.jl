@@ -4,10 +4,12 @@ using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 
-PositionSide(::Type{Buy}) = Long
-PositionSide(::Type{Sell}) = Short
-PositionSide(::Order{OrderType{Buy}}) = Long
-PositionSide(::Order{OrderType{Sell}}) = Short
+sidetopos(::Type{Buy}) = Long
+sidetopos(::Type{Sell}) = Short
+sidetopos(::Order{OrderType{Buy}}) = Long
+sidetopos(::Order{OrderType{Sell}}) = Short
+islong(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Long()
+isshort(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Short()
 
 const OneVec = Vector{DFT}
 
