@@ -9,11 +9,12 @@ using OrderTypes: LimitOrderType, MarketOrderType
 using TimeTicks
 using TimeTicks: TimeTicks as tt
 using Misc
-using Lang: @deassert
+using Lang: @deassert, @ifdebug
 using Base: negate
 
 using Executors.Checks: cost, withfees
 using Executors.Instances
+using Executors.Instances: getexchange!
 using Executors.Instruments
 using Executors.Instruments: @importcash!
 import Executors: pong!
@@ -25,7 +26,10 @@ include("orders/limit.jl")
 include("orders/market.jl")
 include("orders/pong.jl")
 include("positions/utils.jl")
+include("positions/ping.jl")
 include("positions/pong.jl")
+include("positions/liquidations.jl")
 include("backtest.jl")
+@ifdebug include("debug.jl")
 
 export backtest!
