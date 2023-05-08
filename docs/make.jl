@@ -90,6 +90,11 @@ makedocs(;
             "Devdocs" => "devdocs.md",
             "Contacts" => "contacts.md",
         ],
+        "Customizations" => [
+            "Overview" => "customizations/customizations.md",
+            "Orders" => "customizations/orders.md",
+            "Backtester" => "customizations/backtest.md",
+        ],
     ],
     format=Documenter.HTML(; sidebar_sitename=false),
 )
