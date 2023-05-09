@@ -18,7 +18,7 @@ end
     out[1:(n + i - 2)] .= NaN
     out[n + i - 1] = mean(x[i:(n + i - 1)])
     @inbounds for i in (n + i):size(x, 1)
-        out[i] = ema(x[i], out[i -1]; n, alpha)
+        out[i] = ema(x[i], out[i - 1]; n, alpha)
     end
     return out
 end

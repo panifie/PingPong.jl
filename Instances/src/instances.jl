@@ -3,15 +3,16 @@ using OrderTypes
 
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
-using OrderTypes: OrderOrSide, AssetEvent
+using OrderTypes: OrderOrSide, AssetEvent, tradepos
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
+using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash
 using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub
-using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged
+using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 
@@ -43,6 +44,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     exchange::Exchange{E}
     longpos::Option{Position{Long,<:WithMargin}}
     shortpos::Option{Position{Short,<:WithMargin}}
+    lastpos::Vector{Option{Position{<:PositionSide,<:WithMargin}}}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
@@ -67,6 +69,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
             e,
             longpos::Option{Position{Long,<:WithMargin}},
             shortpos::Option{Position{Short,<:WithMargin}},
+            [nothing],
             limits,
             precision,
             fees,
@@ -82,6 +85,7 @@ const MarginInstance{M<:Union{Isolated,Cross}} = AssetInstance{
 const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
     <:AbstractAsset,<:ExchangeID,M
 }
+const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
 
 function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::Exchange)
     if M == NoMargin
@@ -104,7 +108,7 @@ end
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
-Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv)
+Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
@@ -128,15 +132,18 @@ function load!(a::AssetInstance; reset=true, zi=zi)
         append!(df, loaded)
     end
 end
-Base.getproperty(a::AssetInstance, f::Symbol) = begin
+_ohlcv(ai) = first(getfield(ai, :data)).second
+Base.getproperty(ai::AssetInstance, f::Symbol) = begin
     if f == :ohlcv
-        first(getfield(a, :data)).second
+        _ohlcv(ai)
     elseif f == :bc
-        a.asset.bc
+        ai.asset.bc
     elseif f == :qc
-        a.asset.qc
+        ai.asset.qc
+    elseif f == :funding
+        metadata(_ohlcv(ai), "funding")
     else
-        getfield(a, f)
+        getfield(ai, f)
     end
 end
 
@@ -189,11 +196,11 @@ function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
     add!(committed(ai), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
-    add!(cash(ai, tradepos(t)), t.amount)
+    add!(cash(ai, tradepos(t)()), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::SellTrade)
-    add!(cash(ai, tradepos(t)), t.amount)
-    add!(committed(ai, tradepos(t)), t.amount)
+    add!(cash(ai, tradepos(t)()), t.amount)
+    add!(committed(ai, tradepos(t)()), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::ShortBuyTrade)
     add!(cash(ai, tradepos(t)), t.amount)
@@ -215,8 +222,22 @@ function freecash(ai::MarginInstance, p::Short)
     @deassert ca <= 0.0 (cash(ai, p), committed(ai, p))
     ca
 end
-reset_commit!(ai::NoMarginInstance, args...) = cash!(committed(ai), 0.0)
-reset_commit!(ai::MarginInstance, p::PositionSide) = cash!(committed(ai, p), 0.0)
+_reset!(ai) = begin
+    empty!(ai.history)
+    empty!(ai.logs)
+end
+@doc "Resets asset cash and committments."
+reset!(ai::NoMarginInstance, args...) = begin
+    cash!(ai, 0.0)
+    cash!(committed(ai), 0.0)
+    _reset!(ai)
+end
+@doc "Resets asset positions."
+reset!(ai::MarginInstance) = begin
+    reset!(position(ai, Short()))
+    reset!(position(ai, Long()))
+    _reset!(ai)
+end
 Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
 Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)
 
@@ -249,17 +270,19 @@ position(ai::MarginInstance, ::Type{Long}) = getfield(ai, :longpos)
 position(ai::MarginInstance, ::Type{Short}) = getfield(ai, :shortpos)
 @doc "Position by order."
 position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = position(ai, S)
+@doc "Returns the last open position or nothing."
+position(ai::MarginInstance) = getfield(ai, :lastpos)[]
 @doc "Check if an asset position is open."
 function Base.isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     isopen(position(ai, S))
 end
 @doc "Position liquidation price."
-function liquidation(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S) |> liquidation
+function liqprice(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S) |> liqprice
 end
 @doc "Sets liquidation price."
-function liquidation!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
-    liquidation!(position(ai, S), v)
+function liqprice!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
+    liqprice!(position(ai, S), v)
 end
 @doc "Position leverage."
 function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
@@ -301,14 +324,31 @@ function leverage!(ai, v, p::PositionSide)
     @deassert leverage(po) <= ai.limits.leverage.max
 end
 
+@doc "Some exchanges consider a value of 0 leverage as max leverage for the current tier (in cross margin mode)."
+function leverage!(ai::CrossInstance, p::PositionSide, ::Val{:max})
+    po = position(ai, p)
+    po.leverage[] = 0.0
+end
+
 @doc "The opposite position w.r.t. the asset instance and another `Position` or `PositionSide`."
 function opposite(ai::MarginInstance, ::Union{P,Position{P}}) where {P}
     position(ai, opposite(P))
 end
 
+function _lastpos!(ai::MarginInstance, p::PositionSide, ::PositionClose)
+    sop = position(ai, opposite(p))
+    isopen(sop) && (ai.lastpos[] = sop)
+end
+
+function _lastpos!(ai::MarginInstance, p::PositionSide, ::PositionOpen)
+    ai.lastpos[] = position(ai, p)
+end
+
 @doc "Opens or closes the status of an hedged position."
 function status!(ai::HedgedInstance, p::PositionSide, pstat::PositionStatus)
-    _status!(position(ai, p), pstat)
+    pos = position(ai, p)
+    _status!(pos, pstat)
+    _lastpos!(ai, p, pstat)
 end
 
 @doc "Opens or closes the status of an non-hedged position."
@@ -316,12 +356,12 @@ function status!(ai::MarginInstance, p::PositionSide, pstat::PositionStatus)
     pos = position(ai, p)
     @assert pstat == PositionOpen() ? status(opposite(ai, p)) == PositionClose() : true "Can only have both long and short position in hedged mode."
     _status!(pos, pstat)
+    _lastpos!(ai, p, pstat)
 end
 
 include("constructors.jl")
 
 export AssetInstance, instance, load!
 export takerfees, makerfees, maxfees, minfees
-export Long, Short, position, liquidation, leverage, bankruptcy, cash, committed
+export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed
 export leverage, mmr, status!
-export reset_commit!

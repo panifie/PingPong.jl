@@ -2,8 +2,10 @@ using Data: ohlcvtuple, to_ohlcv, df!
 using Processing: resample
 using Random: rand
 using Base: DEFAULT_STABLE
-using Misc: config
+using Misc: config, FUNDING_PERIOD
 using Lang: @deassert
+using Statistics: mean, median
+using Data.DataFrames: groupby, combine, DataFrame, metadata!, metadatakeys
 import Data: stub!
 
 const DEFAULT_DATE = dt"2020-01-01"
@@ -119,4 +121,40 @@ where `prices` is a vector of `1m` candles.
         ema = (p - ema) * (2.0 / 7.0) + ema
     end
     ema
+end
+
+@doc "Generates syntethic funding rate data based on price action."
+function synthfunding(df; k=3.0, n=max(2, Minute(5) ÷ period(timeframe!(df))))
+    price_changes = diff(df.close)
+    alpha = 2.0 / (n + 1.0)
+    ema_price_changes = ema(price_changes; n, alpha)
+    funding = [NaN, ema_price_changes ./ @view(df.close[2:end])...]
+    for i in eachindex(funding)
+        isnan(funding[i]) ? (funding[i] = 0.0) : break
+    end
+    df = DataFrame([:timestamp => copy(df.timestamp)])
+    df[!, :funding] = funding
+    df.timestamp[:] = apply.(TimeFrame(FUNDING_PERIOD), df.timestamp)
+    gd = groupby(df, :timestamp)
+    df = combine(gd, :funding => ((x) -> let m = mean(x)
+        if m > 0.0
+            maximum(x)
+        elseif m < 0.0
+            minimum(x)
+        else
+            last(x)
+        end
+    end); renamecols=false)
+    df.funding[:] = df.funding .* k
+    clamp!(df.funding, -0.05, 0.05)
+    df
+end
+
+@doc "Generates synthethic funding rate data from asset ohlc."
+function stub!(ai::AssetInstance, ::Val{:funding}; force=false)
+    ohlcv = ai.ohlcv
+    if force || "funding" ∉ metadatakeys(ohlcv)
+        funding = synthfunding(ohlcv)
+        metadata!(ohlcv, "funding", funding, style=:default)
+    end
 end
