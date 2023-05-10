@@ -1,5 +1,6 @@
 using Lang: @ifdebug
 using Strategies: MarginStrategy
+using Executors: AnyMarketOrder, AnyLimitOrder
 
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n
@@ -17,14 +18,14 @@ _volumeskew(actual_amount, volume) =
     end
 _priceskew(ai, date) = 1.0 - lowat(ai, date) / highat(ai, date)
 
-_addslippage(::LimitOrder{Buy}, price, slp) = price - slp
-_addslippage(::LimitOrder{Sell}, price, slp) = price + slp
-_isfavorable(::LimitOrder{Buy}, ai, date) = closeat(ai, date) < openat(ai, date)
-_isfavorable(::LimitOrder{Sell}, ai, date) = closeat(ai, date) > openat(ai, date)
+_addslippage(::AnyLimitOrder{Buy}, price, slp) = price - slp
+_addslippage(::AnyLimitOrder{Sell}, price, slp) = price + slp
+_isfavorable(::AnyLimitOrder{Buy}, ai, date) = closeat(ai, date) < openat(ai, date)
+_isfavorable(::AnyLimitOrder{Sell}, ai, date) = closeat(ai, date) > openat(ai, date)
 
 @doc "Limit orders can only incur into favorable slippage."
 function _with_slippage(
-    s::Strategy{Sim}, o::LimitOrder, ai, ::Val; clamp_price, actual_amount, date
+    s::Strategy{Sim}, o::AnyLimitOrder, ai, ::Val; clamp_price, actual_amount, date
 )
     # slippage on limit orders can only happen on date of creation
     date == o.date || return clamp_price
@@ -50,7 +51,7 @@ function _with_slippage(
     end
 end
 
-function _with_slippage(s::Strategy{Sim}, o::MarketOrder, ai, ::Val{:avg}; date, kwargs...)
+function _with_slippage(s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:avg}; date, kwargs...)
     m = openat(ai, date)
     diff1 = abs(closeat(ai, date - s.timeframe) - openat(ai, date))
     diff2 = abs(closeat(ai, date) - openat(ai, date + s.timeframe))
@@ -58,11 +59,11 @@ function _with_slippage(s::Strategy{Sim}, o::MarketOrder, ai, ::Val{:avg}; date,
     _addslippage(o, m, slp)
 end
 
-_addslippage(::MarketOrder{Buy}, price, slp) = price + slp
-_addslippage(::MarketOrder{Sell}, price, slp) = price - slp
+_addslippage(::AnyMarketOrder{Buy}, price, slp) = price + slp
+_addslippage(::AnyMarketOrder{Sell}, price, slp) = price - slp
 @doc "Slippage for market orders is always zero or negative."
 function _with_slippage(
-    s::Strategy{Sim}, o::MarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
+    s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
 )
     @deassert o.price == priceat(s, o, ai, date)
     volume = volumeat(ai, date)
@@ -94,8 +95,8 @@ function _with_slippage(
     end
 end
 
-_doclamp(::LimitOrder, price, ai, date) = clamp(price, lowat(ai, date), highat(ai, date))
-_doclamp(::MarketOrder, price, args...) = price
+_doclamp(::Order{<:LimitOrderType}, price, ai, date) = clamp(price, lowat(ai, date), highat(ai, date))
+_doclamp(::Order{<:MarketOrderType}, price, args...) = price
 function _do_slippage(s, o, ai; date, price, actual_amount)
     clamp_price = _doclamp(o, price, ai, date)
     @deassert clamp_price > 0.0
