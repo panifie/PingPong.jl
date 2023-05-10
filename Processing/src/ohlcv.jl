@@ -75,12 +75,14 @@ trimzeros!(df) = begin
     idx > 1 && deleteat!(df, 1:(idx - 1))
 end
 
-function _fill_missing_candles(df::DataFrame, prd::Period; strategy, inplace)
+function _fill_missing_candles(
+    df::DataFrame, prd::Period; strategy, inplace, def_strategy=nan_candle, def_type=Candle
+)
     trimzeros!(df)
     size(df, 1) == 0 && return empty_ohlcv()
-    ordered_rows = Candle[]
+    ordered_rows = def_type[]
     # fill the row by previous close or with NaNs
-    build_candle = ifelse(strategy == :close, novol_candle, nan_candle)
+    build_candle = ifelse(strategy == :close, novol_candle, def_strategy)
     @with df begin
         ts_cur, ts_end = first(:timestamp) + prd, last(:timestamp)
         ts_idx = 2
