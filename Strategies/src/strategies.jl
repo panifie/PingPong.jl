@@ -109,10 +109,11 @@ end
 const SimStrategy = Strategy{Sim}
 const PaperStrategy = Strategy{Paper}
 const LiveStrategy = Strategy{Live}
-const IsolatedStrategy = Strategy{<:ExecMode,N,<:ExchangeID,Isolated} where {N}
-const CrossStrategy = Strategy{<:ExecMode,N,<:ExchangeID,Cross} where {N}
-const MarginStrategy = Strategy{<:ExecMode,N,<:ExchangeID,<:Union{Isolated,Cross}} where {N}
-const NoMarginStrategy = Strategy{<:ExecMode,N,<:ExchangeID,NoMargin} where {N}
+const IsolatedStrategy = Strategy{X,N,<:ExchangeID,Isolated,C} where {X<:ExecMode,N,C}
+const CrossStrategy = Strategy{X,N,<:ExchangeID,Cross,C} where {X<:ExecMode,N,C}
+const MarginStrategy =
+    Strategy{X,N,<:ExchangeID,<:Union{Isolated,Cross},C} where {X<:ExecMode,N,C}
+const NoMarginStrategy = Strategy{X,N,<:ExchangeID,NoMargin,C} where {X<:ExecMode,N,C}
 
 include("methods.jl")
 include("interface.jl")

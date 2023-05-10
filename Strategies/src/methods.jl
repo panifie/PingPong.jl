@@ -2,7 +2,6 @@ using Lang: @lget!, @deassert
 import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!
-using Instances: reset_commit!
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -13,7 +12,11 @@ instances(s::Strategy) = s.universe.data.instance
 @doc "Strategy main exchange id."
 exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
-exchangeid(t::Type{<:Strategy}) = exchange(t)
+function exchangeid(
+   ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
+) where {E<:ExchangeID}
+    E
+end
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
 @doc "Get the strategy margin mode."
@@ -23,7 +26,7 @@ Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
 
 coll.iscashable(s::Strategy) = coll.iscashable(s.cash, s.universe)
-Base.nameof(t::Type{<:Strategy}) = t.parameters[2]
+Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
 Base.nameof(s::Strategy) = nameof(typeof(s))
 
 @doc "Resets strategy state.
@@ -33,11 +36,7 @@ reset!(s::Strategy, defaults=false) = begin
     empty!(s.sellorders)
     empty!(s.holdings)
     for ai in s.universe
-        empty!(ai.history)
-        cash!(ai, 0.0, Long())
-        cash!(ai, 0.0, Short())
-        reset_commit!(ai, Long())
-        reset_commit!(ai, Short())
+        reset!(ai)
     end
     defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)
