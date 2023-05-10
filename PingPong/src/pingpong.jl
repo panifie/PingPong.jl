@@ -53,6 +53,7 @@ macro strategyenv!()
         using Engine.Strategies
         using Engine: Strategies as st
         using Engine.Instances: Instances as inst
+        using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
         using Engine.Executors
         using Engine.OrderTypes
 
