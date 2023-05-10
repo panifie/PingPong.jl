@@ -23,8 +23,7 @@ abstract type GTCOrderType{S} <: LimitOrderType{S} end
 abstract type FOKOrderType{S} <: LimitOrderType{S} end
 abstract type IOCOrderType{S} <: LimitOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
-# struct LadderOrder <: OrderType end
-# struct RebalanceOrder <: OrderType end
+abstract type LiquidationType{S} <: MarketOrderType{S} end
 
 @doc """An Order is a container for trades, tied to an asset and an exchange.
 Its execution depends on the order implementation.
@@ -86,6 +85,8 @@ const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
 const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
+@doc "An Order type that liquidates a position."
+const LiquidationOrder{S,P} = Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
 
 macro deforders(issuper, types...)
     @assert issuper isa Bool
@@ -134,10 +135,23 @@ end
 pricetime(o::Order) = (price=o.price, time=o.date)
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 commit!(args...; kwargs...) = error("not implemented")
-opposite(::Buy) = Sell()
 opposite(::Type{Buy}) = Sell
-opposite(::Sell) = Buy()
 opposite(::Type{Sell}) = Buy
+sidetopos(::Type{Buy}) = Long
+sidetopos(::Type{Sell}) = Short
+liqside(::Union{Long,Type{Long}}) = Sell
+liqside(::Union{Short,Type{Short}}) = Buy
+isliquidation(::Order{O}) where {O<:OrderType} = O == LiquidationType
+sidetopos(::Order{<:OrderType{Buy}}) = Long
+sidetopos(::Order{<:OrderType{Sell}}) = Short
+islong(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Long()
+isshort(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Short()
+islong(o::LongOrder) = true
+islong(o::ShortOrder) = false
+isshort(o::LongOrder) = false
+isshort(o::ShortOrder) = true
+ispos(pos::PositionSide, o::Order) = orderpos(o) == pos
+order!(args...; kwargs...) = error("not implemented")
 
 include("trades.jl")
 include("positions.jl")
@@ -148,6 +162,8 @@ export Order, OrderType, OrderSide, Buy, Sell, Both, Trade
 export BuyOrder, SellOrder, BuyTrade, SellTrade
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
-export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade
-export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut, OrderFailed
-export ordersdefault!, orderside, orderpos, pricetime
+export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder
+export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
+export OrderFailed, OrderCancelled, LiquidationOverride
+export ordersdefault!, orderside, orderpos, pricetime, islong, isshort, ispos
+export liqside, sidetopos, opposite

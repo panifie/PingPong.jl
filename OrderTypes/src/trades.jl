@@ -32,6 +32,8 @@ struct Trade{
     end
 end
 
+const LongTrade{O,A,E} = Trade{O,A,E,Long}
+const ShortTrade{O,A,E} = Trade{O,A,E,Short}
 const BuyTrade{A,E} = Trade{<:OrderType{Buy},A,E,Long}
 const SellTrade{A,E} = Trade{<:OrderType{Sell},A,E,Long}
 const ShortBuyTrade{A,E} = Trade{<:OrderType{Buy},A,E,Short}
@@ -43,3 +45,8 @@ const PositionTrade{P} = Trade{O,A,E,P} where {O,A,E}
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 tradepos(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
 tradeside(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
+islong(o::LongTrade) = true
+islong(o::ShortTrade) = false
+isshort(o::LongTrade) = false
+isshort(o::ShortTrade) = true
+ispos(pos::PositionSide, t::Trade) = tradepos(t) == pos

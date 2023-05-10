@@ -23,3 +23,16 @@ end
 @kwdef struct OrderFailed <: OrderError
     msg::String
 end
+
+@doc "When an order has been directly cancelled by a strategy."
+@kwdef struct OrderCancelled <: OrderError
+    order::O where {O<:Order}
+end
+
+@doc "Order has been replaced by a liquidation order."
+@kwdef struct LiquidationOverride <: OrderError
+    order::O where {O<:Order}
+    liqprice::T where {T<:Real}
+    liqdate::DateTime
+    p::PositionSide
+end
