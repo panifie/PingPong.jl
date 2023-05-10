@@ -1,5 +1,5 @@
 using Lang: @get, @multiget, @lget!, Option
-using Misc: config, NoMargin
+using Misc: config, NoMargin, DFT
 using Instruments: isfiatquote, spotpair
 using Python: @pystr
 
@@ -128,13 +128,13 @@ ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
-    p_amount = pyconvert(Real, mkt[@pystr("amount")])
-    p_price = pyconvert(Real, mkt[@pystr("price")])
+    p_amount = pyconvert(DFT, mkt[@pystr("amount")])
+    p_price = pyconvert(DFT, mkt[@pystr("price")])
     (; amount=p_amount, price=p_price)
 end
 market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
 
-py_str_to_float(n::Real) = n
+py_str_to_float(n::DFT) = n
 function py_str_to_float(py::Py)
     (x -> Base.parse(Float64, x))(pyconvert(String, py))
 end
@@ -145,11 +145,16 @@ const DEFAULT_PRICE = (; min=1e-15, max=Inf)
 const DEFAULT_COST = (; min=1e-15, max=Inf)
 const DEFAULT_FIAT_COST = (; min=1.0, max=Inf)
 
-function _minmax_pair(mkt, l, default)
+_min_from_precision(::Nothing) = nothing
+_min_from_precision(v::Int) = 1.0 / 10.0^v
+_min_from_precision(v::Real) = v
+function _minmax_pair(mkt, l, prec, default)
     k = @pystr(l)
     Symbol(l) => (;
-        min=(@something pyconvert(Option{Real}, mkt[k].get("min")) default.min),
-        max=(@something pyconvert(Option{Real}, mkt[k].get("max")) default.max),
+        min=(@something pyconvert(Option{DFT}, mkt[k].get("min")) _min_from_precision(
+            prec
+        ) default.min),
+        max=(@something pyconvert(Option{DFT}, mkt[k].get("max")) default.max),
     )
 end
 
@@ -157,6 +162,7 @@ end
 function market_limits(
     pair::AbstractString,
     exc::Exchange;
+    precision=(; price=nothing, amount=nothing),
     default_leverage=DEFAULT_LEVERAGE,
     default_amount=DEFAULT_AMOUNT,
     default_price=DEFAULT_PRICE,
@@ -165,10 +171,10 @@ function market_limits(
     mkt = exc.markets[pair]["limits"]
     (;
         (
-            _minmax_pair(mkt, "leverage", default_leverage),
-            _minmax_pair(mkt, "amount", default_amount),
-            _minmax_pair(mkt, "price", default_price),
-            _minmax_pair(mkt, "cost", default_cost),
+            _minmax_pair(mkt, "leverage", nothing, default_leverage),
+            _minmax_pair(mkt, "amount", precision.amount, default_amount),
+            _minmax_pair(mkt, "price", precision.price, default_price),
+            _minmax_pair(mkt, "cost", nothing, default_cost),
         )...
     )
 end

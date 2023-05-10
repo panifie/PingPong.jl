@@ -1,8 +1,8 @@
 using Exchanges: market_limits, market_precision, market_fees
 
 function Instances.AssetInstance(a; data, exc, margin, min_amount=1e-15)
-    limits = market_limits(a.raw, exc; default_amount=(min=min_amount, max=Inf))
     precision = market_precision(a.raw, exc)
+    limits = market_limits(a.raw, exc; default_amount=(min=min_amount, max=Inf), precision)
     fees = market_fees(a.raw, exc)
     AssetInstance(a, data, exc, margin; limits, precision, fees)
 end
