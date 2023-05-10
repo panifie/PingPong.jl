@@ -2,6 +2,7 @@ using Lang: @deassert, @posassert, Lang, @ifdebug
 using OrderTypes
 using Executors.Checks: cost, withfees
 import Executors: priceat, unfilled
+import OrderTypes: order!
 using Simulations: Simulations as sim
 using Strategies: Strategies as st
 
@@ -24,6 +25,11 @@ end
 _istriggered(o::LimitOrder{Sell}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
     pbs, pbs >= o.price
+end
+
+@doc "Progresses a simulated limit order."
+function order!(s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...)
+    limitorder_ifprice!(s, o, date, ai)
 end
 
 @doc "Executes a limit order at a particular time only if price is lower(buy) than order price."

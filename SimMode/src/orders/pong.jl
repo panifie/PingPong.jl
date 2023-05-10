@@ -5,23 +5,19 @@ using OrderTypes: LimitOrderType, MarketOrderType
 using Lang: @lget!, Option
 
 @doc "Creates a simulated limit order."
-function pong!(s::Strategy{Sim}, t::Type{<:Order{<:LimitOrderType}}, ai; amount, kwargs...)
+function pong!(s::Strategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...)
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     isnothing(o) && return nothing
     limitorder_ifprice!(s, o, o.date, ai)
 end
 
-@doc "Progresses a simulated limit order."
-function pong!(s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...)
-    limitorder_ifprice!(s, o, date, ai)
-end
-
 @doc "Creates a simulated market order."
 function pong!(
-    s::Strategy{Sim}, t::Type{<:Order{<:MarketOrderType}}, ai; amount, date, kwargs...
+    s::NoMarginStrategy{Sim}, ai, t::Type{<:MarketOrder}; amount, date, kwargs...
 )
-    o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
-    isnothing(o) || marketorder!(s, o, ai, amount; date, kwargs...)
+    o = _create_sim_market_order(s, t, ai, Long(); amount, date, kwargs...)
+    isnothing(o) && return nothing
+    marketorder!(s, o, ai, amount; date, kwargs...)
 end
 
 _lastupdate!(s, date) = s.attrs[:sim_last_orders_update] = date
@@ -80,7 +76,7 @@ The sorting mirrors the sequence in which the orders would be triggered on the e
 the ones with higher price and earlier date are evaluated first, while for sell orders, the ones with a lower price
 and still an earlier date. (Check the `lt` functions defined in the `Strategies` module.)
 """
-function pong!(s::Strategy{Sim}, ::UpdateOrdersShuffled, date)
+function pong!(s::Strategy{Sim}, date, ::UpdateOrdersShuffled)
     _check_update_date(s, date)
     allorders = Tuple{eltype(s.holdings),Union{valtype(s.buyorders),valtype(s.sellorders)}}[]
     _dopush!(s.sellorders, allorders)
@@ -102,7 +98,7 @@ function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
         @ifdebug prev_sell_price = 0.0
         for (pt, o) in ords
             @deassert prev_sell_price <= pt.price
-            pong!(s, o, date, ai)
+            order!(s, o, date, ai)
             @ifdebug prev_sell_price = pt.price
         end
     end
@@ -110,7 +106,7 @@ function pong!(s::Strategy{Sim}, date, ::UpdateOrders)
         @ifdebug prev_buy_price = Inf
         for (pt, o) in ords
             @deassert prev_buy_price >= pt.price
-            pong!(s, o, date, ai)
+            order!(s, o, date, ai)
             @ifdebug prev_buy_price = pt.price
         end
     end

@@ -1,7 +1,7 @@
 import Strategies: ping!
 
-function ping!(
-    ::Strategy{<:ExecMode,N,<:ExchangeID,<:WithMargin}, ai, trade, ::Position, ::PositionChange
-) where {N}
+@doc "After a position update"
+function ping!(::MarginStrategy, ai, trade, ::Position, ::PositionChange)
     nothing
 end
+

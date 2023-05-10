@@ -60,7 +60,7 @@ function strategy!(mod::Module, cfg::Config)
     end
     @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
-    invokelatest(mod.ping!, mod.S, LoadStrategy(), cfg)
+    invokelatest(mod.ping!, mod.S, cfg, LoadStrategy())
 end
 function strategy(src::Union{Symbol,Module,String}, config_args...)
     strategy!(src, Config(src, config_args...))
