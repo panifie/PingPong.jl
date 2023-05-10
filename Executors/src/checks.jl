@@ -25,12 +25,12 @@ end
 
 checkprice(_::NoMarginStrategy, _, _, _) = nothing
 @doc "The price of a trade for long positions should never be below the liquidation price."
-function checkprice(_::IsolatedStrategy, ai, actual_price, ::LongOrder)
-    @assert actual_price > liquidation(ai, Long())
+function checkprice(_::IsolatedStrategy, ai, actual_price, o::LongOrder)
+    @assert actual_price > liqprice(ai, Long()) (o, actual_price, liqprice(ai, Long()))
 end
 @doc "The price of a trade for short positions should never be above the liquidation price."
-function checkprice(_::IsolatedStrategy, ai, actual_price, ::ShortOrder)
-    @assert actual_price < liquidation(ai, Short())
+function checkprice(_::IsolatedStrategy, ai, actual_price, o::ShortOrder)
+    @assert actual_price < liqprice(ai, Short()) (o, actual_price, liqprice(ai, Short()))
 end
 @doc "Amount changes sign only after trade creation, it is always given as *positive*."
 checkamount(actual_amount) = @assert actual_amount >= 0.0
@@ -42,10 +42,10 @@ for the case in which their values would fall below the exchange minimums. In su
 the exchange minimum is returned.
 """
 function sanitize_amount(ai::AssetInstance, amount)
-    if ai.limits.amount.min > 0 && amount < ai.limits.amount.min
+    if ai.limits.amount.min > 0.0 && amount < ai.limits.amount.min
         ai.limits.amount.min
-    elseif ai.precision.amount < 0 # has to be a multiple of 10
-        max(toprecision(Int(amount), 10), ai.limits.amount.min)
+    elseif ai.precision.amount < 0.0 # has to be a multiple of 10
+        max(toprecision(Int(amount), 10.0), ai.limits.amount.min)
     else
         toprecision(amount, ai.precision.amount)
     end
@@ -54,7 +54,7 @@ end
 @doc """ See `sanitize_amount`.
 """
 function sanitize_price(ai::AssetInstance, price)
-    if ai.limits.price.min > 0 && price < ai.limits.price.min
+    if ai.limits.price.min > 0.0 && price < ai.limits.price.min
         ai.limits.price.min
     else
         max(toprecision(price, ai.precision.price), ai.limits.price.min)
