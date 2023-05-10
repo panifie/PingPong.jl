@@ -1,6 +1,6 @@
 using Instruments
 using TimeTicks
-using Misc: DFT
+using Misc: DFT, FUNDING_PERIOD
 using Instruments.Derivatives
 using ExchangeTypes: exc
 using Python: PyDict
@@ -54,7 +54,6 @@ function extract_futures_data(data::Py)
 end
 
 const futures_limits = IdDict(:binance => 1000)
-const FUNDING_PERIOD = Hour(8)
 
 @doc "Fetch funding rate history from exchange for a list of `Derivative` pairs.
 
