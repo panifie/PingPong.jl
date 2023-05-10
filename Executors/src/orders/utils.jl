@@ -3,7 +3,7 @@ using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances: MarginInstance, NoMarginInstance, AssetInstance
 using OrderTypes: IncreaseOrder, ShortBuyOrder
 using Base: negate
-using Lang: @deassert
+using Lang: @lget!, @deassert
 using Misc: Long, Short, PositionSide
 
 function _doclamp(clamper, ai, whats...)
@@ -76,6 +76,27 @@ function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
 end
 function iscommittable(_::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
     Instances.freecash(ai, Short()) >= commit[]
+end
+
+@doc "Get strategy buy orders for asset."
+function orders(s::Strategy{M,S,E}, ai, ::Type{Buy}) where {M,S,E}
+    @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
+end
+buyorders(s::Strategy, ai) = orders(s, ai, Buy)
+function orders(s::Strategy{M,S,E}, ai, ::Type{Sell}) where {M,S,E}
+    @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
+end
+sellorders(s::Strategy, ai) = orders(s, ai, Sell)
+@doc "Check if the asset instance has pending orders."
+hasorders(s::Strategy, ai, t::Type{Buy}) = !isempty(orders(s, ai, t))
+hasorders(::Strategy, ai, ::Type{Sell}) = committed(ai) != 0.0
+hasorders(s::Strategy, ai) = hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
+hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
+hasorders(s::Strategy, ::Type{Sell}) = begin
+    for (_, ords) in s.sellorders
+        isempty(ords) || return true
+    end
+    return false
 end
 
 _check_trade(t::BuyTrade) = begin

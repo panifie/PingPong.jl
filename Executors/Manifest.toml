@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-rc2"
+julia_version = "1.9.0-rc3"
 manifest_format = "2.0"
-project_hash = "34ad3125e11d13d0c15439dcadfb5f4c0b3c2026"
+project_hash = "442c849d0f13b70a338274bad363498add2eb8ed"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -876,7 +876,7 @@ version = "1.5.5+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.4.0+0"
+version = "5.7.0+0"
 
 [[deps.libsodium_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]

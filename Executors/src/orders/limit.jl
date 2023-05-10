@@ -8,6 +8,9 @@ using Misc: Long, Short
 const IncreaseLimitOrder{A,E} = Union{LimitOrder{Buy,A,E},ShortLimitOrder{Sell,A,E}}
 const ReduceLimitOrder{A,E} = Union{LimitOrder{Sell,A,E},ShortLimitOrder{Buy,A,E}}
 
+const AnyLimitOrder{S<:OrderSide,P<:PositionSide} = Order{
+    <:LimitOrderType{S},<:AbstractAsset,<:ExchangeID,P
+}
 const LimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Long}
 const ShortLimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Short}
 const LimitBuyTrade{A,E} = LimitTrade{Buy,A,E}

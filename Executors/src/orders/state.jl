@@ -13,19 +13,6 @@ const _BasicOrderState{T} = NamedTuple{
     Tuple{Option{T},Option{T},Vector{T},Vector{T},Vector{Trade}},
 }
 
-@doc "Get strategy buy orders for asset."
-function orders(s::Strategy{M,S,E}, ai, ::Type{Buy}) where {M,S,E}
-    @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
-end
-buyorders(s::Strategy, ai) = orders(s, ai, Buy)
-function orders(s::Strategy{M,S,E}, ai, ::Type{Sell}) where {M,S,E}
-    @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
-end
-sellorders(s::Strategy, ai) = orders(s, ai, Sell)
-@doc "Check if the asset instance has pending orders."
-hasorders(s::Strategy, ai, t::Type{Buy}) = !isempty(orders(s, ai, t))
-hasorders(::Strategy, ai, ::Type{Sell}) = ai.cash_committed != 0.0
-hasorders(s::Strategy, ai) = hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
 @doc "Remove a single order from the order queue."
 function Base.pop!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
@@ -66,6 +53,7 @@ function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSi
     end
 end
 
+# not for market orders
 function cash!(s::Strategy, ai, t::Trade)
     _check_trade(t)
     cash!(s, t)
@@ -80,7 +68,7 @@ commit!(::Strategy, o::SellOrder, ai) = begin
     add!(committed(ai, orderpos(o)()), committed(o))
 end
 function commit!(::Strategy, o::ShortBuyOrder, ai)
-    @assert committed(ai, orderpos(o)()) <= 0.0
+    @deassert committed(ai, orderpos(o)()) <= 0.0
     add!(committed(ai, orderpos(o)()), committed(o))
 end
 iscommittable(s::Strategy, o::IncreaseOrder, _) = begin

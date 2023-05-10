@@ -1,5 +1,9 @@
-using OrderTypes: MarketOrderType, ExchangeID
+using OrderTypes: MarketOrderType, ExchangeID, PositionSide, PositionTrade
 using Base: negate
+
+const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
+    <:MarketOrderType{S},<:AbstractAsset,<:ExchangeID,P
+}
 
 const _MarketOrderState4{T} = NamedTuple{
     (:take, :stop, :committed, :unfilled, :trades),
@@ -18,7 +22,7 @@ function marketorder(
     amount,
     committed,
     ::SanitizeOff;
-    type=MarketOrder{Buy,Long},
+    type,
     date,
     take=nothing,
     stop=nothing,
@@ -42,25 +46,28 @@ function marketorder(
 end
 
 function marketorder(
-    s::Strategy, ai, amount; date, type, take=nothing, stop=nothing, kwargs...
+    s::Strategy, ai, amount; date, type, take=nothing, stop=nothing, price, kwargs...
 )
     @price! ai take stop
     @amount! ai amount
-    price = priceat(s, type, ai, date)
     comm = committment(type, ai, price, amount)
     if iscommittable(s, type, comm, ai)
         marketorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end
 
-function cash!(s::NoMarginStrategy, ai, t::Trade{<:MarketOrderType{Buy}})
+function cash!(
+    s::NoMarginStrategy, ai, t::PositionTrade{P}{<:MarketOrderType{Buy}}
+) where {P<:PositionSide}
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
     add!(s.cash, t.size)
     @deassert s.cash >= 0.0
     add!(ai.cash, t.amount)
 end
-function cash!(s::NoMarginStrategy, ai, t::Trade{<:MarketOrderType{Sell}})
+function cash!(
+    s::NoMarginStrategy, ai, t::PositionTrade{P}{<:MarketOrderType{Sell}}
+) where {P<:PositionSide}
     @deassert t.size > 0.0
     @deassert t.amount < 0.0
     add!(s.cash, t.size)
@@ -71,21 +78,26 @@ end
 const LongMarketBuyTrade = Trade{<:MarketOrderType{Buy},<:AbstractAsset,<:ExchangeID,Long}
 const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:ExchangeID,Long}
 
-function cash!(s::IsolatedStrategy, ai, t::LongMarketBuyTrade)
-    # add!(s.cash, t.size)
-    # add!(ai.cash, t.amount)
-end
-function cash!(s::IsolatedStrategy, ai, t::Trade{<:MarketOrderType{Buy}})
-
-end
-
-Base.fill!(o::MarketOrder{Buy}, t::BuyTrade) = begin
+Base.fill!(o::AnyMarketOrder{Buy}, t::BuyTrade) = begin
     @deassert o.attrs.unfilled[] <= 0.0
     o.attrs.unfilled[] += t.amount
 end
-Base.fill!(o::MarketOrder{Sell}, t::SellTrade) = begin
+Base.fill!(o::AnyMarketOrder{Sell}, t::SellTrade) = begin
     @deassert o.attrs.unfilled[] <= 0.0
     o.attrs.unfilled[] -= t.amount
+end
+
+@doc "Market reduce orders don't commit asset cash."
+function Instruments.cash!(
+    ai::MarginInstance, t::Trade{<:MarketOrderType{Sell},A,E,Long}
+) where {A,E}
+    add!(cash(ai, tradepos(t)()), t.amount)
+end
+@doc "Market reduce orders don't commit asset cash."
+function Instruments.cash!(
+    ai::MarginInstance, t::Trade{<:MarketOrderType{Buy},A,E,Short}
+) where {A,E}
+    add!(cash(ai, tradepos(t)), t.amount)
 end
 
 committed(o::MarketOrder) = o.attrs.committed
@@ -95,4 +107,4 @@ isfilled(o::MarketOrder) = unfilled(o) == 0.0
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
 @doc "Does nothing since market orders are never queued."
-fullfill!(::Strategy, _, o::MarketOrder, ::Trade) = nothing
+fullfill!(::Strategy, _, o::AnyMarketOrder, ::Trade) = nothing
