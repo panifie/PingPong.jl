@@ -11,7 +11,7 @@ using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash
-using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub
+using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
@@ -111,7 +111,24 @@ Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
+posside(::NoMarginInstance) = Long()
+posside(ai::MarginInstance) = posside(position(ai))()
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
+@doc "True if the asset cash is below minimum quantity."
+function isdust(ai::MarginInstance, p=posside(ai))
+    abs(cash(ai, p)) < ai.limits.amount
+end
+@doc "True if the asset value is below minimum quantity."
+function isdust(ai::MarginInstance, price, p=posside(ai))
+    abs(toprecision(cash(ai, p).value, ai.precision.amount) * price) < ai.limits.cost.min
+end
+@doc "Returns the asset cash rounded to precision."
+function nondust(ai::MarginInstance, price, p=posside(ai))
+    c = cash(ai, p)
+    amt = toprecision(c.value, ai.precision.amount)
+    abs(amt * price) < ai.limits.cost.min ? zero(c) : amt
+end
+Base.iszero(ai::AssetInstance, price) = isdust(ai, price, Long()) && isdust(ai, price, Short())
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
 function instance(exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi)
@@ -198,13 +215,9 @@ end
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
     add!(cash(ai, tradepos(t)()), t.amount)
 end
-function Instruments.cash!(ai::MarginInstance, t::SellTrade)
+function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
     add!(cash(ai, tradepos(t)()), t.amount)
     add!(committed(ai, tradepos(t)()), t.amount)
-end
-function Instruments.cash!(ai::MarginInstance, t::ShortBuyTrade)
-    add!(cash(ai, tradepos(t)), t.amount)
-    add!(committed(ai, tradepos(t)), t.amount)
 end
 freecash(ai::NoMarginInstance, args...) = begin
     ca = cash(ai) - committed(ai)
@@ -362,6 +375,6 @@ end
 include("constructors.jl")
 
 export AssetInstance, instance, load!
-export takerfees, makerfees, maxfees, minfees
+export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
 export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed
 export leverage, mmr, status!
