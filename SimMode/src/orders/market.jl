@@ -1,4 +1,6 @@
-function _create_sim_market_order(s, t, ai; amount, date, price=openat(ai, date), kwargs...)
+function _create_sim_market_order(
+    s, t, ai; amount, date, price=priceat(s, t, ai, date), kwargs...
+)
     o = marketorder(s, ai, amount; type=t, date, price, kwargs...)
     isnothing(o) && return nothing
     iscommittable(s, o, ai) || return nothing
@@ -6,7 +8,9 @@ function _create_sim_market_order(s, t, ai; amount, date, price=openat(ai, date)
 end
 
 @doc "Executes a market order at a particular time if there is volume."
-function marketorder!(s::Strategy{Sim}, o::Order{<:MarketOrderType}, ai, actual_amount; date, kwargs...)
+function marketorder!(
+    s::Strategy{Sim}, o::Order{<:MarketOrderType}, ai, actual_amount; date, kwargs...
+)
     t = trade!(s, o, ai; price=openat(ai, date), date, actual_amount, kwargs...)
     isnothing(t) || hold!(s, ai, o)
     t

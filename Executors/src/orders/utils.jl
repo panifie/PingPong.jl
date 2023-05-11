@@ -21,11 +21,11 @@ end
 
 @doc "Ensure price is within correct boundaries."
 macro price!(ai, prices...)
-    _doclamp(:sanitize_price, ai, prices...)
+    _doclamp(:($(@__MODULE__).sanitize_price), ai, prices...)
 end
 @doc "Ensures amount is within correct boundaries."
 macro amount!(ai, amounts...)
-    _doclamp(:sanitize_amount, ai, amounts...)
+    _doclamp(:($(@__MODULE__).sanitize_amount), ai, amounts...)
 end
 
 @doc "For leveraged orders, the committment includes both the fees to enter, and exit the position."

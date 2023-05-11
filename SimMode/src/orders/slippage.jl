@@ -1,6 +1,7 @@
 using Lang: @ifdebug
 using Strategies: MarginStrategy
 using Executors: AnyMarketOrder, AnyLimitOrder
+using Misc: toprecision
 
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n

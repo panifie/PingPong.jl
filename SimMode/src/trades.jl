@@ -1,10 +1,11 @@
 using Base: negate
+using Executors: @amount!, @price!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
+using Executors.Instances: NoMarginInstance
 using Strategies: lowat, highat, closeat, openat, volumeat
 using Strategies: IsolatedStrategy, NoMarginStrategy
-using Executors.Instances: NoMarginInstance
 using OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
 using OrderTypes: OrderTypes as ot, PositionSide
 
@@ -53,7 +54,9 @@ end
 @doc "Fills an order with a new trade w.r.t the strategy instance."
 function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfees(ai))
     @ifdebug _afterorder()
+    @amount! ai actual_amount
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
+    @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
     isnothing(trade) && return nothing
     @ifdebug _check_committments(s, ai)
