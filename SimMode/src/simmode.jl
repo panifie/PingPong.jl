@@ -25,9 +25,12 @@ include("orders/utils.jl")
 include("orders/limit.jl")
 include("orders/market.jl")
 include("orders/pong.jl")
+include("orders/updates.jl")
+
 include("positions/utils.jl")
 include("positions/ping.jl")
 include("positions/pong.jl")
+
 include("backtest.jl")
 @ifdebug include("debug.jl")
 
