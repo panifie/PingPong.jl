@@ -114,10 +114,6 @@ Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 posside(::NoMarginInstance) = Long()
 posside(ai::MarginInstance) = posside(position(ai))()
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
-@doc "True if the asset cash is below minimum quantity."
-function isdust(ai::MarginInstance, p=posside(ai))
-    abs(cash(ai, p)) < ai.limits.amount
-end
 @doc "True if the asset value is below minimum quantity."
 function isdust(ai::MarginInstance, price, p=posside(ai))
     abs(toprecision(cash(ai, p).value, ai.precision.amount) * price) < ai.limits.cost.min
