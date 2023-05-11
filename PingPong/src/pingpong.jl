@@ -30,6 +30,7 @@ macro environment!()
             Strategies as st,
             Simulations as sim,
             SimMode as bt,
+            Instances as inst,
             Collections as co,
             Executors as ect
 
@@ -53,7 +54,6 @@ macro strategyenv!()
         using Engine.Strategies
         using Engine: Strategies as st
         using Engine.Instances: Instances as inst
-        using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
         using Engine.Executors
         using Engine.OrderTypes
 
@@ -70,4 +70,11 @@ macro strategyenv!()
     end
 end
 
-export @environment!, @strategyenv!
+macro contractsenv!()
+    quote
+        using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
+        using Engine.Instances: position
+    end
+end
+
+export @environment!, @strategyenv!, @contractsenv!

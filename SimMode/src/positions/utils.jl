@@ -3,10 +3,10 @@ using OrderTypes: PositionSide, PositionTrade, LiquidationType
 using Strategies.Instruments.Derivatives: Derivative
 using Executors.Instances: leverage_tiers, tier, position
 import Executors.Instances: Position, MarginInstance
-using Executors: withtrade!, maintenance!, orders, isliquidated
+using Executors: withtrade!, maintenance!, orders, isliquidatable
 using Strategies: IsolatedStrategy, MarginStrategy, exchangeid
 using .Instances: PositionOpen, PositionUpdate, PositionClose
-using .Instances: _roundpos, margin, maintenance, status, posside
+using .Instances: margin, maintenance, status, posside
 using Misc: DFT
 
 function open_position!(
@@ -64,13 +64,21 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
             marketorder!(s, o, ai, amount; date)
         end
     end
-    @deassert iszero(ai, liqprice(ai, p))
-    reset!(position(ai, p))
-    @deassert !isopen(position(ai, p))
+    reset!(ai, p)
+    @assert !isopen(position(ai, p))
 end
 
-function addmargin!(pos::Position, qty::Real)
-    pos.liquidation_price[] = _roundpos(pos.liquidation_price[] + pos.cash / qty)
+function update_margin!(pos::Position, qty::Real)
+    p = posside(pos)
+    price = entryprice(pos)
+    lev = leverage(pos)
+    size = notional(pos)
+    prev_additional = margin(pos) - size / lev
+    @deassert prev_additional >= 0.0 && qty >= 0.0
+    additional = prev_additional + qty
+    liqp = liqprice(p, price, lev, mmr(pos); additional, size)
+    liqprice!(pos, liqp)
+    # margin!(pos, )
 end
 
 @doc "Updates an isolated position in `Sim` mode from a new trade."
@@ -81,11 +89,8 @@ function position!(
     @assert t.order.asset == ai.asset
     pos = position(ai, P)
     if isopen(pos)
-        if iszero(cash(pos))
-            close_position!(s, ai, P(), t.date)
-        else
-            update_position!(s, ai, t)
-        end
+        @assert !iszero(cash(pos))
+        update_position!(s, ai, t)
     else
         open_position!(s, ai, t)
     end
@@ -104,20 +109,26 @@ function liquidate!(
     amount = pos.cash.value
     price = liqprice(pos)
     o = marketorder(s, ai, amount; type=LiquidationOrder{liqside(p),typeof(p)}, date, price)
-    marketorder!(s, o, ai, o.amount; date)
-    @assert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
-    @assert !isnothing(o) &&
-        o.date == date &&
-        isapprox(o.amount, amount; atol=ai.precision.amount)
-    marketorder!(s, o, ai, amount; date, fees)
+    if isnothing(o) # The position is too small to be tradeable, assume cash is lost
+        cash!(ai, 0.0, p)
+        cash!(committed(pos), 0.0, p)
+    else
+        marketorder!(s, o, ai, o.amount; date, fees)
+        @assert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
+        @assert !isnothing(o) &&
+            o.date == date &&
+            isapprox(o.amount, amount; atol=ai.precision.amount)
+    end
+    close_position!(s, ai, p)
 end
 
-@doc "Checks asset positions for liquidations and executes them."
+@doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
 function liquidations!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
     pos = position(ai)
+    @assert !isopen(opposite(ai, pos))
     isnothing(pos) && return nothing
     p = posside(pos)()
-    if isliquidated(ai, p, date)
+    if isliquidatable(ai, p, date)
         liquidate!(s, ai, p, date)
     end
 end

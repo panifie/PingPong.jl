@@ -152,7 +152,7 @@ function notional!(po::Position, v)
     v
 end
 
-@doc "Updates margin given notional leverage values."
+@doc "Sets initial margin given notional and leverage values."
 function margin!(po::Position; ntl=notional(po), lev=leverage(po))
     m = _roundpos(ntl / lev)
     @deassert m <= notional(po)
