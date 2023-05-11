@@ -84,9 +84,13 @@ const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
 const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
-const OrderOrSide{S} = Union{S,Order{OrderType{S},A,E,S}} where {A,E}
+const OrderOrSide{S} = Union{S,Order{OrderType{S}}}
+@doc "Dispatch by `PositionSide` or by an `Order` with the same position side as parameter."
+const OrderOrPos{P<:PositionSide} =
+    Union{P,Order{O,A,E,P}} where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
 @doc "An Order type that liquidates a position."
-const LiquidationOrder{S,P} = Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
+const LiquidationOrder{S,P} =
+    Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
 
 macro deforders(issuper, types...)
     @assert issuper isa Bool
