@@ -21,7 +21,8 @@ _printunfilled(io, o) = hasproperty(o.attrs, :filled) && begin
 end
 
 function Base.show(io::IO, o::Order)
-    write(io, split(string(ordertype(o)), ".")[(begin + 1):end]...)
+    write(io, replace(string(ordertype(o)), "$(@__MODULE__)." => ""))
+    write(io, "($(orderpos(o)))")
     write(io, "\n")
     write(io, string(o.asset))
     write(io, "(")
@@ -40,7 +41,7 @@ function Base.show(io::IO, o::Order)
 end
 
 function Base.show(io::IO, t::Trade)
-    write(io, "Trade: ")
+    write(io, "Trade($(tradepos(t))): ")
     write(io, cnum(t.amount))
     write(io, " at ")
     write(io, cnum(abs(t.size / t.amount)))
