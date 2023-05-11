@@ -5,7 +5,7 @@ using PingPong
 
 const NAME = :Example
 const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin}
+const S{M} = Strategy{<:ExecMode,NAME,typeof(EXCID),NoMargin,:USDT}
 const TF = tf"1m"
 
 __revise_mode__ = :eval
@@ -39,24 +39,24 @@ function marketsid(::Type{<:S})
 end
 
 function buy!(s::S, ai, ats, ts)
-    pong!(s, ai, Sell, CancelOrders())
+    pong!(s, ai, CancelOrders(), t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
     if amount > 0.0
         ot, otsym = select_ordertype(s, Buy)
         kwargs = select_orderkwargs(otsym, Buy, ai, ats)
-        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
+        t = pong!(s, ai, ot; amount, date=ts, kwargs...)
     end
 end
 
 function sell!(s::S, ai, ats, ts)
-    pong!(s, ai, Buy, CancelOrders())
+    pong!(s, ai, CancelOrders(), t=Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     if amount > 0.0
         ot, otsym = select_ordertype(s, Sell)
         kwargs = select_orderkwargs(otsym, Sell, ai, ats)
-        t = pong!(s, ot, ai; amount, date=ts, kwargs...)
+        t = pong!(s, ai, ot; amount, date=ts, kwargs...)
     end
 end
 
