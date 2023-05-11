@@ -284,7 +284,7 @@ uuid = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 version = "0.1.0"
 
 [[deps.Executors]]
-deps = ["Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Strategies", "TimeTicks"]
+deps = ["Collections", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Statistics", "Strategies", "TimeTicks"]
 path = "../Executors"
 uuid = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
 version = "0.1.0"
