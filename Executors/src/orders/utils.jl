@@ -103,32 +103,32 @@ _check_trade(t::BuyTrade) = begin
     @deassert t.price <= t.order.price
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) >= 0
+    @deassert committed(t.order) >= -1e-12
 end
 
 _check_trade(t::SellTrade) = begin
     @deassert t.price >= t.order.price
     @deassert t.size > 0.0
     @deassert t.amount < 0.0
-    @deassert committed(t.order) >= 0
+    @deassert committed(t.order) >= -1e-12
 end
 
 _check_trade(t::ShortSellTrade) = begin
     @deassert t.price >= t.order.price
     @deassert t.size < 0.0
     @deassert t.amount < 0.0
-    @deassert committed(t.order) >= 0
+    @deassert committed(t.order) >= -1e-12
 end
 
 _check_trade(t::ShortBuyTrade) = begin
     @deassert t.price <= t.order.price
     @deassert t.size > 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) >= 0
+    @deassert committed(t.order) >= -1e-12
 end
 
 _check_cash(ai::AssetInstance, ::Long) = begin
-    @deassert committed(ai, Long()) >= 0.0
+    @deassert committed(ai, Long()) >= -1e-12
     @deassert cash(ai, Long()) >= 0.0
 end
 

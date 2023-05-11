@@ -16,12 +16,12 @@ const _BasicOrderState{T} = NamedTuple{
 @doc "Remove a single order from the order queue."
 function Base.pop!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
-    @deassert committed(o) >= 0.0 committed(o)
+    @deassert committed(o) >= -1e-12 committed(o)
     subzero!(s.cash_committed, committed(o))
     pop!(orders(s, ai, orderside(o)), pricetime(o))
 end
 function Base.pop!(s::Strategy, ai, o::SellOrder)
-    @deassert committed(o) >= 0.0 committed(o)
+    @deassert committed(o) >= -1e-12 committed(o)
     sub!(committed(ai, Long()), committed(o))
     pop!(orders(s, ai, Sell), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings

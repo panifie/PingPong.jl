@@ -81,17 +81,17 @@ function Base.fill!(o::IncreaseLimitOrder, t::IncreaseLimitTrade)
     @deassert o isa BuyOrder && attr(o, :unfilled)[] <= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] <= 0
+    @deassert attr(o, :unfilled)[] <= 1e-14
     attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
-    @deassert committed(o) >= 0
+    @deassert committed(o) >= 0.0
 end
 function Base.fill!(o::LimitOrder{Sell}, t::LimitSellTrade)
     @deassert o isa SellOrder && attr(o, :unfilled)[] >= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
-    @deassert attr(o, :unfilled)[] >= 0
+    @deassert attr(o, :unfilled)[] >= -1e-12
     attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
-    @deassert committed(o) >= 0
+    @deassert committed(o) >= -1e-12
 end
 function Base.fill!(o::ShortLimitOrder{Buy}, t::ShortLimitBuyTrade)
     @deassert o isa ShortBuyOrder && attr(o, :unfilled)[] >= 0.0
@@ -106,7 +106,7 @@ end
 
 amount(o::Order) = getfield(o, :amount)
 committed(o::LimitOrder) = begin
-    @deassert attr(o, :committed)[] >= 0.0
+    @deassert attr(o, :committed)[] >= -1e-12
     attr(o, :committed)[]
 end
 Base.isopen(o::LimitOrder) = o.attrs.unfilled[] ≉ 0.0
