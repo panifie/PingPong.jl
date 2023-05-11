@@ -15,7 +15,7 @@ end
 function pong!(
     s::NoMarginStrategy{Sim}, ai, t::Type{<:MarketOrder}; amount, date, kwargs...
 )
-    o = _create_sim_market_order(s, t, ai, Long(); amount, date, kwargs...)
+    o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
     marketorder!(s, o, ai, amount; date, kwargs...)
 end
