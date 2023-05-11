@@ -17,19 +17,23 @@ function iscashenough(s::NoMarginStrategy, _, size, ::BuyOrder)
 end
 @doc "Check that we have enough asset hodlings that we want to sell (same with margin)."
 function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
+    @deassert cash(ai, Long()) >= 0.0
     cash(ai, Long()) >= actual_amount
 end
 @doc "A long buy adds to the long position by buying more contracts in QC. Check that we have enough QC."
 function iscashenough(s::IsolatedStrategy, ai, size, ::BuyOrder)
-    s.cash / leverage(ai, Long()) >= size
+    @deassert s.cash >= 0.0
+    s.cash * leverage(ai, Long()) >= size
 end
 @doc "A short sell increases our position in the opposite direction, it spends QC to cover the short. Check that we have enough QC."
 function iscashenough(s::IsolatedStrategy, ai, size, ::ShortSellOrder)
-    s.cash / leverage(ai, Short()) >= size
+    @deassert s.cash >= 0.0
+    s.cash * leverage(ai, Short()) >= size
 end
 @doc "A short buy reduces the required capital by the leverage. But we shouldn't buy back more than what we have shorted."
 function iscashenough(_::IsolatedStrategy, ai, actual_amount, ::ShortBuyOrder)
-    cash(ai, Short()) >= actual_amount
+    @deassert cash(ai, Short()) <= 0.0
+    abs(cash(ai, Short())) >= actual_amount
 end
 
 function maketrade(

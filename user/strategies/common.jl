@@ -12,18 +12,32 @@ _reset!(s) = begin
     s
 end
 
-select_ordertype(s::S, os::Type{<:OrderSide}) = begin
+function select_ordertype(s::S, os::Type{<:OrderSide}, p::PositionSide=Long())
     let t = s.attrs[:ordertype]
-        if t == :market
-            MarketOrder{os}, t
-        elseif t == :ioc
-            IOCOrder{os}, t
-        elseif t == :fok
-            FOKOrder{os}, t
-        elseif t == :gtc
-            GTCOrder{os}, t
+        if p == Long()
+            if t == :market
+                MarketOrder{os}, t
+            elseif t == :ioc
+                IOCOrder{os}, t
+            elseif t == :fok
+                FOKOrder{os}, t
+            elseif t == :gtc
+                GTCOrder{os}, t
+            else
+                error("Wrong order type $t")
+            end
         else
-            error("Wrong order type $t")
+            if t == :market
+                ShortMarketOrder{os}, t
+            elseif t == :ioc
+                ShortIOCOrder{os}, t
+            elseif t == :fok
+                ShortFOKOrder{os}, t
+            elseif t == :gtc
+                ShortGTCOrder{os}, t
+            else
+                error("Wrong order type $t")
+            end
         end
     end
 end

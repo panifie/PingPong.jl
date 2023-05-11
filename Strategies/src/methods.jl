@@ -1,7 +1,7 @@
 using Lang: @lget!, @deassert
 import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
-import Instruments: cash!, add!, sub!, addzero!, subzero!
+import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)

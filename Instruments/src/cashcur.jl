@@ -19,6 +19,7 @@ struct Cash{S,T} <: AbstractCash
 end
 
 cash(args...; kwargs...) = error("not implemented")
+freecash(args...; kwargs...) = error("not implemented")
 _fvalue(c::Cash) = getfield(c, :value)
 value(c::Cash) = _fvalue(c)[]
 Base.nameof(_::Cash{S}) where {S} = S

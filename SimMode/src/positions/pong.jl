@@ -13,18 +13,21 @@ end
 # @doc "Progresses a simulated limit order."
 # function pong!(s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...)
 
-@doc "Creates a simulated market order, updating a levarged position."
+@doc """"Creates a simulated market order, updating a levarged position.
+
+!!! warning "Protections"
+    Usually an exchange checks before executing a trade if right after the trade
+    the position would be liquidated, and would prevent you to do such trade, however we
+    always check after the trade, and liquidate accordingly, this is pessimistic since
+    we can't ensure that all exchanges have such protections in place.
+"""
 function pong!(
-    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::Type{<:MarketOrder}; amount, date, kwargs...
+    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::Type{<:AnyMarketOrder}; amount, date, kwargs...
 )
     o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
     t = marketorder!(s, o, ai, amount; date)
     isnothing(t) && return nothing
-    # NOTE: Usually an exchange checks before executing a trade if right after the trade
-    # the position would be liquidated, and would prevent you to do such trade, however we
-    # always check after the trade, and liquidate accordingly, this is pessimistic since
-    # we can't ensure that all exchanges have such protections in place.
     position!(s, ai, t)
 end
 

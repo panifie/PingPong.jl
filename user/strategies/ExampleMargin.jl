@@ -2,6 +2,7 @@ module ExampleMargin
 
 using PingPong
 @strategyenv!
+@contractsenv!
 using Data: stub!
 
 const NAME = :ExampleMargin
@@ -31,6 +32,7 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     config.margin = Isolated()
     s = Strategy(@__MODULE__, assets; config)
+    @assert s isa IsolatedStrategy
     _reset!(s)
     _reset_pos!(s)
     s
@@ -41,7 +43,6 @@ ping!(_::S, ::WarmupPeriod) = Day(1)
 levat(ai, ats) = clamp(2.0 * highat(ai, ats) / lowat(ai, ats), 1.0, 100.0)
 
 function ping!(s::T, ts, _) where {T<:S}
-    pong!(s, ts, UpdateOrders())
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         pos = longorshort(s, ai, ats)
@@ -50,10 +51,11 @@ function ping!(s::T, ts, _) where {T<:S}
                 pong!(s, ai, sop, ts, PositionClose())
             end
         end
-        lev = levat(ai, ats) * 2.0
+        lev = levat(ai, ats) * 50.0
         pong!(ai, lev, UpdateLeverage(); pos)
-        if inst.isshort(pos) && issell(s, ai, ats, pos)
+        if inst.isshort(pos)
             sell!(s, ai, ats, ts; lev)
+            # issell(s, ai, ats, pos) &&
         elseif inst.islong(pos) && isbuy(s, ai, ats, pos)
             buy!(s, ai, ats, ts; lev)
         end
@@ -99,9 +101,6 @@ function buy!(s::S, ai, ats, ts; lev)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
-    # stype = Strategy{<:st.ExecMode,N,<:st.ExchangeID,st.Isolated,C} where {N,C}
-    # @show typeof(s) stype{:ExampleMargin}
-    # @assert s isa stype{:ExampleMargin}
     if amount > 0.0
         ot, otsym = select_ordertype(s, Buy)
         kwargs = select_orderkwargs(otsym, Buy, ai, ats)
@@ -109,11 +108,12 @@ function buy!(s::S, ai, ats, ts; lev)
     end
 end
 
-function sell!(s::S, ai, ats, ts)
-    pong!(s, ai, Buy, CancelOrders())
-    amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
-    if amount > 0.0
-        ot, otsym = select_ordertype(s, Sell)
+function sell!(s::S, ai, ats, ts; lev)
+    pong!(s, ai, CancelOrders(); t=Buy)
+    p = inst.position(ai)
+    amount = Executors.freecash(s, ai)
+    if amount > ai.limits.amount.min
+        ot, otsym = select_ordertype(s, Sell, (@something p Short()))
         kwargs = select_orderkwargs(otsym, Sell, ai, ats)
         t = pong!(s, ai, ot; amount, date=ts, kwargs...)
     end

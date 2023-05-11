@@ -84,7 +84,7 @@ _iscrossed(ai, price, ::Long) = price <= Instances.liqprice(ai, Long())
 _iscrossed(ai, price, ::Short) = price >= Instances.liqprice(ai, Short())
 
 @doc "Tests if a position should be liquidated at a particular date."
-function isliquidated(ai::MarginInstance, p::PositionSide, date)
+function isliquidatable(ai::MarginInstance, p::PositionSide, date)
     let price = _pricebypos(ai, date, p)
         buffered = _buffered(price, p)
         @deassert _checkbuffered(buffered, price, p)

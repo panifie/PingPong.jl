@@ -10,11 +10,12 @@ import Data: stub!
 using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
-import Instruments: _hashtuple, cash!, cash
+import Instruments: _hashtuple, cash!, cash, freecash
 using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
+import Base: position
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 include("positions.jl")
@@ -124,7 +125,9 @@ function nondust(ai::MarginInstance, price, p=posside(ai))
     amt = toprecision(c.value, ai.precision.amount)
     abs(amt * price) < ai.limits.cost.min ? zero(c) : amt
 end
-Base.iszero(ai::AssetInstance, price) = isdust(ai, price, Long()) && isdust(ai, price, Short())
+function Base.iszero(ai::AssetInstance, price)
+    isdust(ai, price, Long()) && isdust(ai, price, Short())
+end
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
 function instance(exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi)
@@ -234,6 +237,7 @@ end
 _reset!(ai) = begin
     empty!(ai.history)
     empty!(ai.logs)
+    ai.lastpos[] = nothing
 end
 @doc "Resets asset cash and committments."
 reset!(ai::NoMarginInstance, args...) = begin
@@ -246,6 +250,16 @@ reset!(ai::MarginInstance) = begin
     reset!(position(ai, Short()))
     reset!(position(ai, Long()))
     _reset!(ai)
+end
+reset!(ai::MarginInstance, p::PositionSide) = begin
+    reset!(position(ai, p))
+    let sop = position(ai, opposite(p))
+        if isopen(sop)
+            ai.lastpos[] = sop
+        else
+            ai.lastpos[] = nothing
+        end
+    end
 end
 Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
 Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)

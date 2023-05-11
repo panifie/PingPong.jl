@@ -13,6 +13,9 @@ include("orders/market.jl")
 
 include("positions/utils.jl")
 include("positions/state.jl")
+include("positions/info.jl")
+
+include("utils.jl")
 
 pong!(args...; kwargs...) = error("Not implemented")
 const execute! = pong!
@@ -20,10 +23,12 @@ const execute! = pong!
 struct UpdateOrders <: ExecAction end
 struct UpdateOrdersShuffled <: ExecAction end
 struct CancelOrders <: ExecAction end
+struct UpdatePositions <: ExecAction end
 struct UpdateLeverage <: ExecAction end
+struct UpdateMargin <: ExecAction end
 
 export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
-export UpdateLeverage
+export UpdateLeverage, UpdateMargin, UpdatePositions
 export limitorder, marketorder
 export unfilled, committed, isfilled, islastfill, isfirstfill, attr
 export queue!, cancel!, fullfill!, commit!
