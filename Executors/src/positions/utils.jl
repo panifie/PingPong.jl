@@ -26,10 +26,10 @@ function hasorders(s::MarginStrategy, ai, ps::PositionSide)
     hasorders(s, ai, ps, Buy) || hasorders(s, ai, ps, Sell)
 end
 function hasorders(::MarginStrategy, ai, ::Long, ::Type{Sell})
-    !iszero(committed(cash(ai, Long())))
+    !iszero(committed(ai, Long()))
 end
 function hasorders(::MarginStrategy, ai, ::Short, ::Type{Buy})
-    !iszero(committed(cash(ai, Short())))
+    !iszero(committed(ai, Short()))
 end
 
 hasorders(s::Strategy, ai, p::Type{Long}) = !isempty(orders(s, ai, t))
