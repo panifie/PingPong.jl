@@ -73,7 +73,7 @@ end
 macro contractsenv!()
     quote
         using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
-        using Engine.Instances: position
+        using Engine.Instances: position, leverage, PositionSide
     end
 end
 
