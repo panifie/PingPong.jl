@@ -15,7 +15,7 @@ using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
-import Base: position
+import Base: position, isopen
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 include("positions.jl")
@@ -115,9 +115,19 @@ Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 posside(::NoMarginInstance) = Long()
 posside(ai::MarginInstance) = posside(position(ai))()
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
-@doc "True if the asset value is below minimum quantity."
-function isdust(ai::MarginInstance, price, p=posside(ai))
+isopen(ai::NoMarginInstance) = !iszero(ai)
+isopen(ai::MarginInstance) =
+    let po = position(ai)
+        !isnothing(po) && isopen(po)
+    end
+
+@doc "True if the position value of the asset is below minimum quantity."
+function isdust(ai::MarginInstance, price, p::PositionSide)
     abs(toprecision(cash(ai, p).value, ai.precision.amount) * price) < ai.limits.cost.min
+end
+@doc "True if the asset value is below minimum quantity."
+function isdust(ai::AssetInstance, price)
+    isdust(ai, price, Long()) && isdust(ai, price, Short())
 end
 @doc "Returns the asset cash rounded to precision."
 function nondust(ai::MarginInstance, price, p=posside(ai))
@@ -125,8 +135,13 @@ function nondust(ai::MarginInstance, price, p=posside(ai))
     amt = toprecision(c.value, ai.precision.amount)
     abs(amt * price) < ai.limits.cost.min ? zero(c) : amt
 end
-function Base.iszero(ai::AssetInstance, price)
-    isdust(ai, price, Long()) && isdust(ai, price, Short())
+@doc "Test if some amount (base currency) is zero w.r.t. an asset instance min limit."
+function Base.iszero(ai::AssetInstance, v)
+    isapprox(v, 0.0; atol=ai.limits.amount.min - eps(DFT))
+end
+@doc "Test if asset cash is zero."
+function Base.iszero(ai::AssetInstance)
+    isapprox(cash(ai), 0.0; atol=ai.limits.amount.min - eps(DFT))
 end
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
@@ -296,7 +311,7 @@ position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = positio
 @doc "Returns the last open position or nothing."
 position(ai::MarginInstance) = getfield(ai, :lastpos)[]
 @doc "Check if an asset position is open."
-function Base.isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     isopen(position(ai, S))
 end
 @doc "Position liquidation price."
@@ -377,7 +392,7 @@ end
 @doc "Opens or closes the status of an non-hedged position."
 function status!(ai::MarginInstance, p::PositionSide, pstat::PositionStatus)
     pos = position(ai, p)
-    @assert pstat == PositionOpen() ? status(opposite(ai, p)) == PositionClose() : true "Can only have both long and short position in hedged mode."
+    @assert pstat == PositionOpen() ? status(opposite(ai, p)) == PositionClose() : true "Can only have either long or short position open in non-hedged mode, not both."
     _status!(pos, pstat)
     _lastpos!(ai, p, pstat)
 end

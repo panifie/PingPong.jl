@@ -31,6 +31,7 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     entryprice::OneVec = [0.0]
     maintenance_margin::OneVec = [0.0]
     initial_margin::OneVec = [0.0]
+    additional_margin::OneVec = [0.0]
     notional::OneVec = [0.0]
     cash::Cash{S1,DFT} where {S1}
     cash_committed::Cash{S2,DFT} where {S2}
@@ -51,6 +52,7 @@ reset!(po::Position) = begin
     entryprice!(po, 0.0)
     maintenance!(po)
     margin!(po)
+    additional!(po)
     cash!(cash(po), 0.0)
     cash!(committed(po), 0.0)
 end
@@ -88,9 +90,15 @@ _status!(po::Position, ::PositionOpen) = begin
     po.status[] = PositionOpen()
 end
 
-Base.isopen(po::Position) = po.status[] == PositionOpen()
-islong(::Position{<:Long}) = true
-isshort(::Position{<:Short}) = true
+isopen(po::Position) = po.status[] == PositionOpen()
+islong(::Position{Long}) = true
+islong(::Position{Short}) = false
+islong(::Union{Type{Long},Long}) = true
+islong(::Union{Type{Short},Short}) = false
+isshort(::Position{Short}) = true
+isshort(::Position{Long}) = false
+isshort(::Union{Type{Short},Short}) = true
+isshort(::Union{Type{Long},Long}) = false
 function tier(po::Position, size)
     # tier should work with abs values
     @deassert tier(po, po.cash)[1] == tier(po, negate(po.cash))[1]
@@ -108,8 +116,10 @@ leverage(pos::Position) = pos.leverage[]
 status(pos::Position) = pos.status[]
 @doc "Position maintenance margin."
 maintenance(pos::Position) = pos.maintenance_margin[]
-@doc "Position initial margin."
+@doc "Position initial margin (includes additional)."
 margin(pos::Position) = pos.initial_margin[]
+@doc "Position additional margin."
+additional(pos::Position) = pos.additional_margin[]
 @doc "Position maintenance margin rate."
 mmr(pos::Position) = pos.this_tier[].mmr
 @doc "Position notional value."
@@ -156,15 +166,22 @@ end
 function margin!(po::Position; ntl=notional(po), lev=leverage(po))
     m = _roundpos(ntl / lev)
     @deassert m <= notional(po)
-    po.initial_margin[] = m
+    po.initial_margin[] = m + additional(po)
+end
+
+@doc "Sets additional margin (should always be positive)."
+function additional!(po::Position, v=0.0)
+    @deassert v + margin(po) <= notional(po)
+    po.additional_margin[] = abs(v)
 end
 
 @doc "Adds margin to a position."
 function addmargin!(po::Position, v)
     @deassert margin(po) + v <= notional(po)
-    po.initial_margin[] += v
+    po.additional_margin[] = max(0.0, v + additional(po))
 end
 
+@doc "Sets maintenance margin."
 function maintenance!(po::Position, v)
     po.maintenance_margin[] = _roundpos(v)
     @deassert maintenance(po) <= margin(po)
@@ -192,6 +209,6 @@ function liqprice!(po::Position{Short}, v)
     po.liquidation_price[] = v
 end
 
-export notional, price, notional!
+export notional, additional, price, notional!
 export timestamp!, leverage!, tier!, liqprice!, margin!, maintenance!
 export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange
