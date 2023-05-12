@@ -2,7 +2,7 @@ using OrderTypes: PositionTrade, IncreaseTrade, ReduceTrade, liqside, Liquidatio
 using Instances: leverage, _roundlev, _roundpos, Position
 import Instances: leverage!, maintenance!, notional!, entryprice!, tier, liqprice
 using Executors.Instances: MarginInstance, liqprice!
-using Strategies: lowat
+using Strategies: lowat, highat
 
 # function hold!(s::IsolatedStrategy, ai::MarginInstance, o::IncreaseOrder)
 #     push!(s.holdings, ai)
@@ -24,9 +24,9 @@ end
 _inv(::Long, leverage, mmr) = 1.0 - 1.0 / leverage + mmr
 _inv(::Short, leverage, mmr) = 1.0 + 1.0 / leverage - mmr
 
-function liqprice(p::PositionSide, entryprice, leverage, mmr; additional=0.0, size=1.0)
+function liqprice(p::PositionSide, entryprice, leverage, mmr; additional=0.0, notional=1.0)
     inv = _inv(p, leverage, mmr)
-    add = additional / size # size == amount * entryprice
+    add = additional / notional # == amount * entryprice
     muladd(entryprice, inv, add) |> _roundpos
 end
 
@@ -34,7 +34,9 @@ end
 function leverage!(po::Position{P}; lev, price=price(po), mmr=mmr(po)) where {P}
     lev = leverage!(po, lev)
     # new liquidation price from updated leverage
-    liqprice!(po, liqprice(P(), price, lev, mmr))
+    liqprice!(
+        po, liqprice(P(), price, lev, mmr; additional=additional(po), notional=notional(po))
+    )
     # update margin from new leverage
     margin!(po)
     maintenance!(po)
@@ -108,8 +110,7 @@ function liquidate!(
     pos = position(ai, p)
     amount = cash(pos, p)
     o = marketorder(ai, price, amount; type=LiquidationType{liqside(p)}, date)
-    @assert iszero(committed(ai, p))
-    @assert !isnothing(o) && o.date == date && o.amount == amount
+    @deassert iszero(committed(ai, p))
+    @deassert !isnothing(o) && o.date == date && o.amount == amount
     marketorder!(s, o, ai, amount; date, fees)
-    display("state.jl:114")
 end

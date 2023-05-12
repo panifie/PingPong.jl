@@ -24,5 +24,5 @@ end
 function pong!(
     s::Strategy{Sim}, ai::AssetInstance, ::CancelOrders; t::Type{<:OrderSide}=Both
 )
-    pop!(s, ai, t)
+    delete!(s, ai, t)
 end

@@ -56,6 +56,7 @@ and still an earlier date. (Check the `lt` functions defined in the `Strategies`
 """
 function update!(s::Strategy{Sim}, date, ::UpdateOrdersShuffled)
     _check_update_date(s, date)
+    positions!(s, date)
     allorders = Tuple{eltype(s.holdings),Union{valtype(s.buyorders),valtype(s.sellorders)}}[]
     _dopush!(s.sellorders, allorders)
     _dopush!(s.buyorders, allorders)
@@ -76,6 +77,7 @@ s.attrs[:sim_update_mode] = UpdateOrdersShuffled()
 "
 function update!(s::Strategy{Sim}, date, ::UpdateOrders)
     _check_update_date(s, date)
+    positions!(s, date)
     for (ai, ords) in s.sellorders
         @ifdebug prev_sell_price = 0.0
         for (pt, o) in ords

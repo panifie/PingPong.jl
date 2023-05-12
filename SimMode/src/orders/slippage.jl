@@ -1,6 +1,6 @@
 using Lang: @ifdebug
 using Strategies: MarginStrategy
-using Executors: AnyMarketOrder, AnyLimitOrder
+using Executors: AnyBuyOrder, AnyMarketOrder, AnyLimitOrder
 using Misc: toprecision
 
 spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
@@ -84,7 +84,7 @@ function _with_slippage(
     slp_price = _addslippage(o, clamp_price, slp)
     # We only go outside candle high/low boundaries if the candle
     # has very little volume, otherwise assume that liquidity is deep enough
-    if o isa BuyOrder
+    if o isa AnyBuyOrder
         @assert slp_price >= clamp_price (slp_price, clamp_price)
     else
         @assert slp_price <= clamp_price (slp_price, clamp_price)

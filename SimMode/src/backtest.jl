@@ -40,6 +40,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     for date in ctx.range
         update!(s, date, update_mode)
         ping!(s, date, ctx)
+        positions!(s, date)
     end
     s
 end

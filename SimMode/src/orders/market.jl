@@ -4,6 +4,7 @@ function _create_sim_market_order(
     o = marketorder(s, ai, amount; type=t, date, price, kwargs...)
     isnothing(o) && return nothing
     iscommittable(s, o, ai) || return nothing
+    commit!(s, o, ai)
     return o
 end
 

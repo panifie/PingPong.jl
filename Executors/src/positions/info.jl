@@ -2,14 +2,14 @@ using OrderTypes: LiquidationTrade
 
 @doc "The number of liquidations that have happened for an asset instance."
 function liquidations(ai::MarginInstance)
-    short_liq = 0
-    long_liq = 0
+    short_liq = Trade[]
+    long_liq = Trade[]
     for t in ai.history
         if t isa LiquidationTrade
             if tradepos(t) == Long
-                long_liq += 1
+                push!(long_liq, t)
             else
-                short_liq += 1
+                push!(short_liq, t)
             end
         end
     end

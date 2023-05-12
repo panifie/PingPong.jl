@@ -57,14 +57,14 @@ function committment(::Type{<:ShortBuyOrder}, _, _, amount)
     [negate(amount)]
 end
 
-function unfillment(t::Type{<:BuyOrder}, amount)
+function unfillment(t::Type{<:AnyBuyOrder}, amount)
     @deassert amount > 0.0
-    @deassert !(t isa SellOrder)
+    @deassert !(t isa AnySellOrder)
     [negate(amount)]
 end
-function unfillment(t::Type{<:SellOrder}, amount)
+function unfillment(t::Type{<:AnySellOrder}, amount)
     @deassert amount > 0.0
-    @deassert !(t isa BuyOrder)
+    @deassert !(t isa AnyBuyOrder)
     [amount]
 end
 

@@ -15,7 +15,7 @@ include("orders/slippage.jl")
 function iscashenough(s::NoMarginStrategy, _, size, ::BuyOrder)
     s.cash >= size
 end
-@doc "Check that we have enough asset hodlings that we want to sell (same with margin)."
+@doc "Check that we have enough asset hodlings that we want to sell."
 function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
     @deassert cash(ai, Long()) >= 0.0
     cash(ai, Long()) >= actual_amount

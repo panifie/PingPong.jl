@@ -28,6 +28,7 @@ function open_position!(
     # finalize
     status!(ai, P(), PositionOpen())
     @deassert status(po) == PositionOpen()
+    @assert ai in s.holdings
     ping!(s, ai, t, po, PositionOpen())
 end
 
@@ -65,6 +66,7 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
         end
     end
     reset!(ai, p)
+    pop!(s.holdings, ai)
     @assert !isopen(position(ai, p))
 end
 
@@ -81,26 +83,14 @@ function update_margin!(pos::Position, qty::Real)
     # margin!(pos, )
 end
 
-@doc "Updates an isolated position in `Sim` mode from a new trade."
-function position!(
-    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::PositionTrade{P};
-) where {P<:PositionSide}
-    @assert exchangeid(s) == exchangeid(t)
-    @assert t.order.asset == ai.asset
-    pos = position(ai, P)
-    if isopen(pos)
-        @assert !iszero(cash(pos))
-        update_position!(s, ai, t)
-    else
-        open_position!(s, ai, t)
-    end
-    liquidations!(s, ai, t.date)
-end
-
 @doc "Liquidates a position at a particular date.
 `fees`: the fees for liquidating a position (usually higher than trading fees.)"
 function liquidate!(
-    s::MarginStrategy, ai::MarginInstance, p::PositionSide, date, fees=maxfees(ai) * 2.0
+    s::MarginStrategy{Sim},
+    ai::MarginInstance,
+    p::PositionSide,
+    date,
+    fees=maxfees(ai) * 2.0,
 )
     for o in orders(s, ai, p)
         cancel!(s, o, ai; err=LiquidationOverride(o, price, date, p))
@@ -117,18 +107,74 @@ function liquidate!(
         @assert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
         @assert !isnothing(o) &&
             o.date == date &&
-            isapprox(o.amount, amount; atol=ai.precision.amount)
+            isapprox(o.amount, abs(amount); atol=ai.precision.amount)
     end
     close_position!(s, ai, p)
 end
 
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
-function liquidations!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
+function liquidation!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
     pos = position(ai)
-    @assert !isopen(opposite(ai, pos))
+    @assert isnothing(position(ai)) || !isopen(opposite(ai, pos))
     isnothing(pos) && return nothing
     p = posside(pos)()
     if isliquidatable(ai, p, date)
         liquidate!(s, ai, p, date)
+    end
+end
+
+@doc "Updates an isolated position in `Sim` mode from a new trade."
+function position!(
+    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::PositionTrade{P};
+) where {P<:PositionSide}
+    @assert exchangeid(s) == exchangeid(t)
+    @assert t.order.asset == ai.asset
+    pos = position(ai, P)
+    if isopen(pos)
+        if isdust(ai, t.price, P())
+            close_position!(s, ai, P())
+        else
+            @assert !iszero(cash(pos)) || t isa ReduceTrade
+            update_position!(s, ai, t)
+        end
+    else
+        open_position!(s, ai, t)
+    end
+    liquidation!(s, ai, t.date)
+end
+
+@doc "Updates an isolated position in `Sim` mode from a new candle."
+function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, po::Position=position(ai))
+    # NOTE: Order of calls is important
+    @assert isopen(po)
+    p = posside(po)()
+    @assert notional(po) != 0.0
+    timestamp!(po, date)
+    if isliquidatable(ai, p, date)
+        liquidate!(s, ai, p, date)
+    else
+        # position is still open
+        ping!(s, ai, date, po, PositionUpdate())
+    end
+end
+function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, p::PositionSide)
+    position!(s, ai, date, position(ai, p))
+end
+position!(::IsolatedStrategy{Sim}, ai, ::DateTime, ::Nothing) = nothing
+
+@doc "Non margin strategies don't have positions."
+position!(s::NoMarginStrategy, args...; kwargs...) = nothing
+positions!(s::NoMarginStrategy{Sim}, args...; kwargs...) = nothing
+
+@doc "Updates all open positions in a isolated (non hedged) strategy."
+function positions!(s::IsolatedStrategy{Sim}, date::DateTime)
+    for ai in s.holdings
+        @assert isopen(ai)
+        position!(s, ai, date)
+    end
+    @ifdebug for ai in s.universe
+        let po = position(ai)
+            @assert ai ∈ s.holdings || isnothing(po) || !isopen(po)
+        end
     end
 end

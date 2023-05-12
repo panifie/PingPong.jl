@@ -17,6 +17,7 @@ function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date)
     st.closeat(ai, available(s.timeframe, date))
 end
 priceat(s::Strategy{Sim}, o::Order, args...) = priceat(s, typeof(o), args...)
+priceat(s::MarginStrategy{Sim}, o::Order{}, args...) = priceat(s, typeof(o), args...)
 
 _istriggered(o::LimitOrder{Buy}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
@@ -98,7 +99,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::LimitOrder, date, ai)
             ans = trade!(s, o, ai; price=o.price, date, actual_amount)
         end
         # Cancel IOC orders if partially filled
-        o isa IOCOrder && !isfilled(o) && cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
+        o isa IOCOrder && !isfilled(ai, o) && cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
     end
     ans
 end
