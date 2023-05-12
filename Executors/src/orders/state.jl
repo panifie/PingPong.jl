@@ -51,16 +51,17 @@ function basicorder(
     end
 end
 
+
 @doc "Remove a single order from the order queue."
 function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
     @deassert committed(o) >= -1e-12 committed(o)
-    subzero!(s.cash_committed, committed(o))
+    decommit!(s, o, ai)
     delete!(orders(s, ai, orderside(o)), pricetime(o))
 end
 function Base.delete!(s::Strategy, ai, o::SellOrder)
     @deassert committed(o) >= -1e-12 committed(o)
-    sub!(committed(ai, Long()), committed(o))
+    decommit!(s, o, ai)
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
@@ -69,7 +70,7 @@ function Base.delete!(s::Strategy, ai, o::ShortBuyOrder)
     # Short buy orders have negative committment
     @deassert committed(o) <= 0.0 committed(o)
     @deassert committed(ai, Short()) <= 0.0
-    add!(committed(ai, Short()), committed(o))
+    decommit!(s, o, ai)
     delete!(orders(s, ai, Buy), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
@@ -134,6 +135,9 @@ unfilled(o::Order) = abs(attr(o, :unfilled)[])
 
 commit!(s::Strategy, o::IncreaseOrder, _) = add!(s.cash_committed, committed(o))
 commit!(::Strategy, o::ReduceOrder, ai) = add!(committed(ai, orderpos(o)()), committed(o))
+decommit!(s::Strategy, o::IncreaseOrder, ai) = subzero!(s.cash_committed, committed(o))
+decommit!(s::Strategy, o::SellOrder, ai) = sub!(committed(ai, Long()), committed(o))
+decommit!(s::Strategy, o::ShortBuyOrder, ai) = add!(committed(ai, Short()), committed(o))
 iscommittable(s::Strategy, o::IncreaseOrder, _) = begin
     @deassert committed(o) > 0.0
     st.freecash(s) >= committed(o)

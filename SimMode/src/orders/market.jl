@@ -1,3 +1,4 @@
+using Executors: decommit!
 function _create_sim_market_order(
     s, t, ai; amount, date, price=priceat(s, t, ai, date), kwargs...
 )
@@ -13,6 +14,9 @@ function marketorder!(
     s::Strategy{Sim}, o::Order{<:MarketOrderType}, ai, actual_amount; date, kwargs...
 )
     t = trade!(s, o, ai; price=openat(ai, date), date, actual_amount, kwargs...)
-    isnothing(t) || hold!(s, ai, o)
+    isnothing(t) || begin
+        hold!(s, ai, o)
+        decommit!(s, o, ai)
+    end
     t
 end
