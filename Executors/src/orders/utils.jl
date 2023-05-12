@@ -28,20 +28,8 @@ macro amount!(ai, amounts...)
     _doclamp(:($(@__MODULE__).sanitize_amount), ai, amounts...)
 end
 
-@doc "For leveraged orders, the committment includes both the fees to enter, and exit the position."
-function committment(t::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount)
-    @deassert amount > 0.0
-    let fees = maxfees(ai),
-        cst = cost(price, amount),
-        open_fees = cst * fees,
-        close_fees = cost(bankruptcy(ai, price, orderpos(t)), amount) * fees
-
-        [cst + open_fees + close_fees]
-    end
-end
-
 # When entering a position, what's committed is always strategy cash
-function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount)
+function committment(::Type{<:IncreaseOrder}, ai::AssetInstance, price, amount)
     @deassert amount > 0.0
     [withfees(cost(price, amount), maxfees(ai), IncreaseOrder)]
 end
