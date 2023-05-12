@@ -66,7 +66,7 @@ function withtrade!(po::Position{P}, t::PositionTrade{P}) where {P}
     timestamp!(po, t.date)
     # the position cash should already be updated at trade creation
     # so this not-equation should be true since the position is in a stale state
-    @deassert notional(po) / cash(po) != price(po)
+    @deassert iszero(price(po)) || notional(po) / cash(po) != price(po)
     ntl = _roundpos(cash(po) * t.price)
     # notional updates the price, then leverage, then the liq price.
     notional!(po, ntl; t.price)

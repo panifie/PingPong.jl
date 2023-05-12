@@ -28,10 +28,18 @@ macro amount!(ai, amounts...)
     _doclamp(:($(@__MODULE__).sanitize_amount), ai, amounts...)
 end
 
-# When entering a position, what's committed is always strategy cash
-function committment(::Type{<:IncreaseOrder}, ai::AssetInstance, price, amount)
+@doc "Without margin, committment is cost + fees"
+function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount)
     @deassert amount > 0.0
     [withfees(cost(price, amount), maxfees(ai), IncreaseOrder)]
+end
+@doc "When entering a position, what's committed is margin + fees"
+function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount)
+    @deassert amount > 0.0
+    ntl = cost(price, amount)
+    fees = ntl * maxfees(ai)
+    margin = ntl / leverage(ai, orderpos(o)())
+    [margin + fees]
 end
 # When exiting a position, what's committed is always the asset cash
 # But for longs the asset is already held, so its positive

@@ -48,7 +48,7 @@ reset!(po::Position) = begin
     po.notional[] = 0.0
     leverage!(po, 1.0)
     tier!(po)
-    liqprice!(po, 0.0)
+    po.liquidation_price[] = 0.0
     entryprice!(po, 0.0)
     maintenance!(po)
     margin!(po)
@@ -128,11 +128,15 @@ notional(pos::Position) = pos.notional[]
 cash(po::Position) = po.cash
 @doc "Position locked in pending orders."
 committed(po::Position) = po.cash_committed
+
 @doc "The price where the position is fully liquidated."
-function bankruptcy(pos::Position, price)
-    lev = leverage(pos)
+function bankruptcy(price::Real, lev::Real)
     @deassert lev != 0.0
     price * (lev - 1.0) / lev
+end
+function bankruptcy(pos::Position, price)
+    lev = leverage(pos)
+    bankruptcy(price, lev)
 end
 function bankruptcy(pos::Position, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
     bankruptcy(pos, o.price)
@@ -188,27 +192,30 @@ function maintenance!(po::Position, v)
     v
 end
 
-@doc "The sign for pnl calc is negative for longs."
-Base.sign(::Position{Long}) = -1.0
-@doc "The sign for pnl calc is positive for shorts."
-Base.sign(::Position{Short}) = 1.0
-
-@doc "Calc PNL for position given `current_price` as input."
-function pnl(po::Position, current_price)
+@doc "Calc PNL for long position given `current_price` as input."
+function pnl(po::Position{Long}, current_price, amount=cash(po))
     !isopen(po) && return 0.0
-    (1.0 / price(po) - 1.0 / current_price) * (cash(po) * sign(po))
+    (current_price - price(po)) * abs(amount)
 end
 
+@doc "Calc PNL for short position given `current_price` as input."
+function pnl(po::Position{Short}, current_price, amount=cash(po))
+    !isopen(po) && return 0.0
+    (price(po) - current_price) * abs(amount)
+end
+
+@doc "Sets the liquidation price for a long position."
 function liqprice!(po::Position{Long}, v)
     @deassert v <= price(po)
     po.liquidation_price[] = v
 end
 
+@doc "Sets the liquidation price for a short position."
 function liqprice!(po::Position{Short}, v)
     @deassert v >= price(po)
     po.liquidation_price[] = v
 end
 
-export notional, additional, price, notional!
+export notional, additional, price, notional!, bankruptcy, pnl
 export timestamp!, leverage!, tier!, liqprice!, margin!, maintenance!
 export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange

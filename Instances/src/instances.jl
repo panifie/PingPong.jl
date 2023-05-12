@@ -306,47 +306,55 @@ exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
 position(ai::MarginInstance, ::Type{Long}) = getfield(ai, :longpos)
 @doc "Asset instance short position."
 position(ai::MarginInstance, ::Type{Short}) = getfield(ai, :shortpos)
-@doc "Position by order."
+@doc "Asset position by order."
 position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = position(ai, S)
-@doc "Returns the last open position or nothing."
+@doc "Returns the last open asset position or nothing."
 position(ai::MarginInstance) = getfield(ai, :lastpos)[]
 @doc "Check if an asset position is open."
 function isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     isopen(position(ai, S))
 end
-@doc "Position liquidation price."
+@doc "Asset position notional value."
+function notional(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S) |> notional
+end
+@doc "Asset position liquidation price."
 function liqprice(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> liqprice
 end
-@doc "Sets liquidation price."
+@doc "Sets asset position liquidation price."
 function liqprice!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
     liqprice!(position(ai, S), v)
 end
-@doc "Position leverage."
+@doc "Asset position notional."
 function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> leverage
 end
-@doc "Position status (open or closed)."
+@doc "Asset position leverage."
+function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+    position(ai, S) |> leverage
+end
+@doc "Asset position status (open or closed)."
 function status(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> status
 end
-@doc "Position maintenance margin."
+@doc "Asset position maintenance margin."
 function maintenance(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> maintenance
 end
-@doc "Position initial margin."
+@doc "Asset position initial margin."
 function initial(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> initial
 end
-@doc "Position tier."
+@doc "Asset position tier."
 function tier(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
     tier(position(ai, S), size)
 end
-@doc "Position maintenance margin rate."
+@doc "Asset position maintenance margin rate."
 function mmr(ai::MarginInstance, size, s::OrderOrSide)
     mmr(position(ai, s), size)
 end
-@doc "The price where the position is fully liquidated."
+@doc "The price where the asset position is fully liquidated."
 function bankruptcy(ai, price, ps::Type{P}) where {P<:PositionSide}
     bankruptcy(position(ai, ps), price)
 end
@@ -354,7 +362,7 @@ function bankruptcy(ai, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
     bankruptcy(ai, o.price, P())
 end
 
-@doc "Updates position leverage for asset instance."
+@doc "Updates asset position leverage for asset instance."
 function leverage!(ai, v, p::PositionSide)
     po = position(ai, p)
     leverage!(po, v)

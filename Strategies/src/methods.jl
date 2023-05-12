@@ -51,19 +51,6 @@ reload!(s::Strategy) = begin
         load!(inst; reset=true)
     end
 end
-cash!(s::Strategy, t::IncreaseTrade) = begin
-    @deassert t.size < 0.0
-    add!(s.cash, t.size)
-    addzero!(s.cash_committed, t.size)
-end
-cash!(s::Strategy, t::SellTrade) = begin
-    @deassert t.size > 0.0
-    add!(s.cash, t.size)
-end
-cash!(s::Strategy, t::ShortBuyTrade) = begin
-    @deassert t.size < 0.0
-    add!(s.cash, t.size)
-end
 const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end

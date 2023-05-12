@@ -1,4 +1,5 @@
-using Executors.Instances: leverage!, tradepos
+using Executors.Instances: leverage!, tradepos, leverage
+using Executors: hasorders
 import Executors: pong!
 
 const _PROTECTIONS_WARNING = """
@@ -26,7 +27,12 @@ end
 $_PROTECTIONS_WARNING
 """
 function pong!(
-    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::Type{<:AnyMarketOrder}; amount, date, kwargs...
+    s::IsolatedStrategy{Sim},
+    ai::MarginInstance,
+    t::Type{<:AnyMarketOrder};
+    amount,
+    date,
+    kwargs...,
 )
     o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
@@ -36,15 +42,24 @@ function pong!(
     t
 end
 
-
 @doc "Closes a leveraged position."
-function pong!(s::MarginStrategy, ai, side, date, ::PositionClose)
+function pong!(s::MarginStrategy{Sim}, ai, side, date, ::PositionClose)
     close_position!(s, ai, side, date)
     @deassert !isopen(ai, side)
 end
 
-@doc "Update position Leverage."
-function pong!(ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide)
-    leverage!(ai, lev, pos)
-    @deassert isapprox(leverage(ai, pos), lev, atol=1e-4)
+@doc "Update position Leverage. Returns true if update was successful, false otherwise.
+
+The leverage is not updated when the position has pending orders (and it will return false in such cases.)
+"
+function pong!(
+    s::MarginStrategy{Sim}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
+)
+    if hasorders(s, ai, pos)
+        false
+    else
+        leverage!(ai, lev, pos)
+        @deassert isapprox(leverage(ai, pos), lev, atol=1e-4)
+        true
+    end
 end

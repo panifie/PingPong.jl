@@ -15,12 +15,15 @@ include("common.jl")
 
 # function __init__() end
 _reset_pos!(s) = begin
-    s.attrs[:longdiff] = 1.0075
-    s.attrs[:selldiff] = 1.0025
+    s.attrs[:longdiff] = 1.01
+    s.attrs[:selldiff] = 1.0075
+    s.attrs[:long_mul] = 2.0
+    s.attrs[:short_mul] = 20.0
 end
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
+    _reset_pos!(s)
     # Generate stub funding rate data, only in sim mode
     if S <: Strategy{Sim}
         for ai in s.universe
@@ -45,18 +48,11 @@ levat(ai, ats) = clamp(2.0 * highat(ai, ats) / lowat(ai, ats), 1.0, 100.0)
 function ping!(s::T, ts, _) where {T<:S}
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
-        pos = longorshort(s, ai, ats)
-        let sop = opposite(pos)
-            if isopen(ai, sop)
-                pong!(s, ai, sop, ts, PositionClose())
-            end
-        end
-        lev = levat(ai, ats) * 50.0
-        pong!(ai, lev, UpdateLeverage(); pos)
-        if inst.isshort(pos)
+        pos = nothing
+        lev = nothing
+        if issell(s, ai, ats, pos)
             sell!(s, ai, ats, ts; lev)
-            # issell(s, ai, ats, pos) &&
-        elseif inst.islong(pos) && isbuy(s, ai, ats, pos)
+        elseif isbuy(s, ai, ats, pos)
             buy!(s, ai, ats, ts; lev)
         end
     end
@@ -77,45 +73,88 @@ function longorshort(s::S, ai, ats)
 end
 
 function isbuy(s::S, ai, ats, pos)
-    if s.cash > s.config.min_size
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        this_close[] / prev_close[] > s.attrs[:buydiff]
-    else
-        false
-    end
+    closepair(ai, ats)
+    isnothing(this_close[]) && return false
+    this_close[] / prev_close[] > s.attrs[:buydiff]
 end
 
 function issell(s::S, ai, ats, pos)
-    if !iszero(cash(ai, pos))
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        prev_close[] / this_close[] > s.attrs[:selldiff]
-    else
-        false
-    end
+    closepair(ai, ats)
+    isnothing(this_close[]) && return false
+    prev_close[] / this_close[] > s.attrs[:selldiff]
+end
+
+_levmul(s, ::Long) = s.attrs[:long_mul]
+_levmul(s, ::Short) = s.attrs[:short_mul]
+function update_leverage!(s, ai, pos, ats)
+    lev = levat(ai, ats) * _levmul(s, pos)
+    pong!(s, ai, lev, UpdateLeverage(); pos)
 end
 
 function buy!(s::S, ai, ats, ts; lev)
     pong!(s, ai, CancelOrders(); t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
-    price = closeat(ai.ohlcv, ats)
-    amount = st.freecash(s) / 10.0 / price
-    if amount > 0.0
-        ot, otsym = select_ordertype(s, Buy)
+    p = @something inst.position(ai) inst.position(ai, Long())
+    ok = false
+    if inst.islong(p)
+        c = st.freecash(s)
+        if c > ai.limits.cost.min
+            order_p = Long()
+            c = max(ai.limits.cost.min, c / 10.0)
+            price = closeat(ai.ohlcv, ats)
+            amount = c / price
+            ok = true
+        end
+    else
+        amount = abs(inst.freecash(ai, Short()))
+        if amount > 0.0
+            order_p = Short()
+            ok = true
+        end
+    end
+    if ok
+        update_leverage!(s, ai, order_p, ats)
+        ot, otsym = select_ordertype(s, Buy, order_p)
         kwargs = select_orderkwargs(otsym, Buy, ai, ats)
         t = pong!(s, ai, ot; amount, date=ts, kwargs...)
+        if !isnothing(t) && order_p == Short()
+            ot, otsym = select_ordertype(s, Buy, Long())
+            kwargs = select_orderkwargs(otsym, Buy, ai, ats)
+            t = pong!(s, ai, ot; amount, date=ts, kwargs...)
+        end
     end
 end
 
 function sell!(s::S, ai, ats, ts; lev)
     pong!(s, ai, CancelOrders(); t=Buy)
     p = inst.position(ai)
-    amount = Executors.freecash(s, ai)
-    if amount > ai.limits.amount.min
-        ot, otsym = select_ordertype(s, Sell, (@something p Short()))
+    # Buy during sell
+    isnothing(p) && return nothing
+    price = closeat(ai.ohlcv, ats)
+    ok = false
+    if inst.isshort(p)
+        amount = st.freecash(s) / 10.0 / price
+        if amount > ai.limits.amount.min
+            order_p = Short()
+            ok = true
+        end
+    else
+        amount = inst.freecash(ai, Long())
+        if amount > 0.0
+            order_p = Long()
+            ok = true
+        end
+    end
+    if ok
+        update_leverage!(s, ai, order_p, ats)
+        ot, otsym = select_ordertype(s, Sell, order_p)
         kwargs = select_orderkwargs(otsym, Sell, ai, ats)
         t = pong!(s, ai, ot; amount, date=ts, kwargs...)
+        if !isnothing(t) && order_p == Long()
+            ot, otsym = select_ordertype(s, Sell, Short())
+            kwargs = select_orderkwargs(otsym, Sell, ai, ats)
+            t = pong!(s, ai, ot; amount, date=ts, kwargs...)
+        end
     end
 end
 
