@@ -1,8 +1,8 @@
 using Lang: @deassert
 using Base: negate
 
-signedamount(amount, ::BuyOrder) = amount
-signedamount(amount, ::SellOrder) = negate(amount)
+signedamount(amount, ::AnyBuyOrder) = amount
+signedamount(amount, ::AnySellOrder) = negate(amount)
 signedsize(size, ::IncreaseOrder) = negate(size)
 signedsize(size, ::ReduceOrder) = size
 
@@ -28,6 +28,7 @@ struct Trade{
     function Trade(o::Order{O,A,E,P}, date, amount, price, size) where {O,A,E,P}
         @deassert amount > 0.0
         @deassert size > 0.0
+        @deassert abs(amount) < abs(o.amount)
         new{O,A,E,P}(o, date, signedamount(amount, o), price, signedsize(size, o))
     end
 end

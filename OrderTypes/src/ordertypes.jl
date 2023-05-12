@@ -73,7 +73,9 @@ function Base.hash(o::Order{T}, h::UInt) where {T}
 end
 
 const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
-const SellOrder{A,E} = Order{<:OrderType{Sell},A,E,Long}
+const SellOrder{A,E} = Order{<:OrderType{Sell},A,E}
+const AnyBuyOrder{P,A,E} = Order{<:OrderType{Buy},A,E,P}
+const AnySellOrder{P,A,E} = Order{<:OrderType{Sell},A,E,P}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
 const ShortBuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Short}
@@ -163,7 +165,7 @@ include("errors.jl")
 include("print.jl")
 
 export Order, OrderType, OrderSide, Buy, Sell, Both, Trade
-export BuyOrder, SellOrder, BuyTrade, SellTrade
+export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
 export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder
