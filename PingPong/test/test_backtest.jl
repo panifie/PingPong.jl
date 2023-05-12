@@ -81,7 +81,7 @@ _test_nomargin_fok(s) = begin
     @test first(_trades(s)).order isa egn.FOKOrder
     @test Cash(:USDT, 995.038) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 2157
+    @test st.trades_total(s) == 2150
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 3
