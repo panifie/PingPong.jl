@@ -1,12 +1,14 @@
-using Lang: @deassert, @lget!, Option
+using Lang: @deassert, @lget!, Option, @ifdebug
 using OrderTypes
 import OrderTypes: commit!, tradepos
-using Strategies: Strategies as st, MarginStrategy, IsolatedStrategy
+using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using Instances: notional, pnl
+import Instances: committed
 using Misc: Short
 using Instruments
 using Instruments: @importcash!
 @importcash!
+import Base: fill!
 
 ##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{

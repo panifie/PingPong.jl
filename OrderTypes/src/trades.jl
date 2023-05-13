@@ -1,5 +1,6 @@
 using Lang: @deassert
 using Base: negate
+using Misc: DFT
 
 signedamount(amount, ::AnyBuyOrder) = amount
 signedamount(amount, ::AnySellOrder) = negate(amount)
@@ -15,21 +16,27 @@ Exit trades: It should match the candle when the buy or sell happened.
 - date: The date at which the trade (usually its last order) was completed.
 - amount: The quantity of the base currency being exchanged
 - price: The actual price (quote currency) of the trade, after slippage.
-- size: The total quantity of quote currency exchanged (With fees and other additional costs.)
+- value: price * amount
+- fees: the fees paid for the trade, in quote currency.
+- size: value +/- fees
 """
 struct Trade{
     O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
 } <: AssetEvent{E}
     order::Order{O,A,E}
     date::DateTime
-    amount::Float64
-    price::Float64
-    size::Float64
-    function Trade(o::Order{O,A,E,P}, date, amount, price, size) where {O,A,E,P}
+    amount::DFT
+    price::DFT
+    value::DFT
+    fees::DFT
+    size::DFT
+    function Trade(o::Order{O,A,E,P}; date, amount, price, fees, size) where {O,A,E,P}
         @deassert amount > 0.0
         @deassert size > 0.0
         @deassert abs(amount) < abs(o.amount)
-        new{O,A,E,P}(o, date, signedamount(amount, o), price, signedsize(size, o))
+        amount = signedamount(amount, o)
+        value = abs(amount * price)
+        new{O,A,E,P}(o, date, amount, price, value, fees, signedsize(size, o))
     end
 end
 

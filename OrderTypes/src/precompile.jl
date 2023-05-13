@@ -10,7 +10,7 @@ using Lang: @preset, @precomp
             hash(o)
             orderside(o)
             ordertype(o)
-            Trade(o, date, 10.0, 10.0, 10.0)
+            Trade(o, date, 10.0, 10.0, 0.0, 10.0)
             NotEnoughCash(0.1)
             OrderTimeOut(o)
             NotMatched(0.1, 0.1, 0.1, 0.1)

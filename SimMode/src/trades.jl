@@ -42,7 +42,10 @@ function maketrade(
     net_cost = cost(actual_price, actual_amount)
     size = withfees(net_cost, fees, o)
     iscashenough(s, ai, size, o) || return nothing
-    Trade(o, date, actual_amount, actual_price, size)
+    @deassert size > 0.0 && net_cost > 0.0
+    trade_fees = size - net_cost
+    @deassert trade_fees > 0.0 || fees < 0.0
+    Trade(o; date, amount=actual_amount, price=actual_price, fees=trade_fees, size)
 end
 
 function maketrade(
@@ -52,7 +55,10 @@ function maketrade(
     iscashenough(s, ai, actual_amount, o) || return nothing
     net_cost = cost(actual_price, actual_amount)
     size = withfees(net_cost, fees, o)
-    Trade(o, date, actual_amount, actual_price, size)
+    @deassert size > 0.0 && net_cost > 0.0
+    trade_fees = net_cost - size
+    @deassert trade_fees > 0.0 || fees < 0.0
+    Trade(o; date, amount=actual_amount, price=actual_price, fees=trade_fees, size)
 end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
