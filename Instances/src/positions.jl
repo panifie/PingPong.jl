@@ -4,6 +4,7 @@ using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 using Lang: @ifdebug
+using Base: negate
 import OrderTypes: isshort, islong
 
 const OneVec = Vector{DFT}
@@ -60,16 +61,18 @@ end
 const LongPosition{M<:WithMargin} = Position{Long,M}
 const ShortPosition{M<:WithMargin} = Position{Short,M}
 
-@doc "The amounts of digits to keep for margin calculations."
+@doc "The number of digits to keep for margin calculations."
 const POSITION_PRECISION = 4
+@doc "The number of digits allowed for leverage values."
+const LEVERAGE_PRECISION = 1
 const POSITION_ROUNDING_MODE = RoundToZero
 
 @doc "Round function for values of position fields."
-function _roundpos(v)
-    round(v, POSITION_ROUNDING_MODE; digits=POSITION_PRECISION)
+function _roundpos(v, digits=POSITION_PRECISION)
+    round(v, POSITION_ROUNDING_MODE; digits)
 end
 
-_roundlev(po, lev) = _roundpos(clamp(lev, 1.0, maxleverage(po)))
+_roundlev(po, lev) = _roundpos(clamp(lev, 1.0, maxleverage(po)), LEVERAGE_PRECISION)
 
 @doc "Updates position leverage."
 function leverage!(po::Position, v)
@@ -77,7 +80,7 @@ function leverage!(po::Position, v)
     po.leverage[] = _roundlev(po, v)
 end
 
-maxleverage(po::Position, size::Real) = maxleverage(po.tiers, size)
+maxleverage(po::Position, size::Real) = tier(po, size)[2].max_leverage
 maxleverage(po::Position) = po.this_tier[].max_leverage
 
 _status!(po::Position, ::PositionClose) = begin
@@ -101,7 +104,7 @@ isshort(::Union{Type{Short},Short}) = true
 isshort(::Union{Type{Long},Long}) = false
 function tier(po::Position, size)
     # tier should work with abs values
-    @deassert tier(po, po.cash)[1] == tier(po, negate(po.cash))[1]
+    @deassert tier(po.tiers[], po.cash.value) == tier(po.tiers[], negate(po.cash.value))
     tier(po.tiers[], size)
 end
 posside(::Position{P}) where {P<:PositionSide} = P
@@ -214,6 +217,26 @@ end
 function liqprice!(po::Position{Short}, v)
     @deassert v >= price(po)
     po.liquidation_price[] = v
+end
+
+function Base.show(io::IO, po::Position)
+    write(io, "Position($(posside(po)), $(po.asset))\n")
+    write(io, "entryprice: ")
+    write(io, string(price(po)))
+    write(io, "\namount: ")
+    write(io, string(cash(po)))
+    write(io, "\nnotional: ")
+    write(io, string(notional(po)))
+    write(io, "\nmargin: ")
+    write(io, string(margin(po)))
+    write(io, "\nleverage: ")
+    write(io, string(leverage(po)))
+    write(io, "\nmaintenance: ")
+    write(io, string(maintenance(po)))
+    write(io, "\nliquidation price: ")
+    write(io, string(liqprice(po)))
+    write(io, "\ndate: ")
+    write(io, string(po.timestamp[]))
 end
 
 export notional, additional, price, notional!, bankruptcy, pnl
