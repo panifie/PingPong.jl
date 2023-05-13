@@ -326,10 +326,6 @@ end
 function liqprice!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
     liqprice!(position(ai, S), v)
 end
-@doc "Asset position notional."
-function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
-    position(ai, S) |> leverage
-end
 @doc "Asset position leverage."
 function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> leverage
