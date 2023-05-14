@@ -30,13 +30,16 @@ struct Trade{
     value::DFT
     fees::DFT
     size::DFT
-    function Trade(o::Order{O,A,E,P}; date, amount, price, fees, size) where {O,A,E,P}
+    leverage::DFT
+    function Trade(
+        o::Order{O,A,E,P}; date, amount, price, fees, size, lev=1.0
+    ) where {O,A,E,P}
         @deassert amount > 0.0
         @deassert size > 0.0
-        @deassert abs(amount) < abs(o.amount)
+        @deassert abs(amount) <= abs(o.amount)
         amount = signedamount(amount, o)
         value = abs(amount * price)
-        new{O,A,E,P}(o, date, amount, price, value, fees, signedsize(size, o))
+        new{O,A,E,P}(o, date, amount, price, value, fees, signedsize(size, o), lev)
     end
 end
 

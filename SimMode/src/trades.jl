@@ -45,7 +45,15 @@ function maketrade(
     @deassert size > 0.0 && net_cost > 0.0
     trade_fees = size - net_cost
     @deassert trade_fees > 0.0 || fees < 0.0
-    Trade(o; date, amount=actual_amount, price=actual_price, fees=trade_fees, size)
+    Trade(
+        o;
+        date,
+        amount=actual_amount,
+        price=actual_price,
+        fees=trade_fees,
+        size,
+        lev=leverage(ai, orderpos(o)()),
+    )
 end
 
 function maketrade(
@@ -58,7 +66,15 @@ function maketrade(
     @deassert size > 0.0 && net_cost > 0.0
     trade_fees = net_cost - size
     @deassert trade_fees > 0.0 || fees < 0.0
-    Trade(o; date, amount=actual_amount, price=actual_price, fees=trade_fees, size)
+    Trade(
+        o;
+        date,
+        amount=actual_amount,
+        price=actual_price,
+        fees=trade_fees,
+        size,
+        lev=leverage(ai, orderpos(o)()),
+    )
 end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
