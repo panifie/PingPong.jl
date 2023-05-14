@@ -1,5 +1,5 @@
 import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
-using Instances: pnl, position
+using Instances: pnl, position, margin
 using Instruments
 using Instruments: @importcash!
 @importcash!
@@ -55,7 +55,7 @@ function current_total(s::MarginStrategy)
         for p in (Long, Short)
             price = closeat(ai, lasttrade_date(ai))
             pos = position(ai, p)
-            add!(worth, pnl(pos, price)) #,  ai.cash * price)
+            add!(worth, margin(pos) + pnl(pos, price)) #,  ai.cash * price)
         end
     end
     add!(worth, s.cash)

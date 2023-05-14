@@ -1,4 +1,5 @@
 using Instances
+using Instances: NoMarginInstance, MarginInstance
 
 using Data.DataFrames
 using Data.DataFramesMeta
@@ -7,7 +8,7 @@ using Data.DFUtils
 using Data.DataStructures: SortedDict
 
 using ExchangeTypes
-using Instruments: fiatnames, AbstractAsset, Asset, Cash
+using Instruments: fiatnames, AbstractAsset, Asset, Cash, compactnum as cnum
 using Instruments.Derivatives
 using TimeTicks
 using Misc: Iterable, swapkeys, MarginMode
@@ -126,13 +127,17 @@ function Base.getindex(
     @view ac.data[idx, :]
 end
 
+_cashstr(ai::NoMarginInstance) = (; cash=cash(ai).value)
+function _cashstr(ai::MarginInstance)
+    (; cash_long=cash(ai, Long()).value, cash_short=cash(ai, Short()).value)
+end
 function prettydf(ac::AssetCollection; full=false)
     limit = full ? size(ac.data)[1] : displaysize(stdout)[1] - 1
     limit = min(size(ac.data)[1], limit)
     DataFrame(
         begin
             row = @view ac.data[n, :]
-            (; cash=row.instance.cash, name=row.asset.raw, exchange=row.exchange.id)
+            (; _cashstr(row.instance)..., name=row.asset, exchange=row.exchange.id)
         end for n in 1:limit
     )
 end

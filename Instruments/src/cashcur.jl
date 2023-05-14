@@ -86,6 +86,7 @@ compactnum(val) =
         "$val"
     end
 
+compactnum(c::Cash) = compactnum(value(c))
 compactnum(val, n) = split(compactnum(val), ".")[n]
 Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
