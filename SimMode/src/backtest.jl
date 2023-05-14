@@ -38,11 +38,18 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     end
     update_mode = s.attrs[:sim_update_mode]
     for date in ctx.range
+        isbroke(s) && ((@deassert all(iszero(ai) for ai in s.universe)); break)
         update!(s, date, update_mode)
         ping!(s, date, ctx)
-        positions!(s, date)
     end
     s
+end
+
+function isbroke(s::Strategy)
+    isapprox(s.cash, 0.0) &&
+        isempty(s.holdings) &&
+        isempty(s.buyorders) &&
+        isempty(s.sellorders)
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."
