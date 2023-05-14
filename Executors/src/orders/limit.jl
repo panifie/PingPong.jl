@@ -41,9 +41,12 @@ function limitorder(
     end
 end
 
-
 @doc "Remove order from orders queue if it is filled."
-fullfill!(s::Strategy, ai, o::LimitOrder, ::Trade) = isfilled(ai, o) && delete!(s, ai, o)
+fullfill!(s::Strategy, ai, o::LimitOrder, ::Trade) =
+    if isfilled(ai, o)
+        decommit!(s, o, ai)
+        delete!(s, ai, o)
+    end
 
 function islastfill(ai::AssetInstance, t::Trade{<:LimitOrderType})
     let o = t.order
