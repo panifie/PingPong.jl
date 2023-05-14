@@ -1,6 +1,6 @@
 using Lang: @deassert, @lget!, Option, @ifdebug
-using OrderTypes
-import OrderTypes: commit!, tradepos
+using OrderTypes: ExchangeID
+import OrderTypes: commit!, orderpos, LiquidationType
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using Instances: notional, pnl
 import Instances: committed
@@ -146,30 +146,38 @@ end
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     @deassert t.size < 0.0
     # t.amount can be negative for short sells
-    ntl = abs(t.amount * t.price)
-    fees = t.size + ntl
-    margin = ntl / leverage(ai, tradepos(t)())
+    margin = t.value / t.leverage
     # subtract realized fees, and added margin
-    spent = fees + margin
+    @deassert t.fees > 0.0 || maxfees(ai) < 0.0
+    spent = t.fees + margin
+    @deassert spent > 0.0
     sub!(s.cash, spent)
+    @deassert s.cash >= 0.0
     subzero!(s.cash_committed, spent)
+end
+function _showliq(s, realized_pnl, gained, po, t)
+    get(s.attrs, :verbose, false) || return nothing
+    if ordertype(t) <: LiquidationType
+        @show orderpos(t) s.cash margin t.leverage t.size price(po) t.order.price t.price liqprice(
+            po
+        ) realized_pnl gained ""
+    end
 end
 _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, tradepos(t)())) >= abs(t.amount)
+    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount)
     @ifdebug _checktrade(t)
-    po = position(ai, tradepos(t))
-    ntl = t.amount * t.price
-    fees = t.size + ntl
-    @deassert fees < 0.0 || maxfees(ai) < 0.0
+    po = position(ai, orderpos(t))
     # The notional tracks current value, but the margin
     # refers to the notional from the (avg) entry price
     # of the position
-    margin = abs(price(po) * t.amount / leverage(po))
+    margin = abs(price(po) * t.amount) / t.leverage
     realized_pnl = pnl(po, t.price, t.amount)
-    gained = margin + realized_pnl + fees
+    @deassert t.fees > 0.0 || maxfees(ai) < 0.0
+    gained = margin + realized_pnl + t.fees
+    @ifdebug _showliq(s, realized_pnl, gained, po, t)
     add!(s.cash, gained)
 end
 
@@ -177,17 +185,32 @@ function cash!(s::Strategy, ai, t::Trade)
     @ifdebug _check_trade(t)
     strategycash!(s, ai, t)
     cash!(ai, t)
-    @ifdebug _checkstrategycash(ai, tradepos(t)())
+    @ifdebug _check_cash(ai, orderpos(t)())
 end
 
 attr(o::Order, sym) = getfield(getfield(o, :attrs), sym)
 unfilled(o::Order) = abs(attr(o, :unfilled)[])
 
-commit!(s::Strategy, o::IncreaseOrder, _) = add!(s.cash_committed, committed(o))
-commit!(::Strategy, o::ReduceOrder, ai) = add!(committed(ai, orderpos(o)()), committed(o))
-decommit!(s::Strategy, o::IncreaseOrder, ai) = subzero!(s.cash_committed, committed(o))
-decommit!(s::Strategy, o::SellOrder, ai) = sub!(committed(ai, Long()), committed(o))
-decommit!(s::Strategy, o::ShortBuyOrder, ai) = add!(committed(ai, Short()), committed(o))
+commit!(s::Strategy, o::IncreaseOrder, _) = begin
+    @deassert committed(o) >= 0.0
+    add!(s.cash_committed, committed(o))
+end
+function commit!(::Strategy, o::ReduceOrder, ai)
+    @deassert committed(o) <= 0.0 || orderpos(o) == Long
+    add!(committed(ai, orderpos(o)()), committed(o))
+end
+decommit!(s::Strategy, o::IncreaseOrder, ai) = begin
+    @deassert committed(o) >= -1e-14
+    subzero!(s.cash_committed, committed(o))
+end
+decommit!(s::Strategy, o::SellOrder, ai) = begin
+    @deassert committed(o) >= 0.0
+    subzero!(committed(ai, Long()), committed(o))
+end
+function decommit!(s::Strategy, o::ShortBuyOrder, ai)
+    @deassert committed(o) <= 0.0
+    addzero!(committed(ai, Short()), committed(o))
+end
 iscommittable(s::Strategy, o::IncreaseOrder, _) = begin
     @deassert committed(o) > 0.0
     st.freecash(s) >= committed(o)
@@ -214,7 +237,11 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)
 end
 
 amount(o::Order) = getfield(o, :amount)
+function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
+    @deassert attr(o, :committed)[] <= 1e-12 o
+    attr(o, :committed)[]
+end
 committed(o::Order) = begin
-    @deassert attr(o, :committed)[] >= -1e-12
+    @deassert attr(o, :committed)[] >= -1e-12 o
     attr(o, :committed)[]
 end
