@@ -62,7 +62,7 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
             @assert !isnothing(o) &&
                 o.date == date &&
                 isapprox(o.amount, amount; atol=ai.precision.amount)
-            marketorder!(s, o, ai, amount; date)
+            marketorder!(s, o, ai, amount; o.price, date)
         end
     end
     reset!(ai, p)

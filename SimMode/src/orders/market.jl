@@ -11,7 +11,13 @@ end
 
 @doc "Executes a market order at a particular time if there is volume."
 function marketorder!(
-    s::Strategy{Sim}, o::Order{<:MarketOrderType}, ai, actual_amount; date, kwargs...
+    s::Strategy{Sim},
+    o::Order{<:MarketOrderType},
+    ai,
+    actual_amount;
+    date,
+    price=openat(ai, date),
+    kwargs...,
 )
     t = trade!(s, o, ai; price=openat(ai, date), date, actual_amount, kwargs...)
     isnothing(t) || begin
