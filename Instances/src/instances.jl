@@ -140,8 +140,12 @@ function Base.iszero(ai::AssetInstance, v)
     isapprox(v, 0.0; atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
+function Base.iszero(ai::AssetInstance, p::PositionSide=Long())
+    isapprox(cash(ai, p), 0.0; atol=ai.limits.amount.min - eps(DFT))
+end
+@doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance)
-    isapprox(cash(ai), 0.0; atol=ai.limits.amount.min - eps(DFT))
+    iszero(ai, Long()) && iszero(ai, Short())
 end
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
