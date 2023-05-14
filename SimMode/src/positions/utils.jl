@@ -96,7 +96,7 @@ function liquidate!(
         cancel!(s, o, ai; err=LiquidationOverride(o, price, date, p))
     end
     pos = position(ai, p)
-    amount = pos.cash.value
+    amount = abs(pos.cash.value)
     price = liqprice(pos)
     o = marketorder(s, ai, amount; type=LiquidationOrder{liqside(p),typeof(p)}, date, price)
     if isnothing(o) # The position is too small to be tradeable, assume cash is lost
@@ -104,9 +104,9 @@ function liquidate!(
         cash!(ai, 0.0, p)
         cash!(committed(pos), 0.0, p)
     else
-        marketorder!(s, o, ai, o.amount; date, fees)
-        @assert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
-        @assert !isnothing(o) &&
+        t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
+        @deassert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
+        @deassert !isnothing(o) &&
             o.date == date &&
             isapprox(o.amount, abs(amount); atol=ai.precision.amount)
     end
