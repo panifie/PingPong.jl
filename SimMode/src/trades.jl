@@ -3,7 +3,7 @@ using Executors: @amount!, @price!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
-using Executors.Instances: NoMarginInstance
+using Executors.Instances: NoMarginInstance, Instances as inst
 using Strategies: lowat, highat, closeat, openat, volumeat
 using Strategies: IsolatedStrategy, NoMarginStrategy
 using OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
@@ -94,7 +94,7 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     @ifdebug _check_committments(s, ai, trade)
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
-    fill!(o, trade)
+    fill!(ai, o, trade)
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
     # finalize order if complete

@@ -92,7 +92,7 @@ function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSi
 end
 
 # NOTE: unfilled is always negative
-function fill!(o::IncreaseOrder, t::IncreaseTrade)
+function fill!(::NoMarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     @deassert o isa IncreaseOrder && attr(o, :unfilled)[] <= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
@@ -100,7 +100,7 @@ function fill!(o::IncreaseOrder, t::IncreaseTrade)
     attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
     @deassert committed(o) >= 0.0
 end
-function fill!(o::SellOrder, t::SellTrade)
+function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && attr(o, :unfilled)[] >= 0.0
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
@@ -108,15 +108,26 @@ function fill!(o::SellOrder, t::SellTrade)
     attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
     @deassert committed(o) >= -1e-12
 end
-function fill!(o::ShortBuyOrder, t::ShortBuyTrade)
-    @deassert o isa ShortBuyOrder && attr(o, :unfilled)[] >= 0.0
-    @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
+function fill!(::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
+    @deassert o isa ShortBuyOrder && attr(o, :unfilled)[] <= 0.0
+    @deassert committed(o) == o.attrs.committed[] && committed(o) <= 0.0
     @deassert attr(o, :unfilled)[] < 0.0
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
     @deassert attr(o, :unfilled)[] >= 0
     # NOTE: committment is always positive so in case of reducing short in buy, we have to subtract
     attr(o, :committed)[] -= t.amount # from pos to 0 (sell amount is neg)
-    @deassert committed(o) >= 0.0
+    @deassert committed(o) <= 0.0
+end
+
+@doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
+function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
+    @deassert o isa IncreaseOrder && (attr(o, :unfilled)[] <= 0.0 || o isa ShortSellOrder)
+    @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
+    attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
+    @deassert attr(o, :unfilled)[] <= 1e-14
+    attr(o, :committed)[] = t.value / t.leverage + t.fees # from pos to 0 (buy size is neg)
+    # Market order spending can exceed the estimated committment
+    @deassert committed(o) >= -1e-14 || o isa MarketOrder
 end
 
 isfilled(ai::AssetInstance, o::Order) = iszero(ai, attr(o, :unfilled)[])
