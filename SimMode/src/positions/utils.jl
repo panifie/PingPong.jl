@@ -10,11 +10,13 @@ using .Instances: margin, maintenance, status, posside
 using Misc: DFT
 
 function open_position!(
-    s::IsolatedStrategy{Sim}, ai, t::PositionTrade{P};
+    s::IsolatedStrategy{Sim}, ai::MarginInstance, t::PositionTrade{P};
 ) where {P<:PositionSide}
     # NOTE: Order of calls is important
     po = position(ai, P)
     lev = t.leverage
+    @deassert cash(ai, opposite(P())) == 0.0 (cash(ai, opposite(P()))),
+    status(ai, opposite(P()))
     @deassert !isopen(po)
     @deassert notional(po) == 0.0
     # Cash should already be updated from trade construction
@@ -48,15 +50,12 @@ end
 function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=nothing)
     # when a date is given we should close pending orders and sell remaining cash
     if !isnothing(date)
-        for o in values(orders(s, ai, p, Buy))
-            cancel!(s, o, ai; err=OrderCancelled(o))
-        end
-        for o in values(orders(s, ai, p, Sell))
+        for o in orders(s, ai, p)
             cancel!(s, o, ai; err=OrderCancelled(o))
         end
         @deassert iszero(committed(ai, p)) committed(ai, p)
         price = closeat(ai, date)
-        amount = nondust(ai, price, p) # abs(cash(ai, p))
+        amount = nondust(ai, price, p)
         if amount > 0.0
             o = marketorder(s, ai, amount; type=MarketOrder{liqside(p)}, date, price)
             @deassert !isnothing(o) &&
@@ -67,7 +66,7 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
     end
     reset!(ai, p)
     pop!(s.holdings, ai)
-    @deassert !isopen(position(ai, p))
+    @deassert !isopen(position(ai, p)) && iszero(ai)
 end
 
 function update_margin!(pos::Position, qty::Real)
@@ -92,15 +91,16 @@ function liquidate!(
     date,
     fees=maxfees(ai) * 2.0,
 )
-    for o in orders(s, ai, p)
-        cancel!(s, o, ai; err=LiquidationOverride(o, price, date, p))
-    end
     pos = position(ai, p)
+    for o in orders(s, ai, p)
+        cancel!(s, o, ai; err=LiquidationOverride(o, liqprice(pos), date, p))
+    end
     amount = abs(pos.cash.value)
     price = liqprice(pos)
     o = marketorder(s, ai, amount; type=LiquidationOrder{liqside(p),typeof(p)}, date, price)
     if isnothing(o) # The position is too small to be tradeable, assume cash is lost
         @deassert isdust(ai, price, p)
+        # resetting cash is already done by `close_position!` so this might be removed
         cash!(ai, 0.0, p)
         cash!(committed(pos), 0.0, p)
     else
@@ -116,12 +116,10 @@ end
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
 function liquidation!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
     pos = position(ai)
-    @deassert isnothing(position(ai)) || !isopen(opposite(ai, pos))
     isnothing(pos) && return nothing
+    @deassert !isopen(opposite(ai, pos))
     p = posside(pos)()
-    if isliquidatable(ai, p, date)
-        liquidate!(s, ai, p, date)
-    end
+    isliquidatable(ai, p, date) && liquidate!(s, ai, p, date)
 end
 
 @doc "Updates an isolated position in `Sim` mode from a new trade."
@@ -158,6 +156,7 @@ function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, po::Position=po
         ping!(s, ai, date, po, PositionUpdate())
     end
 end
+
 function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, p::PositionSide)
     position!(s, ai, date, position(ai, p))
 end
