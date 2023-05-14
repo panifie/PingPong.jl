@@ -19,6 +19,7 @@ Exit trades: It should match the candle when the buy or sell happened.
 - value: price * amount
 - fees: the fees paid for the trade, in quote currency.
 - size: value +/- fees
+- leverage: the leverage the trade was executed with
 """
 struct Trade{
     O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
@@ -55,10 +56,11 @@ const PositionTrade{P} = Trade{O,A,E,P} where {O<:OrderType,A<:AbstractAsset,E<:
 const LiquidationTrade{S} = Trade{<:LiquidationType{S}}
 
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
-tradepos(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
-tradeside(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
+orderpos(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
+orderside(::Trade{<:OrderType{S},<:AbstractAsset,<:ExchangeID,<:PositionSide}) where {S<:OrderSide} = S
+ordertype(::Trade{O}) where {O<:OrderType} = O
 islong(o::LongTrade) = true
 islong(o::ShortTrade) = false
 isshort(o::LongTrade) = false
 isshort(o::ShortTrade) = true
-ispos(pos::PositionSide, t::Trade) = tradepos(t) == pos
+ispos(pos::PositionSide, t::Trade) = orderpos(t) == pos

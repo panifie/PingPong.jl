@@ -41,7 +41,7 @@ function Base.show(io::IO, o::Order)
 end
 
 function Base.show(io::IO, t::Trade)
-    write(io, "Trade($(tradepos(t))): ")
+    write(io, "Trade($(orderpos(t))): ")
     write(io, cnum(t.amount))
     write(io, " at ")
     write(io, cnum(abs(t.size / t.amount)))
