@@ -125,7 +125,7 @@ function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
     @deassert attr(o, :unfilled)[] <= 1e-14
-    attr(o, :committed)[] = t.value / t.leverage + t.fees # from pos to 0 (buy size is neg)
+    attr(o, :committed)[] -= t.value / t.leverage + t.fees # from pos to 0 (buy size is neg)
     # Market order spending can exceed the estimated committment
     @deassert committed(o) >= -1e-14 || o isa MarketOrder
 end
@@ -232,7 +232,7 @@ hold!(s::Strategy, ai, ::IncreaseOrder) = push!(s.holdings, ai)
 hold!(::Strategy, _, ::ReduceOrder) = nothing
 release!(::Strategy, _, ::IncreaseOrder) = nothing
 function release!(s::Strategy, ai, o::ReduceOrder)
-    iszero(cash(ai, orderpos(o)())) && pop!(s.holdings, ai)
+    iszero(ai) && pop!(s.holdings, ai)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
