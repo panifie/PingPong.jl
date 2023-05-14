@@ -54,12 +54,12 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
         for o in values(orders(s, ai, p, Sell))
             cancel!(s, o, ai; err=OrderCancelled(o))
         end
-        @assert iszero(committed(ai, p)) committed(ai, p)
+        @deassert iszero(committed(ai, p)) committed(ai, p)
         price = closeat(ai, date)
         amount = nondust(ai, price, p) # abs(cash(ai, p))
         if amount > 0.0
             o = marketorder(s, ai, amount; type=MarketOrder{liqside(p)}, date, price)
-            @assert !isnothing(o) &&
+            @deassert !isnothing(o) &&
                 o.date == date &&
                 isapprox(o.amount, amount; atol=ai.precision.amount)
             marketorder!(s, o, ai, amount; o.price, date)
@@ -67,7 +67,7 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
     end
     reset!(ai, p)
     pop!(s.holdings, ai)
-    @assert !isopen(position(ai, p))
+    @deassert !isopen(position(ai, p))
 end
 
 function update_margin!(pos::Position, qty::Real)
@@ -116,7 +116,7 @@ end
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
 function liquidation!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
     pos = position(ai)
-    @assert isnothing(position(ai)) || !isopen(opposite(ai, pos))
+    @deassert isnothing(position(ai)) || !isopen(opposite(ai, pos))
     isnothing(pos) && return nothing
     p = posside(pos)()
     if isliquidatable(ai, p, date)
@@ -128,14 +128,14 @@ end
 function position!(
     s::IsolatedStrategy{Sim}, ai::MarginInstance, t::PositionTrade{P};
 ) where {P<:PositionSide}
-    @assert exchangeid(s) == exchangeid(t)
-    @assert t.order.asset == ai.asset
+    @deassert exchangeid(s) == exchangeid(t)
+    @deassert t.order.asset == ai.asset
     pos = position(ai, P)
     if isopen(pos)
         if isdust(ai, t.price, P())
             close_position!(s, ai, P())
         else
-            @assert !iszero(cash(pos)) || t isa ReduceTrade
+            @deassert !iszero(cash(pos)) || t isa ReduceTrade
             update_position!(s, ai, t)
         end
     else
@@ -147,9 +147,9 @@ end
 @doc "Updates an isolated position in `Sim` mode from a new candle."
 function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, po::Position=position(ai))
     # NOTE: Order of calls is important
-    @assert isopen(po)
+    @deassert isopen(po)
     p = posside(po)()
-    @assert notional(po) != 0.0
+    @deassert notional(po) != 0.0
     timestamp!(po, date)
     if isliquidatable(ai, p, date)
         liquidate!(s, ai, p, date)
@@ -170,7 +170,7 @@ positions!(s::NoMarginStrategy{Sim}, args...; kwargs...) = nothing
 @doc "Updates all open positions in a isolated (non hedged) strategy."
 function positions!(s::IsolatedStrategy{Sim}, date::DateTime)
     for ai in s.holdings
-        @assert isopen(ai)
+        @deassert isopen(ai)
         position!(s, ai, date)
     end
     @ifdebug for ai in s.universe
