@@ -19,10 +19,11 @@ function marketorder!(
     price=openat(ai, date),
     kwargs...,
 )
-    t = trade!(s, o, ai; price=openat(ai, date), date, actual_amount, kwargs...)
-    isnothing(t) || begin
-        hold!(s, ai, o)
+    t = trade!(s, o, ai; date, price, actual_amount, kwargs...)
+    if isnothing(t)
         decommit!(s, o, ai)
+    else
+        hold!(s, ai, o)
     end
     t
 end
