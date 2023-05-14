@@ -93,7 +93,7 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
         nothing, nothing
     else
         let tiers = leverage_tiers(e, a.raw),
-            pos_kwargs = (;
+            pos_kwargs() = (;
                 asset=a,
                 min_size=limits.amount.min,
                 tiers=[tiers],
@@ -102,7 +102,7 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
                 cash_committed=Cash(a.bc, 0.0),
             )
 
-            LongPosition{M}(; pos_kwargs...), ShortPosition{M}(; pos_kwargs...)
+            LongPosition{M}(; pos_kwargs()...), ShortPosition{M}(; pos_kwargs()...)
         end
     end
 end
@@ -119,6 +119,18 @@ isopen(ai::NoMarginInstance) = !iszero(ai)
 isopen(ai::MarginInstance) =
     let po = position(ai)
         !isnothing(po) && isopen(po)
+    end
+islong(ai::NoMarginInstance) = true
+isshort(ai::NoMarginInstance) = false
+islong(ai::MarginInstance) =
+    let pos = position(ai)
+        isnothing(pos) && return false
+        islong(pos)
+    end
+isshort(ai::MarginInstance) =
+    let pos = position(ai)
+        isnothing(pos) && return false
+        isshort(pos)
     end
 
 @doc "True if the position value of the asset is below minimum quantity."
@@ -211,7 +223,13 @@ end
 cash(ai::NoMarginInstance) = getfield(ai, :cash)
 cash(ai::NoMarginInstance, ::Long) = cash(ai)
 cash(ai::NoMarginInstance, ::Short) = 0.0
-cash(ai::MarginInstance, p::PositionSide) = getfield(position(ai, p), :cash)
+cash(ai::MarginInstance) =
+    let pos = position(ai)
+        isnothing(pos) && return nothing
+        getfield((pos), :cash)
+    end
+cash(ai::MarginInstance, ::Long) = getfield(position(ai, Long()), :cash)
+cash(ai::MarginInstance, ::Short) = getfield(position(ai, Short()), :cash)
 committed(ai::NoMarginInstance) = getfield(ai, :cash_committed)
 committed(ai::NoMarginInstance, ::Long) = committed(ai)
 committed(ai::NoMarginInstance, ::Short) = 0.0
