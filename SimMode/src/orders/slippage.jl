@@ -66,7 +66,7 @@ _addslippage(::AnyMarketOrder{Sell}, price, slp) = price - slp
 function _with_slippage(
     s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
 )
-    @deassert o.price == priceat(s, o, ai, date)
+    @deassert o.price == priceat(s, o, ai, date) || o isa LiquidationOrder
     volume = volumeat(ai, date)
     volume_skew = _volumeskew(actual_amount, volume)
     price_skew = _priceskew(ai, date)
@@ -89,7 +89,7 @@ function _with_slippage(
     else
         @assert slp_price <= clamp_price (slp_price, clamp_price)
     end
-    if volume_skew < 1e-3
+    if volume_skew < 1e-3 && !(o isa LiquidationOrder)
         clamp(slp_price, lowat(ai, date), highat(ai, date))
     else
         slp_price
