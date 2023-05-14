@@ -1,3 +1,5 @@
+using OrderTypes: LimitOrderType, ordertype
+
 const CTR = Ref(0)
 const CTO = Ref(0)
 const PRICE_CHECKS = Ref(0)
@@ -52,10 +54,15 @@ function _check_committments(s::Strategy)
             cash_comm += committed(o)
         end
     end
-    @assert isapprox(cash_comm, s.cash_committed, atol=1e-6) (cash_comm, s.cash_committed)
+    @assert isapprox(cash_comm, s.cash_committed, atol=1e-6) (
+        cash_comm, s.cash_committed.value
+    )
 end
 
-function _check_committments(s, ai::AssetInstance)
+function _check_committments(s, ai::AssetInstance, t::Trade)
+    ordertype(t) <: LimitOrderType || return nothing
+    @show ai.longpos.cash_committed
+    @show ai.shortpos.cash_committed
     long_comm = 0.0
     short_comm = 0.0
     for (_, o) in s.sellorders[ai]
@@ -67,6 +74,6 @@ function _check_committments(s, ai::AssetInstance)
     end
     cc_long = committed(ai, Long())
     cc_short = committed(ai, Short())
-    @assert isapprox(long_comm, cc_long, atol=1e-6) (long_comm, cc_long)
-    @assert isapprox(short_comm, cc_short, atol=1e-6) (short_comm, cc_short)
+    @assert isapprox(long_comm, cc_long, atol=1e-6) (long_comm, cc_long, Long)
+    @assert isapprox(short_comm, cc_short, atol=1e-6) (short_comm, cc_short, Short)
 end

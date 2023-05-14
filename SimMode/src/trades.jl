@@ -91,7 +91,7 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
     isnothing(trade) && return nothing
-    @ifdebug _check_committments(s, ai)
+    @ifdebug _check_committments(s, ai, trade)
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     fill!(o, trade)
@@ -103,6 +103,6 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     cash!(s, ai, trade)
     @ifdebug _aftertrade(s, ai, o)
     @ifdebug _check_committments(s)
-    @ifdebug _check_committments(s, ai)
+    @ifdebug  _check_committments(s, ai, trade)
     return trade
 end

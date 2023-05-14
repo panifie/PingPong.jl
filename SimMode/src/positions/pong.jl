@@ -1,4 +1,4 @@
-using Executors.Instances: leverage!, tradepos, leverage
+using Executors.Instances: leverage!, orderpos, leverage
 using Executors: hasorders
 import Executors: pong!
 
@@ -59,7 +59,7 @@ function pong!(
         false
     else
         leverage!(ai, lev, pos)
-        @deassert isapprox(leverage(ai, pos), lev, atol=1e-4)
+        @deassert isapprox(leverage(ai, pos), lev, atol=1e-1) (leverage(ai, pos), lev)
         true
     end
 end

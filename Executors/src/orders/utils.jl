@@ -1,7 +1,7 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances: MarginInstance, NoMarginInstance, AssetInstance
-using OrderTypes: IncreaseOrder, ShortBuyOrder
+using OrderTypes: IncreaseOrder, ShortBuyOrder, ordertype
 using Base: negate
 using Lang: @lget!, @deassert
 using Misc: Long, Short, PositionSide
@@ -65,13 +65,16 @@ function unfillment(t::Type{<:AnySellOrder}, amount)
 end
 
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, _)
+    @deassert st.freecash(s) >= 0.0
     st.freecash(s) >= commit[]
 end
 function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
+    @deassert Instances.freecash(ai, Long()) >= 0.0
     Instances.freecash(ai, Long()) >= commit[]
 end
 function iscommittable(_::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
-    Instances.freecash(ai, Short()) >= commit[]
+    @deassert Instances.freecash(ai, Short()) <= 0.0
+    Instances.freecash(ai, Short()) <= commit[]
 end
 
 @doc "Get strategy buy orders for asset."
@@ -95,36 +98,39 @@ hasorders(s::Strategy, ::Type{Sell}) = begin
     return false
 end
 
-_check_trade(t::BuyTrade) = begin
-    @deassert t.price <= t.order.price
+function _check_trade(t::BuyTrade)
+    @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
     @deassert committed(t.order) >= -1e-12
 end
 
-_check_trade(t::SellTrade) = begin
-    @deassert t.price >= t.order.price
+function _check_trade(t::SellTrade)
+    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size > 0.0
     @deassert t.amount < 0.0
     @deassert committed(t.order) >= -1e-12
 end
 
-_check_trade(t::ShortSellTrade) = begin
-    @deassert t.price >= t.order.price
+function _check_trade(t::ShortSellTrade)
+    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount < 0.0
     @deassert committed(t.order) >= -1e-12
 end
 
-_check_trade(t::ShortBuyTrade) = begin
-    @deassert t.price <= t.order.price
+function _check_trade(t::ShortBuyTrade)
+    @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType (
+        t.price, t.order.price
+    )
     @deassert t.size > 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) >= -1e-12
+    @deassert committed(t.order) <= 1e-12
 end
 
-_check_cash(ai::AssetInstance, ::Long) = begin
-    @deassert committed(ai, Long()) >= -1e-12
+function _check_cash(ai::AssetInstance, ::Long)
+    @deassert committed(ai, Long()) >= -1e-12 ||
+        ordertype(last(ai.history)) <: MarketOrderType
     @deassert cash(ai, Long()) >= 0.0
 end
 

@@ -10,11 +10,11 @@ using .Instances: margin, maintenance, status, posside
 using Misc: DFT
 
 function open_position!(
-    s::IsolatedStrategy{Sim}, ai, t::PositionTrade{P}; lev::Option{DFT}=nothing
+    s::IsolatedStrategy{Sim}, ai, t::PositionTrade{P};
 ) where {P<:PositionSide}
     # NOTE: Order of calls is important
     po = position(ai, P)
-    lev = isnothing(lev) ? leverage(po) : lev
+    lev = t.leverage
     @deassert !isopen(po)
     @deassert notional(po) == 0.0
     # Cash should already be updated from trade construction
@@ -22,13 +22,13 @@ function open_position!(
     withtrade!(po, t)
     # Notional should never be above the trade size
     # unless fees are negative
-    @deassert notional(po) < t.size || minfees(ai) < 0.0
+    @deassert notional(po) < abs(t.size) || minfees(ai) < 0.0
     # leverage (and margin)
     leverage!(po; lev, price=t.price)
     # finalize
     status!(ai, P(), PositionOpen())
     @deassert status(po) == PositionOpen()
-    @assert ai in s.holdings
+    @deassert ai in s.holdings
     ping!(s, ai, t, po, PositionOpen())
 end
 
@@ -100,6 +100,7 @@ function liquidate!(
     price = liqprice(pos)
     o = marketorder(s, ai, amount; type=LiquidationOrder{liqside(p),typeof(p)}, date, price)
     if isnothing(o) # The position is too small to be tradeable, assume cash is lost
+        @deassert isdust(ai, price, p)
         cash!(ai, 0.0, p)
         cash!(committed(pos), 0.0, p)
     else

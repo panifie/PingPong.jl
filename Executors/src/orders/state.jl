@@ -4,9 +4,9 @@ import OrderTypes: commit!, tradepos
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using Instances: notional, pnl
 import Instances: committed
-using Misc: Short
+using Misc: Short, DFT
 using Instruments
-using Instruments: @importcash!
+using Instruments: @importcash!, AbstractAsset
 @importcash!
 import Base: fill!
 
@@ -36,10 +36,10 @@ function basicorder(
 )
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
-    @deassert if type <: AnyBuyOrder
-        committed[] > ai.limits.cost.min
+    @deassert if type <: IncreaseOrder
+        committed[] * leverage(ai, orderpos(type)) >= ai.limits.cost.min
     else
-        committed[] > ai.limits.amount.min
+        abs(committed[]) >= ai.limits.amount.min
     end "Order committment too low\n$(committed[]), $(ai.asset) $date"
     let unfilled = unfillment(type, amount)
         @deassert type <: AnyBuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
