@@ -102,7 +102,7 @@ function _check_trade(t::BuyTrade)
     @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) >= -1e-12
+    @deassert committed(t.order) >= -1e-12 || ordertype(t) <: MarketOrderType
 end
 
 function _check_trade(t::SellTrade)

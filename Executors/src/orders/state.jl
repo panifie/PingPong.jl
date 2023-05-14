@@ -57,18 +57,18 @@ end
 @doc "Remove a single order from the order queue."
 function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
-    @deassert committed(o) ≈ 0.0 committed(o)
+    @deassert committed(o) ≈ 0.0 o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
 end
 function Base.delete!(s::Strategy, ai, o::SellOrder)
-    @deassert committed(o) ≈ 0.0 committed(o)
+    @deassert committed(o) ≈ 0.0 o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
 end
 function Base.delete!(s::Strategy, ai, o::ShortBuyOrder)
     # Short buy orders have negative committment
-    @deassert committed(o) ≈ 0.0 committed(o)
+    @deassert committed(o) ≈ 0.0 o
     @deassert committed(ai, Short()) ≈ 0.0
     delete!(orders(s, ai, Buy), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
@@ -98,7 +98,7 @@ function fill!(::NoMarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
     @deassert attr(o, :unfilled)[] <= 1e-14
     attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
-    @deassert committed(o) >= 0.0
+    @deassert committed(o) >= 0.0 || o isa MarketOrder o
 end
 function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && attr(o, :unfilled)[] >= 0.0
@@ -201,16 +201,19 @@ function commit!(::Strategy, o::ReduceOrder, ai)
     add!(committed(ai, orderpos(o)()), committed(o))
 end
 decommit!(s::Strategy, o::IncreaseOrder, ai) = begin
-    @deassert committed(o) >= -1e-14
+    @deassert committed(o) >= -1e-14 || ordertype(o) <: MarketOrderType o
     subzero!(s.cash_committed, committed(o))
+    attr(o, :committed)[] = 0.0
 end
 decommit!(s::Strategy, o::SellOrder, ai) = begin
     @deassert committed(o) >= 0.0
     subzero!(committed(ai, Long()), committed(o))
+    attr(o, :committed)[] = 0.0
 end
 function decommit!(s::Strategy, o::ShortBuyOrder, ai)
     @deassert committed(o) <= 0.0
     addzero!(committed(ai, Short()), committed(o))
+    attr(o, :committed)[] = 0.0
 end
 iscommittable(s::Strategy, o::IncreaseOrder, _) = begin
     @deassert committed(o) > 0.0
@@ -233,6 +236,7 @@ function release!(s::Strategy, ai, o::ReduceOrder)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
+    decommit!(s, o, ai)
     delete!(s, ai, o)
     st.ping!(s, o, err, ai)
 end
@@ -243,6 +247,6 @@ function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
     attr(o, :committed)[]
 end
 committed(o::Order) = begin
-    @deassert attr(o, :committed)[] >= -1e-12 o
+    @deassert attr(o, :committed)[] >= -1e-12 || ordertype(o) <: MarketOrderType o
     attr(o, :committed)[]
 end

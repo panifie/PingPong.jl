@@ -28,15 +28,15 @@ _test_nomargin_market(s) = begin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.backtest!(s)
     @test first(_trades(s)).order isa egn.MarketOrder
-    @test _eq4(Cash(:USDT, 9.6091), s.cash.value)
-    @test _eq4(Cash(:USDT, 3.7147), s.cash_committed)
-    @test st.trades_total(s) == 2972
+    @test _eq4(Cash(:USDT, 9.2988), s.cash.value)
+    @test _eq4(Cash(:USDT, 0.0), s.cash_committed)
+    @test st.trades_total(s) == 2883
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 2
+    @test mmh.count == 1
     @test mmh.min[1] == :SOL
     @test mmh.min[2] ≈ 0.0 atol=1e-4
-    @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 3.7139 atol=1e-4
+    @test mmh.max[1] == :SOL
+    @test mmh.max[2] ≈ 0.0 atol=1e-11
 end
 
 _test_nomargin_gtc(s) = begin

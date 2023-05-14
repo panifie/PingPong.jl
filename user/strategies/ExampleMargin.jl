@@ -12,13 +12,20 @@ const TF = tf"1m"
 __revise_mode__ = :eval
 
 include("common.jl")
+display("ExampleMargin.jl:15")
 
 # function __init__() end
-_reset_pos!(s) = begin
-    s.attrs[:longdiff] = 1.01
-    s.attrs[:selldiff] = 1.0075
-    s.attrs[:long_mul] = 2.0
-    s.attrs[:short_mul] = 20.0
+_reset_pos!(s, def_lev=2.5) = begin
+    s.attrs[:longdiff] = 1.02
+    s.attrs[:buydiff] = 1.01
+    s.attrs[:selldiff] = 1.012
+    s.attrs[:long_k] = 0.02
+    s.attrs[:short_k] = 0.02
+    s.attrs[:per_order_leverage] = false
+    for ai in s.universe
+        pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
+        pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
+    end
 end
 
 ping!(s::S, ::ResetStrategy) = begin
@@ -43,17 +50,15 @@ end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
-levat(ai, ats) = clamp(2.0 * highat(ai, ats) / lowat(ai, ats), 1.0, 100.0)
-
 function ping!(s::T, ts, _) where {T<:S}
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         pos = nothing
         lev = nothing
-        if issell(s, ai, ats, pos)
-            sell!(s, ai, ats, ts; lev)
-        elseif isbuy(s, ai, ats, pos)
+        if isbuy(s, ai, ats, pos)
             buy!(s, ai, ats, ts; lev)
+        elseif issell(s, ai, ats, pos)
+            sell!(s, ai, ats, ts; lev)
         end
     end
     foreach(makeorders, s.universe.data.instance)
@@ -84,10 +89,14 @@ function issell(s::S, ai, ats, pos)
     prev_close[] / this_close[] > s.attrs[:selldiff]
 end
 
-_levmul(s, ::Long) = s.attrs[:long_mul]
-_levmul(s, ::Short) = s.attrs[:short_mul]
+_levk(s, ::Long) = s.attrs[:long_k]
+_levk(s, ::Short) = s.attrs[:short_k]
 function update_leverage!(s, ai, pos, ats)
-    lev = levat(ai, ats) * _levmul(s, pos)
+    s.attrs[:per_order_leverage] || return nothing
+    lev = let r = highat(ai, ats) / lowat(ai, ats)
+        diff = abs(1.0 - r)
+        clamp(_levk(s, pos) / diff, 1.0, 100.0)
+    end
     pong!(s, ai, lev, UpdateLeverage(); pos)
 end
 
@@ -127,9 +136,7 @@ end
 
 function sell!(s::S, ai, ats, ts; lev)
     pong!(s, ai, CancelOrders(); t=Buy)
-    p = inst.position(ai)
-    # Buy during sell
-    isnothing(p) && return nothing
+    p = @something inst.position(ai) inst.position(ai, Short())
     price = closeat(ai.ohlcv, ats)
     ok = false
     if inst.isshort(p)

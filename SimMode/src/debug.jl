@@ -61,8 +61,8 @@ end
 
 function _check_committments(s, ai::AssetInstance, t::Trade)
     ordertype(t) <: LimitOrderType || return nothing
-    @show ai.longpos.cash_committed
-    @show ai.shortpos.cash_committed
+    # @show (@something ai.longpos ai).cash_committed
+    # @show (@something ai.shortpos ai).cash_committed
     long_comm = 0.0
     short_comm = 0.0
     for (_, o) in s.sellorders[ai]

@@ -6,6 +6,7 @@ _reset!(s) = begin
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
     s.attrs[:ordertype] = :fok
+    s.attrs[:verbose] = false
     for (k, v) in pairs(get(s.attrs, :overrides, ()))
         s.attrs[k] = v
     end

@@ -106,6 +106,7 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
         end
     end
 end
+
 _hashtuple(ai::AssetInstance) = (Instruments._hashtuple(ai.asset)..., ai.exchange.id)
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
