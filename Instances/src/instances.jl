@@ -3,7 +3,7 @@ using OrderTypes
 
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
-using OrderTypes: OrderOrSide, AssetEvent, tradepos
+using OrderTypes: OrderOrSide, AssetEvent, orderpos
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
@@ -227,11 +227,11 @@ function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
     add!(committed(ai), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
-    add!(cash(ai, tradepos(t)()), t.amount)
+    add!(cash(ai, orderpos(t)()), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
-    add!(cash(ai, tradepos(t)()), t.amount)
-    add!(committed(ai, tradepos(t)()), t.amount)
+    add!(cash(ai, orderpos(t)()), t.amount)
+    add!(committed(ai, orderpos(t)()), t.amount)
 end
 freecash(ai::NoMarginInstance, args...) = begin
     ca = cash(ai) - committed(ai)
@@ -330,6 +330,7 @@ end
 function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> leverage
 end
+leverage(::NoMarginInstance, args...) = 1.0
 @doc "Asset position status (open or closed)."
 function status(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
     position(ai, S) |> status

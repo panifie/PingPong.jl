@@ -6,7 +6,7 @@ function liquidations(ai::MarginInstance)
     long_liq = Trade[]
     for t in ai.history
         if t isa LiquidationTrade
-            if tradepos(t) == Long
+            if orderpos(t) == Long
                 push!(long_liq, t)
             else
                 push!(short_liq, t)

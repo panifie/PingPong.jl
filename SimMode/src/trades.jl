@@ -12,28 +12,34 @@ using OrderTypes: OrderTypes as ot, PositionSide
 include("orders/slippage.jl")
 
 @doc "Check that we have enough cash in the strategy currency for buying."
-function iscashenough(s::NoMarginStrategy, _, size, ::BuyOrder)
-    s.cash >= size
+function iscashenough(s::NoMarginStrategy, _, size, o::BuyOrder)
+    @deassert committed(o) >= 0.0
+    st.freecash(s) + committed(o)  >= size
 end
 @doc "Check that we have enough asset hodlings that we want to sell."
 function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
     @deassert cash(ai, Long()) >= 0.0
-    cash(ai, Long()) >= actual_amount
+    @deassert committed(o) >= 0.0
+    inst.freecash(ai, Long()) + committed(o) >= actual_amount
 end
 @doc "A long buy adds to the long position by buying more contracts in QC. Check that we have enough QC."
-function iscashenough(s::IsolatedStrategy, ai, size, ::BuyOrder)
+function iscashenough(s::IsolatedStrategy, ai, size, o::BuyOrder)
     @deassert s.cash >= 0.0
-    s.cash * leverage(ai, Long()) >= size
+    @deassert committed(o) >= 0.0
+    (st.freecash(s) + committed(o)) * leverage(ai, Long()) >= size
 end
 @doc "A short sell increases our position in the opposite direction, it spends QC to cover the short. Check that we have enough QC."
-function iscashenough(s::IsolatedStrategy, ai, size, ::ShortSellOrder)
+function iscashenough(s::IsolatedStrategy, ai, size, o::ShortSellOrder)
     @deassert s.cash >= 0.0
-    s.cash * leverage(ai, Short()) >= size
+    @deassert committed(o) >= 0.0
+    (st.freecash(s) + committed(o)) * leverage(ai, Short()) >= size
 end
 @doc "A short buy reduces the required capital by the leverage. But we shouldn't buy back more than what we have shorted."
-function iscashenough(_::IsolatedStrategy, ai, actual_amount, ::ShortBuyOrder)
+function iscashenough(_::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
     @deassert cash(ai, Short()) <= 0.0
-    abs(cash(ai, Short())) >= actual_amount
+    @deassert committed(o) <= 0.0
+    @deassert inst.freecash(ai, Short()) <= 0.0
+    abs(inst.freecash(ai, Short())) + abs(committed(o)) >= actual_amount
 end
 
 function maketrade(

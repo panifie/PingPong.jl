@@ -1,5 +1,5 @@
 using OrderTypes: PositionTrade, IncreaseTrade, ReduceTrade, liqside, LiquidationOverride
-using Instances: leverage, _roundlev, _roundpos, Position
+using Instances: leverage, _roundlev, _roundpos, Position, margin, maintenance
 import Instances: leverage!, maintenance!, notional!, entryprice!, tier, liqprice
 using Executors.Instances: MarginInstance, liqprice!
 using Strategies: lowat, highat
@@ -13,9 +13,8 @@ using Strategies: lowat, highat
 
 @doc "Updates notional value."
 function notional!(po::Position, size; price)
-    @deassert size > 0.0
-    @deassert size <= price(po) * cash(po)
-    po.notional[] = size
+    @deassert abs(size) > 0.0
+    po.notional[] = abs(size)
     tier!(po, size)
     entryprice!(po, price)
     leverage!(po; lev=leverage(po), price)
@@ -74,7 +73,7 @@ end
 
 using Base: negate
 @doc "Some exchanges add funding rates and trading fees to the liquidation price, we use a default buffer of $LIQUIDATION_BUFFER."
-const LIQUIDATION_BUFFER = negate(0.04)
+const LIQUIDATION_BUFFER = parse(DFT, get(ENV, "PINGPONG_LIQUIDATION_BUFFER", "0.02")) |> abs |> negate
 
 _pricebypos(ai, date, ::Long) = lowat(ai, date)
 _pricebypos(ai, date, ::Short) = highat(ai, date)
