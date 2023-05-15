@@ -51,7 +51,7 @@ reset!(po::Position) = begin
     tier!(po)
     po.liquidation_price[] = 0.0
     entryprice!(po, 0.0)
-    maintenance!(po)
+    maintenance!(po, 0.0)
     margin!(po)
     additional!(po)
     cash!(cash(po), 0.0)
@@ -156,7 +156,7 @@ function tier!(po::Position, size=notional(po))
 end
 
 @doc "Update the entry price."
-function entryprice!(po::Position, v=notional(po) / cash(po))
+function entryprice!(po::Position, v=abs(notional(po) / cash(po)))
     po.entryprice[] = v
 end
 
@@ -215,7 +215,7 @@ end
 
 @doc "Sets the liquidation price for a short position."
 function liqprice!(po::Position{Short}, v)
-    @deassert v >= price(po)
+    @deassert v >= price(po) (v, price(po))
     po.liquidation_price[] = v
 end
 

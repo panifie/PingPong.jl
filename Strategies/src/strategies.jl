@@ -1,7 +1,7 @@
 using Collections: AssetCollection, Collections as coll
 
 using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged
-using OrderTypes: Order, OrderType, BuyOrder, SellOrder, Buy, Sell, OrderSide
+using OrderTypes: Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError, StrategyEvent
 using ExchangeTypes
 using TimeTicks
@@ -22,8 +22,8 @@ abstract type AbstractStrategy end
 
 const ExchangeAsset{E} = AssetInstance{T,E} where {T<:AbstractAsset}
 const ExchangeOrder{E} = Order{O,T,E} where {O<:OrderType,T<:AbstractAsset}
-const ExchangeBuyOrder{E} = BuyOrder{T,E} where {T<:AbstractAsset}
-const ExchangeSellOrder{E} = SellOrder{T,E} where {T<:AbstractAsset}
+const ExchangeBuyOrder{E} = AnyBuyOrder{P,T,E} where {P<:PositionSide,T<:AbstractAsset}
+const ExchangeSellOrder{E} = AnySellOrder{P,T,E} where {P<:PositionSide,T<:AbstractAsset}
 const PriceTime = NamedTuple{(:price, :time),Tuple{DFT,DateTime}}
 struct BuyPriceTimeOrdering <: Ordering end
 struct SellPriceTimeOrdering <: Ordering end

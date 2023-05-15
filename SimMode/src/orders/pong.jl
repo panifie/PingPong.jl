@@ -5,7 +5,7 @@ using OrderTypes: LimitOrderType, MarketOrderType
 using Lang: @lget!, Option
 
 @doc "Creates a simulated limit order."
-function pong!(s::Strategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...)
+function pong!(s::NoMarginStrategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...)
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     isnothing(o) && return nothing
     limitorder_ifprice!(s, o, o.date, ai)

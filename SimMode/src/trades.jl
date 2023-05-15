@@ -1,5 +1,5 @@
 using Base: negate
-using Executors: @amount!, @price!
+using Executors: @amount!, @price!, maybecancel!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
@@ -14,7 +14,7 @@ include("orders/slippage.jl")
 @doc "Check that we have enough cash in the strategy currency for buying."
 function iscashenough(s::NoMarginStrategy, _, size, o::BuyOrder)
     @deassert committed(o) >= 0.0
-    st.freecash(s) + committed(o)  >= size
+    st.freecash(s) + committed(o) >= size
 end
 @doc "Check that we have enough asset hodlings that we want to sell."
 function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
@@ -35,7 +35,7 @@ function iscashenough(s::IsolatedStrategy, ai, size, o::ShortSellOrder)
     (st.freecash(s) + committed(o)) * leverage(ai, Short()) >= size
 end
 @doc "A short buy reduces the required capital by the leverage. But we shouldn't buy back more than what we have shorted."
-function iscashenough(_::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
+function iscashenough(s::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
     @deassert cash(ai, Short()) <= 0.0
     @deassert committed(o) <= 0.0
     @deassert inst.freecash(ai, Short()) <= 0.0
@@ -90,19 +90,24 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
     @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
-    isnothing(trade) && return nothing
-    @ifdebug _check_committments(s, ai, trade)
+    isnothing(trade) && begin
+        # unqueue for FOK/IOC orders
+        maybecancel!(s, o, ai)
+        return nothing
+    end
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     fill!(ai, o, trade)
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
-    # finalize order if complete
-    fullfill!(s, ai, o, trade)
     # update cash
     cash!(s, ai, trade)
+    # finalize order if complete
+    fullfill!(s, ai, o)
+    # unqueue for FOK/IOC orders
+    maybecancel!(s, o, ai)
     @ifdebug _aftertrade(s, ai, o)
     @ifdebug _check_committments(s)
-    @ifdebug  _check_committments(s, ai, trade)
+    @ifdebug _check_committments(s, ai, trade)
     return trade
 end

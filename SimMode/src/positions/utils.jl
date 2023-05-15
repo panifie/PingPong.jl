@@ -14,7 +14,6 @@ function open_position!(
 ) where {P<:PositionSide}
     # NOTE: Order of calls is important
     po = position(ai, P)
-    lev = t.leverage
     @deassert cash(ai, opposite(P())) == 0.0 (cash(ai, opposite(P()))),
     status(ai, opposite(P()))
     @deassert !isopen(po)
@@ -25,8 +24,6 @@ function open_position!(
     # Notional should never be above the trade size
     # unless fees are negative
     @deassert notional(po) < abs(t.size) || minfees(ai) < 0.0
-    # leverage (and margin)
-    leverage!(po; lev, price=t.price)
     # finalize
     status!(ai, P(), PositionOpen())
     @deassert status(po) == PositionOpen()
@@ -41,7 +38,6 @@ function update_position!(
     po = position(ai, P)
     @deassert notional(po) != 0.0
     # Cash should already be updated from trade construction
-    @deassert cash(po) != t.amount
     withtrade!(po, t)
     # position is still open
     ping!(s, ai, t, po, PositionUpdate())
@@ -57,7 +53,9 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
         price = closeat(ai, date)
         amount = nondust(ai, price, p)
         if amount > 0.0
-            o = marketorder(s, ai, amount; type=MarketOrder{liqside(p)}, date, price)
+            o = _create_sim_market_order(
+                s, MarketOrder{liqside(p)}, ai; amount, date, price
+            )
             @deassert !isnothing(o) &&
                 o.date == date &&
                 isapprox(o.amount, amount; atol=ai.precision.amount)
@@ -65,7 +63,7 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
         end
     end
     reset!(ai, p)
-    pop!(s.holdings, ai)
+    delete!(s.holdings, ai)
     @deassert !isopen(position(ai, p)) && iszero(ai)
 end
 
@@ -97,19 +95,15 @@ function liquidate!(
     end
     amount = abs(pos.cash.value)
     price = liqprice(pos)
-    o = marketorder(s, ai, amount; type=LiquidationOrder{liqside(p),typeof(p)}, date, price)
-    if isnothing(o) # The position is too small to be tradeable, assume cash is lost
-        @deassert isdust(ai, price, p)
-        # resetting cash is already done by `close_position!` so this might be removed
-        cash!(ai, 0.0, p)
-        cash!(committed(pos), 0.0, p)
-    else
+    o = _create_sim_market_order(
+        s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
+    )
+    # The position might be too small to be tradeable, assume cash is lost
+    isnothing(o) || begin
         t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
-        @deassert iszero(unfilled(o)) && isdust(ai, price, p) cash(ai, p)
-        @deassert !isnothing(o) &&
-            o.date == date &&
-            isapprox(o.amount, abs(amount); atol=ai.precision.amount)
+        @deassert !isnothing(o) && o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
     end
+    @deassert isdust(ai, price, p)
     close_position!(s, ai, p)
 end
 

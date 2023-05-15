@@ -2,10 +2,6 @@ using OrderTypes: MarketOrderType, ExchangeID, PositionSide, PositionTrade
 using Base: negate
 import Instruments: cash!
 
-const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
-    <:MarketOrderType{S},<:AbstractAsset,<:ExchangeID,P
-}
-
 function marketorder(
     s::Strategy, ai, amount; date, type, take=nothing, stop=nothing, price, kwargs...
 )
@@ -24,4 +20,5 @@ const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:Exch
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
 @doc "Does nothing since market orders are never queued."
-fullfill!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai)
+fullfill!(::Strategy, _, ::AnyMarketOrder) = nothing
+maybecancel!(s::Strategy, o::AnyMarketOrder, ai) = decommit!(s, o, ai)

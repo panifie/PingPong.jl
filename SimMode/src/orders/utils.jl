@@ -1,5 +1,5 @@
-_pricebyside(::BuyOrder, date, ai) = st.lowat(ai, date)
-_pricebyside(::SellOrder, date, ai) = st.highat(ai, date)
+_pricebyside(::AnyBuyOrder, date, ai) = st.lowat(ai, date)
+_pricebyside(::AnySellOrder, date, ai) = st.highat(ai, date)
 
 OrderTypes.ordersdefault!(s::Strategy{Sim}) = begin
     s.attrs[:sim_update_mode] = UpdateOrders()

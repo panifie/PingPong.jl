@@ -11,12 +11,19 @@ const _PROTECTIONS_WARNING = """
 """
 
 @doc "Creates a simulated limit order, updating a levarged position."
-function pong!(s::IsolatedStrategy{Sim}, ai::MarginInstance, t::Type{<:LimitOrder}; amount, kwargs...)
+function pong!(
+    s::IsolatedStrategy{Sim},
+    ai::MarginInstance,
+    t::Type{<:AnyLimitOrder};
+    amount,
+    kwargs...,
+)
     isopen(ai, opposite(orderpos(t))) && return nothing
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     return if !isnothing(o)
         t = limitorder_ifprice!(s, o, o.date, ai)
         t isa Trade && position!(s, ai, t)
+        @deassert s.cash_committed == 0.0
         t
     end
 end

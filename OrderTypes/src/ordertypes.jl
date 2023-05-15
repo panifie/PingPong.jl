@@ -19,9 +19,10 @@ abstract type Both <: OrderSide end
 
 abstract type OrderType{S<:OrderSide} end
 abstract type LimitOrderType{S} <: OrderType{S} end
+abstract type AtomicOrderType{S} <: LimitOrderType{S} end
 abstract type GTCOrderType{S} <: LimitOrderType{S} end
-abstract type FOKOrderType{S} <: LimitOrderType{S} end
-abstract type IOCOrderType{S} <: LimitOrderType{S} end
+abstract type FOKOrderType{S} <: AtomicOrderType{S} end
+abstract type IOCOrderType{S} <: AtomicOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
 abstract type LiquidationType{S} <: MarketOrderType{S} end
 

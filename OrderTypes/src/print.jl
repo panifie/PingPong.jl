@@ -15,8 +15,8 @@ function _printcommitted(io, o)
         write(io, string(cnum(_vv(o.attrs.committed))))
     end
 end
-_printunfilled(io, o) = hasproperty(o.attrs, :filled) && begin
-    write(io, "\nFilled: ")
+_printunfilled(io, o) = hasproperty(o.attrs, :unfilled) && begin
+    write(io, "\nUnfilled: ")
     write(io, cnum(_vv(o.attrs.unfilled)))
 end
 
@@ -45,7 +45,8 @@ function Base.show(io::IO, t::Trade)
     write(io, cnum(t.amount))
     write(io, " at ")
     write(io, cnum(abs(t.size / t.amount)))
-    write(io, " (size $(cnum(t.size))) ")
+    write(io, " (size $(cnum(t.size)))")
+    write(io, "(lev $(cnum(t.leverage))) ")
     write(io, string(t.date))
     write(io, "\n")
     show(io, t.order)

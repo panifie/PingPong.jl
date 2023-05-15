@@ -7,12 +7,12 @@ const VOL_CHECKS = Ref(0)
 const cash_tracking = Float64[]
 _vv(v) = v isa Vector ? v[] : v
 function _showcash(s, ai)
-    @show s.cash s.cash_committed ai.cash ai.cash_committed
+    @show s.cash s.cash_committed cash(ai) committed(ai)
 end
 function _showorder(o)
     display(("price: ", o.price))
     display(("comm: ", _vv(o.attrs.committed)))
-    display(("fill: ", _vv(o.attrs.unfilled)))
+    display(("unfill: ", _vv(o.attrs.unfilled)))
     display(("amount: ", o.amount))
     display(("trades: ", length(o.attrs.trades)))
 end
@@ -51,6 +51,7 @@ function _check_committments(s::Strategy)
     cash_comm = 0.0
     for (_, ords) in s.buyorders
         for (_, o) in ords
+            o isa Union{ShortBuyOrder} && continue
             cash_comm += committed(o)
         end
     end
@@ -61,19 +62,25 @@ end
 
 function _check_committments(s, ai::AssetInstance, t::Trade)
     ordertype(t) <: LimitOrderType || return nothing
-    # @show (@something ai.longpos ai).cash_committed
-    # @show (@something ai.shortpos ai).cash_committed
+    get(s.attrs, :verbose, false) && begin
+        @show (@something ai.longpos ai).cash_committed
+        @show (@something ai.shortpos ai).cash_committed
+    end
     long_comm = 0.0
     short_comm = 0.0
     for (_, o) in s.sellorders[ai]
-        if o isa LongOrder
+        if o isa SellOrder
             long_comm += committed(o)
-        else
+        elseif o isa ShortBuyOrder
             short_comm += committed(o)
         end
     end
     cc_long = committed(ai, Long())
     cc_short = committed(ai, Short())
+    if t isa ShortBuyTrade
+        cc_short -= committed(t.order)
+    end
     @assert isapprox(long_comm, cc_long, atol=1e-6) (long_comm, cc_long, Long)
-    @assert isapprox(short_comm, cc_short, atol=1e-6) (short_comm, cc_short, Short)
+    @assert isapprox(short_comm, cc_short, atol=1e-6) (short_comm, cc_short, Short),
+    collect(values(s.sellorders[ai]))
 end

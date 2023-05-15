@@ -48,8 +48,8 @@ _test_nomargin_gtc(s) = begin
     @test _eq4(Cash(:USDT, 7346.6033), s.cash_committed)
     @test st.trades_total(s) == 4153
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 3
-    @test mmh.min[1] == :SOL
+    @test mmh.count == 2
+    @test mmh.min[1] == :ETH
     @test mmh.min[2] ≈ 0.0 atol = 1e14
     @test mmh.max[1] == :BTC
     @test mmh.max[2] ≈ 121.4197 atol = 1e5
@@ -84,9 +84,9 @@ _test_nomargin_fok(s) = begin
     @test st.trades_total(s) == 2150
     mmh = st.minmax_holdings(s)
     reset!(s, true)
-    @test mmh.count == 3
-    @test mmh.min[1] == :SOL
-    @test mmh.min[2] ≈ 0.0 atol = 1e-8
+    @test mmh.count == 2
+    @test mmh.min[1] == :ETH
+    @test mmh.min[2] ≈ 11447.1635 atol = 1e-4
     @test mmh.max[1] == :BTC
     @test mmh.max[2] ≈ 28410.506 atol = 9e-1
 end

@@ -91,43 +91,69 @@ function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSi
     end
 end
 
+@doc "Check if an order is already added to the queue."
+function isqueued(o::Order{<:OrderType{S}}, s::Strategy, ai) where {S<:OrderSide}
+    let k = pricetime(o), d = orders(s, ai, S)
+        k in keys(d)
+    end
+end
+
+# checks order committment to be within expected values
+function _check_committment(o)
+    @deassert attr(o, :committed)[] >= -1e-12 ||
+        ordertype(o) <: MarketOrderType ||
+        o isa AnyLimitOrder{Sell,Short} o
+end
+_check_unfillment(o::AnyLimitOrder{Sell}) = attr(o, :unfilled)[] > 0.0
+_check_unfillment(o::AnyLimitOrder{Buy}) = attr(o, :unfilled)[] < 0.0
+_check_unfillment(o::AnyMarketOrder{Buy}) = attr(o, :unfilled)[] < 0.0
+_check_unfillment(o::AnyMarketOrder{Sell}) = attr(o, :unfilled)[] > 0.0
+_check_unfillment(o::LongOrder) = attr(o, :unfilled)[] > 0.0
+_check_unfillment(o::ShortOrder) = attr(o, :unfilled)[] < 0.0
+
 # NOTE: unfilled is always negative
-function fill!(::NoMarginInstance, o::IncreaseOrder, t::IncreaseTrade)
-    @deassert o isa IncreaseOrder && attr(o, :unfilled)[] <= 0.0
+function fill!(::NoMarginInstance, o::BuyOrder, t::BuyTrade)
+    @deassert o isa IncreaseOrder && _check_unfillment(o) unfilled(o), typeof(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] <= 1e-14
+    @deassert attr(o, :unfilled)[] <= 1e-12
     attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
     @deassert committed(o) >= 0.0 || o isa MarketOrder o
 end
 function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
-    @deassert o isa SellOrder && attr(o, :unfilled)[] >= 0.0
+    @deassert o isa SellOrder && _check_unfillment(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
     @deassert attr(o, :unfilled)[] >= -1e-12
     attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
     @deassert committed(o) >= -1e-12
 end
-function fill!(::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
-    @deassert o isa ShortBuyOrder && attr(o, :unfilled)[] <= 0.0
+function fill!(ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
+    @deassert o isa ShortBuyOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) <= 0.0
     @deassert attr(o, :unfilled)[] < 0.0
-    attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
-    @deassert attr(o, :unfilled)[] >= 0
-    # NOTE: committment is always positive so in case of reducing short in buy, we have to subtract
-    attr(o, :committed)[] -= t.amount # from pos to 0 (sell amount is neg)
+    attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
+    @deassert attr(o, :unfilled)[] <= 0
+    # NOTE: committment is always positive except for short buy orders
+    # where that's committed is shorted (negative) asset cash
+    @deassert t.amount > 0.0 && committed(o) < 0.0
+    attr(o, :committed)[] += t.amount # from neg to 0 (buy amount is pos)
     @deassert committed(o) <= 0.0
 end
 
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
 function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
-    @deassert o isa IncreaseOrder && (attr(o, :unfilled)[] <= 0.0 || o isa ShortSellOrder)
-    @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
-    attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] <= 1e-14
-    attr(o, :committed)[] -= t.value / t.leverage + t.fees # from pos to 0 (buy size is neg)
+    @deassert o isa IncreaseOrder && _check_unfillment(o) o
+    @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0
+    attr(o, :unfilled)[] += t.amount
+    @deassert attr(o, :unfilled)[] <= 1e-12 || o isa ShortSellOrder
+    @deassert t.value > 0.0
+    attr(o, :committed)[] -= t.value / t.leverage + t.fees
     # Market order spending can exceed the estimated committment
-    @deassert committed(o) >= -1e-14 || o isa MarketOrder
+    # ShortSell limit orders can spend more than committed because of slippage
+    @deassert committed(o) >= -1e-12 ||
+        o isa AnyMarketOrder ||
+        o isa AnyLimitOrder{Sell,Short}
 end
 
 isfilled(ai::AssetInstance, o::Order) = iszero(ai, attr(o, :unfilled)[])
@@ -155,12 +181,12 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     @deassert s.cash >= 0.0
     subzero!(s.cash_committed, spent)
 end
-function _showliq(s, realized_pnl, gained, po, t)
+function _showliq(s, unrealized_pnl, gained, po, t)
     get(s.attrs, :verbose, false) || return nothing
     if ordertype(t) <: LiquidationType
-        @show orderpos(t) s.cash margin t.leverage t.size price(po) t.order.price t.price liqprice(
+        @show orderpos(t) s.cash margin(po) t.fees t.leverage t.size price(po) t.order.price t.price liqprice(
             po
-        ) realized_pnl gained ""
+        ) unrealized_pnl gained ""
     end
 end
 _checktrade(t::SellTrade) = @deassert t.amount < 0.0
@@ -179,7 +205,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     gained = margin + unrealized_pnl - t.fees # minus fees
     @ifdebug _showliq(s, unrealized_pnl, gained, po, t)
     addzero!(s.cash, gained)
-    @deassert s.cash >= 0.0 s.cash
+    @deassert s.cash >= 0.0 (; t.price, t.amount, unrealized_pnl, t.fees, margin)
 end
 
 function cash!(s::Strategy, ai, t::Trade)
@@ -200,9 +226,11 @@ function commit!(::Strategy, o::ReduceOrder, ai)
     @deassert committed(o) <= 0.0 || orderpos(o) == Long
     add!(committed(ai, orderpos(o)()), committed(o))
 end
-decommit!(s::Strategy, o::IncreaseOrder, ai) = begin
-    @deassert committed(o) >= -1e-14 || ordertype(o) <: MarketOrderType o
-    subzero!(s.cash_committed, committed(o))
+function decommit!(s::Strategy, o::IncreaseOrder, ai)
+    @ifdebug _check_committment(o)
+    # NOTE: use abs because ShortSell limit orders can con negative
+    # because of slippage
+    subzero!(s.cash_committed, abs(committed(o)))
     attr(o, :committed)[] = 0.0
 end
 decommit!(s::Strategy, o::SellOrder, ai) = begin
@@ -231,14 +259,16 @@ end
 hold!(s::Strategy, ai, ::IncreaseOrder) = push!(s.holdings, ai)
 hold!(::Strategy, _, ::ReduceOrder) = nothing
 release!(::Strategy, _, ::IncreaseOrder) = nothing
-function release!(s::Strategy, ai, o::ReduceOrder)
-    iszero(ai) && pop!(s.holdings, ai)
+function release!(s::Strategy, ai, ::ReduceOrder)
+    iszero(ai) && delete!(s.holdings, ai)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
-    decommit!(s, o, ai)
-    delete!(s, ai, o)
-    st.ping!(s, o, err, ai)
+    if isqueued(o, s, ai)
+        decommit!(s, o, ai)
+        delete!(s, ai, o)
+        st.ping!(s, o, err, ai)
+    end
 end
 
 amount(o::Order) = getfield(o, :amount)
@@ -246,7 +276,7 @@ function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
     @deassert attr(o, :committed)[] <= 1e-12 o
     attr(o, :committed)[]
 end
-committed(o::Order) = begin
-    @deassert attr(o, :committed)[] >= -1e-12 || ordertype(o) <: MarketOrderType o
+function committed(o::Order)
+    @ifdebug _check_committment(o)
     attr(o, :committed)[]
 end

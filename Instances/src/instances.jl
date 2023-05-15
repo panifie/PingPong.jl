@@ -153,7 +153,7 @@ function Base.iszero(ai::AssetInstance, v)
     isapprox(v, 0.0; atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
-function Base.iszero(ai::AssetInstance, p::PositionSide=Long())
+function Base.iszero(ai::AssetInstance, p::PositionSide)
     isapprox(cash(ai, p), 0.0; atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
@@ -234,9 +234,10 @@ cash(ai::MarginInstance, ::Short) = getfield(position(ai, Short()), :cash)
 committed(ai::NoMarginInstance) = getfield(ai, :cash_committed)
 committed(ai::NoMarginInstance, ::Long) = committed(ai)
 committed(ai::NoMarginInstance, ::Short) = 0.0
-function committed(ai::MarginInstance, p::PositionSide)
+function committed(ai::MarginInstance, p::OrderOrSide)
     getfield(position(ai, p), :cash_committed)
 end
+committed(ai::MarginInstance) = getfield((@something position(ai) ai), :cash_committed)
 ohlcv(ai::AssetInstance) = getfield(first(getfield(ai, :data)), :second)
 Instruments.add!(ai::NoMarginInstance, v, args...) = add!(cash(ai), v)
 Instruments.add!(ai::MarginInstance, v, p::PositionSide) = add!(cash(ai, p), v)

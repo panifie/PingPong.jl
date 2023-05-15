@@ -1,10 +1,19 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances: MarginInstance, NoMarginInstance, AssetInstance
-using OrderTypes: IncreaseOrder, ShortBuyOrder, ordertype
+using OrderTypes: IncreaseOrder, ShortBuyOrder, ordertype, LimitOrderType, MarketOrderType, ExchangeID
+using Instruments: AbstractAsset
 using Base: negate
 using Lang: @lget!, @deassert
 using Misc: Long, Short, PositionSide
+
+const AnyLimitOrder{S<:OrderSide,P<:PositionSide} = Order{
+    <:LimitOrderType{S},<:AbstractAsset,<:ExchangeID,P
+}
+
+const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
+    <:MarketOrderType{S},<:AbstractAsset,<:ExchangeID,P
+}
 
 function _doclamp(clamper, ai, whats...)
     ai = esc(ai)
@@ -70,10 +79,12 @@ function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, _)
 end
 function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
     @deassert Instances.freecash(ai, Long()) >= 0.0
+    @deassert commit[] >= 0.0
     Instances.freecash(ai, Long()) >= commit[]
 end
-function iscommittable(_::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
+function iscommittable(::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
     @deassert Instances.freecash(ai, Short()) <= 0.0
+    @deassert commit[] <= 0.0
     Instances.freecash(ai, Short()) <= commit[]
 end
 
@@ -116,7 +127,7 @@ function _check_trade(t::ShortSellTrade)
     @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount < 0.0
-    @deassert committed(t.order) >= -1e-12
+    @deassert abs(committed(t.order)) <= t.fees || t.order isa ShortSellOrder
 end
 
 function _check_trade(t::ShortBuyTrade)
@@ -135,6 +146,6 @@ function _check_cash(ai::AssetInstance, ::Long)
 end
 
 _check_cash(ai::AssetInstance, ::Short) = begin
-    @deassert committed(ai, Short()) >= 0.0
+    @deassert committed(ai, Short()) <= 0.0
     @deassert cash(ai, Short()) <= 0.0
 end

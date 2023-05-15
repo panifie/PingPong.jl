@@ -1,6 +1,7 @@
 using Instances
 import Instances: committed, PositionOpen, PositionClose
-using OrderTypes: LimitOrderType, PositionSide, ExchangeID, ShortSellOrder, FOKOrderType, IOCOrderType
+using OrderTypes:
+    LimitOrderType, PositionSide, ExchangeID, ShortSellOrder, FOKOrderType, IOCOrderType
 using Strategies: NoMarginStrategy
 using Base: negate
 using Misc: Long, Short
@@ -10,9 +11,6 @@ import Base: fill!
 const IncreaseLimitOrder{A,E} = Union{LimitOrder{Buy,A,E},ShortLimitOrder{Sell,A,E}}
 const ReduceLimitOrder{A,E} = Union{LimitOrder{Sell,A,E},ShortLimitOrder{Buy,A,E}}
 
-const AnyLimitOrder{S<:OrderSide,P<:PositionSide} = Order{
-    <:LimitOrderType{S},<:AbstractAsset,<:ExchangeID,P
-}
 const LimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Long}
 const ShortLimitTrade{S,A,E} = Trade{<:LimitOrderType{S},A,E,Short}
 const LimitBuyTrade{A,E} = LimitTrade{Buy,A,E}
@@ -69,13 +67,15 @@ function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderS
     return true
 end
 
-_cashfrom(s, _, o::IncreaseOrder) = st.freecash(s, orderpos(o)) + committed(o)
-_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)) + committed(o)
+_cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
+_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
 @doc "Cancel an immediate order."
 function maybecancel!(s::Strategy, o::Order{<:Union{FOKOrderType,IOCOrderType}}, ai)
-    decommit!(s, o, ai)
-    delete!(s, ai, o)
-    st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
+    if isqueued(o, s, ai)
+        decommit!(s, o, ai)
+        delete!(s, ai, o)
+        isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
+    end
 end
 @doc "If the order is not immediate it should not be cancelled."
 maybecancel!(::Strategy, ::Order, _) = nothing
