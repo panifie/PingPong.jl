@@ -1,6 +1,6 @@
 using Instances
 import Instances: committed, PositionOpen, PositionClose
-using OrderTypes: LimitOrderType, PositionSide, ExchangeID, ShortSellOrder
+using OrderTypes: LimitOrderType, PositionSide, ExchangeID, ShortSellOrder, FOKOrderType, IOCOrderType
 using Strategies: NoMarginStrategy
 using Base: negate
 using Misc: Long, Short
@@ -42,7 +42,7 @@ function limitorder(
 end
 
 @doc "Remove order from orders queue if it is filled."
-fullfill!(s::Strategy, ai, o::LimitOrder, ::Trade) =
+fullfill!(s::Strategy, ai, o::AnyLimitOrder) =
     if isfilled(ai, o)
         decommit!(s, o, ai)
         delete!(s, ai, o)
@@ -68,3 +68,14 @@ function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderS
     push!(s, ai, o)
     return true
 end
+
+_cashfrom(s, _, o::IncreaseOrder) = st.freecash(s, orderpos(o)) + committed(o)
+_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)) + committed(o)
+@doc "Cancel an immediate order."
+function maybecancel!(s::Strategy, o::Order{<:Union{FOKOrderType,IOCOrderType}}, ai)
+    decommit!(s, o, ai)
+    delete!(s, ai, o)
+    st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
+end
+@doc "If the order is not immediate it should not be cancelled."
+maybecancel!(::Strategy, ::Order, _) = nothing
