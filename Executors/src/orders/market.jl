@@ -24,4 +24,4 @@ const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:Exch
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
 @doc "Does nothing since market orders are never queued."
-fullfill!(s::Strategy, ai, o::AnyMarketOrder, ::Trade) = decommit!(s, o, ai)
+fullfill!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai)
