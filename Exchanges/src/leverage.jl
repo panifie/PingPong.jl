@@ -72,7 +72,7 @@ end
 
 function tier(tiers::SortedDict{Int,LeverageTier}, size::Real)
     idx = findfirst(t -> t.max_notional > abs(size), tiers)
-    idx, tiers[idx]
+    idx, tiers[@something idx lastindex(tiers)]
 end
 
 function maxleverage(exc::Exchange, sym::AbstractString, size::Real)
