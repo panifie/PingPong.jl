@@ -38,7 +38,10 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     end
     update_mode = s.attrs[:sim_update_mode]
     for date in ctx.range
-        isbroke(s) && ((@deassert all(iszero(ai) for ai in s.universe)); break)
+        isbroke(s) && begin
+            @deassert all(iszero(ai) for ai in s.universe)
+            break
+        end
         update!(s, date, update_mode)
         ping!(s, date, ctx)
     end
@@ -46,7 +49,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
 end
 
 function isbroke(s::Strategy)
-    isapprox(s.cash, 0.0) &&
+    iszero(s.cash) &&
         isempty(s.holdings) &&
         isempty(s.buyorders) &&
         isempty(s.sellorders)

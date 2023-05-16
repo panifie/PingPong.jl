@@ -66,21 +66,21 @@ function _check_committments(s, ai::AssetInstance, t::Trade)
         @show (@something ai.longpos ai).cash_committed
         @show (@something ai.shortpos ai).cash_committed
     end
-    long_comm = 0.0
-    short_comm = 0.0
-    for (_, o) in s.sellorders[ai]
+    orders_long = 0.0
+    orders_short = 0.0
+    for (_, o) in orders(s, ai, orderpos(t)())
         if o isa SellOrder
-            long_comm += committed(o)
+            orders_long += committed(o)
         elseif o isa ShortBuyOrder
-            short_comm += committed(o)
+            orders_short += committed(o)
         end
     end
-    cc_long = committed(ai, Long())
-    cc_short = committed(ai, Short())
+    asset_long = committed(ai, Long())
+    asset_short = committed(ai, Short())
     if t isa ShortBuyTrade
-        cc_short -= committed(t.order)
+        asset_short -= committed(t.order)
     end
-    @assert isapprox(long_comm, cc_long, atol=1e-6) (long_comm, cc_long, Long)
-    @assert isapprox(short_comm, cc_short, atol=1e-6) (short_comm, cc_short, Short),
+    @assert isapprox(orders_long, asset_long, atol=1e-6) (;orders_long, asset_long, Long)
+    @assert isapprox(orders_short, asset_short, atol=1e-6) (;orders_short, asset_short, Short),
     collect(values(s.sellorders[ai]))
 end

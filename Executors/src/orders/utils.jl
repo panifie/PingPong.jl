@@ -82,17 +82,17 @@ function unfillment(t::Type{<:AnySellOrder}, amount)
 end
 
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, _)
-    @deassert st.freecash(s) >= 0.0
+    @deassert st.freecash(s) |> gtxzero
     st.freecash(s) >= commit[]
 end
 function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
-    @deassert Instances.freecash(ai, Long()) >= 0.0
-    @deassert commit[] >= 0.0
+    @deassert Instances.freecash(ai, Long()) |> gtxzero
+    @deassert commit[] |> gtxzero
     Instances.freecash(ai, Long()) >= commit[]
 end
 function iscommittable(::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
-    @deassert Instances.freecash(ai, Short()) <= 0.0
-    @deassert commit[] <= 0.0
+    @deassert Instances.freecash(ai, Short()) |> ltxzero
+    @deassert commit[] |> ltxzero
     Instances.freecash(ai, Short()) <= commit[]
 end
 

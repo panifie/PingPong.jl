@@ -1,5 +1,5 @@
 using Base: negate
-using Executors: @amount!, @price!, maybecancel!
+using Executors: @amount!, @price!, aftertrade!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
@@ -13,32 +13,32 @@ include("orders/slippage.jl")
 
 @doc "Check that we have enough cash in the strategy currency for buying."
 function iscashenough(s::NoMarginStrategy, _, size, o::BuyOrder)
-    @deassert committed(o) >= 0.0
+    @deassert committed(o) |> gtxzero
     st.freecash(s) + committed(o) >= size
 end
 @doc "Check that we have enough asset hodlings that we want to sell."
 function iscashenough(_::Strategy, ai, actual_amount, o::SellOrder)
-    @deassert cash(ai, Long()) >= 0.0
-    @deassert committed(o) >= 0.0
+    @deassert cash(ai, Long()) |> gtxzero
+    @deassert committed(o) |> gtxzero
     inst.freecash(ai, Long()) + committed(o) >= actual_amount
 end
 @doc "A long buy adds to the long position by buying more contracts in QC. Check that we have enough QC."
 function iscashenough(s::IsolatedStrategy, ai, size, o::BuyOrder)
-    @deassert s.cash >= 0.0
-    @deassert committed(o) >= 0.0
+    @deassert s.cash |> gtxzero
+    @deassert committed(o) |> gtxzero
     (st.freecash(s) + committed(o)) * leverage(ai, Long()) >= size
 end
 @doc "A short sell increases our position in the opposite direction, it spends QC to cover the short. Check that we have enough QC."
 function iscashenough(s::IsolatedStrategy, ai, size, o::ShortSellOrder)
-    @deassert s.cash >= 0.0
-    @deassert committed(o) >= 0.0
+    @deassert s.cash |> gtxzero
+    @deassert committed(o) |> gtxzero
     (st.freecash(s) + committed(o)) * leverage(ai, Short()) >= size
 end
 @doc "A short buy reduces the required capital by the leverage. But we shouldn't buy back more than what we have shorted."
 function iscashenough(s::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
-    @deassert cash(ai, Short()) <= 0.0
-    @deassert committed(o) <= 0.0
-    @deassert inst.freecash(ai, Short()) <= 0.0
+    @deassert cash(ai, Short()) |> ltxzero
+    @deassert committed(o) |> ltxzero
+    @deassert inst.freecash(ai, Short()) |> ltxzero
     abs(inst.freecash(ai, Short())) + abs(committed(o)) >= actual_amount
 end
 

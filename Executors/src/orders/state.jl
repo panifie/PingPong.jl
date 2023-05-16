@@ -57,19 +57,20 @@ end
 @doc "Remove a single order from the order queue."
 function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
-    @deassert committed(o) ≈ 0.0 o
+    @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
+    # If we don't have cash for this asset, it should be released from holdings
+    release!(s, ai, o)
 end
 function Base.delete!(s::Strategy, ai, o::SellOrder)
-    @deassert committed(o) ≈ 0.0 o
+    @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
 end
 function Base.delete!(s::Strategy, ai, o::ShortBuyOrder)
     # Short buy orders have negative committment
-    @deassert committed(o) ≈ 0.0 o
-    @deassert committed(ai, Short()) ≈ 0.0
+    @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, Buy), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
@@ -112,33 +113,33 @@ _check_unfillment(o::LongOrder) = attr(o, :unfilled)[] > 0.0
 _check_unfillment(o::ShortOrder) = attr(o, :unfilled)[] < 0.0
 
 # NOTE: unfilled is always negative
-function fill!(::NoMarginInstance, o::BuyOrder, t::BuyTrade)
+function fill!(ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
     @deassert o isa IncreaseOrder && _check_unfillment(o) unfilled(o), typeof(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] <= 1e-12
-    attr(o, :committed)[] += t.size # from pos to 0 (buy size is neg)
+    @deassert attr(o, :unfilled)[] |> ltxzero
+    attr(o, :committed)[] -= committment(ai, t) # from pos to 0 (buy size is neg)
     @deassert committed(o) >= 0.0 || o isa MarketOrder o
 end
 function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && _check_unfillment(o)
-    @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
+    @deassert committed(o) == o.attrs.committed[] && committed(o) |> gtxzero
     attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
-    @deassert attr(o, :unfilled)[] >= -1e-12
+    @deassert attr(o, :unfilled)[] |> gtxzero
     attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
-    @deassert committed(o) >= -1e-12
+    @deassert committed(o) |> gtxzero
 end
 function fill!(ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
     @deassert o isa ShortBuyOrder && _check_unfillment(o) o
-    @deassert committed(o) == o.attrs.committed[] && committed(o) <= 0.0
+    @deassert committed(o) == o.attrs.committed[] && committed(o) |> ltxzero
     @deassert attr(o, :unfilled)[] < 0.0
     attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] <= 0
+    @deassert attr(o, :unfilled)[] |> ltxzero
     # NOTE: committment is always positive except for short buy orders
     # where that's committed is shorted (negative) asset cash
     @deassert t.amount > 0.0 && committed(o) < 0.0
     attr(o, :committed)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert committed(o) <= 0.0
+    @deassert committed(o) |> ltxzero
 end
 
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
@@ -146,12 +147,12 @@ function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     @deassert o isa IncreaseOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0
     attr(o, :unfilled)[] += t.amount
-    @deassert attr(o, :unfilled)[] <= 1e-12 || o isa ShortSellOrder
+    @deassert attr(o, :unfilled)[] |> ltxzero || o isa ShortSellOrder
     @deassert t.value > 0.0
     attr(o, :committed)[] -= committment(ai, t)
     # Market order spending can exceed the estimated committment
     # ShortSell limit orders can spend more than committed because of slippage
-    @deassert committed(o) >= -1e-12 ||
+    @deassert committed(o) |> gtxzero ||
         o isa AnyMarketOrder ||
         o isa AnyLimitOrder{Sell,Short}
 end
@@ -169,6 +170,7 @@ end
 strategycash!(s::NoMarginStrategy{Sim}, _, t::SellTrade) = begin
     @deassert t.size > 0.0
     add!(s.cash, t.size)
+    @deassert s.cash |> gtxzero
 end
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     @deassert t.size < 0.0
@@ -179,8 +181,9 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    @deassert s.cash >= 0.0
-    subzero!(s.cash_committed, spent)
+    @deassert s.cash |> gtxzero
+    sub!(s.cash_committed, committment(ai, t))
+    @deassert s.cash_committed |> gtxzero
 end
 function _showliq(s, unrealized_pnl, gained, po, t)
     get(s.attrs, :verbose, false) || return nothing
@@ -194,7 +197,7 @@ _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount)
+    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
     @ifdebug _checktrade(t)
     po = position(ai, orderpos(t))
     # The notional tracks current value, but the margin
@@ -220,11 +223,11 @@ attr(o::Order, sym) = getfield(getfield(o, :attrs), sym)
 unfilled(o::Order) = abs(attr(o, :unfilled)[])
 
 commit!(s::Strategy, o::IncreaseOrder, _) = begin
-    @deassert committed(o) >= 0.0
+    @deassert committed(o) |> gtxzero
     add!(s.cash_committed, committed(o))
 end
 function commit!(::Strategy, o::ReduceOrder, ai)
-    @deassert committed(o) <= 0.0 || orderpos(o) == Long
+    @deassert committed(o) |> ltxzero || orderpos(o) == Long
     add!(committed(ai, orderpos(o)()), committed(o))
 end
 
@@ -281,7 +284,7 @@ aftertrade!(::Strategy, ::Order, _) = nothing
 
 amount(o::Order) = getfield(o, :amount)
 function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
-    @deassert attr(o, :committed)[] <= 1e-12 o
+    @deassert attr(o, :committed)[] |> ltxzero o
     attr(o, :committed)[]
 end
 function committed(o::Order)
