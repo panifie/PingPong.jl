@@ -12,7 +12,7 @@ using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash
 using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub, toprecision
-using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
+using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin, gtxzero, ltxzero
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
@@ -259,18 +259,21 @@ function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
 end
 freecash(ai::NoMarginInstance, args...) = begin
     ca = cash(ai) - committed(ai)
-    @deassert ca >= 0.0 (cash(ai), committed(ai))
+    @deassert ca |> gtxzero (cash(ai), committed(ai))
     ca
 end
-_freecash(ai, p) = sub(cash(ai, p), committed(ai, p), p)
 function freecash(ai::MarginInstance, p::Long)
-    ca = _freecash(ai, p)
-    @deassert ca >= 0.0 (cash(ai, p), committed(ai, p))
+    @deassert cash(ai, p) |> gtxzero
+    @deassert committed(ai, p) |> gtxzero
+    ca = max(0.0, cash(ai, p) - committed(ai, p))
+    @deassert ca |> gtxzero (cash(ai, p), committed(ai, p))
     ca
 end
 function freecash(ai::MarginInstance, p::Short)
-    ca = _freecash(ai, p)
-    @deassert ca <= 0.0 (cash(ai, p), committed(ai, p))
+    @deassert cash(ai, p) |> ltxzero
+    @deassert committed(ai, p) |> ltxzero
+    ca = min(0.0, cash(ai, p) - committed(ai, p))
+    @deassert ca |> ltxzero (cash(ai, p), committed(ai, p))
     ca
 end
 _reset!(ai) = begin
