@@ -91,8 +91,8 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
     isnothing(trade) && begin
-        # unqueue for FOK/IOC orders
-        maybecancel!(s, o, ai)
+        # unqueue or decommit order if filled
+        aftertrade!(s, ai, o)
         return nothing
     end
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
@@ -102,10 +102,8 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     push!(attr(o, :trades), trade)
     # update cash
     cash!(s, ai, trade)
-    # finalize order if complete
-    fullfill!(s, ai, o)
-    # unqueue for FOK/IOC orders
-    maybecancel!(s, o, ai)
+    # unqueue or decommit order if filled
+    aftertrade!(s, ai, o)
     @ifdebug _aftertrade(s, ai, o)
     @ifdebug _check_committments(s)
     @ifdebug _check_committments(s, ai, trade)

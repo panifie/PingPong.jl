@@ -39,12 +39,22 @@ function limitorder(
     end
 end
 
-@doc "Remove order from orders queue if it is filled."
-fullfill!(s::Strategy, ai, o::AnyLimitOrder) =
+@doc "Remove a limit order from orders queue if it is filled."
+aftertrade!(s::Strategy, ai, o::AnyLimitOrder) =
     if isfilled(ai, o)
         decommit!(s, o, ai)
         delete!(s, ai, o)
     end
+
+_cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
+_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
+
+@doc "Unconditionally deques immediate orders."
+function aftertrade!(s::Strategy, ai, o::Union{AnyFOKOrder,AnyIOCOrder})
+    decommit!(s, o, ai)
+    delete!(s, ai, o)
+    isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
+end
 
 function islastfill(ai::AssetInstance, t::Trade{<:LimitOrderType})
     let o = t.order
@@ -61,21 +71,10 @@ end
 function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderSide}
     # This is already done in general by the function that creates the order
     iscommittable(s, o, ai) || return false
-    hold!(s, ai, o)
-    commit!(s, o, ai)
     push!(s, ai, o)
+    @deassert hasorders(s, ai, orderpos(o))
+    commit!(s, o, ai)
+    hold!(s, ai, o)
     return true
 end
 
-_cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
-_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
-@doc "Cancel an immediate order."
-function maybecancel!(s::Strategy, o::Order{<:Union{FOKOrderType,IOCOrderType}}, ai)
-    if isqueued(o, s, ai)
-        decommit!(s, o, ai)
-        delete!(s, ai, o)
-        isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
-    end
-end
-@doc "If the order is not immediate it should not be cancelled."
-maybecancel!(::Strategy, ::Order, _) = nothing

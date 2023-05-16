@@ -1,7 +1,8 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances: MarginInstance, NoMarginInstance, AssetInstance
-using OrderTypes: IncreaseOrder, ShortBuyOrder, ordertype, LimitOrderType, MarketOrderType, ExchangeID
+using OrderTypes:
+    IncreaseOrder, ShortBuyOrder, ordertype, LimitOrderType, MarketOrderType, ExchangeID
 using Instruments: AbstractAsset
 using Base: negate
 using Lang: @lget!, @deassert
@@ -10,7 +11,8 @@ using Misc: Long, Short, PositionSide
 const AnyLimitOrder{S<:OrderSide,P<:PositionSide} = Order{
     <:LimitOrderType{S},<:AbstractAsset,<:ExchangeID,P
 }
-
+const AnyFOKOrder = Union{FOKOrder,ShortFOKOrder}
+const AnyIOCOrder = Union{IOCOrder,ShortIOCOrder}
 const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
     <:MarketOrderType{S},<:AbstractAsset,<:ExchangeID,P
 }

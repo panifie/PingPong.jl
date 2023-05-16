@@ -19,6 +19,5 @@ const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:Exch
 # FIXME: Should this be ≈/≉?
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
-@doc "Does nothing since market orders are never queued."
-fullfill!(::Strategy, _, ::AnyMarketOrder) = nothing
-maybecancel!(s::Strategy, o::AnyMarketOrder, ai) = decommit!(s, o, ai)
+@doc "Always decommit market orders after a tradeattemp"
+aftertrade!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai)

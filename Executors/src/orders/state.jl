@@ -256,11 +256,13 @@ function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     Instances.freecash(ai, Short()) <= committed(o)
 end
 
-hold!(s::Strategy, ai, ::IncreaseOrder) = push!(s.holdings, ai)
+hold!(s::Strategy, ai, o::IncreaseOrder) = begin
+    @deassert hasorders(s, ai, orderpos(o)) || !iszero(ai) o
+    push!(s.holdings, ai)
+end
 hold!(::Strategy, _, ::ReduceOrder) = nothing
-release!(::Strategy, _, ::IncreaseOrder) = nothing
-function release!(s::Strategy, ai, ::ReduceOrder)
-    iszero(ai) && delete!(s.holdings, ai)
+function release!(s::Strategy, ai, o::Order)
+    iszero(ai) && !hasorders(s, ai, orderpos(o)) && delete!(s.holdings, ai)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
@@ -270,6 +272,8 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)
         st.ping!(s, o, err, ai)
     end
 end
+@doc "Cleanups to do after a trade (attempt)."
+aftertrade!(::Strategy, ::Order, _) = nothing
 
 amount(o::Order) = getfield(o, :amount)
 function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
