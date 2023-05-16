@@ -140,5 +140,8 @@ add(a, b, ::Short) = a - b
 sub(a, b) = a - b
 sub(a, b, ::Long) = a - b
 sub(a, b, ::Short) = a + b
+approxzero(v::T) where T = isapprox(v, zero(T), atol=ATOL)
+gtxzero(v::T) where T = v > zero(T) || isapprox(v, zero(T), atol=ATOL)
+ltxzero(v::T) where T = v < zero(T) || isapprox(v, zero(T), atol=ATOL)
 
-export add, sub
+export add, sub, approxzero, gtxzero, ltxzero

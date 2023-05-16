@@ -23,7 +23,7 @@ function pong!(
     return if !isnothing(o)
         t = limitorder_ifprice!(s, o, o.date, ai)
         t isa Trade && position!(s, ai, t)
-        @deassert s.cash_committed == 0.0
+        @deassert s.cash_committed >= -ATOL
         t
     end
 end

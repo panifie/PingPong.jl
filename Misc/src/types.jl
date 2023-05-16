@@ -1,4 +1,5 @@
 using TimeTicks
+using .Sandbox: safereval
 const td_tf = TimeTicks.td_tf
 
 abstract type ExecAction end
@@ -32,7 +33,11 @@ opposite(::Type{Short}) = Long
 opposite(::Short) = Long()
 
 const StrOrVec = Union{AbstractString,AbstractVector}
-const DFT = DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", Float64)
+@doc "The floating point number type to use."
+const DFT = DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", "Float64") |> Sandbox.safereval
+@assert DEFAULT_FLOAT_TYPE isa DataType "$ENV must be edited within julia, before loading pingpong!"
+@doc "The margin of error to use [`2eps`]."
+const ATOL = @something tryparse(DFT, get(ENV, "PINGPONG_ATOL", "")) 2 * eps()
 
 const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
 
@@ -62,6 +67,7 @@ end
 
 include("exceptions.jl")
 
+export DFT, ATOL
 export Iterable, StrOrVec, ContiguityException
 export ExecMode, execmode, ExecAction, Sim, Paper, Live
 export MarginMode, marginmode, Isolated, Cross

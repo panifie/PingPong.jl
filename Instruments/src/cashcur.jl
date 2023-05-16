@@ -1,4 +1,5 @@
 using Lang: @deassert, @ifdebug
+using Misc: ATOL
 abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
@@ -35,7 +36,7 @@ Base.getproperty(c::Cash, s::Symbol) = begin
     end
 end
 Base.zero(::Cash{S where S,T}) where {T} = zero(T)
-Base.iszero(c::Cash{S where S,T}) where {T} = isapprox(value(c), zero(T))
+Base.iszero(c::Cash{S where S,T}) where {T} = isapprox(value(c), zero(T); atol=ATOL)
 
 @doc """Macro to instantiate `Cash` statically.
 
@@ -91,7 +92,7 @@ compactnum(val, n) = split(compactnum(val), ".")[n]
 Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
 
-leaq(a, b) = a <= b || isapprox(a, b)
+leaq(a, b) = a <= b || isapprox(a, b; atol=ATOL)
 ⪅(a::T, b::T) where {T<:AbstractCash} = leaq(value(a), value(b))
 ⪅(a::T, b::N) where {T<:AbstractCash,N<:Real} = leaq(value(a), b)
 ⪅(a::N, b::T) where {T<:AbstractCash,N<:Real} = leaq(a, value(b))
@@ -122,14 +123,19 @@ Base.real(c::Cash) = real(value(c))
 +(a::Cash{S}, b::Cash{S}) where {S} = value(a) + value(b)
 -(a::Cash{S}, b::Cash{S}) where {S} = value(a) - value(b)
 function Base.isapprox(a::Cash{S}, b::Cash{S}; kwargs...) where {S}
-    isapprox(value(a), value(b); kwargs...)
+    isapprox(value(a), value(b); atol=ATOL, kwargs...)
 end
 
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
 function atleast!(c::Cash{S,T} where {S}, v=zero(T), args...; kwargs...) where {T<:Real}
     if value(c) < v
-        @ifdebug value(c) < 0.0 && @debug value(c)
+        @ifdebug -ATOL < value(c) < ATOL || begin
+            @debug value(c)
+            # st = stacktrace()
+            # throw(st[5])
+            # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
+        end
         cash!(c, v)
     end
 end

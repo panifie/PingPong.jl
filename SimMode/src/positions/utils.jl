@@ -163,7 +163,7 @@ positions!(s::NoMarginStrategy{Sim}, args...; kwargs...) = nothing
 @doc "Updates all open positions in a isolated (non hedged) strategy."
 function positions!(s::IsolatedStrategy{Sim}, date::DateTime)
     for ai in s.holdings
-        @deassert isopen(ai)
+        @deassert isopen(ai) ai
         position!(s, ai, date)
     end
     @ifdebug for ai in s.universe
