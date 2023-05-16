@@ -39,12 +39,12 @@ macro amount!(ai, amounts...)
     _doclamp(:($(@__MODULE__).sanitize_amount), ai, amounts...)
 end
 
-@doc "Without margin, committment is cost + fees"
+@doc "Without margin, committment is cost + fees (in quote currency)."
 function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount)
     @deassert amount > 0.0
     [withfees(cost(price, amount), maxfees(ai), IncreaseOrder)]
 end
-@doc "When entering a position, what's committed is margin + fees"
+@doc "When entering a leveraged position, what's committed is margin + fees (in quote currency)."
 function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount)
     @deassert amount > 0.0
     ntl = cost(price, amount)
@@ -52,16 +52,22 @@ function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount
     margin = ntl / leverage(ai, orderpos(o)())
     [margin + fees]
 end
-# When exiting a position, what's committed is always the asset cash
-# But for longs the asset is already held, so its positive
+
+@doc "When exiting a position, what's committed is always the asset cash
+But for longs the asset is already held, so its positive"
 function committment(::Type{<:SellOrder}, _, _, amount)
     @deassert amount > 0.0
     [amount]
 end
-# While for shorts the asset is un-held, so it its negative
+@doc "For shorts the asset is un-held, so its committment is negative."
 function committment(::Type{<:ShortBuyOrder}, _, _, amount)
     @deassert amount > 0.0
     [negate(amount)]
+end
+
+@doc "The partial committment of a trade, such that `sum(committment.(trades(o))) == committed(o)`."
+function committment(ai::AssetInstance, t::Trade)
+    committment(typeof(t.order), ai, t.order.price, abs(t.amount))[]
 end
 
 function unfillment(t::Type{<:AnyBuyOrder}, amount)

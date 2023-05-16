@@ -148,7 +148,7 @@ function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     attr(o, :unfilled)[] += t.amount
     @deassert attr(o, :unfilled)[] <= 1e-12 || o isa ShortSellOrder
     @deassert t.value > 0.0
-    attr(o, :committed)[] -= t.value / t.leverage + t.fees
+    attr(o, :committed)[] -= committment(ai, t)
     # Market order spending can exceed the estimated committment
     # ShortSell limit orders can spend more than committed because of slippage
     @deassert committed(o) >= -1e-12 ||
@@ -156,14 +156,15 @@ function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
         o isa AnyLimitOrder{Sell,Short}
 end
 
-isfilled(ai::AssetInstance, o::Order) = iszero(ai, attr(o, :unfilled)[])
+isfilled(ai::AssetInstance, o::Order) = iszero(ai, unfilled(o))
 Base.isopen(ai::AssetInstance, o::Order) = !isfilled(ai, o)
 
 using Instruments: addzero!
-function strategycash!(s::NoMarginStrategy{Sim}, _, t::BuyTrade)
+function strategycash!(s::NoMarginStrategy{Sim}, ai, t::BuyTrade)
     @deassert t.size < 0.0
     add!(s.cash, t.size)
-    addzero!(s.cash_committed, t.size)
+    sub!(s.cash_committed, committment(ai, t))
+    @deassert s.cash_committed |> gtxzero
 end
 strategycash!(s::NoMarginStrategy{Sim}, _, t::SellTrade) = begin
     @deassert t.size > 0.0
@@ -204,8 +205,8 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.fees > 0.0 || maxfees(ai) < 0.0
     gained = margin + unrealized_pnl - t.fees # minus fees
     @ifdebug _showliq(s, unrealized_pnl, gained, po, t)
-    addzero!(s.cash, gained)
-    @deassert s.cash >= 0.0 (; t.price, t.amount, unrealized_pnl, t.fees, margin)
+    add!(s.cash, gained)
+    @deassert s.cash |> gtxzero (; t.price, t.amount, unrealized_pnl, t.fees, margin)
 end
 
 function cash!(s::Strategy, ai, t::Trade)
@@ -226,21 +227,24 @@ function commit!(::Strategy, o::ReduceOrder, ai)
     @deassert committed(o) <= 0.0 || orderpos(o) == Long
     add!(committed(ai, orderpos(o)()), committed(o))
 end
+
 function decommit!(s::Strategy, o::IncreaseOrder, ai)
     @ifdebug _check_committment(o)
-    # NOTE: use abs because ShortSell limit orders can con negative
-    # because of slippage
-    subzero!(s.cash_committed, abs(committed(o)))
+    # NOTE: ignore negative values caused by slippage
+    @deassert iszero(ai, committed(o)) || !isfilled(ai, o)
+    sub!(s.cash_committed, committed(o))
+    @deassert s.cash_committed |> gtxzero s.cash_committed.value, ATOL, o
     attr(o, :committed)[] = 0.0
 end
-decommit!(s::Strategy, o::SellOrder, ai) = begin
-    @deassert committed(o) >= 0.0
-    subzero!(committed(ai, Long()), committed(o))
+function decommit!(s::Strategy, o::SellOrder, ai)
+    # NOTE: ignore negative values caused by slippage
+    sub!(committed(ai, Long()), max(0.0, committed(o)))
+    @deassert committed(ai, Long()) |> gtxzero
     attr(o, :committed)[] = 0.0
 end
 function decommit!(s::Strategy, o::ShortBuyOrder, ai)
-    @deassert committed(o) <= 0.0
-    addzero!(committed(ai, Short()), committed(o))
+    @deassert committed(o) |> ltxzero
+    sub!(committed(ai, Short()), committed(o))
     attr(o, :committed)[] = 0.0
 end
 iscommittable(s::Strategy, o::IncreaseOrder, _) = begin
