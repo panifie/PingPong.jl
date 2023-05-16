@@ -96,21 +96,55 @@ function iscommittable(::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
     Instances.freecash(ai, Short()) <= commit[]
 end
 
+@doc "Iterates over all the orders in a strategy."
+function orders(s::Strategy)
+    (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
+end
 @doc "Get strategy buy orders for asset."
 function orders(s::Strategy{M,S,E}, ai, ::Type{Buy}) where {M,S,E}
     @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
 end
-buyorders(s::Strategy, ai) = orders(s, ai, Buy)
 function orders(s::Strategy{M,S,E}, ai, ::Type{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
-sellorders(s::Strategy, ai) = orders(s, ai, Sell)
-@doc "Check if the asset instance has pending orders."
-hasorders(s::Strategy, ai, t::Type{Buy}) = !isempty(orders(s, ai, t))
-function hasorders(::Strategy, ai, ::Type{Sell})
-    !(iszero(something(committed(ai), 0.0)) && isempty(orders(s, ai, t)))
+@doc "The total number of pending orders in the strategy"
+function orderscount(s::Strategy)
+    ans = 0
+    for v in values(s.buyorders)
+        ans += length(v)
+    end
+    for v in values(s.sellorders)
+        ans += length(v)
+    end
+    ans
 end
-hasorders(s::Strategy, ai) = hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
+@doc "True if any of the holdings has non dust cash."
+function hascash(s::Strategy)
+    for ai in s.holdings
+        iszero(ai) || return true
+    end
+    return false
+end
+hasorders(s::Strategy) = orderscount(s) == 0
+buyorders(s::Strategy, ai) = orders(s, ai, Buy)
+sellorders(s::Strategy, ai) = orders(s, ai, Sell)
+_hasany(arr) = begin
+    n = 0
+    for _ in arr
+        n += 1
+        break
+    end
+    n != 0
+end
+
+@doc "Check if the asset instance has pending orders."
+hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(s.buyorders[ai])
+function hasorders(s::Strategy, ai, ::Type{Sell})
+    !(iszero(something(committed(ai), 0.0)) && _hasany(s.sellorders[ai]) == 0)
+end
+hasorders(s::Strategy, ai) = begin
+    (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+end
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
     for (_, ords) in s.sellorders
