@@ -121,15 +121,15 @@ function isstrictlysorted(itr...)
     return true
 end
 
-_minusmod(n, prec) = begin
-    m = mod(n, prec)
-    isapprox(m, prec) ? n : n - m
+roundfloat(val, prec) = begin
+    inv_prec = 1 / prec
+    round(val * inv_prec) / inv_prec
 end
 
-toprecision(n::Integer, prec::Integer) = _minusmod(n, prec)
+toprecision(n::Integer, prec::Integer) = roundfloat(n, prec)
 @doc "When precision is a float it represents the pip."
 function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
-    _minusmod(n, prec)
+    roundfloat(n, prec)
 end
 @doc "When precision is a Integer it represents the number of decimals."
 toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
@@ -140,8 +140,8 @@ add(a, b, ::Short) = a - b
 sub(a, b) = a - b
 sub(a, b, ::Long) = a - b
 sub(a, b, ::Short) = a + b
-approxzero(v::T) where T = isapprox(v, zero(T), atol=ATOL)
-gtxzero(v::T) where T = v > zero(T) || isapprox(v, zero(T), atol=ATOL)
-ltxzero(v::T) where T = v < zero(T) || isapprox(v, zero(T), atol=ATOL)
+approxzero(v::T) where {T} = isapprox(v, zero(T); atol=ATOL)
+gtxzero(v::T) where {T} = v > zero(T) || isapprox(v, zero(T); atol=ATOL)
+ltxzero(v::T) where {T} = v < zero(T) || isapprox(v, zero(T); atol=ATOL)
 
 export add, sub, approxzero, gtxzero, ltxzero
