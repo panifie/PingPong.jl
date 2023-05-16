@@ -107,7 +107,9 @@ end
 sellorders(s::Strategy, ai) = orders(s, ai, Sell)
 @doc "Check if the asset instance has pending orders."
 hasorders(s::Strategy, ai, t::Type{Buy}) = !isempty(orders(s, ai, t))
-hasorders(::Strategy, ai, ::Type{Sell}) = committed(ai) != 0.0
+function hasorders(::Strategy, ai, ::Type{Sell})
+    !(iszero(something(committed(ai), 0.0)) && isempty(orders(s, ai, t)))
+end
 hasorders(s::Strategy, ai) = hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
