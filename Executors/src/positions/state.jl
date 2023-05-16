@@ -95,23 +95,3 @@ function isliquidatable(ai::MarginInstance, p::PositionSide, date)
     end
 end
 
-# @doc "Liquidates a position at a particular date.
-# `fees`: the fees for liquidating a position (usually higher than trading fees.)"
-# function liquidate!(
-#     s::MarginStrategy,
-#     ai::MarginInstance,
-#     p::PositionSide,
-#     date,
-#     price,
-#     fees=maxfees(ai) * 2.0,
-# )
-#     for o in orders(s, ai, p)
-#         cancel!(s, o, ai; err=LiquidationOverride(o, price, date, p))
-#     end
-#     pos = position(ai, p)
-#     amount = cash(pos, p)
-#     o = marketorder(ai, price, amount; type=LiquidationType{liqside(p)}, date)
-#     @deassert iszero(committed(ai, p))
-#     @deassert !isnothing(o) && o.date == date && o.amount == amount
-#     marketorder!(s, o, ai, amount; date, fees)
-# end
