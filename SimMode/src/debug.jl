@@ -51,8 +51,15 @@ function _check_committments(s::Strategy)
     cash_comm = 0.0
     for (_, ords) in s.buyorders
         for (_, o) in ords
-            o isa Union{ShortBuyOrder} && continue
+            o isa ShortBuyOrder && continue
             cash_comm += committed(o)
+        end
+    end
+    for (_, ords) in s.sellorders
+        for (_, o) in ords
+            if o isa ShortSellOrder
+                cash_comm += committed(o)
+            end
         end
     end
     @assert isapprox(cash_comm, s.cash_committed, atol=1e-6) (
@@ -61,7 +68,6 @@ function _check_committments(s::Strategy)
 end
 
 function _check_committments(s, ai::AssetInstance, t::Trade)
-    ordertype(t) <: LimitOrderType || return nothing
     get(s.attrs, :verbose, false) && begin
         @show (@something ai.longpos ai).cash_committed
         @show (@something ai.shortpos ai).cash_committed
@@ -69,9 +75,12 @@ function _check_committments(s, ai::AssetInstance, t::Trade)
     orders_long = 0.0
     orders_short = 0.0
     for (_, o) in orders(s, ai, orderpos(t)())
+        @assert o.asset == ai.asset
         if o isa SellOrder
+            @assert orderpos(o) == Long() o
             orders_long += committed(o)
         elseif o isa ShortBuyOrder
+            @assert orderpos(o) == Short() o
             orders_short += committed(o)
         end
     end
@@ -80,7 +89,9 @@ function _check_committments(s, ai::AssetInstance, t::Trade)
     if t isa ShortBuyTrade
         asset_short -= committed(t.order)
     end
-    @assert isapprox(orders_long, asset_long, atol=1e-6) (;orders_long, asset_long, Long)
-    @assert isapprox(orders_short, asset_short, atol=1e-6) (;orders_short, asset_short, Short),
+    @assert isapprox(orders_long, asset_long, atol=1e-6) (; orders_long, asset_long, Long)
+    @assert isapprox(orders_short, asset_short, atol=1e-6) (;
+        orders_short, asset_short, Short
+    ),
     collect(values(s.sellorders[ai]))
 end
