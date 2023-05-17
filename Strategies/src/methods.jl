@@ -2,6 +2,7 @@ using Lang: @lget!, @deassert
 import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
+
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -13,7 +14,7 @@ instances(s::Strategy) = s.universe.data.instance
 exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
 function exchangeid(
-   ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
+    ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
     E
 end

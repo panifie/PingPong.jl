@@ -1,4 +1,34 @@
 using Data: closelast
+using Instances: pnl, MarginInstance, NoMarginInstance
+
+_mmh(val, min_hold, max_hold) = begin
+    if val > max_hold[2]
+        max_hold = (ai.asset.bc, val)
+    end
+    if 0 < val < min_hold[2]
+        min_hold = (ai.asset.bc, val)
+    end
+    (min_hold, max_hold)
+end
+
+function _assetval(ai::MarginInstance, n_holdings, min_hold, max_hold; price)
+    for p in (Long(), Short())
+        pos = position(ai, p)
+        iszero(cash(pos)) && continue
+        n_holdings += 1
+        val = pnl(pos, price)
+        min_hold, max_hold = _mmh(val, min_hold, max_hold)
+    end
+    (n_holdings, min_hold, max_hold)
+end
+function _assetval(ai::NoMarginInstance, n_holdings, min_hold, max_hold; price)
+    iszero(cash(ai)) || begin
+        n_holdings += 1
+        val = cash(ai) * price
+        min_hold, max_hold = _mmh(val, min_hold, max_hold)
+    end
+    (n_holdings, min_hold, max_hold)
+end
 
 function minmax_holdings(s::Strategy)
     n_holdings = 0
@@ -6,17 +36,11 @@ function minmax_holdings(s::Strategy)
     min_hold = (nameof(s.cash), Inf)
     datef = lasttrade_func(s)
     for ai in s.holdings
-        for pos in (Long(), Short())
-            val = abs(cash(ai, pos)) * closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
-            isapprox(val, 0.0; atol=1e-12) && continue
-            n_holdings += 1
-            if val > max_hold[2]
-                max_hold = (ai.asset.bc, val)
-            end
-            if 0 < val < min_hold[2]
-                min_hold = (ai.asset.bc, val)
-            end
-        end
+        iszero(ai) && continue
+        price = closeat(ai.ohlcv, datef(ai.ohlcv.timestamp))
+        (n_holdings, min_hold, max_hold) = _assetval(
+            ai, n_holdings, min_hold, max_hold; price
+        )
     end
     (min=min_hold, max=max_hold, count=n_holdings)
 end

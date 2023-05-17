@@ -50,7 +50,7 @@ function current_total(s::NoMarginStrategy)
 end
 
 function current_total(s::MarginStrategy)
-    worth = Cash(s.cash, 0.0)
+    worth = CurrencyCash(s.cash, 0.0)
     for ai in s.holdings
         for p in (Long, Short)
             price = closeat(ai, lasttrade_date(ai))
