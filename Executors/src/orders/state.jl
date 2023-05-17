@@ -163,7 +163,7 @@ using Instruments: addzero!
 function strategycash!(s::NoMarginStrategy{Sim}, ai, t::BuyTrade)
     @deassert t.size < 0.0
     add!(s.cash, t.size)
-    sub!(s.cash_committed, committment(ai, t))
+    subzero!(s.cash_committed, committment(ai, t))
     @deassert s.cash_committed |> gtxzero
 end
 strategycash!(s::NoMarginStrategy{Sim}, _, t::SellTrade) = begin
@@ -180,8 +180,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    @deassert s.cash |> gtxzero
-    sub!(s.cash_committed, committment(ai, t))
+    subzero!(s.cash_committed, committment(ai, t))
     @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
 end
 function _showliq(s, unrealized_pnl, gained, po, t)
@@ -238,7 +237,7 @@ function decommit!(s::Strategy, o::IncreaseOrder, ai)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
     @deassert iszero(ai, committed(o)) || !isfilled(ai, o)
-    sub!(s.cash_committed, committed(o))
+    subzero!(s.cash_committed, committed(o))
     @deassert s.cash_committed |> gtxzero s.cash_committed.value, ATOL, o
     attr(o, :committed)[] = 0.0
 end

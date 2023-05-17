@@ -128,26 +128,32 @@ end
 
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
-function atleast!(c::Cash{S,T} where {S}, v=zero(T), args...; kwargs...) where {T<:Real}
-    if value(c) < v
-        @ifdebug -ATOL < value(c) < ATOL || begin
-            @debug value(c)
-            # st = stacktrace()
-            # throw(st[5])
-            # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
+function atleast!(c::Cash, v=zero(c), args...; atol=ATOL, kwargs...)
+    let val = value(c)
+        if val > v
+            c
+        elseif isapprox(val, v; atol)
+            cash!(c, v)
+        else
+            @ifdebug -atol < value(c) < atol || begin
+                @debug value(c)
+                # st = stacktrace()
+                # throw(st[5])
+                # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
+            end
+            throw("$(c.cash.value) <  $v")
         end
-        cash!(c, v)
     end
 end
 @doc "Add v to cash, approximating to zero if cash is a small value."
-addzero!(c::AbstractCash, v, args...; kwargs...) = begin
+addzero!(c::Cash, v, args...; kwargs...) = begin
     add!(c, v)
-    atleast!(c)
+    atleast!(c; kwargs...)
     @deassert c >= 0.0 v
     c
 end
 @doc "Sub v to cash, approximating to zero if cash is a small value."
-subzero!(c::AbstractCash, v, args...) = addzero!(c, -v)
+subzero!(c::Cash, v, args...; kwargs...) = addzero!(c, -v; kwargs...)
 mul!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] *= v; c)
 rdiv!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] /= v; c)
 div!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] ÷= v; c)
