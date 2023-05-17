@@ -36,7 +36,7 @@ reset!(s::Strategy, defaults=false) = begin
     empty!(s.sellorders)
     empty!(s.holdings)
     for ai in s.universe
-        reset!(ai)
+        reset!(ai, Val(:full))
     end
     defaults && reset!(s.config)
     cash!(s.cash, s.config.initial_cash)

@@ -48,7 +48,7 @@ end
 !!! warning "Also resets leverage"
     When reopening a position, leverage should be set again.
 """
-reset!(po::Position) = begin
+reset!(po::Position, ::Val{:full}) = begin
     po.status[] = PositionClose()
     po.timestamp[] = DateTime(0)
     po.notional[] = 0.0
@@ -63,8 +63,22 @@ reset!(po::Position) = begin
     cash!(committed(po), 0.0)
 end
 
-const LongPosition{M<:WithMargin} = Position{Long,M}
-const ShortPosition{M<:WithMargin} = Position{Short,M}
+@doc """ Resets the bare fields to close a position.
+"""
+reset!(po::Position) = begin
+    po.status[] = PositionClose()
+    po.notional[] = 0.0
+    po.liquidation_price[] = 0.0
+    entryprice!(po, 0.0)
+    maintenance!(po, 0.0)
+    margin!(po)
+    additional!(po)
+    cash!(cash(po), 0.0)
+    cash!(committed(po), 0.0)
+end
+
+const LongPosition{E<:ExchangeID,M<:WithMargin} = Position{Long,E,M}
+const ShortPosition{E<:ExchangeID,M<:WithMargin} = Position{Short,E,M}
 
 @doc "The number of digits to keep for margin calculations."
 const POSITION_PRECISION = 4

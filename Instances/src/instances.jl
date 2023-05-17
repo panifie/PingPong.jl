@@ -318,9 +318,9 @@ reset!(ai::NoMarginInstance, args...) = begin
     _reset!(ai)
 end
 @doc "Resets asset positions."
-reset!(ai::MarginInstance) = begin
-    reset!(position(ai, Short()))
-    reset!(position(ai, Long()))
+reset!(ai::MarginInstance, args...) = begin
+    reset!(position(ai, Short()), args...)
+    reset!(position(ai, Long()), args...)
     _reset!(ai)
 end
 reset!(ai::MarginInstance, p::PositionSide) = begin
