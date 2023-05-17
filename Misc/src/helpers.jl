@@ -134,14 +134,8 @@ end
 @doc "When precision is a Integer it represents the number of decimals."
 toprecision(n::AbstractFloat, prec::Integer) = round(n; digits=prec)
 
-add(a, b) = a + b
-add(a, b, ::Long) = a + b
-add(a, b, ::Short) = a - b
-sub(a, b) = a - b
-sub(a, b, ::Long) = a - b
-sub(a, b, ::Short) = a + b
 approxzero(v::T) where {T} = isapprox(v, zero(T); atol=ATOL)
 gtxzero(v::T) where {T} = v > zero(T) || isapprox(v, zero(T); atol=ATOL)
 ltxzero(v::T) where {T} = v < zero(T) || isapprox(v, zero(T); atol=ATOL)
 
-export add, sub, approxzero, gtxzero, ltxzero
+export approxzero, gtxzero, ltxzero
