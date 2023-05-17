@@ -64,8 +64,8 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
-    cash::CCash{C,E}
-    cash_committed::CCash{C,E}
+    cash::CCash{E}{C}
+    cash_committed::CCash{E}{C}
     buyorders::Dict{ExchangeAsset{E},BuyOrdersDict{E}}
     sellorders::Dict{ExchangeAsset{E},SellOrdersDict{E}}
     holdings::Set{ExchangeAsset{E}}

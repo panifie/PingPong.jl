@@ -20,10 +20,11 @@ using Lang: Option, @deassert
 import Base: position, isopen
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
+
 const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
 const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
-const CCash{S,E<:ExchangeID} = CurrencyCash{Cash{S,DFT},E}
+const CCash{E,S} = CurrencyCash{Cash{S,DFT},E}
 
 include("positions.jl")
 
@@ -43,8 +44,8 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     logs::Vector{AssetEvent{E}}
-    cash::Option{CCash{S1,E}} where {S1}
-    cash_committed::Option{CCash{S2,E}} where {S2}
+    cash::Option{CCash{E}{S1}} where {S1}
+    cash_committed::Option{CCash{E}{S2}} where {S2}
     exchange::Exchange{E}
     longpos::Option{Position{Long,E,<:WithMargin}}
     shortpos::Option{Position{Short,E,<:WithMargin}}

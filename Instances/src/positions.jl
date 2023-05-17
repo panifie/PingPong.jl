@@ -34,8 +34,8 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     initial_margin::OneVec = [0.0]
     additional_margin::OneVec = [0.0]
     notional::OneVec = [0.0]
-    cash::CCash{S1,E} where {S1}
-    cash_committed::CCash{S2,E} where {S2}
+    cash::CCash{E}{S1} where {S1}
+    cash_committed::CCash{E}{S2} where {S2}
     leverage::OneVec = [1.0]
     min_size::T where {T<:Real}
     hedged::Bool = false
