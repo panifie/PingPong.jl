@@ -1,8 +1,8 @@
 module Checks
 using Lang: Option, @ifdebug, @deassert
-using Misc: isstrictlysorted, toprecision
+using Misc: isstrictlysorted, toprecision, ltxzero
 using Instances
-using Strategies: NoMarginStrategy, IsolatedStrategy
+using Strategies: NoMarginStrategy, IsolatedStrategy, Strategy
 using OrderTypes
 using Base: negate
 
@@ -133,6 +133,13 @@ ismonotonic(prices...) = isstrictlysorted(Iterators.filter(!isnothing, prices)..
 function check_monotonic(prices...)
     @assert ismonotonic(prices...) "Prices should be sorted, e.g. stoploss < price < takeprofit"
     return true
+end
+
+function isbroke(s::Strategy)
+    ltxzero(s.cash) &&
+        isempty(s.holdings) &&
+        length(orderscount(s)) == 0
+
 end
 
 export SanitizeOn, SanitizeOff, cost, withfees, checkprice, checkamount

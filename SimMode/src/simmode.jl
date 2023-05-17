@@ -12,7 +12,7 @@ using Misc
 using Lang: @deassert, @ifdebug
 using Base: negate
 
-using Executors.Checks: cost, withfees
+using Executors.Checks: cost, withfees, isbroke
 using Executors.Instances
 using Executors.Instances: getexchange!
 using Executors.Instruments

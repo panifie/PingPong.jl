@@ -1,3 +1,6 @@
+using Executors: orderscount
+using Executors.Checks: isbroke
+
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
 
 On every iteration, the strategy is queried for the _current_ timestamp.
@@ -46,13 +49,6 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
         ping!(s, date, ctx)
     end
     s
-end
-
-function isbroke(s::Strategy)
-    iszero(s.cash) &&
-        isempty(s.holdings) &&
-        isempty(s.buyorders) &&
-        isempty(s.sellorders)
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."
