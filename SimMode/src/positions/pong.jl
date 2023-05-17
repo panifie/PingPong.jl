@@ -21,9 +21,8 @@ function pong!(
     isopen(ai, opposite(orderpos(t))) && return nothing
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     return if !isnothing(o)
-        t = limitorder_ifprice!(s, o, o.date, ai)
-        t isa Trade && position!(s, ai, t)
-        @deassert s.cash_committed >= -ATOL
+        t = order!(s, o, o.date, ai)
+        @deassert abs(committed(o)) > 0.0 || pricetime(o) ∉ keys(orders(s, ai, o))
         t
     end
 end

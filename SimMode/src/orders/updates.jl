@@ -80,17 +80,19 @@ function update!(s::Strategy{Sim}, date, ::UpdateOrders)
     positions!(s, date)
     for (ai, ords) in s.sellorders
         @ifdebug prev_sell_price = 0.0
-        for (pt, o) in ords
+        for (pt, o) in collect(ords) # Prefetch the orders since `order!` can unqueue
             @deassert prev_sell_price <= pt.price
-            order!(s, o, date, ai)
+            # Need to check again if it is queued in case of liquidation events
+            isqueued(o, s, ai) && order!(s, o, date, ai)
             @ifdebug prev_sell_price = pt.price
         end
     end
     for (ai, ords) in s.buyorders
         @ifdebug prev_buy_price = Inf
-        for (pt, o) in ords
+        for (pt, o) in collect(ords) # Prefetch the orders since `order!` can unqueue
             @deassert prev_buy_price >= pt.price
-            order!(s, o, date, ai)
+            # Need to check again if it is queued in case of liquidation events
+            isqueued(o, s, ai) && order!(s, o, date, ai)
             @ifdebug prev_buy_price = pt.price
         end
     end
