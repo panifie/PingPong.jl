@@ -33,18 +33,19 @@ function limitorder(
 )
     @price! ai price take stop
     @amount! ai amount
-    comm = committment(type, ai, price, amount)
+    comm = [committment(type, ai, price, amount)]
     if iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end
 
 @doc "Remove a limit order from orders queue if it is filled."
-aftertrade!(s::Strategy, ai, o::AnyLimitOrder) =
+aftertrade!(s::Strategy, ai, o::AnyLimitOrder) = begin
     if isfilled(ai, o)
         decommit!(s, o, ai)
         delete!(s, ai, o)
     end
+end
 
 _cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
 _cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
@@ -77,4 +78,3 @@ function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderS
     hold!(s, ai, o)
     return true
 end
-

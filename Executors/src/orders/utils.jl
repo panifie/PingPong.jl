@@ -42,7 +42,7 @@ end
 @doc "Without margin, committment is cost + fees (in quote currency)."
 function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount)
     @deassert amount > 0.0
-    [withfees(cost(price, amount), maxfees(ai), IncreaseOrder)]
+    withfees(cost(price, amount), maxfees(ai), IncreaseOrder)
 end
 @doc "When entering a leveraged position, what's committed is margin + fees (in quote currency)."
 function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount)
@@ -50,24 +50,24 @@ function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount
     ntl = cost(price, amount)
     fees = ntl * maxfees(ai)
     margin = ntl / leverage(ai, orderpos(o)())
-    [margin + fees]
+    margin + fees
 end
 
 @doc "When exiting a position, what's committed is always the asset cash
 But for longs the asset is already held, so its positive"
-function committment(::Type{<:SellOrder}, _, _, amount)
+function committment(::Type{<:SellOrder}, ai, _, amount)
     @deassert amount > 0.0
-    [amount]
+    amount
 end
 @doc "For shorts the asset is un-held, so its committment is negative."
-function committment(::Type{<:ShortBuyOrder}, _, _, amount)
+function committment(::Type{<:ShortBuyOrder}, ai, _, amount)
     @deassert amount > 0.0
-    [negate(amount)]
+    negate(amount)
 end
 
 @doc "The partial committment of a trade, such that `sum(committment.(trades(o))) == committed(o)`."
 function committment(ai::AssetInstance, t::Trade)
-    committment(typeof(t.order), ai, t.order.price, abs(t.amount))[]
+    committment(typeof(t.order), ai, t.order.price, abs(t.amount))
 end
 
 function unfillment(t::Type{<:AnyBuyOrder}, amount)
@@ -81,11 +81,11 @@ function unfillment(t::Type{<:AnySellOrder}, amount)
     [amount]
 end
 
-function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, _)
+function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, ai)
     @deassert st.freecash(s) |> gtxzero
     st.freecash(s) >= commit[]
 end
-function iscommittable(_::Strategy, ::Type{<:SellOrder}, commit, ai)
+function iscommittable(s::Strategy, ::Type{<:SellOrder}, commit, ai)
     @deassert Instances.freecash(ai, Long()) |> gtxzero
     @deassert commit[] |> gtxzero
     Instances.freecash(ai, Long()) >= commit[]
@@ -100,6 +100,8 @@ end
 function orders(s::Strategy)
     (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
 end
+orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
+orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
 @doc "Get strategy buy orders for asset."
 function orders(s::Strategy{M,S,E}, ai, ::Type{Buy}) where {M,S,E}
     @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
