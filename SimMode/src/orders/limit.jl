@@ -1,7 +1,7 @@
 using Lang: @deassert, @posassert, Lang, @ifdebug
 using OrderTypes
 using Executors.Checks: cost, withfees
-using Executors: AnyFOKOrder, AnyIOCOrder
+using Executors: AnyFOKOrder, AnyIOCOrder, AnyGTCOrder
 import Executors: priceat, unfilled, isqueued
 import OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sim
@@ -120,7 +120,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
                 !isfilled(ai, o) &&
                 cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
         end
-        @deassert !isqueued(o, s, ai)
+        @deassert o isa AnyGTCOrder || !isqueued(o, s, ai)
     end
     ans
 end
