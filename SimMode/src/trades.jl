@@ -85,6 +85,7 @@ end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
 function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfees(ai))
+    @deassert abs(committed(o)) > 0.0
     @ifdebug _afterorder()
     @amount! ai actual_amount
     actual_price = with_slippage(s, o, ai; date, price, actual_amount)
@@ -97,7 +98,9 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     end
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
+    @deassert abs(committed(o)) != 0.0
     fill!(ai, o, trade)
+    @deassert abs(committed(o)) == 0.0
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
     # update cash

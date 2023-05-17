@@ -11,6 +11,7 @@ function _create_sim_limit_order(s, t, ai; amount, kwargs...)
     o = limitorder(s, ai, amount; type=t, kwargs...)
     isnothing(o) && return nothing
     queue!(s, o, ai) || return nothing
+    @deassert abs(committed(o)) > 0.0
     return o
 end
 
@@ -30,8 +31,22 @@ _istriggered(o::AnyLimitOrder{Sell}, date, ai) = begin
 end
 
 @doc "Progresses a simulated limit order."
-function order!(s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...)
+function order!(
+    s::NoMarginStrategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
+)
+    @deassert abs(committed(o)) > 0.0
     limitorder_ifprice!(s, o, date, ai)
+end
+
+@doc "Progresses a simulated limit order for an isolated margin strategy."
+function order!(
+    s::IsolatedStrategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
+)
+    @deassert abs(committed(o)) > 0.0 (pricetime(o), o)
+    t = limitorder_ifprice!(s, o, date, ai)
+    t isa Trade && position!(s, ai, t)
+    @deassert s.cash_committed |> gtxzero s.cash_committed.value
+    t
 end
 
 @doc "Executes a limit order at a particular time only if price is lower(buy) than order price."

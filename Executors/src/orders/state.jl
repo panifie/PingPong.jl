@@ -4,13 +4,13 @@ import OrderTypes: commit!, orderpos, LiquidationType
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using Instances: notional, pnl
 import Instances: committed
-using Misc: Short, DFT
+using Misc: Short, DFT, toprecision
 using Instruments
 using Instruments: @importcash!, AbstractAsset
 @importcash!
 import Base: fill!
 
-##  committed::Float64 # committed is `cost + fees` for buying or `amount` for selling
+##  committed::DFT # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{
     (:take, :stop, :committed, :unfilled, :trades),
     Tuple{Option{T},Option{T},Vector{T},Vector{T},Vector{Trade}},
@@ -59,6 +59,7 @@ function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
     @deassert !(o isa MarketOrder) # Market Orders are never queued
     @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
+    @deassert pricetime(o) ∉ keys(orders(s, ai, orderside(o)))
     # If we don't have cash for this asset, it should be released from holdings
     release!(s, ai, o)
 end
@@ -101,9 +102,9 @@ end
 
 # checks order committment to be within expected values
 function _check_committment(o)
-    @deassert attr(o, :committed)[] >= -1e-12 ||
+    @deassert attr(o, :committed)[] |> gtxzero ||
         ordertype(o) <: MarketOrderType ||
-        o isa AnyLimitOrder{Sell,Short} o
+        o isa IncreaseLimitOrder o
 end
 _check_unfillment(o::AnyLimitOrder{Sell}) = attr(o, :unfilled)[] > 0.0
 _check_unfillment(o::AnyLimitOrder{Buy}) = attr(o, :unfilled)[] < 0.0
@@ -145,16 +146,14 @@ end
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
 function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     @deassert o isa IncreaseOrder && _check_unfillment(o) o
-    @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0
+    @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0 t
     attr(o, :unfilled)[] += t.amount
     @deassert attr(o, :unfilled)[] |> ltxzero || o isa ShortSellOrder
     @deassert t.value > 0.0
     attr(o, :committed)[] -= committment(ai, t)
     # Market order spending can exceed the estimated committment
     # ShortSell limit orders can spend more than committed because of slippage
-    @deassert committed(o) |> gtxzero ||
-        o isa AnyMarketOrder ||
-        o isa AnyLimitOrder{Sell,Short}
+    @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
 end
 
 isfilled(ai::AssetInstance, o::Order) = iszero(ai, unfilled(o))
@@ -183,7 +182,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     sub!(s.cash, spent)
     @deassert s.cash |> gtxzero
     sub!(s.cash_committed, committment(ai, t))
-    @deassert s.cash_committed |> gtxzero
+    @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
 end
 function _showliq(s, unrealized_pnl, gained, po, t)
     get(s.attrs, :verbose, false) || return nothing
@@ -197,7 +196,9 @@ _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
+    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (
+        cash(ai), t.amount, t.order
+    )
     @ifdebug _checktrade(t)
     po = position(ai, orderpos(t))
     # The notional tracks current value, but the margin
@@ -209,7 +210,9 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     gained = margin + unrealized_pnl - t.fees # minus fees
     @ifdebug _showliq(s, unrealized_pnl, gained, po, t)
     add!(s.cash, gained)
-    @deassert s.cash |> gtxzero (; t.price, t.amount, unrealized_pnl, t.fees, margin)
+    @deassert s.cash |> gtxzero || (hasorders(s) || hascash(s)) (;
+        s.cash, s.cash_committed, t.price, t.amount, unrealized_pnl, t.fees, margin
+    )
 end
 
 function cash!(s::Strategy, ai, t::Trade)
@@ -250,7 +253,7 @@ function decommit!(s::Strategy, o::ShortBuyOrder, ai)
     sub!(committed(ai, Short()), committed(o))
     attr(o, :committed)[] = 0.0
 end
-iscommittable(s::Strategy, o::IncreaseOrder, _) = begin
+function iscommittable(s::Strategy, o::IncreaseOrder, ai)
     @deassert committed(o) > 0.0
     st.freecash(s) >= committed(o)
 end
@@ -263,7 +266,7 @@ function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     Instances.freecash(ai, Short()) <= committed(o)
 end
 
-hold!(s::Strategy, ai, o::IncreaseOrder) = begin
+function hold!(s::Strategy, ai, o::IncreaseOrder)
     @deassert hasorders(s, ai, orderpos(o)) || !iszero(ai) o
     push!(s.holdings, ai)
 end

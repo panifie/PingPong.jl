@@ -1,4 +1,3 @@
-using Executors: decommit!
 function _create_sim_market_order(
     s, t, ai; amount, date, price=priceat(s, t, ai, date), kwargs...
 )

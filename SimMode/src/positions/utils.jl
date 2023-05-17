@@ -19,11 +19,13 @@ function open_position!(
     @deassert !isopen(po)
     @deassert notional(po) == 0.0
     # Cash should already be updated from trade construction
-    @deassert cash(po) == cash(ai, P()) == t.amount
+    @deassert abs(cash(po)) == abs(cash(ai, P())) >= abs(t.amount)
     withtrade!(po, t)
     # Notional should never be above the trade size
     # unless fees are negative
-    @deassert notional(po) < abs(t.size) || minfees(ai) < 0.0
+    @deassert notional(po) < abs(t.size) ||
+        minfees(ai) < 0.0 ||
+        abs(t.amount) < abs(cash(ai, P()))
     # finalize
     status!(ai, P(), PositionOpen())
     @deassert status(po) == PositionOpen()
@@ -90,10 +92,11 @@ function liquidate!(
     fees=maxfees(ai) * 2.0,
 )
     pos = position(ai, p)
-    for o in orders(s, ai, p)
+    for (_, o) in orders(s, ai, p)
+        @deassert o isa Order
         cancel!(s, o, ai; err=LiquidationOverride(o, liqprice(pos), date, p))
     end
-    amount = abs(pos.cash.value)
+    amount = abs(cash(pos).value)
     price = liqprice(pos)
     o = _create_sim_market_order(
         s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
@@ -101,9 +104,9 @@ function liquidate!(
     # The position might be too small to be tradeable, assume cash is lost
     isnothing(o) || begin
         t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
-        @deassert !isnothing(o) && o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
+        @deassert o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
     end
-    @deassert isdust(ai, price, p)
+    @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), p, isnothing(o))
     close_position!(s, ai, p)
 end
 
@@ -160,15 +163,31 @@ position!(::IsolatedStrategy{Sim}, ai, ::DateTime, ::Nothing) = nothing
 position!(s::NoMarginStrategy, args...; kwargs...) = nothing
 positions!(s::NoMarginStrategy{Sim}, args...; kwargs...) = nothing
 
+_checkorders(s) = begin
+    for (_, ords) in s.buyorders
+        for (_, o) in ords
+            @assert abs(committed(o)) > 0.0
+        end
+    end
+    for (_, ords) in s.sellorders
+        for (_, o) in ords
+            @assert abs(committed(o)) > 0.0
+        end
+    end
+end
+
 @doc "Updates all open positions in a isolated (non hedged) strategy."
 function positions!(s::IsolatedStrategy{Sim}, date::DateTime)
+    @ifdebug _checkorders(s)
     for ai in s.holdings
-        @deassert isopen(ai) ai
+        @deassert isopen(ai) || hasorders(s, ai) ai
         position!(s, ai, date)
     end
+    @ifdebug _checkorders(s)
     @ifdebug for ai in s.universe
+        @assert !(isopen(ai, Short()) && isopen(ai, Long()))
         let po = position(ai)
-            @assert ai ∈ s.holdings || isnothing(po) || !isopen(po)
+            @assert ai ∈ s.holdings || isnothing(po) || !isopen(po) po, status(po)
         end
     end
 end

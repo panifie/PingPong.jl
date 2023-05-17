@@ -1,6 +1,6 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
-using Instances: MarginInstance, NoMarginInstance, AssetInstance
+using Instances: MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount
 using OrderTypes:
     IncreaseOrder, ShortBuyOrder, ordertype, LimitOrderType, MarketOrderType, ExchangeID
 using Instruments: AbstractAsset
@@ -11,6 +11,7 @@ using Misc: Long, Short, PositionSide
 const AnyLimitOrder{S<:OrderSide,P<:PositionSide} = Order{
     <:LimitOrderType{S},<:AbstractAsset,<:ExchangeID,P
 }
+const AnyGTCOrder = Union{GTCOrder,ShortGTCOrder}
 const AnyFOKOrder = Union{FOKOrder,ShortFOKOrder}
 const AnyIOCOrder = Union{IOCOrder,ShortIOCOrder}
 const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
@@ -103,10 +104,10 @@ end
 orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
 orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
 @doc "Get strategy buy orders for asset."
-function orders(s::Strategy{M,S,E}, ai, ::Type{Buy}) where {M,S,E}
+function orders(s::Strategy{M,S,E}, ai, ::BySide{Buy}) where {M,S,E}
     @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
 end
-function orders(s::Strategy{M,S,E}, ai, ::Type{Sell}) where {M,S,E}
+function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
 @doc "The total number of pending orders in the strategy"
@@ -144,9 +145,7 @@ hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(s.buyorders[ai])
 function hasorders(s::Strategy, ai, ::Type{Sell})
     !(iszero(something(committed(ai), 0.0)) && _hasany(s.sellorders[ai]) == 0)
 end
-hasorders(s::Strategy, ai) = begin
-    (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
-end
+hasorders(s::Strategy, ai, args...) = (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
     for (_, ords) in s.sellorders
@@ -159,7 +158,10 @@ function _check_trade(t::BuyTrade)
     @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) >= -1e-12 || ordertype(t) <: MarketOrderType
+    @deassert committed(t.order) |> gtxzero || ordertype(t) <: MarketOrderType committed(
+        t.order
+    ),
+    t.order.attrs.trades
 end
 
 function _check_trade(t::SellTrade)
@@ -182,16 +184,16 @@ function _check_trade(t::ShortBuyTrade)
     )
     @deassert t.size > 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) <= 1e-12
+    @deassert committed(t.order) |> ltxzero
 end
 
 function _check_cash(ai::AssetInstance, ::Long)
-    @deassert committed(ai, Long()) >= -1e-12 ||
+    @deassert committed(ai, Long()) |> gtxzero ||
         ordertype(last(ai.history)) <: MarketOrderType
-    @deassert cash(ai, Long()) >= 0.0
+    @deassert cash(ai, Long()) |> gtxzero
 end
 
 _check_cash(ai::AssetInstance, ::Short) = begin
-    @deassert committed(ai, Short()) <= 0.0
-    @deassert cash(ai, Short()) <= 0.0
+    @deassert committed(ai, Short()) |> ltxzero
+    @deassert cash(ai, Short()) |> ltxzero
 end
