@@ -157,7 +157,7 @@ islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
-ispos(pos::PositionSide, o::Order) = orderpos(o) == pos
+ispos(pos::PositionSide, o::Order) = orderpos(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 
 include("trades.jl")
