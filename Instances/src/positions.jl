@@ -24,7 +24,7 @@ opposite(::PositionClose) = PositionOpen()
 - `cash`: it is the `notional` value of the position
 For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?id=position-structure)
 "
-@kwdef struct Position{S<:PositionSide,M<:WithMargin}
+@kwdef struct Position{S<:PositionSide,E<:ExchangeID,M<:WithMargin}
     status::Vector{PositionStatus} = [PositionClose()]
     asset::Derivative
     timestamp::Vector{DateTime} = [DateTime(0)]
@@ -34,8 +34,8 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     initial_margin::OneVec = [0.0]
     additional_margin::OneVec = [0.0]
     notional::OneVec = [0.0]
-    cash::Cash{S1,DFT} where {S1}
-    cash_committed::Cash{S2,DFT} where {S2}
+    cash::CCash{S1,E} where {S1}
+    cash_committed::CCash{S2,E} where {S2}
     leverage::OneVec = [1.0]
     min_size::T where {T<:Real}
     hedged::Bool = false
@@ -151,7 +151,7 @@ function bankruptcy(pos::Position, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSi
 end
 
 function timestamp!(po::Position, d::DateTime)
-    @deassert po.timestamp[] <= d "Position dates can only go forward."
+    @deassert po.timestamp[] <= d "Position dates can only go forward.($(po.timestamp[]), $d)"
     po.timestamp[] = d
 end
 

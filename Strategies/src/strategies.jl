@@ -1,6 +1,7 @@
 using Collections: AssetCollection, Collections as coll
 
 using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged
+using Instances: CurrencyCash, CCash
 using OrderTypes: Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError, StrategyEvent
 using ExchangeTypes
@@ -63,8 +64,8 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     self::Module
     config::Config
     timeframe::TimeFrame
-    cash::Cash{C,DFT}
-    cash_committed::Cash{C,DFT}
+    cash::CCash{C,E}
+    cash_committed::CCash{C,E}
     buyorders::Dict{ExchangeAsset{E},BuyOrdersDict{E}}
     sellorders::Dict{ExchangeAsset{E},SellOrdersDict{E}}
     holdings::Set{ExchangeAsset{E}}
@@ -80,11 +81,11 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         config::Config,
     )
         @assert !ishedged(margin) "Hedged margin not yet supported."
-        ca = Cash(config.qc, config.initial_cash)
+        ca = CurrencyCash(exc, config.qc, config.initial_cash)
         if !coll.iscashable(ca, uni)
             @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
         end
-        ca_comm = Cash(config.qc, 0.0)
+        ca_comm = CurrencyCash(exc, config.qc, 0.0)
         eid = typeof(exc.id)
         holdings = Set{ExchangeAsset{eid}}()
         buyorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeBuyOrder{eid}}}()

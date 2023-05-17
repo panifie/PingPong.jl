@@ -3,7 +3,8 @@ using OrderTypes
 
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
-using OrderTypes: OrderOrSide, AssetEvent, orderpos
+using Exchanges: CurrencyCash
+using OrderTypes: ByPos, AssetEvent, orderpos
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
@@ -11,18 +12,20 @@ using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash
-using Misc: config, MarginMode, NoMargin, MM, DFT, add, sub, toprecision
-using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin, gtxzero, ltxzero
+using Misc: config, MarginMode, NoMargin, MM, DFT, toprecision
+using Misc:
+    Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin, gtxzero, ltxzero
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
-include("positions.jl")
-
 const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
 const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
+const CCash{S,E<:ExchangeID} = CurrencyCash{Cash{S,DFT},E}
+
+include("positions.jl")
 
 # TYPENUM
 @doc "An asset instance holds all known state about an asset, i.e. `BTC/USDT`:
@@ -40,12 +43,12 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     logs::Vector{AssetEvent{E}}
-    cash::Option{Cash{S1,Float64}} where {S1}
-    cash_committed::Option{Cash{S2,Float64}} where {S2}
+    cash::Option{CCash{S1,E}} where {S1}
+    cash_committed::Option{CCash{S2,E}} where {S2}
     exchange::Exchange{E}
-    longpos::Option{Position{Long,<:WithMargin}}
-    shortpos::Option{Position{Short,<:WithMargin}}
-    lastpos::Vector{Option{Position{<:PositionSide,<:WithMargin}}}
+    longpos::Option{Position{Long,E,<:WithMargin}}
+    shortpos::Option{Position{Short,E,<:WithMargin}}
+    lastpos::Vector{Option{Position{<:PositionSide,E,<:WithMargin}}}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
@@ -56,7 +59,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
         local longpos, shortpos
         longpos, shortpos = positions(M, a, limits, e)
         cash, comm = if M == NoMargin
-            (Cash{a.bc,DFT}(0.0), Cash{a.bc,DFT}(0.0))
+            (CurrencyCash(e, a.bc, 0.0), CurrencyCash(e, a.bc, 0.0))
         else
             (nothing, nothing)
         end
@@ -68,8 +71,8 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
             cash,
             comm,
             e,
-            longpos::Option{Position{Long,<:WithMargin}},
-            shortpos::Option{Position{Short,<:WithMargin}},
+            longpos::Option{Position{Long,E,<:WithMargin}},
+            shortpos::Option{Position{Short,E,<:WithMargin}},
             [nothing],
             limits,
             precision,
@@ -92,17 +95,20 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
     if M == NoMargin
         nothing, nothing
     else
-        let tiers = leverage_tiers(e, a.raw),
-            pos_kwargs() = (;
-                asset=a,
-                min_size=limits.amount.min,
-                tiers=[tiers],
-                this_tier=[tiers[1]],
-                cash=Cash(a.bc, 0.0),
-                cash_committed=Cash(a.bc, 0.0),
-            )
+        let tiers = leverage_tiers(e, a.raw)
+            function pos_kwargs()
+                (;
+                    asset=a,
+                    min_size=limits.amount.min,
+                    tiers=[tiers],
+                    this_tier=[tiers[1]],
+                    cash=CurrencyCash(e, a.bc, 0.0),
+                    cash_committed=CurrencyCash(e, a.bc, 0.0),
+                )
+            end
 
-            LongPosition{M}(; pos_kwargs()...), ShortPosition{M}(; pos_kwargs()...)
+            LongPosition{typeof(e.id),M}(; pos_kwargs()...),
+            ShortPosition{typeof(e.id),M}(; pos_kwargs()...)
         end
     end
 end
@@ -195,6 +201,30 @@ Base.getproperty(ai::AssetInstance, f::Symbol) = begin
     end
 end
 
+@doc "Rounds a value based on the `precision` field of the `ai` asset instance. [`amount`]."
+macro _round(v, kind=:amount)
+    @assert kind isa Symbol
+    quote
+        toprecision(
+            $(esc(v)), getfield(getfield($(esc(esc(:ai))), :precision), $(QuoteNode(kind)))
+        )
+    end
+end
+
+@doc "Rounds a value based on the `precision` (price) field of the `ai` asset instance."
+macro rprice(v)
+    quote
+        $(@__MODULE__).@_round $(esc(v)) price
+    end
+end
+
+@doc "Rounds a value based on the `precision` (amount) field of the `ai` asset instance."
+macro ramount(v)
+    quote
+        $(@__MODULE__).@_round $(esc(v)) amount
+    end
+end
+
 @doc "Get the last available candle strictly lower than `apply(tf, date)`"
 function Data.candlelast(ai::AssetInstance, tf::TimeFrame, date::DateTime)
     Data.candlelast(ai.data[tf], tf, date)
@@ -234,8 +264,8 @@ cash(ai::MarginInstance, ::Short) = getfield(position(ai, Short()), :cash)
 committed(ai::NoMarginInstance) = getfield(ai, :cash_committed)
 committed(ai::NoMarginInstance, ::Long) = committed(ai)
 committed(ai::NoMarginInstance, ::Short) = 0.0
-function committed(ai::MarginInstance, p::OrderOrSide)
-    getfield(position(ai, p), :cash_committed)
+function committed(ai::MarginInstance, ::ByPos{P}) where {P}
+    getfield(position(ai, P), :cash_committed)
 end
 committed(ai::MarginInstance) = getfield((@something position(ai) ai), :cash_committed)
 ohlcv(ai::AssetInstance) = getfield(first(getfield(ai, :data)), :second)
@@ -257,7 +287,7 @@ function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
     add!(cash(ai, orderpos(t)()), t.amount)
     add!(committed(ai, orderpos(t)()), t.amount)
 end
-freecash(ai::NoMarginInstance, args...) = begin
+function freecash(ai::NoMarginInstance, args...)
     ca = cash(ai) - committed(ai)
     @deassert ca |> gtxzero (cash(ai), committed(ai))
     ca
@@ -330,52 +360,52 @@ maxfees(ai::AssetInstance) = ai.fees.max
 @doc "ExchangeID for the asset instance."
 exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
 @doc "Asset instance long position."
-position(ai::MarginInstance, ::Type{Long}) = getfield(ai, :longpos)
+position(ai::MarginInstance, ::ByPos{Long}) = getfield(ai, :longpos)
 @doc "Asset instance short position."
-position(ai::MarginInstance, ::Type{Short}) = getfield(ai, :shortpos)
+position(ai::MarginInstance, ::ByPos{Short}) = getfield(ai, :shortpos)
 @doc "Asset position by order."
-position(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide} = position(ai, S)
+position(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide} = position(ai, S)
 @doc "Returns the last open asset position or nothing."
 position(ai::MarginInstance) = getfield(ai, :lastpos)[]
 @doc "Check if an asset position is open."
-function isopen(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function isopen(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     isopen(position(ai, S))
 end
 @doc "Asset position notional value."
-function notional(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function notional(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> notional
 end
 @doc "Asset position liquidation price."
-function liqprice(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function liqprice(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> liqprice
 end
 @doc "Sets asset position liquidation price."
-function liqprice!(ai::MarginInstance, v, ::OrderOrSide{S}) where {S<:PositionSide}
+function liqprice!(ai::MarginInstance, v, ::ByPos{S}) where {S<:PositionSide}
     liqprice!(position(ai, S), v)
 end
 @doc "Asset position leverage."
-function leverage(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function leverage(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> leverage
 end
 leverage(::NoMarginInstance, args...) = 1.0
 @doc "Asset position status (open or closed)."
-function status(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function status(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> status
 end
 @doc "Asset position maintenance margin."
-function maintenance(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function maintenance(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> maintenance
 end
 @doc "Asset position initial margin."
-function initial(ai::MarginInstance, ::OrderOrSide{S}) where {S<:PositionSide}
+function initial(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> initial
 end
 @doc "Asset position tier."
-function tier(ai::MarginInstance, size, ::OrderOrSide{S}) where {S<:PositionSide}
+function tier(ai::MarginInstance, size, ::ByPos{S}) where {S<:PositionSide}
     tier(position(ai, S), size)
 end
 @doc "Asset position maintenance margin rate."
-function mmr(ai::MarginInstance, size, s::OrderOrSide)
+function mmr(ai::MarginInstance, size, s::ByPos)
     mmr(position(ai, s), size)
 end
 @doc "The price where the asset position is fully liquidated."
@@ -431,7 +461,7 @@ end
 
 include("constructors.jl")
 
-export AssetInstance, instance, load!
+export AssetInstance, instance, load!, @rprice, @ramount
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
 export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed
 export leverage, mmr, status!

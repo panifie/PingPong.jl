@@ -8,7 +8,7 @@ using Data.DFUtils
 using Data.DataStructures: SortedDict
 
 using ExchangeTypes
-using Instruments: fiatnames, AbstractAsset, Asset, Cash, compactnum as cnum
+using Instruments: fiatnames, AbstractAsset, Asset, AbstractCash, compactnum as cnum
 using Instruments.Derivatives
 using TimeTicks
 using Misc: Iterable, swapkeys, MarginMode
@@ -181,7 +181,7 @@ Base.similar(ac::AssetCollection) = begin
 end
 
 @doc "Checks that all assets in the universe match the cash."
-iscashable(c::Cash, ac::AssetCollection) = begin
+iscashable(c::AbstractCash, ac::AssetCollection) = begin
     for ai in ac
         if ai.asset.qc != nameof(c)
             return false
