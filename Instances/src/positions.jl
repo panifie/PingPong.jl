@@ -43,6 +43,11 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     this_tier::Vector{LeverageTier}
 end
 
+@doc """Resets position to initial state.
+
+!!! warning "Also resets leverage"
+    When reopening a position, leverage should be set again.
+"""
 reset!(po::Position) = begin
     po.status[] = PositionClose()
     po.timestamp[] = DateTime(0)
