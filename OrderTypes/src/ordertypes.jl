@@ -74,7 +74,7 @@ function Base.hash(o::Order{T}, h::UInt) where {T}
 end
 
 const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
-const SellOrder{A,E} = Order{<:OrderType{Sell},A,E}
+const SellOrder{A,E} = Order{<:OrderType{Sell},A,E,Long}
 const AnyBuyOrder{P,A,E} = Order{<:OrderType{Buy},A,E,P}
 const AnySellOrder{P,A,E} = Order{<:OrderType{Sell},A,E,P}
 const LongOrder{O,A,E} = Order{O,A,E,Long}
@@ -159,6 +159,7 @@ isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
 ispos(pos::PositionSide, o::Order) = orderpos(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
+trades(args...; kwargs...) = error("not implemented")
 
 include("trades.jl")
 include("positions.jl")
