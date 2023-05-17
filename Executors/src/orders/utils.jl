@@ -110,16 +110,36 @@ end
 function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
-@doc "The total number of pending orders in the strategy"
-function orderscount(s::Strategy)
+function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0
-    for v in values(s.buyorders)
-        ans += length(v)
-    end
-    for v in values(s.sellorders)
+    for v in values(orders(s, O))
         ans += length(v)
     end
     ans
+end
+@doc "The number of pending entry orders in the strategy."
+function orderscount(s::Strategy, ::Val{:increase})
+    ans = 0
+    for (_, o) in values(orders(s))
+        if o isa IncreaseOrder
+            ans += 1
+        end
+    end
+    ans
+end
+@doc "The number of pending exit orders in the strategy."
+function orderscount(s::Strategy, ::Val{:reduce})
+    ans = 0
+    for (_, o) in values(orders(s))
+        if o isa ReduceOrder
+            ans += 1
+        end
+    end
+    ans
+end
+@doc "The total number of pending orders in the strategy"
+function orderscount(s::Strategy)
+    orderscount(s, Buy) + orderscount(s, Sell)
 end
 @doc "True if any of the holdings has non dust cash."
 function hascash(s::Strategy)
