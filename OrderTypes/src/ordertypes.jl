@@ -86,11 +86,6 @@ const ShortSellOrder{A,E} = Order{<:OrderType{Sell},A,E,Short}
 const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
 const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
-@doc "Dispatch by `OrderSide` or by an `Order` with the same side as parameter."
-const OrderOrSide{S} = Union{S,Type{S},Order{OrderType{S}}}
-@doc "Dispatch by `PositionSide` or by an `Order` with the same position side as parameter."
-const OrderOrPos{P<:PositionSide} =
-    Union{P,Order{O,A,E,P}} where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
 @doc "An Order type that liquidates a position."
 const LiquidationOrder{S,P} =
     Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
@@ -166,7 +161,14 @@ include("positions.jl")
 include("errors.jl")
 include("print.jl")
 
-export Order, OrderType, OrderSide, OrderOrSide, Buy, Sell, Both, Trade
+@doc "Dispatch by `OrderSide` or by an `Order` or `Trade` with the same side as parameter."
+const BySide{S<:OrderSide} = Union{S,Type{S},Order{<:OrderType{S}},Trade{<:OrderType{S}}}
+@doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
+const ByPos{P<:PositionSide} = Union{
+    P,Type{P},Order{O,A,E,P},Trade{O,A,E,P}
+} where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
+
+export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
