@@ -12,16 +12,16 @@ const TF = tf"1m"
 __revise_mode__ = :eval
 
 include("common.jl")
-display("ExampleMargin.jl:15")
 
 # function __init__() end
-_reset_pos!(s, def_lev=2.5) = begin
+_reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5)) = begin
     s.attrs[:longdiff] = 1.02
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.012
     s.attrs[:long_k] = 0.02
     s.attrs[:short_k] = 0.02
     s.attrs[:per_order_leverage] = false
+    s.attrs[:verbose] = false
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
