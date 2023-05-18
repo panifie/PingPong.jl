@@ -53,9 +53,9 @@ function current_total(s::MarginStrategy)
     worth = CurrencyCash(s.cash, 0.0)
     for ai in s.holdings
         for p in (Long, Short)
+            isopen(ai, p) || continue
             price = closeat(ai, lasttrade_date(ai))
-            pos = position(ai, p)
-            add!(worth, margin(pos) + pnl(pos, price)) #,  ai.cash * price)
+            add!(worth, value(ai, p, price)) #,  ai.cash * price)
         end
     end
     add!(worth, s.cash)

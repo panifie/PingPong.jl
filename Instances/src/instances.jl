@@ -11,7 +11,7 @@ import Data: stub!
 using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
-import Instruments: _hashtuple, cash!, cash, freecash
+import Instruments: _hashtuple, cash!, cash, freecash, value
 using Misc: config, MarginMode, NoMargin, MM, DFT, toprecision
 using Misc:
     Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin, gtxzero, ltxzero
@@ -458,6 +458,14 @@ function status!(ai::MarginInstance, p::PositionSide, pstat::PositionStatus)
     @assert pstat == PositionOpen() ? status(opposite(ai, p)) == PositionClose() : true "Can only have either long or short position open in non-hedged mode, not both."
     _status!(pos, pstat)
     _lastpos!(ai, p, pstat)
+end
+
+@doc "The value held by the position, margin with pnl minus fees."
+function value(ai, ::ByPos{P}, price=price(position(ai, P))) where {P}
+    pos = position(ai, P)
+    @deassert margin(pos) > 0.0
+    @deassert additional(pos) >= 0.0
+    margin(pos) + additional(pos) + pnl(pos, price) - price * abs(cash(pos)) * maxfees(ai)
 end
 
 include("constructors.jl")

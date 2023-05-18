@@ -1,7 +1,7 @@
 using Data: closelast
-using Instances: pnl, MarginInstance, NoMarginInstance
+using Instances: pnl, MarginInstance, NoMarginInstance, value
 
-_mmh(val, min_hold, max_hold) = begin
+_mmh(ai, val, min_hold, max_hold) = begin
     if val > max_hold[2]
         max_hold = (ai.asset.bc, val)
     end
@@ -16,8 +16,8 @@ function _assetval(ai::MarginInstance, n_holdings, min_hold, max_hold; price)
         pos = position(ai, p)
         iszero(cash(pos)) && continue
         n_holdings += 1
-        val = pnl(pos, price)
-        min_hold, max_hold = _mmh(val, min_hold, max_hold)
+        val = value(ai, p, price)
+        min_hold, max_hold = _mmh(ai, val, min_hold, max_hold)
     end
     (n_holdings, min_hold, max_hold)
 end
@@ -25,7 +25,7 @@ function _assetval(ai::NoMarginInstance, n_holdings, min_hold, max_hold; price)
     iszero(cash(ai)) || begin
         n_holdings += 1
         val = cash(ai) * price
-        min_hold, max_hold = _mmh(val, min_hold, max_hold)
+        min_hold, max_hold = _mmh(ai, val, min_hold, max_hold)
     end
     (n_holdings, min_hold, max_hold)
 end
