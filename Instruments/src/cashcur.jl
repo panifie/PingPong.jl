@@ -54,13 +54,13 @@ compactnum(val) =
     if val < 1e-12
         "$(round(val, digits=3))"
     elseif val < 1e-9
-        q, r = divrem(val, 1e-9)
+        q, r = divrem(val, 1e-10)
         "$(Int(q)),$(round(Int, r))(n)"
     elseif val < 1e-6
-        q, r = divrem(val, 1e-6)
+        q, r = divrem(val, 1e-7)
         "$(Int(q)),$(round(Int, r))(μ)"
-    elseif val < 1e-3
-        q, r = divrem(val, 1e-3)
+    elseif val < 1e-2
+        q, r = divrem(val, 1e-4)
         "$(Int(q)),$(round(Int, r))(m)"
     elseif val < 1e3
         "$(round(val, digits=3))"
