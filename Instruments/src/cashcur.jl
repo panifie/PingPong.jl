@@ -128,7 +128,7 @@ end
 
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
-function atleast!(c::Cash, v=zero(c), args...; atol=ATOL, kwargs...)
+function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, kwargs...)
     let val = value(c)
         if val > v
             c
@@ -153,7 +153,7 @@ addzero!(c::Cash, v, args...; kwargs...) = begin
     c
 end
 @doc "Sub v to cash, approximating to zero if cash is a small value."
-subzero!(c::Cash, v, args...; kwargs...) = addzero!(c, -v; kwargs...)
+subzero!(c::AbstractCash, v, args...; kwargs...) = addzero!(c, -v; kwargs...)
 mul!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] *= v; c)
 rdiv!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] /= v; c)
 div!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] ÷= v; c)

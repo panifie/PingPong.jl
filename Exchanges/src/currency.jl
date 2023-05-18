@@ -1,7 +1,7 @@
 using Misc: MM, toprecision, DFT
 using Python: pybuiltins, pyisinstance
-using Instruments: AbstractCash
-import Instruments: value
+using Instruments: AbstractCash, atleast!
+import Instruments: value, addzero!
 Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
 import Misc: gtxzero, ltxzero, approxzero
@@ -73,7 +73,7 @@ Base.getproperty(c::CurrencyCash, s::Symbol) =
         getfield(c, s)
     end
 Base.setproperty!(::CurrencyCash, ::Symbol, v) = error("CurrencyCash is private.")
-Base.zero(c::Union{CurrencyCash,Type{CurrencyCash}}) = zero(c)
+Base.zero(c::Union{CurrencyCash,Type{CurrencyCash}}) = zero(c.cash)
 function Base.iszero(c::CurrencyCash{Cash{S,T}}) where {S,T}
     isapprox(value(c), zero(T); atol=_prec(c))
 end
@@ -92,8 +92,8 @@ Base.isless(a::CurrencyCash, b::CurrencyCash) = isless(_cash(a), _cash(b))
 Base.isless(a::CurrencyCash, b::Number) = isless(promote(a, b)...)
 Base.isless(b::Number, a::CurrencyCash) = isless(promote(b, a)...)
 
-Base.abs(c::CurrencyCash) = abs(_cash(c))
-Base.real(c::CurrencyCash) = real(_cash(c))
+Base.abs(c::CurrencyCash) = _toprec(c, abs(_cash(c)))
+Base.real(c::CurrencyCash) = _toprec(c, real(_cash(c)))
 
 _cash(cc::CurrencyCash) = getfield(cc, :cash)
 _prec(cc::CurrencyCash) = getfield(cc, :precision)
@@ -125,8 +125,11 @@ rdiv!(c::CurrencyCash, v) = _applyop!(/, c, v)
 div!(c::CurrencyCash, v) = div!(_cash(c), v)
 mod!(c::CurrencyCash, v) = mod!(_cash(c), v)
 cash!(c::CurrencyCash, v) = cash!(_cash(c), _toprec(c, v))
-addzero!(c::CurrencyCash, v) = addzero!(_cash(c), v; atol=_prec(c))
-subzero!(c::CurrencyCash, v) = subzero!(_cash(c), v; atol=_prec(c))
+addzero!(c::CurrencyCash, v, args...; kwargs...) = begin
+    add!(c, v)
+    atleast!(c; atol=_prec(c))
+    c
+end
 
 gtxzero(c::CurrencyCash) = gtxzero(value(c); atol=getfield(c, :precision))
 ltxzero(c::CurrencyCash) = ltxzero(value(c); atol=getfield(c, :precision))

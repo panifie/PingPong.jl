@@ -52,17 +52,17 @@ function _check_committments(s::Strategy)
     for (_, ords) in s.buyorders
         for (_, o) in ords
             o isa ShortBuyOrder && continue
-            cash_comm += committed(o)
+            cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
         end
     end
     for (_, ords) in s.sellorders
         for (_, o) in ords
             if o isa ShortSellOrder
-                cash_comm += committed(o)
+                cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
             end
         end
     end
-    @assert isapprox(cash_comm, s.cash_committed, atol=1e-6) (
+    @assert isapprox(cash_comm, s.cash_committed) (;
         cash_comm, s.cash_committed.value
     )
 end

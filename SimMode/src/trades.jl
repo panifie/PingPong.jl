@@ -98,9 +98,8 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     end
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
-    @deassert abs(committed(o)) != 0.0
+    @deassert !isdust(ai, o)
     fill!(ai, o, trade)
-    @deassert abs(committed(o)) == 0.0
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
     # update cash

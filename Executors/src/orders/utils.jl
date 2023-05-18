@@ -174,31 +174,29 @@ hasorders(s::Strategy, ::Type{Sell}) = begin
     return false
 end
 
-function _check_trade(t::BuyTrade)
+function _check_trade(t::BuyTrade, ai)
     @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
-    @deassert committed(t.order) |> gtxzero || ordertype(t) <: MarketOrderType committed(
-        t.order
-    ),
-    t.order.attrs.trades
+    @deassert gtxzero(ai, committed(t.order), Val(:price)) ||
+        ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
 end
 
-function _check_trade(t::SellTrade)
-    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType
+function _check_trade(t::SellTrade, ai)
+    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType (t.price, t.order.price)
     @deassert t.size > 0.0
     @deassert t.amount < 0.0
     @deassert committed(t.order) >= -1e-12
 end
 
-function _check_trade(t::ShortSellTrade)
+function _check_trade(t::ShortSellTrade, ai)
     @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount < 0.0
     @deassert abs(committed(t.order)) <= t.fees || t.order isa ShortSellOrder
 end
 
-function _check_trade(t::ShortBuyTrade)
+function _check_trade(t::ShortBuyTrade, ai)
     @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType (
         t.price, t.order.price
     )

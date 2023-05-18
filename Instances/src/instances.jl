@@ -13,8 +13,8 @@ using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash, value
 using Misc: config, MarginMode, NoMargin, MM, DFT, toprecision
-using Misc:
-    Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin, gtxzero, ltxzero
+using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
+import Misc: approxzero, gtxzero, ltxzero
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
@@ -145,21 +145,25 @@ isshort(ai::MarginInstance) =
 
 @doc "True if the position value of the asset is below minimum quantity."
 function isdust(ai::MarginInstance, price, p::PositionSide)
-    abs(toprecision(cash(ai, p).value, ai.precision.amount) * price) < ai.limits.cost.min
+    abs(cash(ai, p).value * price) < ai.limits.cost.min
 end
 @doc "True if the asset value is below minimum quantity."
 function isdust(ai::AssetInstance, price)
     isdust(ai, price, Long()) && isdust(ai, price, Short())
 end
+@doc "True if the order committed value is below minimum quantity."
+function isdust(ai::AssetInstance, o::Order)
+    abs(committed(o)) * o.price < ai.limits.cost.min
+end
 @doc "Returns the asset cash rounded to precision."
 function nondust(ai::MarginInstance, price, p=posside(ai))
     c = cash(ai, p)
-    amt = toprecision(c.value, ai.precision.amount)
-    abs(amt * price) < ai.limits.cost.min ? zero(c) : amt
+    amt = c.value
+    abs(amt * price) < ai.limits.cost.min ? zero(amt) : amt
 end
 @doc "Test if some amount (base currency) is zero w.r.t. an asset instance min limit."
-function Base.iszero(ai::AssetInstance, v)
-    isapprox(v, 0.0; atol=ai.limits.amount.min - eps(DFT))
+function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min - eps(DFT))
+    isapprox(v, 0.0; atol)
 end
 @doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance, p::PositionSide)
@@ -169,6 +173,13 @@ end
 function Base.iszero(ai::AssetInstance)
     iszero(ai, Long()) && iszero(ai, Short())
 end
+approxzero(ai::AssetInstance, args...; kwargs...) = iszero(ai, args...; kwargs...)
+gtxzero(ai::AssetInstance, v, ::Val{:amount}) = gtxzero(v; atol=ai.limits.amount.min)
+ltxzero(ai::AssetInstance, v, ::Val{:amount}) = ltxzero(v; atol=ai.limits.amount.min)
+gtxzero(ai::AssetInstance, v, ::Val{:price}) = gtxzero(v; atol=ai.limits.price.min)
+ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.min)
+gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min)
+ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min)
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
 function instance(exc::Exchange, a::AbstractAsset, m::MarginMode=NoMargin(); zi=zi)

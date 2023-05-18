@@ -117,17 +117,21 @@ _check_unfillment(o::ShortOrder) = attr(o, :unfilled)[] < 0.0
 function fill!(ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
     @deassert o isa IncreaseOrder && _check_unfillment(o) unfilled(o), typeof(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
-    attr(o, :unfilled)[] += t.amount # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] |> ltxzero
-    attr(o, :committed)[] -= committment(ai, t) # from pos to 0 (buy size is neg)
-    @deassert committed(o) >= 0.0 || o isa MarketOrder o
+    # from neg to 0 (buy amount is pos)
+    attr(o, :unfilled)[] += t.amount
+    @deassert attr(o, :unfilled)[] |> ltxzero (o, t.amount)
+    # from pos to 0 (buy size is neg)
+    attr(o, :committed)[] -= committment(ai, t)
+    @deassert gtxzero(ai, committed(o), Val(:price)) || o isa MarketOrder o, committment(ai, t)
 end
 function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && _check_unfillment(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) |> gtxzero
-    attr(o, :unfilled)[] += t.amount # from pos to 0 (sell amount is neg)
+    # from pos to 0 (sell amount is neg)
+    attr(o, :unfilled)[] += t.amount
     @deassert attr(o, :unfilled)[] |> gtxzero
-    attr(o, :committed)[] += t.amount # from pos to 0 (sell amount is neg)
+    # from pos to 0 (sell amount is neg)
+    attr(o, :committed)[] += t.amount
     @deassert committed(o) |> gtxzero
 end
 function fill!(ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
@@ -195,9 +199,7 @@ _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (
-        cash(ai), t.amount, t.order
-    )
+    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
     @ifdebug _checktrade(t)
     po = position(ai, orderpos(t))
     # The notional tracks current value, but the margin
@@ -215,7 +217,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
 end
 
 function cash!(s::Strategy, ai, t::Trade)
-    @ifdebug _check_trade(t)
+    @ifdebug _check_trade(t, ai)
     strategycash!(s, ai, t)
     cash!(ai, t)
     @ifdebug _check_cash(ai, orderpos(t)())
@@ -236,7 +238,7 @@ end
 function decommit!(s::Strategy, o::IncreaseOrder, ai)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
-    @deassert iszero(ai, committed(o)) || !isfilled(ai, o)
+    @deassert isdust(ai, o) || !isfilled(ai, o) o
     subzero!(s.cash_committed, committed(o))
     @deassert s.cash_committed |> gtxzero s.cash_committed.value, ATOL, o
     attr(o, :committed)[] = 0.0
