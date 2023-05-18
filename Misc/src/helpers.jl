@@ -121,21 +121,19 @@ function isstrictlysorted(itr...)
     return true
 end
 
-roundfloat(val, prec, rmode=RoundToZero) = begin
+roundfloat(val, prec) = begin
     inv_prec = 1 / prec
-    round(val * inv_prec, rmode) / inv_prec
+    round(val * inv_prec) / inv_prec
 end
 
-toprecision(n::Integer, prec::Integer, rmode=RoundToZero) = roundfloat(n, prec, rmode)
+toprecision(n::Integer, prec::Integer) = roundfloat(n, prec)
 @doc "When precision is a float it represents the pip."
-function toprecision(
-    n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat, rmode=RoundToZero
-)
-    roundfloat(n, prec, rmode)
+function toprecision(n::T where {T<:Union{Integer,AbstractFloat}}, prec::AbstractFloat)
+    roundfloat(n, prec)
 end
 @doc "When precision is a Integer it represents the number of decimals."
-function toprecision(n::AbstractFloat, prec::Integer, rmode=RoundToZero)
-    round(n, rmode; digits=prec)
+function toprecision(n::AbstractFloat, prec::Integer)
+    round(n; digits=prec)
 end
 
 approxzero(v::T; atol=ATOL) where {T} = isapprox(v, zero(T); atol)

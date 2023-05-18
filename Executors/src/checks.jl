@@ -4,6 +4,7 @@ using Misc: isstrictlysorted, toprecision, ltxzero
 using Instances
 using Strategies: NoMarginStrategy, IsolatedStrategy, Strategy
 using OrderTypes
+using ..Executors: orderscount
 using Base: negate
 
 struct SanitizeOn end

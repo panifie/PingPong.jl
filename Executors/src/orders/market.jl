@@ -20,4 +20,4 @@ const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:Exch
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
 @doc "Always decommit market orders after a tradeattemp"
-aftertrade!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai)
+aftertrade!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai, true)

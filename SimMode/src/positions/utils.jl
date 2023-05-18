@@ -106,7 +106,7 @@ function liquidate!(
         t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
         @deassert o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
     end
-    @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), p, isnothing(o))
+    @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), cash(ai, p) * price, p, isnothing(o))
     close_position!(s, ai, p)
 end
 
