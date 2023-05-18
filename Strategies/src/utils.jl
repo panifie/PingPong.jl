@@ -38,14 +38,12 @@ for sym in (openat, highat, lowat, closeat, volumeat)
 end
 
 function current_total(s::NoMarginStrategy)
-    worth = Cash(s.cash, 0.0)
+    worth = CurrencyCash(s.cash, 0.0)
     for ai in s.holdings
         price = closeat(ai, lasttrade_date(ai))
         add!(worth, ai.cash * price)
-        add!(worth, ai.cash_committed * price)
     end
     add!(worth, s.cash)
-    add!(worth, s.cash_committed)
     worth
 end
 

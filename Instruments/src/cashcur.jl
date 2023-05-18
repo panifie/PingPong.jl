@@ -141,7 +141,7 @@ function atleast!(c::Cash, v=zero(c), args...; atol=ATOL, kwargs...)
                 # throw(st[5])
                 # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
             end
-            throw("$(c.cash.value) <  $v")
+            throw("$(c.value) <  $v")
         end
     end
 end
