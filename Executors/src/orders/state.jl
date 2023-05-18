@@ -122,7 +122,8 @@ function fill!(ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
     @deassert attr(o, :unfilled)[] |> ltxzero (o, t.amount)
     # from pos to 0 (buy size is neg)
     attr(o, :committed)[] -= committment(ai, t)
-    @deassert gtxzero(ai, committed(o), Val(:price)) || o isa MarketOrder o, committment(ai, t)
+    @deassert gtxzero(ai, committed(o), Val(:price)) || o isa MarketOrder o,
+    committment(ai, t)
 end
 function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && _check_unfillment(o)
@@ -160,15 +161,20 @@ function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
     @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
 end
 
-isfilled(ai::AssetInstance, o::Order) = iszero(ai, unfilled(o))
 Base.isopen(ai::AssetInstance, o::Order) = !isfilled(ai, o)
+@doc "Test if the order amount left to fill is below minimum qty."
+Base.iszero(ai::AssetInstance, o::Order) = iszero(ai, unfilled(o))
+@doc "True if the order committed value is below minimum quantity."
+function Instances.isdust(ai::AssetInstance, o::Order)
+    abs(unfilled(o)) * o.price < ai.limits.cost.min
+end
+isfilled(ai::AssetInstance, o::Order) = isdust(ai, o)
 
-using Instruments: addzero!
 function strategycash!(s::NoMarginStrategy{Sim}, ai, t::BuyTrade)
     @deassert t.size < 0.0
     add!(s.cash, t.size)
-    subzero!(s.cash_committed, committment(ai, t))
-    @deassert s.cash_committed |> gtxzero
+    sub!(s.cash_committed, committment(ai, t))
+    @deassert gtxzero(ai, s.cash_committed, Val(:price))
 end
 strategycash!(s::NoMarginStrategy{Sim}, _, t::SellTrade) = begin
     @deassert t.size > 0.0
@@ -235,21 +241,23 @@ function commit!(::Strategy, o::ReduceOrder, ai)
     add!(committed(ai, orderpos(o)()), committed(o))
 end
 
-function decommit!(s::Strategy, o::IncreaseOrder, ai)
+function decommit!(s::Strategy, o::IncreaseOrder, ai, cancelled=false)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
-    @deassert isdust(ai, o) || !isfilled(ai, o) o
-    subzero!(s.cash_committed, committed(o))
-    @deassert s.cash_committed |> gtxzero s.cash_committed.value, ATOL, o
+    @deassert cancelled || isdust(ai, o) o
+    sub!(s.cash_committed, committed(o))
+    @deassert gtxzero(ai, s.cash_committed, Val(:price)) s.cash_committed.value,
+    s.cash.precision,
+    o
     attr(o, :committed)[] = 0.0
 end
-function decommit!(s::Strategy, o::SellOrder, ai)
+function decommit!(s::Strategy, o::SellOrder, ai, args...)
     # NOTE: ignore negative values caused by slippage
     sub!(committed(ai, Long()), max(0.0, committed(o)))
     @deassert committed(ai, Long()) |> gtxzero
     attr(o, :committed)[] = 0.0
 end
-function decommit!(s::Strategy, o::ShortBuyOrder, ai)
+function decommit!(s::Strategy, o::ShortBuyOrder, ai, args...)
     @deassert committed(o) |> ltxzero
     sub!(committed(ai, Short()), committed(o))
     attr(o, :committed)[] = 0.0
@@ -278,7 +286,7 @@ end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
     if isqueued(o, s, ai)
-        decommit!(s, o, ai)
+        decommit!(s, o, ai, true)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
     end

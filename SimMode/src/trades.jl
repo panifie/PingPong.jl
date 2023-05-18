@@ -98,7 +98,7 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     end
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
-    @deassert !isdust(ai, o)
+    @deassert !isdust(ai, o) committed(o), o
     fill!(ai, o, trade)
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
@@ -107,7 +107,7 @@ function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfee
     # unqueue or decommit order if filled
     aftertrade!(s, ai, o)
     @ifdebug _aftertrade(s, ai, o)
-    @ifdebug _check_committments(s)
+    @ifdebug _check_committments(s, ai)
     @ifdebug _check_committments(s, ai, trade)
     return trade
 end

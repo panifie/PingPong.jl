@@ -34,7 +34,7 @@ end
 function order!(
     s::NoMarginStrategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
 )
-    @deassert abs(committed(o)) > 0.0
+    @deassert abs(committed(o)) > 0.0 o
     limitorder_ifprice!(s, o, date, ai)
 end
 

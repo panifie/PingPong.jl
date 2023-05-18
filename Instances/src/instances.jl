@@ -151,10 +151,6 @@ end
 function isdust(ai::AssetInstance, price)
     isdust(ai, price, Long()) && isdust(ai, price, Short())
 end
-@doc "True if the order committed value is below minimum quantity."
-function isdust(ai::AssetInstance, o::Order)
-    abs(committed(o)) * o.price < ai.limits.cost.min
-end
 @doc "Returns the asset cash rounded to precision."
 function nondust(ai::MarginInstance, price, p=posside(ai))
     c = cash(ai, p)

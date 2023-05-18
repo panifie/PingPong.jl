@@ -47,22 +47,24 @@ function _aftertrade(s, ai, o)
     get(s.attrs, :debug_maxtrades, Inf) == CTR[] && error()
 end
 
-function _check_committments(s::Strategy)
+function _check_committments(s::Strategy, ai)
     cash_comm = 0.0
     for (_, ords) in s.buyorders
         for (_, o) in ords
             o isa ShortBuyOrder && continue
-            cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
+            # cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
+            cash_comm = cash_comm + committed(o)
         end
     end
     for (_, ords) in s.sellorders
         for (_, o) in ords
             if o isa ShortSellOrder
-                cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
+                # cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
+                cash_comm = cash_comm + committed(o)
             end
         end
     end
-    @assert isapprox(cash_comm, s.cash_committed) (;
+    @assert isapprox(cash_comm, s.cash_committed, atol=ai.precision.price) (;
         cash_comm, s.cash_committed.value
     )
 end
@@ -77,10 +79,10 @@ function _check_committments(s, ai::AssetInstance, t::Trade)
     for (_, o) in orders(s, ai, orderpos(t)())
         @assert o.asset == ai.asset
         if o isa SellOrder
-            @assert orderpos(o) == Long() o
+            @assert orderpos(o) == Long o
             orders_long += committed(o)
         elseif o isa ShortBuyOrder
-            @assert orderpos(o) == Short() o
+            @assert orderpos(o) == Short o
             orders_short += committed(o)
         end
     end
