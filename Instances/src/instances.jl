@@ -24,7 +24,7 @@ abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
 const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
-const CCash{E,S} = CurrencyCash{Cash{S,DFT},E}
+const CCash{E} = CurrencyCash{Cash{S,DFT},E} where {S}
 
 include("positions.jl")
 
@@ -47,9 +47,9 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     cash::Option{CCash{E}{S1}} where {S1}
     cash_committed::Option{CCash{E}{S2}} where {S2}
     exchange::Exchange{E}
-    longpos::Option{Position{Long,E,<:WithMargin}}
-    shortpos::Option{Position{Short,E,<:WithMargin}}
-    lastpos::Vector{Option{Position{<:PositionSide,E,<:WithMargin}}}
+    longpos::Option{Position{Long,E,M}}
+    shortpos::Option{Position{Short,E,M}}
+    lastpos::Vector{Option{Position{P,E,M}} where P<:PositionSide}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
