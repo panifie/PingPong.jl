@@ -24,7 +24,7 @@ opposite(::PositionClose) = PositionOpen()
 - `cash`: it is the `notional` value of the position
 For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?id=position-structure)
 "
-@kwdef struct Position{S<:PositionSide,E<:ExchangeID,M<:WithMargin}
+@kwdef struct Position{P<:PositionSide,E<:ExchangeID,M<:MarginMode}
     status::Vector{PositionStatus} = [PositionClose()]
     asset::Derivative
     timestamp::Vector{DateTime} = [DateTime(0)]
@@ -41,6 +41,13 @@ For the rest of the fields refer to  [ccxt docs](https://docs.ccxt.com/#/README?
     hedged::Bool = false
     tiers::Vector{LeverageTiersDict}
     this_tier::Vector{LeverageTier}
+end
+
+function Position{P,E,M}(
+    args...; kwargs...
+) where {P<:PositionSide,E<:ExchangeID,M<:MarginMode}
+    M == NoMargin && error("Trying to construct a position in `NoMargin` mode")
+    Position{P,E,M}(args...; kwargs...)
 end
 
 @doc """Resets position to initial state.

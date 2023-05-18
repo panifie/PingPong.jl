@@ -49,7 +49,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     exchange::Exchange{E}
     longpos::Option{Position{Long,E,M}}
     shortpos::Option{Position{Short,E,M}}
-    lastpos::Vector{Option{Position{P,E,M}} where P<:PositionSide}
+    lastpos::Vector{Option{Position{P,E,M} where {P<:PositionSide}}}
     limits::Limits{DFT}
     precision::Precision{DFT}
     fees::Fees{DFT}
@@ -64,6 +64,8 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
         else
             (nothing, nothing)
         end
+        lastpos = Vector{Option{Position{<:PositionSide,E,M}}}()
+        push!(lastpos, nothing)
         new{A,E,M}(
             a,
             data,
@@ -72,9 +74,9 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
             cash,
             comm,
             e,
-            longpos::Option{Position{Long,E,<:WithMargin}},
-            shortpos::Option{Position{Short,E,<:WithMargin}},
-            [nothing],
+            longpos, #::Option{Position{Long,E,<:WithMargin}},
+            shortpos, #::Option{Position{Short,E,<:WithMargin}},
+            lastpos,
             limits,
             precision,
             fees,
