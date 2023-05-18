@@ -121,11 +121,6 @@ function isstrictlysorted(itr...)
     return true
 end
 
-function roundfloat(val, prec, ::RoundingMode{:ToZero})
-    inv_prec = 1 / prec
-    round(val * inv_prec + prec, RoundToZero) / inv_prec
-end
-
 roundfloat(val, prec, rmode=RoundToZero) = begin
     inv_prec = 1 / prec
     round(val * inv_prec, rmode) / inv_prec
