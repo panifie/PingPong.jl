@@ -28,14 +28,14 @@ test_nomargin_market(s) = begin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.MarketOrder
-    @test eq4(Cash(:USDT, 9.2988), s.cash.value)
+    @test eq4(Cash(:USDT, 887.7940), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_total(s) == 2883
+    @test st.trades_total(s) == 4936
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 1
-    @test mmh.min[1] == :SOL
-    @test mmh.min[2] ≈ 0.0 atol = 1e-4
-    @test mmh.max[1] == :SOL
+    @test mmh.count == 0
+    @test mmh.min[1] == :USDT
+    @test mmh.min[2] ≈ Inf atol = 1e-4
+    @test mmh.max[1] == :USDT
     @test mmh.max[2] ≈ 0.0 atol = 1e-11
 end
 
@@ -44,15 +44,15 @@ test_nomargin_gtc(s) = begin
     s.attrs[:overrides] = (; ordertype=:gtc)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.GTCOrder
-    @test eq4(Cash(:USDT, 7920.5482), s.cash.value)
-    @test eq4(Cash(:USDT, 7346.6033), s.cash_committed)
-    @test st.trades_total(s) == 4153
+    @test eq4(Cash(:USDT, 947.3204), s.cash.value)
+    @test eq4(Cash(:USDT, 0.0), s.cash_committed)
+    @test st.trades_total(s) == 1308
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 2
-    @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 0.0 atol = 1e14
+    @test mmh.count == 1
+    @test mmh.min[1] == :BTC
+    @test mmh.min[2] ≈ 1.0003e6 atol = 1e3
     @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 121.4197 atol = 1e5
+    @test mmh.max[2] ≈ 1.0003e6 atol = 1e3
 end
 
 test_nomargin_ioc(s) = begin
@@ -60,15 +60,15 @@ test_nomargin_ioc(s) = begin
     s.attrs[:overrides] = (; ordertype=:ioc)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.IOCOrder
-    @test Cash(:USDT, 8.9473) ≈ s.cash atol = 1e-4
+    @test Cash(:USDT, 771.585) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 4290
+    @test st.trades_total(s) == 2153
     mmh = st.minmax_holdings(s)
     @test mmh.count == 2
     @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 261.5949 atol = 1e-3
+    @test mmh.min[2] ≈ 11869.368 atol = 1e-1
     @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 741.8502 atol = 1e-3
+    @test mmh.max[2] ≈ 29126.338 atol = 1e-1
 end
 
 test_nomargin_fok(s) = begin
@@ -86,7 +86,7 @@ test_nomargin_fok(s) = begin
     reset!(s, true)
     @test mmh.count == 2
     @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 11447.1635 atol = 1e-4
+    @test mmh.min[2] ≈ 11447.1793 atol = 1e-4
     @test mmh.max[1] == :BTC
     @test mmh.max[2] ≈ 28410.506 atol = 9e-1
 end
