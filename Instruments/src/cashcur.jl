@@ -36,7 +36,7 @@ Base.getproperty(c::Cash, s::Symbol) = begin
     end
 end
 Base.zero(::Union{C,Type{C}}) where {C<:Cash{S where S,T}} where {T} = zero(T)
-Base.iszero(c::Cash{S where S,T}) where {T} = isapprox(value(c), zero(T); atol=ATOL)
+Base.iszero(c::Cash{<:Any,T}) where {T} = isapprox(value(c), zero(T); atol=ATOL)
 
 @doc """Macro to instantiate `Cash` statically.
 

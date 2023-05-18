@@ -73,16 +73,18 @@ Base.getproperty(c::CurrencyCash, s::Symbol) =
         getfield(c, s)
     end
 Base.setproperty!(::CurrencyCash, ::Symbol, v) = error("CurrencyCash is private.")
-Base.zero(c::Union{CurrencyCash,Type{CurrencyCash}}) = zero(_cash(c))
-Base.iszero(c::CurrencyCash) = isapprox(value(c), zero(c); atol=_prec(c))
+Base.zero(c::Union{CurrencyCash,Type{CurrencyCash}}) = zero(c)
+function Base.iszero(c::CurrencyCash{Cash{S,T}}) where {S,T}
+    isapprox(value(c), zero(T); atol=_prec(c))
+end
 
 function Base.show(io::IO, c::CurrencyCash{<:Cash,E}) where {E<:ExchangeID}
     write(io, "$(c.cash) (on $(E.parameters[1]))")
 end
-Base.hash(c::CurrencyCash, args...) = hash(_cash(c)args...)
+Base.hash(c::CurrencyCash, args...) = hash(_cash(c), args...)
 Base.nameof(c::CurrencyCash) = nameof(_cash(c))
 
-Base.promote(c::CurrencyCash, n) = promote(_cash(c)n)
+Base.promote(c::CurrencyCash, n) = promote(_cash(c), n)
 Base.promote(n, c::CurrencyCash) = promote(n, _cash(c))
 
 Base.convert(::Type{T}, c::CurrencyCash) where {T<:Real} = convert(T, _cash(c))
