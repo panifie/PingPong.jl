@@ -52,7 +52,7 @@ _cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
 
 @doc "Unconditionally deques immediate orders."
 function aftertrade!(s::Strategy, ai, o::Union{AnyFOKOrder,AnyIOCOrder})
-    decommit!(s, o, ai)
+    decommit!(s, o, ai, true)
     delete!(s, ai, o)
     isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
 end

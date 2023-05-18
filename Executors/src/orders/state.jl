@@ -254,7 +254,7 @@ end
 function decommit!(s::Strategy, o::SellOrder, ai, args...)
     # NOTE: ignore negative values caused by slippage
     sub!(committed(ai, Long()), max(0.0, committed(o)))
-    @deassert committed(ai, Long()) |> gtxzero
+    @deassert gtxzero(ai, committed(ai, Long()), Val(:amount))
     attr(o, :committed)[] = 0.0
 end
 function decommit!(s::Strategy, o::ShortBuyOrder, ai, args...)

@@ -206,8 +206,8 @@ function _check_trade(t::ShortBuyTrade, ai)
 end
 
 function _check_cash(ai::AssetInstance, ::Long)
-    @deassert committed(ai, Long()) |> gtxzero ||
-        ordertype(last(ai.history)) <: MarketOrderType
+    @deassert gtxzero(ai, committed(ai, Long()), Val(:amount)) ||
+        ordertype(last(ai.history)) <: MarketOrderType committed(ai, Long()).value
     @deassert cash(ai, Long()) |> gtxzero
 end
 
