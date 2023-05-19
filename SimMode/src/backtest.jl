@@ -1,5 +1,5 @@
 using Executors: orderscount
-using Executors.Checks: isbroke
+using Executors: isoutof_orders
 
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
 
@@ -41,7 +41,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     end
     update_mode = s.attrs[:sim_update_mode]
     for date in ctx.range
-        isbroke(s) && begin
+        isoutof_orders(s) && begin
             @deassert all(iszero(ai) for ai in s.universe)
             break
         end

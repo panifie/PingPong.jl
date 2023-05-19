@@ -1,8 +1,8 @@
 using Lang: @deassert, @lget!, Option, @ifdebug
 using OrderTypes: ExchangeID
-import OrderTypes: commit!, orderpos, LiquidationType
+import OrderTypes: commit!, positionside, LiquidationType
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
-using Instances: notional, pnl
+using Instances: notional, pnl, Instances
 import Instances: committed
 using Misc: Short, DFT, toprecision
 using Instruments
@@ -37,7 +37,7 @@ function basicorder(
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
     @deassert if type <: IncreaseOrder
-        committed[] * leverage(ai, orderpos(type)) >= ai.limits.cost.min
+        committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
     else
         abs(committed[]) >= ai.limits.amount.min
     end "Order committment too low\n$(committed[]), $(ai.asset) $date"
@@ -196,7 +196,7 @@ end
 function _showliq(s, unrealized_pnl, gained, po, t)
     get(s.attrs, :verbose, false) || return nothing
     if ordertype(t) <: LiquidationType
-        @show orderpos(t) s.cash margin(po) t.fees t.leverage t.size price(po) t.order.price t.price liqprice(
+        @show positionside(t) s.cash margin(po) t.fees t.leverage t.size price(po) t.order.price t.price liqprice(
             po
         ) unrealized_pnl gained ""
     end
@@ -205,9 +205,9 @@ _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, orderpos(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
+    @deassert abs(cash(ai, positionside(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
     @ifdebug _checktrade(t)
-    po = position(ai, orderpos(t))
+    po = position(ai, positionside(t))
     # The notional tracks current value, but the margin
     # refers to the notional from the (avg) entry price
     # of the position
@@ -226,7 +226,7 @@ function cash!(s::Strategy, ai, t::Trade)
     @ifdebug _check_trade(t, ai)
     strategycash!(s, ai, t)
     cash!(ai, t)
-    @ifdebug _check_cash(ai, orderpos(t)())
+    @ifdebug _check_cash(ai, positionside(t)())
 end
 
 attr(o::Order, sym) = getfield(getfield(o, :attrs), sym)
@@ -237,8 +237,8 @@ commit!(s::Strategy, o::IncreaseOrder, _) = begin
     add!(s.cash_committed, committed(o))
 end
 function commit!(::Strategy, o::ReduceOrder, ai)
-    @deassert committed(o) |> ltxzero || orderpos(o) == Long
-    add!(committed(ai, orderpos(o)()), committed(o))
+    @deassert committed(o) |> ltxzero || positionside(o) == Long
+    add!(committed(ai, positionside(o)()), committed(o))
 end
 
 function decommit!(s::Strategy, o::IncreaseOrder, ai, cancelled=false)
@@ -276,12 +276,12 @@ function iscommittable(::Strategy, o::ShortBuyOrder, ai)
 end
 
 function hold!(s::Strategy, ai, o::IncreaseOrder)
-    @deassert hasorders(s, ai, orderpos(o)) || !iszero(ai) o
+    @deassert hasorders(s, ai, positionside(o)) || !iszero(ai) o
     push!(s.holdings, ai)
 end
 hold!(::Strategy, _, ::ReduceOrder) = nothing
 function release!(s::Strategy, ai, o::Order)
-    iszero(ai) && !hasorders(s, ai, orderpos(o)) && delete!(s.holdings, ai)
+    iszero(ai) && !hasorders(s, ai, positionside(o)) && delete!(s.holdings, ai)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)

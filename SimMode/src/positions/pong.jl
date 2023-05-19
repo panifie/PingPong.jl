@@ -1,4 +1,4 @@
-using Executors.Instances: leverage!, orderpos, leverage
+using Executors.Instances: leverage!, positionside, leverage
 using Executors: hasorders
 import Executors: pong!
 
@@ -18,7 +18,7 @@ function pong!(
     amount,
     kwargs...,
 )
-    isopen(ai, opposite(orderpos(t))) && return nothing
+    isopen(ai, opposite(positionside(t))) && return nothing
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     return if !isnothing(o)
         t = order!(s, o, o.date, ai)
@@ -26,9 +26,6 @@ function pong!(
         t
     end
 end
-
-# @doc "Progresses a simulated limit order."
-# function pong!(s::Strategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...)
 
 @doc """"Creates a simulated market order, updating a levarged position.
 $_PROTECTIONS_WARNING
@@ -41,7 +38,7 @@ function pong!(
     date,
     kwargs...,
 )
-    isopen(ai, opposite(orderpos(t))) && return nothing
+    isopen(ai, opposite(positionside(t))) && return nothing
     o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
     t = marketorder!(s, o, ai, amount; date)

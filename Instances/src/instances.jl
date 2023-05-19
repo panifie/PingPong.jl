@@ -4,7 +4,7 @@ using OrderTypes
 using ExchangeTypes: exc
 import ExchangeTypes: exchangeid
 using Exchanges: CurrencyCash
-using OrderTypes: ByPos, AssetEvent, orderpos
+using OrderTypes: ByPos, AssetEvent, positionside
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
 using Data.DFUtils: daterange, timeframe
 import Data: stub!
@@ -291,11 +291,11 @@ function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
     add!(committed(ai), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
-    add!(cash(ai, orderpos(t)()), t.amount)
+    add!(cash(ai, positionside(t)()), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
-    add!(cash(ai, orderpos(t)()), t.amount)
-    add!(committed(ai, orderpos(t)()), t.amount)
+    add!(cash(ai, positionside(t)()), t.amount)
+    add!(committed(ai, positionside(t)()), t.amount)
 end
 function freecash(ai::NoMarginInstance, args...)
     ca = cash(ai) - committed(ai)
@@ -472,7 +472,7 @@ end
 @doc "The value held by the position, margin with pnl minus fees."
 function value(ai, ::ByPos{P}, price=price(position(ai, P))) where {P}
     pos = position(ai, P)
-    @deassert margin(pos) > 0.0
+    @deassert margin(pos) > 0.0 || !isopen(pos)
     @deassert additional(pos) >= 0.0
     margin(pos) + additional(pos) + pnl(pos, price) - price * abs(cash(pos)) * maxfees(ai)
 end

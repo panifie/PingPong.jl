@@ -14,13 +14,6 @@ test_synth(s) = begin
     @test closeval(s, m"eth") == 123.0
 end
 
-backtest_strat(sym) = begin
-    s = egn.strategy(sym)
-    Random.seed!(1)
-    Stubs.stub!(s; trades=false)
-    s
-end
-
 trades(s) = s.universe[m"eth"].instance.history
 eq4(a, b) = isapprox(a, b; atol=1e-4)
 test_nomargin_market(s) = begin
@@ -94,7 +87,7 @@ end
 function margin_overrides(ot=:market)
     (;
         ordertype=ot,
-        def_lev=10.,
+        def_lev=10.0,
         longdiff=1.02,
         buydiff=1.01,
         selldiff=1.012,

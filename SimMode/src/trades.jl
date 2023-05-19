@@ -58,7 +58,7 @@ function maketrade(
         price=actual_price,
         fees=trade_fees,
         size,
-        lev=leverage(ai, orderpos(o)()),
+        lev=leverage(ai, positionside(o)()),
     )
 end
 
@@ -79,7 +79,7 @@ function maketrade(
         price=actual_price,
         fees=trade_fees,
         size,
-        lev=leverage(ai, orderpos(o)()),
+        lev=leverage(ai, positionside(o)()),
     )
 end
 

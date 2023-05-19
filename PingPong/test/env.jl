@@ -1,7 +1,13 @@
 using PingPong
+using Stubs
 @environment!
-# setexchange!(:bybit)
-# cfg = Config(nameof(exc.id))
+
+backtest_strat(sym) = begin
+    s = egn.strategy(sym)
+    Random.seed!(1)
+    Stubs.stub!(s; trades=false)
+    s
+end
 
 function loadbtc()
     @eval begin

@@ -50,7 +50,7 @@ function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount
     @deassert amount > 0.0
     ntl = cost(price, amount)
     fees = ntl * maxfees(ai)
-    margin = ntl / leverage(ai, orderpos(o)())
+    margin = ntl / leverage(ai, positionside(o)())
     margin + fees
 end
 
@@ -100,6 +100,9 @@ end
 @doc "Iterates over all the orders in a strategy."
 function orders(s::Strategy)
     (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
+end
+function orders(s::Strategy, ai::AssetInstance)
+    (o for side in (Buy, Sell) for o in orders(s, ai, side))
 end
 orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
 orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
@@ -161,17 +164,22 @@ _hasany(arr) = begin
 end
 
 @doc "Check if the asset instance has pending orders."
-hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(s.buyorders[ai])
+hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(orders(s, ai, Buy))
 function hasorders(s::Strategy, ai, ::Type{Sell})
-    !(iszero(something(committed(ai), 0.0)) && _hasany(s.sellorders[ai]) == 0)
+    !(iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell)) == 0)
 end
-hasorders(s::Strategy, ai, args...) = (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+hasorders(s::Strategy, ai::AssetInstance) = (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+hasorders(s::Strategy, ai, ::ByPos) = hasorders(s, ai)
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
     for (_, ords) in s.sellorders
         isempty(ords) || return true
     end
     return false
+end
+
+function isoutof_orders(s::Strategy)
+    ltxzero(s.cash) && isempty(s.holdings) && length(orderscount(s)) == 0
 end
 
 function _check_trade(t::BuyTrade, ai)
@@ -183,7 +191,9 @@ function _check_trade(t::BuyTrade, ai)
 end
 
 function _check_trade(t::SellTrade, ai)
-    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType (t.price, t.order.price)
+    @deassert t.price >= t.order.price || ordertype(t) <: MarketOrderType (
+        t.price, t.order.price
+    )
     @deassert t.size > 0.0
     @deassert t.amount < 0.0
     @deassert committed(t.order) >= -1e-12

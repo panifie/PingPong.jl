@@ -48,7 +48,7 @@ aftertrade!(s::Strategy, ai, o::AnyLimitOrder) = begin
 end
 
 _cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
-_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, orderpos(o)()) + committed(o)
+_cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, positionside(o)()) + committed(o)
 
 @doc "Unconditionally deques immediate orders."
 function aftertrade!(s::Strategy, ai, o::Union{AnyFOKOrder,AnyIOCOrder})
@@ -73,7 +73,7 @@ function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderS
     # This is already done in general by the function that creates the order
     iscommittable(s, o, ai) || return false
     push!(s, ai, o)
-    @deassert hasorders(s, ai, orderpos(o))
+    @deassert hasorders(s, ai, positionside(o))
     commit!(s, o, ai)
     hold!(s, ai, o)
     return true

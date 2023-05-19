@@ -64,7 +64,7 @@ function withtrade!(po::Position{P}, t::PositionTrade{P}) where {P}
         abs(notional(po) / cash(po)) != price(po) ||
         abs(cash(po)) == abs(t.order.amount) - abs(t.amount)
     timestamp!(po, t.date)
-    # @show cash(po) t.amount orderpos(t) orderside(t)
+    # @show cash(po) t.amount positionside(t) orderside(t)
     ntl = _roundpos(cash(po) * t.price)
     # ntl > 1e3 && error()
     @deassert ntl > 0.0 || cash(po) <= 0.0

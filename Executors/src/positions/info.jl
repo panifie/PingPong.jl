@@ -8,7 +8,7 @@ function liquidations(ai::MarginInstance)
     long_loss = 0.0
     for t in ai.history
         if t isa LiquidationTrade
-            if orderpos(t) == Long
+            if positionside(t) == Long
                 @deassert t.value - t.fees == t.size
                 long_loss += abs(t.value / t.leverage)
                 push!(long_liq, t)

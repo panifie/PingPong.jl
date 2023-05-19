@@ -1,4 +1,5 @@
 using Instances: ispos
+using OrderTypes: ByPos
 
 function orders(s::Strategy, ai, pos::PositionSide, os::Type{<:OrderSide})
     ((k, v) for (k, v) in orders(s, ai, os) if ispos(pos, v))
@@ -8,16 +9,16 @@ function orders(s::Strategy, ai, pos::PositionSide)
 end
 shortorders(s::Strategy, ai, os::Type{<:OrderSide}) = orders(s, ai, Short(), os)
 longorders(s::Strategy, ai, os::Type{<:OrderSide}) = orders(s, ai, Long(), os)
-function shortorder(s::Strategy, ai)
-    (orders(s, ai, Short(), Sell)..., order(s, ai, Short(), Buy)...)
+function shortorders(s::Strategy, ai)
+    (orders(s, ai, Short(), Sell)..., orders(s, ai, Short(), Buy)...)
 end
 function longorders(s::Strategy, ai)
-    (orders(s, ai, Long(), Buy)..., order(s, ai, Long(), Sell)...)
+    (orders(s, ai, Long(), Buy)..., orders(s, ai, Long(), Sell)...)
 end
 
 function _hasorders(s::MarginStrategy, ai, ps::PositionSide, os::Type{<:OrderSide})
     for o in values(orders(s, ai, os))
-        if orderpos(o)() == ps
+        if positionside(o)() == ps
             return true
         end
     end
@@ -26,6 +27,9 @@ end
 function hasorders(s::MarginStrategy, ai, ps::PositionSide)
     _hasorders(s, ai, ps, Buy) || _hasorders(s, ai, ps, Sell)
 end
+function hasorders(s::MarginStrategy, ai, ::Long, t::Type{<:OrderSide})
+    hasorders(s, ai, t)
+end
 function hasorders(s::MarginStrategy, ai, ::Long, ::Type{Sell})
     !iszero(committed(ai, Long())) || _hasorders(s, ai, Long(), Sell)
 end
@@ -33,11 +37,19 @@ function hasorders(s::MarginStrategy, ai, ::Short, ::Type{Buy})
     !iszero(committed(ai, Short())) || _hasorders(s, ai, Short(), Buy)
 end
 
-function hasorders(s::MarginStrategy, ai, ::Type{Long})
+function hasorders(s::MarginStrategy, ai, ::ByPos{Long})
     hasorders(s, ai, Long(), Buy) || hasorders(s, ai, Long(), Sell)
 end
-function hasorders(s::MarginStrategy, ai, ::Type{Short})
+function hasorders(s::MarginStrategy, ai, ::ByPos{Short})
     !iszero(committed(ai, Short())) ||
         _hasorders(s, ai, Short(), Buy) ||
         _hasorders(s, ai, Short(), Sell)
+end
+
+function hasorders(s::MarginStrategy, ::ByPos{P}) where {P<:PositionSide}
+    for ai in s.holdings
+        _hasorders(s, ai, P(), Buy) && return true
+        _hasorders(s, ai, P(), Sell) && return true
+    end
+    return false
 end

@@ -76,13 +76,13 @@ function _check_committments(s, ai::AssetInstance, t::Trade)
     end
     orders_long = 0.0
     orders_short = 0.0
-    for (_, o) in orders(s, ai, orderpos(t)())
+    for (_, o) in orders(s, ai, positionside(t)())
         @assert o.asset == ai.asset
         if o isa SellOrder
-            @assert orderpos(o) == Long o
+            @assert positionside(o) == Long o
             orders_long += committed(o)
         elseif o isa ShortBuyOrder
-            @assert orderpos(o) == Short o
+            @assert positionside(o) == Short o
             orders_short += committed(o)
         end
     end

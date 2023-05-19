@@ -25,6 +25,7 @@ abstract type FOKOrderType{S} <: AtomicOrderType{S} end
 abstract type IOCOrderType{S} <: AtomicOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
 abstract type LiquidationType{S} <: MarketOrderType{S} end
+abstract type ForcedType{S} <: MarketOrderType{S} end
 
 @doc """An Order is a container for trades, tied to an asset and an exchange.
 Its execution depends on the order implementation.
@@ -86,9 +87,11 @@ const ShortSellOrder{A,E} = Order{<:OrderType{Sell},A,E,Short}
 const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
 const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
-@doc "An Order type that liquidates a position."
+@doc "A Market Order type that liquidates a position."
 const LiquidationOrder{S,P} =
     Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
+@doc "A Market Order type called when manually closing a position (to sell the holdings)."
+const ForcedOrder{S,P} = Order{ForcedType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
 
 macro deforders(issuper, types...)
     @assert issuper isa Bool
@@ -129,7 +132,7 @@ end
 const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
 ordertype(::Order{T}) where {T} = T
-function orderpos(
+function positionside(
     ::Union{Type{O},O}
 ) where {O<:Order{T,<:AbstractAsset,<:ExchangeID,P}} where {T,P}
     P
@@ -152,7 +155,7 @@ islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
-ispos(pos::PositionSide, o::Order) = orderpos(o)() == pos
+ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 trades(args...; kwargs...) = error("not implemented")
 
@@ -175,5 +178,5 @@ export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
 export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
-export ordersdefault!, orderside, orderpos, pricetime, islong, isshort, ispos
+export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos
 export liqside, sidetopos, opposite

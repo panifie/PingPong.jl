@@ -22,7 +22,7 @@ end
 
 function Base.show(io::IO, o::Order)
     write(io, replace(string(ordertype(o)), "$(@__MODULE__)." => ""))
-    write(io, "($(orderpos(o)))")
+    write(io, "($(positionside(o)))")
     write(io, "\n")
     write(io, string(o.asset))
     write(io, "(")
@@ -41,7 +41,7 @@ function Base.show(io::IO, o::Order)
 end
 
 function Base.show(io::IO, t::Trade)
-    write(io, "Trade($(orderpos(t))): ")
+    write(io, "Trade($(positionside(t))): ")
     write(io, cnum(t.amount))
     write(io, " at ")
     write(io, cnum(abs(t.size / t.amount)))
