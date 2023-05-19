@@ -24,7 +24,7 @@ Exit trades: It should match the candle when the buy or sell happened.
 struct Trade{
     O<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
 } <: AssetEvent{E}
-    order::Order{O,A,E}
+    order::Order{O,A,E,P}
     date::DateTime
     amount::DFT
     price::DFT
