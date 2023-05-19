@@ -150,7 +150,7 @@ Base.string(tf::TimeFrame) = convert(String, tf)
 ms(tf::TimeFrame) = Millisecond(period(tf))
 ms(prd::Period) = Millisecond(prd)
 ms(v) = Millisecond(v)
-timeframe(s::AbstractString) = Base.parse(TimeFrame, s)
+timeframe(s::AbstractString) = convert(TimeFrame, s)
 timeframe!(args...; kwargs...) = error("Not implemented")
 
 dt(::Nothing) = :nothing

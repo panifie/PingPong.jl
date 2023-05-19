@@ -86,7 +86,7 @@ example:
 1999-12-01T12..2000-02-01T10;1d
 """
 macro dtr_str(s::String)
-    :($(parse(DateRange, s)))
+    :($(Base.parse(DateRange, s)))
 end
 
 export DateRange, DateTuple, @dtr_str, current!

@@ -1,8 +1,8 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances: MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount
-using OrderTypes:
-    IncreaseOrder, ShortBuyOrder, ordertype, LimitOrderType, MarketOrderType, ExchangeID
+using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType
+using OrderTypes: ExchangeID, ByPos, ordertype
 using Instruments: AbstractAsset
 using Base: negate
 using Lang: @lget!, @deassert
@@ -168,7 +168,9 @@ hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(orders(s, ai, Buy))
 function hasorders(s::Strategy, ai, ::Type{Sell})
     !(iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell)) == 0)
 end
-hasorders(s::Strategy, ai::AssetInstance) = (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+function hasorders(s::Strategy, ai::AssetInstance)
+    (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+end
 hasorders(s::Strategy, ai, ::ByPos) = hasorders(s, ai)
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
