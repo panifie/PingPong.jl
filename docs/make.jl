@@ -65,7 +65,7 @@ end
 makedocs(;
     sitename="PingPong.jl",
     pages=[
-        "Introduction" => ["index.md", "disambiguation.md"],
+        "Introduction" => ["index.md", "Disambiguation" => "disambiguation.md"],
         "Types" => "types.md",
         "Strategies" => "strategy.md",
         "Engine" =>
@@ -95,6 +95,7 @@ makedocs(;
             "Orders" => "customizations/orders.md",
             "Backtester" => "customizations/backtest.md",
         ],
+        "API" => ["API/Instruments.md"],
     ],
     format=Documenter.HTML(; sidebar_sitename=false),
 )

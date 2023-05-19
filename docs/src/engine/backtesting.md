@@ -61,16 +61,7 @@ trade = pong!(s, GTCOrder{Buy}, ai; price, amount, date=ts)
 
 Where `s` is your `Strategy{Sim, ...}` instance, `ai` is the `AssetInstance` which the order refers to (it should be one present in your `s.universe`) amount is the quantity in base currency and date should be the one fed to the `ping!` function, which during backtesting would be the current timestamp being evaluated, and during live a recent timestamp. If you look at the example strategy `ts` is _current_ and `ats` _available_. The available timestamp `ats` is the one that matches the last candle that doesn't give you forward knowledge. The `date` given to the order call (`pong!`) must be always the _current_ timestamp.
 
-A limit order call might return a trade if the order was queued correctly. If the trade hasn't completed the order, the order is queued in `s.orders[ai]`. If `isnothing(trade)` is `true`it means the order failed, and was not scheduled, this can happen if the cost of the trade did not meet the asset limits, or there wasn't enough commitable cash. If instead `ismissing(trade)` is `true` it means that the order was scheduled, but that no trade has yet been performed. In backtesting this happen if the price of the order is too low(buy) or too high(sell) for the current candle high/low prices.
-
-At each iteration we need to check if pending orders are fullfilled, therefore we call:
-
-```julia
-pong!(s, ts, UpdateOrders())
-```
-
-Remember that we always give the _current_ time. Also if you look at the example strategy, the call is executed
-right at the beginning of the `ping!` function. `UpdateOrder` should always be called exactly at the beginning and not anywhere else, otherwise during backtesting an order would be executed twice on the same timestamp (there is a check for this). This might be made implicit in future versions.
+A limit order call might return a trade if the order was queued correctly. If the trade hasn't completed the order, the order is queued in `s.buy/sellorders[ai]`. If `isnothing(trade)` is `true`it means the order failed, and was not scheduled, this can happen if the cost of the trade did not meet the asset limits, or there wasn't enough commitable cash. If instead `ismissing(trade)` is `true` it means that the order was scheduled, but that no trade has yet been performed. In backtesting this happen if the price of the order is too low(buy) or too high(sell) for the current candle high/low prices.
 
 ## Limit order types
 
@@ -87,13 +78,19 @@ trade = pong!(s, IOCOrder{Buy}, ai; price, amount, date=ts)
 trade = pong!(s, FOKOrder{Sell}, ai; price, amount, date=ts)
 ```
 
-## Checks
+## Market order types
 
-Before creating an order, some checks run to sanitize the values. If for example the amount is too small, the order picks the minimum amount instead. If there isn't enough cash after the amount adjumested, the order will fail. See the ccxt docs for [precision and limits](http://docs.ccxt.com/#/?id=precision-and-limits).
+Market order types are of:
 
-## Fees
+- MarketOrder
+- LiquidationOrder
+- ForcedOrder
 
-The fees come from the `AssetInstance` `fees` property, which itself comes from parsing the ccxt data about that particular symbol. Every trade accounts for such fees.
+They all behave in the same way, apart from the liquidation type which price might differ from the candle price on execution. A forced order is a market order triggered automatically when manually closing a position, for example when calling.
+
+```julia
+pong!(s, ai, Long(), now(), PositionClose())
+```
 
 ## Market Orders
 
@@ -102,6 +99,14 @@ Despite the fact that ccxt allows setting `timeInForce` also for market orders, 
 <!-- prettier-ignore -->
 !!! warning "Market orders can be surprising"
     Market orders _always_ go through in the backtest. If the candle has no volume the order incurs in _heavy_ slippage, and the execution price of the trades _can_ exceed the candle high/low price.
+
+## Checks
+
+Before creating an order, some checks run to sanitize the values. If for example the amount is too small, the order picks the minimum amount instead. If there isn't enough cash after the amount adjumested, the order will fail. See the ccxt docs for [precision and limits](http://docs.ccxt.com/#/?id=precision-and-limits).
+
+## Fees
+
+The fees come from the `AssetInstance` `fees` property, which itself comes from parsing the ccxt data about that particular symbol. Every trade accounts for such fees.
 
 ## Slippage
 
@@ -112,7 +117,9 @@ Slippage is accounted for within the trade execution.
 - For _market_ orders there can only be negative slippage. There is a minimum slippage always added (which by default corresponds to the difference between open and close (there are other formulas, check the api ref) on top of which additional skew is added based on volume and volatility.
 
 ## Backtesting performance
+
 A local benchmark shows that the `:Example` strategy which:
+
 - uses FOK orders
 - runs over 3 assets
 - trades in spot markets
@@ -121,6 +128,6 @@ A local benchmark shows that the `:Example` strategy which:
 Currently takes around `~8 seconds` to loop over `~1.3M * 3 (assets) ~= 3.9M candles` performing `~6000 trades` on a single x86 core.
 
 It is important to highlight that the kind of orders performed and the amount of trades executed can affect the runtime considerably (ignoring other obvious factors like additional strategy logic or number of assets).
-So beware when someone states that a backtester can run X rows in Y time without providing additional details. Moreover our order creation logic always checks that order inputs are within the boundsaries of exchanges [limits](https://docs.ccxt.com/#/README?id=precision-and-limits), and of course there is slippage an probability calculations too that allow the backtester to be "MC simmable". 
+So beware when someone states that a backtester can run X rows in Y time without providing additional details. Moreover our order creation logic always checks that order inputs are within the boundsaries of exchanges [limits](https://docs.ccxt.com/#/README?id=precision-and-limits), and of course there is slippage an probability calculations too that allow the backtester to be "MC simmable".
 
 It is inevitable that backtesting a strategy with margin will be slower since we have to account for all the calculations required like positions states and liquidation triggers.

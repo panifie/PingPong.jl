@@ -14,10 +14,10 @@ Modules = [MVP]
 
 #####  Short
 ```@autodocs
-Modules = [Short]
+Modules = [Analysis.Short]
 ```
 
 ##### Long
 ```@autodocs
-Modules = [Long]
+Modules = [Analysis.Long]
 ```

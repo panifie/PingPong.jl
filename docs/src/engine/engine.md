@@ -14,10 +14,12 @@ There are 3 execution modes:
 - `Paper`: the dry run mode, that runs the bot like it would in live, working with live data feeds and simulating order execution with live prices.
 - `Live`: like `Paper` but with order execution being actually forwarded to CCXT.
 
-Therefore if the strategy is instantiated in `Sim` mode, calling `pong!(s, ...)`, where s is the strategy object of type `Strategy{Sim, S, E}`, the `pong!` function will dispatch to the `Sim` execution method.
+Therefore if the strategy is instantiated in `Sim` mode, calling `pong!(s, ...)`, where s is the strategy object of type `Strategy{Sim, S, E, M, C}`, the `pong!` function will dispatch to the `Sim` execution method.
 `S` and `E` are the other two parameters which a strategy type requires for concretization.
 - `S<:Symbol`: the symbol that matches the module name of the strategy, like `:Example`
 - `E<:ExchangeID`: The symbol _already checked_ to match a valid CCXT exchange, which will be the exchange that the strategy will operate on.
+- `M<:MarginMode`: The margin mode of the strategy, either `NoMargin`, `IsolatedMargin` or `CrossMargin`. Node that the margin mode also has a type parameter to specify if hedged positions (having long and short on the same asset at the same time) are allowed. `Isolated` and `Cross` are short hands for `IsolatedMargin{NotHedged}` and `CrossMargin{NotHedged}`.
+- `C`: C is the symbol of the `CurrencyCash` that represents the balance of the strategy, e.g. `:USDT`.
 
 To realize the `pong!` dispatch convention, you can expect the first argument of every pong function to be the strategy object itself, while ping function might have either the strategy object or the type of the strategy as first argument (`Type{Strategy{...}}`).
     
