@@ -1,5 +1,5 @@
 using OrderTypes.ExchangeTypes: ExchangeID
-using OrderTypes: PositionSide, PositionTrade, LiquidationType
+using OrderTypes: PositionSide, PositionTrade, LiquidationType, ForcedOrder
 using Strategies.Instruments.Derivatives: Derivative
 using Executors.Instances: leverage_tiers, tier, position
 import Executors.Instances: Position, MarginInstance
@@ -48,21 +48,22 @@ end
 function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=nothing)
     # when a date is given we should close pending orders and sell remaining cash
     if !isnothing(date)
-        for o in orders(s, ai, p)
+        for (_, o) in orders(s, ai, p)
             cancel!(s, o, ai; err=OrderCancelled(o))
         end
         @deassert iszero(committed(ai, p)) committed(ai, p)
         price = closeat(ai, date)
-        amount = nondust(ai, price, p)
+        amount = abs(nondust(ai, price, p))
         if amount > 0.0
             o = _create_sim_market_order(
-                s, MarketOrder{liqside(p)}, ai; amount, date, price
+                s, ForcedOrder{liqside(p), typeof(p)}, ai; amount, date, price
             )
             @deassert !isnothing(o) &&
                 o.date == date &&
                 isapprox(o.amount, amount; atol=ai.precision.amount)
             marketorder!(s, o, ai, amount; o.price, date)
         end
+        @deassert isdust(ai, price, p)
     end
     reset!(ai, p)
     delete!(s.holdings, ai)
@@ -106,7 +107,9 @@ function liquidate!(
         t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
         @deassert o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
     end
-    @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), cash(ai, p) * price, p, isnothing(o))
+    @deassert isdust(ai, price, p) (
+        notional(ai, p), cash(ai, p), cash(ai, p) * price, p, isnothing(o)
+    )
     close_position!(s, ai, p)
 end
 

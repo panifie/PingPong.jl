@@ -66,7 +66,7 @@ _addslippage(::AnyMarketOrder{Sell}, price, slp) = price - slp
 function _with_slippage(
     s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
 )
-    @deassert o.price == priceat(s, o, ai, date) || o isa LiquidationOrder
+    @deassert o.price == priceat(s, o, ai, date) || o isa Union{LiquidationOrder,ForcedOrder}
     volume = volumeat(ai, date)
     volume_skew = _volumeskew(actual_amount, volume)
     price_skew = _priceskew(ai, date)

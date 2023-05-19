@@ -13,7 +13,7 @@ end
 
 @doc "Creates a simulated market order."
 function pong!(
-    s::NoMarginStrategy{Sim}, ai, t::Type{<:MarketOrder}; amount, date, kwargs...
+    s::NoMarginStrategy{Sim}, ai, t::Type{<:AnyMarketOrder}; amount, date, kwargs...
 )
     o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
