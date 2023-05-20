@@ -91,14 +91,4 @@ w.view
 
 Other implemented watchers are the orderbook watcher, and watchers that parse data feeds from 3rd party apis.
 
-### API
 
-```@autodocs
-Modules = [PingPong.Data]
-```
-
-#### Prices
-
-```@autodocs
-Modules = [Prices]
-```

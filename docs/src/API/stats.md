@@ -1,0 +1,6 @@
+## Stats
+
+```@autodocs
+Modules = [Stats]
+```
+

@@ -1,25 +1,27 @@
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
 
+abstract type Exchange{I} end
 const OptionsDict = Dict{String,Dict{String,Any}}
 @doc """The exchange type wraps a ccxt exchange instance. Some attributes frequently accessed
 are copied over to avoid round tripping python. More attributes might be added in the future.
 To instantiate an exchange call `getexchange!` or `setexchange!`.
 
 """
-struct Exchange{I<:ExchangeID}
+struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     py::Py
     id::I
     name::String
     precision::Vector{ExcPrecisionMode}
     timeframes::Set{String}
     markets::OptionsDict
-    Exchange() = new{typeof(ExchangeID())}(pybuiltins.None) # FIXME: this should be None
-    function Exchange(x::Py)
-        id = ExchangeID(x)
-        name = pyisnone(x) ? "" : pyconvert(String, pygetattr(x, "name"))
-        new{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
-    end
+end
+
+Exchange() = CcxtExchange{typeof(ExchangeID())}(pybuiltins.None)
+function Exchange(x::Py)
+    id = ExchangeID(x)
+    name = pyisnone(x) ? "" : pyconvert(String, pygetattr(x, "name"))
+    CcxtExchange{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
 end
 
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
@@ -28,8 +30,8 @@ Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
 Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
 
 @doc "Attributes not matching the `Exchange` struct fields are forwarded to the wrapped ccxt class instance."
-function Base.getproperty(e::Exchange, k::Symbol)
-    if hasfield(Exchange, k)
+function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
+    if hasfield(E, k)
         if k == :precision
             getfield(e, k)[1]
         else

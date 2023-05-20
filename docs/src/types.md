@@ -15,7 +15,7 @@ Other important types follow.
 - `fiat`: `true` if the pair involves to "stable" currencies, which is a static list defined in `Instruments.fiatnames`
 - `leveraged`: `true` if the base currency is a _leveraged_ token, which is a kind of token that usually involves periodic rebalancing. This should be considered only as additional info, and unreliable, since there isn't a standard for naming such assets.
 - `unleveraged_bc`: if the pair is leveraged, this should return the base currency without the "multiplier", such that you can use it to find similar markets of the same currency.
-### Derivatives only fields
+##### Derivatives only fields
 - `asset`: the simpler `Asset` type which forwards all its fields.
 - `sc`: the settlement currency
 - `id`: a string, usually representing the settlement date
@@ -83,9 +83,13 @@ Trades are "atomic" events, orders are composed of one or more trades. They have
 ## Dates
 The julia main `Dates` package is never imported directly. It is instead exported by the package `TimeTicks` which among many utility functions overrides the `now` function to always use the `UTC` timezone.
 A very important type is the `TimeFrame` type which defines a segment of time, most of the times the _concrete_ type of a `TimeFrame` will be a time period (`Dates.Period`).
+
 For convenience timeframes can be constructed like `tf"1m"` for a 1 minute timeframe. This notation can be freely used as you like because by using the macro, the timeframe is replaced at compiled time, moreover construction is cached and the instances are singletons (`@assert tf"1m" === tf"1m"`). Parsing is also cached but only by calling `convert(TimeFrame, v)` or `timeframe(v)` and spend only the lookup cost (`~500ns`).
 The parsing is done to matching timeframe naming used within CCTX, and the timeperiod use should be expect to be in `Millisecond`.
+
 Dates can also be constructed within the repl using the dt prefix like `dt"2020-"` will create a `DateTime` value for the date `2020-01-01T00:00:00`. We also implement a `DateRange` which is used to keep track of the time between two dates, and it also works as an iterator when the step field (`Period`) is defined. Date ranges can be conveniently created using the prefix dtr like `dtr"2020-..2021-" will construct a daterange for the full year 2020. You can specify the date precision up to the second as specified by the standard like `dtr"2020-01-01T:00:00:01..2021-01-01T00:00:01"
 
 ## OHLCV
-We use the `DataFrames` package, so when we refer to ohlcv data there is a `DataFrame` involved. Within the `Data` package there multiple utility functions to deal with ohlcv data, like `ohlcv/at(df, date)` to get the value of a column at a particular index by date, for example `closeat(df, date)`. We implemented date indexing for dataframes so you can also directly call `df[dt"2020-01-01", :close]` to fetch the close value at the nearest matching date, or use a `DateRange` to slice the dataframe for the rows within the daterange time span (`df[dtr"2020-..2021-"]`). There are utility functions for _guessing_ the timeframe of ohlcv data frame by looking at the difference between timestamps, calling `timeframe!(df)` will set the "timeframe" key on the metadata of the _timestamp_ column of the dataframe.
+We use the `DataFrames` package, so when we refer to ohlcv data there is a `DataFrame` involved. Within the `Data` package there multiple utility functions to deal with ohlcv data, like `ohlcv/at(df, date)` to get the value of a column at a particular index by date, for example `closeat(df, date)`. We implemented date indexing for dataframes so you can also directly call `df[dt"2020-01-01", :close]` to fetch the close value at the nearest matching date, or use a `DateRange` to slice the dataframe for the rows within the daterange time span (`df[dtr"2020-..2021-"]`). 
+
+There are utility functions for _guessing_ the timeframe of ohlcv data frame by looking at the difference between timestamps, calling `timeframe!(df)` will set the "timeframe" key on the metadata of the _timestamp_ column of the dataframe.

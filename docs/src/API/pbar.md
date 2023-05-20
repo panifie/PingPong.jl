@@ -1,0 +1,4 @@
+## Pbar
+```@autodocs
+Modules = [Pbar]
+```

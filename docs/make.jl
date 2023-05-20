@@ -65,14 +65,13 @@ end
 makedocs(;
     sitename="PingPong.jl",
     pages=[
-        "Introduction" => ["index.md", "Disambiguation" => "disambiguation.md"],
+        "Introduction" => ["index.md"],
         "Types" => "types.md",
         "Strategies" => "strategy.md",
         "Engine" =>
             ["Executors" => "engine/engine.md", "Backtesting" => "engine/backtesting.md"],
         "Exchanges" => "exchanges.md",
         "Data" => "data.md",
-        "Processing" => "processing.md",
         "Watchers" => [
             "Interface" => "watchers/watchers.md",
             "Apis" => [
@@ -83,9 +82,9 @@ makedocs(;
         ],
         "Stats" => "stats.md",
         "Plotting" => "plotting.md",
-        "Indicators" => "analysis.md",
         "Misc" => [
-            "Config" => "misc.md",
+            "Config" => "config.md",
+            "Disambiguation" => "disambiguation.md",
             "Troubleshooting" => "troubleshooting.md",
             "Devdocs" => "devdocs.md",
             "Contacts" => "contacts.md",
@@ -95,7 +94,16 @@ makedocs(;
             "Orders" => "customizations/orders.md",
             "Backtester" => "customizations/backtest.md",
         ],
-        "API" => ["API/Instruments.md"],
+        "API" => [
+            "API/instruments.md",
+            "API/processing.md",
+            "API/data.md",
+            "API/prices.md",
+            "API/misc.md",
+            "API/pbar.md",
+            "API/stats.md",
+            "API/analysis.md",
+        ],
     ],
     format=Documenter.HTML(; sidebar_sitename=false),
 )

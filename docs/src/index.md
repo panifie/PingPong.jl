@@ -87,6 +87,7 @@ PingPong.plots!()
 ```
 
 ## Packages
+Here's a list of the most important underlying packages.
 
 - [Engine](./engine/engine.md): The actual backtest engine.
 - [Strategies](./strategy.md): Types and concept for building strategies.
@@ -97,7 +98,7 @@ PingPong.plots!()
 - [Processing](./processing.md): Data cleanup, normalization, resampling functions.
 - [Watchers](./watchers/watchers.md): Services for data pipelines, from sources to storage.
 - [Misc](./misc.md): Ancillary stuff, like configuration, and some UI bits.
-- [Analysis](./analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`.
+- [Analysis](./analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
 
 ## Infos
 
