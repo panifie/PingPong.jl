@@ -1,4 +1,4 @@
-## Data
+# Data
 
 ```@autodocs
 Modules = [PingPong.Data]

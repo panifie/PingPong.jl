@@ -93,6 +93,7 @@ makedocs(;
             "Overview" => "customizations/customizations.md",
             "Orders" => "customizations/orders.md",
             "Backtester" => "customizations/backtest.md",
+            "Exchanges" => "customizations/exchanges.md",
         ],
         "API" => [
             "API/instruments.md",
@@ -102,7 +103,12 @@ makedocs(;
             "API/misc.md",
             "API/pbar.md",
             "API/stats.md",
-            "API/analysis.md",
+            "Analysis" => [
+                "API/analysis/analysis.md",
+                "API/analysis/mvp.md",
+                "API/analysis/mlong.md",
+                "API/analysis/mshort.md",
+            ],
         ],
     ],
     format=Documenter.HTML(; sidebar_sitename=false),

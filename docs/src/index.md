@@ -21,7 +21,7 @@ where `:MyQuirkyExchange` is the `ExchangeID` symbol of the exchange you are tar
 This is how strategy `ping!` functions also dispatch, because the strategies always have in their type parameters the `Symbol` which matches the module of the strategy itself. Indeed you cannot define multiple strategies with the same name.
 And it is also how we are able to have almost zero code duplication between simulation and live trading, the execution mode is just another type parameter of the strategy.
 
-The bot has tools to download, clean and store data, that make use of popular julia libraries. See [Data](data.md), and tools to resample time series see [Processing](processing.md).
+The bot has tools to download, clean and store data, that make use of popular julia libraries. See [Data](data.md), and tools to resample time series see [Processing](./API/processing.md).
 
 It can track live data like tickers, trades, ohlcv, see [Watchers](watchers/watchers.md).
 
@@ -95,10 +95,10 @@ Here's a list of the most important underlying packages.
 - [Plotting](./plotting.md): Output plots for ohlcv data, indicators, backtests, based on [Makie](https://github.com/MakieOrg/Makie.jl).
 - [Data](./data.md): Loading and saving ohlcv data (and more), based Zarr.
 - [Stats](./stats.md): Statistics about backtests, and live operations.
-- [Processing](./processing.md): Data cleanup, normalization, resampling functions.
+- [Processing](./API/processing.md): Data cleanup, normalization, resampling functions.
 - [Watchers](./watchers/watchers.md): Services for data pipelines, from sources to storage.
-- [Misc](./misc.md): Ancillary stuff, like configuration, and some UI bits.
-- [Analysis](./analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
+- [Misc](./API/misc.md): Ancillary stuff, like configuration, and some UI bits.
+- [Analysis](./API/analysis/analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
 
 ## Infos
 

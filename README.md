@@ -2,24 +2,34 @@
 
 ![Ping Pong](./docs/pingponglogo-384.png)
 
-**Supported julia version: 1.9**
+- :zap: Backtesting with C-like speeds!
+- :bar_chart: Highly interactive and explorative plotting!
+- :rocket: Trivial deployments!
 
-## What can it do?
-- Help you write data feeds to monitor exchanges or 3rd party apis.
-- Download data from external archives in parallel, and api wrappers for crypto apis.
-- Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
-- Organize your strategy using a predefined type hierarchy for instruments, exchanges, orders.
-- Backtesting (to be improved)
-- Optimization (not implemented)
-- Plotting (OHLCV, custom indicators, trades history, asset balance history)
-- Paper mode (not implemented)
-- Live (not implemented)
-- Telegram Bot (not implemented)
-- Dashboard (not implemented)
+All within your fingertips!
+
+The one-of-a-kind solution for automated (crypto)trading. PingPong is unparalleled in its flexibility to adapt to different trading environments. The bot is setup to be easy to customize, and can execute any kind of strategy thanks to an approachable set of interfaces. It comes with a backtest engine that also supports trading with margin (and therefore position management). Paper mode allows to dry run your strategies before executing them in Live mode. The framework allows to achieve no code duplication between simulated and live modes.
+
+[:book:DOCUMENTATION](https://panifie.github.io/PingPong.jl/)
+
+[:speech_balloon:DISCORD CHAT](https://discord.gg/xDeBmSzDUr)
+
+## A non exhaustive list of features...
+- :chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
+- :bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
+- :mag: Optimization (not implemented)
+- :page_facing_up: Paper mode (not implemented)
+- :red_circle: Live (not implemented)
+- :robot_face: Telegram Bot (not implemented)
+- :desktop_computer: Dashboard (not implemented)
+- :satellite: Help you write data feeds to monitor exchanges or 3rd party apis.
+- :arrow_down: Download data from external archives in parallel, and api wrappers for crypto apis.
+- :floppy_disk: Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
+- :wrench: Implement custom behaviour thanks to a fine grained type hierarchy for instruments, exchanges, orders, etc...
 
 
 ## Install
-PingPong.jl is not in the julia registry, to install do the following:
+PingPong.jl requires at least Julia 1.9. Is not in the julia registry, to install it do the following:
 
 - Clone the repository:
 ```bash

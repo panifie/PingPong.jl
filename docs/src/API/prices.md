@@ -1,4 +1,4 @@
-## Prices
+# Prices
 
 ```@autodocs
 Modules = [Prices]

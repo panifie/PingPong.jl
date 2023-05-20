@@ -5,17 +5,22 @@ using OrderTypes: OrderError
 Receives:
 - `current_time`: the current timestamp to evaluate (the current candle would be `current_time - timeframe`).
 - `ctx`: The context of the executor.
+$(TYPEDSIGNATURES)
 "
 ping!(::Strategy, current_time, ctx, args...; kwargs...) = error("Not implemented")
 const evaluate! = ping!
 struct LoadStrategy <: ExecAction end
 struct ResetStrategy <: ExecAction end
-@doc "Called to construct the strategy, should return the strategy instance."
+@doc """Called to construct the strategy, should return the strategy instance.
+$(TYPEDSIGNATURES)"""
 ping!(::Type{<:Strategy}, cfg, ::LoadStrategy) = nothing
+@doc "Called at the end of the `reset!` function applied to a strategy.
+$(TYPEDSIGNATURES)"
 ping!(::Strategy, ::ResetStrategy) = nothing
 struct WarmupPeriod <: ExecAction end
-@doc "How much lookback data the strategy needs."
+@doc "How much lookback data the strategy needs. $(TYPEDSIGNATURES)"
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
+@doc "When an order is cancelled the strategy is pinged with an order error. $(TYPEDSIGNATURES)"
 ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = err
 
 macro interface()

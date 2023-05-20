@@ -1,4 +1,4 @@
-## Stats
+# Stats
 
 ```@autodocs
 Modules = [Stats]

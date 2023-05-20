@@ -1,0 +1,4 @@
+# MVP
+```@autodocs
+Modules = [MVP]
+```

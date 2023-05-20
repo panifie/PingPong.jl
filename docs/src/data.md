@@ -21,7 +21,7 @@ bn.binancesyms(market=:data)
 # load/download also accept `quote_currency` to filter by (default `usdt`)
 scr.selectsyms(["eth"], bn.binancesyms(market=:data), quote_currency="usdc")
 ```
-!! "Downloads are cached"
+!!! warning "Downloads are cached"
     downloading the same pair path again will only downloads newer archives
     if data gets corrupted pass `reset=true` to redownload it again. 
 

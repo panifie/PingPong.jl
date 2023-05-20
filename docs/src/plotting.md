@@ -86,11 +86,3 @@ bb = Indicators.bbands(df.close)
 Plotting.channel_indicator(df, eachcol(bb)...)
 ```
 ![Channel Indicator](./assets/channel-indicator.jpg)
-
-### API
-
-```@autodocs
-Modules = [ Plotting ]
-Private = false
-Public = true
-```

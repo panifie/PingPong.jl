@@ -23,7 +23,3 @@ Therefore if the strategy is instantiated in `Sim` mode, calling `pong!(s, ...)`
 
 To realize the `pong!` dispatch convention, you can expect the first argument of every pong function to be the strategy object itself, while ping function might have either the strategy object or the type of the strategy as first argument (`Type{Strategy{...}}`).
     
-### API
-```@autodocs
-Modules = [PingPong.Engine, PingPong.Engine.Instances, PingPong.Engine.Collections]
-```

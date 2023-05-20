@@ -1,0 +1,4 @@
+# MShort
+```@autodocs
+Modules = [Short]
+```

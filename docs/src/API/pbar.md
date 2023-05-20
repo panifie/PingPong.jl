@@ -1,4 +1,4 @@
-## Pbar
+# Pbar
 ```@autodocs
 Modules = [Pbar]
 ```
