@@ -18,7 +18,6 @@ ping!(s::Strategy, ts, ctx) = pong!(...)
 end
 ```
 
-<!-- prettier-ignore -->
 !!! info "Backtesting"
     It is based on [some assumptions](./engine_notes.md)
 
@@ -96,7 +95,6 @@ pong!(s, ai, Long(), now(), PositionClose())
 
 Despite the fact that ccxt allows setting `timeInForce` also for market orders, because in general exchanges allow to do so, there isn't definitive information about how a market order is handled in these cases, remember that we deal with crypto so some context like open and close times days is lost. We can guess that it only matters when the orderbook doesn't have enough liquidity, otherwise they are always _immediate_ and _fully filled_ orders. For this reason we always consider market orders as FOK orders, and they will always have `timeInForce` set to FOK when executed live (through ccxt) to match the backtester.
 
-<!-- prettier-ignore -->
 !!! warning "Market orders can be surprising"
     Market orders _always_ go through in the backtest. If the candle has no volume the order incurs in _heavy_ slippage, and the execution price of the trades _can_ exceed the candle high/low price.
 

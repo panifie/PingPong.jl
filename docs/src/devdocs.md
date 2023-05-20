@@ -75,6 +75,19 @@ TypeAlias2{A<:One} = Two{A}
 
 If you parametrize on the alias, the type deref won't carry over the parameter restriction, so if you have another type `TypeAlias3{A<:Two} = Two{A}` it will dispatch to the same func as `TypeAlias2` ignoring the `<:One` and `<:Two` restriction. As a rule of thumb, restrict subtyping to the right side to ensure dispatching works as intended.
 
-<!-- prettier-ignore -->
 !!! warning "Testing dispatch while using Revise"
     Revise can trick you into thinking dispatching is working correctly while in practice you might have just redefined a new method on the same parameters, more over, because revise doesn't delete old method if still in use, it might look like dispatching is working, whereas some parts are using deleted methods that are not anymore in the code base. For this reason, when you notice inconsistencies, start from a fresh repl, and optionally purge the compile cache.
+
+## Dependency graph
+
+This shows a graph where the red circled packages are our own packages.
+[![PingPong dependencies graph](./assets/PingPong-deps.png)](./assets/PingPong-deps.png)
+
+## Limit orders flowchart
+
+[![Limit Orders Flowchart](./assets/limit-orders.png)](./assets/limit-orders.png)
+
+## Market orders flowchart
+
+[![Market Orders Flowchart](./assets/market-orders.png)](./assets/market-orders.png)
+
