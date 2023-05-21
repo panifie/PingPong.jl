@@ -20,7 +20,7 @@ The one-of-a-kind solution for automated (crypto)trading. PingPong is unparallel
 - :mag: Optimization (not implemented)
 - :page_facing_up: Paper mode (not implemented)
 - :red_circle: Live (not implemented)
-- :robot_face: Telegram Bot (not implemented)
+- :stop_button: Telegram Bot (not implemented)
 - :desktop_computer: Dashboard (not implemented)
 - :satellite: Help you write data feeds to monitor exchanges or 3rd party apis.
 - :arrow_down: Download data from external archives in parallel, and api wrappers for crypto apis.
