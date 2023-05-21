@@ -92,4 +92,20 @@ function choosefunc(exc, suffix, inputs...; kwargs...)
     choosefunc(exc, suffix, [inputs...]; kwargs...)
 end
 
+@doc "Upgrades the ccxt package."
+function upgrade()
+    @eval begin
+        version = pyimport("ccxt").__version__
+        using Python.PythonCall.C.CondaPkg: CondaPkg
+        try
+            CondaPkg.add_pip("ccxt"; version=">$version")
+        catch
+            # if the version is latest than we have to adjust
+            # the version to GTE
+            CondaPkg.add_pip("ccxt"; version=">=$version")
+        end
+    end
+end
+Python.pyimport("ccxt").__version__
+
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
