@@ -1,7 +1,18 @@
+using Engine: DFT
+using Engine.OrderTypes: Order
+using Lang: fromstruct
 
-function _tradesdf(trades::AbstractVector; custom_cols=())
-    df = select!(DataFrame(trades), [:date, :amount, :size, :order, custom_cols...])
+# Use a generic Order instead to avoid the dataframe creating a too concrete order vector
+TradesTuple1 = NamedTuple{
+    (:date, :amount, :price, :value, :fees, :size, :leverage, :order),
+    Tuple{collect(Vector{T} for T in (DateTime, DFT, DFT, DFT, DFT, DFT, DFT, Order))...},
+}
+function _tradesdf(trades::AbstractVector)
+    tt = TradesTuple1(T[] for T in fieldtypes(TradesTuple1))
+    df = DataFrame(tt)
+    append!(df, trades)
     rename!(df, :date => :timestamp)
+    df
 end
 function _tradesdf(ai::AssetInstance, from=firstindex(ai.history), to=lastindex(ai.history))
     length(from:to) < 1 || length(s.history) == 0 && return nothing
