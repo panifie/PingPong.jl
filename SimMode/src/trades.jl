@@ -3,7 +3,7 @@ using Executors: @amount!, @price!, aftertrade!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
-using Executors.Instances: NoMarginInstance, Instances as inst
+using Executors.Instances: NoMarginInstance, Instances as inst, price
 using Strategies: lowat, highat, closeat, openat, volumeat
 using Strategies: IsolatedStrategy, NoMarginStrategy
 using OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
@@ -58,7 +58,8 @@ function maketrade(
         price=actual_price,
         fees=trade_fees,
         size,
-        lev=leverage(ai, positionside(o)()),
+        lev=leverage(ai, o),
+        entryprice=price(ai, actual_price, o),
     )
 end
 
@@ -79,7 +80,8 @@ function maketrade(
         price=actual_price,
         fees=trade_fees,
         size,
-        lev=leverage(ai, positionside(o)()),
+        lev=leverage(ai, o),
+        entryprice=price(ai, actual_price, o),
     )
 end
 

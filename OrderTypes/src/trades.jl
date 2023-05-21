@@ -32,15 +32,18 @@ struct Trade{
     fees::DFT
     size::DFT
     leverage::DFT
+    entryprice::DFT
     function Trade(
-        o::Order{O,A,E,P}; date, amount, price, fees, size, lev=1.0
+        o::Order{O,A,E,P}; date, amount, price, fees, size, lev=1.0, entryprice=price
     ) where {O,A,E,P}
         @deassert amount > 0.0
         @deassert size > 0.0
         @deassert abs(amount) <= abs(o.amount)
         amount = signedamount(amount, o)
         value = abs(amount * price)
-        new{O,A,E,P}(o, date, amount, price, value, fees, signedsize(size, o), lev)
+        new{O,A,E,P}(
+            o, date, amount, price, value, fees, signedsize(size, o), lev, entryprice
+        )
     end
 end
 
@@ -56,8 +59,16 @@ const PositionTrade{P} = Trade{O,A,E,P} where {O<:OrderType,A<:AbstractAsset,E<:
 const LiquidationTrade{S} = Trade{<:LiquidationType{S}}
 
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
-positionside(::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}) where {P<:PositionSide} = P
-orderside(::Trade{<:OrderType{S},<:AbstractAsset,<:ExchangeID,<:PositionSide}) where {S<:OrderSide} = S
+function positionside(
+    ::Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}
+) where {P<:PositionSide}
+    P
+end
+function orderside(
+    ::Trade{<:OrderType{S},<:AbstractAsset,<:ExchangeID,<:PositionSide}
+) where {S<:OrderSide}
+    S
+end
 ordertype(::Trade{O}) where {O<:OrderType} = O
 islong(o::LongTrade) = true
 islong(o::ShortTrade) = false

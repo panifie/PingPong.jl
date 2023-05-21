@@ -211,7 +211,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
     # The notional tracks current value, but the margin
     # refers to the notional from the (avg) entry price
     # of the position
-    margin = abs(price(po) * t.amount) / t.leverage
+    margin = abs(t.entryprice * t.amount) / t.leverage
     unrealized_pnl = pnl(po, t.price, t.amount)
     @deassert t.fees > 0.0 || maxfees(ai) < 0.0
     gained = margin + unrealized_pnl - t.fees # minus fees

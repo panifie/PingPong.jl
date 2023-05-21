@@ -385,6 +385,12 @@ end
 function notional(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> notional
 end
+@doc "Asset entry price."
+function price(ai::MarginInstance, _, ::ByPos{S}) where {S<:PositionSide}
+    position(ai, S) |> price
+end
+@doc "Asset entry price."
+price(::NoMarginInstance, fromprice, args...) = fromprice
 @doc "Asset position liquidation price."
 function liqprice(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> liqprice
@@ -481,5 +487,5 @@ include("constructors.jl")
 
 export AssetInstance, instance, load!, @rprice, @ramount
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
-export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed
+export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed, price
 export leverage, mmr, status!
