@@ -17,7 +17,7 @@ end
 trades(s) = s.universe[m"eth"].instance.history
 eq4(a, b) = isapprox(a, b; atol=1e-4)
 test_nomargin_market(s) = begin
-    @test marginmode(s) == egn.NoMargin
+    @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.MarketOrder
@@ -33,7 +33,7 @@ test_nomargin_market(s) = begin
 end
 
 test_nomargin_gtc(s) = begin
-    @test marginmode(s) == egn.NoMargin
+    @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:gtc)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.GTCOrder
@@ -49,7 +49,7 @@ test_nomargin_gtc(s) = begin
 end
 
 test_nomargin_ioc(s) = begin
-    @test marginmode(s) == egn.NoMargin
+    @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:ioc)
     egn.backtest!(s)
     @test first(trades(s)).order isa egn.IOCOrder
@@ -65,7 +65,7 @@ test_nomargin_ioc(s) = begin
 end
 
 test_nomargin_fok(s) = begin
-    @test marginmode(s) == egn.NoMargin
+    @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:fok)
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
@@ -99,7 +99,7 @@ function margin_overrides(ot=:market)
 end
 
 test_margin_market(s) = begin
-    @test marginmode(s) == egn.Isolated
+    @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:market)
     egn.backtest!(s)
     @test first(trades(s)).order isa ect.AnyMarketOrder
@@ -115,7 +115,7 @@ test_margin_market(s) = begin
 end
 
 test_margin_gtc(s) = begin
-    @test marginmode(s) == egn.Isolated
+    @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:gtc)
     egn.backtest!(s)
     @test first(trades(s)).order isa ect.AnyGTCOrder
@@ -132,7 +132,7 @@ test_margin_gtc(s) = begin
 end
 
 test_margin_fok(s) = begin
-    @test marginmode(s) == egn.Isolated
+    @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:fok)
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
@@ -152,7 +152,7 @@ test_margin_fok(s) = begin
 end
 
 test_margin_ioc(s) = begin
-    @test marginmode(s) == egn.Isolated
+    @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:ioc)
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
