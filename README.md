@@ -15,17 +15,17 @@ The one-of-a-kind solution for automated (crypto)trading. PingPong is unparallel
 [:speech_balloon:DISCORD CHAT](https://discord.gg/xDeBmSzDUr)
 
 ## A non exhaustive list of features...
-:chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
-:bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
-:mag: Optimization (not implemented)
-:page_facing_up: Paper mode (not implemented)
-:red_circle: Live (not implemented)
-:stop_button: Telegram Bot (not implemented)
-:desktop_computer: Dashboard (not implemented)
-:satellite: Help you write data feeds to monitor exchanges or 3rd party apis.
-:arrow_down: Download data from external archives in parallel, and api wrappers for crypto apis.
-:floppy_disk: Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
-:wrench: Implement custom behaviour thanks to a fine grained type hierarchy for instruments, exchanges, orders, etc...
+- :chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
+- :bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
+- :mag: Optimization (not implemented)
+- :page_facing_up: Paper mode (not implemented)
+- :red_circle: Live (not implemented)
+- :stop_button: Telegram Bot (not implemented)
+- :desktop_computer: Dashboard (not implemented)
+- :satellite: Help you write data feeds to monitor exchanges or 3rd party apis.
+- :arrow_down: Download data from external archives in parallel, and api wrappers for crypto apis.
+- :floppy_disk: Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
+- :wrench: Implement custom behaviour thanks to a fine grained type hierarchy for instruments, exchanges, orders, etc...
 
 
 ## Install
