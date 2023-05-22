@@ -21,7 +21,7 @@ end
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
 @doc "Get the strategy margin mode."
-Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M
+Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M()
 
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()

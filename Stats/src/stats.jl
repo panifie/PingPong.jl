@@ -13,5 +13,6 @@ using Lang
 using Statistics
 using Statistics: median
 
+__revise_mode__ = :eval
 include("trades_resample.jl")
 include("trades_balance.jl")

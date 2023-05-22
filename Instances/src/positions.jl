@@ -233,6 +233,14 @@ function pnl(po::Position{Short}, current_price, amount=cash(po))
     (price(po) - current_price) * abs(amount)
 end
 
+function pnl(entryprice::T, current_price::T, amount, ::Long) where {T}
+    (current_price - entryprice) * abs(amount)
+end
+
+function pnl(entryprice::T, current_price::T, amount, ::Short) where {T}
+    (entryprice - current_price) * abs(amount)
+end
+
 @doc "Sets the liquidation price for a long position."
 function liqprice!(po::Position{Long}, v)
     @deassert v <= price(po)

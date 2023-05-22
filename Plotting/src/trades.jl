@@ -42,16 +42,16 @@ function trades_tooltip_func(trades)
     end
 end
 
-function triangle(t::SellTrade, x, y, flags, height)
+function triangle(t::ReduceTrade, x, y, flags, height)
     p = Point2f[(x, y), (x + 0.5, y - height), (x + 1.0, y)]
-    push!(flags.sells.trades, t)
-    push!(flags.sells.points, p)
+    push!(flags.exits.trades, t)
+    push!(flags.exits.points, p)
 end
 
-function triangle(t::BuyTrade, x, y, flags, height)
+function triangle(t::IncreaseTrade, x, y, flags, height)
     p = Point2f[(x, y), (x + 0.5, y + height), (x + 1.0, y)]
-    push!(flags.buys.trades, t)
-    push!(flags.buys.points, p)
+    push!(flags.entries.trades, t)
+    push!(flags.entries.points, p)
 end
 
 function trades_ohlcv(tf, ai, from, to)
@@ -120,16 +120,16 @@ function tradesticks!(
     function makevec(side)
         NamedTuple{(:trades, :points),Tuple{Vector{side},Vector{Vector{Point2f}}}}(([], []))
     end
-    flags = (buys=makevec(BuyTrade), sells=makevec(SellTrade))
+    flags = (entries=makevec(IncreaseTrade), exits=makevec(ReduceTrade))
     low = df.low
     high = df.high
     ofs, height = let h = maximum(df.high)
         h * 0.0015, h * 0.001
     end
-    gety(::BuyTrade, idx) = low[idx]
-    gety(::SellTrade, idx) = high[idx]
-    triangleofs(::BuyTrade, y) = y - ofs
-    triangleofs(::SellTrade, y) = y + ofs
+    gety(::IncreaseTrade, idx) = low[idx]
+    gety(::ReduceTrade, idx) = high[idx]
+    triangleofs(::IncreaseTrade, y) = y - ofs
+    triangleofs(::ReduceTrade, y) = y + ofs
     ld = lastdate(df)
     for t in @view ai.history[from:to]
         t.date > ld && break
@@ -140,19 +140,19 @@ function tradesticks!(
     end
     poly!(
         trades_ax,
-        flags.buys.points;
+        flags.entries.points;
         color=:cyan,
         strokecolor=:black,
         strokewidth=0.5,
-        inspector_hover=trades_tooltip_func(flags.buys.trades),
+        inspector_hover=trades_tooltip_func(flags.entries.trades),
     )
     poly!(
         trades_ax,
-        flags.sells.points;
+        flags.exits.points;
         color=:deeppink,
         strokecolor=:black,
         strokewidth=0.5,
-        inspector_hover=trades_tooltip_func(flags.sells.trades),
+        inspector_hover=trades_tooltip_func(flags.exits.trades),
     )
     fig
 end
@@ -178,7 +178,7 @@ _tradeasset(row, ai) = string(@something ai row.instance)
 aggtrades_str(row, ai=nothing) = begin
     """Asset: $(_tradeasset(row, ai))
     Trades Count: $(cn(row.trades_count, 1))
-    Buy/Sell: $(cn(row.buys, 1))/$(cn(row.sells, 1))
+    Entry/Exit: $(cn(row.entries, 1))/$(cn(row.exits, 1))
     Quote Balance: $(cn(row.quote_balance))
     Base Balance: $(cn(row.base_balance))
     Base Volume: $(cn(row.base_volume))
