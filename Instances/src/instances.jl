@@ -14,7 +14,7 @@ using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash, value
 using Misc: config, MarginMode, NoMargin, MM, DFT, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
-import Misc: approxzero, gtxzero, ltxzero
+import Misc: approxzero, gtxzero, ltxzero, marginmode
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
@@ -93,6 +93,8 @@ const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
     <:AbstractAsset,<:ExchangeID,M
 }
 const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
+marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M} = M()
+marginmode(::NoMarginInstance) = NoMargin()
 
 function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::Exchange)
     if M == NoMargin
@@ -386,8 +388,9 @@ function notional(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> notional
 end
 @doc "Asset entry price."
-function price(ai::MarginInstance, _, ::ByPos{S}) where {S<:PositionSide}
-    position(ai, S) |> price
+function price(ai::MarginInstance, fromprice, ::ByPos{S}) where {S<:PositionSide}
+    v = position(ai, S) |> price
+    ifelse(iszero(v), fromprice, v)
 end
 @doc "Asset entry price."
 price(::NoMarginInstance, fromprice, args...) = fromprice
