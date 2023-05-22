@@ -17,6 +17,12 @@ function Base.similar(
     s::Strategy, mode=s.mode, timeframe=s.timeframe, exc=getexchange!(s.exchange)
 )
     s = Strategy(
-        s.self, typeof(mode), timeframe, exc, similar(s.universe); config=copy(s.config)
+        s.self,
+        mode,
+        marginmode(s),
+        timeframe,
+        exc,
+        similar(s.universe);
+        config=copy(s.config),
     )
 end

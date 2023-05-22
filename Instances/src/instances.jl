@@ -256,7 +256,8 @@ function Base.similar(ai::AssetInstance)
     AssetInstance(
         ai.asset,
         ai.data,
-        ai.exchange;
+        ai.exchange,
+        marginmode(ai);
         limits=ai.limits,
         precision=ai.precision,
         fees=ai.fees,
