@@ -102,7 +102,7 @@ function trades_balance(s::Strategy, aa; kwargs...)
     trades_balance(s.universe[aa].instance; kwargs...)
 end
 
-_valueat(ai::NoMarginInstance, cum_amount, timestamp) = cum_amount * closeat(ai, timestamp)
+_valueat(ai::NoMarginInstance, cum_amount, timestamp, args...) = cum_amount * closeat(ai, timestamp)
 function _valueat(ai::MarginInstance, cum_amount, timestamp, leverage, entryprice, pos)
     let close = closeat(ai, timestamp),
         this_value = cum_amount * close,
