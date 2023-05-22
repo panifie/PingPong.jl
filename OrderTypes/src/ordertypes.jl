@@ -137,6 +137,7 @@ function positionside(
 ) where {O<:Order{T,<:AbstractAsset,<:ExchangeID,P}} where {T,P}
     P
 end
+positionside(::Union{P,Type{P}}) where {P<:PositionSide} = P
 pricetime(o::Order) = (price=o.price, time=o.date)
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 commit!(args...; kwargs...) = error("not implemented")

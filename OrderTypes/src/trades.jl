@@ -7,6 +7,7 @@ signedamount(amount, ::AnySellOrder) = negate(amount)
 signedsize(size, ::IncreaseOrder) = negate(size)
 signedsize(size, ::ReduceOrder) = size
 
+# TODO: abstract `Trade` and implement simple trades and richer trades for margin trading
 @doc """An order, successfully executed from a strategy request.
 Entry trades: The date when the order was actually opened, during backtesting, it is usually `date + tf.period`
     where the timeframe depends on the backtesting `Context`. It should match a candle.
