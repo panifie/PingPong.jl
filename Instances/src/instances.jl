@@ -12,7 +12,7 @@ using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash, value
-using Misc: config, MarginMode, NoMargin, MM, DFT, toprecision
+using Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 import Misc: approxzero, gtxzero, ltxzero, marginmode
 using .DataStructures: SortedDict
@@ -93,7 +93,7 @@ const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
     <:AbstractAsset,<:ExchangeID,M
 }
 const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
-marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M} = M()
+marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M<:WithMargin} = M()
 marginmode(::NoMarginInstance) = NoMargin()
 
 function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::Exchange)

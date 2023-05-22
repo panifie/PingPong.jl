@@ -22,7 +22,7 @@ const IsolatedHedged = IsolatedMargin{Hedged}
 const Cross = CrossMargin{NotHedged}
 const CrossHedged = CrossMargin{Hedged}
 const WithMargin = Union{Cross,Isolated}
-const marginmode = Returns(NoMargin)
+marginmode(args...; kwargs...) = NoMargin()
 
 abstract type PositionSide end
 struct Long <: PositionSide end
@@ -34,7 +34,8 @@ opposite(::Short) = Long()
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 @doc "The floating point number type to use."
-const DFT = DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", "Float64") |> Sandbox.safereval
+const DFT =
+    DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", "Float64") |> Sandbox.safereval
 @assert DEFAULT_FLOAT_TYPE isa DataType "$ENV must be edited within julia, before loading pingpong!"
 @doc "The margin of error to use [`2eps`]."
 const ATOL = @something tryparse(DFT, get(ENV, "PINGPONG_ATOL", "")) 10 * eps()
