@@ -13,8 +13,9 @@ _dopush!(side_orders, all_orders) =
     end
 
 _dopong!(s, ai, ai_orders, date) =
-    for o in ai_orders
-        pong!(s, o, date, ai)
+    for o in collect(ai_orders)
+        isqueued(o, s, ai) || continue
+        order!(s, o, date, ai)
     end
 
 _doall!(s, all_orders, date) =
@@ -57,11 +58,13 @@ and still an earlier date. (Check the `lt` functions defined in the `Strategies`
 function update!(s::Strategy{Sim}, date, ::UpdateOrdersShuffled)
     _check_update_date(s, date)
     positions!(s, date)
-    allorders = Tuple{eltype(s.holdings),Union{valtype(s.buyorders),valtype(s.sellorders)}}[]
-    _dopush!(s.sellorders, allorders)
-    _dopush!(s.buyorders, allorders)
-    shuffle!(allorders)
-    _doall!(s, allorders, date)
+    let buys = orders(s, Buy), sells = orders(s, Sell)
+        allorders = Tuple{eltype(s.holdings),Union{valtype(buys),valtype(sells)}}[]
+        _dopush!(sells, allorders)
+        _dopush!(buys, allorders)
+        shuffle!(allorders)
+        _doall!(s, allorders, date)
+    end
     _lastupdate!(s, date)
 end
 
