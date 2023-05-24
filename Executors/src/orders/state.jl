@@ -190,7 +190,7 @@ function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    subzero!(s.cash_committed, committment(ai, t))
+    subzero!(s.cash_committed, committment(ai, t), atol=ai.precision.price)
     @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
 end
 function _showliq(s, unrealized_pnl, gained, po, t)

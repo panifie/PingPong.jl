@@ -165,7 +165,7 @@ function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance, p::PositionSide)
-    isapprox(cash(ai, p), 0.0; atol=ai.limits.amount.min - eps(DFT))
+    isapprox(value(cash(ai, p)), 0.0; atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance)
@@ -479,6 +479,7 @@ function status!(ai::MarginInstance, p::PositionSide, pstat::PositionStatus)
     _lastpos!(ai, p, pstat)
 end
 
+value(v::Real, args...; kwargs...) = v
 @doc "The value held by the position, margin with pnl minus fees."
 function value(ai, ::ByPos{P}, price=price(position(ai, P))) where {P}
     pos = position(ai, P)

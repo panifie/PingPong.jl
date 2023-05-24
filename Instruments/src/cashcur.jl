@@ -122,9 +122,11 @@ Base.real(c::Cash) = real(value(c))
 /(a::Cash{S}, b::Cash{S}) where {S} = value(a) / value(b)
 +(a::Cash{S}, b::Cash{S}) where {S} = value(a) + value(b)
 -(a::Cash{S}, b::Cash{S}) where {S} = value(a) - value(b)
-function Base.isapprox(a::Cash{S}, b::Cash{S}; kwargs...) where {S}
+function Base.isapprox(a::C, b::C; kwargs...) where {C<:AbstractCash}
     isapprox(value(a), value(b); atol=ATOL, kwargs...)
 end
+
+const mylock = Base.ReentrantLock()
 
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
@@ -141,7 +143,7 @@ function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, kwargs...)
                 # throw(st[5])
                 # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
             end
-            throw("$(c.value) <  $v + $atol")
+            throw("$(val) <  $(value(v)) + $atol")
         end
     end
 end

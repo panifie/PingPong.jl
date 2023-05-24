@@ -125,9 +125,9 @@ rdiv!(c::CurrencyCash, v) = _applyop!(/, c, v)
 div!(c::CurrencyCash, v) = div!(_cash(c), v)
 mod!(c::CurrencyCash, v) = mod!(_cash(c), v)
 cash!(c::CurrencyCash, v) = cash!(_cash(c), _toprec(c, v))
-addzero!(c::CurrencyCash, v, args...; kwargs...) = begin
+addzero!(c::CurrencyCash, v, args...; atol=_prec(c), kwargs...) = begin
     add!(c, v)
-    atleast!(c; atol=_prec(c))
+    atleast!(c; atol)
     c
 end
 
