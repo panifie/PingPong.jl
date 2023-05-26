@@ -7,7 +7,7 @@ abstract type ExecMode end
 struct Sim <: ExecMode end
 struct Paper <: ExecMode end
 struct Live <: ExecMode end
-const execmode = Returns(Sim)
+execmode(args...; kwargs...) = Sim()
 
 abstract type HedgedMode end
 struct Hedged <: HedgedMode end

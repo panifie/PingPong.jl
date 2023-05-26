@@ -37,23 +37,24 @@ for sym in (openat, highat, lowat, closeat, volumeat)
     @eval @define_candle_func $sym
 end
 
-function current_total(s::NoMarginStrategy)
+@doc "The asset close price of the candle where the last trade was performed."
+lasttrade_price_func(ai) = closeat(ai, lasttrade_date(ai))
+
+function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
     worth = CurrencyCash(s.cash, 0.0)
     for ai in s.holdings
-        price = closeat(ai, lasttrade_date(ai))
-        add!(worth, ai.cash * price)
+        add!(worth, ai.cash * price_func(ai))
     end
     add!(worth, s.cash)
     worth
 end
 
-function current_total(s::MarginStrategy)
+function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
     worth = CurrencyCash(s.cash, 0.0)
     for ai in s.holdings
         for p in (Long, Short)
             isopen(ai, p) || continue
-            price = closeat(ai, lasttrade_date(ai))
-            add!(worth, value(ai, p, price)) #,  ai.cash * price)
+            add!(worth, value(ai, p, price_func(ai))) #,  ai.cash * price)
         end
     end
     add!(worth, s.cash)
@@ -69,7 +70,7 @@ function lasttrade_func(s)
     isnothing(last_trade) ? last : Returns(last_trade.date)
 end
 
-@doc "Returns the first and last trade of any asset in the strategy universe."
+@doc "The first and last trade of any asset in the strategy universe."
 function tradesedge(s::Strategy)
     first_trade = nothing
     last_trade = nothing
@@ -87,11 +88,19 @@ function tradesedge(s::Strategy)
     first_trade, last_trade
 end
 
+@doc "The dates of the first and last trade present in the strategy."
 function tradesedge(::Type{DateTime}, s::Strategy)
     edges = tradesedge(s)
     edges[1].date, edges[2].date
 end
 
+@doc "The recorded trading `Period`, from the trades history present in the strategy."
+function tradesperiod(s::Strategy)
+    start, stop = tradesedge(DateTime, s)
+    stop - start
+end
+
+@doc "A `DateRange` spanning the historical time period of the trades recorded by the strategy."
 function tradesrange(s::Strategy, tf=s.timeframe; start_pad=0, stop_pad=0)
     edges = tradesedge(DateTime, s)
     DateRange(edges[1] + tf * start_pad, edges[2] + tf * stop_pad, tf)

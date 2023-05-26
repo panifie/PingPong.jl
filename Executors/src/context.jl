@@ -1,7 +1,7 @@
 using Misc
 using TimeTicks
 using Strategies: Strategy
-
+import Misc: execmode
 
 # TYPENUM
 @doc """The configuration against which a strategy is tested.
@@ -40,5 +40,9 @@ Executors.Context(s::Strategy{<:ExecMode}) = begin
     dr = DateRange(s.universe)
     Executors.Context(execmode(s), dr)
 end
+
+execmode(::Context{M}) where {M} = M
+
+Base.similar(ctx::Context) = Context(execmode(ctx)(), similar(ctx.range))
 
 export Context

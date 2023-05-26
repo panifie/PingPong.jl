@@ -47,7 +47,7 @@ end
 
 trades_total(s::Strategy) = begin
     n_trades = 0
-    for ai in s.universe.data.instance
+    for ai in s.universe
         n_trades += length(ai.history)
     end
     n_trades

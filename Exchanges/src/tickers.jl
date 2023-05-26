@@ -151,10 +151,10 @@ _min_from_precision(v::Real) = v
 function _minmax_pair(mkt, l, prec, default)
     k = @pystr(l)
     Symbol(l) => (;
-        min=(@something pyconvert(Option{DFT}, mkt[k].get("min")) _min_from_precision(
+        min=(@something pyconvert(Option{DFT}, get(mkt[k], "min", nothing)) _min_from_precision(
             prec
         ) default.min),
-        max=(@something pyconvert(Option{DFT}, mkt[k].get("max")) default.max),
+        max=(@something pyconvert(Option{DFT}, get(mkt[k], "max", nothing)) default.max),
     )
 end
 
