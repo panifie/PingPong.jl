@@ -25,8 +25,13 @@ struct UpdatePositions <: ExecAction end
 struct UpdateLeverage <: ExecAction end
 struct UpdateMargin <: ExecAction end
 
+struct OptSetup <:ExecAction end
+struct OptRun <:ExecAction end
+struct OptScore <:ExecAction end
+
 export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions
+export OptSetup, OptRun, OptScore
 export limitorder, marketorder
 export unfilled, committed, isfilled, islastfill, isfirstfill, attr
 export queue!, cancel!, commit!

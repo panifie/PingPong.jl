@@ -1,4 +1,4 @@
-using Distributed: @distributed
+using Distributed: Distributed, @distributed
 using Logging: Logging, with_logger, NullLogger
 using SnoopPrecompile
 

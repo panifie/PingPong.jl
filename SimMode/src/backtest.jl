@@ -39,7 +39,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
             @assert something(get(exc.markets[ai.asset.raw], "linear", true), true) "Inverse contracts are not supported by SimMode."
         end
     end
-    update_mode = s.attrs[:sim_update_mode]
+    update_mode = s.attrs[:sim_update_mode]::ExecAction
     for date in ctx.range
         isoutof_orders(s) && begin
             @deassert all(iszero(ai) for ai in s.universe)

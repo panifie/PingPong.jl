@@ -15,13 +15,6 @@ include("common.jl")
 
 # function __init__() end
 _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5)) = begin
-    s.attrs[:longdiff] = 1.02
-    s.attrs[:buydiff] = 1.01
-    s.attrs[:selldiff] = 1.012
-    s.attrs[:long_k] = 0.02
-    s.attrs[:short_k] = 0.02
-    s.attrs[:per_order_leverage] = false
-    s.attrs[:verbose] = false
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
@@ -30,9 +23,15 @@ end
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
+    # s.attrs[:buydiff] = 1.01
+    # s.attrs[:selldiff] = 1.012
+    s.attrs[:long_k] = 0.02
+    s.attrs[:short_k] = 0.02
+    s.attrs[:per_order_leverage] = false
+    _overrides!(s)
     _reset_pos!(s)
     # Generate stub funding rate data, only in sim mode
-    if S <: Strategy{Sim}
+    if s isa Strategy{Sim}
         for ai in s.universe
             stub!(ai, Val(:funding))
         end
@@ -69,24 +68,26 @@ function marketsid(::Type{<:S})
 end
 
 function longorshort(s::S, ai, ats)
-    closepair(ai, ats)
-    if this_close[] / prev_close[] > s.attrs[:buydiff]
+    closepair(s, ai, ats)
+    if _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
         Long()
     else
         Short()
     end
 end
 
+const nc = Ref(0)
+
 function isbuy(s::S, ai, ats, pos)
-    closepair(ai, ats)
-    isnothing(this_close[]) && return false
-    this_close[] / prev_close[] > s.attrs[:buydiff]
+    closepair(s, ai, ats)
+    isnothing(_thisclose(s)) && return false
+    _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
 end
 
 function issell(s::S, ai, ats, pos)
-    closepair(ai, ats)
-    isnothing(this_close[]) && return false
-    prev_close[] / this_close[] > s.attrs[:selldiff]
+    closepair(s, ai, ats)
+    isnothing(_thisclose(s)) && return false
+    _prevclose(s) / _thisclose(s) > s.attrs[:selldiff]
 end
 
 _levk(s, ::Long) = s.attrs[:long_k]

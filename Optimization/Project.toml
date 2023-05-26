@@ -1,0 +1,19 @@
+name = "Optimization"
+uuid = "01837fd2-c099-442f-ae89-75fa208aad36"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+BayesianOptimization = "4c6ed407-134f-591c-93fa-e0f7c164a0ec"
+BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SimMode = "70084082-5615-4098-a9f0-eda0197c0e82"
+Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+
+[weakdeps]
+BayesianOptimization = "4c6ed407-134f-591c-93fa-e0f7c164a0ec"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+
+[extensions]
+BayesExt = "BayesianOptimization"

@@ -1,17 +1,33 @@
 using Lang: @ifdebug
 
 const CACHE = Dict{Symbol,Any}()
+const THREADSAFE = Ref(true)
 
+_timeframe(s) = s.attrs[:timeframe]
 _reset!(s) = begin
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
     s.attrs[:ordertype] = :fok
     s.attrs[:verbose] = false
+    s.attrs[:this_close] = nothing
+    s.attrs[:prev_close] = nothing
+    s.attrs[:timeframe] = s.timeframe
+    delete!(s.attrs, :this_close)
+    delete!(s.attrs, :prev_close)
+    s
+end
+
+_overrides!(s) = begin
     for (k, v) in pairs(get(s.attrs, :overrides, ()))
         s.attrs[k] = v
     end
     s
 end
+
+_thisclose(s) = s.attrs[:this_close]::Option{Float64}
+_prevclose(s) = s.attrs[:prev_close]::Option{Float64}
+_thisclose!(s, v) = s.attrs[:this_close] = v
+_prevclose!(s, v) = s.attrs[:prev_close] = v
 
 function select_ordertype(s::S, os::Type{<:OrderSide}, p::PositionSide=Long())
     let t = s.attrs[:ordertype]
@@ -61,17 +77,14 @@ end
 
 marketsid(::S) = marketsid(S)
 
-const this_close = Ref{Option{Float64}}(nothing)
-const prev_close = Ref{Option{Float64}}(nothing)
-
-function closepair(ai, ats, tf=tf"1m")
+function closepair(s, ai, ats, tf=_timeframe(s))
     data = ai.data[tf]
     prev_date = ats - tf
     if data.timestamp[begin] > prev_date
-        this_close[] = nothing
+        _thisclose!(s, nothing)
         return nothing
     end
-    this_close[] = closeat(data, ats)
-    prev_close[] = closeat(data, prev_date)
+    _thisclose!(s, closeat(data, ats))
+    _prevclose!(s, closeat(data, prev_date))
     nothing
 end

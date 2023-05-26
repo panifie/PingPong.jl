@@ -20,6 +20,10 @@ function Base.convert(::Type{DateTuple}, d::DateRange)
     ))
 end
 
+Base.similar(dr::DateRange) = begin
+    DateRange(dr.start, dr.stop, dr.step)
+end
+
 function Base.show(dr::DateRange)
     Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
 end

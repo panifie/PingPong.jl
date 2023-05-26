@@ -11,7 +11,10 @@ const TF = tf"1m"
 __revise_mode__ = :eval
 include("common.jl")
 
-ping!(s::S, ::ResetStrategy) = _reset!(s)
+ping!(s::S, ::ResetStrategy) = begin
+    _reset!(s)
+    _overrides!(s)
+end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
@@ -38,7 +41,7 @@ function marketsid(::Type{<:S})
 end
 
 function buy!(s::S, ai, ats, ts)
-    pong!(s, ai, CancelOrders(), t=Sell)
+    pong!(s, ai, CancelOrders(); t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
@@ -50,7 +53,7 @@ function buy!(s::S, ai, ats, ts)
 end
 
 function sell!(s::S, ai, ats, ts)
-    pong!(s, ai, CancelOrders(), t=Buy)
+    pong!(s, ai, CancelOrders(); t=Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     if amount > 0.0
         ot, otsym = select_ordertype(s, Sell)
@@ -61,9 +64,9 @@ end
 
 function isbuy(s::S, ai, ats)
     if s.cash > s.config.min_size
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        this_close[] / prev_close[] > s.attrs[:buydiff]
+        closepair(s, ai, ats)
+        isnothing(_thisclose(s)) && return false
+        _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
     else
         false
     end
@@ -71,12 +74,33 @@ end
 
 function issell(s::S, ai, ats)
     if ai.cash > 0.0
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        prev_close[] / this_close[] > s.attrs[:selldiff]
+        closepair(s, ai, ats)
+        isnothing(_thisclose(s)) && return false
+        _prevclose(s) / _thisclose(s) > s.attrs[:selldiff]
     else
         false
     end
+end
+
+## Optimization
+function ping!(::S, ::OptSetup)
+    (;
+        ctx=Context(Sim(), tf"1h", dt"2020-", dt"2023-"),
+        space=(:MixedPrecisionRectSearchSpace, [1.005, 1.005], [1.02, 1.02], [3, 3]),
+    )
+end
+function ping!(s::S, params, ::OptRun)
+    s.attrs[:overrides] = (;
+        timeframe=tf"1h",
+        ordertype=:market,
+        def_lev=1.0,
+        buydiff=round(params[1]; digits=3),
+        selldiff=round(params[2]; digits=3),
+    )
+end
+
+function ping!(s::S, ::OptScore)
+    clamp(value(st.current_total(s)) / 100000.0, 0.0, 1.0)
 end
 
 end
