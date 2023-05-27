@@ -20,15 +20,17 @@ isexpired(time::DateTime) = v::Node -> time > v.expiry
 An associative [TTL](https://en.wikipedia.org/wiki/Time_to_live) cache.
 If `refresh_on_access` is set, expiries are reset whenever they are accessed.
 """
-struct TTL{K, V, P<:Period} <: AbstractDict{K, V}
-    dict::Dict{K, Node{V}}
+struct TTL{K,V,D<:AbstractDict,P<:Period} <: AbstractDict{K,V}
+    dict::D where {D<:AbstractDict{K,Node{V}}}
     ttl::P
     refresh::Bool
 
-    TTL{K, V}(ttl::P; refresh_on_access::Bool=false) where {K, V, P <: Period} =
-        new{K, V, P}(Dict{K, Node{V}}(), ttl, refresh_on_access)
-    TTL(ttl::Period; refresh_on_access::Bool=false) =
-        TTL{Any, Any}(ttl; refresh_on_access=refresh_on_access)
+    function TTL{K,V}(ttl::P; refresh_on_access::Bool=false, dict_type=Dict) where {K,V,P<:Period}
+        new{K,V,dict_type,P}(dict_type{K,Node{V}}(), ttl, refresh_on_access)
+    end
+    function TTL(ttl::Period; refresh_on_access::Bool=false)
+        TTL{Any,Any}(ttl; refresh_on_access=refresh_on_access)
+    end
 end
 
 Base.delete!(t::TTL, key) = (delete!(t.dict, key); t)
@@ -37,8 +39,8 @@ Base.empty!(t::TTL) = (empty!(t.dict); t)
 Base.get(f::Function, t::TTL, key) = haskey(t, key) ? t[key] : f()
 Base.get!(t::TTL, key, default) = haskey(t, key) ? t[key] : (t[key] = default)
 Base.length(t::TTL) = count(!isexpired(now()), values(t.dict))
-Base.push!(t::TTL, p::Pair) = (t[p.first] =  p.second; t)
-Base.setindex!(t::TTL{K, V}, v, k) where {K, V} = t.dict[k] = Node{V}(v, now() + t.ttl)
+Base.push!(t::TTL, p::Pair) = (t[p.first] = p.second; t)
+Base.setindex!(t::TTL{K,V}, v, k) where {K,V} = t.dict[k] = Node{V}(v, now() + t.ttl)
 Base.sizehint!(t::TTL, newsz) = (sizehint!(t.dict, newsz); t)
 
 function Base.pop!(t::TTL)
