@@ -1,4 +1,4 @@
-using Lang: SnoopPrecompile, @preset, @precomp
+using .egn.Lang: SnoopPrecompile, @preset, @precomp
 
 # FIXME: This precompilation bloats the module
 # maybe we should just input the precompile statements here.

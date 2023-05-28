@@ -1,7 +1,7 @@
 module Alignments
-using .TimeTicks
-using .Lang
 using Misc
+using Misc.TimeTicks
+using Misc.Lang
 using Data.DataStructures
 using Data.DataFrames
 using Data: PairData, @with

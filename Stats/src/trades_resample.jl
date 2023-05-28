@@ -3,7 +3,7 @@ using Engine.OrderTypes: Order
 using Engine.Instances: pnl
 using Engine.Strategies: NoMarginStrategy, MarginStrategy
 using Engine.Misc: MarginMode, NoMargin, WithMargin, marginmode
-using Lang: @ifdebug
+using Engine.Lang: @ifdebug
 
 # Use a generic Order instead to avoid the dataframe creating a too concrete order vector
 TradesTuple2 = NamedTuple{

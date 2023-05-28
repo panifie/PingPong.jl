@@ -123,5 +123,7 @@ function objectives(s)
     end
 end
 
+export OptSession
+
 include("bbopt.jl")
 include("grid.jl")
