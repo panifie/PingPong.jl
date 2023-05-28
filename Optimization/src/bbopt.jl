@@ -12,9 +12,16 @@ const disabled_methods = Set((
     :resampling_inheritance_memetic_search,
 ))
 
-@doc "Get a filtered list of methods supported by BBO."
-function bbomethods()
-    collect(k for k in keys(BlackBoxOptim.SingleObjectiveMethods) if k ∉ disabled_methods)
+@doc "Get a filtered list of methods supported by BBO (single or multi)."
+function bbomethods(multi=false)
+    Set(
+        k for k in keys(
+            getglobal(
+                BlackBoxOptim,
+                ifelse(multi, :MultiObjectiveMethods, :SingleObjectiveMethods),
+            ),
+        ) if k ∉ disabled_methods
+    )
 end
 
 _tsaferesolve(v::Ref{Bool}) = v[]
@@ -25,7 +32,7 @@ function ctxfromstrat(s)
     ctx, s_space = ping!(s, OptSetup())
     ctx,
     if s_space isa SearchSpace
-        s_spac
+        s_space
     elseif s_space isa Function
         s_space()
     else
@@ -34,6 +41,23 @@ function ctxfromstrat(s)
             @assert length(s_space) > 0 && s_space[1] isa Symbol
             getglobal(BlackBoxOptim, s_space[1])(s_space[2:end]...)
         end
+    end
+end
+
+function _spacedims(params)
+    @assert length(params) > 2 "Params second and third element should be lower and upper bounds arrays."
+    lower = params[2]
+    upper = params[3]
+    @assert length(lower) == length(upper) "Params lower and upper bounds do not match in length."
+    length(lower)
+end
+
+function fitness_scheme(s::Strategy, n_obj)
+    let weightsfunc = get(s.attrs, :opt_weighted_fitness, missing)
+        ParetoFitnessScheme{n_obj}(;
+            is_minimizing=false,
+            (weightsfunc isa Function ? (; aggregator=weightsfunc) : ())...,
+        )
     end
 end
 
@@ -60,32 +84,29 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
     ctx, space = ctxfromstrat(s)
-    sess = OptSession(s, ctx, space)
-    function onerun(params, n)
-        ping!(s, params, OptRun())
-        st.reset!(s)
-        let wp = ping!(s, WarmupPeriod())
-            current!(ctx.range, ctx.range.start + wp + ctx.range.step * n)
-        end
-        backtest!(s, ctx; doreset=false)
-        obj = ping!(s, OptScore())
-        cash = value(st.current_total(s))
-        trades = st.trades_total(s)
-        push!(
-            sess.results,
-            (; obj, cash, trades, (Symbol("x$n") => p for (n, p) in enumerate(params))...),
-        )
-        obj
+    sess = OptSession(s; ctx, space, repeats)
+    backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
+    obj_type, n_obj = objectives(s)
+
+    filtered, rest = let (filtered, rest) = splitkws(:MaxStepsWithoutProgress; kwargs)
+        filtered, Dict{Symbol,Any}(rest)
     end
-    optrun(params) = median(((onerun(params, n) for n in 1:repeats)...,))
+    ismulti = let mt = get(rest, :Method, :xnes)
+        flag = n_obj > 1
+        @assert mt ∈ bbomethods(flag) "Optimization method incompatible."
+        flag
+    end
+    opt_func = define_opt_func(s; backtest_func, ismulti, repeats, obj_type)
     try
-        filtered, rest = splitkws(:MaxStepsWithoutProgress; kwargs)
-        MaxStepsWithoutProgress = if isempty(filtered)
-            max(3, Threads.nthreads())
+        rest[:MaxStepsWithoutProgress] = if isempty(filtered)
+            max(10, Threads.nthreads() * 10)
         else
             first(filtered)[2]
         end
-        r = bboptimize(optrun; SearchSpace=space, MaxStepsWithoutProgress, rest...)
+        if ismulti
+            rest[:FitnessScheme] = fitness_scheme(s, n_obj)
+        end
+        r = bboptimize(opt_func; SearchSpace=space, rest...)
         sess.best[] = best_candidate(r)
     catch e
         showerror(stdout, e)

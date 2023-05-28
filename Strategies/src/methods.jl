@@ -53,30 +53,31 @@ reload!(s::Strategy) = begin
     end
 end
 const config_fields = fieldnames(Config)
+_config_attr(s, attr) = getfield(getfield(s, :config), attr)
 @doc "Set strategy defaults."
 default!(::Strategy) = begin end
 Base.fill!(s::Strategy) = coll.fill!(s.universe, s.timeframe, s.config.timeframes)
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
-        getfield(s, :config).attrs
+        _config_attr(s, :attrs)
     elseif sym == :exchange
-        getfield(s, :config).exchange
+        _config_attr(s, :exchange)
     elseif sym == :path
-        getfield(s, :config).path
+        _config_attr(s, :path)
     elseif sym == :initial_cash
-        getfield(s, :config).initial_cash
+        _config_attr(s, :initial_cash)
     elseif sym == :min_size
-        getfield(s, :config).min_size
+        _config_attr(s, :min_size)
     elseif sym == :min_vol
-        getfield(s, :config).min_vol
+        _config_attr(s, :min_vol)
     elseif sym == :qc
-        getfield(s, :config).qc
+        _config_attr(s, :qc)
     elseif sym == :margin
-        getfield(s, :config).margin
+        _config_attr(s, :margin)
     elseif sym == :leverage
-        getfield(s, :config).leverage
+        _config_attr(s, :leverage)
     elseif sym == :mode
-        getfield(s, :config).mode
+        _config_attr(s, :mode)
     else
         getfield(s, sym)
     end

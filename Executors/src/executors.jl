@@ -28,6 +28,7 @@ struct UpdateMargin <: ExecAction end
 struct OptSetup <:ExecAction end
 struct OptRun <:ExecAction end
 struct OptScore <:ExecAction end
+struct OptGrid <:ExecAction end
 
 export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions

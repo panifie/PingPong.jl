@@ -1,9 +1,12 @@
 _pricebyside(::AnyBuyOrder, date, ai) = st.lowat(ai, date)
 _pricebyside(::AnySellOrder, date, ai) = st.highat(ai, date)
 
-OrderTypes.ordersdefault!(s::Strategy{Sim}) = begin
-    s.attrs[:sim_update_mode] = UpdateOrders()
-    s.attrs[:sim_base_slippage] = Val(:spread)
-    s.attrs[:sim_market_slippage] = Val(:skew)
-    s.attrs[:sim_last_orders_update] = DateTime(0)
+function OrderTypes.ordersdefault!(s::Strategy{Sim})
+    let attrs = s.attrs
+        attrs[:timeframe] = s.timeframe
+        attrs[:sim_update_mode] = UpdateOrders()
+        attrs[:sim_base_slippage] = Val(:spread)
+        attrs[:sim_market_slippage] = Val(:skew)
+        attrs[:sim_last_orders_update] = DateTime(0)
+    end
 end
