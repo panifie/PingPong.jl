@@ -56,13 +56,13 @@ macro get(dict, k, expr)
     :(@something get($dict, $k, nothing) $expr)
 end
 
-@doc "Lazy *get or set* for a container key-value pair that *should not contain* `nothing`."
+@doc "Lazy *get or set* for a container key-value pair that *should not contain* `missing`."
 macro lget!(dict, k, expr)
     dict = esc(dict)
     expr = esc(expr)
     k = esc(k)
     quote
-        @something get($dict, $k, nothing) let v = $expr
+        @coalesce get($dict, $k, missing) let v = $expr
             $dict[$k] = v
             v
         end
