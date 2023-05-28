@@ -1,4 +1,5 @@
 using Term.Progress
+using Term: Term
 using TimeTicks: now, Millisecond, Second, DateTime
 using Lang: toggle!, @preset, @precomp
 
@@ -104,7 +105,11 @@ macro pbstop!()
     end
 end
 
-@doc "Same as `@pbar!` but with implicit closing."
+@doc "Same as `@pbar!` but with implicit closing.
+The first argument should be the collection to iterate over.
+Optional kw arguments:
+- `desc`: description
+"
 macro withpbar!(data, args...)
     @pbinit!
     data = esc(data)
