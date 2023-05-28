@@ -1,15 +1,17 @@
+using Engine: Engine as egn
 using Engine.Strategies: Strategies as st, Strategy
-using Processing: normalize!, resample
-using Engine.Instances
-using Engine.OrderTypes
+using .egn.Processing: normalize!, resample
+using .egn.Instances
+using .egn.OrderTypes
+using .egn.Simulations
 
-using Data
-using Data.DFUtils
-using Data.DataFramesMeta
-using Data.DataFrames
+using .egn.Data
+using .Data.DFUtils
+using .Data.DataFramesMeta
+using .Data.DataFrames
 
-using TimeTicks
-using Lang
+using .egn.TimeTicks
+using .egn.Lang
 using Statistics
 using Statistics: median
 

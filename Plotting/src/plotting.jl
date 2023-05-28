@@ -1,9 +1,10 @@
 using Makie
 using Stats
+using Stats: Engine as egn
 using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
-using Misc
-using TimeTicks
-using Lang
+using .egn.Misc
+using .egn.TimeTicks
+using .egn.Lang
 
 include("utils.jl")
 include("ohlcv.jl")

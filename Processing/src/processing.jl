@@ -1,4 +1,6 @@
-using Lang: @preset, @precomp
+using Misc: Lang, TimeTicks
+using .TimeTicks
+using .Lang: @preset, @precomp
 
 include("normalize.jl")
 include("resample.jl")

@@ -12,21 +12,22 @@ using SimMode
 using PaperMode
 using LiveMode
 using OrderTypes
-using Executors
-using Simulations
+using SimMode.Executors
+using SimMode.sim: Simulations
 using Misc
-using TimeTicks
+using Misc.TimeTicks
 using Exchanges: Exchanges, market_fees, market_limits, market_precision, getexchange!
 using Instances
 using Strategies
 using Collections
 import Data: stub!
 using Misc: swapkeys
+using Misc.Lang: Lang
 using ExchangeTypes: exc
-using Data: load, zi, empty_ohlcv
+using Data: Data, load, zi, empty_ohlcv
 using Data.DataFramesMeta
 using Data.DFUtils
-using Processing: resample
+using Processing: resample, Processing
 using Instruments: Asset, fiatnames
 
 # include("consts.jl")

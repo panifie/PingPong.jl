@@ -2,8 +2,8 @@ using Data: ohlcvtuple, to_ohlcv, df!
 using Processing: resample
 using Random: rand
 using Base: DEFAULT_STABLE
-using Misc: config, FUNDING_PERIOD
-using Lang: @deassert
+using Misc: config, FUNDING_PERIOD, Lang
+using .Lang: @deassert
 using Statistics: mean, median
 using Data.DataFrames: groupby, combine, DataFrame, metadata!, metadatakeys
 import Data: stub!

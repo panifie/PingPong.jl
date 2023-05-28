@@ -9,7 +9,7 @@ using OrderTypes: LimitOrderType, MarketOrderType
 using TimeTicks
 using TimeTicks: TimeTicks as tt
 using Misc
-using Lang: @deassert, @ifdebug
+using Misc.Lang: Lang, @deassert, @ifdebug
 using Base: negate
 
 using Executors.Checks: cost, withfees

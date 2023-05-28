@@ -1,7 +1,7 @@
 using Reexport
 @reexport using Dates
 using TimeFrames: TimeFrames, TimeFrame, apply, TimePeriodFrame
-using Lang: @lget!
+using Lang: @lget!, Lang
 using Serialization
 using Base: AbstractCmd
 import Base: convert, isless, ==

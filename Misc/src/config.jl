@@ -145,12 +145,13 @@ function _parse(k, v)
 end
 function _options!(cfg, name)
     options = fieldnames(Config)
+    attrs = cfg.attrs
     for (opt, val) in cfg.toml[name]
         sym = Symbol(opt)
         if sym ∈ options
             setproperty!(cfg, sym, _parse(sym, val))
         else
-            cfg.attrs[opt] = val
+            attrs[opt] = val
         end
     end
     sort!(cfg.timeframes)

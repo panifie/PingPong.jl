@@ -4,23 +4,10 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
-Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
-BasicBSpline = "4c5d9882-2acf-4ea4-9e48-968fd4518195"
-Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
-Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
-Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-OrderTypes = "fba5cb4a-2089-4510-9d41-52be7ff19328"
-Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
-Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
-Strategies = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
 Stubs = "19a5ee1f-efca-4178-b297-263c7ceb508d"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 
 [weakdeps]
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"

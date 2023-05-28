@@ -1,6 +1,6 @@
 module Alignments
-using TimeTicks
-using Lang
+using .TimeTicks
+using .Lang
 using Misc
 using Data.DataStructures
 using Data.DataFrames

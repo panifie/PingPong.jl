@@ -5,9 +5,7 @@ version = "0.1.0"
 
 [deps]
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 Pbar = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"

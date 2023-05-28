@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "6e186f6c8b87af92530afec9a741039820a0c4a4"
+project_hash = "c9b6d286246c22bbeda73d73387e7b162c12313b"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -142,6 +142,11 @@ version = "1.0.2+0"
 [[deps.CompositionsBase]]
 git-tree-sha1 = "455419f7e328a1a2493cabc6428d79e951349769"
 uuid = "a33af91c-f02d-484b-be07-31d278c5ca2b"
+version = "0.1.1"
+
+[[deps.ConcurrentCollections]]
+git-tree-sha1 = "875d52bb9900dcf9e4e6bbd02da0e590eb200dc8"
+uuid = "5060bff5-0b44-40c5-b522-fcd3ca5cecdd"
 version = "0.1.1"
 
 [[deps.ConcurrentUtilities]]
@@ -538,7 +543,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.12"
 
 [[deps.Misc]]
-deps = ["Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"

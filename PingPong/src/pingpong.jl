@@ -79,4 +79,11 @@ macro contractsenv!()
     end
 end
 
-export @environment!, @strategyenv!, @contractsenv!
+macro optenv!()
+    quote
+        using Engine.SimMode: SimMode as sm
+        using Stats: Stats as stats
+    end
+end
+
+export @environment!, @strategyenv!, @contractsenv!, @optenv!

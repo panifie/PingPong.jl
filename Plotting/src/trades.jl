@@ -3,16 +3,16 @@ using Stats: trades_balance, expand
 using Base: remove_linenums!
 using Makie: point_in_triangle, point_in_quad_parameter
 
-using Lang: Option
-using Data.DFUtils
-using Data.DataFrames
-using Data: load, zi
-using Processing: normalize, normalize!
+using .egn.Lang: Option
+using .egn.Data.DFUtils
+using .egn.Data.DataFrames
+using .egn.Data: load, zi
+using .egn.Processing: normalize, normalize!
 
-using Instruments
-using Exchanges: getexchange!
-using OrderTypes
-using Strategies: Strategy, Strategies as st, AssetInstance
+using .egn.Exchanges: getexchange!
+using .egn.Strategies: Strategy, Strategies as st, AssetInstance
+using .st.OrderTypes
+using .st.Instruments
 
 function trade_str(trade)
     """Trade Date: $(trade.date)

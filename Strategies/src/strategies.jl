@@ -1,8 +1,8 @@
 using Collections: AssetCollection, Collections as coll
 
-using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged
+using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged, Instances
 using Instances: CurrencyCash, CCash
-using OrderTypes: Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
+using OrderTypes: OrderTypes, Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError, StrategyEvent
 using ExchangeTypes
 using TimeTicks

@@ -1,5 +1,5 @@
-using Lang
-using TimeTicks
+using .Lang
+using Misc.TimeTicks
 using Instances
 using Statistics: cov, mean
 using Data.DFUtils

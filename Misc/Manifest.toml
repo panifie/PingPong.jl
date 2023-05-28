@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "1a607ad47e137ce76e78f5b80cdcf20281672b0b"
+project_hash = "22b6f194f57273682a248bf83beb1b176f8623b9"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -13,6 +13,11 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.ConcurrentCollections]]
+git-tree-sha1 = "875d52bb9900dcf9e4e6bbd02da0e590eb200dc8"
+uuid = "5060bff5-0b44-40c5-b522-fcd3ca5cecdd"
+version = "0.1.1"
 
 [[deps.Dates]]
 deps = ["Printf"]

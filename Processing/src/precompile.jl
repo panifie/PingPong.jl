@@ -1,4 +1,4 @@
-using Lang: SnoopPrecompile, @preset, @precomp
+using .Lang: SnoopPrecompile, @preset, @precomp
 
 @preset let
     using Data: Data as da

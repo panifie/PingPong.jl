@@ -2,7 +2,7 @@ using Statistics: std
 using Base: negate
 
 const DAYS_IN_YEAR = 365
-const METRICS = Set((:sharpe, :sortino, :calmar, :expectancy, :cagr))
+const METRICS = Set((:total, :sharpe, :sortino, :calmar, :expectancy, :cagr))
 
 _returns_arr(arr) = begin
     n_series = length(arr)
@@ -85,22 +85,40 @@ function cagr(
 end
 
 @doc "Returns a dict of the calculated `metrics` see `METRICS` for what's available."
-function multi(s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d")
-    balance = trades_balance(s, tf).cum_total
+function multi(s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false)
+    balance = let df = trades_balance(s, tf)
+        isnothing(df) &&
+            return Dict(m => ifelse(normalize, 0.0, typemin(DFT)) for m in metrics)
+        df.cum_total
+    end
     returns = _returns_arr(balance)
-    Dict((m => if m == :sharpe
-        _rawsharpe(returns)
-    elseif m == :sortino
-        _rawsortino(returns)
-    elseif m == :calmar
-        _rawcalmar(returns)
-    elseif m == :expectancy
-        _rawexpectancy(returns)
-    elseif m == :cagr
-        cagr(s)
-    else
-        error("$m is not a valid metric")
+    maybenorm = normalize ? normalize_metric : (x, _...) -> x
+    Dict((m => let v = if m == :sharpe
+            _rawsharpe(returns)
+        elseif m == :sortino
+            _rawsortino(returns)
+        elseif m == :calmar
+            _rawcalmar(returns)
+        elseif m == :expectancy
+            _rawexpectancy(returns)
+        elseif m == :cagr
+            cagr(s)
+        elseif m == :total
+            balance[end]
+        else
+            error("$m is not a valid metric")
+        end
+        maybenorm(v, Val(m))
     end for m in metrics)...)
 end
+
+_zeronan(v) = ifelse(isnan(v), 0.0, v)
+_clamp_metric(v, max) = clamp(_zeronan(v / max), zero(v), one(v))
+normalize_metric(v, ::Val{:total}) = _clamp_metric(v, 1e6)
+normalize_metric(v, ::Val{:sharpe}) = _clamp_metric(v, 1e1)
+normalize_metric(v, ::Val{:sortino}) = _clamp_metric(v, 1e1)
+normalize_metric(v, ::Val{:calmar}) = _clamp_metric(v, 1e1)
+normalize_metric(v, ::Val{:expectancy}) = v
+normalize_metric(v, ::Val{:cagr}) = _clamp_metric(v, 1e2)
 
 export sharpe, sortino, calmar, expectancy, cagr, multi
