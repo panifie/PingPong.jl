@@ -1,4 +1,6 @@
 import Base: getproperty
+import Serialization: deserialize, serialize
+using Serialization: AbstractSerializer
 
 using Reexport
 @reexport using ExchangeTypes
@@ -8,7 +10,6 @@ using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
 using Python.PythonCall: pyisnone
 using Data: DataFrame
 using JSON
-using Serialization: deserialize, serialize
 using TimeTicks
 using Instruments
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin
@@ -127,6 +128,15 @@ function setexchange!(x::Symbol, args...; kwargs...)
     exc = getexchange!(x, args...; kwargs...)
     setexchange!(exc, args...; kwargs...)
     globalexchange!(exc)
+end
+
+function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
+    Serialization.serialize_type(s, E, false)
+    serialize(s, exc.id)
+end
+
+deserialize(s::AbstractSerializer, ::Type{<:Exchange})  = begin
+    deserialize(s) |> getexchange!
 end
 
 @doc "Check if exchange has tickers list."
