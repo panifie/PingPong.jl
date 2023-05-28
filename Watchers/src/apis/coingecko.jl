@@ -76,7 +76,7 @@ vs_currencies() =
         currencies
     end
 
-const coins = TTL{Nothing,Dict{String,String}}(Minute(60))
+const coins = safettl(Nothing, Dict{String,String}, Minute(60))
 const coins_syms = Dict{String,Vector{SubString}}()
 @doc "Load all coins symbols."
 loadcoins!() = @kget! coins nothing begin

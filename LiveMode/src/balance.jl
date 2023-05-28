@@ -6,9 +6,11 @@ using Python
 
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
 const BalanceTTL = Ref(Second(5))
-const BalanceCacheDict4 = TTL{ExchangeID,Dict{Tuple{BalanceStatus,Symbol},Py}}(BalanceTTL[])
-const BalanceCacheSyms6 = TTL{ExchangeID,Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}}(
-    BalanceTTL[]
+const BalanceCacheDict4 = safettl(
+    ExchangeID, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
+)
+const BalanceCacheSyms6 = safettl(
+    ExchangeID, Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}, BalanceTTL[]
 )
 
 function Base.string(v::BalanceStatus)

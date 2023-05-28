@@ -6,14 +6,14 @@ Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
 import Misc: gtxzero, ltxzero, approxzero
 
-const currenciesCache1Hour = TTL{ExchangeID,Py}(Hour(1))
+const currenciesCache1Hour = safettl(ExchangeID, Py, Hour(1))
+const currency_lock = ReentrantLock()
 
 function to_float(py::Py, T::Type{<:AbstractFloat}=Float64)
     something(pyconvert(Option{T}, py), 0.0)
 end
 
 function _lpf(exc, cur)
-    @assert pyisinstance(cur, pybuiltins.dict) "Wrong currency: $sym_str not found on $(exc.name)"
     limits = let l = cur.get("limits", nothing)
         if isnothing(l)
             (min=0.0, max=Inf)
@@ -40,18 +40,23 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
     precision::T where {T<:Real}
     fees::DFT
     function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v)
-        exc = getexchange!(id.parameters[1])
-        c = cash_type(v)
-        lpf = _lpf(exc, _cur(exc, nameof(c)))
-        Instruments.cash!(c, toprecision(c.value, lpf.precision))
-        new{cash_type,id}(c, lpf...)
+        @lock currency_lock begin
+            exc = getexchange!(id.parameters[1])
+            c = cash_type(v)
+            lpf = _lpf(exc, _cur(exc, nameof(c)))
+            Instruments.cash!(c, toprecision(c.value, lpf.precision))
+            new{cash_type,id}(c, lpf...)
+        end
     end
     function CurrencyCash(exc::Exchange, sym, v=0.0)
-        cur = _cur(exc, sym)
-        c = Cash(sym, v)
-        lpf = _lpf(exc, cur)
-        Instruments.cash!(c, toprecision(c.value, lpf.precision))
-        new{typeof(c),typeof(exc.id)}(c, lpf...)
+        @lock currency_lock begin
+            cur = _cur(exc, sym)
+            @assert pyisinstance(cur, pybuiltins.dict) "Wrong currency: $sym not found on $(exc.name)"
+            c = Cash(sym, v)
+            lpf = _lpf(exc, cur)
+            Instruments.cash!(c, toprecision(c.value, lpf.precision))
+            new{typeof(c),typeof(exc.id)}(c, lpf...)
+        end
     end
 end
 

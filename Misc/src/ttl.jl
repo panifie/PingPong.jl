@@ -1,6 +1,7 @@
 module TimeToLive
+using ConcurrentCollections: modify!, Delete, ConcurrentDict
 
-export TTL
+export TTL, safettl
 
 using Base.Iterators: peel
 using Dates: DateTime, Period, now
@@ -25,7 +26,9 @@ struct TTL{K,V,D<:AbstractDict,P<:Period} <: AbstractDict{K,V}
     ttl::P
     refresh::Bool
 
-    function TTL{K,V}(ttl::P; refresh_on_access::Bool=false, dict_type=Dict) where {K,V,P<:Period}
+    function TTL{K,V}(
+        ttl::P; refresh_on_access::Bool=false, dict_type=Dict
+    ) where {K,V,P<:Period}
         new{K,V,dict_type,P}(dict_type{K,Node{V}}(), ttl, refresh_on_access)
     end
     function TTL(ttl::Period; refresh_on_access::Bool=false)
@@ -33,7 +36,22 @@ struct TTL{K,V,D<:AbstractDict,P<:Period} <: AbstractDict{K,V}
     end
 end
 
+function safettl(K::Type, V::Type, ttl; kwargs...)
+    TTL{K,V}(ttl; dict_type=ConcurrentDict, kwargs...)
+end
+
 Base.delete!(t::TTL, key) = (delete!(t.dict, key); t)
+Base.empty!(t::ConcurrentDict{K,V}) where {K,V} =
+    for k in keys(t)
+        modify!(t, k) do value
+            Delete(value)
+        end
+    end
+Base.delete!(t::ConcurrentDict{K,V}, k) where {K,V} =
+    modify!(t, k) do value
+        Delete(value)
+    end
+
 Base.empty!(t::TTL) = (empty!(t.dict); t)
 # Specifying ::Function fixes some method invalidations
 Base.get(f::Function, t::TTL, key) = haskey(t, key) ? t[key] : f()

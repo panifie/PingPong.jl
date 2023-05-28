@@ -16,7 +16,7 @@ using Misc.TimeToLive
 using Lang: @lget!
 
 const exclock = ReentrantLock()
-const tickers_cache = TTL{Tuple{String,Symbol},AbstractDict}(Minute(100))
+const tickers_cache = safettl(Tuple{String,Symbol}, Dict, Minute(100))
 
 @doc "Define an exchange variable set to its matching exchange instance."
 macro exchange!(name)
@@ -152,7 +152,7 @@ macro tickers!(type=markettype(), force=false)
                 tickers_cache[k] =
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        pyfetch($(exc).fetchTickers, params=Dict("type" => $(type))),
+                        pyfetch($(exc).fetchTickers; params=Dict("type" => $(type))),
                     )
             else
                 $tickers = tickers_cache[k]
