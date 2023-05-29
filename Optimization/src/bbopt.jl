@@ -29,17 +29,24 @@ _tsaferesolve(v::Bool) = v
 isthreadsafe(s::Strategy) = _tsaferesolve(s.self.THREADSAFE)
 
 function ctxfromstrat(s)
-    ctx, s_space = ping!(s, OptSetup())
+    ctx, params, s_space = ping!(s, OptSetup())
     ctx,
+    params,
     if s_space isa SearchSpace
         s_space
     elseif s_space isa Function
         s_space()
     else
         let error_msg = "Wrong optimization parameters, pass either a value of type <: `SearchSpace` or a tuple where the first element is the BBO space type and the rest is the argument for the space constructor."
-            @assert typeof(s_space) <: Union{Tuple,Vector} error_msg
+            @assert typeof(s_space) <: Union{NamedTuple,Tuple,Vector} error_msg
             @assert length(s_space) > 0 && s_space[1] isa Symbol
-            getglobal(BlackBoxOptim, s_space[1])(s_space[2:end]...)
+            lower, upper = [], []
+            for p in values(params)
+                push!(lower, first(p))
+                push!(upper, last(p))
+            end
+            args = hasproperty(s_space, :precision) ? (s_space.precision,) : ()
+            getglobal(BlackBoxOptim, s_space.kind)(lower, upper, args...)
         end
     end
 end
@@ -83,8 +90,8 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         @assert n_jobs <= Threads.nthreads() - 1 "Should not use more threads than logical cores $(Threads.nthreads())."
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
-    ctx, space = ctxfromstrat(s)
-    sess = OptSession(s; ctx, space, repeats)
+    ctx, params, space = ctxfromstrat(s)
+    sess = OptSession(s; ctx, params, opt_config=space)
     backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
     obj_type, n_obj = objectives(s)
 
@@ -109,7 +116,7 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         r = bboptimize(opt_func; SearchSpace=space, rest...)
         sess.best[] = best_candidate(r)
     catch e
-        showerror(stdout, e)
+        e isa InterruptException || showerror(stdout, e)
     end
     sess
 end

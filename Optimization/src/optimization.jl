@@ -23,25 +23,35 @@ ping!(::Strategy, params, ::OptRun) = error("not implemented")
 
 #TYPENUM
 @doc "An optimization session stores all the evaluated parameters combinations."
-struct OptSession15{S<:SimStrategy,N}
+struct OptSession17{S<:SimStrategy,N}
     s::S
     ctx::Context{Sim}
-    params::Any
+    params::T where {T<:NamedTuple}
+    opt_config::Any
     results::DataFrame
     best::Ref{Any}
     lock::ReentrantLock
     s_clones::NTuple{N,Tuple{ReentrantLock,S}}
     ctx_clones::NTuple{N,Context{Sim}}
-    function OptSession15(s::Strategy; ctx, params, repeats)
-        s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:repeats)...)
-        ctx_clones = tuple((similar(ctx) for _ in 1:repeats)...)
-        new{typeof(s),repeats}(
-            s, ctx, params, DataFrame(), Ref(nothing), ReentrantLock(), s_clones, ctx_clones
+    function OptSession17(s::Strategy; ctx, params, opt_config=Dict())
+        n_threads = Threads.nthreads()
+        s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:n_threads)...)
+        ctx_clones = tuple((similar(ctx) for _ in 1:n_threads)...)
+        new{typeof(s),n_threads}(
+            s,
+            ctx,
+            params,
+            opt_config,
+            DataFrame(),
+            Ref(nothing),
+            ReentrantLock(),
+            s_clones,
+            ctx_clones,
         )
     end
 end
 
-OptSession = OptSession15
+OptSession = OptSession17
 
 function ctxsteps(ctx, repeats)
     small_step = Millisecond(ctx.range.step).value
@@ -52,8 +62,8 @@ function ctxsteps(ctx, repeats)
 end
 
 function define_backtest_func(sess, small_step, big_step)
-    (params, n) -> let slot = sess.s_clones[n]
-        @lock slot[1] let s = slot[2], ctx = sess.ctx_clones[n]
+    (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
+        @lock slot[1] let s = slot[2], ctx = sess.ctx_clones[tid]
             # clear strat
             st.reset!(s, true)
             # apply params
@@ -69,14 +79,14 @@ function define_backtest_func(sess, small_step, big_step)
             obj = ping!(s, OptScore())
             # record run
             cash = value(st.current_total(s))
-            trades = st.trades_total(s)
+            trades = st.trades_count(s)
             @lock sess.lock push!(
                 sess.results,
                 (;
                     obj,
                     cash,
                     trades,
-                    (Symbol("x$n") => p for (n, p) in enumerate(params))...,
+                    (pname => p for (pname, p) in zip(keys(sess.params), params))...,
                 ),
             )
             obj

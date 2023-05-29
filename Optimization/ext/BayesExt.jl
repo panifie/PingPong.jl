@@ -50,7 +50,7 @@ function boptimize!(
 
         obj = ping!(s, OptScore())
         cash = value(st.current_total(s))
-        trades = st.trades_total(s)
+        trades = st.trades_count(s)
         push!(
             sess.results,
             (; obj, cash, trades, (Symbol("x$n") => p for (n, p) in enumerate(params))...),
