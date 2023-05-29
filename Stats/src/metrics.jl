@@ -1,8 +1,9 @@
 using Statistics: std
 using Base: negate
+using .st: trades_count
 
 const DAYS_IN_YEAR = 365
-const METRICS = Set((:total, :sharpe, :sortino, :calmar, :expectancy, :cagr))
+const METRICS = Set((:total, :sharpe, :sortino, :calmar, :expectancy, :cagr, :trades))
 
 _returns_arr(arr) = begin
     n_series = length(arr)
@@ -105,6 +106,8 @@ function multi(s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false)
             cagr(s)
         elseif m == :total
             balance[end]
+        elseif m == :trades
+            trades_count(s, Val(:liquidations))[1]
         else
             error("$m is not a valid metric")
         end
@@ -120,5 +123,6 @@ normalize_metric(v, ::Val{:sortino}) = _clamp_metric(v, 1e1)
 normalize_metric(v, ::Val{:calmar}) = _clamp_metric(v, 1e1)
 normalize_metric(v, ::Val{:expectancy}) = v
 normalize_metric(v, ::Val{:cagr}) = _clamp_metric(v, 1e2)
+normalize_metric(v, ::Val{:trades}) = _clamp_metric(v, 1e6)
 
 export sharpe, sortino, calmar, expectancy, cagr, multi

@@ -1,5 +1,6 @@
 using Data: closelast
 using Instances: pnl, MarginInstance, NoMarginInstance, value
+using OrderTypes: LiquidationTrade
 
 _mmh(ai, val, min_hold, max_hold) = begin
     if val > max_hold[2]
@@ -45,12 +46,25 @@ function minmax_holdings(s::Strategy)
     (min=min_hold, max=max_hold, count=n_holdings)
 end
 
-trades_total(s::Strategy) = begin
+@doc "All trades recorded in the strategy universe (includes liquidations)."
+trades_count(s::Strategy) = begin
     n_trades = 0
     for ai in s.universe
         n_trades += length(ai.history)
     end
     n_trades
+end
+
+@doc "All trades in the strategy universe excluding liquidations, returns the tuple `(trades, liquidations)`."
+function trades_count(s::Strategy, ::Val{:liquidations})
+    trades = 0
+    liquidations = 0
+    for ai in s.universe
+        asset_liquidations = count((x -> x isa LiquidationTrade), ai.history)
+        trades += length(ai.history) - asset_liquidations
+        liquidations += asset_liquidations
+    end
+    (; trades, liquidations)
 end
 
 orders(s::Strategy, ::Type{Buy}) = s.buyorders
@@ -82,13 +96,14 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Universe: $n_inst instances, $n_exc exchanges")
     write(out, "\n")
     mmh = minmax_holdings(s)
-    n_trades = trades_total(s)
-    write(out, "Holdings: assets(trades): $(mmh.count)($(n_trades))")
+    trades, liquidations = trades_count(s, Val(:liquidations))
+    write(out, "Trades: $(trades) ($(liquidations) liquidations)\n")
+    write(out, "Holdings: $(mmh.count)")
     if mmh.min[1] != cur
-        write(out, ", min $(Cash(mmh.min...))($cur)")
+        write(out, " ~ min $(Cash(mmh.min...))($cur)")
     end
     if mmh.max[1] != cur && mmh.max[1] != mmh.min[1]
-        write(out, ", max $(Cash(mmh.max...))($cur)\n")
+        write(out, " ~ max $(Cash(mmh.max...))($cur)\n")
     else
         write(out, "\n")
     end
