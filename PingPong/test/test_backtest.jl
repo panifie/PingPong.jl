@@ -23,7 +23,7 @@ test_nomargin_market(s) = begin
     @test first(trades(s)).order isa egn.MarketOrder
     @test eq4(Cash(:USDT, 9.7334), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_total(s) == 77
+    @test st.trades_count(s) == 77
     mmh = st.minmax_holdings(s)
     @test mmh.count == 1
     @test mmh.min[1] == :ETH
@@ -39,7 +39,7 @@ test_nomargin_gtc(s) = begin
     @test first(trades(s)).order isa egn.GTCOrder
     @test eq4(Cash(:USDT, 9.4619), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_total(s) == 130
+    @test st.trades_count(s) == 130
     mmh = st.minmax_holdings(s)
     @test mmh.count == 1
     @test mmh.min[1] == :ETH
@@ -55,7 +55,7 @@ test_nomargin_ioc(s) = begin
     @test first(trades(s)).order isa egn.IOCOrder
     @test Cash(:USDT, 9.359) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 92
+    @test st.trades_count(s) == 92
     mmh = st.minmax_holdings(s)
     @test mmh.count == 1
     @test mmh.min[1] == :ETH
@@ -74,7 +74,7 @@ test_nomargin_fok(s) = begin
     @test first(trades(s)).order isa egn.FOKOrder
     @test Cash(:USDT, 917.976) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-7
-    @test st.trades_total(s) == 677
+    @test st.trades_count(s) == 677
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 1
@@ -105,7 +105,7 @@ test_margin_market(s) = begin
     @test first(trades(s)).order isa ect.AnyMarketOrder
     @test Cash(:USDT, 0.046) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 252
+    @test st.trades_count(s) == 252
     mmh = st.minmax_holdings(s)
     @test mmh.count == 0
     @test mmh.min[1] == :USDT
@@ -121,7 +121,7 @@ test_margin_gtc(s) = begin
     @test first(trades(s)).order isa ect.AnyGTCOrder
     @test Cash(:USDT, 0.705) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 558
+    @test st.trades_count(s) == 558
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -141,7 +141,7 @@ test_margin_fok(s) = begin
     @test first(trades(s)).order isa ect.AnyFOKOrder
     @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 1112
+    @test st.trades_count(s) == 1112
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -161,7 +161,7 @@ test_margin_ioc(s) = begin
     @test first(trades(s)).order isa ect.AnyIOCOrder
     @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_total(s) == 1112
+    @test st.trades_count(s) == 1112
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0

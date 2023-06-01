@@ -249,7 +249,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "LRUCache", "Lang", "LiveMode", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "PaperMode", "Pbar", "Pkg", "Processing", "Reexport", "SimMode", "Simulations", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
+deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instances", "Instruments", "LRUCache", "Lang", "LiveMode", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "PaperMode", "Pbar", "Pkg", "Processing", "Reexport", "SimMode", "Statistics", "StatsBase", "Strategies"]
 path = "../Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -681,7 +681,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
+deps = ["Data", "Misc", "Pbar", "StatsBase", "Temporal"]
 path = "../Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
@@ -771,7 +771,7 @@ uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
 version = "1.1.0"
 
 [[deps.Simulations]]
-deps = ["Data", "Instances", "Instruments", "IterTools", "Lang", "Misc", "Processing", "Random", "Statistics", "StatsBase", "TimeTicks"]
+deps = ["Data", "Instances", "Instruments", "IterTools", "Misc", "Processing", "Random", "Statistics", "StatsBase"]
 path = "../Simulations"
 uuid = "a69aad36-f532-4133-ba48-77171b778e6d"
 version = "0.1.0"

@@ -24,6 +24,9 @@ _overrides!(s) = begin
     s
 end
 
+const params_index = Dict{Symbol,Int}()
+getparam(params, sym) = params[params_index[sym]]
+
 _thisclose(s) = s.attrs[:this_close]::Option{Float64}
 _prevclose(s) = s.attrs[:prev_close]::Option{Float64}
 _thisclose!(s, v) = s.attrs[:this_close] = v

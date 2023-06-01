@@ -41,7 +41,7 @@ end
         s.attrs
         coll.iscashable(s)
         minmax_holdings(s)
-        trades_total(s)
+        trades_count(s)
         orders(s, Buy)
         orders(s, Sell)
         show(Base.devnull, s)

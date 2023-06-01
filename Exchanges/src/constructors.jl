@@ -1,6 +1,6 @@
 import Base: getproperty
 import Serialization: deserialize, serialize
-using Serialization: AbstractSerializer
+using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
 @reexport using ExchangeTypes
@@ -131,7 +131,7 @@ function setexchange!(x::Symbol, args...; kwargs...)
 end
 
 function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
-    Serialization.serialize_type(s, E, false)
+    serialize_type(s, E, false)
     serialize(s, exc.id)
 end
 

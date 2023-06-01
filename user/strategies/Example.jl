@@ -2,6 +2,7 @@ module Example
 
 using PingPong
 @strategyenv!
+@optenv!
 
 const NAME = :Example
 const EXCID = ExchangeID(:phemex)
@@ -19,10 +20,18 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
     _reset!(s)
+    _initparams!()
     s
 end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
+
+_initparams!() = begin
+    empty!(params_index)
+    params_index[:buydiff] = 1
+    params_index[:selldiff] = 2
+    params_index[:leverage] = 3
+end
 
 function ping!(s::T where {T<:S}, ts, _)
     ats = available(tf"15m", ts)
@@ -83,10 +92,12 @@ function issell(s::S, ai, ats)
 end
 
 ## Optimization
-function ping!(::S, ::OptSetup)
+function ping!(s::S, ::OptSetup)
+    # s.attrs[:opt_weighted_fitness] = weightsfunc
     (;
         ctx=Context(Sim(), tf"1h", dt"2020-", dt"2023-"),
-        space=(:MixedPrecisionRectSearchSpace, [1.005, 1.005], [1.02, 1.02], [3, 3]),
+        params=(; buydiff=1.005:0.001:1.02, selldiff=1.005:0.001:1.02),
+        space=(kind=:MixedPrecisionRectSearchSpace, precision=[3, 3]),
     )
 end
 function ping!(s::S, params, ::OptRun)
@@ -94,13 +105,16 @@ function ping!(s::S, params, ::OptRun)
         timeframe=tf"1h",
         ordertype=:market,
         def_lev=1.0,
-        buydiff=round(params[1]; digits=3),
-        selldiff=round(params[2]; digits=3),
+        buydiff=round(getparam(params, :buydiff); digits=3),
+        selldiff=round(getparam(params, :selldiff); digits=3),
     )
+    _overrides!(s)
 end
 
 function ping!(s::S, ::OptScore)
-    clamp(value(st.current_total(s)) / 100000.0, 0.0, 1.0)
+    [values(stats.multi(s, :sortino; normalize=true))...]
+    # [values(stats.multi(s, :sortino, :sharpe; normalize=true))...]
 end
+weightsfunc(weights) = weights[1] * 0.8 + weights[2] * 0.2
 
 end

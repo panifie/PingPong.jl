@@ -33,8 +33,12 @@ Base.nameof(s::Strategy) = nameof(typeof(s))
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
 reset!(s::Strategy, defaults=false) = begin
-    empty!(s.buyorders)
-    empty!(s.sellorders)
+    for d in values(s.buyorders)
+        empty!(d)
+    end
+    for d in values(s.sellorders)
+        empty!(d)
+    end
     empty!(s.holdings)
     for ai in s.universe
         reset!(ai, Val(:full))

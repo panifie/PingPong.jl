@@ -1,6 +1,6 @@
 using Makie
 using Stats
-using Stats: Engine as egn
+using Stats: egn
 using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
 using .egn.Misc
 using .egn.TimeTicks
@@ -10,3 +10,4 @@ include("utils.jl")
 include("ohlcv.jl")
 include("trades.jl")
 include("inds.jl")
+include("opt.jl")

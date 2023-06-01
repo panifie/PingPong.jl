@@ -11,8 +11,8 @@ using .egn.Processing: normalize, normalize!
 
 using .egn.Exchanges: getexchange!
 using .egn.Strategies: Strategy, Strategies as st, AssetInstance
-using .st.OrderTypes
-using .st.Instruments
+using .egn.OrderTypes
+using .egn.Instruments
 
 function trade_str(trade)
     """Trade Date: $(trade.date)

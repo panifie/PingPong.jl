@@ -33,6 +33,7 @@ function boptimize!(
     s::Strategy; seed=1, repetitions=1, maxiterations=1e4, maxduration=60.0, kwargs...
 )
     Random.seed!(seed)
+    running!()
     ctx, space = ping!(s, OptSetup())
     sess = OptSession(s, ctx, nothing)
 
@@ -74,9 +75,11 @@ function boptimize!(
         )
         res = boptimize!(opt)
     catch e
+        stopping!()
         rethrow(e)
         display(e)
     end
+    stopping!()
     (res, sess)
 end
 

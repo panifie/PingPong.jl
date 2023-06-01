@@ -105,3 +105,29 @@ function tradesrange(s::Strategy, tf=s.timeframe; start_pad=0, stop_pad=0)
     edges = tradesedge(DateTime, s)
     DateRange(edges[1] + tf * start_pad, edges[2] + tf * stop_pad, tf)
 end
+
+_setmax!(d, k, v) = d[k] = max(get(d, k, v), v)
+_sizehint!(c, d, k, f=length) = Base.sizehint!(c, _setmax!(d, k, f(c)))
+@doc "Keeps track of max allocated containers size for strategy and asset instances in the universe."
+function sizehint!(s::Strategy)
+    sizes = @lget! s.attrs :_sizes Dict{Symbol,Union{Dict,Int}}()
+    s_sizes = @lget! sizes :_s_sizes Dict{Symbol,Int}()
+    _sizehint!(s.buyorders, s_sizes, :buyorders)
+    _sizehint!(s.sellorders, s_sizes, :sellorders)
+    _sizehint!(s.holdings, s_sizes, :holdings)
+    _sizehint!(s.logs, s_sizes, :logs)
+    o_b_sizes = @lget! sizes :_ob_sizes Dict{String,Int}()
+    for (ai, d) in s.buyorders
+        _sizehint!(d, o_b_sizes, ai.asset.raw)
+    end
+    o_s_sizes = @lget! sizes :_os_sizes Dict{String,Int}()
+    for (ai, d) in s.sellorders
+        _sizehint!(d, o_s_sizes, ai.asset.raw)
+    end
+    ai_sizes = @lget! sizes :_ai_sizes Dict{String,Int}()
+    ai_logs_sizes = @lget! sizes :_ai_logs_sizes Dict{String,Int}()
+    for ai in s.universe
+        _sizehint!(ai.history, ai_sizes, ai.asset.raw)
+        _sizehint!(ai.logs, ai_logs_sizes, ai.asset.raw)
+    end
+end

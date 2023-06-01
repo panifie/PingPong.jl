@@ -5,6 +5,17 @@ using .st: trades_count
 const DAYS_IN_YEAR = 365
 const METRICS = Set((:total, :sharpe, :sortino, :calmar, :expectancy, :cagr, :trades))
 
+macro balance_arr()
+    s = esc(:s)
+    tf = esc(:tf)
+    quote
+        $(esc(:balance)) = let balance_df = trades_balance($s, $tf)
+            isnothing(balance_df) && return -Inf
+            balance_df.cum_total
+        end
+    end
+end
+
 _returns_arr(arr) = begin
     n_series = length(arr)
     diff(arr) ./ view(arr, 1:(n_series - 1))
@@ -19,7 +30,7 @@ function _rawsharpe(returns; rfr=0.0, tf=tf"1d")
 end
 
 function sharpe(s::Strategy, tf=tf"1d", rfr=0.0)
-    balance = trades_balance(s, tf).cum_total
+    @balance_arr
     returns = _returns_arr(balance)
     _rawsharpe(returns; rfr, tf)
 end
@@ -32,7 +43,7 @@ function _rawsortino(returns; rfr=0.0, tf=tf"1d")
 end
 
 function sortino(s::Strategy, tf=tf"1d", rfr=0.0)
-    balance = trades_balance(s, tf).cum_total
+    @balance_arr
     returns = _returns_arr(balance)
     _rawsortino(returns; rfr, tf)
 end
@@ -49,7 +60,7 @@ function maxdd(returns)
 end
 
 function calmar(s::Strategy, tf=tf"1d")
-    balance = trades_balance(s, tf).cum_total
+    @balance_arr
     returns = _returns_arr(balance)
     _rawcalmar(returns; tf)
 end

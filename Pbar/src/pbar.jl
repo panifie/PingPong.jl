@@ -149,9 +149,9 @@ macro pbupdate!(n=1, args...)
             if t - $last_render[] > $(min_delta[]) # min_delta should not mutate
                 update!($pbj.job; i=$pbj.counter)
                 dorender($pbar[], t)
-                $pbj.counter = 1
+                $pbj.counter = $n
             else
-                $pbj.counter += 1
+                $pbj.counter += $n
             end
         end
         nothing

@@ -83,6 +83,7 @@ From within your strategy define four `ping!` functions:
 - `ping!(::Strategy, params, ::OptRun)`: called before running the backtest, should apply the parameters to the strategy
 """
 function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
+    running!()
     Random.seed!(seed)
     let n_jobs = get(kwargs, :NThreads, 1)
         @assert n_jobs == 1 "Multithreaded mode not supported."
@@ -116,8 +117,10 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         r = bboptimize(opt_func; SearchSpace=space, rest...)
         sess.best[] = best_candidate(r)
     catch e
+        stopping!()
         e isa InterruptException || showerror(stdout, e)
     end
+    stopping!()
     sess
 end
 

@@ -3,6 +3,7 @@ module ExampleMargin
 using PingPong
 @strategyenv!
 @contractsenv!
+@optenv!
 using Data: stub!
 
 const NAME = :ExampleMargin
@@ -14,7 +15,7 @@ __revise_mode__ = :eval
 include("common.jl")
 
 # function __init__() end
-_reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5)) = begin
+function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5))
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
@@ -37,6 +38,12 @@ ping!(s::S, ::ResetStrategy) = begin
         end
     end
 end
+_initparams!() = begin
+    empty!(params_index)
+    params_index[:buydiff] = 1
+    params_index[:selldiff] = 2
+    params_index[:leverage] = 3
+end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     config.margin = Isolated()
@@ -44,6 +51,7 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     @assert s isa IsolatedStrategy
     _reset!(s)
     _reset_pos!(s)
+    _initparams!()
     s
 end
 
@@ -164,6 +172,35 @@ function sell!(s::S, ai, ats, ts; lev)
             t = pong!(s, ai, ot; amount, date=ts, kwargs...)
         end
     end
+end
+
+## Optimization
+function ping!(s::S, ::OptSetup)
+    # s.attrs[:opt_weighted_fitness] = weightsfunc
+    (;
+        ctx=Context(Sim(), tf"1h", dt"2020-", dt"2023-"),
+        params=(;
+            # buydiff=1.005:0.005:1.02, selldiff=1.005:0.005:1.02, leverage=1.0:0.5:20.0
+            buydiff=1.005:0.001:1.02, selldiff=1.005:0.001:1.02, leverage=1.0:1.0:100.0
+        ),
+        space=(kind=:MixedPrecisionRectSearchSpace, precision=[3, 3, 1]),
+    )
+end
+function ping!(s::S, params, ::OptRun)
+    s.attrs[:overrides] = (;
+        timeframe=tf"1h",
+        ordertype=:market,
+        def_lev=getparam(params, :leverage),
+        buydiff=getparam(params, :buydiff),
+        selldiff=getparam(params, :selldiff),
+    )
+    _overrides!(s)
+    _reset_pos!(s)
+end
+
+function ping!(s::S, ::OptScore)::Vector
+    # [values(stats.multi(s, :total, :sortino, normalize=true))...]
+    [values(stats.multi(s, :total, :sortino; normalize=true))...]
 end
 
 end

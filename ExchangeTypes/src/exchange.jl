@@ -42,8 +42,8 @@ function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
         getproperty(getfield(e, :py), k)
     end
 end
-function Base.propertynames(e::Exchange)
-    (fieldnames(Exchange)..., propertynames(e.py)...)
+function Base.propertynames(e::E) where {E<:Exchange}
+    (fieldnames(E)..., propertynames(e.py)...)
 end
 
 @doc "Updates the global exchange `exc` variable."

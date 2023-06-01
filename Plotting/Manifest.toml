@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "56fa2535d68e54dfb35e4b726b8e640591feba25"
+project_hash = "9aff5336e3ea10fce54b1ed38dd900497084e041"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -104,6 +104,12 @@ git-tree-sha1 = "43b1a4a8f797c1cddadf60499a8a077d4af2cd2d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
 version = "0.1.7"
 
+[[deps.BlackBoxOptim]]
+deps = ["CPUTime", "Compat", "Distributed", "Distributions", "HTTP", "JSON", "LinearAlgebra", "Printf", "Random", "SpatialIndexing", "StatsBase"]
+git-tree-sha1 = "136079f37e3514ec691926093924b591a8842f5d"
+uuid = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+version = "0.6.2"
+
 [[deps.Blosc]]
 deps = ["Blosc_jll"]
 git-tree-sha1 = "310b77648d38c223d947ff3f50f511d08690b8d5"
@@ -126,6 +132,11 @@ version = "1.0.8+0"
 git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.2"
+
+[[deps.CPUTime]]
+git-tree-sha1 = "2dcc50ea6a0a1ef6440d6eecd0fe3813e5671f45"
+uuid = "a9c8d775-2e2e-55fc-8582-045d282d599e"
+version = "1.0.0"
 
 [[deps.CRC32c]]
 uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
@@ -357,7 +368,7 @@ uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.4+0"
 
 [[deps.Engine]]
-deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "LRUCache", "Lang", "LiveMode", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "PaperMode", "Pbar", "Pkg", "Processing", "Reexport", "SimMode", "Simulations", "Statistics", "StatsBase", "Strategies", "TimeTicks"]
+deps = ["Accessors", "Collections", "Data", "DataStructures", "ExchangeTypes", "Exchanges", "Instances", "Instruments", "LRUCache", "Lang", "LiveMode", "Misc", "OnlineStats", "OrderTypes", "OrderedCollections", "PaperMode", "Pbar", "Pkg", "Processing", "Reexport", "SimMode", "Statistics", "StatsBase", "Strategies"]
 path = "../Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -1077,6 +1088,19 @@ git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
 
+[[deps.Optimization]]
+deps = ["BlackBoxOptim", "Pbar", "Printf", "Random", "SimMode", "Stats"]
+path = "../Optimization"
+uuid = "01837fd2-c099-442f-ae89-75fa208aad36"
+version = "0.1.0"
+
+    [deps.Optimization.extensions]
+    BayesExt = "BayesianOptimization"
+
+    [deps.Optimization.weakdeps]
+    BayesianOptimization = "4c6ed407-134f-591c-93fa-e0f7c164a0ec"
+    Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "51a08fb14ec28da2ec7a927c4337e4332c2a4720"
@@ -1210,7 +1234,7 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.Processing]]
-deps = ["Data", "Lang", "Misc", "Pbar", "StatsBase", "Temporal", "TimeTicks"]
+deps = ["Data", "Misc", "Pbar", "StatsBase", "Temporal"]
 path = "../Processing"
 uuid = "71db1b01-ba5b-4918-92ad-dd9436844736"
 version = "0.1.0"
@@ -1397,7 +1421,7 @@ uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
 
 [[deps.Simulations]]
-deps = ["Data", "Instances", "Instruments", "IterTools", "Lang", "Misc", "Processing", "Random", "Statistics", "StatsBase", "TimeTicks"]
+deps = ["Data", "Instances", "Instruments", "IterTools", "Misc", "Processing", "Random", "Statistics", "StatsBase"]
 path = "../Simulations"
 uuid = "a69aad36-f532-4133-ba48-77171b778e6d"
 version = "0.1.0"
@@ -1432,6 +1456,11 @@ version = "1.1.0"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[deps.SpatialIndexing]]
+git-tree-sha1 = "bacf5065cd7c0d6449b8bba6fa8e75b3087356b0"
+uuid = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
+version = "0.1.5"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]

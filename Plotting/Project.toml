@@ -5,12 +5,15 @@ version = "0.1.0"
 
 [deps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Optimization = "01837fd2-c099-442f-ae89-75fa208aad36"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 Stubs = "19a5ee1f-efca-4178-b297-263c7ceb508d"
 
 [weakdeps]
+Optimization = "01837fd2-c099-442f-ae89-75fa208aad36"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [extensions]
 MakieBackend = "WGLMakie"
+OptimizationExt = "Optimization"
