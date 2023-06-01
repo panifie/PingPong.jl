@@ -32,12 +32,8 @@ end
 `type`: Primitive type used for storing the data (Float64)
 """
 
-function save_data(
-    zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...
-)
-    t = @async _wrap_save_data(
-        zi::ZarrInstance, key, data; serialize, data_col, kwargs...
-    )
+function save_data(zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...)
+    t = @async _wrap_save_data(zi::ZarrInstance, key, data; serialize, data_col, kwargs...)
     fetch(t)
 end
 
@@ -112,11 +108,14 @@ function _save_data(
     data_col=1,
     z_col=data_col,
     overwrite=true,
-    reset=false
+    reset=false,
+    chunk_size=nothing,
 )
     local za
 
-    za, existing = _get_zarray(zi, key, size(data); type, overwrite, reset)
+    za, existing = _get_zarray(
+        zi, key, @something(chunk_size, chunksize(data)); type, overwrite, reset
+    )
     eltype(data) <: Vector{UInt8} && _check_size(data, za)
 
     @debug "Zarr dataset for key $key, len: $(size(data))."
@@ -149,23 +148,24 @@ function _save_data(
                 resize!(za, (offset - 1 + szdv, size(za, 2)))
                 za[offset:end, :] = @to_mat(data_view)
                 @assert timefloat(za[max(1, offset - 1), z_col]) <=
-                        timefloat(data_view[begin, data_col])
+                    timefloat(data_view[begin, data_col])
             end
         else # inserting requires overwrite
             # data_first_ts < saved_first_ts
             # load the saved data and combine with new one
             # load saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
-            if data_last_ts < saved_first_ts # just concat
+            saved_data = if data_last_ts < saved_first_ts # just concat
+                ()
             else # data_last_ts >= saved_first_ts
                 # have to slice
                 saved_offset = searchsortedfirst(
                     @view(za[:, z_col]), data_last_ts; by=timefloat
                 )
-                saved_data = if saved_offset > size(za, 1) # new data completely overwrites old data
+                if saved_offset > size(za, 1) # new data completely overwrites old data
                     za[begin:0, :]
                 else
-                    @view za[(saved_offset+1):end, :]
+                    @view za[(saved_offset + 1):end, :]
                 end
             end
             szd = size(data, 1)
@@ -175,7 +175,7 @@ function _save_data(
             # the new size will include the amount of saved data not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
             if ssd > 0
-                za[(szd+1):end, :] = saved_data
+                za[(szd + 1):end, :] = saved_data
             end
             za[begin:szd, :] = @to_mat(data)
             @debug "backwriting - data_last: $(dt(data_last_ts)) saved_first: $(dt(saved_first_ts))"
@@ -222,7 +222,7 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
                 fill_value=default(type),
                 fill_as_missing=false,
                 path=key,
-                compressor
+                compressor,
             )
             _addkey!(zi, emptyz)
             if :as_z ∈ keys(kwargs)
@@ -249,7 +249,7 @@ function _load_data(
     type=Float64,
     serialized=false,
     as_z=false,
-    with_z=false
+    with_z=false,
 )
     @debug "Loading data from $(zi.path):$(key)"
     z_type = serialized ? Vector{UInt8} : type
