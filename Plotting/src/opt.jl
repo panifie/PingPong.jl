@@ -1,8 +1,13 @@
 using Optimization: OptSession
 using Stats: mean
 using .egn.Data: Not
+using .egn.Instruments: compactnum as cnum
 
 _allfinite(v) = all(isfinite.(v))
+_repetitions_grouping(sess) = Not([keys(sess.params)..., :repeat]) .=> mean
+base_indexer_func(i, p; results, cols, indexes) = results[i, :]
+maybereduce(v::AbstractVector, f::Function) = f(v)
+maybereduce(v, _) = v
 
 @doc """ Plot results from an optimization session.
 
@@ -14,12 +19,26 @@ _allfinite(v) = all(isfinite.(v))
 `group_repetition`: how to combine repeated parameters combinations, should also be compatible with `DataFrames` (defaults to `mean`)
 `plot_func`: what kind of plot to use. (`scatter`)
 `norm_func`: normalization function for axes (default `normalize`)
+`tooltip_reduce_func`: (`k, v -> mean(v)`) the reduce function to use if a point in the plot references more than one results point (row). The function is called for each (relevant) column in the results dataframe.
 
 Additional kwargs are passed to the plotting function call.
 Most common plots useful for analyzing strategies:
 - (mesh)scatter
 - surface/heatmap/tricontourf
 - spy (assets X dates)
+
+Example: Plotting a surface (Assuming you have an `OptSession`)
+```julia
+using Plotting
+fig, res = Plotting.plot_results(
+    sess,
+    z_col=:cash,
+    x_col=:long_k,
+    y_col=:short_k,
+    col_color=:trades,
+    plot_func=surface
+)
+```
 """
 function plot_results(
     sess::OptSession;
@@ -29,9 +48,10 @@ function plot_results(
     col_color=:cash,
     colormap=[:red, :yellow, :green],
     col_filter=nothing,
-    group_repetitions=Not(:repeat) .=> mean,
+    group_repetitions=_repetitions_grouping(sess),
     plot_func=scatter,
     norm_func=normalize,
+    tooltip_reduce_func=(k, v) -> mean(v),
     kwargs...,
 )
     results = let results = sess.results
@@ -52,8 +72,15 @@ function plot_results(
         nothing
     end
     if has_custom_coords(plot_func)
-        x_col, y_col, z_col = by_plot_coords(plot_func, results, x_col, y_col, z_col)
+        ((x_col, y_col, z_col), indexes), indexer_func = by_plot_coords(
+            plot_func, results, x_col, y_col, z_col
+        )
+    else
+        col_range = 1:nrow(results)
+        indexes = (; x_idx=col_range, y_idx=1:col_range, z_idx=col_range)
+        indexer_func = base_indexer_func
     end
+    cols = (; x_col, y_col, z_col)
     x = if x_col isa Symbol
         getproperty(results, x_col) |> norm_func
     else
@@ -87,32 +114,39 @@ function plot_results(
     end
     @info "$next_col: $(symorlen(z_col))"
     push!(axes, z)
-    # FIXME
-    color_args = if !isnothing(col_color)
-        # colorrange = getproperty(results, col_color) |> normalize
-        # (; color=colorrange, something((; colormap), (;))...)
-        ()
-    else
-        ()
+    color_args = let color = get_colorarg(plot_func, col_color; results, cols, indexes)
+        if col_color isa Symbol
+            getproperty(results, col_color)
+        elseif col_color isa Function
+            col_color(results; cols=(; x_col, y_col, z_col), indexes)
+        else
+            col_color
+        end |> norm_func
+        (; something((; color), (;))..., something((; colormap), (;))...)
     end
     function label_func(insp, i, p)
         buf = IOBuffer()
         try
-            row = results[i, :]
+            rows = indexer_func(i, p; results, cols=(; x_col, y_col, z_col), indexes)
             println(buf, "idx: $i")
-            for k in propertynames(row)
-                println(buf, "$k: $(getproperty(row, k))")
+            for k in propertynames(rows)
+                v = maybereduce(getproperty(rows, k), (v) -> tooltip_reduce_func(k, v))
+                if v isa Number
+                    v = cnum(v)
+                end
+                println(buf, "$k: $v")
             end
             s = String(take!(buf))
             s
         catch e
+            display(e)
             close(buf)
             ""
         end
     end
     fig = plot_func(axes...; color_args..., inspector_label=label_func, kwargs...)
     DataInspector(fig)
-    fig
+    fig, results
 end
 
 function uniqueidx(x::AbstractArray{T}) where {T}
@@ -130,38 +164,66 @@ function uniqueidx(x::AbstractArray{T}) where {T}
 end
 
 tolinrange(arr, args...) = LinRange(minimum(arr), maximum(arr), length(arr))
-function _surface_height(results, x_col, y_col, z_col, x, y)
+function surface_height(results, x_col, y_col, z_col, x, y; reduce_func=mean)
     z_type = eltype(getproperty(results, z_col))
     z = Matrix{z_type}(undef, length(x), length(y))
+    z_idx = similar(z, Vector{Bool})
     for (x_i, X) in enumerate(x), (y_i, Y) in enumerate(y)
-        df = filter(
-            row -> getproperty(row, x_col) == X && getproperty(row, y_col) == Y, results
-        )
-        z[x_i, y_i] = isempty(df) ? zero(z_type) : mean(getproperty(df, z_col))
+        flt_idx = getproperty(results, x_col) .== X .&& getproperty(results, y_col) .== Y
+        z_rows = @view results[flt_idx, z_col]
+        z[x_i, y_i] = isempty(z_rows) ? zero(z_type) : reduce_func(z_rows)
+        z_idx[x_i, y_i] = flt_idx
     end
-    normalize!(z)
+    normalize!(z), z_idx
 end
 
 @doc """ Helper kwargs for surface plotting
 """
 function surface_coords(results::DataFrame, x_col, y_col, z_col)
-    x = unique(getproperty(results, x_col)) |> sort!
-    y = unique(getproperty(results, y_col)) |> sort!
-    (;
-        x_col=normalize(x),
-        y_col=normalize(y),
-        z_col=_surface_height(results, x_col, y_col, z_col, x, y),
-    )
+    x_results = getproperty(results, x_col)
+    y_results = getproperty(results, y_col)
+    x_idx = uniqueidx(x_results)
+    y_idx = uniqueidx(y_results)
+    x = unique(view(x_results, x_idx)) |> sort!
+    y = unique(view(y_results, y_idx)) |> sort!
+    z, z_idx = surface_height(results, x_col, y_col, z_col, x, y)
+    (; x_col=normalize(x), y_col=normalize(y), z_col=z), (; x_idx, y_idx, z_idx)
+end
+
+function fromindexes(source, idx, reduce_func=mean)
+    [reduce_func(source[i]) for i in idx]
+end
+
+function surface_indexer_func(i, p; results, cols, indexes)
+    x_i = searchsortedfirst(cols.x_col, p[1])
+    y_i = searchsortedfirst(cols.y_col, p[2])
+    @view results[indexes.z_idx[x_i, y_i], :]
 end
 
 function has_custom_coords(f)
-    typeof(f) ∈ (surface,)
+    f ∈ (surface,)
+end
+
+by_plot_color(plot_func, raw_col; kwargs...) = raw_col
+function by_plot_color(::typeof(surface), raw_col; results, cols, indexes)
+    fromindexes(raw_col, indexes.z_idx)
+end
+
+function get_colorarg(plot_func::Function, col_color; results, cols, indexes)
+    if col_color isa Symbol
+        raw_col = getproperty(results, col_color)
+        by_plot_color(plot_func, raw_col; results, cols, indexes)
+    elseif col_color isa Function
+        col_color(results; cols, indexes)
+    else
+        col_color
+    end
 end
 
 function by_plot_coords(f, args...; kwargs...)
     if typeof(f) == typeof(surface)
-        surface_coords(args...; kwargs...)
+        surface_coords(args...; kwargs...), surface_indexer_func
     else
-        ()
+        (), base_indexer_func
     end
 end
