@@ -5,7 +5,9 @@ using OrderTypes: LimitOrderType, MarketOrderType
 using .Lang: @lget!, Option
 
 @doc "Creates a simulated limit order."
-function pong!(s::NoMarginStrategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...)
+function pong!(
+    s::NoMarginStrategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...
+)
     o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
     isnothing(o) && return nothing
     limitorder_ifprice!(s, o, o.date, ai)
@@ -22,8 +24,8 @@ end
 
 @doc "Cancel orders for a particular asset instance."
 function pong!(
-    s::Strategy{Sim}, ai::AssetInstance, ::CancelOrders; t::Type{<:OrderSide}=Both
-)
+    s::Strategy{Sim}, ai::AssetInstance, ::CancelOrders; t::Type{O}=Both
+) where {O<:OrderSide}
     for o in values(orders(s, ai, t))
         cancel!(s, o, ai; err=OrderCancelled(o))
     end
