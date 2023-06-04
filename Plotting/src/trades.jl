@@ -7,12 +7,15 @@ using .egn.Lang: Option
 using .egn.Data.DFUtils
 using .egn.Data.DataFrames
 using .egn.Data: load, zi
-using .egn.Processing: normalize, normalize!
+using .egn.Processing: normalize as norm, normalize! as norm!
 
 using .egn.Exchanges: getexchange!
 using .egn.Strategies: Strategy, Strategies as st, AssetInstance
 using .egn.OrderTypes
 using .egn.Instruments
+
+normalize(args...; kwargs...) = norm(args...; unit=true, kwargs...)
+normalize!(args...; kwargs...) = norm!(args...; unit=true, kwargs...)
 
 function trade_str(trade)
     """Trade Date: $(trade.date)
