@@ -170,6 +170,10 @@ function load_session(
     return session(z)
 end
 
+function load_session(sess::OptSession, args...; kwargs...)
+    load_session(values(session_key(sess)[2])..., args...; kwargs...)
+end
+
 function ctxsteps(ctx, repeats)
     small_step = Millisecond(ctx.range.step).value
     big_step = let timespan = Millisecond(ctx.range.stop - ctx.range.start).value
@@ -182,7 +186,6 @@ function define_backtest_func(sess, small_step, big_step)
     (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
         lock(slot[1]) do
             let s = slot[2], ctx = sess.ctx_clones[tid]
-                # @lock slot[1] let s = similar(slot[2]), ctx = similar(sess.ctx_clones[tid])
                 # clear strat
                 st.sizehint!(s) # avoid deallocations
                 st.reset!(s, true)
@@ -271,6 +274,29 @@ function result_params(sess::OptSession, idx=nrow(sess.results))
     iszero(idx) && return nothing
     row = sess.results[idx, :]
     (; (k => getproperty(row, k) for k in keys(sess.params))...)
+end
+
+function log_path(s, name=split(string(now()), ".")[1])
+    dirpath = joinpath(realpath(dirname(s.path)), "logs", "opt", string(nameof(s)))
+    joinpath(dirpath, name * ".log"), dirpath
+end
+
+function logs(s)
+    dirpath = log_path(s, "")[2]
+    joinpath.(dirpath, readdir(dirpath))
+end
+
+function logs_clear(s)
+    dirpath = log_path(s, "")[2]
+    for f in readdir(dirpath)
+        rm(joinpath(dirpath, f); force=true)
+    end
+end
+
+function print_log(s, idx=nothing)
+    let logs = logs(s)
+        println(read(logs[@something idx lastindex(logs)], String))
+    end
 end
 
 export OptSession

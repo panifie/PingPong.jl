@@ -1,7 +1,8 @@
 using Pbar.Term.Progress: @track, ProgressJob, Progress
 using Pbar: pbar!, @withpbar!, @pbupdate!
 using SimMode.Instruments: compactnum as cnum, Instruments
-using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame
+using SimMode.Lang.Logging: SimpleLogger, with_logger, current_logger
+using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
 
 using Printf: @sprintf
 using Base.Sys: free_memory
@@ -75,7 +76,7 @@ end
 
 function resume!(sess)
     saved_sess = try
-        load_session(values(session_key(sess)[2])...)
+        load_session(sess)
     catch e
         e isa KeyError && return false
         rethrow(e)
@@ -100,24 +101,53 @@ function resume!(sess)
     return true
 end
 
+@doc "Remove results that don't have all the `repeat`ed evalutaion."
+function remove_incomplete!(sess::OptSession)
+    gd = groupby(sess.results, [keys(sess.params)...])
+    repeats = sess.opt_config.repeats
+    completed = DataFrame(filter(g -> nrow(g) == repeats, gd))
+    empty!(sess.results)
+    append!(sess.results, completed)
+end
+
+function optsession(s::Strategy; seed=1, repeats=1)
+    ctx, params, grid = ping!(s, OptSetup())
+    OptSession(s; ctx, params, opt_config=(; seed, repeats))
+end
+
 @doc "Backtests the strategy across combination of parameters.
 `s`: The strategy.
 `seed`: random seed set before each backtest run.
 `repeats`: the amount of repetitions for each combination.
-`save_freq`: how frequently (`Period`) to save results, when `nothing` (default) saving is skipped."
+`save_freq`: how frequently (`Period`) to save results, when `nothing` (default) saving is skipped.
+`logging`: enabled logging
+"
 function gridsearch(
-    s::Strategy{Sim}; seed=1, repeats=1, save_freq=nothing, resume=true, zi=zilmdb()
+    s::Strategy{Sim};
+    seed=1,
+    repeats=1,
+    save_freq=nothing,
+    resume=true,
+    logging=true,
+    zi=zilmdb(),
 )
     running!()
-    ctx, params, grid = ping!(s, OptSetup())
-    grid = gridfromparams(params)
-    sess = OptSession(s; ctx, params, opt_config=(; seed, repeats))
+    sess = optsession(s; seed, repeats)
+    ctx = sess.ctx
+    grid = gridfromparams(sess.params)
     resume && resume!(sess)
     should_save = if !isnothing(save_freq)
         resume || save_session(sess; zi)
         true
     else
         false
+    end
+    logger = if logging
+        io = open(log_path(s)[1], "w+")
+        SimpleLogger(io)
+    else
+        io = NullLogger()
+        IOBuffer()
     end
     try
         backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
@@ -132,64 +162,70 @@ function gridsearch(
         grid_itr = if isempty(sess.results)
             grid
         else
-            let gd = groupby(sess.results, [keys(sess.params)...])
-                completed = DataFrame(filter(g -> nrow(g) == repeats, gd))
-                empty!(sess.results)
-                append!(sess.results, completed)
-                done_params = Set(values(result_params(sess, idx)) for idx in 1:nrow(sess.results))
-                filter(params -> params ∉ done_params, grid)
-            end
+            remove_incomplete!(sess)
+            done_params = Set(
+                values(result_params(sess, idx)) for idx in 1:nrow(sess.results)
+            )
+            filter(params -> params ∉ done_params, grid)
         end
         from = Ref(nrow(sess.results) + 1)
         saved_last = Ref(now())
         grid_lock = ReentrantLock()
-        @withpbar! grid begin
-            if !isempty(sess.results)
-                @pbupdate! sum(divrem(nrow(sess.results), repeats))
-            end
-            gridrun(cell) = begin
-                lock(grid_lock) do
-                    Random.seed!(seed)
+        with_logger(logger) do
+            @withpbar! grid begin
+                if !isempty(sess.results)
+                    @pbupdate! sum(divrem(nrow(sess.results), repeats))
                 end
-                obj = opt_func(cell)
-                lock(grid_lock) do
-                    current_params[] = cell
-                    @pbupdate!
-                    if obj > best[]
-                        best[] = obj
+                function gridrun(cell)
+                    try
+                        lock(grid_lock) do
+                            Random.seed!(seed)
+                        end
+                        obj = opt_func(cell)
+                        lock(grid_lock) do
+                            current_params[] = cell
+                            @pbupdate!
+                            if obj > best[]
+                                best[] = obj
+                            end
+                        end
+                        should_save && lock(sess.lock) do
+                            if now() - saved_last[] > save_freq
+                                save_session(sess; from=from[])
+                                from[] = nrow(sess.results) + 1
+                                saved_last[] = now()
+                            end
+                        end
+                    catch e
+                        stopping!()
+                        logging && lock(grid_lock) do
+                            let io = current_logger().stream
+                                println(io, "")
+                                Base.showerror(io, e)
+                                Base.show_backtrace(io, catch_backtrace())
+                            end
+                        end
                     end
                 end
-                should_save && lock(sess.lock) do
-                    if now() - saved_last[] > save_freq
-                        # prev_best = lock(grid_lock) do
-                        #     prev_best = best[]
-                        #     best[] = "saving..."
-                        #     @pbupdate! 0
-                        #     prev_best
-                        # end
-                        save_session(sess; from=from[])
-                        from[] = nrow(sess.results) + 1
-                        saved_last[] = now()
-                        # lock(grid_lock) do
-                        #     best[] = prev_best
-                        #     @pbupdate! 0
-                        # end
+                Threads.@threads for cell in grid_itr
+                    if isrunning()
+                        gridrun(cell)
                     end
                 end
+                save_session(sess; from=from[])
             end
-            Threads.@threads for cell in grid_itr
-                if isrunning()
-                    gridrun(cell)
-                end
-            end
-            save_session(sess; from=from[])
         end
     catch e
+        logging && @error e
         if !(e isa InterruptException)
             rethrow(e)
         end
     finally
         stopping!()
+        if logging
+            flush(io)
+            close(io)
+        end
     end
     sess
 end
