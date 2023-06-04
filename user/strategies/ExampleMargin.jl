@@ -15,7 +15,7 @@ __revise_mode__ = :eval
 include("common.jl")
 
 # function __init__() end
-function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5))
+function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0))
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
@@ -24,11 +24,11 @@ end
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
-    # s.attrs[:buydiff] = 1.01
-    # s.attrs[:selldiff] = 1.012
-    s.attrs[:long_k] = 0.02
-    s.attrs[:short_k] = 0.02
-    s.attrs[:per_order_leverage] = false
+    s.attrs[:buydiff] = 1.006
+    s.attrs[:selldiff] = 1.006
+    s.attrs[:long_k] = 0.019
+    s.attrs[:short_k] = 0.013
+    s.attrs[:per_order_leverage] = true
     _overrides!(s)
     _reset_pos!(s)
     # Generate stub funding rate data, only in sim mode
@@ -40,9 +40,9 @@ ping!(s::S, ::ResetStrategy) = begin
 end
 _initparams!() = begin
     empty!(params_index)
-    params_index[:buydiff] = 1
-    params_index[:selldiff] = 2
-    params_index[:leverage] = 3
+    for (n, k) in enumerate(keys(_params()))
+        params_index[k] = n
+    end
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
@@ -52,6 +52,9 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     _reset!(s)
     _reset_pos!(s)
     _initparams!()
+    if get(s.attrs, :per_order_leverage, false)
+        @info "Per order leverage customization enabled."
+    end
     s
 end
 
@@ -174,15 +177,23 @@ function sell!(s::S, ai, ats, ts; lev)
     end
 end
 
+function _params()
+    (;
+        # buydiff=1.005:0.005:1.02, selldiff=1.005:0.005:1.02, leverage=1.0:0.5:20.0
+        buydiff=1.0025:0.001:1.01,
+        selldiff=1.0025:0.001:1.01,
+        # leverage=1.0:10.0:100.0,
+        long_k=0.01:0.001:0.02,
+        short_k=0.01:0.001:0.02,
+    )
+end
+
 ## Optimization
 function ping!(s::S, ::OptSetup)
     # s.attrs[:opt_weighted_fitness] = weightsfunc
     (;
         ctx=Context(Sim(), tf"1h", dt"2020-", dt"2023-"),
-        params=(;
-            # buydiff=1.005:0.005:1.02, selldiff=1.005:0.005:1.02, leverage=1.0:0.5:20.0
-            buydiff=1.005:0.001:1.02, selldiff=1.005:0.001:1.02, leverage=1.0:1.0:100.0
-        ),
+        params=_params(),
         space=(kind=:MixedPrecisionRectSearchSpace, precision=[3, 3, 1]),
     )
 end
@@ -190,7 +201,9 @@ function ping!(s::S, params, ::OptRun)
     s.attrs[:overrides] = (;
         timeframe=tf"1h",
         ordertype=:market,
-        def_lev=getparam(params, :leverage),
+        # def_lev=getparam(params, :leverage),
+        long_k=getparam(params, :long_k),
+        short_k=getparam(params, :short_k),
         buydiff=getparam(params, :buydiff),
         selldiff=getparam(params, :selldiff),
     )
