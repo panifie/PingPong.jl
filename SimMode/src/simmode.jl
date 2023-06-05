@@ -17,6 +17,7 @@ using Executors.Instances
 using Executors.Instances: getexchange!
 using Executors.Instruments
 using Executors.Instruments: @importcash!
+using Executors: attr
 import Executors: pong!
 @importcash!
 

@@ -66,7 +66,9 @@ macro strategyenv!()
         using TimeTicks
         using Lang
 
-        const ect = Engine.Executors
+        using .st: freecash, setattr!, attr
+
+        const $(esc(:ect)) = Engine.Executors
 
         $(@__MODULE__).Engine.Strategies.@interface
     end

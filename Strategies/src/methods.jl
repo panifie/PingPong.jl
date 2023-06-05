@@ -86,6 +86,13 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         getfield(s, sym)
     end
 end
+attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
+attr(s::Strategy, k) = attrs(s)[k]
+setattr!(s::Strategy, k, v) = attrs(s)[k] = v
+modifyattr!(s::Strategy, k, op, v) =
+    let attrs = attrs(s)
+        attrs[k] = op(attrs[k], v)
+    end
 function Base.propertynames(::Strategy)
     (
         fieldnames(Strategy)...,
