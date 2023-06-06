@@ -278,6 +278,7 @@ end
 
 function log_path(s, name=split(string(now()), ".")[1])
     dirpath = joinpath(realpath(dirname(s.path)), "logs", "opt", string(nameof(s)))
+    isdir(dirpath) || mkpath(dirpath)
     joinpath(dirpath, name * ".log"), dirpath
 end
 
@@ -295,6 +296,7 @@ end
 
 function print_log(s, idx=nothing)
     let logs = logs(s)
+        isempty(logs) && error("no logs found for strategy $(nameof(s))")
         println(read(logs[@something idx lastindex(logs)], String))
     end
 end

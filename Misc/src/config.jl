@@ -6,7 +6,7 @@ using FunctionalCollections: PersistentHashMap
 # TODO: move config to own pkg
 
 _config_dir() = begin
-    ppath = Pkg.project().path
+    ppath = Base.active_project()
     ppath = if isempty(ppath)
         get(ENV, "JULIA_PROJECT", "")
     else
@@ -25,9 +25,9 @@ function config_path()
     cfg_dir = _config_dir()
     path = joinpath(cfg_dir, "config.toml")
     if !ispath(path)
-        @warn "Config file not found at $path, creating anew."
-        mkpath(cfg_dir)
-        touch(path)
+        ppath = Base.active_project()
+        @warn "Config file not found at $path, fallback to $ppath"
+        path = ppath
     end
     path
 end
@@ -130,7 +130,12 @@ _namestring(name) = begin
 end
 
 function _toml!(cfg, name)
-    cfg.toml = PersistentHashMap(k => v for (k, v) in TOML.parsefile(cfg.path))
+    cfg.toml = PersistentHashMap(
+        collect(
+            (k, v) for (k, v) in TOML.parsefile(cfg.path) if
+            k ∉ Set(("deps", "name", "uuid", "extras", "compat"))
+        ),
+    )
     if name ∉ keys(cfg.toml)
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end

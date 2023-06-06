@@ -2,6 +2,7 @@ using Lang: @ifdebug
 
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
+const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
 
 _timeframe(s) = s.attrs[:timeframe]
 _reset!(s) = begin

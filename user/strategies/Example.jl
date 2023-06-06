@@ -33,8 +33,8 @@ _initparams!() = begin
     params_index[:leverage] = 3
 end
 
-function ping!(s::T where {T<:S}, ts, _)
-    ats = available(tf"15m", ts)
+function ping!(s::T, ts::DateTime, _) where {T<:S}
+    ats = available(_timeframe(s), ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)
             sell!(s, ai, ats, ts)

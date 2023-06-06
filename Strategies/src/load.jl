@@ -21,7 +21,7 @@ function find_path(file, cfg)
     realpath(file)
 end
 
-function strategy!(src::Symbol, cfg::Config)
+function _file(src, cfg)
     file = get(cfg.attrs, "include_file", nothing)
     if isnothing(file)
         file = get(cfg.sources, src, nothing)
@@ -31,16 +31,38 @@ function strategy!(src::Symbol, cfg::Config)
                                 its value is not a valid file."))
         end
     end
+    file
+end
+
+function strategy!(src::Symbol, cfg::Config)
+    file = _file(src, cfg)
+    isproject = if splitext(file)[2] == ".toml"
+        project_file = find_path(file, cfg)
+        path = find_path(file, cfg)
+        Misc.config!(src; cfg, path)
+        file = _file(src, cfg)
+        true
+    else
+        project_file = nothing
+        false
+    end
+    prev_proj = Base.active_project()
     path = find_path(file, cfg)
     mod = if !isdefined(Main, src)
         @eval Main begin
-            if isdefined(Main, :Revise)
-                Main.Revise.includet($path)
-            else
-                include($path)
+            try
+                using Pkg: Pkg
+                $isproject && Pkg.activate($project_file, io=Base.devnull)
+                if isdefined(Main, :Revise)
+                    Main.Revise.includet($path)
+                else
+                    include($path)
+                end
+                using Main.$src
+                Main.$src
+            finally
+                $isproject && Pkg.activate($prev_proj, io=Base.devnull)
             end
-            using Main.$src
-            Main.$src
         end
     else
         @eval Main $src

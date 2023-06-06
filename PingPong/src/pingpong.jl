@@ -23,6 +23,7 @@ end
 macro environment!()
     quote
         using PingPong
+        using PingPong: PingPong as pp
         using PingPong.Exchanges
         using PingPong.Exchanges: Exchanges as exs
         using PingPong.Engine:
@@ -50,25 +51,26 @@ end
 
 macro strategyenv!()
     quote
-        using Engine
-        using Engine.Strategies
-        using Engine: Strategies as st
-        using Engine.Instances: Instances as inst
-        using Engine.Executors
-        using Engine.OrderTypes
+        using PingPong: PingPong as pp
+        using .pp.Engine
+        using .pp.Engine.Strategies
+        using .pp.Engine: Strategies as st
+        using .pp.Engine.Instances: Instances as inst
+        using .pp.Engine.Executors
+        using .pp.Engine.OrderTypes
 
-        using ExchangeTypes
-        using Data
-        using Data.DFUtils
-        using Data.DataFrames
-        using Instruments
-        using Misc
-        using TimeTicks
-        using Lang
+        using .pp.Engine.OrderTypes.ExchangeTypes
+        using .pp.Engine.Data
+        using .pp.Engine.Data.DFUtils
+        using .pp.Engine.Data.DataFrames
+        using .pp.Engine.Instruments
+        using .pp.Engine.Misc
+        using .pp.Engine.TimeTicks
+        using .pp.Engine.Lang
 
         using .st: freecash, setattr!, attr
 
-        const $(esc(:ect)) = Engine.Executors
+        const $(esc(:ect)) = PingPong.Engine.Executors
 
         $(@__MODULE__).Engine.Strategies.@interface
     end
