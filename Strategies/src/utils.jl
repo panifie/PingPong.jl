@@ -1,7 +1,7 @@
 import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
 using Instances: pnl, position, margin
 using Instruments
-using Instruments: @importcash!
+using Instruments: @importcash!, AbstractCash
 @importcash!
 
 function candleat(ai::AssetInstance, date, tf; kwargs...)
@@ -40,8 +40,10 @@ end
 @doc "The asset close price of the candle where the last trade was performed."
 lasttrade_price_func(ai) = closeat(ai, lasttrade_date(ai))
 
-function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
-    worth = CurrencyCash(s.cash, 0.0)
+function current_total(
+    s::NoMarginStrategy, price_func=lasttrade_price_func, ::Type{C}=Cash
+) where {C<:AbstractCash}
+    worth = C(s.cash, 0.0)
     for ai in s.holdings
         add!(worth, ai.cash * price_func(ai))
     end
@@ -49,8 +51,10 @@ function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
     worth
 end
 
-function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
-    worth = CurrencyCash(s.cash, 0.0)
+function current_total(
+    s::MarginStrategy, price_func=lasttrade_price_func, ::Type{C}=Cash
+) where {C<:AbstractCash}
+    worth = C(s.cash, 0.0)
     for ai in s.holdings
         for p in (Long, Short)
             isopen(ai, p) || continue
