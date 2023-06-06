@@ -61,6 +61,24 @@ end
 
 OptSession = OptSession17
 
+function Base.show(io::IO, sess::OptSession)
+    w(args...) = write(io, string(args...))
+    w("Optimization Session: ", nameof(sess.s))
+    range = sess.ctx.range
+    w("\nTest range: ", range.start, "..", range.stop, " (", range.step, ")")
+    w("\nParams: ")
+    params = keys(sess.params)
+    w((string(k, ", ") for k in params[begin:(end - 1)])..., params[end])
+    w(" (", length(Iterators.product(values(sess.params)...)), ")")
+    w("\nConfig: ")
+    config = collect(pairs(sess.opt_config))
+    for (k, v) in config[begin:(end - 1)]
+        w(k, "(", v, "), ")
+    end
+    k, v = config[end]
+    w(k, "(", v, ")")
+end
+
 _shortdate(date) = Dates.format(date, dateformat"yymmdd")
 function session_key(sess::OptSession)
     params_part = join(first.(string.(keys(sess.params))))
