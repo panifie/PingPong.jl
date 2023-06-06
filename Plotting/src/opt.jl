@@ -77,7 +77,7 @@ function plot_results(
         )
     else
         col_range = 1:nrow(results)
-        indexes = (; x_idx=col_range, y_idx=1:col_range, z_idx=col_range)
+        indexes = (; x_idx=col_range, y_idx=col_range, z_idx=col_range)
         indexer_func = base_indexer_func
     end
     cols = (; x_col, y_col, z_col)
@@ -101,17 +101,18 @@ function plot_results(
     @info "$next_col: param $(symorlen(y_col))"
     next_col = "z"
     push!(axes, y)
-    z = if z_col isa Symbol
-        let z_vals = getproperty(results, z_col), n_z = length(first(z_vals))
-            obj_separate = [norm_func(float.(getindex.(z_vals, i))) for i in 1:n_z]
-            mat = hcat(obj_separate...)
-            reshape(sum(mat; dims=2), size(mat, 1))
-        end
-    elseif z_col isa AbstractArray
-        z_col
-    elseif !isnothing(z_col)
-        error("y_col of type $(typeof(y_col)) is not supported")
-    end
+    z =
+        if z_col isa Symbol
+            let z_vals = getproperty(results, z_col), n_z = length(first(z_vals))
+                obj_separate = [norm_func(float.(getindex.(z_vals, i))) for i in 1:n_z]
+                mat = hcat(obj_separate...)
+                reshape(sum(mat; dims=2), size(mat, 1))
+            end
+        elseif z_col isa AbstractArray
+            z_col
+        elseif !isnothing(z_col)
+            error("y_col of type $(typeof(y_col)) is not supported")
+        end |> v -> map(x -> isnan(x) ? zero(x) : x, v)
     @info "$next_col: $(symorlen(z_col))"
     push!(axes, z)
     color_args = let color = get_colorarg(plot_func, col_color; results, cols, indexes)
