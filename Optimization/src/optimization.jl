@@ -214,10 +214,12 @@ function define_backtest_func(sess, small_step, big_step)
                     current!(ctx.range, ctx.range.start + wp + inc)
                 end
                 # backtest and score
+                initial_cash = value(s.cash)
                 backtest!(s, ctx; doreset=false)
                 obj = ping!(s, OptScore())
                 # record run
                 cash = value(st.current_total(s))
+                pnl = cash / initial_cash - 1.0
                 trades = st.trades_count(s)
                 lock(sess.lock) do
                     push!(
@@ -226,6 +228,7 @@ function define_backtest_func(sess, small_step, big_step)
                             repeat=n,
                             obj,
                             cash,
+                            pnl,
                             trades,
                             (
                                 pname => p for (pname, p) in zip(keys(sess.params), params)
