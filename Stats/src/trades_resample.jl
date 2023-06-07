@@ -140,6 +140,9 @@ end
 
 `byinstance`: `(trades_df, ai) -> nothing` can modify the dataframe of a single instance before it is appended
 to the full df.
+`style`: `:full` or `:minimal` specifies what columns should be aggregated in the resampled df
+`custom`: similar to `style` but instead allows you to define custom aggregation rules (according to `DataFrame`)
+`expand_dates`: returns a contiguous dataframe from the first trade date to the last (inserting default ohlcv rows where no trades have happened.)
 """
 function resample_trades(
     s::Strategy,
