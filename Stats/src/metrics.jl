@@ -97,7 +97,9 @@ function cagr(
 end
 
 @doc "Returns a dict of the calculated `metrics` see `METRICS` for what's available."
-function multi(s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false)
+function multi(
+    s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false, norm_max=(;)
+)
     balance = let df = trades_balance(s, tf)
         isnothing(df) &&
             return Dict(m => ifelse(normalize, 0.0, typemin(DFT)) for m in metrics)
@@ -122,18 +124,23 @@ function multi(s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false)
         else
             error("$m is not a valid metric")
         end
-        maybenorm(v, Val(m))
+        norm_args = if m in norm_max
+            (norm_max[m],)
+        else
+            ()
+        end
+        maybenorm(v, Val(m), norm_args...)
     end for m in metrics)...)
 end
 
 _zeronan(v) = ifelse(isnan(v), 0.0, v)
 _clamp_metric(v, max) = clamp(_zeronan(v / max), zero(v), one(v))
-normalize_metric(v, ::Val{:total}) = _clamp_metric(v, 1e6)
-normalize_metric(v, ::Val{:sharpe}) = _clamp_metric(v, 1e1)
-normalize_metric(v, ::Val{:sortino}) = _clamp_metric(v, 1e1)
-normalize_metric(v, ::Val{:calmar}) = _clamp_metric(v, 1e1)
+normalize_metric(v, ::Val{:total}, max=1e6) = _clamp_metric(v, max)
+normalize_metric(v, ::Val{:sharpe}, max=1e1) = _clamp_metric(v, max)
+normalize_metric(v, ::Val{:sortino}, max=1e1) = _clamp_metric(v, max)
+normalize_metric(v, ::Val{:calmar}, max=1e1) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:expectancy}) = v
-normalize_metric(v, ::Val{:cagr}) = _clamp_metric(v, 1e2)
-normalize_metric(v, ::Val{:trades}) = _clamp_metric(v, 1e6)
+normalize_metric(v, ::Val{:cagr}, max=1e2) = _clamp_metric(v, max)
+normalize_metric(v, ::Val{:trades}, max=1e6) = _clamp_metric(v, max)
 
 export sharpe, sortino, calmar, expectancy, cagr, multi
