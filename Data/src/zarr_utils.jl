@@ -15,6 +15,15 @@ end
 
 isempty(z::ZArray) = size(z, 1) == 0
 
+function empty!(g::ZGroup)
+    for a in keys(g.arrays)
+        delete!(g, a)
+    end
+    for sg in values(g.groups)
+        empty!(sg)
+    end
+end
+
 function delete!(g::ZGroup, key::AbstractString; force=true)
     delete!(g.storage, g.path, key)
     if key ∈ keys(g.groups)
