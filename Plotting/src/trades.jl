@@ -391,11 +391,11 @@ function _draw_trades!(
     colors = RGBAf[]
     z_index = Union{Int,Float64}[]
     chart_timestamps = apply.(tf, dates)
-    max_x = length(first(ax_closes).second.norm)
+    max_x = Dict(ai => length(ax.norm) for (ai, ax) in ax_closes)
     _normtrades!(trades_df)
     for row in eachrow(trades_df)
         ai = row.instance
-        x = min(max_x, dateindex(chart_timestamps, row.timestamp))
+        x = min(max_x[ai], dateindex(chart_timestamps, row.timestamp))
         push!(anchors, anchor(ai, x, row.norm_qv))
         clr = colors_dict[ai]
         push!(colors, (RGBAf(clr.r, clr.g, clr.b, max(0.1, row.norm_tc))))
