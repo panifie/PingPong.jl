@@ -1,6 +1,8 @@
 using SimMode.TimeTicks: current!
 using SimMode: backtest!
 using Random
+using BlackBoxOptim
+import BlackBoxOptim: bboptimize
 
 ## kwargs: @doc Optimization.BlackBoxOptim.OptRunController
 ## all BBO methods: `BlackBoxOptim.SingleObjectiveMethods`
@@ -92,7 +94,7 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
     ctx, params, space = ctxfromstrat(s)
-    sess = OptSession(s; ctx, params, opt_config=space)
+    sess = OptSession(s; ctx, params, opt_config=(; space))
     backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
     obj_type, n_obj = objectives(s)
 
