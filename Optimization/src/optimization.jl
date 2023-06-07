@@ -1,14 +1,12 @@
 using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using SimMode.TimeTicks
 using .Instances: value
-using .Instances.Data: DataFrame, save_data, load_data, nrow, zilmdb, todata, tobytes
+using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, zilmdb, todata, tobytes
 using .Instances.Data.Zarr: getattrs, writeattrs
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
-using Stats.Statistics: median
-using BlackBoxOptim
-import BlackBoxOptim: bboptimize
+using Stats.Statistics: median, mean
 import .st: ping!
 
 const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
@@ -317,6 +315,22 @@ function print_log(s, idx=nothing)
         isempty(logs) && error("no logs found for strategy $(nameof(s))")
         println(read(logs[@something idx lastindex(logs)], String))
     end
+end
+
+maybereduce(v::AbstractVector, f::Function) = f(v)
+maybereduce(v, _) = v
+function agg(f, sess::OptSession)
+    gd = groupby(sess.results, [keys(sess.params)...])
+    combine(gd, f; renamecols=false)
+end
+function agg(sess::OptSession; reduce_func=mean, agg_func=median)
+    agg(
+        (
+            Not([keys(sess.params)..., :repeat]) .=>
+                x -> maybereduce(x, reduce_func) |> agg_func
+        ),
+        sess,
+    )
 end
 
 export OptSession
