@@ -48,6 +48,7 @@ end
 
 # FIXME: check if the kwargs can be removed (it might be need for disambiguation)
 Base.delete!(store::LMDBDictStore, k; recursive=false) = delete!(store.a, k; prefix=k)
+Base.length(store::LMDBDictStore) = length(keys(store.a))
 
 _withsuffix(p, sf='/') = (isempty(p) || endswith(p, sf)) ? p : p * sf
 
