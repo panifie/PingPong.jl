@@ -58,6 +58,8 @@ const IncreaseTrade{A,E} = Union{BuyTrade{A,E},ShortSellTrade{A,E}}
 const ReduceTrade{A,E} = Union{SellTrade{A,E},ShortBuyTrade{A,E}}
 const PositionTrade{P} = Trade{O,A,E,P} where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
 const LiquidationTrade{S} = Trade{<:LiquidationType{S}}
+const LongLiquidationTrade{S,A,E} = Trade{<:LiquidationType{S},A,E,Long}
+const ShortLiquidationTrade{S,A,E} = Trade{<:LiquidationType{S},A,E,Short}
 
 exchangeid(::Trade{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 function positionside(
