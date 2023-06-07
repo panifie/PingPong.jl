@@ -110,5 +110,5 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    write(out, "$(current_total(s)) (Total)")
+    write(out, "$(current_total(s, cash_type=CurrencyCash)) (Total)")
 end

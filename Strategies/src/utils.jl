@@ -41,7 +41,7 @@ end
 lasttrade_price_func(ai) = closeat(ai, lasttrade_date(ai))
 
 function current_total(
-    s::NoMarginStrategy, price_func=lasttrade_price_func, ::Type{C}=Cash
+    s::NoMarginStrategy, price_func=lasttrade_price_func; cash_type::Type{C}=Cash
 ) where {C<:AbstractCash}
     worth = C(s.cash, 0.0)
     for ai in s.holdings
@@ -52,7 +52,7 @@ function current_total(
 end
 
 function current_total(
-    s::MarginStrategy, price_func=lasttrade_price_func, ::Type{C}=Cash
+    s::MarginStrategy, price_func=lasttrade_price_func; cash_type::Type{C}=Cash
 ) where {C<:AbstractCash}
     worth = C(s.cash, 0.0)
     for ai in s.holdings
