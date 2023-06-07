@@ -1,6 +1,6 @@
 using Data: closelast
 using Instances: pnl, MarginInstance, NoMarginInstance, value
-using OrderTypes: LiquidationTrade
+using OrderTypes: LiquidationTrade, LongLiquidationTrade, ShortLiquidationTrade, LongTrade, ShortTrade
 
 _mmh(ai, val, min_hold, max_hold) = begin
     if val > max_hold[2]
@@ -67,6 +67,22 @@ function trades_count(s::Strategy, ::Val{:liquidations})
     (; trades, liquidations)
 end
 
+function trades_count(s::Strategy, ::Val{:positions})
+    long = 0
+    short = 0
+    liquidations = 0
+    for ai in s.universe
+        long_asset_liquidations = count((x -> x isa LongLiquidationTrade), ai.history)
+        short_asset_liquidations = count((x -> x isa ShortLiquidationTrade), ai.history)
+        n_longs = count((x -> x isa LongTrade), ai.history)
+        n_shorts = count((x -> x isa ShortTrade), ai.history)
+        long += n_longs - long_asset_liquidations
+        short += n_shorts - short_asset_liquidations
+        liquidations += long_asset_liquidations + short_asset_liquidations
+    end
+    (; long, short, liquidations)
+end
+
 orders(s::Strategy, ::Type{Buy}) = s.buyorders
 orders(s::Strategy, ::Type{Sell}) = s.sellorders
 
@@ -96,8 +112,9 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Universe: $n_inst instances, $n_exc exchanges")
     write(out, "\n")
     mmh = minmax_holdings(s)
-    trades, liquidations = trades_count(s, Val(:liquidations))
-    write(out, "Trades: $(trades) ($(liquidations) liquidations)\n")
+    long, short, liquidations = trades_count(s, Val(:positions))
+    trades = long + short
+    write(out, "Trades: $(trades) ~ $long(longs) ~ $short(shorts) ~ $(liquidations)(liquidations)\n")
     write(out, "Holdings: $(mmh.count)")
     if mmh.min[1] != cur
         write(out, " ~ min $(Cash(mmh.min...))($cur)")
@@ -110,5 +127,5 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    write(out, "$(current_total(s, cash_type=CurrencyCash)) (Total)")
+    write(out, "$(typeof(s.cash)(current_total(s))) (Total)")
 end

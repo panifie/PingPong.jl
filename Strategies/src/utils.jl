@@ -40,29 +40,23 @@ end
 @doc "The asset close price of the candle where the last trade was performed."
 lasttrade_price_func(ai) = closeat(ai, lasttrade_date(ai))
 
-function current_total(
-    s::NoMarginStrategy, price_func=lasttrade_price_func; cash_type::Type{C}=Cash
-) where {C<:AbstractCash}
-    worth = C(s.cash, 0.0)
+function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
+    worth = zero(DFT)
     for ai in s.holdings
-        add!(worth, ai.cash * price_func(ai))
+        worth += ai.cash * price_func(ai)
     end
-    add!(worth, s.cash)
-    worth
+    worth + s.cash
 end
 
-function current_total(
-    s::MarginStrategy, price_func=lasttrade_price_func; cash_type::Type{C}=Cash
-) where {C<:AbstractCash}
-    worth = C(s.cash, 0.0)
+function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
+    worth = zero(DFT)
     for ai in s.holdings
         for p in (Long, Short)
             isopen(ai, p) || continue
-            add!(worth, value(ai, p, price_func(ai))) #,  ai.cash * price)
+            worth += value(ai, p, price_func(ai))
         end
     end
-    add!(worth, s.cash)
-    worth
+    worth + s.cash
 end
 
 function lasttrade_date(ai)
