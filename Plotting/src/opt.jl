@@ -228,3 +228,6 @@ function by_plot_coords(f, args...; kwargs...)
         (), base_indexer_func
     end
 end
+
+
+export plot_results
