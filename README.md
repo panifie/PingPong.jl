@@ -2,7 +2,7 @@
 
 ![Ping Pong](./docs/pingponglogo-384.png)
 
-:zap: Backtesting with C-like speeds!
+:zap: Speedy backtester!
 :bar_chart: Highly interactive and explorative plotting!
 :rocket: Trivial deployments!
 
@@ -17,7 +17,7 @@ The one-of-a-kind solution for automated (crypto)trading. PingPong is unparallel
 ## A non exhaustive list of features...
 - :chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
 - :bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
-- :mag: Optimization (not implemented)
+- :mag: Optimization (grid search, evolution and bayesian opt algorithms, restore/resume capability and plotting)
 - :page_facing_up: Paper mode (not implemented)
 - :red_circle: Live (not implemented)
 - :stop_button: Telegram Bot (not implemented)
