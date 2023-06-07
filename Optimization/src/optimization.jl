@@ -1,7 +1,8 @@
 using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using SimMode.TimeTicks
 using .Instances: value
-using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, zilmdb, todata, tobytes
+using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
+using .Instances.Data: zilmdb, za
 using .Instances.Data.Zarr: getattrs, writeattrs
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
@@ -85,9 +86,29 @@ function session_key(sess::OptSession)
         x -> join(x, "-")
     s_part = string(nameof(sess.s))
     config_part = first(string(hash(sess.params) + hash(sess.opt_config)), 4)
-    join((s_part, ctx_part, params_part * config_part), "/"),
+    join(("Opt", s_part, string(ctx_part, ":", params_part, config_part)), "/"),
     (; s_part, ctx_part, params_part, config_part)
 end
+
+function zgroup_opt(zi)
+    if za.is_zgroup(zi.store, "Opt")
+        za.zopen(zi.store, "w"; path="Opt")
+    else
+        za.zgroup(zi.store, "Opt")
+    end
+end
+
+function zgroup_strategy(zi, s_name::String)
+    opt_group = zgroup_opt(zi)
+    s_group = if za.is_zgroup(zi.store, "Opt/$s_name")
+        opt_group.groups[s_name]
+    else
+        za.zgroup(opt_group, s_name)
+    end
+    (; s_group, opt_group)
+end
+
+zgroup_strategy(zi, s::Strategy) = zgroup_strategy(zi, string(nameof(s)))
 
 @doc "Save the optimization session over the provided zarr instance.
 
@@ -97,6 +118,8 @@ end
 "
 function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb())
     k, parts = session_key(sess)
+    # ensure zgroup
+    zgroup_strategy(zi, sess.s)
     if from == 0
         let z = load_data(zi, k; serialized=true, as_z=true)[1], attrs = z.attrs
             attrs["name"] = parts.s_part
@@ -335,6 +358,49 @@ function agg(sess::OptSession; reduce_func=mean, agg_func=median)
         sess,
     )
 end
+
+function optsessions(s::Strategy; zi=zilmdb())
+    optsessions(string(nameof(s)); zi)
+end
+
+@doc "Returns the zarrays storing all the optimization session over the specified zarrinstance."
+function optsessions(s_name::String; zi=zilmdb())
+    opt_group = zgroup_opt(zi)
+    if s_name in keys(opt_group.groups)
+        opt_group.groups[s_name].arrays
+    else
+        nothing
+    end
+end
+
+@doc "Clear all optimization session of a strategy.
+`keep_by`: will not delete sessions that match this attributes (`Dict{String, Any}`).
+    - `ctx`: the `Context` of the optimization session
+    - `params`: the params (`NamedTuple`) of the optimization session
+    - `opt_config`: the config (`NamedTuple`) of the optimization session
+"
+function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb())
+    delete_all = isempty(keep_by)
+    @assert delete_all || all(k ∈ ("ctx", "params", "opt_config") for k in keys(keep_by)) "`keep_by` only support ctx, params or opt_config keys."
+    for z in values(optsessions(s_name; zi))
+        delete_all && begin
+            delete!(z)
+            continue
+        end
+        let attrs = z.attrs
+            for (k, v) in keep_by
+                if k ∈ keys(attrs) && v == todata(Vector{UInt8}(attrs[k]))
+                    continue
+                else
+                    delete!(z)
+                    break
+                end
+            end
+        end
+    end
+end
+
+delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
 
 export OptSession
 
