@@ -14,13 +14,13 @@ include("common.jl")
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
+    _initparams!()
     _overrides!(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config)
     _reset!(s)
-    _initparams!()
     s
 end
 
@@ -105,8 +105,8 @@ function ping!(s::S, params, ::OptRun)
         timeframe=tf"1h",
         ordertype=:market,
         def_lev=1.0,
-        buydiff=round(getparam(params, :buydiff); digits=3),
-        selldiff=round(getparam(params, :selldiff); digits=3),
+        buydiff=round(getparam(s, params, :buydiff); digits=3),
+        selldiff=round(getparam(s, params, :selldiff); digits=3),
     )
     _overrides!(s)
 end

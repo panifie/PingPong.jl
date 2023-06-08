@@ -13,6 +13,7 @@ _reset!(s) = begin
     s.attrs[:this_close] = nothing
     s.attrs[:prev_close] = nothing
     s.attrs[:timeframe] = s.timeframe
+    s.attrs[:params_index] = Dict{Symbol,Int}()
     delete!(s.attrs, :this_close)
     delete!(s.attrs, :prev_close)
     s
@@ -25,8 +26,7 @@ _overrides!(s) = begin
     s
 end
 
-const params_index = Dict{Symbol,Int}()
-getparam(params, sym) = params[params_index[sym]]
+getparam(s, params, sym) = params[attr(s, :params_index)[sym]]
 
 _thisclose(s) = s.attrs[:this_close]::Option{Float64}
 _prevclose(s) = s.attrs[:prev_close]::Option{Float64}
