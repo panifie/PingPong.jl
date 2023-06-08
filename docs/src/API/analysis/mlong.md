@@ -1,4 +1,4 @@
 # MLong
 ```@autodocs
-Modules = [Long]
+Modules = [MLong]
 ```

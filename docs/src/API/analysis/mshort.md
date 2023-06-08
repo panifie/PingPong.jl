@@ -1,4 +1,4 @@
 # MShort
 ```@autodocs
-Modules = [Short]
+Modules = [MShort]
 ```
