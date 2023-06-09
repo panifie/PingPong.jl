@@ -192,7 +192,7 @@ function gridsearch(
                         end
                         should_save && lock(sess.lock) do
                             if now() - saved_last[] > save_freq
-                                save_session(sess; from=from[])
+                                save_session(sess; from=from[], zi)
                                 from[] = nrow(sess.results) + 1
                                 saved_last[] = now()
                             end
@@ -213,7 +213,7 @@ function gridsearch(
                         gridrun(cell)
                     end
                 end
-                save_session(sess; from=from[])
+                save_session(sess; from=from[], zi)
             end
         end
     catch e
