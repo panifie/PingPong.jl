@@ -53,18 +53,23 @@ function pong!(s::MarginStrategy{Sim}, ai, side, date, ::PositionClose)
     @deassert !isopen(ai, side)
 end
 
-@doc "Update position Leverage. Returns true if update was successful, false otherwise.
+_lev_value(lev::Function) = lev()
+_lev_value(lev) = lev
 
-The leverage is not updated when the position has pending orders (and it will return false in such cases.)
+# TODO: implement leverage update mechanisms when position is open (and or has orders)
+@doc "Update position leverage. Returns true if the update was successful, false otherwise.
+
+The leverage is not updated when the position has pending orders or is open (and it will return false in such cases.)
 "
 function pong!(
     s::MarginStrategy{Sim}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
 )
-    if hasorders(s, ai, pos)
+    if isopen(ai, pos) || hasorders(s, ai, pos)
         false
     else
-        leverage!(ai, lev, pos)
-        @deassert isapprox(leverage(ai, pos), lev, atol=1e-1) (leverage(ai, pos), lev)
+        leverage!(ai, _lev_value(lev), pos)
+        @deassert isapprox(leverage(ai, pos), _lev_value(lev), atol=1e-1) (leverage(ai, pos), lev)
         true
     end
 end
+
