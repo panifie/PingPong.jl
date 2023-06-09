@@ -3,7 +3,7 @@
 PingPong provides tools to optimize strategy parameters. Optimzations are managed through the `OptSession` type. Which is a structure that holds informations about the optimization parameters, configuration and previous runs.
 Optimization sessions can be periodically saved, and therefore can be reloaded at a later time to explore previous results or continue the optimization from where it left off.
 
-There are 3 currently 3 different optimization methods: `gridsearch`, `bboptimize` `boptimize!`.
+There are currently 3 different optimization methods: `gridsearch`, `bboptimize` `boptimize!`.
 Configuration is done by defining three `ping!` functions.
 
 - `ping!(::S, ::OptSetup)`: returns a named tuples with:
