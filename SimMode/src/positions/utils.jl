@@ -70,18 +70,19 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
     @deassert !isopen(position(ai, p)) && iszero(ai)
 end
 
-function update_margin!(pos::Position, qty::Real)
-    p = posside(pos)
-    price = entryprice(pos)
-    lev = leverage(pos)
-    size = notional(pos)
-    prev_additional = margin(pos) - size / lev
-    @deassert prev_additional >= 0.0 && qty >= 0.0
-    additional = prev_additional + qty
-    liqp = liqprice(p, price, lev, mmr(pos); additional, size)
-    liqprice!(pos, liqp)
-    # margin!(pos, )
-end
+# TODO: Implement updating margin of open positions
+# function update_margin!(pos::Position, qty::Real)
+#     p = posside(pos)
+#     price = entryprice(pos)
+#     lev = leverage(pos)
+#     size = notional(pos)
+#     prev_additional = margin(pos) - size / lev
+#     @deassert prev_additional >= 0.0 && qty >= 0.0
+#     additional = prev_additional + qty
+#     liqp = liqprice(p, price, lev, mmr(pos); additional, size)
+#     liqprice!(pos, liqp)
+#     # margin!(pos, )
+# end
 
 @doc "Liquidates a position at a particular date.
 `fees`: the fees for liquidating a position (usually higher than trading fees.)"
