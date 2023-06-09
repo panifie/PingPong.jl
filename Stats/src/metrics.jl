@@ -106,6 +106,9 @@ function multi(
         df.cum_total
     end
     returns = _returns_arr(balance)
+    if isempty(returns)
+        return [zero(DFT) for _ in metrics]
+    end
     maybenorm = normalize ? normalize_metric : (x, _...) -> x
     Dict((m => let v = if m == :sharpe
             _rawsharpe(returns)
