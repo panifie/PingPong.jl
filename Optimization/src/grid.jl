@@ -43,8 +43,9 @@ struct BestColumn <: AbstractColumn
     best::Ref
 
     function BestColumn(job::ProgressJob; best)
-        txt = Segment(_tostring("best: ", best[]), "green")
-        txt.measure.w += 2
+        s = _tostring("best: ", best[])
+        txt = Segment(s, "green")
+        txt.measure.w = 15
         return new(job, [txt], txt.measure, best)
     end
 end
