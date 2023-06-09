@@ -391,11 +391,10 @@ function _draw_trades!(
     colors = RGBAf[]
     z_index = Union{Int,Float64}[]
     chart_timestamps = apply.(tf, dates)
-    max_x = Dict(ai => length(ax.norm) for (ai, ax) in ax_closes)
     _normtrades!(trades_df)
     for row in eachrow(trades_df)
         ai = row.instance
-        x = min(max_x[ai], dateindex(chart_timestamps, row.timestamp))
+        x = dateindex(chart_timestamps, row.timestamp)
         push!(anchors, anchor(ai, x, row.norm_qv))
         clr = colors_dict[ai]
         push!(colors, (RGBAf(clr.r, clr.g, clr.b, max(0.1, row.norm_tc))))
@@ -438,9 +437,19 @@ function _pricelines!(s, fig; tf)
         ylabel="Price (normalized)",
     )
     # hideydecorations!(price_ax)
+    min_date = dates.start
     ax_closes = Dict(
         ai => (
-            let r = ai.ohlcv[dates], ohlcv = resample(r, tf)
+            let r = ai.ohlcv[dates]
+                ohlcv = resample(r, tf)
+                ai_min_date = first(r.timestamp)
+                if ai_min_date > min_date
+                    prep = [
+                        (; timestamp=t, zerorow(ohlcv; skip_cols=(:timestamp,))...) for
+                        t in min_date:period(tf):ai_min_date
+                    ]
+                    prepend!(ohlcv, prep)
+                end
                 (ax=axis!(fig), norm=normalize(ohlcv.close; unit=true), ohlcv)
             end
         ) for ai in s.universe

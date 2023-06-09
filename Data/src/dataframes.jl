@@ -12,6 +12,11 @@ colnames(df::AbstractDataFrame) = index(df).names
 
 firstdate(df::AbstractDataFrame) = df.timestamp[begin]
 lastdate(df::AbstractDataFrame) = df.timestamp[end]
+function zerorow(df::AbstractDataFrame; skip_cols=())
+    let cn = ((col for col in colnames(df) if col ∉ skip_cols)...,)
+        NamedTuple{cn}(zero(eltype(getproperty(df, col))) for col in cn)
+    end
+end
 
 @doc "Returns the timeframe of a dataframe according to its metadata.
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
@@ -29,13 +34,13 @@ function timeframe(df::AbstractDataFrame)::TimeFrame
     end
 end
 function timeframe!(df::AbstractDataFrame, t::TimeFrame)
-    colmetadata!(df, :timestamp, "timeframe", t, style=:note)
+    colmetadata!(df, :timestamp, "timeframe", t; style=:note)
     t
 end
 function timeframe!(df::AbstractDataFrame)
     @something colmetadata(df, :timestamp, "timeframe", nothing) begin
         tf = @infertf(df)
-        colmetadata!(df, :timestamp, "timeframe", tf, style=:note)
+        colmetadata!(df, :timestamp, "timeframe", tf; style=:note)
         tf
     end
 end
@@ -172,6 +177,6 @@ end
 @doc "See `_mutatemax!`"
 pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
 
-export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate
+export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate, zerorow
 
 end
