@@ -292,7 +292,7 @@ function define_median_func(ismulti)
     if ismulti
         (x) -> tuple(median(x; dims=1)...)
     else
-        (x) -> (median(x),)
+        (x) -> median(x)
     end
 end
 

@@ -153,7 +153,11 @@ function gridsearch(
     try
         backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
         obj_type, n_obj = objectives(s)
-        sess.best[] = ((zero(eltype(obj_type)) for _ in 1:n_obj)...,)
+        sess.best[] = if isone(n_obj)
+            zero(eltype(obj_type))
+        else
+            ((zero(eltype(obj_type)) for _ in 1:n_obj)...,)
+        end
         ismulti = n_obj > 1
         opt_func = define_opt_func(
             s; backtest_func, ismulti, repeats, obj_type, isthreaded=false
@@ -218,6 +222,7 @@ function gridsearch(
         end
     catch e
         logging && @error e
+        save_session(sess; from=from[], zi)
         if !(e isa InterruptException)
             rethrow(e)
         end
