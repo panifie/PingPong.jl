@@ -84,7 +84,15 @@ From within your strategy define four `ping!` functions:
 - `ping!(::Strategy, ::OptSetup)`: for the period of time to evaluate and the parameters space for the optimization..
 - `ping!(::Strategy, params, ::OptRun)`: called before running the backtest, should apply the parameters to the strategy
 """
-function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
+function bboptimize(
+    s::Strategy{Sim};
+    seed=1,
+    repeats=1,
+    resume=true,
+    save_freq=nothing,
+    zi=zilmdb(),
+    kwargs...,
+)
     running!()
     Random.seed!(seed)
     let n_jobs = get(kwargs, :NThreads, 1)
@@ -95,6 +103,20 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
     end
     ctx, params, space = ctxfromstrat(s)
     sess = OptSession(s; ctx, params, opt_config=(; space))
+    resume && resume!(sess)
+    from = Ref(nrow(sess.results) + 1)
+    save_args = if !isnothing(save_freq)
+        resume || save_session(sess; zi)
+        (;
+            CallbackFunction=(_...) -> begin
+                save_session(sess; from=from[], zi)
+                from[] = nrow(sess.results) + 1
+            end,
+            CallbackInterval=Millisecond(save_freq).value / 1000.0,
+        )
+    else
+        ()
+    end
     backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
     obj_type, n_obj = objectives(s)
 
@@ -107,6 +129,7 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         flag
     end
     opt_func = define_opt_func(s; backtest_func, ismulti, repeats, obj_type)
+    r = opt = nothing
     try
         rest[:MaxStepsWithoutProgress] = if isempty(filtered)
             max(10, Threads.nthreads() * 10)
@@ -116,15 +139,18 @@ function bboptimize(s::Strategy{Sim}; seed=1, repeats=1, kwargs...)
         if ismulti
             rest[:FitnessScheme] = fitness_scheme(s, n_obj)
         end
-        r = bboptimize(opt_func; SearchSpace=space, rest...)
+        initials = isempty(sess.results) ? () : (sess.results.obj,)
+        opt = bbsetup(opt_func, initials...; SearchSpace=space, save_args..., rest...)
+        r = bboptimize(opt)
         sess.best[] = best_candidate(r)
     catch e
         stopping!()
+        save_session(sess; from=from[], zi)
         e isa InterruptException || showerror(stdout, e)
     end
     stopping!()
-    sess
+    sess, (; opt, r)
 end
 
 export OptimizationContext
-export optimize, best_fitness, best_candidate
+export bboptimize, best_fitness, best_candidate

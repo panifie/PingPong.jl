@@ -147,7 +147,7 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb
 end
 
 function rgx_key(name, startstop, params_k, code)
-    Regex("$name/$startstop/$params_k$code")
+    Regex("$name/$startstop:$params_k$code")
 end
 
 _deserattrs(attrs, k) = convert(Vector{UInt8}, attrs[k]) |> todata
@@ -179,7 +179,7 @@ function load_session(
         as_z && return z
         results_only && return results!(DataFrame(), z)
         sess = let attrs = z.attrs
-            @assert isempty(z) || !isempty(attrs) "ZArray should contain session attributes."
+            @assert !isempty(attrs) "ZArray should contain session attributes."
             OptSession(
                 st.strategy(Symbol(attrs["name"]));
                 ctx=_deserattrs(attrs, "ctx"),
@@ -191,7 +191,7 @@ function load_session(
         return sess
     end
     z = if all((x -> x != ".*").((name, startstop, params_k, code)))
-        k = join((name, "$startstop", "$params_k$code"), "/")
+        k = "Opt/$name/$startstop:$params_k$code"
         z = load(k)
     else
         rgx = rgx_key(name, startstop, params_k, code)
