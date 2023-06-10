@@ -85,7 +85,9 @@ function session_key(sess::OptSession)
         ((_shortdate(getproperty(sess.ctx.range, p)) for p in (:start, :stop))...,) |>
         x -> join(x, "-")
     s_part = string(nameof(sess.s))
-    config_part = first(string(hash(sess.params) + hash(sess.opt_config)), 4)
+    config_part = first(
+        string(hash(tobytes(sess.params)) + hash(tobytes(sess.opt_config))), 4
+    )
     join(("Opt", s_part, string(ctx_part, ":", params_part, config_part)), "/"),
     (; s_part, ctx_part, params_part, config_part)
 end
@@ -168,7 +170,9 @@ function load_session(
     as_z=false,
     results_only=false,
 )
-    load(k) = load_data(zi, k; serialized=true, as_z=true)[1]
+    load(k) = begin
+        load_data(zi, k; serialized=true, as_z=true)[1]
+    end
     function results!(df, z)
         for row in eachrow(z)
             append!(df, todata(row[2]))

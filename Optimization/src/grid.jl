@@ -75,9 +75,9 @@ function gridfromparams(params)
     reshape(mat, length(mat))
 end
 
-function resume!(sess)
+function resume!(sess; zi=zilmdb())
     saved_sess = try
-        load_session(sess)
+        load_session(sess; zi)
     catch e
         e isa KeyError && return false
         rethrow(e)

@@ -34,6 +34,7 @@ function ctxfromstrat(s)
     ctx, params, s_space = ping!(s, OptSetup())
     ctx,
     params,
+    s_space,
     if s_space isa SearchSpace
         s_space
     elseif s_space isa Function
@@ -101,9 +102,9 @@ function bboptimize(
         @assert n_jobs <= Threads.nthreads() - 1 "Should not use more threads than logical cores $(Threads.nthreads())."
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
-    ctx, params, space = ctxfromstrat(s)
-    sess = OptSession(s; ctx, params, opt_config=(; space))
-    resume && resume!(sess)
+    ctx, params, s_space, space = ctxfromstrat(s)
+    sess = OptSession(s; ctx, params, opt_config=(; s_space))
+    resume && resume!(sess; zi)
     from = Ref(nrow(sess.results) + 1)
     save_args = if !isnothing(save_freq)
         resume || save_session(sess; zi)
@@ -139,12 +140,29 @@ function bboptimize(
         if ismulti
             rest[:FitnessScheme] = fitness_scheme(s, n_obj)
         end
-        initials = isempty(sess.results) ? () : (sess.results.obj,)
-        opt = bbsetup(opt_func, initials...; SearchSpace=space, save_args..., rest...)
-        r = bboptimize(opt)
+        initials = if isempty(sess.results)
+            ()
+        else
+            (
+                let df = sort(sess.results, :obj)
+                    # :borg_mea only supports one initial comb
+                    cols = collect(keys(sess.params))
+                    if ismulti
+                        row = @view df[end, cols]
+                        collect(row)
+                    else
+                        rows = @view df[(end - 9):end, cols]
+                        collect.(eachrow(rows))
+                    end
+                end,
+            )
+        end
+        opt = bbsetup(opt_func; SearchSpace=space, save_args..., rest...)
+        r = bboptimize(opt, initials...)
         sess.best[] = best_candidate(r)
     catch e
         stopping!()
+        Base.show_backtrace(stdout, catch_backtrace())
         save_session(sess; from=from[], zi)
         e isa InterruptException || showerror(stdout, e)
     end
