@@ -404,7 +404,17 @@ function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb(
     end
 end
 
+lowerupper(params) = begin
+    lower, upper = [], []
+    for p in values(params)
+        push!(lower, first(p))
+        push!(upper, last(p))
+    end
+    lower, upper
+end
+
 delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
+boptimize!(args...; kwargs...) = error("not loaded")
 
 export OptSession
 

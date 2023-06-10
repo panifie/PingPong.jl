@@ -43,11 +43,7 @@ function ctxfromstrat(s)
         let error_msg = "Wrong optimization parameters, pass either a value of type <: `SearchSpace` or a tuple where the first element is the BBO space type and the rest is the argument for the space constructor."
             @assert typeof(s_space) <: Union{NamedTuple,Tuple,Vector} error_msg
             @assert length(s_space) > 0 && s_space[1] isa Symbol
-            lower, upper = [], []
-            for p in values(params)
-                push!(lower, first(p))
-                push!(upper, last(p))
-            end
+            lower, upper = lowerupper(params)
             args = hasproperty(s_space, :precision) ? (s_space.precision,) : ()
             getglobal(BlackBoxOptim, s_space.kind)(lower, upper, args...)
         end
