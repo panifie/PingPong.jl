@@ -13,13 +13,13 @@ const EXCID = ExchangeTypes.ExchangeID(:bybit)
 const S{M} = Strategy{M,NAME,typeof(EXCID)}
 const TF = tf"1m"
 ping!(::S, args...; kwargs...) = nothing
-function ping!(::Type{S}, ::LoadStrategy, config)
+function ping!(::Type{<:S}, config, ::LoadStrategy)
     Strategy(
         BareStrat,
         Sim(),
         NoMargin(),
         tf"1m",
-        ExchangeTypes.Exchange(ccxt_exchange(:bybit)),
+        ExchangeTypes.Exchange(ccxt_exchange(:phemex)),
         AssetCollection();
         config,
     )
