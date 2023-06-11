@@ -261,12 +261,18 @@ that match the filtering will be backtested again with a different `offset` whic
 
 Additional kwargs are forwarded to the grid search.
 "
-function progsearch(s; rounds=:auto, kwargs...)
-    rcount = rounds == :auto ? s.timeframe / Minute(1) : rounds
+function progsearch(s; sess::Option{OptSession}=nothing, rounds=:auto, kwargs...)
+    rcount = rounds == :auto ? round(Int, period(s.timeframe) / Minute(1)) : rounds
     @assert rcount isa Integer
     _, fw_kwargs = splitkws(:offset, :repeats, :grid_itr; kwargs)
-    sess = gridsearch(s; offset=0, repeats=1, fw_kwargs...)
-    for offset in 1:rcount
+    init_offset = isnothing(sess) ? 0 : sess.attrs[:offset] + 1
+    sess =
+        let offset = init_offset,
+            grid_itr = isnothing(sess) ? nothing : filter_results(s, sess)
+
+            gridsearch(s; offset, grid_itr, repeats=1, fw_kwargs...)
+        end
+    for offset in (init_offset + 1):rcount
         results = filter_results(s, sess)
         grid_itr = gridfromresults(sess, results)
         if length(grid_itr) == 0
