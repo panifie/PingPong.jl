@@ -45,7 +45,7 @@ function Optimization.boptimize!(
     Random.seed!(seed)
     running!()
     ctx, params, space = ping!(s, OptSetup())
-    sess = OptSession(s; ctx, params, opt_config=(; seed, repeats, space))
+    sess = OptSession(s; ctx, params, attrs=Dict(pairs((; seed, repeats, space))))
 
     ndims = max(1, length(params))
     model = gpmodel(s, ndims)

@@ -29,26 +29,27 @@ ping!(::Strategy, params, ::OptRun) = error("not implemented")
 
 #TYPENUM
 @doc "An optimization session stores all the evaluated parameters combinations."
-struct OptSession17{S<:SimStrategy,N}
+struct OptSession18{S<:SimStrategy,N}
     s::S
     ctx::Context{Sim}
     params::T where {T<:NamedTuple}
-    opt_config::Any
+    attrs::Dict{Symbol,Any}
     results::DataFrame
     best::Ref{Any}
     lock::ReentrantLock
     s_clones::NTuple{N,Tuple{ReentrantLock,S}}
     ctx_clones::NTuple{N,Context{Sim}}
-    function OptSession17(
-        s::Strategy; ctx, params, opt_config=Dict(), n_threads=Threads.nthreads()
+    function OptSession18(
+        s::Strategy; ctx, params, offset=0, attrs=Dict(), n_threads=Threads.nthreads()
     )
         s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:n_threads)...)
         ctx_clones = tuple((similar(ctx) for _ in 1:n_threads)...)
+        attrs[:offset] = offset
         new{typeof(s),n_threads}(
             s,
             ctx,
             params,
-            opt_config,
+            attrs,
             DataFrame(),
             Ref(nothing),
             ReentrantLock(),
@@ -58,19 +59,21 @@ struct OptSession17{S<:SimStrategy,N}
     end
 end
 
-OptSession = OptSession17
+OptSession = OptSession18
 
 function Base.show(io::IO, sess::OptSession)
     w(args...) = write(io, string(args...))
     w("Optimization Session: ", nameof(sess.s))
     range = sess.ctx.range
     w("\nTest range: ", range.start, "..", range.stop, " (", range.step, ")")
-    w("\nParams: ")
-    params = keys(sess.params)
-    w((string(k, ", ") for k in params[begin:(end - 1)])..., params[end])
-    w(" (", length(Iterators.product(values(sess.params)...)), ")")
+    if length(sess.params) > 0
+        w("\nParams: ")
+        params = keys(sess.params)
+        w((string(k, ", ") for k in params[begin:(end - 1)])..., params[end])
+        w(" (", length(Iterators.product(values(sess.params)...)), ")")
+    end
     w("\nConfig: ")
-    config = collect(pairs(sess.opt_config))
+    config = collect(pairs(sess.attrs))
     for (k, v) in config[begin:(end - 1)]
         w(k, "(", v, "), ")
     end
@@ -85,9 +88,7 @@ function session_key(sess::OptSession)
         ((_shortdate(getproperty(sess.ctx.range, p)) for p in (:start, :stop))...,) |>
         x -> join(x, "-")
     s_part = string(nameof(sess.s))
-    config_part = first(
-        string(hash(tobytes(sess.params)) + hash(tobytes(sess.opt_config))), 4
-    )
+    config_part = first(string(hash(tobytes(sess.params)) + hash(tobytes(sess.attrs))), 4)
     join(("Opt", s_part, string(ctx_part, ":", params_part, config_part)), "/"),
     (; s_part, ctx_part, params_part, config_part)
 end
@@ -130,7 +131,7 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb
             attrs["code"] = parts.config_part
             attrs["ctx"] = tobytes(sess.ctx)
             attrs["params"] = tobytes(sess.params)
-            attrs["opt_config"] = tobytes(sess.opt_config)
+            attrs["attrs"] = tobytes(sess.attrs)
             writeattrs(z.storage, z.path, z.attrs)
         end
     end
@@ -157,7 +158,7 @@ _deserattrs(attrs, k) = convert(Vector{UInt8}, attrs[k]) |> todata
 - `name`: strategy name
 - `start/stop`: start and stop date of the backtesting context
 - `params_k`: the first letter of every param (`first.(string.(keys(sess.params)))`)
-- `code`: hash of `params` and `opt_config` truncated to 4 chars.
+- `code`: hash of `params` and `attrs` truncated to 4 chars.
 
 Only the strategy name is required, rest is optional.
 "
@@ -188,7 +189,7 @@ function load_session(
                 st.strategy(Symbol(attrs["name"]));
                 ctx=_deserattrs(attrs, "ctx"),
                 params=_deserattrs(attrs, "params"),
-                opt_config=_deserattrs(attrs, "opt_config"),
+                attrs=_deserattrs(attrs, "attrs"),
             )
         end
         results!(sess.results, z)
@@ -228,7 +229,8 @@ end
 function define_backtest_func(sess, small_step, big_step)
     (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
         lock(slot[1]) do
-            let s = slot[2], ctx = sess.ctx_clones[tid]
+            # `ofs` is used as custom input source of randomness
+            let s = slot[2], ctx = sess.ctx_clones[tid], ofs = sess.attrs[:offset] + n
                 # clear strat
                 st.sizehint!(s) # avoid deallocations
                 st.reset!(s, true)
@@ -236,7 +238,7 @@ function define_backtest_func(sess, small_step, big_step)
                 ping!(s, params, OptRun())
                 # randomize strategy startup time
                 let wp = ping!(s, WarmupPeriod()),
-                    inc = Millisecond(round(Int, small_step / n)) + big_step * (n - 1)
+                    inc = Millisecond(round(Int, small_step / ofs)) + big_step * (n - 1)
 
                     current!(ctx.range, ctx.range.start + wp + inc)
                 end
@@ -252,7 +254,7 @@ function define_backtest_func(sess, small_step, big_step)
                     push!(
                         sess.results,
                         (;
-                            repeat=n,
+                            repeat=ofs,
                             obj,
                             cash,
                             pnl,
@@ -381,11 +383,11 @@ end
 `keep_by`: will not delete sessions that match this attributes (`Dict{String, Any}`).
     - `ctx`: the `Context` of the optimization session
     - `params`: the params (`NamedTuple`) of the optimization session
-    - `opt_config`: the config (`NamedTuple`) of the optimization session
+    - `attrs`: the config (`NamedTuple`) of the optimization session
 "
 function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb())
     delete_all = isempty(keep_by)
-    @assert delete_all || all(k ∈ ("ctx", "params", "opt_config") for k in keys(keep_by)) "`keep_by` only support ctx, params or opt_config keys."
+    @assert delete_all || all(k ∈ ("ctx", "params", "attrs") for k in keys(keep_by)) "`keep_by` only support ctx, params or attrs keys."
     for z in values(optsessions(s_name; zi))
         delete_all && begin
             delete!(z)

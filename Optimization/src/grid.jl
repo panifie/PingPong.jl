@@ -2,6 +2,7 @@ using Pbar.Term.Progress: @track, ProgressJob, Progress
 using Pbar: pbar!, @withpbar!, @pbupdate!
 using SimMode.Instruments: compactnum as cnum, Instruments
 using SimMode.Lang.Logging: SimpleLogger, with_logger, current_logger
+using SimMode.Lang: splitkws
 using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
 
 using Printf: @sprintf
@@ -13,6 +14,7 @@ import Pbar.Term.Measures: Measure
 function _tostring(_, s::String)
     s[begin:min(displaysize()[2], length(s))]
 end
+Instruments.compactnum(v) = v
 function _tostring(prefix, params)
     s = join(("[", prefix, (cnum(p) for p in params)..., "]"), " ")
     s[begin:min(displaysize()[2], length(s))]
@@ -26,7 +28,7 @@ struct ParamsColumn <: AbstractColumn
 
     function ParamsColumn(job::ProgressJob; params)
         txt = Segment(_tostring("params: ", params[]), "cyan")
-        txt.measure.w += 2
+        txt.measure.w = 15
         return new(job, [txt], txt.measure, params)
     end
 end
@@ -75,6 +77,11 @@ function gridfromparams(params)
     reshape(mat, length(mat))
 end
 
+function gridfromresults(sess::OptSession, results; kwargs...)
+    params = keys(sess.params)
+    [((getproperty(row, p) for p in params)...,) for row in eachrow(results)]
+end
+
 function resume!(sess; zi=zilmdb())
     saved_sess = try
         load_session(sess; zi)
@@ -111,9 +118,9 @@ function remove_incomplete!(sess::OptSession)
     append!(sess.results, completed)
 end
 
-function optsession(s::Strategy; seed=1, repeats=1)
+function optsession(s::Strategy; seed=1, repeats=1, offset=0)
     ctx, params, grid = ping!(s, OptSetup())
-    OptSession(s; ctx, params, opt_config=(; seed, repeats))
+    OptSession(s; ctx, params, offset, attrs=Dict(pairs((; seed, repeats))))
 end
 
 @doc "Backtests the strategy across combination of parameters.
@@ -131,9 +138,11 @@ function gridsearch(
     resume=true,
     logging=true,
     zi=zilmdb(),
+    grid_itr=nothing,
+    offset=0,
 )
     running!()
-    sess = optsession(s; seed, repeats)
+    sess = optsession(s; seed, repeats, offset)
     ctx = sess.ctx
     grid = gridfromparams(sess.params)
     resume && resume!(sess)
@@ -164,14 +173,18 @@ function gridsearch(
         )
         current_params = gridpbar!(sess, first(grid))
         best = sess.best
-        grid_itr = if isempty(sess.results)
-            grid
+        if isnothing(grid_itr)
+            grid_itr = if isempty(sess.results)
+                grid
+            else
+                remove_incomplete!(sess)
+                done_params = Set(
+                    values(result_params(sess, idx)) for idx in 1:nrow(sess.results)
+                )
+                filter(params -> params ∉ done_params, grid)
+            end
         else
-            remove_incomplete!(sess)
-            done_params = Set(
-                values(result_params(sess, idx)) for idx in 1:nrow(sess.results)
-            )
-            filter(params -> params ∉ done_params, grid)
+            grid = grid_itr
         end
         from = Ref(nrow(sess.results) + 1)
         saved_last = Ref(now())
@@ -236,4 +249,33 @@ function gridsearch(
     sess
 end
 
-export gridsearch
+function filter_results(::Strategy, sess)
+    initial_cash = sess.s.initial_cash
+    filter([:cash] => (x) -> x > initial_cash, agg(sess))
+end
+
+@doc "A progressive search performs multiple grid searches with only 1 repetition per parameters combination.
+After each search is completed, the results are filtered according to custom rules. The parameters from the results
+that match the filtering will be backtested again with a different `offset` which modifies the backtesting period.
+`rounds`: how many iterations (of grid searches) to perform
+
+Additional kwargs are forwarded to the grid search.
+"
+function progsearch(s; rounds=:auto, kwargs...)
+    rcount = rounds == :auto ? s.timeframe / Minute(1) : rounds
+    @assert rcount isa Integer
+    _, fw_kwargs = splitkws(:offset, :repeats, :grid_itr; kwargs)
+    sess = gridsearch(s; offset=0, repeats=1, fw_kwargs...)
+    for offset in 1:rcount
+        results = filter_results(s, sess)
+        grid_itr = gridfromresults(sess, results)
+        if length(grid_itr) == 0
+            @info "Search stopped because no parameters were left after filter."
+            break
+        end
+        sess = gridsearch(s; offset, repeats=1, grid_itr, fw_kwargs...)
+    end
+    sess
+end
+
+export gridsearch, progsearch
