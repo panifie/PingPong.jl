@@ -99,7 +99,7 @@ function bboptimize(
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
     ctx, params, s_space, space = ctxfromstrat(s)
-    sess = OptSession(s; ctx, params, attrs=Dict(pairs((; s_space))))
+    sess = OptSession(s; ctx, params, attrs=Dict{Symbol, Any}(pairs((; s_space))))
     resume && resume!(sess; zi)
     from = Ref(nrow(sess.results) + 1)
     save_args = if !isnothing(save_freq)
