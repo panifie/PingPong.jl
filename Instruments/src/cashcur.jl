@@ -50,7 +50,7 @@ USDT: 1000.0
 macro c_str(sym, val=0.0)
     :($(Cash(Symbol(sym), val)))
 end
-compactnum(val) =
+compactnum(val::Number) =
     if val < 1e-12
         "$(round(val, digits=3))"
     elseif val < 1e-9
@@ -89,6 +89,7 @@ compactnum(val) =
 
 compactnum(c::Cash) = compactnum(value(c))
 compactnum(val, n) = split(compactnum(val), ".")[n]
+compactnum(s) = string(s)
 Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
 

@@ -420,6 +420,10 @@ end
 function initial(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> initial
 end
+@doc "Asset position additional margin."
+function additional(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
+    position(ai, S) |> additional
+end
 @doc "Asset position tier."
 function tier(ai::MarginInstance, size, ::ByPos{S}) where {S<:PositionSide}
     tier(position(ai, S), size)
