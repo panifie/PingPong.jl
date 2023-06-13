@@ -4,6 +4,7 @@ using SimMode.Instruments: compactnum as cnum, Instruments
 using SimMode.Lang.Logging: SimpleLogger, with_logger, current_logger
 using SimMode.Lang: splitkws
 using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
+using Random: shuffle!
 
 using Printf: @sprintf
 using Base.Sys: free_memory
@@ -97,8 +98,8 @@ function resume!(sess; zi=zilmdb())
         "context"
     elseif saved_sess.params != sess.params
         "params"
-    elseif saved_sess.opt_config != sess.opt_config
-        "opt_config"
+    elseif saved_sess.attrs != sess.attrs
+        "attrs"
     else
         ""
     end
@@ -129,6 +130,7 @@ end
 `repeats`: the amount of repetitions for each combination.
 `save_freq`: how frequently (`Period`) to save results, when `nothing` (default) saving is skipped.
 `logging`: enabled logging
+`doshuffle`: shuffle parameters combinations before iterations (random search)
 "
 function gridsearch(
     s::Strategy{Sim};
@@ -137,6 +139,7 @@ function gridsearch(
     save_freq=nothing,
     resume=true,
     logging=true,
+    random_search=false,
     zi=zilmdb(),
     grid_itr=nothing,
     offset=0,
@@ -175,7 +178,7 @@ function gridsearch(
         best = sess.best
         if isnothing(grid_itr)
             grid_itr = if isempty(sess.results)
-                grid
+                collect(grid)
             else
                 remove_incomplete!(sess)
                 done_params = Set(
@@ -184,7 +187,11 @@ function gridsearch(
                 filter(params -> params ∉ done_params, grid)
             end
         else
+            grid_itr = collect(grid_itr)
             grid = grid_itr
+        end
+        if random_search
+            shuffle!(grid_itr)
         end
         from = Ref(nrow(sess.results) + 1)
         saved_last = Ref(now())
@@ -249,39 +256,85 @@ function gridsearch(
     sess
 end
 
-function filter_results(::Strategy, sess)
-    initial_cash = sess.s.initial_cash
-    filter([:cash] => (x) -> x > initial_cash, agg(sess))
+function filter_results(::Strategy, sess; cut=0.8, min_results=100)
+    df = agg(sess)
+    if nrow(df) > 1
+        initial_cash = sess.s.initial_cash
+        filter!([:cash] => (x) -> x > initial_cash, df)
+        if nrow(df) > min_results
+            sort!(df, [:cash, :obj, :trades])
+            from_idx = trunc(Int, nrow(df) * (cut / 3))
+            best_cash = @view df[(end - from_idx):end, :]
+            sort!(df, [:trades, :obj, :cash])
+            best_trades = @view df[(end - from_idx):end, :]
+            sort!(df, [:obj, :cash, :trades])
+            best_obj = @view df[(end - from_idx):end, :]
+            vcat(best_cash, best_trades, best_obj)
+        else
+            df
+        end
+    else
+        return df
+    end
 end
 
 @doc "A progressive search performs multiple grid searches with only 1 repetition per parameters combination.
 After each search is completed, the results are filtered according to custom rules. The parameters from the results
 that match the filtering will be backtested again with a different `offset` which modifies the backtesting period.
 `rounds`: how many iterations (of grid searches) to perform
+`sess`: If a `Ref{<:OptSession}` is provided, search will resume from the session previous results
+`halve`: At each iteration
 
 Additional kwargs are forwarded to the grid search.
 "
-function progsearch(s; sess::Option{OptSession}=nothing, rounds=:auto, kwargs...)
+function progsearch(
+    s; sess::Option{Ref{<:OptSession}}=nothing, rounds=:auto, cut=1.0, kwargs...
+)
     rcount = rounds == :auto ? round(Int, period(s.timeframe) / Minute(1)) : rounds
     @assert rcount isa Integer
     _, fw_kwargs = splitkws(:offset, :repeats, :grid_itr; kwargs)
-    init_offset = isnothing(sess) ? 0 : sess.attrs[:offset] + 1
-    sess =
+    init_offset = isnothing(sess) ? 0 : sess[].attrs[:offset] + 1
+    sess[] =
         let offset = init_offset,
-            grid_itr = isnothing(sess) ? nothing : filter_results(s, sess)
+            grid_itr = if isnothing(sess)
+                nothing
+            else
+                gridfromresults(sess[], filter_results(s, sess[]; cut))
+            end
 
             gridsearch(s; offset, grid_itr, repeats=1, fw_kwargs...)
         end
     for offset in (init_offset + 1):rcount
-        results = filter_results(s, sess)
-        grid_itr = gridfromresults(sess, results)
-        if length(grid_itr) == 0
-            @info "Search stopped because no parameters were left after filter."
+        results = filter_results(s, sess[]; cut)
+        grid_itr = gridfromresults(sess[], results)
+        if length(grid_itr) < 3
+            @info "Search stopped because no results were left to filter."
             break
         end
-        sess = gridsearch(s; offset, repeats=1, grid_itr, fw_kwargs...)
+        sess[] = gridsearch(s; offset, repeats=1, grid_itr, fw_kwargs...)
     end
-    sess
+    sess[]
 end
 
-export gridsearch, progsearch
+@doc "Backtests by sliding over the backtesting period, by the smallest timeframe (the strategy timeframe). Until
+a full range of timeframes is reached between the strategy timeframe and backtesting context timeframe."
+function slidesearch(s::Strategy)
+    ctx, _, _ = ping!(s, OptSetup())
+    inc = period(s.timeframe)
+    steps = max(1, trunc(Int, ctx.range.step / period(s.timeframe)))
+    wp = ping!(s, WarmupPeriod())
+    results = DataFrame()
+    initial_cash = s.initial_cash
+    @withpbar! 1:steps begin
+        for n in 1:steps
+            st.reset!(s, true)
+            current!(ctx.range, ctx.range.start + wp + n * inc)
+            backtest!(s, ctx; doreset=false)
+            push!(results, (; step=n, metrics_func(s; initial_cash)...))
+            @pbupdate!
+        end
+    end
+    results
+end
+
+export gridsearch, progsearch, slidesearch

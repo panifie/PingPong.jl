@@ -226,13 +226,21 @@ function ctxsteps(ctx, repeats)
     (; small_step, big_step)
 end
 
+metrics_func(s; initial_cash) = begin
+    obj = ping!(s, OptScore())
+    # record run
+    cash = value(st.current_total(s))
+    pnl = cash / initial_cash - 1.0
+    trades = st.trades_count(s)
+    (; obj, cash, pnl, trades)
+end
+
 function define_backtest_func(sess, small_step, big_step)
     (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
         lock(slot[1]) do
             # `ofs` is used as custom input source of randomness
             let s = slot[2], ctx = sess.ctx_clones[tid], ofs = sess.attrs[:offset] + n
                 # clear strat
-                st.sizehint!(s) # avoid deallocations
                 st.reset!(s, true)
                 # apply params
                 ping!(s, params, OptRun())
@@ -245,20 +253,13 @@ function define_backtest_func(sess, small_step, big_step)
                 # backtest and score
                 initial_cash = value(s.cash)
                 backtest!(s, ctx; doreset=false)
-                obj = ping!(s, OptScore())
-                # record run
-                cash = value(st.current_total(s))
-                pnl = cash / initial_cash - 1.0
-                trades = st.trades_count(s)
+                st.sizehint!(s) # avoid deallocations
                 lock(sess.lock) do
                     push!(
                         sess.results,
                         (;
                             repeat=ofs,
-                            obj,
-                            cash,
-                            pnl,
-                            trades,
+                            metrics_func(s; initial_cash)...,
                             (
                                 pname => p for (pname, p) in zip(keys(sess.params), params)
                             )...,
