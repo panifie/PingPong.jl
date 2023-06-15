@@ -325,13 +325,23 @@ function slidesearch(s::Strategy)
     wp = ping!(s, WarmupPeriod())
     results = DataFrame()
     initial_cash = s.initial_cash
+    rlock = ReentrantLock()
+    n_threads = Threads.nthreads()
+    s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:n_threads)...)
+    ctx_clones = tuple((similar(ctx) for _ in 1:n_threads)...)
     @withpbar! 1:steps begin
-        for n in 1:steps
-            st.reset!(s, true)
-            current!(ctx.range, ctx.range.start + wp + n * inc)
-            backtest!(s, ctx; doreset=false)
-            push!(results, (; step=n, metrics_func(s; initial_cash)...))
-            @pbupdate!
+        Threads.@threads for n in 1:steps
+            let id = Threads.threadid(), (l, s) = s_clones[id], ctx = ctx_clones[id]
+                lock(l) do
+                    st.reset!(s, true)
+                    current!(ctx.range, ctx.range.start + wp + n * inc)
+                    backtest!(s, ctx; doreset=false)
+                end
+                lock(rlock) do
+                    push!(results, (; step=n, metrics_func(s; initial_cash)...))
+                    @pbupdate!
+                end
+            end
         end
     end
     results
