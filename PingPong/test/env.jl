@@ -18,7 +18,11 @@ function loadbtc()
     end
 end
 
-function dostub!(pairs=["eth", "btc", "sol"])
+function symnames(s=s)
+    lowercase.(string.(getproperty.(st.assets(s), :bc)))
+end
+
+function dostub!(pairs=symnames())
     @eval using Scrapers: Scrapers as scr
     @eval let
         GC.gc()
