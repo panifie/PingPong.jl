@@ -3,7 +3,7 @@ import ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
 
-using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
+using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersdefault!
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
@@ -44,6 +44,7 @@ reset!(s::Strategy, defaults=false) = begin
         reset!(ai, Val(:full))
     end
     defaults && reset!(s.config)
+    ordersdefault!(s)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
     s.config.exchange = exchange(s)

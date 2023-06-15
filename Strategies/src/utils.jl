@@ -53,7 +53,7 @@ function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
     for ai in s.holdings
         for p in (Long, Short)
             isopen(ai, p) || continue
-            worth += value(ai, p, price_func(ai))
+            worth += value(ai, p; current_price=price_func(ai))
         end
     end
     worth + s.cash

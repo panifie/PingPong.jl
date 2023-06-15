@@ -6,22 +6,25 @@ const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
 
 _timeframe(s) = s.attrs[:timeframe]
 _reset!(s) = begin
-    s.attrs[:buydiff] = 1.01
-    s.attrs[:selldiff] = 1.005
-    s.attrs[:ordertype] = :fok
-    s.attrs[:verbose] = false
-    s.attrs[:this_close] = nothing
-    s.attrs[:prev_close] = nothing
-    s.attrs[:timeframe] = s.timeframe
-    s.attrs[:params_index] = Dict{Symbol,Int}()
-    delete!(s.attrs, :this_close)
-    delete!(s.attrs, :prev_close)
+    attrs = s.attrs
+    attrs[:buydiff] = 1.01
+    attrs[:selldiff] = 1.005
+    attrs[:ordertype] = :fok
+    attrs[:verbose] = false
+    attrs[:this_close] = nothing
+    attrs[:prev_close] = nothing
+    attrs[:timeframe] = s.timeframe
+    attrs[:params_index] = Dict{Symbol,Int}()
+    delete!(attrs, :this_close)
+    delete!(attrs, :prev_close)
+    attrs[:sim_indicators_set] = false
     s
 end
 
 _overrides!(s) = begin
-    for (k, v) in pairs(get(s.attrs, :overrides, ()))
-        s.attrs[k] = v
+    attrs = s.attrs
+    for (k, v) in pairs(get(attrs, :overrides, ()))
+        attrs[k] = v
     end
     s
 end
