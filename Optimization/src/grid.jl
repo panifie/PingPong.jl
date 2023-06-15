@@ -317,11 +317,13 @@ function progsearch(
 end
 
 @doc "Backtests by sliding over the backtesting period, by the smallest timeframe (the strategy timeframe). Until
-a full range of timeframes is reached between the strategy timeframe and backtesting context timeframe."
-function slidesearch(s::Strategy)
+a full range of timeframes is reached between the strategy timeframe and backtesting context timeframe.
+`multiplier`: the steps count (total stepps will be `multiplier * context_timeframe / s.timeframe` )
+"
+function slidesearch(s::Strategy; multiplier=1)
     ctx, _, _ = ping!(s, OptSetup())
     inc = period(s.timeframe)
-    steps = max(1, trunc(Int, ctx.range.step / period(s.timeframe)))
+    steps = multiplier * max(1, trunc(Int, ctx.range.step / period(s.timeframe)))
     wp = ping!(s, WarmupPeriod())
     results = DataFrame()
     initial_cash = s.initial_cash
@@ -329,6 +331,7 @@ function slidesearch(s::Strategy)
     n_threads = Threads.nthreads()
     s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:n_threads)...)
     ctx_clones = tuple((similar(ctx) for _ in 1:n_threads)...)
+
     @withpbar! 1:steps begin
         Threads.@threads for n in 1:steps
             let id = Threads.threadid(), (l, s) = s_clones[id], ctx = ctx_clones[id]
