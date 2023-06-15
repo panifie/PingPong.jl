@@ -223,14 +223,20 @@ end
 
 @doc "Calc PNL for long position given `current_price` as input."
 function pnl(po::Position{Long}, current_price, amount=cash(po))
-    !isopen(po) && return 0.0
+    isopen(po) || return 0.0
     (current_price - price(po)) * abs(amount)
 end
 
 @doc "Calc PNL for short position given `current_price` as input."
 function pnl(po::Position{Short}, current_price, amount=cash(po))
-    !isopen(po) && return 0.0
+    isopen(po) || return 0.0
     (price(po) - current_price) * abs(amount)
+end
+
+@doc "Calc PNL percentage."
+pnlpct(po::Position, v) = begin
+    isopen(po) || return 0.0
+    pnl(po, v, 1.0) / price(po)
 end
 
 function pnl(entryprice::T, current_price::T, amount, ::Long) where {T}

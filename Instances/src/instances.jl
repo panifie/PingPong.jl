@@ -485,11 +485,29 @@ end
 
 value(v::Real, args...; kwargs...) = v
 @doc "The value held by the position, margin with pnl minus fees."
-function value(ai, ::ByPos{P}, price=price(position(ai, P))) where {P}
+function value(ai, ::ByPos{P}; current_price=price(position(ai, P)), fees=nothing) where {P}
     pos = position(ai, P)
     @deassert margin(pos) > 0.0 || !isopen(pos)
     @deassert additional(pos) >= 0.0
-    margin(pos) + additional(pos) + pnl(pos, price) - price * abs(cash(pos)) * maxfees(ai)
+    fees = @something fees current_price * abs(cash(pos)) * maxfees(ai)
+    margin(pos) + additional(pos) + pnl(pos, current_price) - fees
+end
+
+@doc "The pnl of an asset position."
+function pnl(ai, ::ByPos{P}, price; pos=position(ai, P)) where {P}
+    isnothing(pos) && return 0.0
+    pnl(pos, price)
+end
+
+@doc "The pnl percentage of an asset position."
+function pnlpct(ai::MarginInstance, ::ByPos{P}, price; pos=position(ai, P)) where {P}
+    isnothing(pos) && return 0.0
+    pnlpct(pos, price)
+end
+pnlpct(ai::MarginInstance, v::Number) = begin
+    pos = position(ai)
+    isnothing(pos) && return 0.0
+    pnlpct(pos, v)
 end
 
 include("constructors.jl")
