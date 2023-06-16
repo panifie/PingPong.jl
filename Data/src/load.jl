@@ -236,7 +236,7 @@ end
 
 const ResetErrors = Union{MethodError,DivideError,ArgumentError}
 function __handle_error(::ResetErrors, zi, key, kwargs)
-    delete!(zi.store, key, recursive=true) # ensure path does not exist
+    delete!(zi.store, key; recursive=true) # ensure path does not exist
     emptyz = zcreate(
         Float64,
         zi.store,
@@ -317,10 +317,14 @@ end
 `from`, `to`: date range
 """
 function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, with_z=false)
-    if size(za, 1) < 2
-        as_z && return za, (0, 0)
+    as_empty(start=0, stop=0) = begin
+        as_z && return za, (start, stop)
         with_z && return (empty_ohlcv(), za)
         return empty_ohlcv()
+    end
+
+    if size(za, 1) < 2
+        return as_empty()
     end
 
     @as from timefloat(from)
@@ -344,6 +348,7 @@ function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, wi
     end
 
     as_z && return za, (ts_start, ts_stop)
+    isempty(ts_start:ts_stop) && return as_empty(ts_start, ts_stop)
 
     data = za[ts_start:ts_stop, :]
 
