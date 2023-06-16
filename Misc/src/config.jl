@@ -141,7 +141,7 @@ function _toml!(cfg, name)
     end
 end
 function _parse(k, v)
-    if k == :exec || k == :margin
+    if k == :mode || k == :margin
         mode = Symbol(titlecase(string(v)))
         @eval Misc.$mode()
     else

@@ -10,5 +10,6 @@ include_file = "strategies/Example.jl"
 [ExampleMargin]
 include_file = "strategies/ExampleMargin.jl"
 margin = "Isolated"
+mode = "Paper" # "Sim", "Live"
 # [sources] # Alternative method to load strategy
 # Example = "cfg/strategies/Example.jl" # the name of the module
