@@ -101,7 +101,7 @@ Base.string(::Cross) = "Cross Margin"
 Base.string(::NoMargin) = "No Margin"
 
 function Base.show(out::IO, s::Strategy)
-    write(out, "Name: $(nameof(s))\n")
+    write(out, "Name: $(nameof(s)) ($(typeof(execmode(s))))\n")
     cur = nameof(s.cash)
     write(
         out,
