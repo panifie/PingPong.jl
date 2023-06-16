@@ -171,8 +171,8 @@ function _fetch_candles(w, from, to="", sym=_sym(w))
     fetch_candles(_exc(w), _tfr(w), sym; from, to)
 end
 
-function _fetch_error(w, from, to, sym=_sym(w))
-    error("Trades/ohlcv fetching failed for $sym @ $(_exc(w).name) from: $from to: $to")
+function _fetch_error(w, from, to, sym=_sym(w), args...)
+    error("Trades/ohlcv fetching failed for $sym @ $(_exc(w).name) from: $from to: $to ($(args...))")
 end
 
 _op(::Val{:append}, args...; kwargs...) = appendmax!(args...; kwargs...)
@@ -208,7 +208,9 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         end
         @debug sliced[begin, :timestamp]
         cleaned = cleanup_ohlcv_data(sliced, tf)
-        _firstdate(cleaned) != from + prd && _fetch_error(w, from, to, sym)
+        # Cleaning can add missing rows, and expand the range outside our target dates
+        cleaned = cleaned[rangebetween(cleaned.timestamp, from, to), :]
+        _firstdate(cleaned) != from + prd && _fetch_error(w, from, to, sym, _firstdate(cleaned))
         _op(op, df, cleaned, w.capacity.view)
         @ifdebug @assert nrow(df) <= w.capacity.view
     end

@@ -146,6 +146,7 @@ function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
 end
 
 function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
+    sym ∉ _ids(w) && error("Trying to load $sym, but watcher is not tracking it.")
     _isloaded(w, sym) && return nothing
     tf = _tfr(w)
     @lock _symlock(w, sym) begin
