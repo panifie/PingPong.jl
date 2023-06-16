@@ -4,6 +4,8 @@
 !user/strategies
 !user/strategies/Example.jl
 !user/strategies/ExampleMargin.jl
+!user/strategies/ExampleMargin
+!user/strategies/Template.jl
 !user/strategies/common.jl
 /src/__pycache__/
 /render.html
