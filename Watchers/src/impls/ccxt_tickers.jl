@@ -1,6 +1,7 @@
 using Exchanges
 using Exchanges.Ccxt: choosefunc
 using Python
+using Python.PythonCall: pyisnone
 
 const CcxtTickerVal = Val{:ccxt_ticker}
 const CcxtTicker = @NamedTuple begin
@@ -63,12 +64,35 @@ function ccxt_tickers_watcher(
 end
 ccxt_tickers_watcher(syms...) = ccxt_tickers_watcher([syms...])
 
+# FIXME
+wpyconvert(::Type{T}, py::Py) where {T} =
+    if pyisnone(py)
+        nothing
+    else
+        pyconvert(T, py)
+    end
+
+wpyconvert(::Type{F}, py::Py) where {F<:AbstractFloat} = begin
+    if pyisnone(py)
+        zero(F)
+    else
+        pyconvert(F, py)
+    end
+end
+wpyconvert(::Type{Union{Nothing,DateTime}}, py::Py) =
+    if pyisnone(py)
+        nothing
+    else
+        dt(pyconvert(Int, py))
+    end
+wpyconvert(::Type{T}, v::Symbol) where {T} = T(v)
+
 function _fetch!(w::Watcher, ::CcxtTickerVal)
     data = w.attrs[:tfunc]() |> PyDict
     if length(data) > 0
         result = Dict{String,CcxtTicker}()
         for py_ticker in values(data)
-            ticker = fromdict(CcxtTicker, String, py_ticker, pyconvert, pyconvert)
+            ticker = fromdict(CcxtTicker, String, py_ticker, wpyconvert, wpyconvert)
             result[ticker.symbol] = ticker
         end
         pushnew!(w, result)
