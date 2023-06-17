@@ -62,7 +62,7 @@ _lev_value(lev) = lev
 The leverage is not updated when the position has pending orders or is open (and it will return false in such cases.)
 "
 function pong!(
-    s::MarginStrategy{Sim}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
+    s::MarginStrategy{<:Union{Sim, Paper}}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
 )
     if isopen(ai, pos) || hasorders(s, ai, pos)
         false
