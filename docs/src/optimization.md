@@ -49,3 +49,6 @@ const THREADSAFE = Ref(true)
 
 !!! warning "Thread safety"
     Multi threading is not safe in general, avoid any use of python objects within your strategy or you will incur into crashes. Use locks or `ConcurrentCollections` for synchronization. You are responsible for the thread safety of your strategy.
+
+## Plotting results
+After completing an optimization, the results can be plotted using the functin `Plotting.plot_results`. The function accepts many arguments in order to customize which axes to plot (up to 3), how to customize coloring of plot elements (e.g. default cash column in a scatter plot go from red to green) and how to group results elements. It by default plot a scatter. Surfaces and contourf also work fine.
