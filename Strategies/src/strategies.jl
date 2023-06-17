@@ -2,9 +2,10 @@ using Collections: AssetCollection, Collections as coll
 
 using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged, Instances
 using Instances: CurrencyCash, CCash
-using OrderTypes: OrderTypes, Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
+using Instances.Exchanges
+using OrderTypes:
+    OrderTypes, Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
 using OrderTypes: OrderError, StrategyEvent
-using ExchangeTypes
 using TimeTicks
 using Instruments
 using Instruments: AbstractAsset, Cash, cash!, Derivatives.Derivative
@@ -85,8 +86,12 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         if !coll.iscashable(ca, uni)
             @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
         end
+        _no_inv_contracts(exc, uni)
         ca_comm = CurrencyCash(exc, config.qc, 0.0)
         eid = typeof(exc.id)
+        if issandbox(exc) && mode isa Paper
+            @warn "Exchange should not be in sandbox mode if strategy is in paper mode."
+        end
         holdings = Set{ExchangeAsset{eid}}()
         buyorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeBuyOrder{eid}}}()
         sellorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeSellOrder{eid}}}()
@@ -126,3 +131,4 @@ export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange
 export LoadStrategy, ResetStrategy, WarmupPeriod
 export SimStrategy, PaperStrategy, LiveStrategy, IsolatedStrategy, CrossStrategy
+export attr, attrs, setattr!, modifyattr!

@@ -52,7 +52,7 @@ function strategy!(src::Symbol, cfg::Config)
         @eval Main begin
             try
                 using Pkg: Pkg
-                $isproject && Pkg.activate($project_file, io=Base.devnull)
+                $isproject && Pkg.activate($project_file; io=Base.devnull)
                 if isdefined(Main, :Revise)
                     Main.Revise.includet($path)
                 else
@@ -61,7 +61,7 @@ function strategy!(src::Symbol, cfg::Config)
                 using Main.$src
                 Main.$src
             finally
-                $isproject && Pkg.activate($prev_proj, io=Base.devnull)
+                $isproject && Pkg.activate($prev_proj; io=Base.devnull)
             end
         end
     else
@@ -86,4 +86,10 @@ function strategy!(mod::Module, cfg::Config)
 end
 function strategy(src::Union{Symbol,Module,String}, config_args...)
     strategy!(src, Config(src, config_args...))
+end
+
+function _no_inv_contracts(exc::Exchange, uni)
+    for ai in uni
+        @assert something(get(exc.markets[ai.asset.raw], "linear", true), true) "Inverse contracts are not supported by SimMode."
+    end
 end
