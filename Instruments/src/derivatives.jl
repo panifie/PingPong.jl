@@ -67,7 +67,7 @@ end
 
 import Base.getproperty
 function getproperty(d::Derivative, s::Symbol)
-    s ∈ fieldnames(Asset) && return getproperty(getfield(d, :asset), s)
+    hasfield(Asset, s) && return getproperty(getfield(d, :asset), s)
     getfield(d, s)
 end
 
@@ -100,11 +100,8 @@ end
 function ==(a::Derivative, b::Derivative)
     a.qc == b.qc && a.bc == b.bc && a.sc == b.sc
 end
-function Instruments._hashtuple(a::Derivative)
-    (Instruments._hashtuple(getfield(a, :asset))..., getfield(a, :sc))
-end
-Base.hash(a::Derivative) = hash(Instruments._hashtuple(a))
-Base.hash(a::Derivative, h::UInt64) = hash(Instruments._hashtuple(a), h)
+Base.hash(a::Derivative) = hash(getfield(a, :asset).raw) #hash(Instruments._hashtuple(a))
+Base.hash(a::Derivative, h::UInt64) = hash(getfield(a, :asset).raw, h)
 Base.string(a::Derivative) = "Derivative($(a.raw))"
 Base.show(buf::IO, a::Derivative) = write(buf, string(a))
 Base.Broadcast.broadcastable(q::Derivative) = Ref(q)

@@ -29,14 +29,14 @@ Asset{:BTC, :USDT}
 end
 ```
 """
-struct Asset5 <: AbstractAsset
+struct Asset <: AbstractAsset
     raw::SubString
     bc::BaseCurrency
     qc::QuoteCurrency
     fiat::Bool
     leveraged::Bool
     unleveraged_bc::BaseCurrency
-    function Asset5(s::SubString, b::T, q::T) where {T<:AbstractString}
+    function Asset(s::SubString, b::T, q::T) where {T<:AbstractString}
         B = Symbol(b)
         Q = Symbol(q)
         fiat = isfiatpair(b, q)
@@ -44,9 +44,8 @@ struct Asset5 <: AbstractAsset
         unlev = lev ? deleverage_pair(s; split=true)[1] : B
         new(s, B, Q, fiat, lev, Symbol(unlev))
     end
-    Asset5(s::AbstractString) = parse(Asset, s)
+    Asset(s::AbstractString) = parse(Asset, s)
 end
-Asset = Asset5
 
 _check_parse(pair, s) = begin
     if length(pair) > 2 || has_punct(pair[1]) || has_punct(pair[2])
