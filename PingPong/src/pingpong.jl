@@ -69,6 +69,7 @@ macro strategyenv!()
         using .pp.Engine.Lang
 
         using .st: freecash, setattr!, attr
+        using .pp.Engine.Exchanges: getexchange!
 
         const $(esc(:ect)) = PingPong.Engine.Executors
 
