@@ -6,8 +6,9 @@ function Strategies.Strategy(
     config::Config,
     mode=config.mode,
     margin=config.margin,
+    sandbox=true,
 )
-    exc = getexchange!(config.exchange)
+    exc = getexchange!(config.exchange; sandbox)
     timeframe = @something self.TF config.min_timeframe first(config.timeframes)
     uni = AssetCollection(assets; load_data, timeframe=string(timeframe), exc, margin)
     Strategy(self, mode, margin, timeframe, exc, uni; config)
