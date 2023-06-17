@@ -1,9 +1,9 @@
-using Lang: SnoopPrecompile, @preset, @precomp
+using .Misc.Lang: SnoopPrecompile, @preset, @precomp
 
 @preset let
     e = getexchange!(:bybit)
     pair = "BTC/USDT"
-    using Data: zilmdb
+    using .Data: zilmdb
     tmp_zi = zilmdb(mktempdir())
     @warn "Precompilation of the `Fetch` module does api calls!"
     try

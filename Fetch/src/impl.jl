@@ -1,11 +1,11 @@
-using Ccxt
+using Exchanges.Instruments
+using Exchanges: Exchange, setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
+using Exchanges.Ccxt
 using Pbar
 using Python
 using Python: pylist_to_matrix, py_except_name
-using Exchanges: setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
-using ExchangeTypes: Exchange
 using Processing: cleanup_ohlcv_data, islast
-using Data:
+using Exchanges.Data:
     Data,
     load,
     to_ohlcv,
@@ -17,12 +17,12 @@ using Data:
     OHLCV_COLUMNS,
     OHLCVTuple,
     ohlcvtuple
-using Misc
-using Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
-using TimeTicks
-using TimeTicks: TimeFrameOrStr, timestamp, dtstamp
-using Lang: @distributed, @parallel, Option, filterkws, @ifdebug
-@ifdebug using TimeTicks: dt
+using .Data.Misc
+using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
+using .Misc.TimeTicks
+using .TimeTicks: TimeFrameOrStr, timestamp, dtstamp
+using .Misc.Lang: @distributed, @parallel, Option, filterkws, @ifdebug
+@ifdebug using .TimeTicks: dt
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_MIN_PERIOD = Millisecond(Day(30))
@@ -427,7 +427,7 @@ function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
     data[name] = p
 end
 
-using Data: ZarrInstance, ZArray
+using .Data: ZarrInstance, ZArray
 @doc """Fetch ohlcv data from exchange for a list of pairs.
 - `from`, `to`: Can represent a date. A negative `from` number implies fetching the last N=`from` candles.
 - `update`: If true, will check for cached data, and fetch only missing candles. (`false`)

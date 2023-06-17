@@ -1,8 +1,10 @@
-using Instruments
-using TimeTicks
-using Misc: DFT, FUNDING_PERIOD
-using Instruments.Derivatives
-using ExchangeTypes: exc
+using Exchanges.Instruments
+using .TimeTicks
+using .Misc: DFT, FUNDING_PERIOD
+using .Misc.TimeToLive
+using .Misc.Lang: @lget!
+using .Instruments.Derivatives
+using Exchanges: exc
 using Python: PyDict
 using Processing: _fill_missing_candles
 
@@ -22,7 +24,7 @@ funding_data(v, args...) = funding_data(exc, v, args...)
 
 function pytofloat(v::Py, def=zero(DFT))
     if pyisinstance(v, pybuiltins.float)
-        v
+        pyconvert(DFT, v)
     elseif pyisinstance(v, pybuiltins.str)
         pyconvert(DFT, pyfloat(v))
     else
@@ -31,12 +33,20 @@ function pytofloat(v::Py, def=zero(DFT))
 end
 
 function funding_rate(exc::Exchange, s::AbstractString)
-    resp = pyfetch(exc.fetchFundingRate, s)
-    get(k, def) = pytofloat(resp[k], def)
-    @something get("fundingRate", nothing) get("nextFundingRate", 0.0001)
+    id = exc.id
+    @lget! FUNDING_RATE_CACHE (s, id) begin
+        resp = if exc.has[:fetchFundingRates]
+            rates = @lget! FUNDING_RATES_CACHE id pyfetch(exc.fetchFundingRates)
+            rates[s]
+        else
+            pyfetch(exc.fetchFundingRate, s)
+        end
+        get(k, def) = pytofloat(resp[k], def)
+        @something get("fundingRate", nothing) get("nextFundingRate", 0.00001)
+    end
 end
 funding_rate(exc, a::Derivative) = funding_rate(exc, a.raw)
-funding_rate(v) = funding_rate(exc, v)
+funding_rate(ai) = funding_rate(ai.exchange, ai.asset)
 
 const FUNDING_RATE_COLUMNS = (:timestamp, :pair, :rate)
 const FUNDING_RATE_COLS = [FUNDING_RATE_COLUMNS...]
@@ -58,7 +68,7 @@ const futures_limits = IdDict(:binance => 1000)
 @doc "Fetch funding rate history from exchange for a list of `Derivative` pairs.
 
 - `from`, `to`: specify date period to fetch candles for."
-function fetch_funding(
+function funding_history(
     exc::Exchange,
     assets::Vector;
     from::DateType="",
@@ -136,4 +146,9 @@ function _cleanup_funding_history(df, name, half_tf, f_tf)
     select!(df, Not(:close))
 end
 
-export fetch_funding, funding_rate
+const FUNDING_RATE_TTL = Ref(Second(5))
+const FUNDING_RATE_CACHE = safettl(Tuple{String,Symbol}, DFT, FUNDING_RATE_TTL[])
+const FUNDING_RATES_CACHE = safettl(Symbol, Py, FUNDING_RATE_TTL[])
+assetkey(ai) = (ai.raw, ai.exchange.id)
+
+export funding_history, funding_rate
