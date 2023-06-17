@@ -2,3 +2,11 @@ name = "ExampleMargin"
 uuid = "3edf4db1-b61e-49da-8473-772d2e85bdef"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
+
+[deps]
+Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
+
+[ExampleMargin]
+include_file = "src/ExampleMargin.jl"
+margin = "Isolated"
+mode = "Paper" # "Sim", "Live"

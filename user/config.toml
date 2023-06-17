@@ -8,7 +8,7 @@ leveraged = "from"
 [Example]
 include_file = "strategies/Example.jl"
 [ExampleMargin]
-include_file = "strategies/ExampleMargin.jl"
+include_file = "strategies/ExampleMargin/Project.toml"
 margin = "Isolated"
 mode = "Paper" # "Sim", "Live"
 # [sources] # Alternative method to load strategy
