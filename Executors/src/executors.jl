@@ -1,6 +1,7 @@
 using TimeTicks
 using Misc
 using OrderTypes
+using Strategies: Strategies
 
 include("context.jl")
 include("checks.jl")

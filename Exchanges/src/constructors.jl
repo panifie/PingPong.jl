@@ -5,7 +5,7 @@ using Serialization: AbstractSerializer, serialize_type
 using Reexport
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc
-using Ccxt: ccxt_exchange
+using Ccxt: Ccxt, ccxt_exchange
 using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
 using Python.PythonCall: pyisnone
 using Data: DataFrame
