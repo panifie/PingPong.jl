@@ -1,7 +1,7 @@
 # This imports are for optimizing loading time
 using Reexport
 @reexport using Zarr
-using Misc: DATA_PATH, isdirempty
+using Misc: Misc, DATA_PATH, isdirempty
 using DataFramesMeta
 
 include("utils.jl")

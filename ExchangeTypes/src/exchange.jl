@@ -15,13 +15,16 @@ struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     precision::Vector{ExcPrecisionMode}
     timeframes::Set{String}
     markets::OptionsDict
+    has::Dict{Symbol,Bool}
 end
 
 Exchange() = CcxtExchange{typeof(ExchangeID())}(pybuiltins.None)
 function Exchange(x::Py)
     id = ExchangeID(x)
     name = pyisnone(x) ? "" : pyconvert(String, pygetattr(x, "name"))
-    CcxtExchange{typeof(id)}(x, id, name, [excDecimalPlaces], Set(), Dict())
+    CcxtExchange{typeof(id)}(
+        x, id, name, [excDecimalPlaces], Set(), OptionsDict(), Dict{Symbol,Bool}()
+    )
 end
 
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()

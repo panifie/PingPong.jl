@@ -4,11 +4,11 @@ using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
 @reexport using ExchangeTypes
-using ExchangeTypes: OptionsDict, exc
+using ExchangeTypes: OptionsDict, exc, CcxtExchange
 using Ccxt: Ccxt, ccxt_exchange
 using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
 using Python.PythonCall: pyisnone
-using Data: DataFrame
+using Data: Data, DataFrame
 using JSON
 using TimeTicks
 using Instruments
@@ -118,6 +118,7 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
         loadmarkets!(exc; cache=(markets != :force))
     end
     @debug "Loaded $(length(exc.markets))."
+    setflags!(exc)
     precision = getfield(exc, :precision)
     precision[1] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
     exckeys!(exc)
@@ -130,18 +131,26 @@ function setexchange!(x::Symbol, args...; kwargs...)
     globalexchange!(exc)
 end
 
+function setflags!(exc::CcxtExchange)
+    has = exc.has
+    for (k, v) in exc.py.has.items()
+        has[Symbol(k)] = Bool(v)
+    end
+end
+setflags!(args...; kwargs...) = nothing
+
 function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
     serialize_type(s, E, false)
     serialize(s, exc.id)
 end
 
-deserialize(s::AbstractSerializer, ::Type{<:Exchange})  = begin
+deserialize(s::AbstractSerializer, ::Type{<:Exchange}) = begin
     deserialize(s) |> getexchange!
 end
 
 @doc "Check if exchange has tickers list."
 @inline function hastickers(exc::Exchange)
-    Bool(exc.has["fetchTickers"])
+    exc.has[:fetchTickers]
 end
 
 function markettype()
@@ -174,7 +183,7 @@ end
 @doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
 "
 function filter_markets(exc; min_volume=10e4, quot="USDT", sep='/')
-    @assert exc.has["fetchTickers"] "Exchange doesn't provide tickers list."
+    @assert exc.has[:fetchTickers] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers!
     f_markets = Dict()
