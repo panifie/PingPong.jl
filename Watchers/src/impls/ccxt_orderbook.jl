@@ -1,3 +1,5 @@
+using Fetch: OrderBookLevel, L1, L2, L3
+
 const CcxtOrderBookVal = Val{:ccxt_order_book}
 
 @enum OrderBookLevel L1 L2 L3

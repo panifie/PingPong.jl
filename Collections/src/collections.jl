@@ -14,7 +14,7 @@ using TimeTicks
 using Misc: Iterable, swapkeys, MarginMode
 using Lang: @lget!, MatchString
 using Base.Enums: namemap
-using OrderedCollections: OrderedDict, OrderedCollections
+using Misc: OrderedDict, OrderedCollections
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."

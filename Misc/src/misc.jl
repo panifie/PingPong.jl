@@ -5,6 +5,7 @@ using TimeTicks
 using TimeTicks: Lang
 using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
+using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
 
 include("lists.jl")
 include("sandbox.jl")

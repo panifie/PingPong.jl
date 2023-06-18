@@ -6,7 +6,6 @@ version = "0.1.0"
 [deps]
 Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
 Instances = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
