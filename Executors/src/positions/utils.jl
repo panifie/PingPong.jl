@@ -53,3 +53,12 @@ function hasorders(s::MarginStrategy, ::ByPos{P}) where {P<:PositionSide}
     end
     return false
 end
+
+function position!(s::IsolatedStrategy, ai, date::DateTime, p::PositionSide)
+    position!(s, ai, date, position(ai, p))
+end
+position!(::IsolatedStrategy, ai, ::DateTime, ::Nothing) = nothing
+
+@doc "Non margin strategies don't have positions."
+position!(s::NoMarginStrategy, args...; kwargs...) = nothing
+positions!(s::NoMarginStrategy, args...; kwargs...) = nothing

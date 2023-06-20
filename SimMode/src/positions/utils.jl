@@ -8,6 +8,7 @@ using Strategies: IsolatedStrategy, MarginStrategy, exchangeid
 using .Instances: PositionOpen, PositionUpdate, PositionClose
 using .Instances: margin, maintenance, status, posside
 using Misc: DFT
+import Executors: position!
 
 function open_position!(
     s::IsolatedStrategy{Sim}, ai::MarginInstance, t::PositionTrade{P};
@@ -55,8 +56,8 @@ function close_position!(s::IsolatedStrategy{Sim}, ai, p::PositionSide, date=not
         price = closeat(ai, date)
         amount = abs(nondust(ai, price, p))
         if amount > 0.0
-            o = _create_sim_market_order(
-                s, ForcedOrder{liqside(p), typeof(p)}, ai; amount, date, price
+            o = create_sim_market_order(
+                s, ForcedOrder{liqside(p),typeof(p)}, ai; amount, date, price
             )
             @deassert !isnothing(o) &&
                 o.date == date &&
@@ -100,7 +101,7 @@ function liquidate!(
     end
     amount = abs(cash(pos).value)
     price = liqprice(pos)
-    o = _create_sim_market_order(
+    o = create_sim_market_order(
         s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
     )
     # The position might be too small to be tradeable, assume cash is lost
@@ -157,15 +158,6 @@ function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, po::Position=po
         ping!(s, ai, date, po, PositionUpdate())
     end
 end
-
-function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, p::PositionSide)
-    position!(s, ai, date, position(ai, p))
-end
-position!(::IsolatedStrategy{Sim}, ai, ::DateTime, ::Nothing) = nothing
-
-@doc "Non margin strategies don't have positions."
-position!(s::NoMarginStrategy, args...; kwargs...) = nothing
-positions!(s::NoMarginStrategy{Sim}, args...; kwargs...) = nothing
 
 _checkorders(s) = begin
     for (_, ords) in s.buyorders
