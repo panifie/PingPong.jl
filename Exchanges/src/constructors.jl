@@ -150,7 +150,7 @@ end
 
 @doc "Check if exchange has tickers list."
 @inline function hastickers(exc::Exchange)
-    exc.has[:fetchTickers]
+    exc.has[:watchTickers] || exc.has[:fetchTickers]
 end
 
 function markettype()

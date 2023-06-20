@@ -111,17 +111,18 @@ function tickers(
     result(pairlist, as_vec)
 end
 
-const marketsCache1Min = safettl(String,Py,Minute(1))
-const tickersCache1Min = safettl(String,Py,Minute(1))
-const activeCache1Min = safettl(String,Bool,Minute(1))
+const marketsCache1Min = safettl(String, Py, Minute(1))
+const tickersCache10Sec = safettl(String, Py, Minute(1))
+const activeCache1Min = safettl(String, Bool, Minute(1))
 @doc "Retrieves a cached market (1minute) or fetches it from exchange."
 function market!(pair::AbstractString, exc::Exchange=exc)
     @lget! marketsCache1Min pair exc.py.market(pair)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
-function ticker!(pair::AbstractString, exc::Exchange)
-    @lget! tickersCache1Min pair pyfetch(exc.py.fetchTicker, pair)
+_tickerfunc(exc) = get(exc.has, :watchTicker, false) ? exc.watchTicker : exc.fetchTicker
+function ticker!(pair::AbstractString, exc::Exchange; func=_tickerfunc(exc))
+    @lget! tickersCache10Sec pair pyfetch(func, pair)
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 

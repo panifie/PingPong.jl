@@ -23,7 +23,7 @@ using Lang: wait, @preset, @precomp
         tickers(e, qc; min_vol=-1.0, with_leverage=:only, verbose=false)
         tickers(e, qc; min_vol=-1.0, with_leverage=:from)
         market!(pair, e)
-        ticker!(pair, e)
+        ticker!(pair, e; func=e.fetchTicker)
         is_pair_active(pair, e)
         market_precision(pair, e)
         market_limits(pair, e)
