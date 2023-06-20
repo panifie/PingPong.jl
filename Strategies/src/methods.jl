@@ -1,5 +1,5 @@
 using Lang: @lget!, @deassert
-import ExchangeTypes: exchangeid
+import Instances.ExchangeTypes: exchangeid
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
 
