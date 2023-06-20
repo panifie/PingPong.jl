@@ -3,6 +3,8 @@ abstract type OrderError end
 @kwdef struct NotEnoughCash{T<:Real} <: OrderError
     required::T
 end
+@doc "There weren't enough orders in the orderbook to match the amount."
+@kwdef struct NotEnoughLiquidity <: OrderError end
 @doc "Couldn't fullfill the order within the requested period."
 @kwdef struct OrderTimeOut <: OrderError
     order::O where {O<:Order}
