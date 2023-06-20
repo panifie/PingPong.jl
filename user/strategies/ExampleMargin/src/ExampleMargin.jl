@@ -4,6 +4,7 @@ using PingPong
 @strategyenv!
 @contractsenv!
 using Data: stub!
+using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!
 
 const NAME = :ExampleMargin
 const EXCID = ExchangeID(:phemex)
@@ -14,13 +15,13 @@ __revise_mode__ = :eval
 include("common.jl")
 
 # function __init__() end
-_reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 2.5)) = begin
+function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.5))
     s.attrs[:longdiff] = 1.02
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.012
     s.attrs[:long_k] = 0.02
     s.attrs[:short_k] = 0.02
-    s.attrs[:per_order_leverage] = false
+    s.attrs[:per_order_leverage] = true
     s.attrs[:verbose] = false
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
@@ -36,15 +37,25 @@ ping!(s::S, ::ResetStrategy) = begin
         for ai in s.universe
             stub!(ai, Val(:funding))
         end
+    else
     end
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     config.margin = Isolated()
-    s = Strategy(@__MODULE__, assets; config)
+    s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
     @assert s isa IsolatedStrategy
     _reset!(s)
     _reset_pos!(s)
+    if s isa Union{PaperStrategy,LiveStrategy}
+        exc = getexchange!(s.exchange)
+        w = ccxt_ohlcv_tickers_watcher(exc; syms=marketsid(s))
+        start!(w)
+        @sync for sym in marketsid(s)
+            @async load!(w, sym)
+        end
+        setattr!(s, :tickers_watcher, w)
+    end
     s
 end
 
@@ -52,7 +63,7 @@ ping!(_::S, ::WarmupPeriod) = Day(1)
 
 function ping!(s::T, ts::DateTime, _) where {T<:S}
     ats = available(tf"15m", ts)
-    makeorders(ai) = begin
+    foreach(s.universe) do ai
         pos = nothing
         lev = nothing
         if isbuy(s, ai, ats, pos)
@@ -61,7 +72,6 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
             sell!(s, ai, ats, ts; lev)
         end
     end
-    foreach(makeorders, s.universe.data.instance)
 end
 
 function marketsid(::Type{<:S})
@@ -70,7 +80,7 @@ end
 
 function longorshort(s::S, ai, ats)
     closepair(s, ai, ats)
-    if this_close[] / prev_close[] > s.attrs[:buydiff]
+    if _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
         Long()
     else
         Short()
@@ -79,14 +89,14 @@ end
 
 function isbuy(s::S, ai, ats, pos)
     closepair(s, ai, ats)
-    isnothing(this_close[]) && return false
-    this_close[] / prev_close[] > s.attrs[:buydiff]
+    isnothing(_thisclose(s)) && return false
+    _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
 end
 
 function issell(s::S, ai, ats, pos)
-    closepair(ai, ats)
-    isnothing(this_close[]) && return false
-    prev_close[] / this_close[] > s.attrs[:selldiff]
+    closepair(s, ai, ats)
+    isnothing(_thisclose(s)) && return false
+    _prevclose(s) / _thisclose(s) > s.attrs[:selldiff]
 end
 
 _levk(s, ::Long) = s.attrs[:long_k]
