@@ -39,7 +39,7 @@ function pong!(
     kwargs...,
 )
     isopen(ai, opposite(positionside(t))) && return nothing
-    o = _create_sim_market_order(s, t, ai; amount, date, kwargs...)
+    o = create_sim_market_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
     t = marketorder!(s, o, ai, amount; date)
     isnothing(t) && return nothing

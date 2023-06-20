@@ -43,7 +43,7 @@ function iscashenough(s::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
 end
 
 function maketrade(
-    s::Strategy{Sim}, o::IncreaseOrder, ai; date, actual_price, actual_amount, fees
+    s::Strategy{<:Union{Sim,Paper}}, o::IncreaseOrder, ai; date, actual_price, actual_amount, fees
 )
     net_cost = cost(actual_price, actual_amount)
     size = withfees(net_cost, fees, o)
@@ -64,7 +64,7 @@ function maketrade(
 end
 
 function maketrade(
-    s::Strategy{Sim}, o::ReduceOrder, ai; date, actual_price, actual_amount, fees
+    s::Strategy{<:Union{Sim,Paper}}, o::ReduceOrder, ai; date, actual_price, actual_amount, fees
 )
     @deassert actual_amount >= 0
     iscashenough(s, ai, actual_amount, o) || return nothing
@@ -86,11 +86,11 @@ function maketrade(
 end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
-function trade!(s::Strategy{Sim}, o, ai; date, price, actual_amount, fees=maxfees(ai))
+function trade!(s::Strategy{<:Union{Sim,Paper}}, o, ai; date, price, actual_amount, fees=maxfees(ai), slippage=true)
     @deassert abs(committed(o)) > 0.0
     @ifdebug _afterorder()
     @amount! ai actual_amount
-    actual_price = with_slippage(s, o, ai; date, price, actual_amount)
+    actual_price = slippage ? with_slippage(s, o, ai; date, price, actual_amount) : price
     @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
     isnothing(trade) && begin

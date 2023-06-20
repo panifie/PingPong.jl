@@ -1,4 +1,4 @@
-function _create_sim_market_order(
+function create_sim_market_order(
     s, t, ai; amount, date, price=priceat(s, t, ai, date), kwargs...
 )
     o = marketorder(s, ai, amount; type=t, date, price, kwargs...)
@@ -10,7 +10,7 @@ end
 
 @doc "Executes a market order at a particular time if there is volume."
 function marketorder!(
-    s::Strategy{Sim},
+    s::Strategy{<:Union{Sim,Paper}},
     o::Order{<:MarketOrderType},
     ai,
     actual_amount;
