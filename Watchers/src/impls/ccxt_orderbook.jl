@@ -2,9 +2,6 @@ using Fetch: OrderBookLevel, L1, L2, L3
 
 const CcxtOrderBookVal = Val{:ccxt_order_book}
 
-@enum OrderBookLevel L1 L2 L3
-Base.convert(::Type{OrderBookLevel}, v::Integer) = OrderBookLevel(v)
-
 # da.DataFrame(AskOrderTuple{Float64}.(pyconvert.(Tuple, ob["bids"])))
 _l1func(w) = w.attrs[:l1func]
 _l2func(w) = w.attrs[:l2func]
