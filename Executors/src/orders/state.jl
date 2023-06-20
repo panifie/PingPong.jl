@@ -170,18 +170,18 @@ function Instances.isdust(ai::AssetInstance, o::Order)
 end
 isfilled(ai::AssetInstance, o::Order) = isdust(ai, o)
 
-function strategycash!(s::NoMarginStrategy{Sim}, ai, t::BuyTrade)
+function strategycash!(s::NoMarginStrategy{<:Union{Sim,Paper}}, ai, t::BuyTrade)
     @deassert t.size < 0.0
     add!(s.cash, t.size)
     sub!(s.cash_committed, committment(ai, t))
     @deassert gtxzero(ai, s.cash_committed, Val(:price))
 end
-strategycash!(s::NoMarginStrategy{Sim}, _, t::SellTrade) = begin
+strategycash!(s::NoMarginStrategy{<:Union{Sim,Paper}}, _, t::SellTrade) = begin
     @deassert t.size > 0.0
     add!(s.cash, t.size)
     @deassert s.cash |> gtxzero
 end
-function strategycash!(s::IsolatedStrategy{Sim}, ai, t::IncreaseTrade)
+function strategycash!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai, t::IncreaseTrade)
     @deassert t.size < 0.0
     # t.amount can be negative for short sells
     margin = t.value / t.leverage
@@ -203,7 +203,7 @@ function _showliq(s, unrealized_pnl, gained, po, t)
 end
 _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
-function strategycash!(s::IsolatedStrategy{Sim}, ai, t::ReduceTrade)
+function strategycash!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
     @deassert abs(cash(ai, positionside(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
     @ifdebug _checktrade(t)
