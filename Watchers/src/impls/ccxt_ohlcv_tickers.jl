@@ -57,16 +57,26 @@ end
     end
 end
 
-_symlock(w, sym) = @lget! w.attrs[:sym_locks] sym ReentrantLock()
-_loaded!(w, sym) = w.attrs[:loaded][sym] = true
-_isloaded(w, sym) = get!(w.attrs[:loaded], sym, false)
+_symlock(w, sym) = w.attrs[:sym_locks][sym]
+_loaded!(w, sym, v=true) = w.attrs[:loaded][sym] = v
+_isloaded(w, sym) = get(w.attrs[:loaded], sym, false)
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     _view!(w, Dict{String,DataFrame}())
     w.attrs[:temp_ohlcv] = Dict{String,TempCandle}()
     w.attrs[:candle_ticks] = Dict{String,Int}()
     w.attrs[:loaded] = Dict{String,Bool}()
     w.attrs[:sym_locks] = Dict{String,ReentrantLock}()
+    _initsyms!(w)
     _checkson!(w)
+end
+
+function _initsyms!(w::Watcher)
+    loaded = w.attrs[:loaded]
+    locks = w.attrs[:sym_locks]
+    for sym in _ids(w)
+        loaded[sym] = false
+        locks[sym] = ReentrantLock()
+    end
 end
 
 _resetcandle!(w, cdl, ts, price) = begin
