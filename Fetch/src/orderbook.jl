@@ -1,4 +1,4 @@
-using Exchanges
+using Exchanges: ExchangeID
 using Exchanges.Ccxt: _multifunc
 using Exchanges.Misc: LittleDict
 @enum OrderBookLevel L1 L2 L3

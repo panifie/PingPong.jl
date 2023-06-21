@@ -176,7 +176,7 @@ function strategycash!(s::NoMarginStrategy{<:Union{Sim,Paper}}, ai, t::BuyTrade)
     sub!(s.cash_committed, committment(ai, t))
     @deassert gtxzero(ai, s.cash_committed, Val(:price))
 end
-strategycash!(s::NoMarginStrategy{<:Union{Sim,Paper}}, _, t::SellTrade) = begin
+function strategycash!(s::NoMarginStrategy{<:Union{Sim,Paper}}, _, t::SellTrade)
     @deassert t.size > 0.0
     add!(s.cash, t.size)
     @deassert s.cash |> gtxzero
@@ -190,7 +190,7 @@ function strategycash!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai, t::IncreaseT
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    subzero!(s.cash_committed, committment(ai, t), atol=ai.precision.price)
+    subzero!(s.cash_committed, committment(ai, t); atol=ai.precision.price)
     @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
 end
 function _showliq(s, unrealized_pnl, gained, po, t)
@@ -205,7 +205,9 @@ _checktrade(t::SellTrade) = @deassert t.amount < 0.0
 _checktrade(t::ShortBuyTrade) = @deassert t.amount > 0.0
 function strategycash!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai, t::ReduceTrade)
     @deassert t.size > 0.0
-    @deassert abs(cash(ai, positionside(t)())) >= abs(t.amount) (cash(ai), t.amount, t.order)
+    @deassert abs(cash(ai, positionside(t)())) >= abs(t.amount) (
+        cash(ai), t.amount, t.order
+    )
     @ifdebug _checktrade(t)
     po = position(ai, positionside(t))
     # The notional tracks current value, but the margin
