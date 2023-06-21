@@ -35,7 +35,7 @@ _levelname(level) =
         end
     end
 
-function _update_orderbook!(ob, sym, lvl, limit; init)
+function _update_orderbook!(exc, ob, sym, lvl, limit; init)
     ob.busy[] && return ob
     f = @lget! OB_FUNCTIONS (lvl, exc.id) _multifunc(exc, _levelname(lvl), true)[1]
     t = @async begin
@@ -78,11 +78,11 @@ function orderbook(exc, sym; limit=100, level=L1)
         ob = _orderbook(limit)
         sizehint!(ob.asks, limit)
         sizehint!(ob.bids, limit)
-        _update_orderbook!(ob, sym, lvl, limit; init=true)
+        _update_orderbook!(exc, ob, sym, lvl, limit; init=true)
         ob
     end
     if now() > ob.timestamp[] + OB_TTL[]
-        _update_orderbook!(ob, sym, lvl, limit; init=false)
+        _update_orderbook!(exc, ob, sym, lvl, limit; init=false)
     end
     ob
 end
