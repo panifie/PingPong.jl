@@ -131,7 +131,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end-maxlen+1):end, :])
+    available = @view(z[(end - maxlen + 1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -172,7 +172,9 @@ function _fetch_candles(w, from, to="", sym=_sym(w))
 end
 
 function _fetch_error(w, from, to, sym=_sym(w), args...)
-    error("Trades/ohlcv fetching failed for $sym @ $(_exc(w).name) from: $from to: $to ($(args...))")
+    get(w.attrs, :quiet, false) || error(
+        "Trades/ohlcv fetching failed for $sym @ $(_exc(w).name) from: $from to: $to ($(args...))",
+    )
 end
 
 _op(::Val{:append}, args...; kwargs...) = appendmax!(args...; kwargs...)
@@ -208,9 +210,12 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         end
         @debug sliced[begin, :timestamp]
         cleaned = cleanup_ohlcv_data(sliced, tf)
-        # Cleaning can add missing rows, and expand the range outside our target dates
-        cleaned = cleaned[rangebetween(cleaned.timestamp, from, to), :]
-        _firstdate(cleaned) != from + prd && _fetch_error(w, from, to, sym, _firstdate(cleaned))
+        # # Cleaning can add missing rows, and expand the range outside our target dates
+        cleaned = DataFrame(
+            @view(cleaned[rangebetween(cleaned.timestamp, from, to), :]); copycols=false
+        )
+        _firstdate(cleaned) != from + prd &&
+            _fetch_error(w, from, to, sym, _firstdate(cleaned))
         _op(op, df, cleaned, w.capacity.view)
         @ifdebug @assert nrow(df) <= w.capacity.view
     end
