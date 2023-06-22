@@ -162,7 +162,7 @@ function _fastforward(w, sym=_sym(w))
         _lastdate(df)
     end
     if from != cur_timestamp
-        _fetchto!(w, w.view, sym, tf; to=cur_timestamp, from)
+        _sticky_fetchto!(w, w.view, sym, tf; to=cur_timestamp, from)
         _check_contig(w, df)
     end
 end
@@ -214,10 +214,24 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         cleaned = DataFrame(
             @view(cleaned[rangebetween(cleaned.timestamp, from, to), :]); copycols=false
         )
+        if isempty(cleaned)
+            return false
+        end
         _firstdate(cleaned) != from + prd &&
             _fetch_error(w, from, to, sym, _firstdate(cleaned))
         _op(op, df, cleaned, w.capacity.view)
         @ifdebug @assert nrow(df) <= w.capacity.view
+        true
+    end
+    true
+end
+
+function _sticky_fetchto!(args...; kwargs...)
+    backoff = 0.5
+    while true
+        _fetchto!(args...; kwargs...) && break
+        sleep(backoff)
+        backoff += 0.5
     end
 end
 
@@ -234,7 +248,7 @@ function _resolve(w, ohlcv_dst, date_candidate::DateTime, sym=_sym(w))
     right = date_candidate
     next = _nextdate(ohlcv_dst, tf)
     if next < right
-        _fetchto!(w, ohlcv_dst, sym, tf; to=right, from=left)
+        _sticky_fetchto!(w, ohlcv_dst, sym, tf; to=right, from=left)
     else
         @ifdebug @assert isrightadj(right, left, tf) "Should $(right) is not right adjacent to $(left)!"
     end
