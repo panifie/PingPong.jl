@@ -41,6 +41,7 @@ function ccxt_tickers_watcher(
     process=false,
     buffer_capacity=100,
     view_capacity=1000,
+    flush=true,
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
@@ -54,7 +55,7 @@ function ccxt_tickers_watcher(
         wid;
         start,
         load,
-        flush=true,
+        flush,
         process,
         buffer_capacity,
         view_capacity,
