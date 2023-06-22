@@ -1,7 +1,15 @@
 errors(w::Watcher) = w._exec.errors
 @doc "Stores an error to the watcher log journal."
 function logerror(w::Watcher, e, bt=[])
-    push!(w._exec.errors, (e, bt))
+    if haskey(w.attrs, :logfile)
+        file = w.attrs[:logfile]
+        open(file, "a") do f
+            Base.showerror(f, e)
+            isempty(bt) || Base.show_backtrace(f, bt)
+        end
+    else
+        push!(w._exec.errors, (e, bt))
+    end
     e
 end
 @doc "Get the last logged watcher error."

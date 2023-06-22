@@ -18,6 +18,8 @@ process new candles from the time it is started w.r.t. the timeframe provided.
 To back-fill the *view* (DataFrame) of a particular symbol, call `load!(watcher, symbol)`, which will fill
 the view up to the watcher `view_capacity`.
 
+- `logfile`: optional path to save errors.
+
 !!! warning "Inaccurate volume"
     Since the volume data from the ticker is a daily rolling sum, the recorded volume is adjusted to be
     a fraction of it (using the timeframe as unit, see `_meanvolume!`).
@@ -25,7 +27,11 @@ the view up to the watcher `view_capacity`.
     the volume column.
 """
 function ccxt_ohlcv_tickers_watcher(
-    exc::Exchange; price_source=:last, timeframe=tf"1m", kwargs...
+    exc::Exchange;
+    price_source=:last,
+    timeframe=tf"1m",
+    logfile=nothing,
+    kwargs...,
 )
     w = ccxt_tickers_watcher(
         exc; wid=:ccxt_ohlcv_ticker, start=false, load=false, process=true, kwargs...
@@ -36,6 +42,7 @@ function ccxt_ohlcv_tickers_watcher(
     w.attrs[:price_source] = price_source
     w.attrs[:volume_divisor] = Day(1) / period(timeframe)
     ids = w.attrs[:ids]
+    isnothing(logfile) || (w.attrs[:logfile] = logfile)
     _key!(w, "ccxt_$(exc.name)_ohlcv_tickers_$(join(ids, "_"))")
     _pending!(w)
     w

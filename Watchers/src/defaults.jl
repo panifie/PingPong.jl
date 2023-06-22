@@ -63,6 +63,7 @@ function default_init(w::Watcher, dataview=DataFrame(), serialized=true)
     w.attrs[:last_processed] = nothing
     w.attrs[:checks] = Val(:off)
     w.attrs[:serialized] = serialized
+    haskey(w.attrs[:logfile]) && write(w.attrs[:logfile], "")
 end
 default_get(w::Watcher) = w.attrs[:view]
 
