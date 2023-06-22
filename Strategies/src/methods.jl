@@ -94,6 +94,13 @@ modifyattr!(s::Strategy, k, op, v) =
     let attrs = attrs(s)
         attrs[k] = op(attrs[k], v)
     end
+
+function logpath(s::Strategy; name="events", path_nodes...)
+    dirpath = joinpath(realpath(dirname(s.path)), "logs", path_nodes...)
+    isdir(dirpath) || mkpath(dirpath)
+    joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
+end
+
 function Base.propertynames(::Strategy)
     (
         fieldnames(Strategy)...,
