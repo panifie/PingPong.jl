@@ -149,6 +149,7 @@ end
 function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     @warmup! w
     @ispending(w) && return nothing
+    isempty(w.buffer) && return nothing
     last_fetch = last(w.buffer)
     @sync for (sym, ticker) in last_fetch.value
         @async @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
