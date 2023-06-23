@@ -4,6 +4,7 @@ function logerror(w::Watcher, e, bt=[])
     if haskey(w.attrs, :logfile)
         file = w.attrs[:logfile]
         open(file, "a") do f
+            println(f, string(Dates.now()))
             Base.showerror(f, e)
             isempty(bt) || Base.show_backtrace(f, bt)
         end
