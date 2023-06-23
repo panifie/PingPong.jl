@@ -96,10 +96,10 @@ function Config(args...; kwargs...)
     Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
 end
 
-function Config(profile::Union{Symbol,String}, path::String=config_path())
+function Config(profile::Union{Symbol,String}, path::String=config_path(); kwargs...)
     cfg = Config()
     config!(profile; cfg, path)
-    cfg = Config(; defaults=_defaults(cfg))
+    cfg = Config(; defaults=_defaults(cfg), kwargs...)
     config!(profile; cfg, path)
 end
 
