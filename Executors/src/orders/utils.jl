@@ -84,17 +84,23 @@ end
 
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, ai)
     @deassert st.freecash(s) |> gtxzero
-    st.freecash(s) >= commit[]
+    let c = st.freecash(s), comm = commit[]
+        c >= comm || isapprox(c, comm)
+    end
 end
 function iscommittable(s::Strategy, ::Type{<:SellOrder}, commit, ai)
     @deassert Instances.freecash(ai, Long()) |> gtxzero
     @deassert commit[] |> gtxzero
-    Instances.freecash(ai, Long()) >= commit[]
+    let c = Instances.freecash(ai, Long()), comm = commit[]
+        c >= commit[] || isapprox(c, comm)
+    end
 end
 function iscommittable(::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
     @deassert Instances.freecash(ai, Short()) |> ltxzero
     @deassert commit[] |> ltxzero
-    Instances.freecash(ai, Short()) <= commit[]
+    let c = Instances.freecash(ai, Short()), comm = commit[]
+        c <= comm || isapprox(c, comm)
+    end
 end
 
 @doc "Iterates over all the orders in a strategy."

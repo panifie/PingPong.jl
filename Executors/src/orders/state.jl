@@ -266,15 +266,21 @@ function decommit!(s::Strategy, o::ShortBuyOrder, ai, args...)
 end
 function iscommittable(s::Strategy, o::IncreaseOrder, ai)
     @deassert committed(o) > 0.0
-    st.freecash(s) >= committed(o)
+    let c = st.freecash(s), comm = committed(o)
+        c >= comm || isapprox(c, comm)
+    end
 end
 function iscommittable(::Strategy, o::SellOrder, ai)
     @deassert committed(o) > 0.0
-    Instances.freecash(ai, Long()) >= committed(o)
+    let c = Instances.freecash(ai, Long()), comm = committed(o)
+        c >= comm || isapprox(c, comm)
+    end
 end
 function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     @deassert committed(o) < 0.0
-    Instances.freecash(ai, Short()) <= committed(o)
+    let c = Instances.freecash(ai, Short()), comm = committed(o)
+        c <= comm || isapprox(c, comm)
+    end
 end
 
 function hold!(s::Strategy, ai, o::IncreaseOrder)
