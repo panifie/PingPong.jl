@@ -122,7 +122,7 @@ function isstrictlysorted(itr...)
 end
 
 roundfloat(val, prec) = begin
-    inv_prec = 1 / prec
+    inv_prec = 1.0 / prec
     round(val * inv_prec) / inv_prec
 end
 
