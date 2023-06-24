@@ -32,7 +32,7 @@ Base.nameof(s::Strategy) = nameof(typeof(s))
 
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
-reset!(s::Strategy, defaults=false) = begin
+reset!(s::Strategy, config=false) = begin
     for d in values(s.buyorders)
         empty!(d)
     end
@@ -43,7 +43,8 @@ reset!(s::Strategy, defaults=false) = begin
     for ai in s.universe
         reset!(ai, Val(:full))
     end
-    defaults && reset!(s.config)
+    config && reset!(s.config)
+    default!(s)
     ordersdefault!(s)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
@@ -60,7 +61,10 @@ end
 const config_fields = fieldnames(Config)
 _config_attr(s, attr) = getfield(getfield(s, :config), attr)
 @doc "Set strategy defaults."
-default!(::Strategy) = begin end
+default!(s::Strategy) = begin
+    setattr!(s, :throttle, Second(5))
+end
+
 Base.fill!(s::Strategy) = coll.fill!(s.universe, s.timeframe, s.config.timeframes)
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
