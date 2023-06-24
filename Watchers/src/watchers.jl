@@ -29,18 +29,23 @@ const Disabled = Val{false}
 _fetch_task(w, ::Enabled; kwargs...) = @spawn _tryfetch(w; kwargs...)
 _fetch_task(w, ::Disabled; kwargs...) = @async _tryfetch(w; kwargs...)
 function _schedule_fetch(w, timeout, threads; kwargs...)
-    task = _fetch_task(w, Val(w._exec.threads); kwargs...)
-    @async begin
-        sleep(timeout)
-        safenotify(task.donenotify)
-    end
-    safewait(task.donenotify)
-    if istaskdone(task) && fetch(task)
-        w.attempts = 0
-        w.has.process && process!(w)
-        w.has.flush && flush!(w; force=false, sync=false)
-    else
-        w.attempts += 1
+    try
+        task = _fetch_task(w, Val(w._exec.threads); kwargs...)
+        @async begin
+            sleep(timeout)
+            safenotify(task.donenotify)
+        end
+        safewait(task.donenotify)
+        if istaskdone(task) && fetch(task)
+            w.attempts = 0
+            w.has.process && process!(w)
+            w.has.flush && flush!(w; force=false, sync=false)
+        else
+            w.attempts += 1
+        end
+    catch e
+        w.attemprs += 1
+        logerror(w, e, stacktrace(catch_backtrace()))
     end
 end
 
