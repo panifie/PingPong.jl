@@ -26,7 +26,7 @@ function pytofloat(v::Py, def=zero(DFT))
     if pyisinstance(v, pybuiltins.float)
         pyconvert(DFT, v)
     elseif pyisinstance(v, pybuiltins.str)
-        pyconvert(DFT, pyfloat(v))
+        isempty(v) ? zero(DFT) : pyconvert(DFT, pyfloat(v))
     else
         def
     end
