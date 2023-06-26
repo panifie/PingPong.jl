@@ -1,9 +1,10 @@
 using PingPong
 using Stubs
 @environment!
+const ot = ect.OrderTypes
 
-backtest_strat(sym) = begin
-    s = egn.strategy(sym)
+backtest_strat(sym; mode=Sim(), kwargs...) = begin
+    s = egn.strategy(sym; mode, kwargs...)
     Random.seed!(1)
     Stubs.stub!(s; trades=false)
     s
