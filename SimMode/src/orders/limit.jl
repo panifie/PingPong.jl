@@ -7,7 +7,7 @@ import OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sim
 using Strategies: Strategies as st
 
-function _create_sim_limit_order(s, t, ai; amount, kwargs...)
+function create_sim_limit_order(s, t, ai; amount, kwargs...)
     o = limitorder(s, ai, amount; type=t, kwargs...)
     isnothing(o) && return nothing
     queue!(s, o, ai) || return nothing

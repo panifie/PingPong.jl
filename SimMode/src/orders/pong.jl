@@ -8,7 +8,7 @@ using .Lang: @lget!, Option
 function pong!(
     s::NoMarginStrategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...
 )
-    o = _create_sim_limit_order(s, t, ai; amount, kwargs...)
+    o = create_sim_limit_order(s, t, ai; amount, kwargs...)
     isnothing(o) && return nothing
     limitorder_ifprice!(s, o, o.date, ai)
 end

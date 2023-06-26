@@ -26,7 +26,13 @@ _isfavorable(::AnyLimitOrder{Sell}, ai, date) = closeat(ai, date) > openat(ai, d
 
 @doc "Limit orders can only incur into favorable slippage."
 function _with_slippage(
-    s::Strategy{Sim}, o::AnyLimitOrder, ai, ::Val; clamp_price, actual_amount, date
+    s::Strategy{<:Union{Paper,Sim}},
+    o::AnyLimitOrder,
+    ai,
+    ::Val;
+    clamp_price,
+    actual_amount,
+    date,
 )
     # slippage on limit orders can only happen on date of creation
     date == o.date || return clamp_price
@@ -52,7 +58,9 @@ function _with_slippage(
     end
 end
 
-function _with_slippage(s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:avg}; date, kwargs...)
+function _with_slippage(
+    s::Strategy{<:Union{Paper,Sim}}, o::AnyMarketOrder, ai, ::Val{:avg}; date, kwargs...
+)
     m = openat(ai, date)
     diff1 = abs(closeat(ai, date - s.timeframe) - openat(ai, date))
     diff2 = abs(closeat(ai, date) - openat(ai, date + s.timeframe))
@@ -64,9 +72,16 @@ _addslippage(::AnyMarketOrder{Buy}, price, slp) = price + slp
 _addslippage(::AnyMarketOrder{Sell}, price, slp) = price - slp
 @doc "Slippage for market orders is always zero or negative."
 function _with_slippage(
-    s::Strategy{Sim}, o::AnyMarketOrder, ai, ::Val{:skew}; clamp_price, actual_amount, date
+    s::Strategy{<:Union{Paper,Sim}},
+    o::AnyMarketOrder,
+    ai,
+    ::Val{:skew};
+    clamp_price,
+    actual_amount,
+    date,
 )
-    @deassert o.price == priceat(s, o, ai, date) || o isa Union{LiquidationOrder,ForcedOrder}
+    @deassert o.price == priceat(s, o, ai, date) ||
+        o isa Union{LiquidationOrder,ForcedOrder}
     volume = volumeat(ai, date)
     volume_skew = _volumeskew(actual_amount, volume)
     price_skew = _priceskew(ai, date)
@@ -96,7 +111,9 @@ function _with_slippage(
     end
 end
 
-_doclamp(::Order{<:LimitOrderType}, price, ai, date) = clamp(price, lowat(ai, date), highat(ai, date))
+function _doclamp(::Order{<:LimitOrderType}, price, ai, date)
+    clamp(price, lowat(ai, date), highat(ai, date))
+end
 _doclamp(::Order{<:MarketOrderType}, price, args...) = price
 function _do_slippage(s, o, ai; date, price, actual_amount)
     clamp_price = _doclamp(o, price, ai, date)
@@ -107,6 +124,6 @@ function _do_slippage(s, o, ai; date, price, actual_amount)
 end
 
 @doc "Add slippage to given `price` w.r.t. a specific order, date and amount."
-function with_slippage(s::Strategy{Sim}, o, ai; date, price, actual_amount)
+function with_slippage(s::Strategy{<:Union{Paper,Sim}}, o, ai; date, price, actual_amount)
     _do_slippage(s, o, ai; date, price, actual_amount)
 end
