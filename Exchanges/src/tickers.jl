@@ -125,6 +125,9 @@ function ticker!(pair::AbstractString, exc::Exchange; func=_tickerfunc(exc))
     @lget! tickersCache10Sec pair pyfetch(func, pair)
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
+lastprice(pair::AbstractString, exc::Exchange; kwargs...) = begin
+    pyconvert(DFT, ticker!(pair, exc; kwargs...)["last"])
+end
 
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange)
