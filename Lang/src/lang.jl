@@ -277,6 +277,16 @@ macro posassert(args...)
     end
 end
 
+macro logerror(fileexpr)
+    quote
+        open($(esc(fileexpr)), "a") do f
+            println(f, string($(__module__).Dates.now()))
+            Base.showerror(f, $(esc(:e)))
+            Base.show_backtrace(f, Base.catch_backtrace())
+        end
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws
