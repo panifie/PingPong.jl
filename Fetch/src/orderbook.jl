@@ -46,13 +46,13 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
             let asks = ob.asks
                 empty!(asks)
                 for a in py_ob["asks"]
-                    push!(asks, (DFT(a[0]), DFT(a[1])))
+                    push!(asks, (pytofloat(a[0]), pytofloat(a[1])))
                 end
             end
             let bids = ob.bids
                 empty!(bids)
                 for b in py_ob["bids"]
-                    push!(bids, (DFT(b[0]), DFT(b[1])))
+                    push!(bids, (pytofloat(b[0]), pytofloat(b[1])))
                 end
             end
         finally
@@ -74,7 +74,7 @@ end
 function orderbook(exc, sym; limit=100, level=L1)
     lvl = convert(OrderBookLevel, level)
     ob = @lget! OB_CACHE10 (sym, lvl, exc.id) begin
-        limit = min(7, searchsortedlast(MAX_ORDERS, limit))
+        limit = MAX_ORDERS[min(7, searchsortedlast(MAX_ORDERS, limit))]
         ob = _orderbook(limit)
         sizehint!(ob.asks, limit)
         sizehint!(ob.bids, limit)
