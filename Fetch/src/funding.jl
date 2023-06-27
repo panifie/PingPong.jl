@@ -22,15 +22,6 @@ end
 funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
 funding_data(v, args...) = funding_data(exc, v, args...)
 
-function pytofloat(v::Py, def=zero(DFT))
-    if pyisinstance(v, pybuiltins.float)
-        pyconvert(DFT, v)
-    elseif pyisinstance(v, pybuiltins.str)
-        isempty(v) ? zero(DFT) : pyconvert(DFT, pyfloat(v))
-    else
-        def
-    end
-end
 
 function funding_rate(exc::Exchange, s::AbstractString)
     id = exc.id

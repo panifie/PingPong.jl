@@ -46,13 +46,13 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
             let asks = ob.asks
                 empty!(asks)
                 for a in py_ob["asks"]
-                    push!(asks, pyconvert(Tuple{DFT,DFT}, a))
+                    push!(asks, (DFT(a[0]), DFT(a[1])))
                 end
             end
             let bids = ob.bids
                 empty!(bids)
                 for b in py_ob["bids"]
-                    push!(bids, pyconvert(Tuple{DFT,DFT}, b))
+                    push!(bids, (DFT(b[0]), DFT(b[1])))
                 end
             end
         finally
