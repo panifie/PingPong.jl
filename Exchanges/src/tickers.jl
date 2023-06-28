@@ -112,7 +112,7 @@ function tickers(
 end
 
 const marketsCache1Min = safettl(String, Py, Minute(1))
-const tickersCache10Sec = safettl(String, Py, Minute(1))
+const tickersCache10Sec = safettl(String, Py, Second(10))
 const activeCache1Min = safettl(String, Bool, Minute(1))
 @doc "Retrieves a cached market (1minute) or fetches it from exchange."
 function market!(pair::AbstractString, exc::Exchange=exc)
