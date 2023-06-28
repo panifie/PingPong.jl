@@ -42,7 +42,7 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
         ob.busy[] = true
         try
             py_ob = pyfetch(f, sym; limit)
-            ob.timestamp[] = pyconvert(DateTime, py_ob["timestamp"])
+            ob.timestamp[] = dt(pyconvert(Int, pyint(py_ob["timestamp"])))
             let asks = ob.asks
                 empty!(asks)
                 for a in py_ob["asks"]
