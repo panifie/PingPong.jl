@@ -8,16 +8,16 @@ const MAX_ORDERS = [5, 10, 20, 50, 100, 500, 1000]
 const OB_FUNCTIONS = LittleDict{Tuple{OrderBookLevel,ExchangeID},Py}()
 const OB_TTL = Ref(Second(5))
 const OB_EVICTION_TTL = Ref(Minute(5))
-const OrderBookTuple5 = NamedTuple{
+const OrderBookTuple = NamedTuple{
     (:busy, :timestamp, :asks, :bids),
     Tuple{Ref{Bool},Ref{DateTime},Vector{Tuple{DFT,DFT}},Vector{Tuple{DFT,DFT}}},
 }
-const OB_CACHE10 = safettl(
-    Tuple{String,OrderBookLevel,ExchangeID}, OrderBookTuple5, OB_EVICTION_TTL[]
+const OB_CACHE = safettl(
+    Tuple{String,OrderBookLevel,ExchangeID}, OrderBookTuple, OB_EVICTION_TTL[]
 )
 
 function _orderbook(N)
-    OrderBookTuple5((
+    OrderBookTuple((
         Ref(false),
         Ref(DateTime(0)),
         Vector{Tuple{DFT,DFT}}(undef, N),
@@ -73,7 +73,7 @@ end
 
 function orderbook(exc, sym; limit=100, level=L1)
     lvl = convert(OrderBookLevel, level)
-    ob = @lget! OB_CACHE10 (sym, lvl, exc.id) begin
+    ob = @lget! OB_CACHE (sym, lvl, exc.id) begin
         limit = MAX_ORDERS[min(7, searchsortedlast(MAX_ORDERS, limit))]
         ob = _orderbook(limit)
         sizehint!(ob.asks, limit)
