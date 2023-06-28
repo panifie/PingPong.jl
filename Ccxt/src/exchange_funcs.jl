@@ -1,5 +1,6 @@
 @doc "Track all exchanges finalizers."
 const exc_finalizers = Set{Task}()
+const exc_finalizers_lock = ReentrantLock()
 
 function close_exc(e::Py)
     t = @async if !pyisnull(e) && pyhasattr(e, "close")
@@ -8,8 +9,8 @@ function close_exc(e::Py)
             wait(pytask(co, Val(:coro)))
         end
     end
-    push!(exc_finalizers, t)
-    @async begin
+    @async lock(exc_finalizers_lock) do
+        push!(exc_finalizers, t)
         wait(t)
         pop!(exc_finalizers, t)
     end
