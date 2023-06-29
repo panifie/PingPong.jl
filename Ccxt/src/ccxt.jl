@@ -1,5 +1,7 @@
 using Python
 using Misc: DATA_PATH
+using Misc.ConcurrentCollections: ConcurrentDict
+using Misc.Lang: @lget!
 using Python: pynew
 using Python.PythonCall: pyisnull, pycopy!
 
@@ -60,31 +62,35 @@ function _multifunc(exc, suffix, hasinputs=false)
     end
 end
 
+const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
+
 # NOTE: watch_tickers([...]) returns empty sometimes...
 # so call without args, and select the input
 function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
-    hasinputs = length(inputs) > 0
-    f, kind = _multifunc(exc, suffix, hasinputs)
-    if hasinputs
-        if kind == :multi
-            () -> begin
-                data = pyfetch(f; kwargs...)
-                Dict(i => data[i] for i in inputs)
+    @lget! FUNCTION_WRAPPERS hash((exc.id, suffix, inputs, kwargs...)) begin
+        hasinputs = length(inputs) > 0
+        f, kind = _multifunc(exc, suffix, hasinputs)
+        if hasinputs
+            if kind == :multi
+                () -> begin
+                    data = pyfetch(f; kwargs...)
+                    Dict(i => data[i] for i in inputs)
+                end
+            else
+                () -> begin
+                    out = Dict{eltype(inputs),Union{Task,Py}}()
+                    for i in inputs
+                        out[i] = pytask(f, i; kwargs...)
+                    end
+                    for (i, task) in out
+                        out[i] = fetch(task)
+                    end
+                    out
+                end
             end
         else
-            () -> begin
-                out = Dict{eltype(inputs),Union{Task,Py}}()
-                for i in inputs
-                    out[i] = pytask(f, i; kwargs...)
-                end
-                for (i, task) in out
-                    out[i] = fetch(task)
-                end
-                out
-            end
+            () -> pyfetch(f; kwargs...)
         end
-    else
-        () -> pyfetch(f; kwargs...)
     end
 end
 
