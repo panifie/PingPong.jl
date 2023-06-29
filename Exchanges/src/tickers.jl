@@ -124,7 +124,7 @@ _tickerfunc(exc) = get(exc.has, :watchTicker, false) ? exc.watchTicker : exc.fet
 function ticker!(
     pair::AbstractString, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc)
 )
-    @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchticker, timeout, pair)
+    @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
