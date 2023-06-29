@@ -1,4 +1,4 @@
-using Exchanges: ExchangeID
+using Exchanges: ExchangeID, pyfetch_timeout
 using Exchanges.Ccxt: _multifunc
 using Exchanges.Misc: LittleDict
 @enum OrderBookLevel L1 L2 L3
@@ -41,7 +41,13 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
     t = @async begin
         ob.busy[] = true
         try
-            py_ob = pyfetch(f, sym; limit)
+            py_ob = pyfetch_timeout(
+                f,
+                getproperty(exc.py, string("fetch", _levelname(lvl))),
+                Second(2),
+                sym;
+                limit,
+            )
             ob.timestamp[] = dt(pyconvert(Int, pyint(py_ob["timestamp"])))
             let asks = ob.asks
                 empty!(asks)
