@@ -5,14 +5,14 @@ using Serialization: AbstractSerializer, serialize_type
 using Reexport
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange
-using Ccxt: Ccxt, ccxt_exchange
+using Ccxt: Ccxt, ccxt_exchange, choosefunc
 using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
 using JSON
 using TimeTicks
 using Instruments
-using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin
+using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict
 using Misc.TimeToLive
 using Lang: @lget!
 
@@ -161,7 +161,7 @@ end
 macro tickers!(type=markettype(), force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
-    type = esc(type)
+    type = esc(QuoteNode(type))
     @assert force isa Bool
     quote
         local $tickers
@@ -171,7 +171,7 @@ macro tickers!(type=markettype(), force=false)
                 tickers_cache[k] =
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        pyfetch($(exc).fetchTickers; params=Dict("type" => $(type))),
+                        choosefunc($(exc), "Ticker"; params=LittleDict("type" => $(type)))(),
                     )
             else
                 $tickers = tickers_cache[k]
@@ -183,7 +183,6 @@ end
 @doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
 "
 function filter_markets(exc; min_volume=10e4, quot="USDT", sep='/')
-    @assert exc.has[:fetchTickers] "Exchange doesn't provide tickers list."
     markets = exc.markets
     @tickers!
     f_markets = Dict()

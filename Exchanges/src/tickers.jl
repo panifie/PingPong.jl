@@ -1,7 +1,7 @@
 using Lang: @get, @multiget, @lget!, Option
 using Misc: config, NoMargin, DFT
 using Instruments: isfiatquote, spotpair
-using Python: @pystr
+using Python: @pystr, pyfetch_timeout
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
 - `:yes` : Leveraged pairs will not be filtered.
@@ -121,11 +121,13 @@ end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
 _tickerfunc(exc) = get(exc.has, :watchTicker, false) ? exc.watchTicker : exc.fetchTicker
-function ticker!(pair::AbstractString, exc::Exchange; func=_tickerfunc(exc))
-    @lget! tickersCache10Sec pair pyfetch(func, pair)
+function ticker!(
+    pair::AbstractString, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc)
+)
+    @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchticker, timeout, pair)
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
-lastprice(pair::AbstractString, exc::Exchange; kwargs...) = begin
+function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
     pyconvert(DFT, ticker!(pair, exc; kwargs...)["last"])
 end
 
