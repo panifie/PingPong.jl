@@ -18,6 +18,7 @@ import Misc: approxzero, gtxzero, ltxzero, marginmode
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
+import Exchanges: lastprice
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 
@@ -257,16 +258,10 @@ function OrderTypes.Order(ai::AssetInstance, type; kwargs...)
 end
 
 @doc "Returns a similar asset instance with cash and orders reset."
-function Base.similar(ai::AssetInstance)
-    AssetInstance(
-        ai.asset,
-        ai.data,
-        ai.exchange,
-        marginmode(ai);
-        limits=ai.limits,
-        precision=ai.precision,
-        fees=ai.fees,
-    )
+function Base.similar(
+    ai::AssetInstance; limits=ai.limits, precision=ai.precision, fees=ai.fees
+)
+    AssetInstance(ai.asset, ai.data, ai.exchange, marginmode(ai); limits, precision, fees)
 end
 
 cash(ai::NoMarginInstance) = getfield(ai, :cash)
@@ -514,6 +509,8 @@ pnlpct(ai::MarginInstance, v::Number) = begin
     isnothing(pos) && return 0.0
     pnlpct(pos, v)
 end
+
+lastprice(ai::AssetInstance) = lastprice(ai.asset.raw, ai.exchange)
 
 include("constructors.jl")
 
