@@ -10,7 +10,7 @@ end
 
 @doc "Executes a market order at a particular time if there is volume."
 function marketorder!(
-    s::Strategy{<:Union{Sim,Paper}},
+    s::Strategy{Sim},
     o::Order{<:MarketOrderType},
     ai,
     actual_amount;
