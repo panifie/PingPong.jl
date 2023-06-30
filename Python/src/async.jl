@@ -1,5 +1,6 @@
 using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert
+using Dates: Period, Second
 
 @kwdef struct PythonAsync
     pyaio::Py = pynew()
@@ -116,6 +117,16 @@ function pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     fetch(pytask(f, Val(:try), args...; kwargs...))
 end
 
+function pyfetch_timeout(f1::Py, f2::Py, timeout::Period, args...; kwargs...)
+    coro = gpa.pyaio.wait_for(f1(args...; kwargs...); timeout=Second(timeout).value)
+    res = fetch(pytask(coro, Val(:try)))
+    if res isa PyException
+        pyfetch(f2, args...; kwargs...)
+    else
+        res
+    end
+end
+
 # function isrunning_func(running)
 #     @pyexec (running) => """
 #     global jl, jlrunning
@@ -162,4 +173,4 @@ end
 #     pyexec(code, globals)
 # end
 
-export pytask, pyfetch, @pytask, @pyfetch
+export pytask, pyfetch, @pytask, @pyfetch, pyfetch_timeout
