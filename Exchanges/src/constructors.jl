@@ -150,7 +150,7 @@ end
 
 @doc "Check if exchange has tickers list."
 @inline function hastickers(exc::Exchange)
-    exc.has[:watchTickers] || exc.has[:fetchTickers]
+    has(exc, :watchTickers) || has(exc, :fetchTickers)
 end
 
 function markettype()
@@ -161,7 +161,7 @@ end
 macro tickers!(type=markettype(), force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
-    type = esc(QuoteNode(type))
+    type = type isa Expr ? esc(type) : esc(QuoteNode(type))
     @assert force isa Bool
     quote
         local $tickers
@@ -171,7 +171,10 @@ macro tickers!(type=markettype(), force=false)
                 tickers_cache[k] =
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        choosefunc($(exc), "Ticker"; params=LittleDict("type" => $(type)))(),
+                        pyfetch(
+                            getproperty($(exc), first($(exc), :watchTickers, :fetchTickers));
+                            params=LittleDict("type" => $(type)),
+                        ),
                     )
             else
                 $tickers = tickers_cache[k]

@@ -49,6 +49,13 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
+has(exc::Exchange, s::Symbol) = haskey(getfield(exc, :has), s)
+function Base.first(exc::Exchange, args::Vararg{Symbol})
+    for a in args
+        has(exc, a) && return getproperty(getfield(exc, :py), a)
+    end
+end
+
 @doc "Updates the global exchange `exc` variable."
 globalexchange!(new::Exchange) = begin
     global exc
