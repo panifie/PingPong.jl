@@ -44,7 +44,7 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
             w.attempts += 1
         end
     catch e
-        w.attemprs += 1
+        w.attempts += 1
         logerror(w, e, stacktrace(catch_backtrace()))
     end
 end
