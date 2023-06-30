@@ -27,7 +27,7 @@ using .Misc.Lang: @distributed, @parallel, Option, filterkws, @ifdebug
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
 const SINCE_MIN_PERIOD = Millisecond(Day(30))
 
-function pytofloat(v::Py, def=zero(DFT))
+function pytofloat(v::Py, def=zero(DFT))::DFT
     if pyisinstance(v, pybuiltins.float)
         pyconvert(DFT, v)
     elseif pyisinstance(v, pybuiltins.str)
