@@ -1,7 +1,7 @@
 using Pkg: Pkg
 
 function recurse_projects(
-    f, path="."; top=true, exclude=("test", "docs", "deps"), kwargs...
+    f, path="."; top=true, exclude=("test", "docs", "deps", "user"), kwargs...
 )
     path = realpath(path)
     for subpath in readdir(path)
