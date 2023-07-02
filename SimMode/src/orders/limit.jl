@@ -15,11 +15,15 @@ function create_sim_limit_order(s, t, ai; amount, kwargs...)
     return o
 end
 
-function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date)
-    st.closeat(ai, available(s.timeframe, date))
+@doc "The price at a particular date for an order.
+- `datefunc`: the function to normalize the date which takes the timeframe and the date as inputs (default `available`)."
+function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date; datefunc=available)
+    st.closeat(ai, datefunc(s.timeframe, date))
 end
-priceat(s::Strategy{Sim}, o::Order, args...) = priceat(s, typeof(o), args...)
-priceat(s::MarginStrategy{Sim}, o::Order{}, args...) = priceat(s, typeof(o), args...)
+priceat(s::Strategy{Sim}, ::T, args...) where {T<:Order} = priceat(s, T, args...)
+function priceat(s::MarginStrategy{Sim}, ::T, args...) where {T<:Order}
+    priceat(s, T, args...)
+end
 
 _istriggered(o::AnyLimitOrder{Buy}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
