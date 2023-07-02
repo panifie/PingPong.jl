@@ -128,7 +128,7 @@ function trade!(
     # update cash
     cash!(s, ai, trade)
     # unqueue or decommit order if filled
-    aftertrade!(s, ai, o)
+    aftertrade!(s, ai, o, trade)
     @ifdebug _aftertrade(s, ai, o)
     @ifdebug _check_committments(s, ai)
     @ifdebug _check_committments(s, ai, trade)

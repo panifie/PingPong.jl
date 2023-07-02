@@ -300,7 +300,7 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)
     end
 end
 @doc "Cleanups to do after a trade (attempt)."
-aftertrade!(::Strategy, ::Order, _) = nothing
+aftertrade!(s, ai, o, _) = aftertrade!(s, ai, o)
 
 amount(o::Order) = getfield(o, :amount)
 function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
