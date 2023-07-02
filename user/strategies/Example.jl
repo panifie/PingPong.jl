@@ -14,19 +14,20 @@ include("common.jl")
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
-    _initparams!()
+    _initparams!(s)
     _overrides!(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
-    s = Strategy(@__MODULE__, assets; config)
+    s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
     _reset!(s)
     s
 end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
-_initparams!() = begin
+_initparams!(s) = begin
+    params_index = st.attr(s, :params_index)
     empty!(params_index)
     params_index[:buydiff] = 1
     params_index[:selldiff] = 2

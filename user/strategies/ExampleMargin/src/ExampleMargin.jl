@@ -49,7 +49,10 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     _reset_pos!(s)
     if s isa Union{PaperStrategy,LiveStrategy}
         exc = getexchange!(s.exchange)
-        w = ccxt_ohlcv_tickers_watcher(exc; syms=marketsid(s))
+        w = ccxt_ohlcv_tickers_watcher(
+            exc; syms=marketsid(s), flush=false, logfile=st.logpath(s; name="tickers_watcher")
+        )
+        w.attrs[:quiet] = true
         start!(w)
         @sync for sym in marketsid(s)
             @async load!(w, sym)
