@@ -5,3 +5,5 @@ version = "0.1.0"
 
 [deps]
 Executors = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
+Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
+SimMode = "70084082-5615-4098-a9f0-eda0197c0e82"
