@@ -1,5 +1,5 @@
 using OrderTypes: PositionTrade, IncreaseTrade, ReduceTrade, liqside, LiquidationOverride
-using Instances: leverage, _roundlev, _roundpos, Position, margin, maintenance
+using Instances: leverage, _roundlev, _roundpos, Position, margin, maintenance, lastprice
 import Instances: leverage!, maintenance!, notional!, entryprice!, tier, liqprice
 using Executors.Instances: MarginInstance, liqprice!
 using Strategies: lowat, highat
@@ -87,7 +87,9 @@ _iscrossed(ai, price, ::Long) = price <= Instances.liqprice(ai, Long())
 _iscrossed(ai, price, ::Short) = price >= Instances.liqprice(ai, Short())
 
 @doc "Tests if a position should be liquidated at a particular date."
-function isliquidatable(ai::MarginInstance, p::PositionSide, date::DateTime)
+function isliquidatable(
+    ::Strategy{Sim}, ai::MarginInstance, p::PositionSide, date::DateTime
+)
     let price = _pricebypos(ai, date, p)
         buffered = _buffered(price, p)
         @deassert _checkbuffered(buffered, price, p)
@@ -96,6 +98,7 @@ function isliquidatable(ai::MarginInstance, p::PositionSide, date::DateTime)
 end
 
 @doc "Tests if a position should be liquidated at a particular price."
-function isliquidatable(ai::MarginInstance, p::PositionSide, price::DFT)
+function isliquidatable(::Strategy{Paper}, ai::MarginInstance, p::PositionSide, date::DateTime)
+    price = lastprice(ai) # pytofloat(ticker!(ai.asset.raw, ai.exchange)["last"])
     _iscrossed(ai, price, p)
 end
