@@ -3,6 +3,7 @@ using TOML
 using JSON
 using TimeTicks
 using FunctionalCollections: PersistentHashMap
+using .Lang: @lget!
 # TODO: move config to own pkg
 
 _config_dir() = begin
@@ -97,11 +98,16 @@ function Config(args...; kwargs...)
 end
 
 function Config(profile::Union{Symbol,String}, path::String=config_path(); kwargs...)
-    cfg = Config()
+    cfg = Config(; kwargs...)
     config!(profile; cfg, path)
-    cfg = Config(; defaults=_defaults(cfg), kwargs...)
+    cfg = Config(; defaults=_defaults(cfg))
+    cfg[:config_overrides] = kwargs
     config!(profile; cfg, path)
+    cfg
 end
+
+Base.getindex(cfg::Config, k) = cfg.attrs[k]
+Base.setindex!(cfg::Config, v, k) = setindex!(cfg.attrs, v, k)
 
 _copyval(v) =
     if typeof(v) <: Union{AbstractDict,AbstractVector}
@@ -179,6 +185,9 @@ function config!(
     _toml!(cfg, name)
     _options!(cfg, name)
     _sources!(cfg, name)
+    for (k, v) in @lget! cfg.attrs :config_overrides Dict()
+        setproperty!(cfg, k, v)
+    end
     cfg
 end
 

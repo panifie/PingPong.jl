@@ -71,9 +71,9 @@ function strategy!(src::Symbol, cfg::Config)
 end
 _concrete(type, param) = isconcretetype(type) ? type : type{param}
 function strategy!(mod::Module, cfg::Config)
-    s_type = let s_type = mod.S{typeof(config.mode)}
-        s_type = _concrete(s_type, typeof(config.margin))
-        _concrete(s_type, typeof(config.qc))
+    s_type = let s_type = mod.S{typeof(cfg.mode)}
+        s_type = _concrete(s_type, typeof(cfg.margin))
+        _concrete(s_type, typeof(cfg.qc))
     end
     strat_exc = exchange(s_type)
     # The strategy can have a default exchange symbol
