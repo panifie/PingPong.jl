@@ -417,8 +417,8 @@ function maintenance(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
     position(ai, S) |> maintenance
 end
 @doc "Asset position initial margin."
-function initial(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
-    position(ai, S) |> initial
+function margin(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
+    position(ai, S) |> margin
 end
 @doc "Asset position additional margin."
 function additional(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
