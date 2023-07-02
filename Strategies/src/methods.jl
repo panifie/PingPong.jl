@@ -119,3 +119,6 @@ function Base.propertynames(::Strategy)
         :config,
     )
 end
+
+Base.getindex(s::Strategy, k) = attr(s, k)
+Base.setindex!(s::Strategy, v, k) = setattr!(s, k, v)
