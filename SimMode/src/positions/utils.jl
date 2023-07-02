@@ -34,31 +34,29 @@ function open_position!(
     ping!(s, ai, t, po, PositionOpen())
 end
 
-function force_exit_position(
-    s::Strategy,
-    ai,
-    p,
-    date::DateTime;
-    actual_price=nothing,
-    actual_amount=nothing,
-    slippage=true,
-)
+function force_exit_position(s::Strategy, ai, p, date::DateTime)
     for (_, o) in orders(s, ai, p)
         cancel!(s, o, ai; err=OrderCancelled(o))
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
-    price = @something actual_price closeat(ai, date)
+    ot = ForcedOrder{liqside(p),typeof(p)}
+    price = priceat(s, ot, ai, date; datefunc=Returns(date))
     amount = abs(nondust(ai, price, p))
     if amount > 0.0
-        o = create_sim_market_order(
-            s, ForcedOrder{liqside(p),typeof(p)}, ai; amount, date, price
-        )
-        @deassert !isnothing(o) &&
-            o.date == date &&
-            isapprox(o.amount, amount; atol=ai.precision.amount)
-        marketorder!(s, o, ai, @something(actual_amount, o.amount); o.price, date, slippage)
+        t = pong!(s, ai, ot; amount, date, price)
+        # o = create_sim_market_order(
+        #     s, ForcedOrder{liqside(p),typeof(p)}, ai; amount, date, price
+        # )
+        @deassert let o = t.order
+            (
+                t isa Trade &&
+                o.date == date &&
+                isapprox(o.amount, amount; atol=ai.precision.amount)
+            ) || isnothing(t)
+        end
+        # marketorder!(s, o, ai, o.amount; o.price, date, slippage)
+        @deassert isdust(ai, price, p)
     end
-    @deassert isdust(ai, price, p)
 end
 
 function close_position!(
@@ -95,8 +93,6 @@ function liquidate!(
     p::PositionSide,
     date,
     fees=maxfees(ai) * 2.0;
-    actual_price=nothing,
-    actual_amount=nothing,
 )
     pos = position(ai, p)
     for (_, o) in orders(s, ai, p)
@@ -104,28 +100,29 @@ function liquidate!(
         cancel!(s, o, ai; err=LiquidationOverride(o, liqprice(pos), date, p))
     end
     amount = abs(cash(pos).value)
-    price = @something actual_price liqprice(pos)
-    o = create_sim_market_order(
-        s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
-    )
-    # The position might be too small to be tradeable, assume cash is lost
-    isnothing(o) || begin
-        t = marketorder!(s, o, ai, @something(actual_amount, o.amount); o.price, date, fees)
-        @deassert o.date == date && 0.0 < abs(t.amount) <= abs(o.amount)
+    price = liqprice(pos)
+    t = pong!(s, ai, LiquidationOrder{liqside(p),typeof(p)}; amount, date, price, fees)
+    isnothing(t) || begin
+        @deassert t.order.date == date && 0.0 < abs(t.amount) <= abs(t.order.amount)
     end
-    @deassert isdust(ai, price, p) (
-        notional(ai, p), cash(ai, p), cash(ai, p) * price, p, isnothing(o)
-    )
+    # o = create_sim_market_order(
+    #     s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
+    # )
+    # The position might be too small to be tradeable, assume cash is lost
+    # isnothing(o) || begin
+    #     t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
+    # end
+    @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), cash(ai, p) * price, p)
     close_position!(s, ai, p)
 end
 
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
-function liquidation!(s::IsolatedStrategy{Sim}, ai::MarginInstance, date)
+function liquidation!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai::MarginInstance, date)
     pos = position(ai)
     isnothing(pos) && return nothing
     @deassert !isopen(opposite(ai, pos))
     p = posside(pos)()
-    isliquidatable(ai, p, date) && liquidate!(s, ai, p, date)
+    isliquidatable(s, ai, p, date) && liquidate!(s, ai, p, date)
 end
 
 function update_position!(
@@ -167,7 +164,7 @@ function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, pos::Position=p
     p = posside(pos)()
     @deassert notional(pos) != 0.0
     timestamp!(pos, date)
-    if isliquidatable(ai, p, date)
+    if isliquidatable(s, ai, p, date)
         liquidate!(s, ai, p, date)
     else
         # position is still open
