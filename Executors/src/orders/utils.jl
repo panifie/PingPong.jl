@@ -110,6 +110,7 @@ end
 function orders(s::Strategy, ai::AssetInstance)
     (o for side in (Buy, Sell) for o in orders(s, ai, side))
 end
+orders(s, ai, ::Type{Both}) = orders(s, ai)
 orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
 orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
 @doc "Get strategy buy orders for asset."
@@ -149,6 +150,13 @@ end
 @doc "The total number of pending orders in the strategy"
 function orderscount(s::Strategy)
     orderscount(s, Buy) + orderscount(s, Sell)
+end
+function orderscount(s::Strategy, ai::AssetInstance)
+    n = 0
+    for _ in orders(s, ai)
+        n += 1
+    end
+    n
 end
 @doc "True if any of the holdings has non dust cash."
 function hascash(s::Strategy)
