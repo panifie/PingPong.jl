@@ -121,6 +121,12 @@ function isstrictlysorted(itr...)
     return true
 end
 
+# slow version but precise
+# roundfloat(val, prec) = begin
+#     inv_prec = 1.0 / prec
+#     round(round(val * inv_prec) / inv_prec, digits=abs(Base.Ryu.reduce_shortest(prec)[2]))
+# end
+
 roundfloat(val, prec) = begin
     inv_prec = 1.0 / prec
     round(val * inv_prec) / inv_prec
