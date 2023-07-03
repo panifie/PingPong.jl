@@ -58,7 +58,7 @@ function Base.parse(::Type{Asset}, s::AbstractString)
     Asset(SubString(s), pair[1], pair[2])
 end
 const symbol_rgx_cache = Dict{String,Regex}()
-function Base.parse(::Type{Asset}, s::AbstractString, qc::AbstractString; raise=true)
+function Base.parse(::Type{<:AbstractAsset}, s::AbstractString, qc::AbstractString; raise=true)
     pair = splitpair(s)
     m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)(?:settled?)?\$", "i")), pair[1])
     if isnothing(m)
@@ -68,7 +68,7 @@ function Base.parse(::Type{Asset}, s::AbstractString, qc::AbstractString; raise=
     Asset(SubString(s), m.captures[1], m.captures[2])
 end
 function Base.parse(
-    ::Type{Asset}, s::AbstractString, qcs::Union{AbstractVector,AbstractSet}
+    ::Type{<:AbstractAsset}, s::AbstractString, qcs::Union{AbstractVector,AbstractSet}
 )
     for qc in qcs
         p = parse(Asset, s, qc; raise=false)
