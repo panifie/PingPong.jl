@@ -68,7 +68,9 @@ end
 
 @doc "The partial committment of a trade, such that `sum(committment.(trades(o))) == committed(o)`."
 function committment(ai::AssetInstance, t::Trade)
-    committment(typeof(t.order), ai, t.order.price, abs(t.amount))
+    let o = t.order
+        committment(typeof(o), ai, max(o.price, t.price), abs(t.amount))
+    end
 end
 
 function unfillment(t::Type{<:AnyBuyOrder}, amount)

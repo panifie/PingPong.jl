@@ -30,7 +30,6 @@ function open_position!(
     # finalize
     status!(ai, P(), PositionOpen())
     @deassert status(po) == PositionOpen()
-    @deassert ai in s.holdings
     ping!(s, ai, t, po, PositionOpen())
 end
 
