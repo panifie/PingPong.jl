@@ -89,9 +89,12 @@ function pyschedule(coro::Py)
 end
 
 pywait_fut(fut::Py) = begin
+    # id = rand()
+    # @info "waiting fut $(id)"
     while !Bool(fut.done())
         sleep(0.01)
     end
+    # @info "fut $id done!"
 end
 pytask(coro::Py, ::Val{:coro}) = begin
     @async let fut = pyschedule(coro)

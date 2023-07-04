@@ -1,3 +1,6 @@
+using Python: pyschedule, pywait_fut, Python, pyisinstance
+using Base: with_logger, NullLogger
+
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
 
@@ -8,23 +11,36 @@ are copied over to avoid round tripping python. More attributes might be added i
 To instantiate an exchange call `getexchange!` or `setexchange!`.
 
 """
-struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
-    py::Py
-    id::I
-    name::String
-    precision::Vector{ExcPrecisionMode}
-    timeframes::Set{String}
-    markets::OptionsDict
-    has::Dict{Symbol,Bool}
+mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
+    const py::Py
+    const id::I
+    const name::String
+    const precision::Vector{ExcPrecisionMode}
+    const timeframes::Set{String}
+    const markets::OptionsDict
+    const has::Dict{Symbol,Bool}
 end
 
-Exchange() = CcxtExchange{typeof(ExchangeID())}(pybuiltins.None)
+function close_exc(exc::CcxtExchange)
+    e = exc.py
+    if !pyisnull(e) && pyhasattr(e, "close")
+        co = e.close()
+        if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
+            fut = pyschedule(co)
+            pywait_fut(fut)
+        end
+    end
+end
+
+Exchange() = Exchange(pybuiltins.None)
 function Exchange(x::Py)
     id = ExchangeID(x)
-    name = pyisnone(x) ? "" : pyconvert(String, pygetattr(x, "name"))
-    CcxtExchange{typeof(id)}(
+    isnone = pyisnone(x)
+    name = isnone ? "" : pyconvert(String, pygetattr(x, "name"))
+    e = CcxtExchange{typeof(id)}(
         x, id, name, [excDecimalPlaces], Set(), OptionsDict(), Dict{Symbol,Bool}()
     )
+    isnone ? e : finalizer(close_exc, e)
 end
 
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
@@ -67,7 +83,7 @@ end
 
 When working interactively, a global `exc` variable is available, updated through `globalexchange!`, which
 is used as the default for some functions when the exchange argument is omitted."
-exc = Exchange(pybuiltins.None)
+exc = Exchange()
 @doc "Global var holding Exchange instances. Used as a cache."
 const exchanges = Dict{Symbol,Exchange}()
 @doc "Global var holding Sandbox Exchange instances. Used as a cache."
