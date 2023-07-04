@@ -358,7 +358,6 @@ function loadexchanges!()
     if isempty(exchanges)
         json = get(ApiPaths.exchanges)
         for e in json
-            @show e["id"]
             exchanges[e["id"]] = e["name"]
         end
     end
