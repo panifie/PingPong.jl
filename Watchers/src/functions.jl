@@ -52,12 +52,10 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-Base.close(w::Watcher; doflush=true) = @async begin
-    @lock w._exec.fetch_lock begin
-        stop!(w)
-        doflush && flush!(w)
-        nothing
-    end
+Base.close(w::Watcher; doflush=true) = begin # @lock w._exec.fetch_lock begin
+    isstopped(w) || stop!(w)
+    doflush && flush!(w)
+    nothing
 end
 Base.empty!(w::Watcher) = empty!(w.buffer)
 Base.getproperty(w::Watcher, p::Symbol) = begin
@@ -93,7 +91,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end-40):end]))
+        write(out, @view(tps[(end - 40):end]))
     else
         write(out, tps)
     end

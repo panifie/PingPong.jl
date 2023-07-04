@@ -208,7 +208,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         else
             view(candles, from_to_range, :)
         end
-        @debug sliced[begin, :timestamp]
+        @debug isempty(sliced) || sliced[begin, :timestamp]
         cleaned = cleanup_ohlcv_data(sliced, tf)
         # # Cleaning can add missing rows, and expand the range outside our target dates
         cleaned = DataFrame(

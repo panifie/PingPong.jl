@@ -27,11 +27,7 @@ the view up to the watcher `view_capacity`.
     the volume column.
 """
 function ccxt_ohlcv_tickers_watcher(
-    exc::Exchange;
-    price_source=:last,
-    timeframe=tf"1m",
-    logfile=nothing,
-    kwargs...,
+    exc::Exchange; price_source=:last, timeframe=tf"1m", logfile=nothing, kwargs...
 )
     w = ccxt_tickers_watcher(
         exc; wid=:ccxt_ohlcv_ticker, start=false, load=false, process=true, kwargs...
