@@ -17,8 +17,9 @@ data = bn.binanceload()
 stub!(strat.universe, data)
 ```
 "
-function stub!(ac::AssetCollection, src)
-    src_dict = swapkeys(src, NTuple{2,Symbol}, k -> let a = parse(Asset, k, fiatnames)
+function stub!(ac::AssetCollection, src; fromfiat=true)
+    parse_args = fromfiat ? (fiatnames,) : ()
+    src_dict = swapkeys(src, NTuple{2,Symbol}, k -> let a = parse(AbstractAsset, k, parse_args...)
         (a.bc, a.qc)
     end)
     for inst in ac.data.instance
