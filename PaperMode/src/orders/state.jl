@@ -26,7 +26,7 @@ function create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
     o, obside
 end
 
-function SimMode.marketorder!(s::Strategy{Paper}, o, ai; date, obside)
+function SimMode.marketorder!(s::PaperStrategy, o, ai; date, obside)
     _, _, trade = from_orderbook(obside, s, ai, o; o.amount, date)
     if isnothing(trade)
         cancel!(s, o, ai; err=OrderCancelled(o))
@@ -37,7 +37,7 @@ function SimMode.marketorder!(s::Strategy{Paper}, o, ai; date, obside)
     end
 end
 
-function aftertrade!(s::Strategy, ai::A, o::O, t::Trade) where {A,O}
+function aftertrade!(s::PaperStrategy, ai::A, o::O, t::Trade) where {A,O}
     invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o)
     position!(s, ai, t)
 end

@@ -28,7 +28,7 @@ using Data: Data, load, zi, empty_ohlcv
 using Data.DataFramesMeta
 using Data.DFUtils
 using Processing: resample, Processing
-using Instruments: Asset, fiatnames, Instruments
+using Instruments: AbstractAsset, Asset, fiatnames, Instruments
 
 # include("consts.jl")
 # include("funcs.jl")

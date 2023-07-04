@@ -17,13 +17,22 @@ using Fetch: pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
-function run!(s::Strategy{Paper}; throttle=Second(5), doreset=true)
+function run!(s::Strategy{Paper}; throttle=Second(5), doreset=true, verbose=true)
     doreset && st.reset!(s)
+    verbose && @info "Starting strategy $(nameof(s)) in paper mode! (throttle: $throttle)"
+    infofunc = if verbose
+        () -> @info "Pinging strategy ($(now()))"
+    else
+        Returns(nothing)
+    end
     while true
+        infofunc()
         ping!(s, now(), nothing)
         sleep(throttle)
     end
 end
+
+export run!
 
 include("utils.jl")
 include("orders/utils.jl")

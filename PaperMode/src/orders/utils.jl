@@ -50,10 +50,7 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
     this_price, this_vol = obside[price_idx]
     this_vol = min(amount, this_vol)
     islimit = o isa AnyLimitOrder
-    # trades = Trade{ordertype(o),typeof(ai.asset),typeof(ai.exchange.id),positionside(o)}[]
-    trades = Tuple{DFT,DFT}[]
     islimit && !_istriggered(o, this_price) && return this_price, zero(DFT), nothing
-    push!(trades, (this_price, this_vol))
     # calculate the vwap based on how much orderbook we sweep
     avg_price = this_price * this_vol
     while this_vol < amount
@@ -64,23 +61,18 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         # exceeds the limit order avg_price
         islimit && !_istriggered(o, ob_price) && break
         inc_vol = min(ob_vol, amount - this_vol)
-        push!(trades, (ob_price, inc_vol))
         avg_price += ob_price * inc_vol
         this_vol += inc_vol
     end
+    avg_price /= this_vol
     last_trade = nothing::Union{Nothing,<:Trade}
     if o isa AnyFOKOrder && this_vol < amount
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
-    for (price, actual_amount) in trades
-        last_trade = trade!(s, o, ai; date, price, actual_amount, slippage=false)
-        date += Millisecond(1)
-        isfilled(ai, o) && break
-    end
+    last_trade = trade!(s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false)
     @deassert o.amount ≈ this_vol || o isa AnyLimitOrder (o.amount, this_vol)
     taken_vol[] += this_vol
-    avg_price /= this_vol
     return avg_price, this_vol, last_trade
 end
 
