@@ -14,7 +14,8 @@ function cp_twitter_watcher(syms::AbstractVector, interval=Minute(5))
     attrs[:ids] = cp.idbysym.(syms)
     attrs[:key] = "cp_twitter_$(join(string.(syms), "-"))"
     watcher_type = Dict{String,Vector{CpTweet}}
-    watcher(watcher_type, :cp_twitter; flush=true, fetch_interval=interval, attrs)
+    wid = string(CpTwitterVal.parameters[1], "-", hash(syms))
+    watcher(watcher_type, wid, CpTwitterVal(); flush=true, fetch_interval=interval, attrs)
 end
 cp_twitter_watcher(syms...) = cp_twitter_watcher([syms...])
 

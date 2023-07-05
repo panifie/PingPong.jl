@@ -20,13 +20,15 @@ const CgDerivativesVal = Val{:cg_derivatives}
 """
 function cg_derivatives_watcher(exc_name)
     cg.check_drv_exchange(exc_name)
-    attrs = Dict{Symbol, Any}()
+    attrs = Dict{Symbol,Any}()
     attrs[:exc] = exc_name
     attrs[:key] = "cg_$(exc_name)_derivatives"
     watcher_type = Dict{Derivative,CgSymDerivative}
+    wid = string(CgDerivativesVal.parameters[1], "-", hash(exc_name))
     watcher(
         watcher_type,
-        :cg_derivatives;
+        wid,
+        CgDerivativesVal();
         flush=true,
         process=true,
         fetch_interval=Second(360),

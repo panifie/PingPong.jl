@@ -52,10 +52,22 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-Base.close(w::Watcher; doflush=true) = begin # @lock w._exec.fetch_lock begin
-    isstopped(w) || stop!(w)
-    doflush && flush!(w)
-    nothing
+function Base.close(w::Watcher; doflush=true) # @lock w._exec.fetch_lock begin
+    l = w._exec.fetch_lock
+    if trylock(l)
+        try
+            isstopped(w) || stop!(w)
+            doflush && flush!(w)
+            let name = w.name
+                haskey(WATCHERS, name) && delete!(WATCHERS, name)
+            end
+            nothing
+        finally
+            unlock(l)
+        end
+    else
+        w._stop = true
+    end
 end
 Base.empty!(w::Watcher) = empty!(w.buffer)
 Base.getproperty(w::Watcher, p::Symbol) = begin
@@ -78,6 +90,7 @@ start!(w::Watcher) = begin
     empty!(w._exec.errors)
     _start!(w, w._val)
     _timer!(w)
+    w._stop = false
     nothing
 end
 @doc "True if timer is not running."

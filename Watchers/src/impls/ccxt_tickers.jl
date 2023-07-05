@@ -33,7 +33,8 @@ _ids(w) = w.attrs[:ids]
 """
 function ccxt_tickers_watcher(
     exc::Exchange;
-    wid=:ccxt_ticker,
+    val=CcxtTickerVal(),
+    wid=CcxtTickerVal.parameters[1],
     syms=[],
     interval=Second(5),
     start=true,
@@ -50,9 +51,11 @@ function ccxt_tickers_watcher(
     _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
+    wid = string(wid, "-", hash((exc.id, syms)))
     watcher(
         watcher_type,
-        wid;
+        wid,
+        val;
         start,
         load,
         flush,

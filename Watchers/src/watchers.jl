@@ -5,7 +5,7 @@ using DataStructures: CircularBuffer
 using Misc
 using Data
 using Data: rangeafter
-using Lang: Option, safewait, safenotify
+using Lang: Option, safewait, safenotify, @lget!
 using Base.Threads: @spawn
 using Processing.DataFrames: DataFrame
 
@@ -15,6 +15,11 @@ function _tryfetch(w)::Bool
     result = @lock w._exec.fetch_lock begin
         w.last_fetch = now()
         _fetch!(w, w._val)
+    end
+    if w._stop
+        isstopped(w) || stop!(w)
+        flush!(w)
+        haskey(WATCHERS, w.name) && delete!(WATCHERS, w.name)
     end
     if result isa Exception
         logerror(w, result)
@@ -75,7 +80,7 @@ const Exec = NamedTuple{
 }
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
 
-@kwdef mutable struct Watcher20{T}
+@kwdef mutable struct Watcher21{T}
     const buffer::CircularBuffer{BufferEntry(T)}
     const name::String
     const has::HasFunction
@@ -84,6 +89,7 @@ const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
     const beacon::Threads.Condition
     const _exec::Exec
     const _val::Val
+    _stop = false
     _timer::Option{Timer} = nothing
     attempts::Int = 0
     last_fetch::DateTime = DateTime(0)
@@ -106,7 +112,8 @@ end
  - `last_flush`: the most recent time the flush function was called.
  - `_timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  """
-Watcher = Watcher20
+Watcher = Watcher21
+const WATCHERS = Misc.ConcurrentCollections.ConcurrentDict{String,Watcher}()
 
 @doc """ Instantiate a watcher.
 
@@ -118,9 +125,10 @@ Watcher = Watcher20
     Both `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
     high computation, pass `threads=true`, you will have to ensure thread safety.
 """
-function watcher(
+function _watcher(
     T::Type,
-    name;
+    name::String,
+    val::Val=Val(Symbol(name));
     start=true,
     load=true,
     process=false,
@@ -135,7 +143,7 @@ function watcher(
 )
     _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
     @debug "new watcher: $name"
-    w = Watcher20{T}(;
+    w = Watcher21{T}(;
         buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
         name=String(name),
         has=HasFunction((load, process, flush)),
@@ -145,7 +153,7 @@ function watcher(
         _exec=Exec((
             threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
-        _val=Val(Symbol(name)),
+        _val=val,
         attrs,
     )
     @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
@@ -161,6 +169,17 @@ function watcher(
     @debug "watcher $name initialized!"
     w
 end
+
+function watcher(T::Type, name::String, args...; kwargs...)
+    if haskey(WATCHERS, name)
+        @warn "Replacing watcher $name with new instance."
+        pop!(WATCHERS, name) |> close
+    end
+    WATCHERS[name] = _watcher(T, name, args...; kwargs...)
+end
+
+_closeall() = asyncmap(close, values(WATCHERS))
+atexit(_closeall)
 
 include("errors.jl")
 include("defaults.jl")

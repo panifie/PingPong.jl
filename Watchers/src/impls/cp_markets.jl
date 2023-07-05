@@ -17,9 +17,8 @@ function cp_markets_watcher(exc_name::AbstractString, interval=Minute(3))
     attrs[:exc] = exc_name
     attrs[:key] = "cp_$(exc_name)_markets"
     watcher_type = Dict{String,CpTick}
-    watcher(
-        watcher_type, :cp_markets; flush=true, process=true, fetch_interval=interval, attrs
-    )
+    wid = string(CpMarketsVal.parameters[1], "-", hash(exc_name))
+    watcher(watcher_type, wid, CpMarketsVal(); flush=true, process=true, fetch_interval=interval, attrs)
 end
 
 function _fetch!(w::Watcher, ::CpMarketsVal)

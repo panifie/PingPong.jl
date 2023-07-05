@@ -23,9 +23,7 @@ function _ob_func(attrs, level)
     @assert :tfunc in keys(attrs)
 end
 
-function ccxt_orderbook_watcher(
-    exc::Exchange, sym; level=L1, interval=Second(1)
-)
+function ccxt_orderbook_watcher(exc::Exchange, sym; level=L1, interval=Second(1))
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
     _sym!(attrs, sym)
@@ -33,9 +31,11 @@ function ccxt_orderbook_watcher(
     _tfr!(attrs, timeframe)
     _ob_func(attrs, OrderBookLevel(level))
     watcher_type = DataFrame
+    wid = string(CcxtOrderBookVal.parameters[1], "-", hash((exc.id, sym, level)))
     w = watcher(
         watcher_type,
-        :ccxt_order_book;
+        wid,
+        CcxtOrderBookVal();
         start=false,
         load=false,
         flush=true,
@@ -45,7 +45,7 @@ function ccxt_orderbook_watcher(
         fetch_interval=interval,
         fetch_timeout=2interval,
         flush_interval=3interval,
-        attrs
+        attrs,
     )
     _key!(w, "ccxt_$(exc.name)_orderbook_$(snakecased(_sym(w)))")
     start!(w)
@@ -70,7 +70,11 @@ _obtimestamp(d::DataFrame) = metadata(d, "timestamp")
 
 function _ob_to_df(ob)
     out = (
-        timestamp=DateTime[], bid_price=Float64[], bid_amount=Float64[], ask_price=Float64[], ask_amount=Float64[]
+        timestamp=DateTime[],
+        bid_price=Float64[],
+        bid_amount=Float64[],
+        ask_price=Float64[],
+        ask_amount=Float64[],
     )
     ts = _totimestamp(ob["timestamp"])
     # NOTE: zipping makes sure that even if bids and asks are uneven
@@ -116,5 +120,5 @@ end
 
 const OBCHUNKS = (100, 5) # chunks of the z array
 function _load_ob_data(w)
-    load_data(zi[], _key(w), sz=OBCHUNKS, serialized=false, type=Float64)
+    load_data(zi[], _key(w); sz=OBCHUNKS, serialized=false, type=Float64)
 end

@@ -44,16 +44,18 @@ function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=S
     _tfunc!(attrs, "Trades")
     _tfr!(attrs, timeframe)
     watcher_type = Vector{CcxtTrade}
+    wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, sym)))
     w = watcher(
         watcher_type,
-        :ccxt_ohlcv;
+        wid,
+        CcxtOHLCVVal();
         start=false,
         flush=true,
         process=true,
         buffer_capacity=1,
         fetch_interval=interval,
         fetch_timeout=2interval,
-        attrs
+        attrs,
     )
     start!(w)
     w
@@ -130,7 +132,7 @@ function _empty_candles(w, ::Warmed)
     tf = _tfr(w)
     right = length(_trades(w)) == 0 ? _curdate(tf) : apply(tf, _firsttrade(w).timestamp)
     left = apply(tf, _lastdate(w.view))
-    trail!(w.view, tf, from=left, to=right, cap=w.capacity.view)
+    trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
 end
 
 function _process!(w::Watcher, ::CcxtOHLCVVal)
@@ -145,7 +147,7 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     else
         _resolve(w, w.view, temp.ohlcv)
     end
-    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
+    keepat!(_trades(w), (temp.stop + 1):lastindex(_trades(w)))
     _warmed!(w, _status(w))
     @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end

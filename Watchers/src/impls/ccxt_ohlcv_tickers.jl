@@ -30,7 +30,13 @@ function ccxt_ohlcv_tickers_watcher(
     exc::Exchange; price_source=:last, timeframe=tf"1m", logfile=nothing, kwargs...
 )
     w = ccxt_tickers_watcher(
-        exc; wid=:ccxt_ohlcv_ticker, start=false, load=false, process=true, kwargs...
+        exc;
+        val=CcxtOHLCVTickerVal(),
+        wid=CcxtOHLCVTickerVal.parameters[1],
+        start=false,
+        load=false,
+        process=true,
+        kwargs...,
     )
     w.attrs[:tickers_ohlcv] = true
     w.attrs[:timeframe] = timeframe

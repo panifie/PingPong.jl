@@ -15,14 +15,21 @@ const CgTickerVal = Val{:cg_ticker}
 
 """
 function cg_ticker_watcher(syms::AbstractVector; interval=Second(360))
-    attrs = Dict{Symbol, Any}()
+    attrs = Dict{Symbol,Any}()
     sort!(syms)
     attrs[:ids] = cg.idbysym.(syms)
     attrs[:key] = join(("cg_ticker", string.(syms)...), "_")
     attrs[:names] = Symbol.(syms)
     watcher_type = NamedTuple{tuple(attrs[:names]...),NTuple{length(syms),CgTick}}
+    wid = string(CgTickerVal.parameters[1], "-", hash(syms))
     watcher(
-        watcher_type, :cg_ticker; process=true, flush=true, fetch_interval=interval, attrs
+        watcher_type,
+        wid,
+        CgTickerVal();
+        process=true,
+        flush=true,
+        fetch_interval=interval,
+        attrs,
     )
 end
 cg_ticker_watcher(syms::Vararg) = cg_ticker_watcher([syms...])
