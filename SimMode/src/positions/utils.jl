@@ -104,13 +104,6 @@ function liquidate!(
     isnothing(t) || begin
         @deassert t.order.date == date && 0.0 < abs(t.amount) <= abs(t.order.amount)
     end
-    # o = create_sim_market_order(
-    #     s, LiquidationOrder{liqside(p),typeof(p)}, ai; amount, date, price
-    # )
-    # The position might be too small to be tradeable, assume cash is lost
-    # isnothing(o) || begin
-    #     t = marketorder!(s, o, ai, o.amount; o.price, date, fees)
-    # end
     @deassert isdust(ai, price, p) (notional(ai, p), cash(ai, p), cash(ai, p) * price, p)
     close_position!(s, ai, p)
 end

@@ -1,5 +1,6 @@
 using Executors.Instances: leverage!, positionside, leverage
 using Executors: hasorders
+using .Lang: splitkws
 import Executors: pong!
 
 const _PROTECTIONS_WARNING = """
@@ -39,9 +40,10 @@ function pong!(
     kwargs...,
 )
     isopen(ai, opposite(positionside(t))) && return nothing
-    o = create_sim_market_order(s, t, ai; amount, date, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o = create_sim_market_order(s, t, ai; amount, date, order_kwargs...)
     isnothing(o) && return nothing
-    t = marketorder!(s, o, ai, amount; date)
+    t = marketorder!(s, o, ai, amount; date, fees_kwarg...)
     isnothing(t) && return nothing
     t isa Trade && position!(s, ai, t)
     t
