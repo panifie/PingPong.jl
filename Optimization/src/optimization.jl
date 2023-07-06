@@ -42,7 +42,9 @@ struct OptSession18{S<:SimStrategy,N}
     function OptSession18(
         s::Strategy; ctx, params, offset=0, attrs=Dict(), n_threads=Threads.nthreads()
     )
-        s_clones = tuple(((ReentrantLock(), similar(s)) for _ in 1:n_threads)...)
+        s_clones = tuple(
+            ((ReentrantLock(), similar(s; mode=Sim())) for _ in 1:n_threads)...
+        )
         ctx_clones = tuple((similar(ctx) for _ in 1:n_threads)...)
         attrs[:offset] = offset
         new{typeof(s),n_threads}(
@@ -254,19 +256,20 @@ function define_backtest_func(sess, small_step, big_step)
                 initial_cash = value(s.cash)
                 backtest!(s, ctx; doreset=false)
                 st.sizehint!(s) # avoid deallocations
+                metrics = metrics_func(s; initial_cash)
                 lock(sess.lock) do
                     push!(
                         sess.results,
                         (;
                             repeat=ofs,
-                            metrics_func(s; initial_cash)...,
+                            metrics...,
                             (
                                 pname => p for (pname, p) in zip(keys(sess.params), params)
                             )...,
                         ),
                     )
                 end
-                obj
+                metrics.obj
             end
         end
     end
