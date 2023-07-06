@@ -177,6 +177,7 @@ _checkorders(s) = begin
     end
 end
 
+
 @doc "Updates all open positions in a isolated (non hedged) strategy."
 function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
     @ifdebug _checkorders(s)
@@ -192,3 +193,5 @@ function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
         end
     end
 end
+
+positions!(args...; kwargs...) = nothing
