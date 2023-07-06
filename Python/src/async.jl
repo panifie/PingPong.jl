@@ -91,6 +91,7 @@ end
 pywait_fut(fut::Py) = begin
     # id = rand()
     # @info "waiting fut $(id)"
+    pyisnull(fut) && return nothing
     while !Bool(fut.done())
         sleep(0.01)
     end
