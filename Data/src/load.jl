@@ -352,8 +352,14 @@ function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, wi
 
     data = za[ts_start:ts_stop, :]
 
-    with_from && @assert data[begin, saved_col] >= from
-    with_to && @assert data[end, saved_col] <= to
+    with_from && @assert data[begin, saved_col] >= from dt(data[begin, saved_col]), dt(from), timeframe(td)
+    with_to && @assert data[end, saved_col] <= to dt(data[end, saved_col]), dt(to), dt(to), timeframe(td)
+    let (from_saved, to_saved) = (data[begin, saved_col], data[end, saved_col])
+        if from_saved == to_saved && iszero(from_saved)
+            delete!(za)
+            return as_empty()
+        end
+    end
 
     with_z && return (to_ohlcv(data), za)
     to_ohlcv(data)

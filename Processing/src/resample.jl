@@ -85,9 +85,9 @@ end
     on storage, and resample the longer ones on demand.
 
 """
-function resample(args...; exc_name, name)
+function resample(args...; exc_name, name, dosave=false)
     df = resample(args...)
-    if size(df)[1] > 0
+    if size(df)[1] > 0 && dosave
         save_ohlcv(zi, exc_name, name, string(last(args)), df)
     end
     df

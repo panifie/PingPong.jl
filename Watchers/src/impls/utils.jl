@@ -187,11 +187,19 @@ function _from(df, to, tf, cap, ::Val{:append})
 end
 _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
 
-@doc "`op`: `appendmax!` or `prependmax!`"
+@doc "`op`: `appendmax!` or `prependmax!`
+If the watcher has attribute `resync_noncontig` set to true, preloaded data will be discarded if non contiguous."
 function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     rows = nrow(df)
     prd = period(tf)
-    rows > 0 && _check_contig(w, df)
+    rows > 0 && try
+        _check_contig(w, df)
+    catch
+        if get(w.attrs, :resync_noncontig, false)
+            empty!(df)
+            rows = 0
+        end
+    end
     from = @something from _from(df, to, tf, w.capacity.view, op)
     diff = (to - from)
     if diff > prd || (diff == prd && to < _curdate(tf)) # the second case would fetch only the last incomplete candle

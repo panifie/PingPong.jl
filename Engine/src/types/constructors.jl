@@ -15,7 +15,10 @@ function Strategies.Strategy(
 end
 
 function Base.similar(
-    s::Strategy, mode=s.mode, timeframe=s.timeframe, exc=getexchange!(s.exchange)
+    s::Strategy;
+    mode=s.mode,
+    timeframe=s.timeframe,
+    exc=getexchange!(s.exchange; sandbox=mode == Sim()),
 )
     s = Strategy(
         s.self,

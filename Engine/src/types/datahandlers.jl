@@ -75,6 +75,7 @@ function _load_rest!(ai, tfs, from_tf, from_data)
             ai.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
                 from_sto
             else
+                # NOTE: resample fails if `from_data` is corrupted (not contiguous)
                 resample(from_data, from_tf, to_tf; exc_name, name)
             end
         end
