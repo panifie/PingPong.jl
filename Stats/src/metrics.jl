@@ -3,7 +3,7 @@ using Base: negate
 using .st: trades_count
 
 const DAYS_IN_YEAR = 365
-const METRICS = Set((:total, :sharpe, :sortino, :calmar, :expectancy, :cagr, :trades))
+const METRICS = Set((:total, :sharpe, :sortino, :calmar, :drawdown, :expectancy, :cagr, :trades))
 
 macro balance_arr()
     s = esc(:s)
@@ -55,6 +55,7 @@ function _rawcalmar(returns; tf=tf"1d")
 end
 
 function maxdd(returns)
+    length(returns) == 1 && return zero(DFT)
     cum_returns = cumprod(1.0 .+ returns)
     minimum(diff(cum_returns) ./ @view(cum_returns[1:(end - 1)]))
 end
@@ -116,6 +117,8 @@ function multi(
             _rawsortino(returns)
         elseif m == :calmar
             _rawcalmar(returns)
+        elseif m == :drawdown
+            maxdd(returns)
         elseif m == :expectancy
             _rawexpectancy(returns)
         elseif m == :cagr
@@ -139,6 +142,7 @@ end
 _zeronan(v) = ifelse(isnan(v), 0.0, v)
 _clamp_metric(v, max) = clamp(_zeronan(v / max), zero(v), one(v))
 normalize_metric(v, ::Val{:total}, max=1e6) = _clamp_metric(v, max)
+normalize_metric(v, ::Val{:drawdown}, max=1e6) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:sharpe}, max=1e1) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:sortino}, max=1e1) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:calmar}, max=1e1) = _clamp_metric(v, max)
