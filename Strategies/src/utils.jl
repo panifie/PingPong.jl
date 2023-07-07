@@ -48,6 +48,16 @@ function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
     worth + s.cash
 end
 
+function current_total(
+    s::NoMarginStrategy{<:Union{Paper,Live}}, price_func=lasttrade_price_func
+)
+    worth = Ref(zero(DFT))
+    @sync for ai in s.holdings
+        @async worth[] += ai.cash * price_func(ai)
+    end
+    worth[] + s.cash
+end
+
 function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
     worth = zero(DFT)
     for ai in s.holdings
@@ -57,6 +67,21 @@ function current_total(s::MarginStrategy, price_func=lasttrade_price_func)
         end
     end
     worth + s.cash
+end
+
+function current_total(
+    s::MarginStrategy{<:Union{Paper,Live}}, price_func=lasttrade_price_func
+)
+    worth = Ref(zero(DFT))
+    @sync for ai in s.holdings
+        @async let current_price = price_func(ai)
+            for p in (Long, Short)
+                isopen(ai, p) || continue
+                worth[] += value(ai, p; current_price)
+            end
+        end
+    end
+    worth[] + s.cash
 end
 
 function lasttrade_date(ai)
