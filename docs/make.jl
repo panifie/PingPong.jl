@@ -70,7 +70,7 @@ makedocs(;
         "Types" => "types.md",
         "Strategies" => "strategy.md",
         "Engine" =>
-            ["Executors" => "engine/engine.md", "Backtesting" => "engine/backtesting.md"],
+            ["Executors" => "engine/engine.md", "Backtesting" => "engine/backtesting.md", "Paper" => "engine/paper.md"],
         "Exchanges" => "exchanges.md",
         "Data" => "data.md",
         "Watchers" => [
