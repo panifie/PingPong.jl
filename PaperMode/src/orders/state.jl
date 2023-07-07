@@ -38,7 +38,7 @@ function SimMode.marketorder!(s::PaperStrategy, o, ai; date, obside)
 end
 
 function aftertrade!(s::PaperStrategy, ai::A, o::O, t::Trade) where {A,O}
-    @info "($(t.date), $(nameof(s))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
+    @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
     invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o)
     position!(s, ai, t)
 end

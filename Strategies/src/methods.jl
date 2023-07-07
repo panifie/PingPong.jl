@@ -105,6 +105,11 @@ function logpath(s::Strategy; name="events", path_nodes...)
     joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
 end
 
+function logs(s::Strategy)
+    dirpath = joinpath(realpath(dirname(s.path)), "logs")
+    collect(Iterators.flatten(walkdir(dirpath)))
+end
+
 function Base.propertynames(::Strategy)
     (
         fieldnames(Strategy)...,

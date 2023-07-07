@@ -1,5 +1,5 @@
 # Optimization
 
 ```@autodocs
-Modules = [ Optimization ]
+Modules = [Optimization]
 ```

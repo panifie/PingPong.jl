@@ -47,6 +47,7 @@ use(:Engine, "Engine")
 use(:Watchers, "Watchers")
 use(:Pbar, "Pbar")
 use(:Stats, "Stats")
+use(:Optimization, "Optimization")
 using PingPong.Data.DataStructures
 @eval using Base: Timer
 
