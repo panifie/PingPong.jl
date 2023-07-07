@@ -7,7 +7,7 @@ const ot = ect.OrderTypes
 backtest_strat(sym; mode=Sim(), kwargs...) = begin
     s = egn.strategy(sym; mode, kwargs...)
     Random.seed!(1)
-    Stubs.stub!(s; trades=false)
+    mode == Sim() && Stubs.stub!(s; trades=false)
     s
 end
 

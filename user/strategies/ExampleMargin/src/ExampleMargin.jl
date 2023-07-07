@@ -3,8 +3,8 @@ module ExampleMargin
 using PingPong
 @strategyenv!
 @contractsenv!
+@optenv!
 using Data: stub!
-using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!
 
 const NAME = :ExampleMargin
 const EXCID = ExchangeID(:phemex)
@@ -15,14 +15,7 @@ __revise_mode__ = :eval
 include("common.jl")
 
 # function __init__() end
-function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.5))
-    s.attrs[:longdiff] = 1.02
-    s.attrs[:buydiff] = 1.01
-    s.attrs[:selldiff] = 1.012
-    s.attrs[:long_k] = 0.02
-    s.attrs[:short_k] = 0.02
-    s.attrs[:per_order_leverage] = true
-    s.attrs[:verbose] = false
+function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0))
     for ai in s.universe
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
         pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
@@ -31,6 +24,13 @@ end
 
 ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
+    s.attrs[:buydiff] = 1.0001
+    s.attrs[:selldiff] = 1.0011
+    s.attrs[:long_k] = 0.02
+    s.attrs[:short_k] = 0.02
+    s.attrs[:per_order_leverage] = false
+
+    _overrides!(s)
     _reset_pos!(s)
     # Generate stub funding rate data, only in sim mode
     if S <: Strategy{Sim}
@@ -39,33 +39,37 @@ ping!(s::S, ::ResetStrategy) = begin
         end
     else
     end
+    _initparams!(s)
+    _tickers_watcher(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     config.margin = Isolated()
     s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
     @assert s isa IsolatedStrategy
+
+    s.attrs[:verbose] = false
     _reset!(s)
     _reset_pos!(s)
-    if s isa Union{PaperStrategy,LiveStrategy}
-        exc = getexchange!(s.exchange)
-        w = ccxt_ohlcv_tickers_watcher(
-            exc; syms=marketsid(s), flush=false, logfile=st.logpath(s; name="tickers_watcher")
-        )
-        w.attrs[:quiet] = true
-        start!(w)
-        @sync for sym in marketsid(s)
-            @async load!(w, sym)
-        end
-        setattr!(s, :tickers_watcher, w)
-    end
+    _tickers_watcher(s)
     s
 end
 
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
+_initparams!(s, params=_params()) = begin
+    params_index = st.attr(s, :params_index)
+    empty!(params_index)
+    for (n, k) in enumerate(keys(params))
+        params_index[k] = n
+    end
+end
+function _params()
+    (; buydiff=1.0001:0.0001:1.001, selldiff=1.0002:0.0001:1.0011)
+end
+
 function ping!(s::T, ts::DateTime, _) where {T<:S}
-    ats = available(tf"15m", ts)
+    ats = available(tf"1m", ts)
     foreach(s.universe) do ai
         pos = nothing
         lev = nothing
@@ -177,5 +181,30 @@ function sell!(s::S, ai, ats, ts; lev)
         end
     end
 end
+
+## Optimization
+function ping!(s::S, ::OptSetup)
+    # s.attrs[:opt_weighted_fitness] = weightsfunc
+    _initparams!(s)
+    (;
+        ctx=Context(Sim(), tf"1m", dt"2023-", dt"2024-"),
+        params=_params(),
+        space=(kind=:MixedPrecisionRectSearchSpace, precision=[6, 5]),
+    )
+end
+
+function ping!(s::S, params, ::OptRun)
+    s.attrs[:overrides] = (;
+        (; ((p => getparam(s, params, p)) for p in keys(attr(s, :params_index)))...)...
+    )
+    _overrides!(s)
+    _reset_pos!(s)
+end
+
+function ping!(s::S, ::OptScore)
+    [values(stats.multi(s, :drawdown; normalize=true))...]
+    # [values(stats.multi(s, :sortino, :sharpe; normalize=true))...]
+end
+weightsfunc(weights) = weights[1] * 0.8 + weights[2] * 0.2
 
 end

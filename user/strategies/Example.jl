@@ -16,11 +16,16 @@ ping!(s::S, ::ResetStrategy) = begin
     _reset!(s)
     _initparams!(s)
     _overrides!(s)
+    _tickers_watcher(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
     _reset!(s)
+    _tickers_watcher(s)
+    if s isa Union{PaperStrategy,LiveStrategy}
+        stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
+    end
     s
 end
 
