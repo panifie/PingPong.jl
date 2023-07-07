@@ -26,7 +26,7 @@ end
 function pong!(
     s::Strategy{<:Union{Paper,Sim}}, ai::AssetInstance, ::CancelOrders; t::Type{O}=Both
 ) where {O<:OrderSide}
-    for (_, o) in values(orders(s, ai, t))
+    for o in values(orders(s, ai, t))
         cancel!(s, o, ai; err=OrderCancelled(o))
     end
 end
