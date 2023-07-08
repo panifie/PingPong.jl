@@ -1,5 +1,6 @@
 using Misc: MM, toprecision, DFT
 using Python: pybuiltins, pyisinstance
+using Python.PythonCall: pyfloat, pyint
 using Instruments: AbstractCash, atleast!
 import Instruments: value, addzero!
 Instruments.@importcash!
@@ -9,27 +10,52 @@ import Misc: gtxzero, ltxzero, approxzero
 const currenciesCache1Hour = safettl(ExchangeID, Py, Hour(1))
 const currency_lock = ReentrantLock()
 
-function to_float(py::Py, T::Type{<:AbstractFloat}=Float64)
-    something(pyconvert(Option{T}, py), 0.0)
+function to_float(py::Py, T::Type{<:AbstractFloat}=DFT)
+    something(pyconvert(Option{T}, py), zero(T))
+end
+
+function to_num(py::Py)
+    v = if pyisinstance(py, pybuiltins.int)
+        pyconvert(Option{Int}, py)
+    elseif pyisinstance(py, pybuiltins.float)
+        pyconvert(Option{DFT}, py)
+    elseif pyisinstance(py, (pybuiltins.tuple, pybuiltins.list)) && length(py) > 0
+        to_num(py[0])
+    elseif pyisinstance(py, pybuiltins.str)
+        isempty(py) ? 0 : pyconvert(DFT, pyfloat(py))
+    else
+        pyconvert(Option{DFT}, pyfloat(py))
+    end
+    @something v 0
 end
 
 function _lpf(exc, cur)
-    limits = let l = cur.get("limits", nothing)
-        if isnothing(l)
-            (min=0.0, max=Inf)
-        else
-            MM{DFT}((to_float(l["amount"]["min"]), to_float(l["amount"]["max"])))
+    local limits, precision, fees
+    if isnothing(cur)
+        limits = (; min=1e-8, max=1e8)
+        precision = 8
+        fees = zero(DFT)
+    else
+        limits = let l = cur.get("limits", nothing)
+            if isnothing(l)
+                (min=1e-8, max=1e8)
+            elseif haskey(l, "amount")
+                MM{DFT}((to_float(l["amount"]["min"]), to_float(l["amount"]["max"])))
+            else
+                (min=1e-8, max=1e8)
+            end
         end
+        precision = to_num(cur.get("precision"))
+        fees = to_float(cur.get("fee", nothing))
     end
-    precision = to_float(cur.get("precision"))
-    fees = to_float(cur.get("fee", nothing))
     (; limits, precision, fees)
 end
 
 function _cur(exc, sym)
     sym_str = uppercase(string(sym))
     curs = @lget! currenciesCache1Hour exc.id pyfetch(exc.fetchCurrencies)
-    curs.get(sym_str, nothing)
+    curs = pyisnone(curs) ? exc.currencies : curs
+    isempty(curs) ? nothing : curs.get(sym_str, nothing)
 end
 
 @doc "A `CurrencyCash` contextualizes a `Cash` instance w.r.t. an exchange.
@@ -40,8 +66,8 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
     precision::T where {T<:Real}
     fees::DFT
     function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v)
-        @lock currency_lock begin
-            exc = getexchange!(id.parameters[1])
+        lock(currency_lock) do
+            exc = getexchange!(nameof(id))
             c = cash_type(v)
             lpf = _lpf(exc, _cur(exc, nameof(c)))
             Instruments.cash!(c, toprecision(c.value, lpf.precision))
@@ -49,9 +75,10 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
         end
     end
     function CurrencyCash(exc::Exchange, sym, v=0.0)
-        @lock currency_lock begin
+        lock(currency_lock) do
             cur = _cur(exc, sym)
-            @assert pyisinstance(cur, pybuiltins.dict) "Wrong currency: $sym not found on $(exc.name)"
+            pyisinstance(cur, pybuiltins.dict) ||
+                @debug "$sym not found on $(exc.name) (using defaults)"
             c = Cash(sym, v)
             lpf = _lpf(exc, cur)
             Instruments.cash!(c, toprecision(c.value, lpf.precision))
