@@ -19,7 +19,7 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
         Sim(),
         NoMargin(),
         tf"1m",
-        ExchangeTypes.Exchange(ccxt_exchange(:phemex)),
+        config[:exc],
         AssetCollection();
         config,
     )
@@ -27,8 +27,13 @@ end
 end
 
 @preset let
+    using ..ExchangeTypes.Ccxt: ccxt_exchange
+    @precomp Config()
+    cfg = Config()
+    cfg[:exc] = ExchangeTypes.Exchange(ccxt_exchange(:phemex))
+    @precomp strategy!(BareStrat, cfg)
+    s = strategy!(BareStrat, cfg)
     @precomp begin
-        s = strategy!(BareStrat, Config())
         assets(s)
         instances(s)
         exchange(typeof(s))
@@ -44,6 +49,6 @@ end
         trades_count(s)
         orders(s, Buy)
         orders(s, Sell)
-        show(Base.devnull, s)
+        show(devnull, s)
     end
 end
