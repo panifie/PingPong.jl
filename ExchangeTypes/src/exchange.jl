@@ -22,6 +22,7 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
 end
 
 function close_exc(exc::CcxtExchange)
+    (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) && return
     e = exc.py
     if !pyisnull(e) && pyhasattr(e, "close")
         co = e.close()
