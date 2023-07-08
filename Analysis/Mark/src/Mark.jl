@@ -1,7 +1,7 @@
 @doc "Implements the universe filtering strategy by Mark Minervini."
 module Mark
-using Long
-using Short
+using MLong
+using MLong.MShort
 using Analysis
 using DataFrames: groupby, combine
 
@@ -15,12 +15,12 @@ using DataFrames: groupby, combine
 function vcons(data, tfs=[]; cargs=(), vargs=(), sargs=(), onevi=false)
     datargs = isempty(tfs) ? (data,) : (data, tfs)
     @info "Longs..."
-    c_t = @async Long.long(datargs...; cargs..., sorted=false)
+    c_t = @async MLong.long(datargs...; cargs..., sorted=false)
     @info "Stage 2..."
-    s_t = @async Long.stage2(datargs...; sargs..., sorted=false)
+    s_t = @async MLong.stage2(datargs...; sargs..., sorted=false)
     @info "Shorts..."
     onevi && (datargs = isempty(tfs) ? (data,) : (data, tfs[end:end]))
-    v_t = @async Short.short(datargs...; vargs..., sorted=false)
+    v_t = @async MShort.short(datargs...; vargs..., sorted=false)
 
     c = (wait(c_t); c_t.result)
     s = (wait(s_t); s_t.result)

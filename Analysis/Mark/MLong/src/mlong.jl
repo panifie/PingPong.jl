@@ -5,7 +5,8 @@ using Processing: maptf, normalize!, normalize
 using Misc: @as_dfdict
 using Data: PairData
 using Data.DataFramesMeta: @rsubset!
-using Short: mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
+using MShort: MShort, mustd, isdcandles, AbstractDataFrame, DataFrame, std, mean, _score_sum
+using MShort
 using MVP
 using Lang
 
