@@ -74,6 +74,10 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
         @debug cache ? "Force loading markets." : "Loading markets because cache is stale."
         force_load()
     end
+    types = exc.types
+    for m in values(exc.markets)
+        push!(types, Symbol(m["type"]))
+    end
     nothing
 end
 
@@ -153,27 +157,46 @@ end
     has(exc, :watchTickers) || has(exc, :fetchTickers)
 end
 
-function markettype()
-    Misc.config.margin == NoMargin() ? :spot : :linear
+MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery )
+
+@doc "Any of $MARKET_TYPES"
+function markettype(exc)
+    types = exc.types
+    if Misc.config.margin == NoMargin()
+        if :spot ∈ types
+            :spot
+        else
+            last(types)
+        end
+    else
+        if :linear ∈ types
+            :linear
+        elseif :swap ∈ types
+            :swap
+        elseif :future ∈ types
+            :future
+        else
+            last(types)
+        end
+    end
 end
 
 @doc "Fetch and cache tickers data."
-macro tickers!(type=markettype(), force=false)
+macro tickers!(type=nothing, force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
-    type = type isa Expr ? esc(type) : esc(QuoteNode(type))
-    @assert force isa Bool
+    type = type ∈ MARKET_TYPES ? QuoteNode(type) : esc(type)
     quote
         local $tickers
-        let nm = $(exc).name, k = (nm, $type)
+        let tp = @something($type, markettype($exc)), nm = $(exc).name, k = (nm, tp)
             if $force || k ∉ keys(tickers_cache)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
                 tickers_cache[k] =
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
                         pyfetch(
-                            getproperty($(exc), first($(exc), :watchTickers, :fetchTickers));
-                            params=LittleDict("type" => $(type)),
+                            first($(exc), :watchTickers, :fetchTickers);
+                            params=LittleDict("type" => tp),
                         ),
                     )
             else
@@ -205,8 +228,8 @@ function tickerprice(tkr)
 end
 
 @doc "Get price ranges using tickers data from exchange."
-function price_ranges(pair::AbstractString, args...; kwargs...)
-    type = markettype()
+function price_ranges(pair::AbstractString, args...; exc=exc, kwargs...)
+    type = markettype(exc)
     tkrs = @tickers! type true
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
 end

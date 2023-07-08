@@ -46,8 +46,8 @@ function Exchange(x::Py)
         name,
         [excDecimalPlaces],
         Set{String}(),
-        Set{Symbol}(),
         OptionsDict(),
+        Set{Symbol}(),
         Dict{Symbol,Bool}(),
     )
     isnone ? e : finalizer(close_exc, e)

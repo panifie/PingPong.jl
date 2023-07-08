@@ -65,7 +65,7 @@ function tickers(
     with_leverage=:no,
     as_vec=false,
     verbose=true,
-    type=markettype(),
+    type=markettype(exc),
 ) # ::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers! type
