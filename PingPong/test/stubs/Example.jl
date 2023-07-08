@@ -1,5 +1,4 @@
 module Example
-# const pp = @eval Main PingPong
 
 using Engine.Misc
 using Engine.TimeTicks
@@ -13,6 +12,7 @@ using Engine.Strategies
 using Engine: Strategies as st
 using Engine.Instances: Instances as inst
 using Engine.Executors
+using Engine.Executors: Executors as ect
 using Engine.OrderTypes
 
 using Lang
@@ -42,8 +42,7 @@ ping!(_::S, ::WarmupPeriod) = begin
     Day(1)
 end
 
-function ping!(s::S, ts, _)
-    pong!(s, ts, UpdateOrders())
+function ping!(s::T, ts::DateTime, _) where {T<:S}
     ats = available(tf"15m", ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)
@@ -61,21 +60,21 @@ end
 marketsid(::S) = marketsid(S)
 
 function buy!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Sell)
+    pong!(s, ai, ect.CancelOrders(), t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
     if amount > 0.0
-        t = pong!(s, IOCOrder{Buy}, ai; amount, date=ts)
+        t = pong!(s, ai, IOCOrder{Buy}; amount, date=ts)
     end
 end
 
 function sell!(s::S, ai, ats, ts)
-    st.pop!(s, ai, Buy)
+    pong!(s, ai, ect.CancelOrders(), t=Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     price = closeat(ai.ohlcv, ats)
     if amount > 0.0
-        t = pong!(s, IOCOrder{Sell}, ai; amount, date=ts)
+        t = pong!(s, ai, IOCOrder{Sell}; amount, date=ts)
     end
 end
 
