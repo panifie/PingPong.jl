@@ -3,7 +3,6 @@ using Lang: wait, @preset, @precomp
 @preset let
     id = :bybit
     using Python: Python
-    using Ccxt: exc_finalizers
     @assert Python.isinitialized_async(Python.gpa)
     @precomp let
         finalize(getexchange!(id; markets=:force).py)
@@ -30,6 +29,5 @@ using Lang: wait, @preset, @precomp
         market_fees(pair, e)
     end
     finalize(e.py)
-    wait.(exc_finalizers)
     emptycaches!()
 end
