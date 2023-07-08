@@ -18,11 +18,13 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const precision::Vector{ExcPrecisionMode}
     const timeframes::Set{String}
     const markets::OptionsDict
+    const types::Set{Symbol}
     const has::Dict{Symbol,Bool}
 end
 
 function close_exc(exc::CcxtExchange)
-    (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) && return
+    (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) &&
+        return nothing
     e = exc.py
     if !pyisnull(e) && pyhasattr(e, "close")
         co = e.close()
@@ -39,7 +41,14 @@ function Exchange(x::Py)
     isnone = pyisnone(x)
     name = isnone ? "" : pyconvert(String, pygetattr(x, "name"))
     e = CcxtExchange{typeof(id)}(
-        x, id, name, [excDecimalPlaces], Set(), OptionsDict(), Dict{Symbol,Bool}()
+        x,
+        id,
+        name,
+        [excDecimalPlaces],
+        Set{String}(),
+        Set{Symbol}(),
+        OptionsDict(),
+        Dict{Symbol,Bool}(),
     )
     isnone ? e : finalizer(close_exc, e)
 end
@@ -66,7 +75,10 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
-has(exc::Exchange, s::Symbol) = haskey(getfield(exc, :has), s)
+has(exc::Exchange, s::Symbol) =
+    let h = getfield(exc, :has)
+        haskey(h, s) && h[s]
+    end
 function Base.first(exc::Exchange, args::Vararg{Symbol})
     for a in args
         has(exc, a) && return getproperty(getfield(exc, :py), a)
@@ -89,6 +101,21 @@ exc = Exchange()
 const exchanges = Dict{Symbol,Exchange}()
 @doc "Global var holding Sandbox Exchange instances. Used as a cache."
 const sb_exchanges = Dict{Symbol,Exchange}()
+
+_closeall() = begin
+    @sync begin
+        while !isempty(exchanges)
+            _, e = pop!(exchanges)
+            finalize(e)
+        end
+        while !isempty(sb_exchanges)
+            _, e = pop!(sb_exchanges)
+            finalize(e)
+        end
+    end
+end
+
+atexit(_closeall)
 
 Base.show(out::IO, exc::Exchange) = begin
     write(out, "Exchange: ")
