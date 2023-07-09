@@ -1,0 +1,13 @@
+name = "IPingPong"
+uuid = "482fd972-58d7-43f2-aa46-1266790cbdd8"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Optimization = "01837fd2-c099-442f-ae89-75fa208aad36"
+PingPong = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+Plotting = "8ada5bfb-e60b-44be-8979-616e14670061"
+Scrapers = "38b379f7-ca41-4278-b0dc-774ced1e32bb"
+Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
