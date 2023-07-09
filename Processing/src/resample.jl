@@ -120,7 +120,7 @@ function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false
     rs
 end
 
-function resample(df::AbstractDataFrame, tf::TimeFrame, b::Bool, args...; kwargs...)
+function resample(df::AbstractDataFrame, tf::TimeFrame, b::Bool=false, args...; kwargs...)
     resample(df, timeframe!(df), tf, b, args...; kwargs...)
 end
 

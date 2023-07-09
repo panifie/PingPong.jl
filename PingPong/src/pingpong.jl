@@ -1,8 +1,9 @@
 using Engine
-using Exchanges
-using Python
-using Data
-using Misc
+using Engine.Exchanges
+using .Exchanges.Python
+using Engine.Data
+using Engine.Misc
+using .Misc: Lang
 using Pkg: Pkg as Pkg
 
 include("repl.jl")

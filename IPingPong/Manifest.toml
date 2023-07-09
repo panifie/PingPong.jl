@@ -1138,16 +1138,6 @@ path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 version = "0.2.0"
 
-    [deps.PingPong.weakdeps]
-    Analysis = "d4fe19c2-883d-48d3-92d7-80b36677371b"
-    BayesianOptimization = "4c6ed407-134f-591c-93fa-e0f7c164a0ec"
-    Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
-    Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
-    Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
-    Plotting = "8ada5bfb-e60b-44be-8979-616e14670061"
-    Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
-    Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
-
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"

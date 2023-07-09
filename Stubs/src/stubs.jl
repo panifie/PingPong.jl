@@ -19,8 +19,7 @@ read_ohlcv() = CSV.read(OHLCV_FILE_PATH, DataFrame)
 
 function stubscache_path()
     proj = Pkg.project()
-    @assert proj.name == "PingPong" || proj.name == "IPingPong"
-    joinpath(dirname(proj.path), "test", "stubs")
+    joinpath(dirname(dirname(proj.path)), "PingPong", "test", "stubs")
 end
 
 function save_stubtrades(ai)
@@ -75,8 +74,8 @@ include("../../PingPong/test/stubs/Example.jl")
 function stub_strategy(mod=nothing, args...; dostub=true, cfg=nothing, kwargs...)
     isnothing(cfg) && (cfg = Misc.Config())
     if isnothing(mod)
-        ppath = dirname(Pkg.project().path)
-        cfg.attrs["include_file"] = realpath(joinpath(ppath, "test/stubs/Example.jl"))
+        ppath = dirname(dirname(Pkg.project().path))
+        cfg.attrs["include_file"] = realpath(joinpath(ppath, "PingPong", "test/stubs/Example.jl"))
         mod = Example
     end
     s = Strategies.strategy!(mod, cfg, args...; kwargs...)
