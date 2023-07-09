@@ -15,7 +15,7 @@ import Pbar.Term.Measures: Measure
 function _tostring(_, s::String)
     s[begin:min(displaysize()[2], length(s))]
 end
-Instruments.compactnum(v) = v
+
 function _tostring(prefix, params)
     s = join(("[", prefix, (cnum(p) for p in params)..., "]"), " ")
     s[begin:min(displaysize()[2], length(s))]
