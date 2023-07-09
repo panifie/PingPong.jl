@@ -441,7 +441,7 @@ function _pricelines!(s, fig; tf)
     ax_closes = Dict(
         ai => (
             let r = ai.ohlcv[dates]
-                ohlcv = resample(r, tf)
+                ohlcv = resample(r, tf, false, :ohlcv, false)
                 ai_min_date = first(r.timestamp)
                 if ai_min_date > min_date
                     prep = [

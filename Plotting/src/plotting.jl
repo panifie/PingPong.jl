@@ -1,7 +1,7 @@
 using Makie
+using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
 using Stats
 using Stats: egn
-using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
 using .egn.Misc
 using .egn.TimeTicks
 using .egn.Lang

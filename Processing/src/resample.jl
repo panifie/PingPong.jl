@@ -55,19 +55,24 @@ end
 
 @doc "Resamples ohlcv data from a smaller to a higher timeframe.
 - `style`: how to modify the data, (arguments to the grouped dataframe) [`:ohlcv`]
+- `chop`: remove head/tail rows of the first/last resampled date [true]
 "
-function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv)
+function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv, chop=true)
     @deassert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
 
     cleanup && (data = cleanup_ohlcv_data(data, from_tf))
 
     frame_size, src_td, td, abort = _deltas(data, to_tf)
     isnothing(abort) || return abort
-    left, right = _left_and_right(data, frame_size, src_td, td)
+    left, right = if chop
+        _left_and_right(data, frame_size, src_td, td)
+    else
+        1, nrow(data)
+    end
 
     # Create a new dataframe to keep thread safety
     data = DataFrame(@view(data[left:right, :]); copycols=false)
-    size(data, 1) === 0 && return empty_ohlcv()
+    size(data, 1) == 0 && return empty_ohlcv()
 
     data[!, :sample] = timefloat.(data.timestamp) .÷ td
     gb = groupby(data, :sample)
@@ -115,8 +120,8 @@ function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false
     rs
 end
 
-function resample(df::AbstractDataFrame, tf::TimeFrame; kwargs...)
-    resample(df, timeframe!(df), tf; kwargs...)
+function resample(df::AbstractDataFrame, tf::TimeFrame, b::Bool, args...; kwargs...)
+    resample(df, timeframe!(df), tf, b, args...; kwargs...)
 end
 
 # resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
