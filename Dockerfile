@@ -1,12 +1,12 @@
 FROM julia:latest as base
 
 RUN mkdir /pingpong \
+    && apt-get update \
+    && apt-get -y install sudo direnv git xvfb \
     && useradd -u 1000 -G sudo -U -m -s /bin/bash ppuser \
     && chown ppuser:ppuser /pingpong \
     # Allow sudoers
     && echo "ppuser ALL=(ALL) NOPASSWD: /bin/chown" >> /etc/sudoers
-
-RUN apt-get update && apt-get -y install direnv git
 
 WORKDIR /pingpong
 USER ppuser
@@ -29,8 +29,17 @@ RUN julia --project=/pingpong/Python -e "import Pkg; Pkg.instantiate(); using Py
 RUN julia --project=/pingpong/PingPong -e "import Pkg; Pkg.instantiate();"
 
 FROM precompile1 as precompile2
-RUN julia --project=/pingpong/PingPong -e "include(\"resolve.jl\"); update_projects(io=devnull, inst=true)"
-RUN julia --project=/pingpong/PingPong -e "using PingPong"
+# RUN JULIA_NUM_THREADS=1 julia --project=/pingpong/PingPong -e "include(\"resolve.jl\"); update_projects(io=devnull, inst=true)"
+RUN julia --project=/pingpong/IPingPong -e "import Pkg; Pkg.instantiate()"
+RUN julia --project=/pingpong/IPingPong -e "using IPingPong"
 
-FROM precompile2 as pingpong
-CMD [ "julia", "--project=/pingpong/PingPong" ]
+FROM precompile2 as compiled
+USER root
+RUN apt-get install -y gcc g++ \
+    && su ppuser -c "unset JULIA_PROJECT; xvfb-run julia compile.jl" \
+    && apt-get -y remove gcc g++ \
+    && apt -y autoremove
+
+FROM compiled as pingpong
+USER ppuser
+CMD [ "julia", "-J=/pingpong/PingPong.so" ]

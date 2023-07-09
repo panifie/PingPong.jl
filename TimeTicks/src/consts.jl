@@ -16,9 +16,9 @@ const tf_win = IdDict(
     "1d" => 26,   #  4w
 )
 
-@doc "Reverse mapping of timedeltas (milliseconds) to timeframes."
 # NOTE: This can't be an IdDict if we want indexing with floats
-const td_tf = Dict(
+@doc "Reverse mapping of timedeltas (milliseconds) to timeframes."
+const td_tf = IdDict(
     60000 => "1m",
     300000 => "5m",
     900000 => "15m",
