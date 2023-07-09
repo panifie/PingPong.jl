@@ -1,7 +1,10 @@
+module OptimizationExt
+
 using Optimization: OptSession
-using Stats: mean
-using .egn.Data: Not
-using .egn.Instruments: compactnum as cnum
+using Stats: mean, egn
+using Makie
+using .egn.Data: Not, DataFrame
+using .egn.Executors.Instruments: compactnum as cnum
 
 _allfinite(v) = all(isfinite.(v))
 _repetitions_grouping(sess) = Not([keys(sess.params)..., :repeat]) .=> mean
@@ -229,5 +232,6 @@ function by_plot_coords(f, args...; kwargs...)
     end
 end
 
-
 export plot_results
+
+end

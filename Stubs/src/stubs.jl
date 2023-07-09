@@ -19,7 +19,7 @@ read_ohlcv() = CSV.read(OHLCV_FILE_PATH, DataFrame)
 
 function stubscache_path()
     proj = Pkg.project()
-    @assert proj.name == "PingPong"
+    @assert proj.name == "PingPong" || proj.name == "IPingPong"
     joinpath(dirname(proj.path), "test", "stubs")
 end
 
