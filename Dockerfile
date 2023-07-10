@@ -31,14 +31,17 @@ RUN julia --project=/pingpong/PingPong -e "import Pkg; Pkg.instantiate()"
 FROM precompile1 as precompile2
 RUN JULIA_PROJECT= julia -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Rocket\", \"Makie\", \"WGLMakie\"])"
 
-FROM precompile2 as sysimg
+FROM precompile2 as precompile3
+COPY --chown=ppuser:ppuser . /pingpong/
+RUN git submodule update --init
+RUN julia --project=/pingpong/IPingPong -e "import Pkg; Pkg.instantiate()"
+
+FROM precompile3 as sysimg
 USER root
 RUN apt-get install -y gcc g++
-COPY --chown=ppuser:ppuser . /pingpong/
-RUN su ppuser -c "git submodule update --init"
 RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run julia compile.jl"
 
-FROM sysimg as pingpong
+FROM precompile3 as pingpong
 USER ppuser
-# COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
+COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
 CMD [ "julia", "-J=/pingpong/PingPong.so" ]
