@@ -16,6 +16,7 @@ jobs:
     env:
       JULIA_VERSION: 1.9
     permissions: write-all
+    timeout-minutes: 300
 
     steps:
       -

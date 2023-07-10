@@ -24,7 +24,8 @@ ENV JULIA_NUM_THREADS=$(($(nproc)-2))
 ENV JULIA_NOPRECOMP=""
 ENV PINGPONG_LIQUIDATION_BUFFER=0.02
 # Instantiate python env since CondaPkg is pulled from master
-RUN julia --project=/pingpong/Python -e "import Pkg; Pkg.instantiate(); using Python"
+RUN julia --project=/pingpong/Python -e "import Pkg; Pkg.instantiate();"
+RUN julia --project=/pingpong/PingPong -e "using Python"
 # everything else...
 RUN julia --project=/pingpong/PingPong -e "import Pkg; Pkg.instantiate();"
 
