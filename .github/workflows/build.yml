@@ -19,9 +19,20 @@ jobs:
     timeout-minutes: 300
 
     steps:
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # Check out code
+      - name: Checkout
+        uses: actions/checkout@v2
+      # This is a separate action that sets up buildx runner
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      # So now you can use Actions' own caching!
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
       -
         name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -32,10 +43,21 @@ jobs:
         name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
-      -
-        name: Build and push
-        uses: docker/build-push-action@v4
+      - name: Build and push
+        uses: docker/build-push-action@v2
         with:
-          context: "{{defaultContext}}:mysubdir"
-          push: true
+          context: .
+          push: false
           tags: panifie/pingpong:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          target: pingpong
+        # This ugly bit is necessary if you don't want your cache to grow forever
+        # until it hits GitHub's limit of 5GB.
+        # Temp fix
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
