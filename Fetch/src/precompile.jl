@@ -6,7 +6,7 @@ using .Misc.Lang: SnoopPrecompile, @preset, @precomp
     tmp_zi = zilmdb(mktempdir())
     @warn "Precompilation of the `Fetch` module does api calls!"
     try
-        let e = getexchange!(:bybit)
+        let e = getexchange!(:binance)
             @precomp begin
                 fetch_ohlcv(e, "1d", [pair]; zi=tmp_zi, from=-100, to=-10)
                 fetch_candles(e, "1d", [pair]; from=-100, to=-10)
