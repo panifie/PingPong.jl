@@ -128,6 +128,6 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
     tot = current_total(s)
-    t = typeof(s.cash)
-    write(out, "$(t)$(tot) (Total)")
+    t = nameof(s.cash)
+    write(out, "$(t): $(tot) (Total)")
 end
