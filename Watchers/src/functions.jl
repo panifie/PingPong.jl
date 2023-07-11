@@ -1,3 +1,11 @@
+import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
+
+exchange(w::Watcher) = get(getfield(w, :attrs), :exc, nothing)
+exchangeid(w::Watcher) =
+    let e = exchange(w)
+        isnothing(e) ? nothing : nameof(e)
+    end
+
 @doc "Delete watcher data from storage backend within the date range specified."
 function Base.deleteat!(w::Watcher, range::DateTuple)
     _deleteat!(w, w._val; from=range.start, to=range.stop)

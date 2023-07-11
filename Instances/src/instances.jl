@@ -2,7 +2,7 @@ using Exchanges
 using OrderTypes
 
 using ExchangeTypes: exc
-import ExchangeTypes: exchangeid
+import ExchangeTypes: exchangeid, exchange
 using Exchanges: CurrencyCash
 using OrderTypes: ByPos, AssetEvent, positionside
 using Data: Data, load, zi, empty_ohlcv, DataFrame, DataStructures
@@ -372,6 +372,8 @@ minfees(ai::AssetInstance) = ai.fees.min
 maxfees(ai::AssetInstance) = ai.fees.max
 @doc "ExchangeID for the asset instance."
 exchangeid(::AssetInstance{<:AbstractAsset,E}) where {E<:ExchangeID} = E
+@doc "The exchange of the asset instance."
+exchange(ai::AssetInstance) = getfield(ai, :exchange)
 @doc "Asset instance long position."
 position(ai::MarginInstance, ::ByPos{Long}) = getfield(ai, :longpos)
 @doc "Asset instance short position."

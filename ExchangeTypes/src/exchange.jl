@@ -117,6 +117,8 @@ end
 
 atexit(_closeall)
 
+exchange(args...; kwargs...) = error("not implemented")
+
 Base.show(out::IO, exc::Exchange) = begin
     write(out, "Exchange: ")
     write(out, exc.name)

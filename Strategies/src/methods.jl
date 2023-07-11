@@ -1,5 +1,5 @@
 using Lang: @lget!, @deassert
-import Instances.ExchangeTypes: exchangeid
+import Instances.ExchangeTypes: exchangeid, exchange
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
 
@@ -93,6 +93,7 @@ function Base.getproperty(s::Strategy, sym::Symbol)
 end
 attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 attr(s::Strategy, k) = attrs(s)[k]
+attr(s::Strategy, k, def) = get(attrs(s), k, def)
 setattr!(s::Strategy, k, v) = attrs(s)[k] = v
 modifyattr!(s::Strategy, k, op, v) =
     let attrs = attrs(s)
