@@ -7,6 +7,5 @@ function emptycaches!()
     empty!(marketsCache1Min)
     empty!(activeCache1Min)
     empty!(pyCached)
-    empty!(exchanges)
-    empty!(sb_exchanges)
+    ExchangeTypes._closeall()
 end

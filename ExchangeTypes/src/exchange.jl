@@ -106,11 +106,11 @@ _closeall() = begin
     @sync begin
         while !isempty(exchanges)
             _, e = pop!(exchanges)
-            finalize(e)
+            @async finalize(e)
         end
         while !isempty(sb_exchanges)
             _, e = pop!(sb_exchanges)
-            finalize(e)
+            @async finalize(e)
         end
     end
 end

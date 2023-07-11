@@ -28,6 +28,6 @@ using Lang: wait, @preset, @precomp
         market_limits(pair, e)
         market_fees(pair, e)
     end
-    finalize(e.py)
+    ExchangeTypes._closeall()
     emptycaches!()
 end
