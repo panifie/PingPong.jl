@@ -24,7 +24,7 @@ const CACHE = Dict{Symbol,Any}()
 @interface
 
 const NAME = :Example
-const EXCID = ExchangeID(:bybit)
+const EXCID = ExchangeID(:binance)
 const S{M} = Strategy{M,NAME,typeof(EXCID)}
 const TF = tf"1m"
 
@@ -55,7 +55,7 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
 end
 
 function marketsid(::Type{S})
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "XMR/USDT:USDT"]
+    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 marketsid(::S) = marketsid(S)
 

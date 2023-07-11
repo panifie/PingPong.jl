@@ -9,7 +9,7 @@ const cp = PingPong.Watchers.CoinPaprika
 const excs = collect(keys(cg.loadderivatives!()))
 const wi = PingPong.Watchers.WatchersImpls
 const pro = wi.Processing
-setexchange!(:bybit)
+setexchange!(:kucoin)
 macro usdt_str(sym)
     s = uppercase(sym) * "/USDT:USDT"
     :($s)
