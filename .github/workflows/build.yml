@@ -129,15 +129,23 @@ jobs:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-4-${{ github.sha }}
       - name: Cleanup
-        if: steps.last_save.outcome == 'success'
+        if: always()
         run: |
           gh extension install actions/gh-actions-cache
 
           REPO=${{ github.repository }}
-          BRANCH="refs/pull/${{ github.event.pull_request.number }}/merge"
+          BRANCH="refs/pull/${{ github.base_ref }}"
 
           echo "Fetching list of cache key"
-          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | grep -E 'buildx-(3|2|1)' | cut -f 1 )
+          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | grep -E 'buildx-(3|2|1)')
+          if [ "${{ steps.last_save.outcome }}" -eq 'success' ];
+            echo "excluding this commit"
+            EXCLUDE=${{ github.sha }}
+          else
+            echo "excluding commit before"
+            EXCLUDE=${{ github.event.before }}
+          fi
+          cacheKeysForPR=$(echo "$cacheKeysForPR" | grep -v "$EXCLUDE" | cut -f 1 )
 
           ## Setting this to not fail the workflow while deleting cache keys.
           set +e

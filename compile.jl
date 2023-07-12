@@ -2,16 +2,20 @@ using Pkg: Pkg
 Pkg.add("PackageCompiler")
 using PackageCompiler
 Pkg.activate("IPingPong")
-tries = 1
-try
-    while tries < 3
-        try
-            create_sysimage(
-                ["IPingPong", "WGLMakie"]; sysimage_path="/pingpong/PingPong.so"
-            )
-        catch
+let tries = Ref(1)
+    try
+        while tries[] < 3
+            try
+                create_sysimage(
+                    ["IPingPong", "WGLMakie"]; sysimage_path="/pingpong/PingPong.so"
+                )
+                break
+            catch e
+                Base.showerror(stderr, e)
+                tries[] += 1
+            end
         end
+    finally
+        Pkg.activate()
     end
-finally
-    Pkg.activate()
 end

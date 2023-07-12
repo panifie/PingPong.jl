@@ -1,5 +1,5 @@
 using Exchanges.Instruments
-using Exchanges: Exchange, setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
+using Exchanges: Exchanges, Exchange, setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
 using Exchanges.Ccxt
 using Pbar
 using Python

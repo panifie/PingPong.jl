@@ -1,6 +1,7 @@
 module IPingPong
 
 using PingPong
+using WGLMakie
 using Plotting
 using Optimization
 using Watchers
