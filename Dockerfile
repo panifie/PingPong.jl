@@ -19,7 +19,7 @@ RUN julia --project=/pingpong/Python -e "import Pkg; Pkg.instantiate()"
 COPY --chown=ppuser:ppuser ./Python /pingpong/Python
 RUN julia --project=/pingpong/Python -e "using Python"
 
-FROM base as precompile1
+FROM python1 as precompile1
 COPY --chown=ppuser:ppuser ./PingPong/*.toml /pingpong/PingPong/
 ENV JULIA_PROJECT=/pingpong/PingPong
 ENV JULIA_NUM_THREADS=$(($(nproc)-2))
