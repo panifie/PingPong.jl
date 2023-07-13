@@ -1,2 +1,4 @@
 Dockerfile
 scripts/docker.sh
+.github/
+*.el
