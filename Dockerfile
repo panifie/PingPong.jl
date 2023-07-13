@@ -30,7 +30,7 @@ ARG CACHE=1
 RUN $JULIA_CMD --project=/pingpong/PingPong -e "import Pkg; Pkg.instantiate()"
 
 FROM precompile1 as precompile2
-RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Rocket\", \"Makie\", \"WGLMakie\"])"
+RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Rocket\", \"Makie\", \"WGLMakie\", \"ZipFile\"])"
 
 FROM precompile2 as precompile3
 COPY --chown=ppuser:ppuser . /pingpong/
