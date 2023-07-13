@@ -30,12 +30,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-4-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-4
-            ${{ runner.os }}-buildx-3
-            ${{ runner.os }}-buildx-2
-            ${{ runner.os }}-buildx-1
+            ${{ runner.os }}-buildx-
       -
         name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -48,97 +45,55 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Intermediate images1
+      - name: Precomp
         uses: docker/build-push-action@v2
+        id: precomp
         with:
           context: .
-          push: false
+          push: true
+          tags: panifie/pingpong-precomp:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: precompile1
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-      - name: Save Cache1
-        uses: actions/cache/save@v3
-        if: always()
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-1-${{ github.sha }}
-      - name: Intermediate images2
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          push: false
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: precompile2
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-      - name: Save Cache2
-        uses: actions/cache/save@v3
-        if: always()
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-2-${{ github.sha }}
-      - name: Intermediate images3
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          push: false
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: precompile3
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-      - name: Save Cache3
-        uses: actions/cache/save@v3
-        if: always()
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-3-${{ github.sha }}
+          target: pingpong-sysimg
       - name: Sysimg
         uses: docker/build-push-action@v2
         id: sysimg
         with:
           context: .
-          push: false
-          tags: panifie/pingpong:latest
+          push: true
+          tags: panifie/pingpong-sysimg:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: pingpong
+          target: pingpong-sysimg
         # This ugly bit is necessary if you don't want your cache to grow forever
         # until it hits GitHub's limit of 5GB.
         # Temp fix
         # https://github.com/docker/build-push-action/issues/252
         # https://github.com/moby/buildkit/issues/1896
       - name: Move cache
+        if: always()
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-      - name: Save Cache4
+      - name: Save Cache
         uses: actions/cache/save@v3
         id: last_save
-        if: steps.sysimg.outcome == 'success'
+        if: always()
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-4-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
       - name: Cleanup
         if: always()
         run: |
           gh extension install actions/gh-actions-cache
 
           REPO=${{ github.repository }}
-          BRANCH="refs/pull/${{ github.base_ref }}"
+          BRANCH=${{ github.ref }}
 
-          echo "Fetching list of cache key"
-          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | grep -E 'buildx-(3|2|1)')
-          if [ "${{ steps.last_save.outcome }}" -eq 'success' ];
+          echo "Fetching list of cache key for $REPO / $BRANCH"
+          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH | grep -E 'buildx')
+          echo ${{ steps.last_save.outcome }}
+          if [ ${{ steps.last_save.outcome }} = 'success' ]; then
             echo "excluding this commit"
             EXCLUDE=${{ github.sha }}
           else

@@ -15,4 +15,4 @@ fi
 cp $tmppath/Dockerfile $repo/
 cd $tmppath
 
-sudo docker build $@ -t pingpong .
+sudo docker buildx build $@ -t pingpong .

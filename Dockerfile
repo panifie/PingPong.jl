@@ -41,7 +41,12 @@ USER root
 RUN apt-get install -y gcc g++
 RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run julia compile.jl"
 
-FROM precompile3 as pingpong
+FROM precompile3 as pingpong-precomp
+USER ppuser
+WORKDIR /pingpong
+CMD [ "julia" ]
+
+FROM sysimg as pingpong-sysimg
 USER ppuser
 COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
 CMD [ "julia", "-J=/pingpong/PingPong.so" ]
