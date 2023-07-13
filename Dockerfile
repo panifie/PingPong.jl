@@ -24,7 +24,6 @@ RUN $JULIA_CMD --project=/pingpong/Python -e "using Python"
 FROM python1 as precompile1
 COPY --chown=ppuser:ppuser ./PingPong/*.toml /pingpong/PingPong/
 ENV JULIA_PROJECT=/pingpong/PingPong
-ENV JULIA_NUM_THREADS=$(($(nproc)-2))
 ENV JULIA_NOPRECOMP=""
 ENV PINGPONG_LIQUIDATION_BUFFER=0.02
 ARG CACHE=1
@@ -46,10 +45,13 @@ RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
 FROM precompile3 as pingpong-precomp
 USER ppuser
 WORKDIR /pingpong
+ENV JULIA_NUM_THREADS=1
 RUN $JULIA_CMD -e "using IPingPong"
 CMD [ "julia", "-C", $CPU_TARGET ]
 
 FROM sysimg as pingpong-sysimg
 USER ppuser
+WORKDIR /pingpong
+ENV JULIA_NUM_THREADS=$(($(nproc)-2))
 COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
 CMD [ "julia", "-C", $CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
