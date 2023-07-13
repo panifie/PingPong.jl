@@ -51,7 +51,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: pingpong-precomp:latest
+          tags: panifie/pingpong-precomp:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-sysimg
@@ -61,7 +61,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: pingpong-sysimg:latest
+          tags: panifie/pingpong-sysimg:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-sysimg
