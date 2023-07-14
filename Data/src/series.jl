@@ -31,7 +31,6 @@ end
 `key`: the full key of the zarr group to use
 `type`: Primitive type used for storing the data (Float64)
 """
-
 function save_data(zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...)
     t = @async _wrap_save_data(zi::ZarrInstance, key, data; serialize, data_col, kwargs...)
     fetch(t)

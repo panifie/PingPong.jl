@@ -2,3 +2,6 @@ Dockerfile
 scripts/docker.sh
 .github/
 *.el
+docs/
+deps/
+pyrightconfig.json
