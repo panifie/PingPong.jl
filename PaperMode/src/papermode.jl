@@ -9,7 +9,7 @@ using Executors.Misc
 using Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
-using .Misc.Lang: @lget!, @deassert
+using .Misc.Lang: @lget!, @deassert, Option
 using Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using Executors.Strategies
 using .Instances: MarginInstance
@@ -20,7 +20,7 @@ import Executors: pong!
 using Fetch: pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
-const RUNNING = ConcurrentDict{Symbol,Tuple{Ref{Bool},Task}}()
+const RUNNING_PAPER = ConcurrentDict{Symbol,Tuple{Ref{Bool},Option{Task}}}()
 
 function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=true)
     doreset && st.reset!(s)
@@ -46,7 +46,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         @info startinfo
         name = nameof(s)
         last_flush = DateTime(0)
-        while RUNNING[name][1][]
+        while RUNNING_PAPER[name][1][]
             infofunc()
             now() - last_flush > Second(1) && flush(loghandle)
             last_flush = now()
@@ -55,16 +55,17 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         end
     end
     if foreground
-        doping()
+        RUNNING_PAPER[nameof(s)] = (Ref(true), nothing)
+        doping(stdout)
     else
         logfile = paperlog(s)
         loghandle = open(logfile, "w")
         logger = SimpleLogger(open(logfile, "w"))
         try
             t = @async with_logger(logger) do
-                doping()
+                doping(loghandle)
             end
-            RUNNING[nameof(s)] = (Ref(true), t)
+            RUNNING_PAPER[nameof(s)] = (Ref(true), t)
         finally
             flush(loghandle)
             close(loghandle)
@@ -73,7 +74,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
 end
 
 function paperstop!(s::PaperStrategy)
-    v = RUNNING[nameof(s)]
+    v = RUNNING_PAPER[nameof(s)]
     v[1][] = false
     wait(v[2])
 end
