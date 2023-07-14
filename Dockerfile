@@ -12,6 +12,7 @@ ARG CPU_TARGET=znver2
 ARG JULIA_CMD="julia -C $CPU_TARGET"
 
 FROM base as python1
+ENV JULIA_CPU_TARGET=$CPU_TARGET
 ENV JULIA_LOAD_PATH=:/pingpong
 ENV JULIA_CONDAPKG_ENV=/pingpong/.conda
 COPY --chown=ppuser:ppuser ./Python/*.toml /pingpong/Python/
@@ -35,23 +36,37 @@ RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", 
 FROM precompile2 as precompile3
 COPY --chown=ppuser:ppuser . /pingpong/
 RUN git submodule update --init
-RUN $JULIA_CMD --project=/pingpong/IPingPong -e "import Pkg; Pkg.instantiate()"
 
 FROM precompile3 as sysimg
 USER root
 RUN apt-get install -y gcc g++
 RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
 
-FROM precompile3 as pingpong-precomp
+FROM precompile3 as precomp-base
 USER ppuser
 WORKDIR /pingpong
 ENV JULIA_NUM_THREADS=1
-RUN $JULIA_CMD -e "using IPingPong"
 CMD [ "julia", "-C", $CPU_TARGET ]
 
-FROM sysimg as pingpong-sysimg
+FROM precomp-base as pingpong-precomp-interactive
+ENV JULIA_PROJECT=/pingpong/IPingPong
+RUN $JULIA_CMD -e "using IPingPong"
+
+FROM precomp-base as pingpong-precomp
+ENV JULIA_PROJECT=/pingpong/PingPong
+RUN $JULIA_CMD -e "using PingPong"
+
+FROM sysimg as sysimg-base
 USER ppuser
 WORKDIR /pingpong
-ENV JULIA_NUM_THREADS=$(($(nproc)-2))
+ENV JULIA_NUM_THREADS=auto
+
+FROM sysimg-base as pingpong-sysimg-interactive
+ENV JULIA_PROJECT=/pingpong/IPingPong
+COPY --chown=ppuser:ppuser --from=sysimg /pingpong/IPingPong.so /pingpong/
+CMD [ "julia", "-C", $CPU_TARGET, "-J", "/pingpong/IPingPong.so" ]
+
+FROM sysimg-base as pingpong-sysimg
+ENV JULIA_PROJECT=/pingpong/IPingPong
 COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
 CMD [ "julia", "-C", $CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
