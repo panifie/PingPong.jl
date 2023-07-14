@@ -10,11 +10,15 @@ WORKDIR /pingpong
 USER ppuser
 ARG CPU_TARGET=znver2
 ARG JULIA_CMD="julia -C $CPU_TARGET"
+ENV JULIA_CPU_TARGET ${CPU_TARGET}
+CMD julia -C $JULIA_CPU_TARGET
 
 FROM base as python1
 ENV JULIA_CPU_TARGET=$CPU_TARGET
 ENV JULIA_LOAD_PATH=:/pingpong
 ENV JULIA_CONDAPKG_ENV=/pingpong/.conda
+# avoids progressbar spam
+ENV CI=true
 COPY --chown=ppuser:ppuser ./Python/*.toml /pingpong/Python/
 # Instantiate python env since CondaPkg is pulled from master
 ARG CACHE=1
@@ -40,6 +44,9 @@ RUN git submodule update --init
 FROM precompile3 as sysimg
 USER root
 RUN apt-get install -y gcc g++
+ENV JULIA_PRECOMP_PROJ="PingPong"
+RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
+ENV JULIA_PRECOMP_PROJ="IPingPong"
 RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
 
 FROM precompile3 as precomp-base
