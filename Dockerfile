@@ -46,7 +46,7 @@ FROM precompile3 as precomp-base
 USER ppuser
 WORKDIR /pingpong
 ENV JULIA_NUM_THREADS=1
-CMD [ "julia", "-C", $CPU_TARGET ]
+CMD [ "julia", "-C", $JULIA_CPU_TARGET ]
 
 FROM precomp-base as pingpong-precomp-interactive
 ENV JULIA_PROJECT=/pingpong/IPingPong
@@ -62,9 +62,9 @@ ENV JULIA_NUM_THREADS=auto
 FROM sysimg-base as pingpong-sysimg-interactive
 ENV JULIA_PROJECT=/pingpong/IPingPong
 COPY --chown=ppuser:ppuser --from=sysimg /pingpong/IPingPong.so /pingpong/
-CMD [ "julia", "-C", $CPU_TARGET, "-J", "/pingpong/IPingPong.so" ]
+CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/IPingPong.so" ]
 
 FROM sysimg-base as pingpong-sysimg
 ENV JULIA_PROJECT=/pingpong/IPingPong
 COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
-CMD [ "julia", "-C", $CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
+CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
