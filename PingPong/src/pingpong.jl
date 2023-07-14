@@ -31,7 +31,9 @@ macro environment!()
             Engine as egn,
             Strategies as st,
             Simulations as sim,
-            SimMode as bt,
+            SimMode as sm,
+            PaperMode as pm,
+            LiveMode as lm,
             Instances as inst,
             Collections as co,
             Executors as ect
