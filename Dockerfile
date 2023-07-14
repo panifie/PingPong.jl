@@ -56,9 +56,7 @@ FROM precomp-base as pingpong-precomp
 ENV JULIA_PROJECT=/pingpong/PingPong
 RUN $JULIA_CMD -e "using PingPong"
 
-FROM sysimg as sysimg-base
-USER ppuser
-WORKDIR /pingpong
+FROM precomp-base as sysimg-base
 ENV JULIA_NUM_THREADS=auto
 
 FROM sysimg-base as pingpong-sysimg-interactive

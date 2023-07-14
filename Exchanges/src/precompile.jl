@@ -5,12 +5,13 @@ using Lang: wait, @preset, @precomp
     using Python: Python
     @assert Python.isinitialized_async(Python.gpa)
     @precomp let
-        finalize(getexchange!(id; markets=:force).py)
-        finalize(getexchange!(id; markets=:yes, sandbox=false).py)
+        getexchange!(id; markets=:force).py
+        getexchange!(id; markets=:yes, sandbox=false).py
     end
+    ExchangeTypes._closeall()
+    emptycaches!()
     qc = "USDT"
     pair = "BTC/USDT"
-    emptycaches!()
     e = getexchange!(id; markets=:yes)
     @precomp let
         futures(e)
