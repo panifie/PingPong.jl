@@ -1,5 +1,13 @@
 using Exchanges.Instruments
-using Exchanges: Exchanges, Exchange, setexchange!, tickers, getexchange!, issupported, save_ohlcv, to_float
+using Exchanges:
+    Exchanges,
+    Exchange,
+    setexchange!,
+    tickers,
+    getexchange!,
+    issupported,
+    save_ohlcv,
+    to_float
 using Exchanges.Ccxt
 using Pbar
 using Python
@@ -13,10 +21,12 @@ using Exchanges.Data:
     PairData,
     DataFrame,
     empty_ohlcv,
+    contiguous_ts,
     Candle,
     OHLCV_COLUMNS,
     OHLCVTuple,
     ohlcvtuple
+using .Data.DFUtils: lastdate
 using .Data.Misc
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using .Misc.TimeTicks
@@ -399,7 +409,8 @@ function __get_ohlcv(
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
-    if !islast(pair_from_date, timeframe)
+    this_date = @something tryparse(DateTime, pair_from_date) DateTime(0)
+    if !islast(this_date, timeframe)
         ohlcv = _fetch_ohlcv_from_to(
             exc, name, timeframe; from=pair_from_date, to, cleanup, out, ohlcv_kind
         )
@@ -445,7 +456,7 @@ using .Data: ZarrInstance, ZArray
 - `reset`: if true, will remove cached data before fetching. (`false`)
 """
 function fetch_ohlcv(
-    @nospecialize(exc::Exchange),
+    exc::Exchange,
     timeframe::AbstractString,
     pairs::Iterable;
     zi=zi[],
@@ -474,6 +485,28 @@ function fetch_ohlcv(
         progress && @pbstop!
     end
     data
+end
+
+@doc "Updates the tail of an ohlcv dataframe with the most recent candles."
+function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
+    from = if isempty(df)
+        DateTime(0)
+    else
+        iscontig, idx, last_date = contiguous_ts(df.timestamp, string(tf), raise=false, return_date=true)
+        if !iscontig
+            deleteat!(df, idx:lastindex(df.timestamp))
+        end
+        @deassert dt(last_date) == lastdate(df) dt(last_date), lastdate(df)
+        last_date
+    end
+    if !islast(dt(from), tf)
+        cleaned = _fetch_ohlcv_from_to(
+            exc, pair, string(tf); from, to=now(), cleanup=true, out=df, ohlcv_kind
+        )
+        empty!(df)
+        append!(df, cleaned)
+    end
+    df
 end
 
 function _fetch_candles(

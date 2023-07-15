@@ -352,8 +352,12 @@ function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, wi
 
     data = za[ts_start:ts_stop, :]
 
-    with_from && @assert data[begin, saved_col] >= from dt(data[begin, saved_col]), dt(from), timeframe(td)
-    with_to && @assert data[end, saved_col] <= to dt(data[end, saved_col]), dt(to), dt(to), timeframe(td)
+    with_from && @assert data[begin, saved_col] >= from dt(data[begin, saved_col]),
+    dt(from),
+    timeframe(td)
+    with_to && @assert data[end, saved_col] <= to dt(data[end, saved_col]),
+    dt(to), dt(to),
+    timeframe(td)
     let (from_saved, to_saved) = (data[begin, saved_col], data[end, saved_col])
         if from_saved == to_saved && iszero(from_saved)
             delete!(za)
@@ -374,12 +378,14 @@ function _load_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
 end
 
 @doc "Checks if a timeseries has any intervals not conforming to the given timeframe."
-contiguous_ts(series, timeframe::AbstractString) = begin
+function contiguous_ts(series, timeframe::AbstractString; raise=true, return_date=false)
     @as_td
-    _contiguous_ts(series, td)
+    _contiguous_ts(series, td; raise, return_date)
 end
 
-function _contiguous_ts(series::AbstractVector{T}, td; raise=true) where {T}
+function _contiguous_ts(
+    series::AbstractVector{T}, td; raise=true, return_date=false
+) where {T}
     pv = dtfloat(series[1])
     conv = T isa AbstractFloat ? identity : dtfloat
     for i in 2:length(series)
@@ -388,12 +394,12 @@ function _contiguous_ts(series::AbstractVector{T}, td; raise=true) where {T}
             if raise
                 throw("Time series is not contiguous at index $i. ($(dt(pv)) != $(dt(nv)))")
             else
-                return false
+                return ifelse(return_date, (false, i, pv), false)
             end
         )
         pv = nv
     end
-    return true
+    return ifelse(return_date, (true, lastindex(series), pv), true)
 end
 
 function _check_contiguity(
