@@ -29,27 +29,43 @@ It can compute statistics about backtest runs, see [Stats](stats.md)
 
 It can generate interactive and fully browsable plots for ohlcv data, indicators and backtesting runs, see [Plotting](plotting.md)
 
-## Quickstart
+## Install (docker)
+There are 4 images:
 
-Launch julia and activate the package:
+|                | precompiled 🧰      
+|----------------|--------------------|
+| only runtime 🖥‍| pingpong-precomp   |
+| with plotting and optimizer 📊   | ipingpong-precomp   |
+
+<!-- Precompiled images are smaller, more flexible but have a slower startup. Compiled images are bigger, there might be unexpected issues, but are faster to startup. -->
+
+```shell
+docker pull panifie/pingpong-precomp
+```
+
+## Install (git)
+
+Clone the repo:
 
 ```shell
 git clone https://github.com/panifie/PingPong.jl
 cd PingPong.jl
-julia --project=./PingPong
+``` 
+
+Check the env vars in `.envrc`, then enabled them with `direnv allow`.
+Launch julia activate the package:
+
+``` julia
+] instantiate
+using PingPong # or IPingPong for plotting and optimization
 ```
 
-Instantiate dependencies:
-
-```julia
-using Pkg: Pkg
-Pkg.instantiate()
-using PingPong
-```
+## Quickstart
 
 Load the default strategy, which you can look up at `./user/strategies/Example.jl`
 
 ```julia
+using PingPong
 using Engine.Strategies
 s = strategy(:Example)
 ```
@@ -79,11 +95,11 @@ using Engine.Executors.SimMode: SimMode as bt
 bt.backtest!(s)
 ```
 
-Plot the simulated trades:
+Plot the simulated trades.
 
 ```julia
-PingPong.plots!()
-
+using IPingPong
+balloons(s)
 ```
 
 ## Packages
@@ -105,3 +121,4 @@ Here's a list of the most important underlying packages.
 - [Troubleshooting](./troubleshooting.md)
 - [Devdocs](./devdocs.md)
 - [Contacts](./contacts.md)
+  

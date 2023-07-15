@@ -41,37 +41,37 @@ FROM precompile2 as precompile3
 COPY --chown=ppuser:ppuser . /pingpong/
 RUN git submodule update --init
 
-FROM precompile3 as sysimg
-USER root
-RUN apt-get install -y gcc g++
-ENV JULIA_PRECOMP_PROJ="PingPong"
-RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
-ENV JULIA_PRECOMP_PROJ="IPingPong"
-RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
-
 FROM precompile3 as precomp-base
 USER ppuser
 WORKDIR /pingpong
 ENV JULIA_NUM_THREADS=1
 CMD [ "julia", "-C", $JULIA_CPU_TARGET ]
 
-FROM precomp-base as pingpong-precomp-interactive
-ENV JULIA_PROJECT=/pingpong/IPingPong
-RUN $JULIA_CMD -e "using IPingPong"
-
 FROM precomp-base as pingpong-precomp
 ENV JULIA_PROJECT=/pingpong/PingPong
-RUN $JULIA_CMD -e "using PingPong"
+RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using PingPong"
 
-FROM precomp-base as sysimg-base
-ENV JULIA_NUM_THREADS=auto
-
-FROM sysimg-base as pingpong-sysimg-interactive
+FROM precomp-base as pingpong-precomp-interactive
 ENV JULIA_PROJECT=/pingpong/IPingPong
-COPY --chown=ppuser:ppuser --from=sysimg /pingpong/IPingPong.so /pingpong/
-CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/IPingPong.so" ]
+RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using IPingPong"
 
-FROM sysimg-base as pingpong-sysimg
-ENV JULIA_PROJECT=/pingpong/IPingPong
-COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
-CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
+# FROM precompile3 as sysimg
+# USER root
+# RUN apt-get install -y gcc g++
+# ENV JULIA_PRECOMP_PROJ="PingPong"
+# RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
+# ENV JULIA_PRECOMP_PROJ="IPingPong"
+# RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
+
+# FROM precomp-base as sysimg-base
+# ENV JULIA_NUM_THREADS=auto
+
+# FROM sysimg-base as pingpong-sysimg-interactive
+# ENV JULIA_PROJECT=/pingpong/IPingPong
+# COPY --chown=ppuser:ppuser --from=sysimg /pingpong/IPingPong.so /pingpong/
+# CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/IPingPong.so" ]
+
+# FROM sysimg-base as pingpong-sysimg
+# ENV JULIA_PROJECT=/pingpong/IPingPong
+# COPY --chown=ppuser:ppuser --from=sysimg /pingpong/PingPong.so /pingpong/
+# CMD [ "julia", "-C", $JULIA_CPU_TARGET, "-J", "/pingpong/PingPong.so" ]
