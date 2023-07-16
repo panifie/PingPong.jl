@@ -11,7 +11,7 @@ import Data: stub!
 using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
-import Instruments: _hashtuple, cash!, cash, freecash, value
+import Instruments: _hashtuple, cash!, cash, freecash, value, raw
 using Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 import Misc: approxzero, gtxzero, ltxzero, marginmode
@@ -217,6 +217,16 @@ Base.getproperty(ai::AssetInstance, f::Symbol) = begin
     else
         getfield(ai, f)
     end
+end
+
+@doc "The asset string id."
+function asset(ai::AssetInstance)
+    getfield(ai, :asset)
+end
+
+@doc "The asset string id."
+function raw(ai::AssetInstance)
+    raw(asset(ai))
 end
 
 @doc "Rounds a value based on the `precision` field of the `ai` asset instance. [`amount`]."
@@ -517,6 +527,7 @@ lastprice(ai::AssetInstance) = lastprice(ai.asset.raw, ai.exchange)
 include("constructors.jl")
 
 export AssetInstance, instance, load!, @rprice, @ramount
+export asset, raw, ohlcv
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
 export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed, price
 export leverage, mmr, status!

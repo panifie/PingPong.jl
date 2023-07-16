@@ -85,6 +85,18 @@ Base.getproperty(w::Watcher, p::Symbol) = begin
         getfield(w, p)
     end
 end
+attrs(w::Watcher) = getfield(w, :attrs)
+attr(w::Watcher, i) = getindex(getfield(w, :attrs), i)
+buffer(w::Watcher) = getfield(w, :buffer)
+Base.getindex(w::Watcher, i::Symbol) = getindex(attrs(w), i)
+Base.setindex!(w::Watcher, v, i::Symbol) = setindex!(attrs(w), v, i)
+Base.first(w::Watcher) = first(attrs(w))
+Base.pairs(w::Watcher) = pairs(attrs(w))
+Base.values(w::Watcher) = values(attrs(w))
+Base.keys(w::Watcher) = keys(attrs(w))
+Base.eltype(w::Watcher) = eltype(buffer(w).parameters[2].parameters[2])
+Base.getindex(w::Watcher, i) = getindex(attr(w, :view), i)
+
 @doc "Stops the watcher timer."
 stop!(w::Watcher) = begin
     @assert isstarted(w) "Tried to stop an already stopped watcher."

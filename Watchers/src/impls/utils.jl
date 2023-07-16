@@ -125,7 +125,7 @@ end
 _key!(w::Watcher, k) = w.attrs[:key] = k
 _key(w::Watcher) = w.attrs[:key]
 _view!(w, v) = w.attrs[:view] = v
-_view(w) = w.attrs[:view]
+_view(w) = attr(w, :view)
 
 function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
