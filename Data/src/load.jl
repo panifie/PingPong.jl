@@ -56,8 +56,7 @@ function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...
     @assert !isempty(exc_name) "No exchange name provided"
     key = key_path(exc_name, pair, timeframe)
     try
-        t = @async _save_ohlcv(zi, key, td, data; kwargs...)
-        fetch(t)
+        _save_ohlcv(zi, key, td, data; kwargs...)
     catch e
         __handle_save_ohlcv_error(e, zi, key, pair, td, data; kwargs...)
     end
@@ -275,8 +274,7 @@ end
 function load(zi::ZarrInstance, exc_name, pair, timeframe; raw=false, kwargs...)
     @as_td
     key = key_path(exc_name, pair, timeframe)
-    t = @async _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
-    fetch(t)
+    _wrap_load(zi, key, timefloat(tf); as_z=raw, kwargs...)
 end
 
 load(zi::Ref{Option{ZarrInstance}}, args...; kwargs...) = load(zi[], args...; kwargs...)

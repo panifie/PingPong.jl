@@ -32,8 +32,7 @@ end
 `type`: Primitive type used for storing the data (Float64)
 """
 function save_data(zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...)
-    t = @async _wrap_save_data(zi::ZarrInstance, key, data; serialize, data_col, kwargs...)
-    fetch(t)
+    _wrap_save_data(zi::ZarrInstance, key, data; serialize, data_col, kwargs...)
 end
 
 function _wrap_save_data(
@@ -200,8 +199,7 @@ const DEFAULT_CHUNK_SIZE = (100, 2)
     will reset the stored zarray.
 """
 function load_data(zi::ZarrInstance, key; serialized=false, kwargs...)
-    t = @async _wrap_load_data(zi, key; serialized, kwargs...)
-    fetch(t)
+    _wrap_load_data(zi, key; serialized, kwargs...)
 end
 function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kwargs...)
     # NOTE
