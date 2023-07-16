@@ -222,9 +222,9 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
                 compressor,
             )
             _addkey!(zi, emptyz)
-            if :as_z ∈ keys(kwargs)
+            if get(kwargs, :as_z, false)
                 return (; z=emptyz, startstop=(0, 0))
-            elseif :with_z ∈ keys(kwargs)
+            elseif get(kwargs, :with_z, false)
                 return (; data=nothing, z=emptyz)
             else
                 return nothing

@@ -247,9 +247,9 @@ function __handle_error(::ResetErrors, zi, key, kwargs)
         compressor,
     )
     _addkey!(zi, emptyz)
-    if :as_z ∈ keys(kwargs)
+    if get(kwargs, :as_z, false)
         return emptyz, (0, 0)
-    elseif :with_z ∈ keys(kwargs)
+    elseif get(kwargs, :with_z, false)
         return empty_ohlcv(), emptyz
     else
         return empty_ohlcv()
