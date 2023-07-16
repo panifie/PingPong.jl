@@ -1,4 +1,5 @@
 using Python: pyschedule, pywait_fut, Python, pyisinstance
+using Python: @tspawnat
 using Base: with_logger, NullLogger
 
 @doc "Same as ccxt precision mode enums."
@@ -106,11 +107,11 @@ _closeall() = begin
     @sync begin
         while !isempty(exchanges)
             _, e = pop!(exchanges)
-            @async finalize(e)
+            @tspawnat 1 finalize(e)
         end
         while !isempty(sb_exchanges)
             _, e = pop!(sb_exchanges)
-            @async finalize(e)
+            @tspawnat 1 finalize(e)
         end
     end
 end

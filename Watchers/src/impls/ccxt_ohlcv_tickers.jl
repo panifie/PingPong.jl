@@ -154,7 +154,7 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     isempty(w.buffer) && return nothing
     last_fetch = last(w.buffer)
     @sync for (sym, ticker) in last_fetch.value
-        @async @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
+        @tspawnat 1 @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
             w, ticker, last_fetch.time
         )
     end
@@ -180,6 +180,6 @@ function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
     (isempty(w.buffer) || isempty(w.view)) && return nothing
     syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
     @sync for sym in syms
-        @async @logerror w _load!(w, w._val, sym)
+        @tspawnat 1 @logerror w _load!(w, w._val, sym)
     end
 end

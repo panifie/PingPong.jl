@@ -13,7 +13,7 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
     sym = ai.asset.raw
     backoff = Second(0)
     alive = Ref(true)
-    task = @async while alive[]
+    task = @tspawnat 1 while alive[]
         try
             last_date = DateTime(0)
             trades = CircularBuffer{Py}(100)

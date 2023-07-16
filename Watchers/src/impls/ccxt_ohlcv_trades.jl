@@ -62,7 +62,7 @@ function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=S
 end
 
 function ccxt_ohlcv_watcher(exc::Exchange, syms::Iterable; kwargs...)
-    tasks = [@async ccxt_ohlcv_watcher(exc, s; kwargs...) for s in syms]
+    tasks = [@tspawnat 1 ccxt_ohlcv_watcher(exc, s; kwargs...) for s in syms]
     [fetch(t) for t in tasks]
 end
 ccxt_ohlcv_watcher(syms::Iterable; kwargs...) = ccxt_ohlcv_watcher.(exc, syms; kwargs...)
@@ -82,7 +82,7 @@ _tradestask(w) = get(w.attrs, :trades_task, nothing)
 _tradestask!(w) = begin
     task = _tradestask(w)
     if isnothing(task) || istaskfailed(task)
-        w.attrs[:trades_task] = @async _fetch_trades_loop(w)
+        w.attrs[:trades_task] = @tspawnat 1 _fetch_trades_loop(w)
     end
 end
 function _start!(w::Watcher, ::CcxtOHLCVVal)

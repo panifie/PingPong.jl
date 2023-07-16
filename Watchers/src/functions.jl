@@ -15,7 +15,7 @@ end
 function flush!(w::Watcher; force=true, sync=false)
     time_now = now()
     if force || time_now - w.last_flush > w.interval.flush
-        t = @async begin
+        t = @tspawnat 1 begin
             result = @lock w._exec.buffer_lock begin
                 w.last_flush = time_now
                 _flush!(w, w._val)
@@ -56,7 +56,7 @@ end
 @doc "True if last available data entry is older than `now() + fetch_interval + fetch_timeout`."
 function isstale(w::Watcher)
     w.attempts > 0 ||
-        w.last_fetch < now() - w.interval.fetch_interval - w.interval.fetch_timeout
+        w.last_fetch < now() - w.interval.fetch - w.interval.timeout
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)

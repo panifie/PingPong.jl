@@ -4,7 +4,7 @@ using DataFrames: DataFrameRow, AbstractDataFrame
 using DataFramesMeta
 using TimeTicks
 using Lang: Option, @as, @ifdebug
-using Misc: LeftContiguityException, RightContiguityException, config, rangeafter
+using Misc: LeftContiguityException, RightContiguityException, config, rangeafter, @tspawnat
 
 include("candles.jl")
 include("ohlcv.jl")
@@ -222,7 +222,7 @@ function load_ohlcv(
     load_func = raw ? _load_zarr : _load_pairdata
     pairs isa AbstractString && (pairs = [pairs])
     @sync for p in pairs
-        @async load_func(out, p, zi, exc_name, timeframe; kwargs...)
+        @tspawnat 1 load_func(out, p, zi, exc_name, timeframe; kwargs...)
     end
     out
 end

@@ -1,6 +1,6 @@
 using Exchanges: ExchangeID, pyfetch_timeout
 using Exchanges.Ccxt: _multifunc
-using Exchanges.Misc: LittleDict
+using Exchanges.Misc: LittleDict, @tspawnat
 @enum OrderBookLevel L1 L2 L3
 Base.convert(::Type{OrderBookLevel}, n::Integer) = OrderBookLevel(n - 1)
 
@@ -38,7 +38,7 @@ _levelname(level) =
 function _update_orderbook!(exc, ob, sym, lvl, limit; init)
     ob.busy[] && return ob
     f = @lget! OB_FUNCTIONS (lvl, exc.id) _multifunc(exc, _levelname(lvl), true)[1]
-    t = @async begin
+    t = @tspawnat 1 begin
         ob.busy[] = true
         try
             py_ob = pyfetch_timeout(

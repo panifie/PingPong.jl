@@ -935,7 +935,7 @@ uuid = "978d7f02-9e05-4691-894f-ae31a51d76ca"
 version = "0.4.0"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "OrderedCollections", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "OrderedCollections", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "ThreadPools", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -1223,7 +1223,7 @@ uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
 version = "0.1.2"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile"]
+deps = ["CondaPkg", "Dates", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile", "ThreadPools"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

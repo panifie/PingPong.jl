@@ -1,6 +1,7 @@
 using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert
 using Dates: Period, Second
+using ThreadPools: @tspawnat
 
 @kwdef struct PythonAsync
     pyaio::Py = pynew()
@@ -98,14 +99,14 @@ pywait_fut(fut::Py) = begin
     # @info "fut $id done!"
 end
 pytask(coro::Py, ::Val{:coro}) = begin
-    @async let fut = pyschedule(coro)
+    @tspawnat 1 let fut = pyschedule($coro)
         pywait_fut(fut)
         fut.result()
     end
 end
 pytask(coro::Py, ::Val{:try}) = begin
-    @async try
-        fut = pyschedule(coro)
+    @tspawnat 1 try
+        fut = pyschedule($coro)
         pywait_fut(fut)
         fut.result()
     catch e

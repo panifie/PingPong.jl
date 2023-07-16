@@ -1,5 +1,6 @@
 using Lang: @ifdebug
 using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!
+using .Misc: @tspawnat
 
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
@@ -25,14 +26,16 @@ _reset!(s) = begin
     s
 end
 
-function _tickers_watcher(s)
+function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timeframe(s))
     if s isa Union{PaperStrategy,LiveStrategy}
         exc = getexchange!(s.exchange, sandbox=false)
         w = ccxt_ohlcv_tickers_watcher(
             exc;
+            timeframe=tf,
             syms=marketsid(s),
             flush=false,
-            logfile=st.logpath(s; name="tickers_watcher"),
+            logfile=st.logpath(s; name=string(k)),
+            view_capacity
         )
         w.attrs[:quiet] = true
         w.attrs[:resync_noncontig] = true
@@ -41,10 +44,10 @@ function _tickers_watcher(s)
             wv[ai.asset.raw] = ai.ohlcv
         end
         @sync for sym in marketsid(s)
-            @async load!(w, sym)
+            @tspawnat 1 load!(w, sym)
         end
         start!(w)
-        setattr!(s, :tickers_watcher, w)
+        setattr!(s, k, w)
     end
 end
 

@@ -10,6 +10,7 @@ using Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
 using .Misc.Lang: @lget!, @deassert, Option
+using .Misc: @tspawnat
 using Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using Executors.Strategies
 using .Instances: MarginInstance
@@ -62,7 +63,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         loghandle = open(logfile, "w")
         logger = SimpleLogger(open(logfile, "w"))
         try
-            t = @async with_logger(logger) do
+            t = @tspawnat 1 with_logger(logger) do
                 doping(loghandle)
             end
             RUNNING_PAPER[nameof(s)] = (Ref(true), t)

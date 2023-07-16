@@ -53,7 +53,7 @@ function ccxt_orderbook_watcher(exc::Exchange, sym; level=L1, interval=Second(1)
 end
 
 function ccxt_orderbook_watcher(exc::Exchange, syms::Iterable; kwargs...)
-    tasks = [@async ccxt_orderbook_watcher(exc, s; kwargs...) for s in syms]
+    tasks = [@tspawnat 1 ccxt_orderbook_watcher(exc, s; kwargs...) for s in syms]
     [fetch(t) for t in tasks]
 end
 

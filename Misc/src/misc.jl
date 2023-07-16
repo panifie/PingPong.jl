@@ -6,6 +6,7 @@ using TimeTicks: Lang
 using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
 using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
+using ThreadPools: ThreadPools, @tspawnat
 
 include("lists.jl")
 include("sandbox.jl")
@@ -23,4 +24,4 @@ _doinit() = begin
     isdefined(Misc, :config) && reset!(config)
 end
 
-export results
+export results, @tspawnat
