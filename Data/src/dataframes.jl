@@ -6,6 +6,7 @@ using TimeTicks
 import TimeTicks: timeframe, timeframe!
 using Lang
 import Base: getindex
+import ..Data: contiguous_ts
 
 @doc "Get the column names for dataframe as symbols."
 colnames(df::AbstractDataFrame) = index(df).names
@@ -189,6 +190,10 @@ function prependmax!(df, v, maxlen)
 end
 @doc "See `_mutatemax!`"
 pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
+
+function contiguous_ts(df::DataFrame, args...; kwargs...)
+    contiguous_ts(df.timestamp, string(timeframe!(df)), args...; kwargs...)
+end
 
 export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate, zerorow
 
