@@ -1,3 +1,5 @@
+import .Processing: propagate_ohlcv!
+
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
 
@@ -19,9 +21,11 @@ stub!(strat.universe, data)
 "
 function stub!(ac::AssetCollection, src; fromfiat=true)
     parse_args = fromfiat ? (fiatnames,) : ()
-    src_dict = swapkeys(src, NTuple{2,Symbol}, k -> let a = parse(AbstractAsset, k, parse_args...)
-        (a.bc, a.qc)
-    end)
+    src_dict = swapkeys(
+        src, NTuple{2,Symbol}, k -> let a = parse(AbstractAsset, k, parse_args...)
+            (a.bc, a.qc)
+        end
+    )
     for inst in ac.data.instance
         for tf in keys(inst.data)
             pd = get(src_dict, (inst.asset.bc, inst.asset.qc), nothing)
@@ -89,4 +93,8 @@ function Base.fill!(ai::AssetInstance, tfs...)
     _check_timeframes(tfs, from_tf)
     _load_smallest!(ai, tfs, from_data, from_tf) || return nothing
     _load_rest!(ai, tfs, from_tf, from_data)
+end
+
+function propagate_ohlcv!(ai::AssetInstance)
+    propagate_ohlcv!(ai.data, ai.asset.raw, ai.exchange)
 end
