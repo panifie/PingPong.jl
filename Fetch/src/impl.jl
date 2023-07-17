@@ -12,7 +12,8 @@ using Exchanges.Ccxt
 using Pbar
 using Python
 using Python: pylist_to_matrix, py_except_name
-using Processing: cleanup_ohlcv_data, islast
+using Processing: cleanup_ohlcv_data, islast, resample
+import Processing: propagate_ohlcv!
 using Exchanges.Data:
     Data,
     load,
@@ -20,18 +21,20 @@ using Exchanges.Data:
     zi,
     PairData,
     DataFrame,
+    nrow,
     empty_ohlcv,
     contiguous_ts,
     Candle,
     OHLCV_COLUMNS,
     OHLCVTuple,
     ohlcvtuple
-using .Data.DFUtils: lastdate
+using .Data.DFUtils: lastdate, colnames
+using .Data.DataStructures: SortedDict
 using .Data.Misc
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using .Misc.TimeTicks
 using .TimeTicks: TimeFrameOrStr, timestamp, dtstamp
-using .Misc.Lang: @distributed, @parallel, Option, filterkws, @ifdebug
+using .Misc.Lang: @distributed, @parallel, Option, filterkws, @ifdebug, @deassert
 @ifdebug using .TimeTicks: dt
 
 @doc "Used to slide the `since` param forward when retrying fetching (in case the requested timestamp is too old)."
@@ -96,9 +99,14 @@ function _fetch_ohlcv_from_to(
     (from, to) = _check_from_to(from, to)
     @debug "Fetching $ohlcv_kind ohlcv for $pair from $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
     py_fetch_func = getproperty(exc, ohlcv_func_bykind(ohlcv_kind))
-    fetch_func =
-        (pair, since, limit) ->
-            pyfetch(py_fetch_func, pair; timeframe, since, limit, params)
+    function fetch_func(pair, since, limit; usetimeframe=true)
+        kwargs = LittleDict()
+        isnothing(since) || (kwargs[:since] = since)
+        isnothing(limit) || (kwargs[:limit] = limit)
+        usetimeframe && (kwargs[:timeframe] = timeframe)
+        isempty(params) || (kwargs[:params] = params)
+        pyfetch(py_fetch_func, pair; kwargs...)
+    end
     limit = fetch_limit(exc, nothing)
     data = _fetch_loop(fetch_func, exc, pair; from, to, sleep_t, limit, out)
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
@@ -159,7 +167,8 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
             Int(timefloat(out[end, 1]))
         else
             @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
-            find_since(exc, pair)
+            s = find_since(exc, pair)
+            s
         end
     end
 end
@@ -221,7 +230,16 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             limit = isnothing(limit) ? limit : limit ÷ 2
-            _fetch_with_delay(fetch_func, pair; since, df, sleep_t, limit, converter)
+            _fetch_with_delay(
+                fetch_func,
+                pair;
+                since,
+                df,
+                sleep_t,
+                limit,
+                converter,
+                usetimeframe=limit > 500,
+            )
         elseif py_except_name(e) ∈ ccxt_errors
             @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
             @return_empty()
@@ -235,17 +253,25 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
     end
 end
 
-function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, retry)
-    @debug "Calling into ccxt to fetch data: $pair since $(dt(since)), max: $limit"
-    data = fetch_func(pair, since, limit)
+function __handle_fetch(
+    fetch_func, pair, since, limit, sleep_t, df, converter, retry, usetimeframe
+)
+    @debug "Calling into ccxt to fetch data: $pair since $(dt(since)), max: $limit, tf: $usetimeframe"
+    data = fetch_func(pair, since, limit; usetimeframe)
     dpl = pyisinstance(data, @py(list))
     if retry && (!dpl || length(data) == 0)
         @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
         sleep(sleep_t)
-        since_arg = (; since=round(Int, since * 1.005))
-        if since_arg.since > dtstamp(now())
-            since_arg = ()
-            limit = fetch_limit(exc, nothing)
+        since_arg = if isnothing(since)
+            ()
+        else
+            tmp = round(Int, since * 1.005)
+            if tmp > dtstamp(now())
+                limit = fetch_limit(exc, nothing)
+                ()
+            else
+                (; since=tmp)
+            end
         end
         # sleep_t = (sleep_t + 1) * 2
         return (
@@ -258,6 +284,8 @@ function __handle_fetch(fetch_func, pair, since, limit, sleep_t, df, converter, 
                 sleep_t,
                 limit=max(10, something(limit, 20) ÷ 2),
                 converter,
+                retry=limit > 10,
+                usetimeframe=limit > 500,
             ),
         )
     end
@@ -279,10 +307,11 @@ function _fetch_with_delay(
     limit=nothing,
     converter=_to_ohlcv_vecs,
     retry=true,
+    usetimeframe=true,
 )
     try
         handled, data = __handle_fetch(
-            fetch_func, pair, since, limit, sleep_t, df, converter, retry
+            fetch_func, pair, since, limit, sleep_t, df, converter, retry, usetimeframe
         )
         handled && return data
         # Apply conversion to fetched data
@@ -315,8 +344,13 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kw
     timeframe = get(kwargs, :timeframe, config.min_timeframe)
     params = get(kwargs, :params, PyDict())
     py_fetch_func = getproperty(exc, ohlcv_func_bykind(ohlcv_kind))
-    function fetch_func(pair, since, limit)
-        pyfetch(py_fetch_func, pair; since, limit, timeframe, params)
+    function fetch_func(pair, since, limit; usetimeframe=true)
+        kwargs = LittleDict()
+        isnothing(since) || (kwargs[:since] = since)
+        isnothing(limit) || (kwargs[:limit] = limit)
+        usetimeframe && (kwargs[:timeframe] = timeframe)
+        isempty(params) || (kwargs[:params] = params)
+        pyfetch(py_fetch_func, pair; kwargs...)
     end
     kwargs = collect(filterkws(:params, :timeframe, :limit; kwargs, pred=∉))
     _fetch_with_delay(fetch_func, args...; limit, kwargs...)
@@ -409,7 +443,11 @@ function __get_ohlcv(
     @debug "Fetching pair $name."
     z, pair_from_date = from_date(name)
     @debug "...from date $(pair_from_date)"
-    this_date = @something tryparse(DateTime, pair_from_date) DateTime(0)
+    this_date = if pair_from_date isa DateTime
+        pair_from_date
+    else
+        @something tryparse(DateTime, pair_from_date) DateTime(0)
+    end
     if !islast(this_date, timeframe)
         ohlcv = _fetch_ohlcv_from_to(
             exc, name, timeframe; from=pair_from_date, to, cleanup, out, ohlcv_kind
@@ -492,7 +530,9 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
     from = if isempty(df)
         DateTime(0)
     else
-        iscontig, idx, last_date = contiguous_ts(df.timestamp, string(tf), raise=false, return_date=true)
+        iscontig, idx, last_date = contiguous_ts(
+            df.timestamp, string(tf); raise=false, return_date=true
+        )
         if !iscontig
             deleteat!(df, idx:lastindex(df.timestamp))
         end
@@ -501,12 +541,40 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
     end
     if !islast(dt(from), tf)
         cleaned = _fetch_ohlcv_from_to(
-            exc, pair, string(tf); from, to=now(), cleanup=true, out=df, ohlcv_kind
+            exc, pair, string(tf); from, to=now(), cleanup=true, ohlcv_kind
         )
         empty!(df)
         append!(df, cleaned)
     end
     df
+end
+
+@doc "Append rows in df2 to df1, zeroing columns not present in df2."
+function addcols!(dst, src)
+    src_cols = Set(colnames(src))
+    dst_cols = colnames(dst)
+    n = nrow(dst)
+    for col in src_cols
+        if col ∉ dst_cols
+            dst[!, col] = similar(getproperty(src, col), n)
+        end
+    end
+end
+
+function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)
+    function doupdate!(base_tf, base_data, tf, tf_data)
+        let res = resample(base_data, base_tf, tf)
+            addcols!(res, tf_data)
+            append!(tf_data, res)
+        end
+        let tmp = cleanup_ohlcv_data(tf_data, tf)
+            addcols!(tmp, tf_data)
+            empty!(tf_data)
+            append!(tf_data, tmp)
+        end
+        update_ohlcv!(tf_data, pair, exc, tf)
+    end
+    propagate_ohlcv!(data, doupdate!)
 end
 
 function _fetch_candles(
