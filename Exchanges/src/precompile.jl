@@ -1,7 +1,7 @@
 using Lang: wait, @preset, @precomp
 
 @preset let
-    id = :kucoin
+    id = :okx
     using Python: Python
     @assert Python.isinitialized_async(Python.gpa)
     @precomp let
