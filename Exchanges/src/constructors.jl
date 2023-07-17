@@ -6,7 +6,7 @@ using Reexport
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange
 using Ccxt: Ccxt, ccxt_exchange, choosefunc
-using Python: Py, @py, pyconvert, pyfetch, PyDict, pydict
+using Python: Py, pyconvert, pyfetch, PyDict, pydict, pyimport, @pystr
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
 using JSON
@@ -157,7 +157,7 @@ end
     has(exc, :watchTickers) || has(exc, :fetchTickers)
 end
 
-MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery )
+MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery)
 
 @doc "Any of $MARKET_TYPES"
 function markettype(exc)
@@ -196,7 +196,7 @@ macro tickers!(type=nothing, force=false)
                         Dict{String,Dict{String,Any}},
                         pyfetch(
                             first($(exc), :watchTickers, :fetchTickers);
-                            params=LittleDict("type" => tp),
+                            params=LittleDict("type" => @pystr(tp)),
                         ),
                     )
             else
