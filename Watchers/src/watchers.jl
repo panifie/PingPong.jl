@@ -7,7 +7,6 @@ using Data
 using Data: rangeafter
 using Lang: Option, safewait, safenotify, @lget!
 using Processing.DataFrames: DataFrame
-using .Misc: @tspawnat
 using Base.Threads: @spawn
 
 function _tryfetch(w)::Bool
@@ -33,11 +32,11 @@ end
 const Enabled = Val{true}
 const Disabled = Val{false}
 _fetch_task(w, ::Enabled; kwargs...) = @spawn _tryfetch(w; kwargs...)
-_fetch_task(w, ::Disabled; kwargs...) = @tspawnat 1 _tryfetch(w; kwargs...)
+_fetch_task(w, ::Disabled; kwargs...) = @async _tryfetch(w; kwargs...)
 function _schedule_fetch(w, timeout, threads; kwargs...)
     try
         task = _fetch_task(w, Val(w._exec.threads); kwargs...)
-        @tspawnat 1 begin
+        @async begin
             sleep(timeout)
             safenotify(task.donenotify)
         end

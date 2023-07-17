@@ -513,7 +513,7 @@ function _fetch_candles(
     exc, timeframe, pairs::Iterable; from::D1, to::D2, ohlcv_kind=:default
 ) where {D1,D2<:Union{DateTime,AbstractString}}
     @sync Dict(
-        name => @tspawnat 1 __get_ohlcv(
+        name => @async __get_ohlcv(
             exc,
             name,
             timeframe,

@@ -183,7 +183,7 @@ _fromto(to, prd, cap, kept) = to - prd * (cap - kept) - 2prd
 function _from(df, to, tf, cap, ::Val{:append})
     @ifdebug @assert to >= _lastdate(tf)
     date_cap = (to - tf * cap) - tf # add one more period to ensure from inclusion
-    (isempty(df) ? date_cap : max(date_cap, _lastdate(df)))
+    (isempty(df) ? date_cap : min(date_cap, _lastdate(df)))
 end
 _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
 

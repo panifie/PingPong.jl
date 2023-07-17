@@ -154,7 +154,7 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     isempty(w.buffer) && return nothing
     last_fetch = last(w.buffer)
     @sync for (sym, ticker) in last_fetch.value
-        @tspawnat 1 @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
+        @async @logerror w @lock _symlock(w, sym) _update_sym_ohlcv(
             w, ticker, last_fetch.time
         )
     end
@@ -171,8 +171,16 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
     tf = _tfr(w)
     @lock _symlock(w, sym) begin
         df = @lget! w.view sym empty_ohlcv()
-        to = isempty(df) ? _nextdate(tf) : _firstdate(df)
-        _fetchto!(w, df, sym, tf, Val(:prepend); to)
+        if isempty(df)
+           to = _nextdate(tf)
+            _fetchto!(w, df, sym, tf, Val(:append); to)
+            _do_check_contig(w, df, _checks(w))
+        else
+            _fetchto!(w, df, sym, tf, Val(:prepend); to=_firstdate(df))
+            _do_check_contig(w, df, _checks(w))
+            _fetchto!(w, df, sym, tf, Val(:append); to=_nextdate(tf))
+            _do_check_contig(w, df, _checks(w))
+        end
     end
 end
 
@@ -180,6 +188,6 @@ function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
     (isempty(w.buffer) || isempty(w.view)) && return nothing
     syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
     @sync for sym in syms
-        @tspawnat 1 @logerror w _load!(w, w._val, sym)
+        @async @logerror w _load!(w, w._val, sym)
     end
 end

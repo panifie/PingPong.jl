@@ -3,7 +3,6 @@ using LazyJSON
 using Lang: @lget!, @kget!, fromdict, Option
 using TimeTicks
 using ..Watchers
-using ..Misc: @tspawnat
 import ..Watchers:
     _fetch!,
     _init!,

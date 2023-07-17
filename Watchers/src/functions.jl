@@ -15,7 +15,7 @@ end
 function flush!(w::Watcher; force=true, sync=false)
     time_now = now()
     if force || time_now - w.last_flush > w.interval.flush
-        t = @tspawnat 1 begin
+        t = @async begin
             result = @lock w._exec.buffer_lock begin
                 w.last_flush = time_now
                 _flush!(w, w._val)

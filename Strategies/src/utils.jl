@@ -2,7 +2,6 @@ import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
 using Instances: pnl, position, margin
 using Instruments
 using Instruments: @importcash!, AbstractCash
-using .Misc: @tspawnat
 @importcash!
 
 function candleat(ai::AssetInstance, date, tf; kwargs...)
@@ -54,7 +53,7 @@ function current_total(
 )
     worth = Ref(zero(DFT))
     @sync for ai in s.holdings
-        @tspawnat 1 worth[] += ai.cash * price_func(ai)
+        @async worth[] += ai.cash * price_func(ai)
     end
     worth[] + s.cash
 end
@@ -75,7 +74,7 @@ function current_total(
 )
     worth = Ref(zero(DFT))
     @sync for ai in s.holdings
-        @tspawnat 1 let current_price = price_func(ai)
+        @async let current_price = price_func(ai)
             for p in (Long, Short)
                 isopen(ai, p) || continue
                 worth[] += value(ai, p; current_price)

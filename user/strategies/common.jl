@@ -1,6 +1,5 @@
 using Lang: @ifdebug
 using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!
-using .Misc: @tspawnat
 
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
@@ -44,7 +43,7 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
             wv[ai.asset.raw] = ai.ohlcv
         end
         @sync for sym in marketsid(s)
-            @tspawnat 1 load!(w, sym)
+            @async load!(w, sym)
         end
         start!(w)
         setattr!(s, k, w)
