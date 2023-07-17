@@ -24,4 +24,4 @@ _doinit() = begin
     isdefined(Misc, :config) && reset!(config)
 end
 
-export results, @tspawnat
+export results, @tspawnat, @bsync

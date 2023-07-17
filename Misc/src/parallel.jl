@@ -24,3 +24,8 @@ function _instantiate_workers(mod; force=false, num=4)
         workers_setup[] = num
     end
 end
+
+@doc "Like async but using @tspawnat 1."
+macro bsync(expr)
+    :(@tspawnat 1 $expr)
+end

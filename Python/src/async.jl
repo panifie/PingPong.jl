@@ -86,29 +86,38 @@ macro pyfetch(code)
 end
 
 function pyschedule(coro::Py)
-    gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
+    if pyisinstance(coro, Python.gpa.pycoro_type)
+        gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
+    end
 end
 
 pywait_fut(fut::Py) = begin
     # id = rand()
     # @info "waiting fut $(id)"
-    pyisnull(fut) && return nothing
-    while !Bool(fut.done())
+    # pyisnull(fut) && return nothing
+    while !pyisnull(fut) && let v = fut.done()
+        !Bool(v)
+    end
         sleep(0.01)
     end
     # @info "fut $id done!"
 end
 pytask(coro::Py, ::Val{:coro}) = begin
-    @tspawnat 1 let fut = pyschedule($coro)
-        pywait_fut(fut)
-        fut.result()
+    let fut = pyschedule(coro)
+        @tspawnat 1 begin
+            pywait_fut($fut)
+            $fut.result()
+        end
     end
 end
 pytask(coro::Py, ::Val{:try}) = begin
-    @tspawnat 1 try
-        fut = pyschedule($coro)
-        pywait_fut(fut)
-        fut.result()
+    try
+        let fut = pyschedule(coro)
+            @tspawnat 1 begin
+                pywait_fut($fut)
+                $fut.result()
+            end
+        end
     catch e
         e
     end
