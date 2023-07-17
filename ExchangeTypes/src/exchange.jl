@@ -107,11 +107,11 @@ _closeall() = begin
     @sync begin
         while !isempty(exchanges)
             _, e = pop!(exchanges)
-            @tspawnat 1 finalize(e)
+            @tspawnat 1 try finalize(e) catch end
         end
         while !isempty(sb_exchanges)
             _, e = pop!(sb_exchanges)
-            @tspawnat 1 finalize(e)
+            @tspawnat 1 try finalize(e) catch end
         end
     end
 end
