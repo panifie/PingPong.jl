@@ -78,14 +78,24 @@ function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
                 end
             else
                 () -> begin
-                    out = Dict{eltype(inputs),Union{Task,Py}}()
-                    for i in inputs
-                        out[i] = pytask(f, i; kwargs...)
+                    out = Dict{eltype(inputs),Union{Tuple{Py,Task},Py}}()
+                    try
+                        for i in inputs
+                            out[i] = pytask(f, Val(:fut), i; kwargs...)
+                        end
+                        for (i, (_, task)) in out
+                            out[i] = fetch(task)
+                        end
+                        out
+                    catch e
+                        @sync for v in values(out)
+                            v isa Tuple || continue
+                            (fut, task) = v
+                            istaskdone(task) || (pycancel(fut); (@async wait(task)))
+                        end
+                        e isa PyException && rethrow(e)
+                        filter!(p -> p.second isa Tuple, out)
                     end
-                    for (i, task) in out
-                        out[i] = fetch(task)
-                    end
-                    out
                 end
             end
         else
