@@ -31,7 +31,7 @@ function close_exc(exc::CcxtExchange)
         co = e.close()
         if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
             fut = pyschedule(co)
-            pywait_fut(fut)
+            @async pywait_fut(fut)
         end
     end
 end
