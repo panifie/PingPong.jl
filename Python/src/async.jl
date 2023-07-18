@@ -3,6 +3,11 @@ using PythonCall:
 using Dates: Period, Second
 using ThreadPools: @tspawnat
 
+"""
+    PythonAsync(;pyaio::Py = pynew(), pyuv::Py = pynew(), pythreads::Py = pynew(), pyrunner::Py = pynew(), pyloop::Py = pynew(), pycoro_type::Py = pynew(), task::Ref{Task} = Ref{Task}())
+
+A structure that holds references to the Python asynchronous objects and state.
+"""
 @kwdef struct PythonAsync
     pyaio::Py = pynew()
     pyuv::Py = pynew()
@@ -15,10 +20,20 @@ end
 
 const gpa = PythonAsync()
 
+"""
+    isinitialized_async(pa::PythonAsync)
+
+Checks if python async state (event loop) is initialized.
+"""
 function isinitialized_async(pa::PythonAsync)
     !pyisnull(pa.pyaio)
 end
 
+"""
+    copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
+
+Copies a python async structures.
+"""
 function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
     if pyisnull(pa_to.pyaio) && !pyisnull(pa_from.pyaio)
         for f in fieldnames(PythonAsync)
@@ -30,6 +45,11 @@ function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
     end
 end
 
+"""
+    _async_init(pa::PythonAsync)
+
+Initialized a =PythonAsync= structure (which holds a reference to the event loop.)
+"""
 function _async_init(pa::PythonAsync)
     isinitialized_async(pa) && return nothing
     copyto!(pa, gpa) && return nothing
@@ -56,6 +76,11 @@ function _async_init(pa::PythonAsync)
     @assert !pyisnull(gpa.pyaio)
 end
 
+"""
+    py_start_loop(pa::PythonAsync)
+
+Starts a python event loop, updating =pa=.
+"""
 function py_start_loop(pa::PythonAsync)
     pyaio = pa.pyaio
     pyuv = pa.pyuv
@@ -73,6 +98,11 @@ function py_start_loop(pa::PythonAsync)
     atexit(pyloop_stop_fn(pa))
 end
 
+"""
+    pyloop_stop_fn(pa)
+
+Generates a function that terminates the python even loop.
+"""
 pyloop_stop_fn(pa) = begin
     fn() = begin
         pyisnull(pa.pyloop) || pa.pyloop.stop()
@@ -84,28 +114,43 @@ pyloop_stop_fn(pa) = begin
     fn
 end
 
-# FIXME: This doesn't work if we pass `args...; kwargs...`
+# FIXME: This doesn't work if we pass =args...; kwargs...=
 macro pytask(code)
     @assert code.head == :call
     Expr(:call, :pytask, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
-# FIXME: This doesn't work if we pass `args...; kwargs...`
+# FIXME: This doesn't work if we pass =args...; kwargs...`
 macro pyfetch(code)
     @assert code.head == :call
     Expr(:call, :pyfetch, esc(code.args[1]), :(Val(:fut)), esc.(code.args[2:end])...)
 end
 
+"""
+    pyschedule(coro::Py)
+
+Schedules a Python coroutine to run on the event loop.
+"""
 function pyschedule(coro::Py)
     if pyisinstance(coro, Python.gpa.pycoro_type)
         gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
     end
 end
 
+"""
+    _isfutdone(fut::Py)
+
+Checks if a Python future is done.
+"""
 _isfutdone(fut::Py) = pyisnull(fut) || let v = fut.done()
     Bool(v)
 end
 
+"""
+    pywait_fut(fut::Py)
+
+Waits for a Python future to be done.
+"""
 pywait_fut(fut::Py) = begin
     # id = rand()
     # @info "waiting fut $(id)"
@@ -114,6 +159,12 @@ pywait_fut(fut::Py) = begin
     end
     # @info "fut $id done!"
 end
+
+"""
+    pytask(coro::Py, ::Val{:coro})
+
+Creates a Julia task from a Python coroutine and runs it asynchronously.
+"""
 pytask(coro::Py, ::Val{:coro}) = begin
     let fut = pyschedule(coro)
         @async begin
@@ -122,6 +173,12 @@ pytask(coro::Py, ::Val{:coro}) = begin
         end
     end
 end
+
+"""
+    pytask(coro::Py, ::Val{:fut})::Tuple{Py,Union{Py,Task}}
+
+Creates a Julia task from a Python coroutine and returns the Python future and the Julia task.
+"""
 pytask(coro::Py, ::Val{:fut})::Tuple{Py,Union{Py,Task}} = begin
     fut = pyschedule(coro)
     (fut, @async if _isfutdone(fut)
@@ -130,11 +187,35 @@ pytask(coro::Py, ::Val{:fut})::Tuple{Py,Union{Py,Task}} = begin
         (pywait_fut($fut); $fut.result())
     end)
 end
+
+"""
+    pytask(f::Py, args...; kwargs...)
+
+Creates a Julia task from a Python function call and runs it asynchronously.
+"""
 pytask(f::Py, args...; kwargs...) = pytask(f(args...; kwargs...), Val(:coro))
+
+"""
+    pytask(f::Py, ::Val{:fut}, args...; kwargs...)
+
+Creates a Julia task from a Python function call and returns the Python future and the Julia task.
+"""
 function pytask(f::Py, ::Val{:fut}, args...; kwargs...)
     pytask(f(args...; kwargs...), Val(:fut))
 end
+
+"""
+    pycancel(fut::Py)
+
+Cancels a Python future.
+"""
 pycancel(fut::Py) = pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(fut.cancel))
+
+"""
+    pyfetch(f::Py, args...; kwargs...)
+
+Fetches the result of a Python function call synchronously.
+"""
 function pyfetch(f::Py, args...; kwargs...)
     let (fut, task) = pytask(f(args...; kwargs...), Val(:fut))
         try
@@ -149,6 +230,12 @@ function pyfetch(f::Py, args...; kwargs...)
         end
     end
 end
+
+"""
+    pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
+
+Fetches the result of a Python function call synchronously and returns an exception if any.
+"""
 function pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     try
         fut, task = pytask(f, Val(:fut), args...; kwargs...)
@@ -167,8 +254,21 @@ function pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     end
 end
 
+"""
+    pyfetch(f::Function, args...; kwargs...)
+
+Fetches the result of a Julia function call synchronously.
+"""
 pyfetch(f::Function, args...; kwargs...) = fetch(@async(f(args...; kwargs...)))
 
+"""
+    pyfetch_timeout(
+        f1::Py, f2::Union{Function,Py}, timeout::Period, args...; kwargs...
+)
+
+Fetches the result of a Python function call synchronously with a timeout. If the timeout is reached,
+it calls another function and returns its result.
+"""
 function pyfetch_timeout(
     f1::Py, f2::Union{Function,Py}, timeout::Period, args...; kwargs...
 )
@@ -212,6 +312,11 @@ end
 #     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 # end
 
+"""
+    async_jl_func()
+
+Main async loop function, sleeps for a short time and yields to Julia tasks.
+"""
 function async_jl_func()
     code = """
     global asyncio, inf, juliacall, Main, jlyield
