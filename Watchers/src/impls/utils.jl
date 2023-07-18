@@ -111,11 +111,11 @@ _warmed!(w, ::Pending) = w.attrs[:status] = Warmed()
 _pending!(attrs) = attrs[:status] = Pending()
 _pending!(w::Watcher) = _pending!(w.attrs)
 _status(w::Watcher) = w.attrs[:status]
-_chill!(w) = w.attrs[:next] = apply(_tfr(w), now())
+_chill!(w) = w.attrs[:warmup_target] = apply(_tfr(w), now())
 _warmup!(_, ::Warmed) = nothing
 @doc "Checks if we can start processing data, after we are past the initial incomplete timeframe."
 function _warmup!(w, ::Pending)
-    apply(_tfr(w), now()) > w.attrs[:next] && _warmed!(w, _status(w))
+    apply(_tfr(w), now()) > w.attrs[:warmup_target] && _warmed!(w, _status(w))
 end
 macro warmup!(w)
     w = esc(w)
