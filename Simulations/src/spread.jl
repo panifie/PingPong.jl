@@ -167,21 +167,21 @@ function spreadat(v::Val{:edge2}, df::AbstractDataFrame, idx; kwargs...)
 end
 
 function spreadat(inst::AssetInstance, idx, v::Val=Val(:opcl); kwargs...)
-    @deassert inst.ohlcv.volume[idx] > 0
-    spreadat(v, inst.ohlcv, idx; kwargs...)
+    @deassert ohlcv(inst).volume[idx] > 0
+    spreadat(v, ohlcv(inst), idx; kwargs...)
 end
 
 @doc "Calc the spread of an asset instance at a specified date.
 
 If date is not provided, the last available date will be considered."
 function spreadat(inst::AssetInstance, date::DateTime, v::Val=Val(:opcl); kwargs...)
-    df = inst.ohlcv
+    df = ohlcv(inst)
     idx = dateindex(df, date)
     spreadat(v, df, idx; kwargs...)
 end
 
 function spreadat(inst::AssetInstance, v::Val=Val(:opcl); kwargs...)
-    df = inst.ohlcv
+    df = ohlcv(inst)
     date = df.timestamp[end]
     idx = dateindex(df, date)
     spreadat(v, df, idx; kwargs...)
@@ -195,6 +195,6 @@ function isfakeoc(df::AbstractDataFrame)
     end
     true
 end
-isfakeoc(ai::AssetInstance) = isfakeoc(ai.ohlcv)
+isfakeoc(ai::AssetInstance) = isfakeoc(ohlcv(ai))
 
 export spread, spreadat, isfakeoc

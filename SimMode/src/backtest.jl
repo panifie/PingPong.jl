@@ -49,10 +49,10 @@ end
 backtest!(s; kwargs...) = backtest!(s, Context(s); kwargs...)
 function backtest!(s, count::Integer; kwargs...)
     if count > 0
-        from = first(universe(s).data.instance).ohlcv.timestamp[begin]
+        from = ohlcv(first(universe(s).data.instance)).timestamp[begin]
         to = from + s.timeframe.period * count
     else
-        to = last(universe(s).data.instance).ohlcv.timestamp[end]
+        to = ohlcv(last(universe(s).data.instance)).timestamp[end]
         from = to + s.timeframe.period * count
     end
     ctx = Context(Sim(), s.timeframe, from, to)

@@ -16,7 +16,7 @@ macro define_candle_func(fname)
     fname = esc(Symbol(eval(fname)))
     ex1 = quote
         function func(ai::AssetInstance, date; kwargs...)
-            func(ai.ohlcv, date; kwargs...)
+            func(ohlcv(ai), date; kwargs...)
         end
     end
     ex1.args[2].args[1].args[1] = fname
@@ -85,7 +85,7 @@ function current_total(
 end
 
 function lasttrade_date(ai)
-    isempty(ai.history) ? ai.ohlcv.timestamp[end] : last(ai.history).date
+    isempty(ai.history) ? ohlcv(ai).timestamp[end] : last(ai.history).date
 end
 
 function lasttrade_func(s)

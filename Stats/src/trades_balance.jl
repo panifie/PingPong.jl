@@ -19,7 +19,7 @@ appsum(x, y, atol=1e-15) = orzero(x + y, atol)
 aroundtrades(ai, tf) = begin
     start_date = first(ai.history).order.date - tf
     stop_date = last(ai.history).date + tf
-    df = ai.ohlcv[DateRange(start_date, stop_date)]
+    df = ohlcv(ai)[DateRange(start_date, stop_date)]
     df = resample(df, tf)
 end
 
