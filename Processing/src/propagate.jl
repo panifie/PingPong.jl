@@ -15,7 +15,9 @@ The function modifies =data= in place and returns it.
 If the base data frame is empty, the function empties all the higher time frames data frames.
 Otherwise, the function updates each higher time frame data frame asynchronously and checks the timestamps.
 """
-function propagate_ohlcv!(data::SortedDict{TimeFrame,DataFrame}, update_func::Function)
+function propagate_ohlcv!(
+    data::SortedDict{TimeFrame,DataFrame}, update_func::Function=propagate_ohlcv!
+)
     base_tf, base_data = first(data)
     if isempty(base_data)
         foreach(empty!, Iterators.drop(values(data), 1))
@@ -42,14 +44,19 @@ The source and destination timeframes must be compatible with the resample funct
 function propagate_ohlcv!(
     src::DataFrame, dst::DataFrame; src_tf=timeframe!(src), dst_tf=timeframe!(dst)
 )
-    date_dst = lastdate(dst)
-    src_slice = @view src[rangeafter(src.timestamp, date_dst), :]
-    new = resample(src_slice, src_tf, dst_tf)
-    isempty(new) && return dst
-    if isleftadj(date_dst, firstdate(new), dst_tf)
+    if isempty(dst)
+        new = resample(src, src_tf, dst_tf)
         append!(dst, new)
     else
-        dst
+        date_dst = lastdate(dst)
+        src_slice = @view src[rangeafter(src.timestamp, date_dst), :]
+        new = resample(src_slice, src_tf, dst_tf)
+        isempty(new) && return dst
+        if isleftadj(date_dst, firstdate(new), dst_tf)
+            append!(dst, new)
+        else
+            dst
+        end
     end
 end
 
