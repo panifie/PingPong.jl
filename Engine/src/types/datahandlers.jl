@@ -1,4 +1,4 @@
-import .Processing: propagate_ohlcv!
+import .Data: propagate_ohlcv!
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
 Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
@@ -96,5 +96,8 @@ function Base.fill!(ai::AssetInstance, tfs...)
 end
 
 function propagate_ohlcv!(ai::AssetInstance)
+    # from `Fetch` module
     propagate_ohlcv!(ai.data, ai.asset.raw, ai.exchange)
 end
+
+propagate_ohlcv!(s::Strategy) = foreach(propagate_ohlcv!, universe(s))

@@ -19,3 +19,4 @@ Base.push!(o::OHLCVTuple, tup::Tuple) = begin
 end
 
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
+propagate_ohlcv!(args...; kwargs...) = error("not implemented")

@@ -13,7 +13,6 @@ using Pbar
 using Python
 using Python: pylist_to_matrix, py_except_name
 using Processing: cleanup_ohlcv_data, islast, resample
-import Processing: propagate_ohlcv!
 using Exchanges.Data:
     Data,
     load,
@@ -28,6 +27,7 @@ using Exchanges.Data:
     OHLCV_COLUMNS,
     OHLCVTuple,
     ohlcvtuple
+import .Data: propagate_ohlcv!
 using .Data.DFUtils: lastdate, colnames
 using .Data.DataStructures: SortedDict
 using .Data.Misc
