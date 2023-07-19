@@ -95,7 +95,7 @@ const Exec = NamedTuple{
     Tuple{Bool,ReentrantLock,ReentrantLock,CircularBuffer{Tuple{Any,Vector}}},
 }
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
-const Beacon = NamedTuple{(:fetch, :process, :flush), NTuple{3, Threads.Condition}}
+const Beacon = NamedTuple{(:fetch, :process, :flush),NTuple{3,Threads.Condition}}
 
 @kwdef mutable struct Watcher22{T}
     const buffer::CircularBuffer{BufferEntry(T)}
@@ -166,7 +166,11 @@ function _watcher(
         has=HasFunction((load, process, flush)),
         interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
         capacity=Capacity((buffer_capacity, view_capacity)),
-        beacon=(Threads.Condition(), Threads.Condition(), Threads.Condition()),
+        beacon=(;
+            fetch=Threads.Condition(),
+            process=Threads.Condition(),
+            flush=Threads.Condition(),
+        ),
         _exec=Exec((
             threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),

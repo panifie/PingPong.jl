@@ -59,8 +59,7 @@ end
 
 @doc "True if last available data entry is older than `now() + fetch_interval + fetch_timeout`."
 function isstale(w::Watcher)
-    w.attempts > 0 ||
-        w.last_fetch < now() - w.interval.fetch - w.interval.timeout
+    w.attempts > 0 || w.last_fetch < now() - w.interval.fetch - w.interval.timeout
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
@@ -70,8 +69,9 @@ function Base.close(w::Watcher; doflush=true) # @lock w._exec.fetch_lock begin
         try
             isstopped(w) || stop!(w)
             doflush && flush!(w)
-            let name = w.name
-                haskey(WATCHERS, name) && delete!(WATCHERS, name)
+            if haskey(WATCHERS, w.name)
+                get(WATCHERS[w.name].attrs, :started, DateTime(0)) ==
+                get(w.attrs, :started, DateTime(0)) && delete!(WATCHERS, w.name)
             end
             nothing
         finally
@@ -112,6 +112,7 @@ end
 start!(w::Watcher) = begin
     @assert isstopped(w) "Tried to start an already started watcher."
     empty!(w._exec.errors)
+    w[:started] = now()
     _start!(w, w._val)
     _timer!(w)
     w._stop = false
