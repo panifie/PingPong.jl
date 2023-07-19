@@ -49,7 +49,7 @@ end
 @doc "All trades recorded in the strategy universe (includes liquidations)."
 trades_count(s::Strategy) = begin
     n_trades = 0
-    for ai in s.universe
+    for ai in universe(s)
         n_trades += length(ai.history)
     end
     n_trades
@@ -59,7 +59,7 @@ end
 function trades_count(s::Strategy, ::Val{:liquidations})
     trades = 0
     liquidations = 0
-    for ai in s.universe
+    for ai in universe(s)
         asset_liquidations = count((x -> x isa LiquidationTrade), ai.history)
         trades += length(ai.history) - asset_liquidations
         liquidations += asset_liquidations
@@ -71,7 +71,7 @@ function trades_count(s::Strategy, ::Val{:positions})
     long = 0
     short = 0
     liquidations = 0
-    for ai in s.universe
+    for ai in universe(s)
         long_asset_liquidations = count((x -> x isa LongLiquidationTrade), ai.history)
         short_asset_liquidations = count((x -> x isa ShortLiquidationTrade), ai.history)
         n_longs = count((x -> x isa LongTrade), ai.history)
@@ -107,8 +107,8 @@ function Base.show(out::IO, s::Strategy)
         out,
         "Config: $(string(s.margin)), $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
     )
-    n_inst = nrow(s.universe.data)
-    n_exc = length(unique(s.universe.data.exchange))
+    n_inst = nrow(universe(s).data)
+    n_exc = length(unique(universe(s).data.exchange))
     write(out, "Universe: $n_inst instances, $n_exc exchanges")
     write(out, "\n")
     mmh = minmax_holdings(s)

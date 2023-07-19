@@ -186,7 +186,7 @@ function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
         position!(s, ai, date)
     end
     @ifdebug _checkorders(s)
-    @ifdebug for ai in s.universe
+    @ifdebug for ai in universe(s)
         @assert !(isopen(ai, Short()) && isopen(ai, Long()))
         let po = position(ai)
             @assert ai ∈ s.holdings || isnothing(po) || !isopen(po) po, status(po)

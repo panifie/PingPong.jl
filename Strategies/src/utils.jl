@@ -97,7 +97,7 @@ end
 function tradesedge(s::Strategy)
     first_trade = nothing
     last_trade = nothing
-    for ai in s.universe
+    for ai in universe(s)
         isempty(ai.history) && continue
         this_trade = first(ai.history)
         if isnothing(first_trade) || this_trade.date < first_trade.date
@@ -149,7 +149,7 @@ function sizehint!(s::Strategy)
     end
     ai_sizes = @lget! sizes :_ai_sizes Dict{String,Int}()
     ai_logs_sizes = @lget! sizes :_ai_logs_sizes Dict{String,Int}()
-    for ai in s.universe
+    for ai in universe(s)
         _sizehint!(ai.history, ai_sizes, ai.asset.raw)
         _sizehint!(ai.logs, ai_logs_sizes, ai.asset.raw)
     end

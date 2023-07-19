@@ -7,9 +7,9 @@ using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersde
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
-assets(s::Strategy) = s.universe.data.asset
+assets(s::Strategy) = universe(s).data.asset
 @doc "Strategy assets instance."
-instances(s::Strategy) = s.universe.data.instance
+instances(s::Strategy) = universe(s).data.instance
 @doc "Strategy main exchange id."
 exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
@@ -26,9 +26,10 @@ Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M()
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
 
-coll.iscashable(s::Strategy) = coll.iscashable(s.cash, s.universe)
+coll.iscashable(s::Strategy) = coll.iscashable(s.cash, universe(s))
 Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
 Base.nameof(s::Strategy) = nameof(typeof(s))
+universe(s::Strategy) = getfield(s, :universe)
 
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
@@ -40,7 +41,7 @@ reset!(s::Strategy, config=false) = begin
         empty!(d)
     end
     empty!(s.holdings)
-    for ai in s.universe
+    for ai in universe(s)
         reset!(ai, Val(:full))
     end
     config && reset!(s.config)
@@ -53,7 +54,7 @@ reset!(s::Strategy, config=false) = begin
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
 reload!(s::Strategy) = begin
-    for inst in s.universe.data.instance
+    for inst in universe(s).data.instance
         empty!(inst.data)
         load!(inst; reset=true)
     end
@@ -65,7 +66,7 @@ default!(s::Strategy) = begin
     setattr!(s, :throttle, Second(5))
 end
 
-Base.fill!(s::Strategy) = coll.fill!(s.universe, s.timeframe, s.config.timeframes)
+Base.fill!(s::Strategy) = coll.fill!(universe(s), s.timeframe, s.config.timeframes)
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
         _config_attr(s, :attrs)

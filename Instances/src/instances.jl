@@ -204,16 +204,15 @@ function load!(a::AssetInstance; reset=true, zi=zi)
         append!(df, loaded)
     end
 end
-_ohlcv(ai) = first(getfield(ai, :data)).second
 Base.getproperty(ai::AssetInstance, f::Symbol) = begin
     if f == :ohlcv
-        _ohlcv(ai)
+        ohlcv(ai)
     elseif f == :bc
         ai.asset.bc
     elseif f == :qc
         ai.asset.qc
     elseif f == :funding
-        metadata(_ohlcv(ai), "funding")
+        metadata(ohlcv(ai), "funding")
     else
         getfield(ai, f)
     end

@@ -25,7 +25,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     # ensure that universe data start at the same time
     @ifdebug _resetglobals!()
     if trim_universe
-        let data = flatten(s.universe)
+        let data = flatten(universe(s))
             !check_alignment(data) && trim!(data)
         end
     end
@@ -36,7 +36,7 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
     update_mode = s.attrs[:sim_update_mode]::ExecAction
     for date in ctx.range
         isoutof_orders(s) && begin
-            @deassert all(iszero(ai) for ai in s.universe)
+            @deassert all(iszero(ai) for ai in universe(s))
             break
         end
         update!(s, date, update_mode)
@@ -49,10 +49,10 @@ end
 backtest!(s; kwargs...) = backtest!(s, Context(s); kwargs...)
 function backtest!(s, count::Integer; kwargs...)
     if count > 0
-        from = first(s.universe.data.instance).ohlcv.timestamp[begin]
+        from = first(universe(s).data.instance).ohlcv.timestamp[begin]
         to = from + s.timeframe.period * count
     else
-        to = last(s.universe.data.instance).ohlcv.timestamp[end]
+        to = last(universe(s).data.instance).ohlcv.timestamp[end]
         from = to + s.timeframe.period * count
     end
     ctx = Context(Sim(), s.timeframe, from, to)

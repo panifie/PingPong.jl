@@ -26,7 +26,7 @@ function Base.similar(
         marginmode(s),
         timeframe,
         exc,
-        similar(s.universe);
+        similar(universe(s));
         config=copy(s.config),
     )
 end
