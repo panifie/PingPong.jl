@@ -31,7 +31,7 @@ function _tryfetch(w)::Bool
         logerror(w, result)
         false
     else
-        safenotify(w.beacon)
+        safenotify(w.beacon.fetch)
         result
     end
 end
@@ -95,14 +95,15 @@ const Exec = NamedTuple{
     Tuple{Bool,ReentrantLock,ReentrantLock,CircularBuffer{Tuple{Any,Vector}}},
 }
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
+const Beacon = NamedTuple{(:fetch, :process, :flush), NTuple{3, Threads.Condition}}
 
-@kwdef mutable struct Watcher21{T}
+@kwdef mutable struct Watcher22{T}
     const buffer::CircularBuffer{BufferEntry(T)}
     const name::String
     const has::HasFunction
     const interval::Interval
     const capacity::Capacity
-    const beacon::Threads.Condition
+    const beacon::Beacon
     const _exec::Exec
     const _val::Val
     _stop = false
@@ -121,14 +122,14 @@ end
  - `fetch_interval`: the `Period` with which `_fetch!` function will be called.
  - `flush_interval`: the `Period` with which `_flush!` function will be called.
  - `capacity`: controls the size of the buffer and the processed container.
- - `beacon`: A condition that is notified whenever a successful fetch is performed.
+ - `beacon`: Conditions notified on successful fetch, process and flush events.
  - `threads`: flag to enable to execute fetching in a separate thread.
  - `attempts`: In cause of fetching failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
  - `last_fetch`: the most recent time a fetch operation failed.
  - `last_flush`: the most recent time the flush function was called.
  - `_timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
  """
-Watcher = Watcher21
+Watcher = Watcher22
 const WATCHERS = Misc.ConcurrentCollections.ConcurrentDict{String,Watcher}()
 
 @doc """ Instantiate a watcher.
@@ -159,13 +160,13 @@ function _watcher(
 )
     _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
     @debug "new watcher: $name"
-    w = Watcher21{T}(;
+    w = Watcher22{T}(;
         buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
         name=String(name),
         has=HasFunction((load, process, flush)),
         interval=Interval((fetch_timeout, fetch_interval, flush_interval)),
         capacity=Capacity((buffer_capacity, view_capacity)),
-        beacon=Threads.Condition(),
+        beacon=(Threads.Condition(), Threads.Condition(), Threads.Condition()),
         _exec=Exec((
             threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),

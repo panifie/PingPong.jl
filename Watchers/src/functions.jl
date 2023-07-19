@@ -19,6 +19,7 @@ function flush!(w::Watcher; force=true, sync=false)
             result = @lock w._exec.buffer_lock begin
                 w.last_flush = time_now
                 _flush!(w, w._val)
+                safenotify(w.beacon.flush)
             end
             ifelse(result isa Exception, logerror(w, result), result)
         end
@@ -40,7 +41,10 @@ function fetch!(w::Watcher; reset=false, kwargs...)
 end
 
 function process!(w::Watcher, args...; kwargs...)
-    @logerror w _process!(w, w._val, args...; kwargs...)
+    @logerror w begin
+        _process!(w, w._val, args...; kwargs...)
+        safenotify(w.beacon.process)
+    end
 end
 load!(w::Watcher, args...; kwargs...) = _load!(w, w._val, args...; kwargs...)
 init!(w::Watcher, args...; kwargs...) = _init!(w, w._val, args...; kwargs...)
