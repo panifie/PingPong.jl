@@ -98,7 +98,12 @@ df[dtr"1999-.."] # Starting from 1999 up to the end
 df[dtr"..1999-"] # From the beginning up to 1999
 df[dtr"1999-..2000-"] # The Year 1999
 """
-function getdate(df::AbstractDataFrame, dr::DateRange, cols, tf=timeframe!(df))
+function getdate(
+    df::AbstractDataFrame,
+    dr::Union{DateRange,StepRange{DateTime,<:Period}},
+    cols,
+    tf=timeframe!(df),
+)
     @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     stop = lastdate(df)
@@ -127,7 +132,9 @@ function getdate(df::AbstractDataFrame, dr::DateRange, cols, tf=timeframe!(df))
     @view df[start_idx:stop_idx, cols]
 end
 
-function getindex(df::AbstractDataFrame, dr::DateRange, cols)
+function getindex(
+    df::AbstractDataFrame, dr::Union{DateRange,StepRange{DateTime,<:Period}}, cols
+)
     start_idx = searchsortedfirst(df.timestamp, dr.start)
     stop_idx = searchsortedlast(df.timestamp, dr.stop)
     v = @view df[start_idx:stop_idx, cols]
@@ -138,7 +145,7 @@ end
 function getindex(df::AbstractDataFrame, idx::DateTime)
     getindex(df, idx, Symbol.(names(df)))
 end
-function getindex(df::AbstractDataFrame, idx::DateRange)
+function getindex(df::AbstractDataFrame, idx::Union{DateRange,StepRange{DateTime,<:Period}})
     getindex(df, idx, Symbol.(names(df)))
 end
 
