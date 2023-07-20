@@ -46,7 +46,7 @@ function leverage_tiers(exc::Exchange, sym::AbstractString)
         if isnothing(ans)
             pytiers = pyfetch(exc.fetchMarketLeverageTiers, Val(:try), sym)
             if pytiers isa PyException || isnothing(pytiers)
-                @warn "Couldn't fetch leverage tiers for $sym from $(exc.name). Using defaults."
+                @warn "Couldn't fetch leverage tiers for $sym from $(exc.name). Using defaults. ($pytiers)"
                 ans = default_leverage_tier(sym)
             else
                 tiers = pyconvert(Vector{Dict{String,Any}}, pytiers)
