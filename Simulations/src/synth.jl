@@ -152,9 +152,9 @@ end
 
 @doc "Generates synthethic funding rate data from asset ohlc."
 function stub!(ai::AssetInstance, ::Val{:funding}; force=false)
-    ohlcv = ohlcv(ai)
-    if force || "funding" ∉ metadatakeys(ohlcv)
-        funding = synthfunding(ohlcv)
-        metadata!(ohlcv, "funding", funding, style=:default)
+    data = ohlcv(ai)
+    if force || "funding" ∉ metadatakeys(data)
+        funding = synthfunding(data)
+        metadata!(data, "funding", funding, style=:default)
     end
 end
