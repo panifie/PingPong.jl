@@ -73,6 +73,8 @@ macro strategyenv!()
 
         using .st: freecash, setattr!, attr
         using .pp.Engine.Exchanges: getexchange!
+        using .Data: propagate_ohlcv!
+        using .Misc: after, before, rangeafter, rangebefore
 
         const $(esc(:ect)) = PingPong.Engine.Executors
 
