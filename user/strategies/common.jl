@@ -1,9 +1,10 @@
-using Lang: @ifdebug
-using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!
+using Lang: @ifdebug, safewait, safenotify
+using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
 
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
+__revise_mode__ = :eval
 
 _timeframe(s) = s.attrs[:timeframe]
 _reset!(s) = begin
@@ -27,14 +28,14 @@ end
 
 function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timeframe(s))
     if s isa Union{PaperStrategy,LiveStrategy}
-        exc = getexchange!(s.exchange, sandbox=false)
+        exc = getexchange!(s.exchange; sandbox=false)
         w = ccxt_ohlcv_tickers_watcher(
             exc;
             timeframe=tf,
             syms=marketsid(s),
             flush=false,
             logfile=st.logpath(s; name=string(k)),
-            view_capacity
+            view_capacity,
         )
         w.attrs[:quiet] = true
         w.attrs[:resync_noncontig] = true
@@ -45,6 +46,14 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
         @sync for sym in marketsid(s)
             @async load!(w, sym)
         end
+        w[:process_func] = () -> while true
+            safewait(w.beacon.process)
+            isstopped(w) && break
+            for ai in s.universe
+                propagate_ohlcv!(ai.data)
+            end
+        end
+        w[:process_task] = @async w[:process_func]()
         start!(w)
         setattr!(s, k, w)
     end
