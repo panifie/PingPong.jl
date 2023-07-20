@@ -28,7 +28,7 @@ using Exchanges.Data:
     OHLCVTuple,
     ohlcvtuple
 import .Data: propagate_ohlcv!
-using .Data.DFUtils: lastdate, colnames
+using .Data.DFUtils: lastdate, colnames, addcols!
 using .Data.DataStructures: SortedDict
 using .Data.Misc
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
@@ -543,22 +543,11 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
         cleaned = _fetch_ohlcv_from_to(
             exc, pair, string(tf); from, to=now(), cleanup=true, ohlcv_kind
         )
+        Data.DFUtils.addcols!(cleaned, df)
         empty!(df)
         append!(df, cleaned)
     end
     df
-end
-
-@doc "Append rows in df2 to df1, zeroing columns not present in df2."
-function addcols!(dst, src)
-    src_cols = Set(colnames(src))
-    dst_cols = colnames(dst)
-    n = nrow(dst)
-    for col in src_cols
-        if col ∉ dst_cols
-            dst[!, col] = similar(getproperty(src, col), n)
-        end
-    end
 end
 
 function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)

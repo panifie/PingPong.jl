@@ -4,6 +4,7 @@ using DataFrames
 using DataFrames: index
 using TimeTicks
 import TimeTicks: timeframe, timeframe!
+import Misc: after, before
 using Lang
 import Base: getindex
 import ..Data: contiguous_ts
@@ -200,6 +201,28 @@ pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
 
 function contiguous_ts(df::DataFrame, args...; kwargs...)
     contiguous_ts(df.timestamp, string(timeframe!(df)), args...; kwargs...)
+end
+
+function after(df::DataFrame, dt::DateTime, cols=:)
+    idx = dateindex(df, dt) + 1
+    view(df, idx:nrow(df), cols)
+end
+
+function before(df::DataFrame, dt::DateTime, cols=:)
+    idx = dateindex(df, dt) - 1
+    view(df, 1:idx, cols)
+end
+
+@doc "Append rows in df2 to df1, zeroing columns not present in df2."
+function addcols!(dst, src)
+    src_cols = Set(colnames(src))
+    dst_cols = colnames(dst)
+    n = nrow(dst)
+    for col in src_cols
+        if col ∉ dst_cols
+            dst[!, col] = similar(getproperty(src, col), n)
+        end
+    end
 end
 
 export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate, zerorow

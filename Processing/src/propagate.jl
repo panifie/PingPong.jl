@@ -1,5 +1,6 @@
 using Data.DataStructures: SortedDict
 using Data: contiguous_ts
+using Data.DFUtils: addcols!
 using .Lang: @deassert
 using Misc.DocStringExtensions
 using Misc: rangeafter
@@ -46,6 +47,7 @@ function propagate_ohlcv!(
 )
     if isempty(dst)
         new = resample(src, src_tf, dst_tf)
+        addcols!(new, dst)
         append!(dst, new)
     else
         date_dst = lastdate(dst)
@@ -53,6 +55,7 @@ function propagate_ohlcv!(
         new = resample(src_slice, src_tf, dst_tf)
         isempty(new) && return dst
         if isleftadj(date_dst, firstdate(new), dst_tf)
+            addcols!(new, dst)
             append!(dst, new)
         else
             dst
