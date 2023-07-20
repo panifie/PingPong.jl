@@ -74,8 +74,15 @@ include("../../PingPong/test/stubs/Example.jl")
 function stub_strategy(mod=nothing, args...; dostub=true, cfg=nothing, kwargs...)
     isnothing(cfg) && (cfg = Misc.Config())
     if isnothing(mod)
-        ppath = dirname(dirname(Pkg.project().path))
-        cfg.attrs["include_file"] = realpath(joinpath(ppath, "PingPong", "test/stubs/Example.jl"))
+        p = get(ENV, "PINGPONG_PATH", "/pingpong/PingPong")
+        ppath = if isdir(p)
+            p
+        elseif basename(realpath(".")) == "PingPong"
+            realpath(".")
+        elseif isdir("./PingPong")
+            realpath("./PingPong")
+        end
+        cfg.attrs["include_file"] = realpath(joinpath(ppath, "test/stubs/Example.jl"))
         mod = Example
     end
     s = Strategies.strategy!(mod, cfg, args...; kwargs...)
@@ -90,7 +97,12 @@ end
             gensave_trades(; s, dosave=false)
         catch
             s = stub_strategy(; dostub=false)
-            gensave_trades(; s, dosave=true)
+            while any(isempty(ai.history) for ai in s.universe)
+                gensave_trades(; s, dosave=false)
+            end
+            for ai in s.universe
+                save_stubtrades(ai)
+            end
             stub_strategy(; dostub=true)
         end
     end
