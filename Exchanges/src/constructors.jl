@@ -191,14 +191,21 @@ macro tickers!(type=nothing, force=false)
         let tp = @something($type, markettype($exc)), nm = $(exc).name, k = (nm, tp)
             if $force || k ∉ keys(tickers_cache)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                tickers_cache[k] =
+                tickers_cache[k] = let f = first($(exc), :watchTickers, :fetchTickers)
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        pyfetch(
-                            first($(exc), :watchTickers, :fetchTickers);
-                            params=LittleDict("type" => @pystr(tp)),
-                        ),
+                        let v = pyfetch(f; params=LittleDict("type" => @pystr(tp)))
+                            if v isa PyException && Bool(f == $exc.watchTickers)
+                                pyfetch(
+                                    $(exc).fetchTickers;
+                                    params=LittleDict("type" => @pystr(tp)),
+                                )
+                            else
+                                throw(v)
+                            end
+                        end,
                     )
+                end
             else
                 $tickers = tickers_cache[k]
             end
