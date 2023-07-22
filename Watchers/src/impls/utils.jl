@@ -1,4 +1,5 @@
 using Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
+using Data.DFUtils: lastdate
 using Data.DataFramesMeta
 using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
@@ -59,7 +60,9 @@ Base.convert(::Type{Symbol}, s::AbstractString) = Symbol(s)
 _checks(w) = w.attrs[:checks]
 _checksoff!(w) = w.attrs[:checks] = Val(:off)
 _checkson!(w) = w.attrs[:checks] = Val(:on)
-_do_check_contig(w, df, ::Val{:on}) = isempty(df) || _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
+function _do_check_contig(w, df, ::Val{:on})
+    isempty(df) || _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
+end
 _do_check_contig(_, _, ::Val{:off}) = nothing
 _check_contig(w, df) = !isempty(df) && _do_check_contig(w, df, _checks(w))
 
@@ -190,7 +193,9 @@ _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
 
 @doc "`op`: `appendmax!` or `prependmax!`
 If the watcher has attribute `resync_noncontig` set to true, preloaded data will be discarded if non contiguous."
-function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
+function _fetchto!(
+    w, df, sym, tf, op=Val(:append); to, from=isempty(df) ? nothing : lastdate(df)
+)
     rows = nrow(df)
     prd = period(tf)
     rows > 0 && try
@@ -199,7 +204,11 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         logerror(w, e, catch_backtrace())
         if get(w.attrs, :resync_noncontig, false)
             # df can have immutable vectors which can't be emptied
-            df = try empty!(df) catch; empty(df) end
+            df = try
+                empty!(df)
+            catch
+                empty(df)
+            end
             rows = 0
         end
     end
@@ -221,6 +230,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         end
         @debug isempty(sliced) || sliced[begin, :timestamp]
         cleaned = cleanup_ohlcv_data(sliced, tf)
+
         # # Cleaning can add missing rows, and expand the range outside our target dates
         cleaned = DataFrame(
             @view(cleaned[rangebetween(cleaned.timestamp, from, to), :]); copycols=false

@@ -1,4 +1,5 @@
 using Data: OHLCV_COLUMNS
+using Data.DFUtils: lastdate
 using Misc: between
 using Processing: iscomplete
 using Lang: fromstruct, ifproperty!, ifkey!
@@ -177,7 +178,7 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
         else
             _fetchto!(w, df, sym, tf, Val(:prepend); to=_firstdate(df))
             _do_check_contig(w, df, _checks(w))
-            _fetchto!(w, df, sym, tf, Val(:append); to=_nextdate(tf))
+            _fetchto!(w, df, sym, tf, Val(:append); from=lastdate(df), to=_nextdate(tf))
             _do_check_contig(w, df, _checks(w))
         end
     end
