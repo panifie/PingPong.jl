@@ -6,6 +6,7 @@ using Fetch: fetch_candles
 using Lang
 using Misc: rangeafter, rangebetween
 using Processing: cleanup_ohlcv_data, iscomplete, isincomplete
+using ..Watchers: logerror
 
 _parsedatez(s::AbstractString) = begin
     s = rstrip(s, 'Z')
@@ -58,7 +59,7 @@ Base.convert(::Type{Symbol}, s::AbstractString) = Symbol(s)
 _checks(w) = w.attrs[:checks]
 _checksoff!(w) = w.attrs[:checks] = Val(:off)
 _checkson!(w) = w.attrs[:checks] = Val(:on)
-_do_check_contig(w, df, ::Val{:on}) = _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
+_do_check_contig(w, df, ::Val{:on}) = isempty(df) || _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
 _do_check_contig(_, _, ::Val{:off}) = nothing
 _check_contig(w, df) = !isempty(df) && _do_check_contig(w, df, _checks(w))
 
@@ -194,9 +195,11 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     prd = period(tf)
     rows > 0 && try
         _check_contig(w, df)
-    catch
+    catch e
+        logerror(w, e, catch_backtrace())
         if get(w.attrs, :resync_noncontig, false)
-            empty!(df)
+            # df can have immutable vectors which can't be emptied
+            df = try empty!(df) catch; empty(df) end
             rows = 0
         end
     end
