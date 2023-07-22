@@ -75,6 +75,7 @@ macro strategyenv!()
         using .pp.Engine.Exchanges: getexchange!
         using .Data: propagate_ohlcv!
         using .Misc: after, before, rangeafter, rangebefore
+        using .inst: ohlcv
 
         const $(esc(:ect)) = PingPong.Engine.Executors
 
