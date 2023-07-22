@@ -200,8 +200,10 @@ macro tickers!(type=nothing, force=false)
                                     $(exc).fetchTickers;
                                     params=LittleDict("type" => @pystr(tp)),
                                 )
-                            else
+                            elseif v isa Exception
                                 throw(v)
+                            else
+                                v
                             end
                         end,
                     )
