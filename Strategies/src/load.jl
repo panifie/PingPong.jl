@@ -52,7 +52,10 @@ function strategy!(src::Symbol, cfg::Config)
         @eval Main begin
             try
                 using Pkg: Pkg
-                $isproject && Pkg.activate($project_file; io=Base.devnull)
+                $isproject && begin
+                    Pkg.activate($project_file; io=Base.devnull)
+                    Pkg.instantiate(io=Base.devnull)
+                end
                 if isdefined(Main, :Revise)
                     Main.Revise.includet($path)
                 else
