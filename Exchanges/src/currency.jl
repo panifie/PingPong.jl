@@ -31,7 +31,7 @@ end
 
 function _lpf(exc, cur)
     local limits, precision, fees
-    if isnothing(cur)
+    if isnothing(cur) || pyisnone(cur)
         limits = (; min=1e-8, max=1e8)
         precision = 8
         fees = zero(DFT)
