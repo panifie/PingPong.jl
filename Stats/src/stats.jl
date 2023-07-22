@@ -19,3 +19,4 @@ __revise_mode__ = :eval
 include("trades_resample.jl")
 include("trades_balance.jl")
 include("metrics.jl")
+include("trades_metrics.jl")
