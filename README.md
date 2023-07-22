@@ -18,7 +18,7 @@ The one-of-a-kind solution for automated (crypto)trading. PingPong is unparallel
 - :chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
 - :bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
 - :mag: Optimization (grid search, evolution and bayesian opt algorithms, restore/resume capability and plotting)
-- :page_facing_up: Paper mode (not implemented)
+- :page_facing_up: Paper mode (using real orderbook and trades history)
 - :red_circle: Live (not implemented)
 - :stop_button: Telegram Bot (not implemented)
 - :desktop_computer: Dashboard (not implemented)
