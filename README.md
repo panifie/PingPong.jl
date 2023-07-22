@@ -1,12 +1,10 @@
-[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/)
+[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
 
 :zap: Speedy backtester!
 :bar_chart: Highly interactive and explorative plotting!
 :rocket: Trivial deployments!
-
-All within your fingertips!
 
 The one-of-a-kind solution for automated (crypto)trading. PingPong is unparalleled in its flexibility to adapt to different trading environments. The bot is setup to be easy to customize, and can execute any kind of strategy thanks to an approachable set of interfaces. It comes with a backtest engine that also supports trading with margin (and therefore position management). Paper mode allows to dry run your strategies before executing them in Live mode. The framework allows to achieve no code duplication between simulated and live modes.
 
