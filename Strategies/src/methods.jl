@@ -27,6 +27,9 @@ Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M()
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
 
 coll.iscashable(s::Strategy) = coll.iscashable(s.cash, universe(s))
+issim(::Strategy{M}) where {M<:ExecMode} = M == Sim
+ispaper(::Strategy{M}) where {M<:ExecMode} = M == Paper
+islive(::Strategy{M}) where {M<:ExecMode} = M == Live
 Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
 Base.nameof(s::Strategy) = nameof(typeof(s))
 universe(s::Strategy) = getfield(s, :universe)
