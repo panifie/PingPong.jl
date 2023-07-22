@@ -154,23 +154,24 @@ function daterange(df::AbstractDataFrame, tf=timeframe(df), rightofs=1)
     DateRange(df.timestamp[begin], df.timestamp[end] + tf * rightofs, tf)
 end
 
-function _copysubs!(df, cols)
-    names = colnames(df)
-    for (n, col) in enumerate(cols)
-        if col isa SubArray
-            df[!, names[n]] = copy(col)
+_copysub(arr::A) where {A<:Array} = arr
+_copysub(arr::A) where {A<:SubArray} = Array(arr)
+
+@doc "Replaces subarrays with arrays."
+function copysubs!(df::D) where {D<:AbstractDataFrame}
+    subs_mask = [x isa SubArray for x in eachcol(df)]
+    if any(subs_mask)
+        subs = @view df[:, subs_mask]
+        for p in propertynames(subs)
+            df[!, p] = _copysub(getproperty(subs, p))
         end
     end
 end
 
 function _make_room(df, capacity, n)
-    # @ifdebug @assert n > 0;
     diff = capacity - nrow(df)
+    copysubs!(df)
     if diff < n
-        # copy columns that can't be modified
-        let cols = eachcol(df)
-            last(cols) isa SubArray && _copysubs!(df, cols)
-        end
         deleteat!(df, firstindex(df, 1):abs(diff - n))
     end
 end

@@ -5,6 +5,7 @@ using Misc.Lang
 using Data.DataStructures
 using Data.DataFrames
 using Data: PairData, @with
+using Data.DFUtils: copysubs!
 
 timestamp_by_timeframe(df, tf, tail) = apply(tf, df[tail ? end : begin, :timestamp])
 
@@ -21,17 +22,6 @@ function common_timestamp(
         end
     end
     common
-end
-
-_copysub(arr::Array) = arr
-_copysub(arr::SubArray) = Array(arr)
-
-@doc "Replaces subarrays with arrays."
-copysubs!(df::AbstractDataFrame) = begin
-    for col in Symbol.(names(df))
-        arr = getproperty(df, col)
-        setproperty!(df, col, _copysub(arr))
-    end
 end
 
 is_left_adjacent(target, step) = x -> x + step > target
