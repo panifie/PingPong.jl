@@ -115,7 +115,8 @@ _closeall() = begin
     end
 end
 
-atexit(_closeall)
+# atexit(_closeall)
+Base.nameof(e::CcxtExchange) = nameof(getfield(e, :id))
 
 exchange(args...; kwargs...) = error("not implemented")
 
