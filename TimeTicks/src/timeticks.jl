@@ -151,6 +151,7 @@ ms(tf::TimeFrame) = Millisecond(period(tf))
 ms(prd::Period) = Millisecond(prd)
 ms(v) = Millisecond(v)
 timeframe(s::AbstractString) = convert(TimeFrame, s)
+timeframe(n::AbstractFloat) = TimeFrame(Millisecond(n))
 timeframe!(args...; kwargs...) = error("Not implemented")
 
 dt(::Nothing) = :nothing
@@ -206,6 +207,11 @@ macro infertf(data, field=:timestamp)
     end
 end
 
+function TimeFrames.apply(period::N, time::N) where {N<:Number}
+    inv_prec = 1.0 / period
+    round(time * inv_prec) / inv_prec
+end
+
 const tf_conv_map = Dict{Period,TimeFrame}()
 function convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond})
     @lget! tf_conv_map v.period begin
@@ -244,4 +250,3 @@ export now, available, from_to_dt
 export compact
 
 include("daterange.jl")         #
-

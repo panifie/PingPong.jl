@@ -60,6 +60,10 @@ function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop
 end
 
+function Base.isapprox(dr1::DateRange, dr2::DateRange)
+    dr1.start >= dr2.start && dr1.stop <= dr2.stop
+end
+
 function Base.parse(::Type{DateRange}, s::AbstractString)
     local to = step = ""
     (from, tostep) = split(s, "..")
