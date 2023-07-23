@@ -3,7 +3,11 @@ using .OrderTypes: LiquidationTrade, LongTrade, ShortTrade
 function trades_duration(ai::AssetInstance; raw=false, f=mean)
     periods = getproperty.(ai.history, :date) |> diff
     periods_num = getproperty.(periods, :value) # milliseconds
-    μ = f(periods_num)
+    μ = if length(ai.history) > 1
+        f(periods_num)
+    else
+        Millisecond(lastdate(ai) - first(ai.history).date).value
+    end
     raw ? μ : compact(Millisecond(trunc(μ)))
 end
 
@@ -48,6 +52,7 @@ end
 function trades_stats(s::Strategy)
     res = DataFrame()
     for ai in s.universe
+        isempty(ai.history) && continue
         avg_dur = trades_duration(ai; f=mean)
         med_dur = trades_duration(ai; f=median)
         min_dur = trades_duration(ai; f=minimum)
@@ -67,8 +72,8 @@ function trades_stats(s::Strategy)
         liquidations = count(x -> x isa LiquidationTrade, ai.history)
         longs = count(x -> x isa LongTrade, ai.history)
         shorts = count(x -> x isa ShortTrade, ai.history)
-        weekday = trades_weekday(ai, f=mean)
-        monthday = trades_monthday(ai, f=mean)
+        weekday = trades_weekday(ai; f=mean)
+        monthday = trades_monthday(ai; f=mean)
 
         push!(
             res,
@@ -92,8 +97,17 @@ function trades_stats(s::Strategy)
                 med_leverage,
                 min_leverage,
                 max_leverage,
-            ), promote=true
+            );
+            promote=false,
         )
+        # upcast periods for pretty print
+        if nrow(res) == 1
+            for prop in (:avg, :med, :min, :max)
+               prop = Symbol("$(prop)_dur")
+               arr = getproperty(res, prop)
+               setproperty!(res, prop, convert(Vector{Period}, arr))
+            end
+        end
     end
     res
 end
