@@ -133,7 +133,8 @@ Schedules a Python coroutine to run on the event loop.
 """
 function pyschedule(coro::Py)
     if pyisinstance(coro, Python.gpa.pycoro_type)
-        gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
+        # gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
+        gpa.pyloop.create_task(coro)
     end
 end
 
