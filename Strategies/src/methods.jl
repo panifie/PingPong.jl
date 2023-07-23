@@ -69,7 +69,14 @@ default!(s::Strategy) = begin
     setattr!(s, :throttle, Second(5))
 end
 
-Base.fill!(s::Strategy) = coll.fill!(universe(s), s.timeframe, s.config.timeframes)
+Base.fill!(s::Strategy; kwargs...) = begin
+    tfs = Set{TimeFrame}()
+    push!(tfs, s.timeframe)
+    push!(tfs, s.config.timeframes...)
+    push!(tfs, attr(s, :timeframe, s.timeframe))
+    coll.fill!(universe(s), tfs...; kwargs...)
+end
+
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
         _config_attr(s, :attrs)
