@@ -1,7 +1,10 @@
 import .Data: propagate_ohlcv!
+using .Data.DFUtils: copysubs!
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
-Base.fill!(ac::AssetCollection, tfs...) = @eachrow ac.data fill!(:instance, tfs...)
+function Base.fill!(ac::AssetCollection, tfs...; kwargs...)
+    @eachrow ac.data fill!(:instance, tfs...; kwargs...)
+end
 
 @doc "Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
 
@@ -52,14 +55,25 @@ function _check_timeframes(tfs, from_tf)
 end
 
 # Check if we have available data
-function _load_smallest!(i, tfs, from_data, from_tf)
-    if size(from_data)[1] == 0
+function _load_smallest!(i, tfs, from_data, from_tf, exc, force=false)
+    if size(from_data)[1] == 0 || force
+        force && begin
+            copysubs!(from_data, empty)
+            empty!(from_data)
+        end
         append!(from_data, load(zi, exc.name, i.asset.raw, string(from_tf)))
-        if size(from_data)[1] == 0
+        if size(from_data)[1] == 0 || force
             for to_tf in tfs
-                i.data[to_tf] = empty_ohlcv()
+                to_tf == from_tf && continue
+                if force
+                    data = i.data[to_tf]
+                    copysubs!(data, empty)
+                    empty!(data)
+                else
+                    i.data[to_tf] = empty_ohlcv()
+                end
             end
-            return false
+            return force
         end
         true
     else
@@ -67,32 +81,38 @@ function _load_smallest!(i, tfs, from_data, from_tf)
     end
 end
 
-function _load_rest!(ai, tfs, from_tf, from_data)
-    exc_name = ai.exchange.name
+function _load_rest!(
+    ai, tfs, from_tf, from_data, exc=ai.exchange, force=false; from=nothing
+)
+    exc_name = exc.name
     name = ai.asset.raw
     dr = daterange(from_data)
+    ai_tfs = Set(keys(ai.data))
+    from = @something from dr.start
     for to_tf in tfs
-        if to_tf ∉ Set(keys(ai.data)) # current tfs
-            from_sto = load(
-                zi, exc_name, ai.asset.raw, string(to_tf); from=dr.start, to=dr.stop
-            )
-            ai.data[to_tf] = if size(from_sto)[1] > 0 && daterange(from_sto) == dr
-                from_sto
-            else
-                # NOTE: resample fails if `from_data` is corrupted (not contiguous)
-                resample(from_data, from_tf, to_tf; exc_name, name)
-            end
+        if to_tf ∉ ai_tfs || force # current tfs
+            from_sto = load(zi, exc_name, ai.asset.raw, string(to_tf); from, to=dr.stop)
+            ai.data[to_tf] =
+                if size(from_sto)[1] > 0 && let dr_sto = daterange(from_sto)
+                    dr_sto.start >= apply(to_tf, from) &&
+                        dr_sto.stop <= apply(to_tf, dr.stop)
+                end
+                    from_sto
+                else
+                    # NOTE: resample fails if `from_data` is corrupted (not contiguous)
+                    resample(from_data, from_tf, to_tf; exc_name, name)
+                end
         end
     end
 end
 
 @doc "Pulls data from storage, or resample from the shortest timeframe available."
-function Base.fill!(ai::AssetInstance, tfs...)
+function Base.fill!(ai::AssetInstance, tfs...; exc=ai.exchange, force=false, from=nothing)
     # asset timeframes dict is sorted
     (from_tf, from_data) = first(ai.data)
     _check_timeframes(tfs, from_tf)
-    _load_smallest!(ai, tfs, from_data, from_tf) || return nothing
-    _load_rest!(ai, tfs, from_tf, from_data)
+    _load_smallest!(ai, tfs, from_data, from_tf, exc, force) || return nothing
+    _load_rest!(ai, tfs, from_tf, from_data, exc, force; from)
 end
 
 function propagate_ohlcv!(ai::AssetInstance)
