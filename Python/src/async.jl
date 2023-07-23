@@ -169,8 +169,8 @@ Creates a Julia task from a Python coroutine and runs it asynchronously.
 pytask(coro::Py, ::Val{:coro}) = begin
     let fut = pyschedule(coro)
         @async begin
-            pywait_fut($fut)
-            $fut.result()
+            pywait_fut(fut)
+            fut.result()
         end
     end
 end
@@ -185,7 +185,7 @@ pytask(coro::Py, ::Val{:fut})::Tuple{Py,Union{Py,Task}} = begin
     (fut, @async if _isfutdone(fut)
         fut.result()
     else
-        (pywait_fut($fut); $fut.result())
+        (pywait_fut(fut); fut.result())
     end)
 end
 
