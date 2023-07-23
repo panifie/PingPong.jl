@@ -157,18 +157,21 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
     if from == 0.0
         find_since(exc, pair)
     else
+        since_ts = Int(from)
         append!(
             out,
-            _fetch_with_delay(
-                fetch_func, pair; since=Int(from), df=is_df, limit, converter
-            ),
+            _fetch_with_delay(fetch_func, pair; since=since_ts, df=is_df, limit, converter),
         )
         if size(out, 1) > 0
+            first_date = apply(tf"1d", out[begin, :timestamp])
+            since_date = apply(tf"1d", dt(since_ts))
+            if since_date != DateTime(0) && first_date > since_date
+                @warn "Exchange ($(nameof(exc))) likely ignores `since` argument [$(since_date) ($(pair))]"
+            end
             Int(timefloat(out[end, 1]))
         else
             @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
-            s = find_since(exc, pair)
-            s
+            find_since(exc, pair)
         end
     end
 end
@@ -355,7 +358,7 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kw
     kwargs = collect(filterkws(:params, :timeframe, :limit; kwargs, pred=∉))
     _fetch_with_delay(fetch_func, args...; limit, kwargs...)
 end
-# FIXME: we assume the exchange class is set (is not pynull), if itsn't set PythonCall segfaults
+# FIXME: `pairs` and `timeframe` should swap place to be consistent with `load_ohlcv` func
 function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
     pairs = pairs isa String ? [pairs] : pairs
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
@@ -518,7 +521,7 @@ function fetch_ohlcv(
         progress && @pbupdate!
     end
     try
-        foreach(data!, pairs)
+        asyncmap(data!, pairs)
     finally
         progress && @pbstop!
     end
