@@ -158,7 +158,7 @@ _copysub(arr::A) where {A<:Array} = arr
 _copysub(arr::A) where {A<:SubArray} = Array(arr)
 
 @doc "Replaces subarrays with arrays."
-function copysubs!(df::D) where {D<:AbstractDataFrame}
+function copysubs!(df::D, copyfunc=_copysub) where {D<:AbstractDataFrame}
     subs_mask = [x isa SubArray for x in eachcol(df)]
     if any(subs_mask)
         subs = @view df[:, subs_mask]
