@@ -1,4 +1,4 @@
-using Lang: @lget!, @deassert
+using Lang: @lget!, @deassert, MatchString
 import Instances.ExchangeTypes: exchangeid, exchange
 import Misc: reset!, Long, Short
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
@@ -137,5 +137,6 @@ function Base.propertynames(::Strategy)
     )
 end
 
+Base.getindex(s::Strategy, k::MatchString) = getindex(s.universe, k)
 Base.getindex(s::Strategy, k) = attr(s, k)
 Base.setindex!(s::Strategy, v, k) = setattr!(s, k, v)

@@ -80,7 +80,7 @@ function paperstop!(s::PaperStrategy)
 end
 
 function paperlog(s)
-    @something get(s.attrs, :logfile, nothing) st.logpath(s, name="paper")
+    get!(s.attrs, :logfile, st.logpath(s; name="paper"))
 end
 
 export paper!, paperstop!

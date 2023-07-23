@@ -89,7 +89,11 @@ end
 function Base.getindex(ac::AssetCollection, i::MatchString, col=Colon())
     v = @view ac.data[startswith.(getproperty.(ac.data.asset, :raw), uppercase(i.s)), :]
     isempty(v) && return v
-    @view v[begin, col]
+    if col == Colon()
+        v[begin, :instance]
+    else
+        @view v[begin, col]
+    end
 end
 Base.getindex(ac::AssetCollection, i, i2, i3) = ac[i, i2][i3]
 
