@@ -91,9 +91,10 @@ function py_start_loop(pa::PythonAsync)
     @assert !pyisnull(pyaio)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
 
-    pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
-    pycopy!(pyloop, pyrunner.get_loop())
+    pyisnull(pycoro_type) || pycopy!(pycoro_type, pyimport("types").CoroutineType)
+    pyisnull(pyrunner) || pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
+    pyisnull(pyloop) || pycopy!(pyloop, pyrunner.get_loop())
+    @assert !isassigned(pa.task) || istaskdone(pa.task[])
     pa.task[] = @async pyrunner.run(async_jl_func()())
     atexit(pyloop_stop_fn(pa))
 end
@@ -105,6 +106,7 @@ Generates a function that terminates the python even loop.
 """
 pyloop_stop_fn(pa) = begin
     fn() = begin
+        !isassigned(pa.task) || istaskdone(pa.task[]) && return
         pyisnull(pa.pyloop) || pa.pyloop.stop()
         try
             wait(pa.task[])
@@ -328,12 +330,14 @@ function async_jl_func()
     jlyield = getattr(Main, "yield")
     jlsleep = getattr(Main, "sleep")
     async def main():
-        try:
-            while True:
-                await asyncio.sleep(1e-3)
-                jlsleep(1e-3)
-        finally:
-            asyncio.get_running_loop().stop()
+        while True:
+            try:
+                while True:
+                    await asyncio.sleep(1e-3)
+                    jlsleep(1e-3)
+            finally:
+                asyncio.get_running_loop().stop()
+            await asyncio.sleep(1e-1)
     """
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 end
