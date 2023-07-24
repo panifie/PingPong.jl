@@ -52,8 +52,8 @@ function Base.show(io::IO, t::Trade)
     show(io, t.order)
 end
 
-_verb(o::BuyOrder) = "Bought "
-_verb(o::SellOrder) = "Sold "
+_verb(o::AnyBuyOrder) = "Bought "
+_verb(o::AnySellOrder) = "Sold "
 
 Base.display(o::Order) = begin
     write(stdout, _verb(o))
