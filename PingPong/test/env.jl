@@ -4,8 +4,12 @@ using Random
 @environment!
 const ot = ect.OrderTypes
 
-backtest_strat(sym; mode=Sim(), kwargs...) = begin
-    s = egn.strategy(sym; mode, kwargs...)
+function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
+    cfg = Config(sym; mode, kwargs...)
+    for (k, v) in pairs(config_attrs)
+        cfg.attrs[k] = v
+    end
+    s = egn.strategy!(sym, cfg)
     Random.seed!(1)
     mode == Sim() && Stubs.stub!(s; trades=false)
     s

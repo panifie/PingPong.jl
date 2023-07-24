@@ -14,7 +14,7 @@ function pong!(
 )
     o, obside = create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
     isnothing(o) && return nothing
-    marketorder!(s, t, ai; date, obside)
+    marketorder!(s, o, ai; date, obside)
 end
 
 @doc "Creates a simulated limit order."

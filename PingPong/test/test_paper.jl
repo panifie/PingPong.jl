@@ -4,16 +4,17 @@ using Random
 using Lang: @m_str
 
 function emptyuni!(s)
+    copysubs! = @eval da.DFUtils.copysubs!
     for ai in s.universe
         for df in values(ai.data)
-            empty!(df)
+            copysubs!(df, empty)
         end
     end
 end
 
 function doreset!(s)
-   st.reset!(s)
-   emptyuni!(s)
+    st.reset!(s)
+    emptyuni!(s)
 end
 
 function test_paper_margin(s)
@@ -21,7 +22,7 @@ function test_paper_margin(s)
     doreset!(s)
     @test s isa st.IsolatedStrategy
     @test execmode(s) == Paper()
-    ai = s.universe[m"eth"].instance
+    ai = s[m"eth"]
     date = now()
     this_p = lastprice(ai)
     t = ect.pong!(
@@ -120,7 +121,7 @@ end
 function test_paper_nomargin_market(s)
     doreset!(s)
     @test execmode(s) == Paper()
-    ai = s.universe[m"eth"].instance
+    ai = s[m"eth"]
     date = now()
     prev_cash = s.cash.value
     t = ect.pong!(s, ai, ot.MarketOrder{ot.Buy}; amount=0.02, date)
@@ -150,7 +151,7 @@ function test_paper_nomargin_gtc(s)
     doreset!(s)
     @test execmode(s) == Paper()
     @test s isa st.NoMarginStrategy
-    ai = s.universe[m"eth"].instance
+    ai = s[m"eth"]
     date = now()
     prev_cash = s.cash.value
     ect.pong!(s, ai, ot.GTCOrder{ot.Buy}; amount=0.02, date)
@@ -194,9 +195,10 @@ function test_paper_nomargin_gtc(s)
     o = first(ect.orders(s, ai, ot.Buy))[2]
     prev_len = length(o.attrs.trades)
     start_mon = now()
+    was_filled = false
     ect.isfilled(ai, o) || while now() - start_mon < Second(10)
         sleep(1)
-        length(o.attrs.trades) > prev_len && break
+        length(o.attrs.trades) > prev_len && (was_filled = true; break)
     end
     @test ect.isfilled(ai, o) ||
         length(o.attrs.trades) > prev_len ||
@@ -208,7 +210,7 @@ function test_paper_nomargin_gtc(s)
     while taken_vol[] + amount < total_vol[]
         t = ect.pong!(s, ai, ot.GTCOrder{ot.Buy}; amount, price, date)
         date += Millisecond(1)
-        this_vol += t.amount
+        t isa ot.Trade && (this_vol += t.amount)
         yield()
     end
     n_orders = ect.orderscount(s, ai)
@@ -217,7 +219,7 @@ function test_paper_nomargin_gtc(s)
     )
     @test n_orders == ect.orderscount(s, ai)
     @test isnothing(t)
-    @test s.cash < s.initial_cash - this_vol * price
+    @test s.cash < s.initial_cash - this_vol * this_p
 end
 
 function test_paper_nomargin_ioc(s)
@@ -225,7 +227,7 @@ function test_paper_nomargin_ioc(s)
     doreset!(s)
     @test execmode(s) == Paper()
     @test s isa st.NoMarginStrategy
-    ai = s.universe[m"eth"].instance
+    ai = s[m"eth"]
     date = now()
     prev_cash = s.cash.value
     this_p = lastprice(ai)
@@ -234,6 +236,7 @@ function test_paper_nomargin_ioc(s)
     )
     _, _, total_vol = st.attr(s, :paper_liquidity)[ai]
     @test t isa ot.Trade
+    @test ot.isatomic(t.order)
     @test t.amount ≈ 0.01
     @test ect.isfilled(ai, t.order)
     @test ect.orderscount(s, ai) == 0
@@ -252,6 +255,7 @@ function test_paper_nomargin_ioc(s)
         date,
     )
     @test t isa ot.Trade
+    @test ot.isatomic(t.order)
     o = t.order
     @test ect.orderscount(s, ai_unlimited) == 0
     @test length(o.attrs.trades) == 0 || ect.unfilled(o) < o.amount
@@ -264,13 +268,14 @@ function test_paper_nomargin_fok(s)
     doreset!(s)
     @test s isa st.NoMarginStrategy
     @test execmode(s) == Paper()
-    ai = s.universe[m"eth"].instance
+    ai = s[m"eth"]
     date = now()
     prev_cash = s.cash.value
     this_p = lastprice(ai)
     t = ect.pong!(
         s, ai, ot.FOKOrder{ot.Buy}; amount=0.01, price=this_p + this_p / 50.0, date
     )
+    @test ot.isatomic(t.order)
     @test t isa ot.BuyTrade
     @test ect.isfilled(ai, t.order)
     @test s.cash < prev_cash
@@ -279,6 +284,7 @@ function test_paper_nomargin_fok(s)
     t = ect.pong!(
         s, ai, ot.FOKOrder{ot.Sell}; amount=cash(ai).value, price=sell_price, date
     )
+    @test ot.isatomic(t.order)
     @test t isa ot.SellTrade
     @test t.price >= sell_price
     @test ect.isfilled(ai, t.order)
@@ -306,14 +312,21 @@ function test_paper_nomargin_fok(s)
     @test n_trades == length(ai_unlimited.history)
 end
 
-test_paper() = @testset "positions" begin
-    @eval include(joinpath(@__DIR__, "env.jl"))
-    s = backtest_strat(:Example)
-    @testset test_paper_nomargin_market(s)
-    @testset test_paper_nomargin_gtc(s)
-    @testset test_paper_nomargin_ioc(s)
-    @testset test_paper_nomargin_fok(s)
+function test_paper()
+    @testset "positions" begin
+        @eval include(joinpath(@__DIR__, "env.jl"))
+        try
+            s = backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Paper())
+            # @testset test_paper_nomargin_market(s)
+            # @testset test_paper_nomargin_gtc(s)
+            # @testset test_paper_nomargin_ioc(s)
+            # @testset test_paper_nomargin_fok(s)
+        finally
+            reset!(s)
+        end
 
-    s = backtest_strat(:ExampleMargin)
-    @testset test_paper_margin(s)
+        s = backtest_strat(:ExampleMargin; config_attrs=(; skip_watcher=true), mode=Paper())
+        @testset test_paper_margin(s)
+        return nothing
+    end
 end

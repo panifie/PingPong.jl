@@ -23,6 +23,7 @@ function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0))
 end
 
 ping!(s::S, ::ResetStrategy) = begin
+    skip_watcher = attr(s, :skip_watcher, false)
     _reset!(s)
     s.attrs[:buydiff] = 1.0001
     s.attrs[:selldiff] = 1.0011
@@ -40,7 +41,7 @@ ping!(s::S, ::ResetStrategy) = begin
     else
     end
     _initparams!(s)
-    _tickers_watcher(s)
+    skip_watcher || _tickers_watcher(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
@@ -51,7 +52,10 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     s.attrs[:verbose] = false
     _reset!(s)
     _reset_pos!(s)
-    _tickers_watcher(s)
+    if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
+        _tickers_watcher(s)
+        inst.stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
+    end
     s
 end
 

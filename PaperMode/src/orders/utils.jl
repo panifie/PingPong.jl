@@ -1,7 +1,8 @@
 using SimMode: create_sim_market_order, marketorder!, AnyFOKOrder, AnyIOCOrder
 using Fetch: orderbook
 using .Instances.Exchanges: ticker!, pyconvert
-using .OrderTypes: ordertype, positionside, NotEnoughLiquidity
+using .OrderTypes: ordertype, positionside, NotEnoughLiquidity, isatomic
+using Executors: isfilled
 
 _istriggered(o::AnyLimitOrder{Buy}, price) = price <= o.price
 _istriggered(o::AnyLimitOrder{Sell}, price) = price >= o.price
@@ -71,6 +72,7 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         return this_price, zero(DFT), nothing
     end
     last_trade = trade!(s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false)
+    @assert !(o isa AnyFOKOrder) || isfilled(ai, o)
     @deassert o.amount ≈ this_vol || o isa AnyLimitOrder (o.amount, this_vol)
     taken_vol[] += this_vol
     return avg_price, this_vol, last_trade

@@ -13,18 +13,19 @@ __revise_mode__ = :eval
 include("common.jl")
 
 ping!(s::S, ::ResetStrategy) = begin
+    skip_watcher = attr(s, :skip_watcher, false)
     _reset!(s)
     _initparams!(s)
     _overrides!(s)
-    _tickers_watcher(s)
+    skip_watcher || _tickers_watcher(s)
 end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
     _reset!(s)
-    _tickers_watcher(s)
-    if s isa Union{PaperStrategy,LiveStrategy}
-        stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
+    if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
+        _tickers_watcher(s)
+        inst.stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
     end
     s
 end
