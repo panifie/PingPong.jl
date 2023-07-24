@@ -156,6 +156,7 @@ islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
+isatomic(::Order{T}) where {T<:OrderType} = T <: AtomicOrderType
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 trades(args...; kwargs...) = error("not implemented")
