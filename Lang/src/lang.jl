@@ -280,10 +280,18 @@ end
 macro logerror(fileexpr)
     quote
         open($(esc(fileexpr)), "a") do f
-            println(f, string($(__module__).Dates.now()))
-            Base.showerror(f, $(esc(:e)))
-            Base.show_backtrace(f, Base.catch_backtrace())
+            $(@__MODULE__).@writeerror(f)
         end
+    end
+end
+
+macro writeerror(filehandle)
+    quote
+        f = $(esc(filehandle))
+        println(f, string($(__module__).Dates.now()))
+        Base.showerror(f, $(esc(:e)))
+        Base.show_backtrace(f, Base.catch_backtrace())
+        flush(f)
     end
 end
 
