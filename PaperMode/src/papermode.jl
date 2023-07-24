@@ -9,7 +9,7 @@ using Executors.Misc
 using Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
-using .Misc.Lang: @lget!, @deassert, Option
+using .Misc.Lang: @lget!, @deassert, Option, @logerror
 using Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using Executors.Strategies
 using .Instances: MarginInstance
@@ -20,10 +20,13 @@ import Executors: pong!
 using Fetch: pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
-const RUNNING_PAPER = ConcurrentDict{Symbol,Tuple{Ref{Bool},Option{Task}}}()
 
 function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=true)
-    doreset && st.reset!(s)
+    if doreset
+        st.reset!(s)
+    elseif :paper_running ∉ keys(s.attrs) # only set defaults on first run
+        ordersdefault!(s)
+    end
     startinfo = "Starting strategy $(nameof(s)) in paper mode!
 
     throttle: $throttle
@@ -46,26 +49,36 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         @info startinfo
         name = nameof(s)
         last_flush = DateTime(0)
-        while RUNNING_PAPER[name][1][]
-            infofunc()
-            now() - last_flush > Second(1) && flush(loghandle)
-            last_flush = now()
-            ping!(s, now(), nothing)
-            sleep(throttle)
+        paper_running = attr(s, :paper_running)
+        @assert isassigned(paper_running)
+        try
+            while paper_running[]
+                infofunc()
+                now() - last_flush > Second(1) && flush(loghandle)
+                last_flush = now()
+                try
+                    ping!(s, now(), nothing)
+                catch e
+                    @logerror loghandle
+                end
+                sleep(throttle)
+            end
+        finally
+            paper_running[] = false
         end
     end
+    s[:paper_running] = Ref(true)
     if foreground
-        RUNNING_PAPER[nameof(s)] = (Ref(true), nothing)
+        s[:paper_task] = nothing
         doping(stdout)
     else
         logfile = paperlog(s)
         loghandle = open(logfile, "w")
         logger = SimpleLogger(open(logfile, "w"))
         try
-            t = @async with_logger(logger) do
+            s[:paper_task] = @async with_logger(logger) do
                 doping(loghandle)
             end
-            RUNNING_PAPER[nameof(s)] = (Ref(true), t)
         finally
             flush(loghandle)
             close(loghandle)
@@ -74,7 +87,13 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
 end
 
 function paperstop!(s::PaperStrategy)
-    v = RUNNING_PAPER[nameof(s)]
+    running = attr(s, :paper_running, nothing)
+    task = attr(s, :paper_task, nothing)
+    if isnothing(running)
+        @assert isnothing(task) || istaskdone(task)
+    else
+        @assert running[] || istaskdone(task)
+    end
     v[1][] = false
     wait(v[2])
 end
