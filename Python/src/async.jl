@@ -91,9 +91,9 @@ function py_start_loop(pa::PythonAsync)
     @assert !pyisnull(pyaio)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
 
-    pyisnull(pycoro_type) || pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    pyisnull(pyrunner) || pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
-    pyisnull(pyloop) || pycopy!(pyloop, pyrunner.get_loop())
+    pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
+    pyisnull(pyrunner) && pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
+    pyisnull(pyloop) && pycopy!(pyloop, pyrunner.get_loop())
     @assert !isassigned(pa.task) || istaskdone(pa.task[])
     pa.task[] = @async pyrunner.run(async_jl_func()())
     atexit(pyloop_stop_fn(pa))
@@ -329,15 +329,16 @@ function async_jl_func()
     from juliacall import Main
     jlyield = getattr(Main, "yield")
     jlsleep = getattr(Main, "sleep")
+    pysleep = asyncio.sleep
     async def main():
         while True:
             try:
                 while True:
-                    await asyncio.sleep(1e-3)
+                    await pysleep(1e-3)
                     jlsleep(1e-3)
             finally:
                 asyncio.get_running_loop().stop()
-            await asyncio.sleep(1e-1)
+            await pysleep(1e-1)
     """
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 end
