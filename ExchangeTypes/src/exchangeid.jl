@@ -28,7 +28,7 @@ struct ExchangeID{I}
     end
 end
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
-Base.nameof(::T) where {T<:ExchangeID} = T.parameters[1]
+Base.nameof(::Union{T,Type{T}}) where {T<:ExchangeID} = T.parameters[1]
 Base.show(io::IO, id::ExchangeID) = begin
     write(io, "ExchangeID(:")
     write(io, id.sym)
