@@ -24,9 +24,23 @@ function propagate_ohlcv!(
         foreach(empty!, Iterators.drop(values(data), 1))
         return data
     else
-        @sync for (tf, tf_data) in Iterators.drop(data, 1)
-            @async begin
-                update_func(base_tf, base_data, tf, tf_data)
+        props_itr = Iterators.drop(data, 1)
+        props_n = length(props_itr)
+        for (tf, tf_data) in props_itr
+            let src_data = base_data, src_tf = base_tf, tf_idx = 1
+                dowarn() = @warn "Failed to propagate ohlcv from $base_tf..$src_tf to $tf"
+                while true
+                    nrow(src_data) < count(src_tf, tf) && continue
+                    update_func(src_tf, src_data, tf, tf_data)
+                    !isempty(tf_data) && islast(tf_data, base_data) && break
+                    src_tf, src_data = first(Iterators.drop(data, tf_idx))
+                    tf_idx += 1
+                    # This should technically never trigger since the next break should
+                    # always trigger first
+                    tf_idx > props_n && (dowarn(); break)
+                    # Can't propagate if the source tf exceedes the target tf
+                    src_tf >= tf && (dowarn(); break)
+                end
                 @deassert contiguous_ts(tf_data.timestamp, string(timeframe!(tf_data)))
             end
         end
@@ -43,7 +57,11 @@ The source and destination DataFrames must have columns named timestamp, open, h
 The source and destination timeframes must be compatible with the resample function.
 """
 function propagate_ohlcv!(
-    src::DataFrame, dst::DataFrame; src_tf=timeframe!(src), dst_tf=timeframe!(dst)
+    src::DataFrame,
+    dst::DataFrame;
+    src_tf=timeframe!(src),
+    dst_tf=timeframe!(dst),
+    strict=true,
 )
     if isempty(dst)
         new = resample(src, src_tf, dst_tf)
@@ -51,7 +69,14 @@ function propagate_ohlcv!(
         append!(dst, new)
     else
         date_dst = lastdate(dst)
+        min_rows = count(src_tf, dst_tf)
+        if strict && nrow(src) < min_rows
+            @warn "Source dataframe ($(src_tf)) doesn't have enough rows for resampling $(nrow(src)) < $min_rows"
+            return dst
+        end
         src_slice = @view src[rangeafter(src.timestamp, date_dst), :]
+        # Same check as before but over the slice
+        strict && nrow(src_slice) < min_rows && return dst
         new = resample(src_slice, src_tf, dst_tf)
         isempty(new) && return dst
         if isleftadj(date_dst, firstdate(new), dst_tf)

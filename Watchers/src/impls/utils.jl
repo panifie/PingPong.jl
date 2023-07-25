@@ -1,5 +1,5 @@
 using Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
-using Data.DFUtils: lastdate
+using Data.DFUtils: lastdate, copysubs!
 using Data.DataFramesMeta
 using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
@@ -171,8 +171,8 @@ function _fastforward(w, sym=_sym(w))
     end
 end
 
-function _fetch_candles(w, from, to="", sym=_sym(w))
-    fetch_candles(_exc(w), _tfr(w), sym; from, to)
+function _fetch_candles(w, from, to="", sym=_sym(w); tf=_tfr(w))
+    fetch_candles(_exc(w), tf, sym; from, to)
 end
 
 function _fetch_error(w, from, to, sym=_sym(w), args...)
@@ -193,9 +193,7 @@ _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
 
 @doc "`op`: `appendmax!` or `prependmax!`
 If the watcher has attribute `resync_noncontig` set to true, preloaded data will be discarded if non contiguous."
-function _fetchto!(
-    w, df, sym, tf, op=Val(:append); to, from=isempty(df) ? nothing : lastdate(df)
-)
+function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     rows = nrow(df)
     prd = period(tf)
     rows > 0 && try
@@ -204,10 +202,11 @@ function _fetchto!(
         logerror(w, e, catch_backtrace())
         if get(w.attrs, :resync_noncontig, false)
             # df can have immutable vectors which can't be emptied
-            df = try
+            try
                 empty!(df)
             catch
-                empty(df)
+                copysubs!(df, empty)
+                empty!(df)
             end
             rows = 0
         end
@@ -215,7 +214,7 @@ function _fetchto!(
     from = @something from _from(df, to, tf, w.capacity.view, op)
     diff = (to - from)
     if diff > prd || (diff == prd && to < _curdate(tf)) # the second case would fetch only the last incomplete candle
-        candles = _fetch_candles(w, from, to, sym)
+        candles = _fetch_candles(w, from, to, sym, tf=timeframe!(df))
         from_to_range = rangebetween(candles.timestamp, from, to)
         isempty(from_to_range) && _fetch_error(w, from, to, sym)
         @debug begin

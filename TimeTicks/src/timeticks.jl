@@ -242,6 +242,10 @@ function compact(s::Period)
     end
 end
 
+function Base.count(tf1::T1, tf2::T2) where {T1,T2<:TimeFrame}
+    trunc(Int, timefloat(tf2) / timefloat(tf1))
+end
+
 export @as_td, @infertf
 export @tf_str, @dt_str
 export TimeFrame, timeframe, timeframe!, period, apply
