@@ -1,5 +1,5 @@
 using Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
-using Data.DFUtils: lastdate, copysubs!
+using Data.DFUtils: firstdate, lastdate, copysubs!
 using Data.DataFramesMeta
 using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
@@ -214,7 +214,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     from = @something from _from(df, to, tf, w.capacity.view, op)
     diff = (to - from)
     if diff > prd || (diff == prd && to < _curdate(tf)) # the second case would fetch only the last incomplete candle
-        candles = _fetch_candles(w, from, to, sym, tf=isempty(df) ? tf : timeframe!(df))
+        candles = _fetch_candles(w, from, to, sym; tf=isempty(df) ? tf : timeframe!(df))
         from_to_range = rangebetween(candles.timestamp, from, to)
         isempty(from_to_range) && _fetch_error(w, from, to, sym)
         @debug begin
@@ -237,9 +237,13 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         if isempty(cleaned)
             return false
         end
-        _firstdate(cleaned) != from + prd &&
-            _fetch_error(w, from, to, sym, _firstdate(cleaned))
-        _op(op, df, cleaned, w.capacity.view)
+        if firstdate(cleaned) != lastdate(df) + prd
+            _fetch_error(w, from, to, sym, firstdate(cleaned))
+        end
+        if (op == Val(:prepend) && lastdate(cleaned) + prd == firstdate(df)) ||
+            (op == Val(:append) && firstdate(cleaned) - prd == lastdate(df))
+            _op(op, df, cleaned, w.capacity.view)
+        end
         @ifdebug @assert nrow(df) <= w.capacity.view
         true
     end

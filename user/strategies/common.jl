@@ -54,6 +54,7 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
             end
         end
         w[:process_task] = @async w[:process_func]()
+        w[:quiet] = true
         start!(w)
         setattr!(s, k, w)
     end
