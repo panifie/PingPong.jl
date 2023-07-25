@@ -46,7 +46,7 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
         return nothing
     end
     try
-        task = _fetch_task(w, Val(w._exec.threads); kwargs...)
+        w[:task] = task = _fetch_task(w, Val(w._exec.threads); kwargs...)
         @async let slept = @lget! w.attrs :fetch_timeout Ref(0.0)
             while slept[] < timeout
                 slept[] += 0.1
