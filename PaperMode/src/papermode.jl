@@ -21,7 +21,7 @@ using Fetch: pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
-function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=true)
+function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=false)
     if doreset
         st.reset!(s)
     elseif :paper_running ∉ keys(s.attrs) # only set defaults on first run
