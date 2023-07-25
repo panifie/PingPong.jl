@@ -27,19 +27,21 @@ function propagate_ohlcv!(
         props_itr = Iterators.drop(data, 1)
         props_n = length(props_itr)
         for (tf, tf_data) in props_itr
-            let src_data = base_data, src_tf = base_tf, tf_idx = 1
-                dowarn() = @warn "Failed to propagate ohlcv from $base_tf..$src_tf to $tf"
+            let src_data = base_data, src_tf = base_tf, tf_idx = 1, hasrows = !isempty(tf_data)
+                dowarn() = @debug "Failed to propagate ohlcv from $base_tf..$src_tf to $tf"
                 while true
-                    tf_idx > props_n && (dowarn(); break)
+                    tf_idx >= props_n && (dowarn(); break)
                     if nrow(src_data) < count(src_tf, tf)
                         src_tf, src_data = first(Iterators.drop(data, tf_idx))
+                        hasrows && islast(tf_data, src_data) && break
                         # Can't propagate if the source tf exceedes the target tf
                         src_tf >= tf && (dowarn(); break)
+                        tf_idx += 1
                         continue
                     end
                     tf_idx += 1
                     update_func(src_tf, src_data, tf, tf_data)
-                    !isempty(tf_data) && islast(tf_data, base_data) && break
+                    hasrows && islast(tf_data, src_data) && break
                     src_tf, src_data = first(Iterators.drop(data, tf_idx))
                     src_tf >= tf && (dowarn(); break)
                 end
