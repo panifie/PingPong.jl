@@ -94,8 +94,8 @@ function paperstop!(s::PaperStrategy)
     else
         @assert running[] || istaskdone(task)
     end
-    v[1][] = false
-    wait(v[2])
+    running[] = false
+    wait(task[])
 end
 
 function paperlog(s)
