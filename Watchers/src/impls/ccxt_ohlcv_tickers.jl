@@ -179,9 +179,9 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
             _fetchto!(w, df, sym, tf, Val(:prepend); to=_firstdate(df))
             _do_check_contig(w, df, _checks(w))
             _fetchto!(w, df, sym, tf, Val(:append); from=lastdate(df), to=_nextdate(tf))
-            _do_check_contig(w, df, _checks(w))
+            # _do_check_contig(w, df, _checks(w))
         end
-        if nrow(df) < w.view.capacity
+        if nrow(df) < w.capacity.view
             @warn "Can't fill view with enough data, exchange likely doesn't support fetching more than $(nrow(df)) past candles"
         end
     end

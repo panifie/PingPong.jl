@@ -30,15 +30,17 @@ function propagate_ohlcv!(
             let src_data = base_data, src_tf = base_tf, tf_idx = 1
                 dowarn() = @warn "Failed to propagate ohlcv from $base_tf..$src_tf to $tf"
                 while true
-                    nrow(src_data) < count(src_tf, tf) && continue
+                    tf_idx > props_n && (dowarn(); break)
+                    if nrow(src_data) < count(src_tf, tf)
+                        src_tf, src_data = first(Iterators.drop(data, tf_idx))
+                        # Can't propagate if the source tf exceedes the target tf
+                        src_tf >= tf && (dowarn(); break)
+                        continue
+                    end
+                    tf_idx += 1
                     update_func(src_tf, src_data, tf, tf_data)
                     !isempty(tf_data) && islast(tf_data, base_data) && break
                     src_tf, src_data = first(Iterators.drop(data, tf_idx))
-                    tf_idx += 1
-                    # This should technically never trigger since the next break should
-                    # always trigger first
-                    tf_idx > props_n && (dowarn(); break)
-                    # Can't propagate if the source tf exceedes the target tf
                     src_tf >= tf && (dowarn(); break)
                 end
                 @deassert contiguous_ts(tf_data.timestamp, string(timeframe!(tf_data)))
