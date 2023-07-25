@@ -37,7 +37,11 @@ There are 4 images:
 | only runtime 🖥‍| pingpong-precomp   |
 | with plotting and optimizer 📊   | ipingpong-precomp   |
 
-<!-- Precompiled images are smaller, more flexible but have a slower startup. Compiled images are bigger, there might be unexpected issues, but are faster to startup. -->
+```@setup
+# Precompiled images are smaller, more flexible but have a slower startup. Compiled images are bigger, there might be unexpected issues, but are faster to startup.
+```
+
+
 
 ```shell
 docker pull panifie/pingpong-precomp

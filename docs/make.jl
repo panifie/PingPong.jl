@@ -33,23 +33,26 @@ function use(name, args...)
         Pkg.activate(prev)
     end
 end
-use(:Prices, "Data", "src", "prices.jl")
-use(:Fetch, "Fetch")
-use(:MShort, "Analysis", "Mark", "MShort")
-use(:MLong, "Analysis", "Mark", "MLong")
-use(:MVP, "Analysis", "Mark", "MVP")
-use(:Processing, "Processing")
-use(:Instruments, "Instruments")
-use(:Exchanges, "Exchanges")
-use(:Plotting, "Plotting")
-use(:Analysis, "Analysis")
-use(:Engine, "Engine")
-use(:Watchers, "Watchers")
-use(:Pbar, "Pbar")
-use(:Stats, "Stats")
-use(:Optimization, "Optimization")
-using PingPong.Data.DataStructures
-@eval using Base: Timer
+get(ENV, "LOADED", "false") == "true" || begin
+    use(:Prices, "Data", "src", "prices.jl")
+    use(:Fetch, "Fetch")
+    use(:MShort, "Analysis", "Mark", "MShort")
+    use(:MLong, "Analysis", "Mark", "MLong")
+    use(:MVP, "Analysis", "Mark", "MVP")
+    use(:Processing, "Processing")
+    use(:Instruments, "Instruments")
+    use(:Exchanges, "Exchanges")
+    use(:Plotting, "Plotting")
+    use(:Analysis, "Analysis")
+    use(:Engine, "Engine")
+    use(:Watchers, "Watchers")
+    use(:Pbar, "Pbar")
+    use(:Stats, "Stats")
+    use(:Optimization, "Optimization")
+    using PingPong.Data.DataStructures
+    @eval using Base: Timer
+    ENV["LOADED"] = "true"
+end
 
 function filter_strategy(t)
     try
@@ -69,8 +72,11 @@ makedocs(;
         "Introduction" => ["index.md"],
         "Types" => "types.md",
         "Strategies" => "strategy.md",
-        "Engine" =>
-            ["Executors" => "engine/engine.md", "Backtesting" => "engine/backtesting.md", "Paper" => "engine/paper.md"],
+        "Engine" => [
+            "Executors" => "engine/engine.md",
+            "Backtesting" => "engine/backtesting.md",
+            "Paper" => "engine/paper.md",
+        ],
         "Exchanges" => "exchanges.md",
         "Data" => "data.md",
         "Watchers" => [
