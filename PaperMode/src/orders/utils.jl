@@ -71,9 +71,14 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
-    last_trade = trade!(s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false)
+    last_trade = trade!(
+        s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false
+    )
+    if isnothing(last_trade) && o isa AnyFOKOrder
+        cancel!(s, o, ai; err=OrderFailed("FOK order for $(ai.asset) failed $(o.date)."))
+    end
     @assert !(o isa AnyFOKOrder) || isfilled(ai, o)
-    @deassert o.amount ≈ this_vol || o isa AnyLimitOrder (o.amount, this_vol)
+    @assert o.amount ≈ this_vol || o isa AnyLimitOrder (o.amount, this_vol)
     taken_vol[] += this_vol
     return avg_price, this_vol, last_trade
 end
