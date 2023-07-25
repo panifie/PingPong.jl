@@ -1,6 +1,6 @@
 using Engine
 using Engine.Exchanges
-using .Exchanges.Python
+using .Exchanges.ExchangeTypes.Python
 using Engine.Data
 using Engine.Misc
 using .Misc: Lang
