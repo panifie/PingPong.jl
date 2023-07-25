@@ -49,7 +49,7 @@ CMD [ "julia", "-C", $JULIA_CPU_TARGET ]
 
 FROM precomp-base as pingpong-precomp
 ENV JULIA_PROJECT=/pingpong/PingPong
-RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using PingPong"
+RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using PingPong; using Stats"
 
 FROM precomp-base as pingpong-precomp-interactive
 ENV JULIA_PROJECT=/pingpong/IPingPong
