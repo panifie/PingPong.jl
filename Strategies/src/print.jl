@@ -1,6 +1,7 @@
 using Data: closelast
 using Instances: pnl, MarginInstance, NoMarginInstance, value, ohlcv
-using OrderTypes: LiquidationTrade, LongLiquidationTrade, ShortLiquidationTrade, LongTrade, ShortTrade
+using OrderTypes:
+    LiquidationTrade, LongLiquidationTrade, ShortLiquidationTrade, LongTrade, ShortTrade
 
 _mmh(ai, val, min_hold, max_hold) = begin
     if val > max_hold[2]
@@ -101,11 +102,16 @@ Base.string(::Cross) = "Cross Margin"
 Base.string(::NoMargin) = "No Margin"
 
 function Base.show(out::IO, s::Strategy)
-    write(out, "Name: $(nameof(s)) ($(typeof(execmode(s))))\n")
+    write(out, "Name: $(nameof(s)) ($(typeof(execmode(s)))) ")
+    let t = attr(s, :paper_task, nothing)
+        if !(isnothing(t)) && !istaskdone(t) && istaskstarted(t)
+            write(out, "(Running)")
+        end
+    end
     cur = nameof(s.cash)
     write(
         out,
-        "Config: $(string(s.margin)), $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
+        "\nConfig: $(string(s.margin)), $(s.config.min_size)($cur)(Base Size), $(s.config.initial_cash)($(cur))(Initial Cash)\n",
     )
     n_inst = nrow(universe(s).data)
     n_exc = length(unique(universe(s).data.exchange))
@@ -114,7 +120,10 @@ function Base.show(out::IO, s::Strategy)
     mmh = minmax_holdings(s)
     long, short, liquidations = trades_count(s, Val(:positions))
     trades = long + short
-    write(out, "Trades: $(trades) ~ $long(longs) ~ $short(shorts) ~ $(liquidations)(liquidations)\n")
+    write(
+        out,
+        "Trades: $(trades) ~ $long(longs) ~ $short(shorts) ~ $(liquidations)(liquidations)\n",
+    )
     write(out, "Holdings: $(mmh.count)")
     if mmh.min[1] != cur
         write(out, " ~ min $(Cash(mmh.min...))($cur)")
