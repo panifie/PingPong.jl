@@ -48,6 +48,7 @@ macro environment!()
         using Instruments.Derivatives
         using Instruments.Derivatives: Derivatives as der
         using Data: Data as da, DFUtils as du
+        using Data.Cache: save_cache, load_cache
         using Processing: Processing as pro
     end
 end

@@ -1,3 +1,6 @@
+using Data.Cache: save_cache, load_cache
+using Misc: _config_dir
+
 macro notfound(path)
     quote
         error("Strategy not found at $($(esc(path)))")
@@ -54,7 +57,7 @@ function strategy!(src::Symbol, cfg::Config)
                 using Pkg: Pkg
                 $isproject && begin
                     Pkg.activate($project_file; io=Base.devnull)
-                    Pkg.instantiate(io=Base.devnull)
+                    Pkg.instantiate(; io=Base.devnull)
                 end
                 if isdefined(Main, :Revise)
                     Main.Revise.includet($path)
@@ -87,8 +90,23 @@ function strategy!(mod::Module, cfg::Config)
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.ping!, mod.S, cfg, LoadStrategy())
 end
-function strategy(src::Union{Symbol,Module,String}; config_args...)
-    strategy!(src, Config(src; config_args...))
+function strategy(src::Union{Symbol,Module,String}; load=false, config_args...)
+    cfg = if load
+        cache_path = mi._config_dir()
+        @assert ispath(cache_path) "Can't load strategy state, no directory at $cache_path"
+        cache_path = joinpath(cache_path, "cache")
+        mkpath(cache_path)
+        cfg = load_cache(Symbol(src); raise=false, cache_path)
+        if !(cfg isa Config)
+            @warn "Strategy state ($src) not found at $cache_path"
+            Config(src; config_args...)
+        else
+            cfg
+        end
+    else
+        Config(src; config_args...)
+    end
+    strategy!(src, cfg)
 end
 
 function _no_inv_contracts(exc::Exchange, uni)
