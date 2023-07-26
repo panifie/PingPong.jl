@@ -66,7 +66,7 @@ function test_paper_margin(s)
         s, ai, ot.GTCOrder{ot.Buy}; amount=0.02, price=this_p - this_p / 2.0, date
     )
     @test ect.orderscount(s, ai) == length(s[:paper_order_tasks])
-    @test isnothing(t)
+    @test !(t isa ot.Trade)
     _, taken_vol, total_vol = st.attr(s, :paper_liquidity)[ai]
     date += Millisecond(1)
     prev_taken = taken_vol[]

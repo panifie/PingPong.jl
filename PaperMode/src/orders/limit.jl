@@ -3,14 +3,15 @@ using .Misc.Lang: @logerror
 using .Instances.Exchanges: Py, pyfetch, @pystr, has
 using SimMode: trade!
 using .Executors: AnyGTCOrder
+using .OrderTypes: AtomicOrderType, OrderCancelled
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
 function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
-    isfilled(ai, o) && return
+    isfilled(ai, o) && return nothing
     throttle = attr(s, :throttle)
     exc = ai.exchange
-    pyfunc = getproperty(exc, first(exc, :watchTrades, :fetchTrades))
+    pyfunc = first(exc, :watchTrades, :fetchTrades)
     sym = ai.asset.raw
     backoff = Second(0)
     alive = Ref(true)
@@ -43,7 +44,13 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
                         if _istriggered(o, price)
                             actual_amount = min(pytofloat(t["amount"]), abs(unfilled(o)))
                             trade!(
-                                s, o, ai; price, date=_asdate(t["datetime"]), actual_amount, slippage=false
+                                s,
+                                o,
+                                ai;
+                                price,
+                                date=_asdate(t["datetime"]),
+                                actual_amount,
+                                slippage=false,
                             )
                             isfilled(ai, o) && begin
                                 alive[] = false
@@ -78,10 +85,16 @@ function limitorder!(s, ai, t; amount, date, kwargs...)
             trade
         end
         # Queue GTC orders
-        o isa AnyGTCOrder && paper_limitorder!(s, ai, o)
+        if o isa AnyGTCOrder
+            paper_limitorder!(s, ai, o)
+        elseif !isfilled(ai, o) && ordertype(o) <: AtomicOrderType
+            cancel!(s, o, ai; err=OrderCancelled(o))
+        end
         # return first trade (if any)
-        trade
+        return trade
     catch e
+        Base.showerror(stdout, e)
+        Base.show_backtrace(stdout, catch_backtrace())
         !isfilled(ai, o) && cancel!(s, o, ai; err=OrderFailed(e))
     end
 end
