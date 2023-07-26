@@ -237,10 +237,11 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         if isempty(cleaned)
             return false
         end
-        if firstdate(cleaned) != lastdate(df) + prd
+        if !isempty(df) && firstdate(cleaned) != lastdate(df) + prd
             _fetch_error(w, from, to, sym, firstdate(cleaned))
         end
-        if (op == Val(:prepend) && lastdate(cleaned) + prd == firstdate(df)) ||
+        if isempty(df) ||
+            (op == Val(:prepend) && lastdate(cleaned) + prd == firstdate(df)) ||
             (op == Val(:append) && firstdate(cleaned) - prd == lastdate(df))
             _op(op, df, cleaned, w.capacity.view)
         end
