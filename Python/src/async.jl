@@ -331,14 +331,17 @@ function async_jl_func()
     jlsleep = getattr(Main, "sleep")
     pysleep = asyncio.sleep
     async def main():
-        while True:
-            try:
-                while True:
-                    await pysleep(1e-3)
-                    jlsleep(1e-3)
-            finally:
-                asyncio.get_running_loop().stop()
-            await pysleep(1e-1)
+        try:
+            while True:
+                try:
+                    while True:
+                        await pysleep(1e-3)
+                        jlsleep(1e-3)
+                except:
+                    await pysleep(1e-1)
+                    pass
+        finally:
+            asyncio.get_running_loop().stop()
     """
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 end
