@@ -37,7 +37,15 @@ Copies a python async structures.
 function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
     if pyisnull(pa_to.pyaio) && !pyisnull(pa_from.pyaio)
         for f in fieldnames(PythonAsync)
-            pycopy!(getfield(pa_to, f), getfield(pa_from, f))
+            let v = getfield(pa_from, f)
+                if v isa Py
+                    pycopy!(getfield(pa_to, f), v)
+                elseif f == :task
+                    isassigned(v) && (pa_to.task[] = v[])
+                else
+                    error()
+                end
+            end
         end
         true
     else
@@ -92,7 +100,8 @@ function py_start_loop(pa::PythonAsync)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    pyisnull(pyrunner) && pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
+    pyisnull(pyrunner) &&
+        pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
     pyisnull(pyloop) && pycopy!(pyloop, pyrunner.get_loop())
     @assert !isassigned(pa.task) || istaskdone(pa.task[])
     pa.task[] = @async pyrunner.run(async_jl_func()())
@@ -104,9 +113,9 @@ end
 
 Generates a function that terminates the python even loop.
 """
-pyloop_stop_fn(pa) = begin
+function pyloop_stop_fn(pa)
     fn() = begin
-        !isassigned(pa.task) || istaskdone(pa.task[]) && return
+        !isassigned(pa.task) || istaskdone(pa.task[]) && return nothing
         pyisnull(pa.pyloop) || pa.pyloop.stop()
         try
             wait(pa.task[])
