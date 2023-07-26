@@ -4,7 +4,6 @@ using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopp
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
-__revise_mode__ = :eval
 
 _timeframe(s) = s.attrs[:timeframe]
 _reset!(s) = begin

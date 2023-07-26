@@ -90,13 +90,19 @@ function strategy!(mod::Module, cfg::Config)
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.ping!, mod.S, cfg, LoadStrategy())
 end
+
+function strategy_cache_path()
+    cache_path = _config_dir()
+    @assert ispath(cache_path) "Can't load strategy state, no directory at $cache_path"
+    cache_path = joinpath(cache_path, "cache")
+    mkpath(cache_path)
+    cache_path
+end
+
 function strategy(src::Union{Symbol,Module,String}; load=false, config_args...)
     cfg = if load
-        cache_path = mi._config_dir()
-        @assert ispath(cache_path) "Can't load strategy state, no directory at $cache_path"
-        cache_path = joinpath(cache_path, "cache")
-        mkpath(cache_path)
-        cfg = load_cache(Symbol(src); raise=false, cache_path)
+        cache_path = strategy_cache_path()
+        cfg = load_cache(string(src); raise=false, cache_path)
         if !(cfg isa Config)
             @warn "Strategy state ($src) not found at $cache_path"
             Config(src; config_args...)
@@ -106,7 +112,14 @@ function strategy(src::Union{Symbol,Module,String}; load=false, config_args...)
     else
         Config(src; config_args...)
     end
-    strategy!(src, cfg)
+    s = strategy!(src, cfg)
+    load && save_strategy(s)
+    s
+end
+
+function save_strategy(s)
+    cache_path = @lget! s.attrs :config_cache_path strategy_cache_path()
+    save_cache(string(nameof(s)); raise=false, cache_path)
 end
 
 function _no_inv_contracts(exc::Exchange, uni)
