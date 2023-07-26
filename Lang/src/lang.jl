@@ -205,15 +205,15 @@ end
 
 @doc "Notify a condition with locks."
 safenotify(cond, args...; kwargs...) = begin
-    lock(cond)
-    notify(cond, args...; kwargs...)
-    unlock(cond)
+    lock(cond) do
+        notify(cond, args...; kwargs...)
+    end
 end
 @doc "Wait a condition with locks."
 safewait(cond) = begin
-    lock(cond)
-    wait(cond)
-    unlock(cond)
+    lock(cond) do
+        wait(cond)
+    end
 end
 @doc "Same as `@lock` but with `acquire` and `release`."
 macro acquire(cond, code)
