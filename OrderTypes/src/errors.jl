@@ -23,7 +23,7 @@ end
 end
 @doc "A generic error order prevented the order from being setup."
 @kwdef struct OrderFailed <: OrderError
-    msg::String
+    msg::Any
 end
 
 @doc "When an order has been directly cancelled by a strategy."

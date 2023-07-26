@@ -2,14 +2,15 @@ using .Misc: LittleDict
 using .Misc.Lang: @logerror
 using .Instances.Exchanges: Py, pyfetch, @pystr, has
 using SimMode: trade!
+using .Executors: AnyGTCOrder
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
 function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
+    isfilled(ai, o) && return
     throttle = attr(s, :throttle)
     exc = ai.exchange
-    pyfunc = getproperty(exc, ifelse(has(exc, :watchTrades), :watchTrades, :fetchTrades))
-    throttle = attr(s, :throttle)
+    pyfunc = getproperty(exc, first(exc, :watchTrades, :fetchTrades))
     sym = ai.asset.raw
     backoff = Second(0)
     alive = Ref(true)
@@ -64,4 +65,23 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
         isopen(ai, o) || break
     end
     attr(s, :paper_order_tasks)[o] = (; task, alive)
+end
+
+function limitorder!(s, ai, t; amount, date, kwargs...)
+    volumecap!(s, ai; amount) || return nothing
+    o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
+    isnothing(o) && return nothing
+    try
+        obside = orderbook_side(ai, t)
+        trade = if !isempty(obside)
+            _, _, trade = from_orderbook(obside, s, ai, o; o.amount, date)
+            trade
+        end
+        # Queue GTC orders
+        o isa AnyGTCOrder && paper_limitorder!(s, ai, o)
+        # return first trade (if any)
+        trade
+    catch e
+        !isfilled(ai, o) && cancel!(s, o, ai; err=OrderFailed(e))
+    end
 end

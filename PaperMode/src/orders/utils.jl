@@ -66,34 +66,22 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         this_vol += inc_vol
     end
     avg_price /= this_vol
-    last_trade = nothing::Union{Nothing,<:Trade}
+    ob_trade = nothing::Union{Nothing,<:Trade}
     if o isa AnyFOKOrder && this_vol < amount
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
-    last_trade = trade!(
+    ob_trade = trade!(
         s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false
     )
-    if isnothing(last_trade) && o isa AnyFOKOrder
+    if isnothing(ob_trade) && o isa AnyFOKOrder
         cancel!(s, o, ai; err=OrderFailed("FOK order for $(ai.asset) failed $(o.date)."))
     end
-    @assert !(o isa AnyFOKOrder) || isfilled(ai, o)
-    @assert o.amount ≈ this_vol || o isa AnyLimitOrder (o.amount, this_vol)
+    @assert o.amount ≈ this_vol ||
+        o isa AnyLimitOrder ||
+        # NOTE: this can fail only if orderbook hasn't enough vol
+        sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
     taken_vol[] += this_vol
-    return avg_price, this_vol, last_trade
+    return avg_price, this_vol, ob_trade
 end
 
-function limitorder!(s, ai, t; amount, date, kwargs...)
-    volumecap!(s, ai; amount) || return nothing
-    o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
-    isnothing(o) && return nothing
-    obside = orderbook_side(ai, t)
-    trade = if !isempty(obside)
-        _, _, trade = from_orderbook(obside, s, ai, o; o.amount, date)
-        trade
-    end
-    if !(isfilled(ai, o) || ordertype(o) <: AtomicOrderType)
-        paper_limitorder!(s, ai, o)
-    end
-    trade
-end
