@@ -21,20 +21,24 @@ using Fetch: pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
+function header(s::Strategy, throttle)
+    "Starting strategy $(nameof(s)) in paper mode!
+
+        throttle: $throttle
+        timeframes: $(string(s.timeframe)) (main), $(string(get(s.attrs, :timeframe, nothing))) (optional), $(join(string.(s.config.timeframes), " ")...) (extras)
+        cash: $(s.cash) [$(cnum(st.current_total(s, lastprice)))]
+        assets: $(let str = join(getproperty.(st.assets(s), :raw), ", "); str[begin:min(length(str), displaysize()[2] - 1)] end)
+        margin: $(marginmode(s))
+        "
+end
+
 function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=false)
     if doreset
         st.reset!(s)
     elseif :paper_running ∉ keys(s.attrs) # only set defaults on first run
         ordersdefault!(s)
     end
-    startinfo = "Starting strategy $(nameof(s)) in paper mode!
-
-    throttle: $throttle
-    timeframes: $(string(s.timeframe)) (main), $(string(get(s.attrs, :timeframe, nothing))) (optional), $(join(string.(s.config.timeframes), " ")...) (extras)
-    cash: $(s.cash) [$(cnum(st.current_total(s, lastprice)))]
-    assets: $(let str = join(getproperty.(st.assets(s), :raw), ", "); str[begin:min(length(str), displaysize()[2] - 1)] end)
-    margin: $(marginmode(s))
-    "
+    startinfo = header(s, throttle)
     infofunc =
         () -> begin
             long, short, liq = st.trades_count(s, Val(:positions))

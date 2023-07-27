@@ -5,6 +5,12 @@ using .Misc.Lang: @lget!
 
 const OrderTaskTuple = NamedTuple{(:task, :alive),Tuple{Task,Ref{Bool}}}
 
+function reset_logs(s::Strategy)
+    mode = execmode(s) |> typeof |> string
+    logfile = @lget! s.attrs :logfile st.logpath(s, name="$(mode)_events")
+    write(logfile, "")
+end
+
 function OrderTypes.ordersdefault!(s::Strategy{Paper})
     let attrs = s.attrs
         attrs[:paper_liquidity] = Dict{
@@ -17,8 +23,7 @@ function OrderTypes.ordersdefault!(s::Strategy{Paper})
         end
         empty!(tasks)
         _simmode_defaults!(s, attrs)
-        logfile = @lget! s.attrs :logfile st.logpath(s, name="paper_events")
-        write(logfile, "")
+        reset_logs(s)
     end
 end
 
