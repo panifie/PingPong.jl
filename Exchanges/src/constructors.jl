@@ -9,6 +9,7 @@ using Ccxt: Ccxt, ccxt_exchange, choosefunc
 using Python: Py, pyconvert, pyfetch, PyDict, pydict, pyimport, @pystr
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
+using Pbar.Term: RGB
 using JSON
 using TimeTicks
 using Instruments
@@ -322,34 +323,112 @@ function futures(exc::Exchange)
     futures_sym != exc.id ? getexchange!(futures_sym) : exc
 end
 
-_checkfunc(exc, sym, out) = Bool(exc.has.get(string(sym), false)) || push!(out, sym)
-@doc "Checks if the python exchange instance supports all the calls required by PingPong."
-function check(exc::Py)
-    missing_funcs = Set()
-    _checkfunc(exc, :fetchOHLCV, missing_funcs)
-    _checkfunc(exc, :fetchBalance, missing_funcs)
-    _checkfunc(exc, :fetchPositions, missing_funcs)
-    _checkfunc(exc, :fetchPosition, missing_funcs)
-    _checkfunc(exc, :createOrder, missing_funcs)
-    _checkfunc(exc, :cancelOrder, missing_funcs)
-    _checkfunc(exc, :fetchMarkets, missing_funcs)
-    _checkfunc(exc, :fetchMarket, missing_funcs)
-    _checkfunc(exc, :watchTrades, missing_funcs)
-    _checkfunc(exc, :watchOrders, missing_funcs)
-    _checkfunc(exc, :fetchLeverageTiers, missing_funcs)
-    _checkfunc(exc, :fetchTickers, missing_funcs)
-    _checkfunc(exc, :fetchOrderBook, missing_funcs)
-    _checkfunc(exc, :fetchOrders, missing_funcs)
-    _checkfunc(exc, :fetchCurrencies, missing_funcs)
+const CCXT_REQUIRED_LOCAL4 = (
+    (nothing, :fetchOHLCV),
+    (:fetchBalance,),
+    (:fetchPosition, :fetchPositions),
+    (:cancelOrder, :cancelOrders, :cancelAllOrders),
+    (:createOrder, :createPostOnlyOrder, :createReduceOnlyOrder),
+    (:fetchMarkets,),
+    (:fetchTrades, :watchTrades),
+    (:fetchOrder, :fetchOrders, :watchOrders),
+    (nothing, :fetchLeverageTiers),
+    (:fetchTickers, :fetchTicker, :watchTickers, :watchTicker),
+    (:fetchOrderBooks, :fetchOrderBook, :watchOrderBooks, :watchOrderBook),
+    (nothing, :fetchCurrencies),
+)
+function _print_missing(exc, missing_funcs, func_type)
     nmis = length(missing_funcs)
     if nmis == 0
-        println("$(exc.name) supports all functions!")
+        tprint("{cyan}$(exc.name){/cyan} supports {bold}all{/bold} $func_type functions!")
     else
-        println("$nmis functions are not supported by $(exc.name)")
+        tprint(
+            "{bold}$nmis{/bold} functions are {bold}not{/bold} supported by {cyan}$(exc.name){/cyan}\n",
+        )
         for f in missing_funcs
-            println(stdout, string(f))
+            tprint(stdout, string("{yellow}", f, "{/yellow}\n"))
         end
         flush(stdout)
     end
-    # _checkfunc(exc, :cancelOrders, missing_funcs)
+end
+function _checkfunc(exc, funcs, missing_funcs, total)
+    any = isnothing(first(funcs))
+    for func in funcs
+        isnothing(func) && continue
+        if has(exc, func)
+            any = true
+            total[] += 1
+        else
+            push!(missing_funcs, func)
+        end
+    end
+    any
+end
+function _print_total(total, max_total)
+    red = RGB(1, 0, 0) # Red color
+    green = RGB(0, 1, 0) # Green color
+    x = total / max_total
+    color = interpolate_color(green, red, x)
+    tprint(
+        string("\n{bold}Total score:{/bold} {$color}$total/$max_total{/$color}\n");
+        highlight=false,
+    )
+end
+
+function _print_blockers(exc, blockers, func_type)
+    nblocks = length(blockers)
+    if nblocks == 0
+        tprint("\n{cyan}$(exc.name){/cyan} supports {bold}$func_type{/bold} functionality!")
+    else
+        tprint(
+            "\nThere are {bold}$nblocks{/bold} blockers for {bold}$func_type{/bold} functionality for {cyan}$(exc.name){/cyan}\n",
+        )
+        for funcs in blockers
+            tprint(
+                stdout,
+                string(
+                    "\n {white}{bold}-{/bold}{/white} ",
+                    (string("{red}", f, "{/red} ") for f in funcs)...,
+                ),
+            )
+        end
+        tprint("\n")
+        flush(stdout)
+    end
+end
+
+# Define a function that interpolates between two colors
+function interpolate_color(c1, c2, x)
+    # c1 and c2 are Color objects, x is a value between 0 and 1
+    # Return a Color object that is a linear interpolation of c1 and c2
+    v = clamp(x, 0.01, 0.99)
+    r = c1.r + (c2.r - c1.r) * v
+    g = c1.g + (c2.g - c1.g) * v
+    b = c1.b + (c2.b - c1.b) * v
+    return RGB(r, g, b) # Return the interpolated color
+end
+
+const CCXT_REQUIRED_LIVE2 = ((:setMarginMode,), (:setPositionMode,))
+
+@doc "Checks if the python exchange instance supports all the calls required by PingPong."
+function check(exc::Exchange, type=:basic)
+    missing_funcs = Set()
+    blockers = Set()
+    total = Ref(0)
+    max_total = 0
+    allfuncs = if type == :basic
+        CCXT_REQUIRED_LOCAL4
+    elseif type == :live
+        CCXT_REQUIRED_LIVE2
+    else
+        error()
+    end
+    for funcs in allfuncs
+        max_total += length(funcs) - ifelse(isnothing(first(funcs)), 1, 0)
+        any = _checkfunc(exc, funcs, missing_funcs, total)
+        any || push!(blockers, funcs)
+    end
+    _print_missing(exc, missing_funcs, type)
+    _print_blockers(exc, blockers, type)
+    _print_total(total[], max_total)
 end

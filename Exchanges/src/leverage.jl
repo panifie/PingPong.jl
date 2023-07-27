@@ -2,6 +2,7 @@ using Python: PyException
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
+using Misc: IsolatedMargin, CrossMargin
 
 @doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
 function leverage!(exc::Exchange, v::Real, sym::AbstractString)
@@ -79,4 +80,23 @@ function maxleverage(exc::Exchange, sym::AbstractString, size::Real)
     tiers = leverage_tiers(exc, sym)
     _, t = tier(tiers, size)
     t.max_leverage
+end
+
+# CCXT strings
+Base.string(::Union{T,Type{T}}) where {T<:IsolatedMargin} = "isolated"
+Base.string(::Union{T,Type{T}}) where {T<:CrossMargin} = "cross"
+Base.string(::Union{T,Type{T}}) where {T<:NoMargin} = "nomargin"
+
+function dosetmargin(exc::Exchange, mode_str, symbol)
+    pyfetch(exc.setMarginMode, mode_str, symbol)
+end
+
+function marginmode!(exc::Exchange, mode, symbol)
+    mode_str = string(mode)
+    if mode_str in ("isolated", "cross")
+        dosetmargin(exc, mode_str, symbol)
+    elseif mode_str == "nomargin"
+    else
+        error("Invalid margin mode $mode")
+    end
 end

@@ -5,6 +5,7 @@ include("data.jl")
 include("utils.jl")
 include("leverage.jl")
 include("trades.jl")
+include("adhoc/leverage.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, tickers, pairs
