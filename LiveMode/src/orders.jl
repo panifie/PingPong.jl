@@ -1,10 +1,10 @@
 module LiveOrders
-using Data: Candle
-using ExchangeTypes
-using Instances: AssetInstance
-using TimeTicks
-using Instruments
-using OrderTypes
+using ..Data: Candle
+using ..ExchangeTypes
+using ..Executors.Instances: AssetInstance
+using ..Misc.TimeTicks
+using ..Executors.Instruments
+using ..OrderTypes
 
 # TYPENUM
 @doc """ Live orders can hold additional info about live execution. They are short lived

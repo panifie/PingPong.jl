@@ -4,16 +4,5 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
-Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
-Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
-Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
-Executors = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
-Instances = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
-Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
-Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-OrderTypes = "fba5cb4a-2089-4510-9d41-52be7ff19328"
+PaperMode = "b2ae67eb-72da-414f-85db-6054cbf44090"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
-Strategies = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"

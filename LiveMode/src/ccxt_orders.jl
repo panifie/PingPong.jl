@@ -1,7 +1,7 @@
-using Lang: @ifdebug
-using Python: @pystr
-using OrderTypes
-using OrderTypes: LimitOrderType, MarketOrderType
+using .Lang: @ifdebug
+using .Python: @pystr
+using .OrderTypes
+using .OrderTypes: LimitOrderType, MarketOrderType
 
 _ccxtordertype(::LimitOrder) = @pystr "limit"
 _ccxtordertype(::MarketOrder) = @pystr "market"

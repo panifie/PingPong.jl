@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "faf76ca5e758e95fd6e5027b2f789f6fec4335dc"
+project_hash = "057b7908dae6c9c118181cc48dc7fe76ccad9bf0"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -271,6 +271,12 @@ deps = ["Printf", "XML2_jll"]
 git-tree-sha1 = "0fa3b52a04a4e210aeb1626def9c90df3ae65268"
 uuid = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 version = "1.1.0"
+
+[[deps.Fetch]]
+deps = ["Exchanges", "Pbar", "Processing", "Python", "Temporal"]
+path = "../Fetch"
+uuid = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
+version = "0.1.0"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
@@ -576,6 +582,12 @@ git-tree-sha1 = "d321bf2de576bf25ec4d3e4360faca399afca282"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.6.0"
 
+[[deps.PaperMode]]
+deps = ["Executors", "Fetch", "SimMode"]
+path = "../PaperMode"
+uuid = "b2ae67eb-72da-414f-85db-6054cbf44090"
+version = "0.1.0"
+
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
@@ -706,10 +718,22 @@ version = "1.4.0"
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
+[[deps.SimMode]]
+deps = ["Executors", "Lang", "Misc", "OrderTypes", "Processing", "Simulations", "Strategies", "TimeTicks"]
+path = "../SimMode"
+uuid = "70084082-5615-4098-a9f0-eda0197c0e82"
+version = "0.1.0"
+
 [[deps.SimpleBufferStream]]
 git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
 version = "1.1.0"
+
+[[deps.Simulations]]
+deps = ["Data", "Instances", "Instruments", "IterTools", "Misc", "Processing", "Random", "Statistics", "StatsBase"]
+path = "../Simulations"
+uuid = "a69aad36-f532-4133-ba48-77171b778e6d"
+version = "0.1.0"
 
 [[deps.SnoopPrecompile]]
 deps = ["Preferences"]

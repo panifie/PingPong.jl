@@ -18,7 +18,7 @@ import Misc: approxzero, gtxzero, ltxzero, marginmode
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
-import Exchanges: lastprice
+import Exchanges: lastprice, leverage!
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 
