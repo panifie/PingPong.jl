@@ -249,6 +249,8 @@ function quotevol(tkr::AbstractDict)
     v1 = get(tkr, "quoteVolume", nothing)
     isnothing(v1) || return v1
     v2 = get(tkr, "baseVolume", nothing)
+    # NOTE: this is not the actual quote volume, since vol from trades
+    # have different prices
     isnothing(v2) || return v2 * tickerprice(tkr)
     0
 end
