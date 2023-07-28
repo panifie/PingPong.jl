@@ -1,4 +1,5 @@
 import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
+using Data.DFUtils: firstdate
 using Instances: pnl, position, margin
 using Instruments
 using Instruments: @importcash!, AbstractCash
@@ -38,7 +39,7 @@ for sym in (openat, highat, lowat, closeat, volumeat)
 end
 
 @doc "The asset close price of the candle where the last trade was performed."
-lasttrade_price_func(ai) = closeat(ai, lasttrade_date(ai))
+lasttrade_price_func(ai) = closeat(ai, max(firstdate(ai), lasttrade_date(ai)))
 
 function current_total(s::NoMarginStrategy, price_func=lasttrade_price_func)
     worth = zero(DFT)
