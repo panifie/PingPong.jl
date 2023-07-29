@@ -156,7 +156,7 @@ timeframe!(args...; kwargs...) = error("Not implemented")
 
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d
-dt(num::Real) = unix2datetime(num / 1e3)
+dt(num::R) where {R<:Real} = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1_000
 dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d))
@@ -164,8 +164,8 @@ dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d))
 timefloat(time::Float64) = time
 timefloat(time::Int64) = timefloat(Float64(time))
 @doc "ccxt always uses milliseconds in timestamps."
-timefloat(prd::Period) = convert(Float64, convert(Millisecond, prd).value)
-timefloat(tf::TimeFrame) = timefloat(tf.period)
+timefloat(prd::P) where {P<:Period} = convert(Float64, convert(Millisecond, prd).value)
+timefloat(tf::T) where {T<:TimeFrame} = timefloat(tf.period)
 timefloat(time::DateTime) = dtfloat(time)
 timefloat(time::Vector{UInt8}) = begin
     buf = Base.IOBuffer(time)
@@ -223,7 +223,9 @@ convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
 convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
 
 @doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
-available(frame::TimeFrame, date::DateTime)::DateTime = apply(frame, date) - frame.period
+function available(frame::T, date::DateTime)::DateTime where {T<:TimeFrame}
+    apply(frame, date) - frame.period
+end
 
 @doc "Converts period in the most readable format up to days."
 function compact(s::Period)

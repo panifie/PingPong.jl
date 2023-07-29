@@ -12,9 +12,9 @@ import ..Data: contiguous_ts
 @doc "Get the column names for dataframe as symbols."
 colnames(df::AbstractDataFrame) = index(df).names
 
-firstdate(df::AbstractDataFrame) = df.timestamp[begin]
-lastdate(df::AbstractDataFrame) = df.timestamp[end]
-function zerorow(df::AbstractDataFrame; skip_cols=())
+firstdate(df::D) where {D<:AbstractDataFrame} = df.timestamp[begin]
+lastdate(df::D) where {D<:AbstractDataFrame} = df.timestamp[end]
+function zerorow(df::D; skip_cols=()) where {D<:AbstractDataFrame}
     let cn = ((col for col in colnames(df) if col ∉ skip_cols)...,)
         NamedTuple{cn}(zero(eltype(getproperty(df, col))) for col in cn)
     end
@@ -23,7 +23,7 @@ end
 @doc "Returns the timeframe of a dataframe according to its metadata.
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
 If the timeframe can't be inferred, a `TimeFrame(0)` is returned. "
-function timeframe(df::AbstractDataFrame)::TimeFrame
+function timeframe(df::D)::TimeFrame where {D<:AbstractDataFrame}
     if hasproperty(df, :timestamp)
         md = @lget!(colmetadata(df), :timestamp, Dict{String,Any}())
         @something get(md, "timeframe", nothing) begin
@@ -35,35 +35,35 @@ function timeframe(df::AbstractDataFrame)::TimeFrame
         end
     end
 end
-function timeframe!(df::AbstractDataFrame, t::TimeFrame)
+function timeframe!(df::D, t::T) where {D<:AbstractDataFrame,T<:TimeFrame}
     colmetadata!(df, :timestamp, "timeframe", t; style=:note)
     t
 end
-function timeframe!(df::AbstractDataFrame)
+function timeframe!(df::D) where {D<:AbstractDataFrame}
     @something colmetadata(df, :timestamp, "timeframe", nothing) begin
         tf = @infertf(df)
         colmetadata!(df, :timestamp, "timeframe", tf; style=:note)
         tf
     end
 end
-timeframe!!(df::AbstractDataFrame) = begin
+timeframe!!(df::D) where {D<:AbstractDataFrame} = begin
     tf = @infertf(df)
     timeframe!(df, tf)
     tf
 end
 
 @doc "Get the position of date in the `:timestamp` column of the dataframe."
-function dateindex(df::AbstractDataFrame, date::DateTime)
+function dateindex(df::D, date::DateTime) where {D<:AbstractDataFrame}
     searchsortedlast(df.timestamp, date)
 end
 
 @doc "Get the position of date in the `:timestamp` column of the dataframe."
-function dateindex(df::AbstractDataFrame, date::DateTime, ::Val{:timeframe})
+function dateindex(df::D, date::DateTime, ::Val{:timeframe}) where {D<:AbstractDataFrame}
     (date - firstdate(df)) ÷ timeframe(df).period + 1
 end
 
 # TODO: move dateindex to TimeTicks
-function dateindex(v::AbstractVector, date::DateTime)
+function dateindex(v::V, date::DateTime) where {V<:AbstractVector}
     searchsortedlast(v, date)
 end
 
@@ -71,7 +71,7 @@ valueorview(df::DataFrame, idx, col::String) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, col::Symbol) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, cols) = @view df[idx, cols]
 # NOTE: We should subtype an abstract dataframe...arr
-function getindex(df::AbstractDataFrame, idx::DateTime, cols)
+function getindex(df::D, idx::DateTime, cols) where {D<:AbstractDataFrame}
     v = valueorview(df, searchsortedlast(df.timestamp, idx), cols)
     @ifdebug @assert v == getdate(df, idx, cols)
     v
@@ -81,7 +81,9 @@ end
 In general candles collect the price *up to* its timestamp.
 E.g. the candle at time `2000-01-01` would have tracked time from `1999-12-31T00:00:00` to `2000-01-01T00:00:00`.
 Therefore what we return is always the *left adjacent* timestamp of the queried one."""
-function getdate(df::AbstractDataFrame, idx::DateTime, cols, tf::TimeFrame=timeframe!(df))
+function getdate(
+    df::D, idx::DateTime, cols, tf::T=timeframe!(df)
+) where {D<:AbstractDataFrame,T<:TimeFrame}
     @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     # start = df.timestamp[begin]
@@ -100,11 +102,8 @@ df[dtr"..1999-"] # From the beginning up to 1999
 df[dtr"1999-..2000-"] # The Year 1999
 """
 function getdate(
-    df::AbstractDataFrame,
-    dr::Union{DateRange,StepRange{DateTime,<:Period}},
-    cols,
-    tf=timeframe!(df),
-)
+    df::D, dr::Union{DateRange,StepRange{DateTime,<:Period}}, cols, tf=timeframe!(df)
+) where {D<:AbstractDataFrame}
     @ifdebug @assert @infertf(df) == tf
     start = firstdate(df)
     stop = lastdate(df)
@@ -134,8 +133,8 @@ function getdate(
 end
 
 function getindex(
-    df::AbstractDataFrame, dr::Union{DateRange,StepRange{DateTime,<:Period}}, cols
-)
+    df::D, dr::Union{DateRange,StepRange{DateTime,<:Period}}, cols
+) where {D<:AbstractDataFrame}
     start_idx = searchsortedfirst(df.timestamp, dr.start)
     stop_idx = searchsortedlast(df.timestamp, dr.stop)
     v = @view df[start_idx:stop_idx, cols]
@@ -143,14 +142,16 @@ function getindex(
     v
 end
 
-function getindex(df::AbstractDataFrame, idx::DateTime)
+function getindex(df::D, idx::DateTime) where {D<:AbstractDataFrame}
     getindex(df, idx, Symbol.(names(df)))
 end
-function getindex(df::AbstractDataFrame, idx::Union{DateRange,StepRange{DateTime,<:Period}})
+function getindex(
+    df::D, idx::Union{DateRange,StepRange{DateTime,<:Period}}
+) where {D<:AbstractDataFrame}
     getindex(df, idx, Symbol.(names(df)))
 end
 
-function daterange(df::AbstractDataFrame, tf=timeframe(df), rightofs=1)
+function daterange(df::D, tf=timeframe(df), rightofs=1) where {D<:AbstractDataFrame}
     DateRange(df.timestamp[begin], df.timestamp[end] + tf * rightofs, tf)
 end
 

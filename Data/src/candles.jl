@@ -15,7 +15,7 @@ const CandleCol = (; timestamp=1, open=2, high=3, low=4, close=5, volume=6)
     Candle(t::Tuple) = Candle(t...)
 end
 
-function to_ohlcv(data::AbstractVector{Candle}, timeframe::TimeFrame)
+function to_ohlcv(data::V, timeframe::T) where {V<:AbstractVector{Candle},T<:TimeFrame}
     df = DataFrame(data; copycols=false)
     df.timestamp[:] = apply.(timeframe, df.timestamp)
     df
@@ -30,7 +30,7 @@ function _candleidx(df, idx, date)
 end
 
 @doc "Get the candle at given date from a ohlcv dataframe as a `Candle`."
-function candleat(df::AbstractDataFrame, date::DateTime; return_idx=false)
+function candleat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame}
     idx = searchsortedlast(df.timestamp, date)
     cdl = _candleidx(df, idx, date)
     return_idx ? (cdl, idx) : cdl
@@ -47,20 +47,28 @@ macro candleat(col)
     end
 end
 
-openat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat open
-highat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat high
-lowat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat low
-closeat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat close
-volumeat(df::AbstractDataFrame, date::DateTime; return_idx=false) = @candleat volume
+function openat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame}
+    @candleat open
+end
+function highat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame}
+    @candleat high
+end
+lowat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame} = @candleat low
+function closeat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame}
+    @candleat close
+end
+function volumeat(df::D, date::DateTime; return_idx=false) where {D<:AbstractDataFrame}
+    @candleat volume
+end
 
 @doc "Same as `candleat` but also fetches the previous candle, returning a `Tuple{Candle, Candle}`."
-function candlepair(df::AbstractDataFrame, date::DateTime)
+function candlepair(df::D, date::DateTime) where {D<:AbstractDataFrame}
     idx = searchsortedlast(df.timestamp, date)
     (; prev=_candleidx(df, idx - 1, date), this=_candleidx(df, idx, date))
 end
 
 @doc "Get the last candle from a ohlcv dataframe as a `Candle`."
-function candlelast(df::AbstractDataFrame)
+function candlelast(df::D) where {D<:AbstractDataFrame}
     idx = lastindex(df.timestamp)
     _candleidx(df, idx, df.timestamp[idx])
 end
@@ -73,13 +81,15 @@ macro candlelast(col)
     end
 end
 
-openlast(df::AbstractDataFrame) = @candlelast open
-highlast(df::AbstractDataFrame) = @candlelast high
-lowlast(df::AbstractDataFrame) = @candlelast low
-closelast(df::AbstractDataFrame) = @candlelast close
-volumelast(df::AbstractDataFrame) = @candlelast volume
+openlast(df::D) where {D<:AbstractDataFrame} = @candlelast open
+highlast(df::D) where {D<:AbstractDataFrame} = @candlelast high
+lowlast(df::D) where {D<:AbstractDataFrame} = @candlelast low
+closelast(df::D) where {D<:AbstractDataFrame} = @candlelast close
+volumelast(df::D) where {D<:AbstractDataFrame} = @candlelast volume
 
-candleavl(df::AbstractDataFrame, tf::TimeFrame, date) = candleat(df, available(tf, date))
+function candleavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame}
+    candleat(df, available(tf, date))
+end
 
 macro candleavl(col)
     df = esc(:df)
@@ -90,11 +100,11 @@ macro candleavl(col)
         $df.$col[idx]
     end
 end
-openavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl open
-highavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl high
-lowavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl low
-closeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl close
-volumeavl(df::AbstractDataFrame, tf::TimeFrame, date) = @candleavl volume
+openavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame} = @candleavl open
+highavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame} = @candleavl high
+lowavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame} = @candleavl low
+closeavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame} = @candleavl close
+volumeavl(df::D, tf::TimeFrame, date) where {D<:AbstractDataFrame} = @candleavl volume
 
 export Candle, candleat, candlelast, candleavl
 export openat, highat, lowat, closeat, volumeat
