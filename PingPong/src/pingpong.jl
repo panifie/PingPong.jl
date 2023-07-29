@@ -74,11 +74,14 @@ macro strategyenv!()
 
         using .st: freecash, setattr!, attr
         using .pp.Engine.Exchanges: getexchange!
+        using .pp.Engine.Processing: resample, islast, iscomplete, isincomplete
         using .Data: propagate_ohlcv!
+        using .Data.DFUtils: lastdate, firstdate, daterange
         using .Misc: after, before, rangeafter, rangebefore
-        using .inst: ohlcv
+        using .inst: ohlcv, raw
 
         const $(esc(:ect)) = PingPong.Engine.Executors
+        const $(esc(:pro)) = PingPong.Engine.Processing
 
         $(@__MODULE__).Engine.Strategies.@interface
     end

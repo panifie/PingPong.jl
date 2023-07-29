@@ -7,7 +7,8 @@ using Lang: Option, waitfunc
 include("exchangeid.jl")
 include("exchange.jl")
 
-export Exchange, ExchangeID, ExcPrecisionMode, exchanges, sb_exchanges, globalexchange!, has
+export Exchange,
+    ExchangeID, ExcPrecisionMode, exchange, exchanges, sb_exchanges, globalexchange!, has
 
 function _doinit()
     waitfunc(Ccxt.isinitialized)
