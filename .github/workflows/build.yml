@@ -45,6 +45,8 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          limit-access-to-actor: true
       - name: Precomp
         uses: docker/build-push-action@v2
         id: precomp
