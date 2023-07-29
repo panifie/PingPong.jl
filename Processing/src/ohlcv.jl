@@ -181,10 +181,12 @@ islast(candle::Candle, tf) = islast(candle.timestamp, tf, Val(:raw))
 islast(v, tf::AbstractString) = islast(v, timeframe(tf))
 islast(v::AbstractString, tf) = islast(something(tryparse(DateTime, v), DateTime(0)), tf)
 islast(v::S, tf::S) where {S<:AbstractString} = islast(v, timeframe(tf))
-islast(dst::DataFrame, src::DataFrame) =
-    let tf = timeframe!(dst)
-        apply(tf, lastdate(src)) == lastdate(dst)
+_equalapply(date1, tf, date2) = apply(tf, date1) - period(tf) == date2
+function islast(larger::DataFrame, smaller::DataFrame)
+    let tf = timeframe!(larger), date = lastdate(smaller)
+        _equalapply(date, tf, lastdate(larger))
     end
+end
 @doc "`a` is left adjacent to `b` if in order `..ab..`"
 isleftadj(a, b, tf::TimeFrame) = a + tf == b
 @doc "`a` is right adjacent to `b` if in order `..ba..`"

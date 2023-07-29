@@ -26,26 +26,29 @@ function propagate_ohlcv!(
     else
         props_itr = Iterators.drop(data, 1)
         props_n = length(props_itr)
-        for (tf, tf_data) in props_itr
-            let src_data = base_data, src_tf = base_tf, tf_idx = 1, hasrows = !isempty(tf_data)
-                dowarn() = @debug "Failed to propagate ohlcv from $base_tf..$src_tf to $tf"
+        for (dst_tf, dst_data) in props_itr
+            let src_data = base_data, src_tf = base_tf, tf_idx = 1
+                function dowarn()
+                    @debug "Failed to propagate ohlcv from $base_tf..$src_tf to $dst_tf"
+                end
                 while true
                     tf_idx >= props_n && (dowarn(); break)
-                    if nrow(src_data) < count(src_tf, tf)
+                    if nrow(src_data) < count(src_tf, dst_tf)
                         src_tf, src_data = first(Iterators.drop(data, tf_idx))
-                        hasrows && islast(tf_data, src_data) && break
                         # Can't propagate if the source tf exceedes the target tf
-                        src_tf >= tf && (dowarn(); break)
+                        src_tf >= dst_tf && (dowarn(); break)
                         tf_idx += 1
                         continue
                     end
-                    tf_idx += 1
-                    update_func(src_tf, src_data, tf, tf_data)
-                    hasrows && islast(tf_data, src_data) && break
+                    update_func(src_tf, src_data, dst_tf, dst_data)
+                    # stop if dst data matches the padded date of source data
+                    !isempty(dst_data) && islast(dst_data, src_data) && break
                     src_tf, src_data = first(Iterators.drop(data, tf_idx))
-                    src_tf >= tf && (dowarn(); break)
+                    # Can't propagate if the source tf exceedes the target tf
+                    src_tf >= dst_tf && (dowarn(); break)
+                    tf_idx += 1
                 end
-                @deassert contiguous_ts(tf_data.timestamp, string(timeframe!(tf_data)))
+                @deassert contiguous_ts(dst_data.timestamp, string(timeframe!(dst_data)))
             end
         end
     end
@@ -95,3 +98,5 @@ end
 function propagate_ohlcv!(base_tf, base_data, tf, tf_data)
     propagate_ohlcv!(base_data, tf_data; src_tf=base_tf, dst_tf=tf)
 end
+
+export propagate_ohlcv!
