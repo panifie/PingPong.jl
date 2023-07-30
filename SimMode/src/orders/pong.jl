@@ -1,12 +1,12 @@
 import Executors: pong!
 using Executors
-using Executors: iscommittable, priceat, marketorder, hold!
+using Executors: iscommittable, priceat, marketorder, hold!, AnyLimitOrder
 using OrderTypes: LimitOrderType, MarketOrderType
 using .Lang: @lget!, Option
 
 @doc "Creates a simulated limit order."
 function pong!(
-    s::NoMarginStrategy{Sim}, ai, t::Type{<:Order{<:LimitOrderType}}; amount, kwargs...
+    s::NoMarginStrategy{Sim}, ai, t::Type{<:AnyLimitOrder}; amount, kwargs...
 )
     o = create_sim_limit_order(s, t, ai; amount, kwargs...)
     isnothing(o) && return nothing
