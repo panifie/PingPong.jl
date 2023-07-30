@@ -831,7 +831,7 @@ deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LiveMode]]
-deps = ["Collections", "Data", "ExchangeTypes", "Exchanges", "Executors", "Instances", "Instruments", "Lang", "Misc", "OrderTypes", "Python", "Strategies", "TimeTicks"]
+deps = ["PaperMode", "Python"]
 path = "../LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 version = "0.1.0"
