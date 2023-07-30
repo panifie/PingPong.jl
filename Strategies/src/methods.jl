@@ -10,6 +10,7 @@ Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 assets(s::Strategy) = universe(s).data.asset
 @doc "Strategy assets instance."
 instances(s::Strategy) = universe(s).data.instance
+# FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy main exchange id."
 exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
 exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
