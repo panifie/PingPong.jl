@@ -1,7 +1,9 @@
 using .Lang: @lget!, splitkws
 using .ExchangeTypes
 using .Misc.TimeToLive
+using .Misc: LittleDict
 using .Python
+import .st: current_total
 
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
 const BalanceTTL = Ref(Second(5))
@@ -38,39 +40,71 @@ function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwa
     d = _balancedict!(exc)
     @lget! d (status, type) begin
         b = _fetch_balance(exc, args...; type, kwargs...)
-        b[@pystr(string(status))]
+        b[@pystr(lowercase(string(status)))]
     end
 end
 
+_pystrsym(v::String) = @pystr(uppercase(v))
+_pystrsym(v::Symbol) = @pystr(uppercase(string(v)))
+
 @doc "Fetch balance for symbol, caching for $(BalanceTTL[])."
 function balance(
-    exc::Exchange, sym::Symbol, args...; type=Symbol(), status=TotalBalance, kwargs...
+    exc::Exchange,
+    sym::Union{<:AssetInstance,Symbol},
+    args...;
+    type=Symbol(),
+    status=TotalBalance,
+    kwargs...,
 )
     d = _symdict!(exc)
     @lget! d (sym, status, type) begin
         b = balance(exc, args...; type, status, kwargs...)
-        pyconvert(Float64, b.get(@pystr(string(sym)), 0.0))
+        pyconvert(Float64, b.get(_pystrsym(sym), 0.0))
     end
 end
 
 @doc "Fetch balance forcefully, caching for $(BalanceTTL[])."
-function balance!(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwargs...)
-    b = _fetch_balance(exc, args...; type, kwargs...)[@pystr(string(status))]
+function balance!(exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...)
+    b = _fetch_balance(exc, args...; type, kwargs...)[@pystr(lowercase(string(status)))]
     d = _balancedict!(exc)
     d[(status, type)] = b
     empty!(_symdict!(exc))
-    b
+    raw ? b : pyconvert(Dict{Symbol, DFT}, b)
 end
 
 @doc "Fetch balance forcefully for symbol, caching for $(BalanceTTL[])."
 function balance!(
-    exc::Exchange, sym::Symbol, args...; type=Symbol(), status=TotalBalance, kwargs...
+    exc::Exchange,
+    sym::Union{String,Symbol},
+    args...;
+    type=Symbol(),
+    status=TotalBalance,
+    kwargs...,
 )
     b = balance!(exc, args...; type, status, kwargs...)
     d = _symdict!(exc)
-    v = pyconvert(Float64, b.get(@pystr(string(sym)), 0.0))
-    d[(sym, status, type)] = v
-    v
+    v = pyconvert(Float64, b.get(_pystrsym(sym), 0.0))
+    d[(Symbol(sym), status, type)] = v
+    pyconvert(DFT, v)
+end
+
+function balance(s::LiveStrategy, args...; kwargs...)
+    balance(getexchange!(exchange(s)), args...; kwargs...)
+end
+
+function balance(s::LiveStrategy, sym, args...; kwargs...)
+    balance(getexchange!(exchange(s)), sym, args...; kwargs...)
+end
+
+function balance!(s::LiveStrategy, args...; kwargs...)
+    balance!(getexchange!(exchange(s)), args...; kwargs...)
+end
+
+function current_total(s::LiveStrategy)
+    tot = zero(DFT)
+    for ai in s.universe
+        balance(s)
+    end
 end
 
 include("adhoc/balance.jl")
