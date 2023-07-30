@@ -61,6 +61,7 @@ function _load_smallest!(i, tfs, from_data, from_tf, exc, force=false)
             copysubs!(from_data, empty)
             empty!(from_data)
         end
+        copysubs!(from_data)
         append!(from_data, load(zi, exc.name, i.asset.raw, string(from_tf)))
         if size(from_data)[1] == 0 || force
             for to_tf in tfs
