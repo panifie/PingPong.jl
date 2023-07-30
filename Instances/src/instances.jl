@@ -11,7 +11,7 @@ import Data: stub!
 using Data.DataFrames: metadata
 using TimeTicks
 using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
-import Instruments: _hashtuple, cash!, cash, freecash, value, raw
+import Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 import Misc: approxzero, gtxzero, ltxzero, marginmode
@@ -227,6 +227,9 @@ end
 function raw(ai::AssetInstance)
     raw(asset(ai))
 end
+
+bc(ai::AssetInstance) = bc(asset(ai))
+qc(ai::AssetInstance) = qc(asset(ai))
 
 @doc "Rounds a value based on the `precision` field of the `ai` asset instance. [`amount`]."
 macro _round(v, kind=:amount)
@@ -526,7 +529,7 @@ lastprice(ai::AssetInstance) = lastprice(ai.asset.raw, ai.exchange)
 include("constructors.jl")
 
 export AssetInstance, instance, load!, @rprice, @ramount
-export asset, raw, ohlcv
+export asset, raw, ohlcv, bc, qc
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
 export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed, price
 export leverage, mmr, status!
