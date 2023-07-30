@@ -313,14 +313,14 @@ function test_paper_nomargin_fok(s)
 end
 
 function test_paper()
-    @testset "positions" begin
+    @testset "paper" begin
         @eval include(joinpath(@__DIR__, "env.jl"))
         try
             s = backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Paper())
-            # @testset test_paper_nomargin_market(s)
-            # @testset test_paper_nomargin_gtc(s)
-            # @testset test_paper_nomargin_ioc(s)
-            # @testset test_paper_nomargin_fok(s)
+            @testset test_paper_nomargin_market(s)
+            @testset test_paper_nomargin_gtc(s)
+            @testset test_paper_nomargin_ioc(s)
+            @testset test_paper_nomargin_fok(s)
         finally
             reset!(s)
         end
