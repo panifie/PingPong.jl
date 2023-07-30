@@ -1,4 +1,4 @@
-using Python: pyCached
+using Python: pyCached, Python
 
 @doc "Clear all python dependent caches."
 function emptycaches!()
@@ -9,3 +9,5 @@ function emptycaches!()
     empty!(pyCached)
     ExchangeTypes._closeall()
 end
+
+Python.pytofloat(v) = Python.pytofloat(v, zero(DFT))

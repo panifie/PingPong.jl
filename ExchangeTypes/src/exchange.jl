@@ -118,7 +118,8 @@ end
 # atexit(_closeall)
 Base.nameof(e::CcxtExchange) = nameof(getfield(e, :id))
 
-exchange(args...; kwargs...) = error("not implemented")
+exchange(e::Exchange, args...; kwargs...) = e
+exchangeid(e::E) where {E<:Exchange} = getfield(e, :id)
 
 Base.show(out::IO, exc::Exchange) = begin
     write(out, "Exchange: ")
