@@ -11,7 +11,7 @@ function leverage!(exc::Exchange, v::Real, sym::AbstractString)
         @debug resp
         false
     else
-        Bool(resp.get("retCode", @pystr("")) == @pystr("0"))
+        Bool(resp.get("code", @pystr("")) == @pystr("0"))
     end
 end
 
