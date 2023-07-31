@@ -7,6 +7,7 @@ const PYMODPATHS = String[]
 const PYTHONPATH = Ref("")
 const PY_V = Ref("")
 const pynull = pynew()
+const pytryfloat = pynew()
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
@@ -67,10 +68,26 @@ function _doinit()
             f()
         end
         empty!(CALLBACKS)
+        _pytryfloat_func!()
     catch e
         @debug e
     end
     _INITIALIZED[] = true
+end
+
+function _pytryfloat_func!(force=false)
+    pyisnull(pytryfloat) ||
+        force && begin
+            code = """
+            def tryfloat(v):
+                try:
+                    return float(v)
+                except:
+                    pass
+            """
+            func = pyexec(NamedTuple{(:tryfloat,),Tuple{Py}}, code, pydict()).tryfloat
+            pycopy!(pytryfloat, func)
+        end
 end
 
 include("async.jl")
@@ -100,4 +117,4 @@ include("functions.jl")
 # NOTE: This must be done after all the global code in this module has been execute
 using Reexport
 @reexport using PythonCall
-export @pymodule, clearpypath!
+export @pymodule, clearpypath!, pytryfloat

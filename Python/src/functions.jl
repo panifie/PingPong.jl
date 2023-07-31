@@ -1,4 +1,4 @@
-using PythonCall: pystr, Py, PyException
+using PythonCall: pystr, Py, PyException, pyisstr, pyisnone, pyfloat
 
 function pylist_to_matrix(data::Py)
     permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
@@ -24,4 +24,14 @@ function pytofloat(v::Py, def::T)::T where {T<:Number}
     end
 end
 
-export @pystr, pytofloat
+function pyisnonzero(v::Py)::Bool
+    if pyisnone(v)
+        false
+    elseif isnothing(pytryfloat(v))
+        false
+    else
+        true
+    end
+end
+
+export @pystr, pytofloat, pyisnonzero
