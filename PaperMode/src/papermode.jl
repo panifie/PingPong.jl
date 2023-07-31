@@ -63,6 +63,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         name = nameof(s)
         paper_running = attr(s, :paper_running)
         @assert isassigned(paper_running)
+        setattr!(s, :paper_start, now())
         try
             while paper_running[]
                 infofunc()
@@ -80,6 +81,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
             end
         finally
             paper_running[] = false
+            setattr!(s, :paper_stop, now())
         end
     end
     s[:paper_running] = Ref(true)
