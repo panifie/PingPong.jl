@@ -134,9 +134,12 @@ function tier(po::Position, size)
     tier(po.tiers[], size)
 end
 posside(::Position{P}) where {P<:PositionSide} = P
+posside(::Long) = Long()
+posside(::Short) = Short()
 
 @doc "Position entryprice."
 price(po::Position) = po.entryprice[]
+entryprice(po::Position) = price(po)
 @doc "Position liquidation price."
 liqprice(pos::Position) = pos.liquidation_price[]
 @doc "Position leverage."
@@ -220,6 +223,11 @@ function maintenance!(po::Position, v)
     @deassert maintenance(po) <= margin(po)
     v
 end
+
+@doc "Set position cash value."
+cash!(po::Position, v) = cash!(cash(po), v)
+@doc "Set position committed cash value."
+commit!(po::Position, v) = cash!(committed(po), v)
 
 @doc "Calc PNL for long position given `current_price` as input."
 function pnl(po::Position{Long}, current_price, amount=cash(po))

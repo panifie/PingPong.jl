@@ -133,6 +133,7 @@ Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 posside(::NoMarginInstance) = Long()
 posside(ai::MarginInstance) = posside(position(ai))()
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
+ishedged(ai::AssetInstance) = marginmode(ai) |> ishedged
 isopen(ai::NoMarginInstance) = !iszero(ai)
 isopen(ai::MarginInstance) =
     let po = position(ai)
@@ -167,11 +168,11 @@ function nondust(ai::MarginInstance, price, p=posside(ai))
 end
 @doc "Test if some amount (base currency) is zero w.r.t. an asset instance min limit."
 function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min - eps(DFT))
-    isapprox(v, 0.0; atol)
+    isapprox(v, zero(DFT); atol)
 end
 @doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance, p::PositionSide)
-    isapprox(value(cash(ai, p)), 0.0; atol=ai.limits.amount.min - eps(DFT))
+    isapprox(value(cash(ai, p)), zero(DFT); atol=ai.limits.amount.min - eps(DFT))
 end
 @doc "Test if asset cash is zero."
 function Base.iszero(ai::AssetInstance)
