@@ -128,7 +128,7 @@ function ticker!(
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
-    pyconvert(DFT, ticker!(pair, exc; kwargs...)["last"])
+    ticker!(pair, exc; kwargs...)["last"] |> pytofloat
 end
 
 @doc "Precision of the (base, quote) currencies of the market."
