@@ -1,5 +1,5 @@
 using PythonCall:
-    Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert
+    Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert, pyisTrue
 using Dates: Period, Second
 using ThreadPools: @tspawnat
 
@@ -97,7 +97,7 @@ function py_start_loop(pa::PythonAsync)
     pycoro_type = pa.pycoro_type
 
     @assert !pyisnull(pyaio)
-    @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
+    @assert pyisnull(pyloop) || !pyisTrue(pyloop.is_running())
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
     pyisnull(pyrunner) &&
@@ -155,7 +155,7 @@ end
 Checks if a Python future is done.
 """
 _isfutdone(fut::Py) = pyisnull(fut) || let v = fut.done()
-    Bool(v)
+    pyisTrue(v)
 end
 
 """
