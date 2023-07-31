@@ -7,12 +7,11 @@ using Exchanges:
     getexchange!,
     issupported,
     save_ohlcv,
-    to_float,
-    pytofloat
+    to_float
 using Exchanges.Ccxt
 using Pbar
 using Python
-using Python: pylist_to_matrix, py_except_name
+using Python: pylist_to_matrix, py_except_name, pytofloat
 using Processing: cleanup_ohlcv_data, islast, resample
 using Exchanges.Data:
     Data,
