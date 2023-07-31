@@ -1,4 +1,5 @@
 using Python: pyCached, Python
+import Python: pytofloat
 
 @doc "Clear all python dependent caches."
 function emptycaches!()
@@ -10,4 +11,5 @@ function emptycaches!()
     ExchangeTypes._closeall()
 end
 
-Python.pytofloat(v) = Python.pytofloat(v, zero(DFT))
+pytofloat(v::N) where {N<:Number} = v
+pytofloat(v::Py) = Python.pytofloat(v, zero(DFT))
