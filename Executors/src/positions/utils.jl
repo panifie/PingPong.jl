@@ -62,3 +62,13 @@ position!(::IsolatedStrategy, ai, ::DateTime, ::Nothing) = nothing
 @doc "Non margin strategies don't have positions."
 position!(s::NoMarginStrategy, args...; kwargs...) = nothing
 positions!(s::NoMarginStrategy, args...; kwargs...) = nothing
+
+_commitside(::Long) = Sell
+_commitside(::Short) = Buy
+function committed(s::MarginStrategy, ai::MarginInstance, ::ByPos{P}) where {P}
+    ans = zero(DFT)
+    for (_, o) in orders(s, ai, P(), _commitside(P()))
+        ans += o.amount
+    end
+    ans
+end
