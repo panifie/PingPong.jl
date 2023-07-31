@@ -39,31 +39,42 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         ordersdefault!(s)
     end
     startinfo = header(s, throttle)
-    infofunc =
-        () -> begin
-            long, short, liq = st.trades_count(s, Val(:positions))
-            cv = cnum(s.cash.value)
-            comm = cnum(s.cash_committed.value)
-            inc = orderscount(s, Val(:increase))
-            red = orderscount(s, Val(:reduce))
-            tot = st.current_total(s, lastprice) |> cnum
-            @info "$(now())($(nameof(s))@$(s.exchange)) $comm/$cv[$tot]($(nameof(s.cash))), orders: $inc/$red(+/-) trades: $long/$short/$liq(L/S/Q)"
+    function infofunc()
+        long, short, liq = st.trades_count(s, Val(:positions))
+        cv = cnum(s.cash.value)
+        comm = cnum(s.cash_committed.value)
+        inc = orderscount(s, Val(:increase))
+        red = orderscount(s, Val(:reduce))
+        tot = st.current_total(s, lastprice) |> cnum
+        @info "$(now())($(nameof(s))@$(s.exchange)) $comm/$cv[$tot]($(nameof(s.cash))), orders: $inc/$red(+/-) trades: $long/$short/$liq(L/S/Q)"
+    end
+
+    last_flush = Ref(DateTime(0))
+    log_flush_interval = attr(s, :log_flush_interval, Second(1))
+    maybeflush() =
+        let this_time = now()
+            this_time - last_flush[] > log_flush_interval
+            flush(loghandle)
+            last_flush[] = this_time
         end
-    doping(loghandle) = begin
+
+    function doping(loghandle)
         @info startinfo
         name = nameof(s)
-        last_flush = DateTime(0)
         paper_running = attr(s, :paper_running)
         @assert isassigned(paper_running)
         try
             while paper_running[]
                 infofunc()
-                now() - last_flush > Second(1) && flush(loghandle)
-                last_flush = now()
+                maybeflush()
                 try
                     ping!(s, now(), nothing)
                 catch e
-                    @logerror loghandle
+                    try
+                        @logerror loghandle
+                    catch
+                        @debug "Failed to log $(now())"
+                    end
                 end
                 sleep(throttle)
             end
