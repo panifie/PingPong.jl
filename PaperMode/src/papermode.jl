@@ -51,11 +51,15 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
 
     last_flush = Ref(DateTime(0))
     log_flush_interval = attr(s, :log_flush_interval, Second(1))
-    maybeflush() =
+    log_lock = ReentrantLock()
+    maybeflush(loghandle) =
         let this_time = now()
-            this_time - last_flush[] > log_flush_interval
-            flush(loghandle)
-            last_flush[] = this_time
+            if this_time - last_flush[] > log_flush_interval
+                lock(log_lock) do
+                    flush(loghandle)
+                    last_flush[] = this_time
+                end
+            end
         end
 
     function doping(loghandle)
@@ -65,16 +69,18 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         @assert isassigned(paper_running)
         setattr!(s, :paper_start, now())
         try
-            while paper_running[]
+            @sync while paper_running[]
                 infofunc()
-                maybeflush()
+                maybeflush(loghandle)
                 try
                     ping!(s, now(), nothing)
                 catch e
-                    try
-                        @logerror loghandle
-                    catch
-                        @debug "Failed to log $(now())"
+                    @async lock(log_lock) do
+                        try
+                            @logerror loghandle
+                        catch
+                            @debug "Failed to log $(now())"
+                        end
                     end
                 end
                 sleep(throttle)
