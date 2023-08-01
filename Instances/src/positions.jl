@@ -150,6 +150,7 @@ status(pos::Position) = pos.status[]
 maintenance(pos::Position) = pos.maintenance_margin[]
 @doc "Position initial margin (includes additional)."
 margin(pos::Position) = pos.initial_margin[]
+initial(args...; kwargs...) = margin(args...; kwargs...)
 @doc "Position additional margin."
 additional(pos::Position) = pos.additional_margin[]
 @doc "Position maintenance margin rate."
@@ -205,6 +206,11 @@ function margin!(po::Position; ntl=notional(po), lev=leverage(po))
     m = _roundpos(ntl / lev)
     @deassert m <= notional(po)
     po.initial_margin[] = m
+end
+
+@doc "Sets initial margin (should always be positive)."
+function initial!(po::Position, v=0.0)
+    po.initial_margin[] = _roundpos(abs(v))
 end
 
 @doc "Sets additional margin (should always be positive)."
@@ -289,6 +295,7 @@ function Base.show(io::IO, po::Position)
     write(io, string(po.timestamp[]))
 end
 
-export notional, additional, price, notional!, bankruptcy, pnl, collateral
-export timestamp!, leverage!, tier!, liqprice!, margin!, maintenance!
+export notional, additional, price, bankruptcy, pnl, collateral
+export timestamp!, leverage!, tier!
+export liqprice!, margin!, maintenance!, initial!, additional!, notional!
 export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange
