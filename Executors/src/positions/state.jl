@@ -46,13 +46,13 @@ function update_leverage!(po::Position{P}; lev, price=price(po), mmr=mmr(po)) wh
     end
     # update margin from new leverage
     margin!(po)
-    update_maintenance!(po)
+    update_maintenance!(po; mmr)
 end
 
 @doc "Updates maintenance margin."
-function update_maintenance!(po::Position; ntl=notional(po))
-    @deassert mmr(po) == tier(po, ntl)[2].mmr
-    mm = ntl * mmr(po)
+function update_maintenance!(po::Position; ntl=notional(po), mmr=mmr(po))
+    @deassert mmr == tier(po, ntl)[2].mmr
+    mm = ntl * mmr
     maintenance!(po, mm)
 end
 
