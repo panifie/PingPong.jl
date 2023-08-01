@@ -1,17 +1,19 @@
 using .Lang: @lget!, splitkws
 using .ExchangeTypes
+using .Exchanges: issandbox
 using .Misc.TimeToLive
 using .Misc: LittleDict
-using .Python
-import .st: current_total
+using .Python: pytofloat, Py, @pystr, PyDict, @pyfetch, pyfetch, pyconvert
+using .Instances: bc, qc
+import .st: current_total, MarginStrategy, NoMarginStrategy
 
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
 const BalanceTTL = Ref(Second(5))
-const BalanceCacheDict4 = safettl(
-    ExchangeID, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
+const BalanceCacheDict5 = safettl(
+    Tuple{ExchangeID,Bool}, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
 )
-const BalanceCacheSyms6 = safettl(
-    ExchangeID, Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}, BalanceTTL[]
+const BalanceCacheSyms7 = safettl(
+    Tuple{ExchangeID,Bool}, Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}, BalanceTTL[]
 )
 
 function Base.string(v::BalanceStatus)
@@ -28,10 +30,14 @@ function _fetch_balance(exc, args...; kwargs...)
     pyfetch(exc.py.fetchBalance, args...; splitkws(:type; kwargs).rest...)
 end
 function _balancedict!(exc)
-    @lget! BalanceCacheDict4 exc.id Dict{Tuple{BalanceStatus,Symbol},Py}()
+    @lget! BalanceCacheDict5 (exchangeid(exc), issandbox(exc)) Dict{
+        Tuple{BalanceStatus,Symbol},Py
+    }()
 end
 function _symdict!(exc)
-    @lget! BalanceCacheSyms6 exc.id Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}()
+    @lget! BalanceCacheSyms7 (exchangeid(exc), issandbox(exc)) Dict{
+        Tuple{Symbol,BalanceStatus,Symbol},Float64
+    }()
 end
 _balancetype(_, _) = Symbol()
 
@@ -64,12 +70,14 @@ function balance(
 end
 
 @doc "Fetch balance forcefully, caching for $(BalanceTTL[])."
-function balance!(exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...)
+function balance!(
+    exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...
+)
     b = _fetch_balance(exc, args...; type, kwargs...)[@pystr(lowercase(string(status)))]
     d = _balancedict!(exc)
     d[(status, type)] = b
     empty!(_symdict!(exc))
-    raw ? b : pyconvert(Dict{Symbol, DFT}, b)
+    raw ? b : pyconvert(Dict{Symbol,DFT}, b)
 end
 
 @doc "Fetch balance forcefully for symbol, caching for $(BalanceTTL[])."
@@ -100,11 +108,40 @@ function balance!(s::LiveStrategy, args...; kwargs...)
     balance!(getexchange!(exchange(s)), args...; kwargs...)
 end
 
-function current_total(s::LiveStrategy)
-    tot = zero(DFT)
-    for ai in s.universe
-        balance(s)
+function current_total(
+    s::LiveStrategy{N,E,M}, price_func=lastprice; type=:swap, code=_pystrsym(nameof(s.cash))
+) where {N,E<:ExchangeID,M<:WithMargin}
+    tot = [zero(DFT)]
+    bal = balance(s; type, code)
+    @sync for ai in s.universe
+        amount = get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat
+        @async let v = price_func(ai) * amount
+            tot[] += v
+        end
     end
+    tot[] += get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
+    tot[]
+end
+
+function current_total(
+    s::LiveStrategy{N,E,NoMargin},
+    price_func=lastprice;
+    type=:spot,
+    code=_pystrsym(nameof(s.cash)),
+) where {N,E<:ExchangeID}
+    bal = balance(s; type, code)
+    tot = get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
+    @sync for ai in s.universe
+        amount = get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat
+        @async let v = price_func(ai) * amount
+            # NOTE: `x += y` is rewritten as x = x + y
+            # Because `price_func` can be async, the value of `x` might be stale by
+            # the time `y` is fetched, and the assignment might clobber the most
+            # recent value of `x`
+            tot += v
+        end
+    end
+    tot
 end
 
 include("adhoc/balance.jl")
