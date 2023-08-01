@@ -2,7 +2,7 @@ using PaperMode.SimMode: _lev_value, leverage!, leverage
 using .Executors: hasorders
 using .st: exchange
 using .Executors.Instances: raw
-import Executors: pong!
+import .Executors: pong!
 
 function Executors.pong!(
     s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
