@@ -57,16 +57,16 @@ function update_maintenance!(po::Position; ntl=notional(po), mmr=mmr(po))
 end
 
 @doc "Update position price, notional and cash from a new trade."
-function withtrade!(po::Position{P}, t::PositionTrade{P}) where {P}
+function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) where {P}
     # the position cash should already be updated at trade creation
     # so this not-equation should be true since the position is in a stale state
     @deassert iszero(price(po)) ||
         abs(notional(po) / cash(po)) != price(po) ||
         abs(cash(po)) == abs(t.order.amount) - abs(t.amount)
     timestamp!(po, t.date)
+    @deassert settle_price != t.price || t.order.asset.sc == t.order.asset.qc
     # @show cash(po) t.amount positionside(t) orderside(t)
-    ntl = _roundpos(cash(po) * t.price)
-    # ntl > 1e3 && error()
+    ntl = _roundpos(cash(po) * settle_price)
     @deassert ntl > 0.0 || cash(po) <= 0.0
     # notional updates the price, then leverage, then the liq price.
     update_notional!(po; ntl)
