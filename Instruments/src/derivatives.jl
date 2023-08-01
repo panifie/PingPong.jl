@@ -71,6 +71,11 @@ function getproperty(d::Derivative, s::Symbol)
     getfield(d, s)
 end
 
+function sc(d::Derivative; orqc=true)
+    s = getfield(d, :sc)
+    isequal(s, Symbol("")) && orqc ? getfield(d, :asset).qc : s
+end
+
 @doc "Predicates according to [OctoBot](https://github.com/Drakkar-Software/OctoBot-Commons/blob/master/octobot_commons/symbols/symbol.py)"
 is_settled(d::Derivative) = d.sc != Symbol()
 has_strike(d::Derivative) = d.strike != 0.0
@@ -106,6 +111,6 @@ Base.string(a::Derivative) = "Derivative($(a.raw))"
 Base.show(buf::IO, a::Derivative) = write(buf, string(a))
 Base.Broadcast.broadcastable(q::Derivative) = Ref(q)
 
-export Derivative, DerivativeKind, @d_str, perpetual
+export Derivative, DerivativeKind, @d_str, perpetual, sc
 
 end
