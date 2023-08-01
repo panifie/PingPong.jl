@@ -160,6 +160,8 @@ notional(pos::Position) = pos.notional[]
 cash(po::Position) = po.cash
 @doc "Position locked in pending orders."
 committed(po::Position) = po.cash_committed
+@doc "Maximum value that can be lost by the position"
+collateral(po::Position) = margin(po) + additional(po)
 
 @doc "The price where the position is fully liquidated."
 function bankruptcy(price::Real, lev::Real)
@@ -202,7 +204,7 @@ end
 function margin!(po::Position; ntl=notional(po), lev=leverage(po))
     m = _roundpos(ntl / lev)
     @deassert m <= notional(po)
-    po.initial_margin[] = m + additional(po)
+    po.initial_margin[] = m
 end
 
 @doc "Sets additional margin (should always be positive)."
@@ -287,6 +289,6 @@ function Base.show(io::IO, po::Position)
     write(io, string(po.timestamp[]))
 end
 
-export notional, additional, price, notional!, bankruptcy, pnl
+export notional, additional, price, notional!, bankruptcy, pnl, collateral
 export timestamp!, leverage!, tier!, liqprice!, margin!, maintenance!
 export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange
