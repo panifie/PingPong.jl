@@ -68,26 +68,27 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         paper_running = attr(s, :paper_running)
         @assert isassigned(paper_running)
         setattr!(s, :paper_start, now())
-        try
-            @sync while paper_running[]
+        setattr!(s, :paper_stop, nothing)
+        @sync while paper_running[]
+            try
                 infofunc()
                 maybeflush(loghandle)
-                try
-                    ping!(s, now(), nothing)
-                catch e
-                    @async lock(log_lock) do
-                        try
-                            @logerror loghandle
-                        catch
-                            @debug "Failed to log $(now())"
-                        end
+                ping!(s, now(), nothing)
+                sleep(throttle)
+            catch e
+                e isa InterruptException && rethrow(e)
+                @async lock(log_lock) do
+                    try
+                        @logerror loghandle
+                    catch
+                        @debug "Failed to log $(now())"
                     end
                 end
                 sleep(throttle)
+            finally
+                paper_running[] = false
+                setattr!(s, :paper_stop, now())
             end
-        finally
-            paper_running[] = false
-            setattr!(s, :paper_stop, now())
         end
     end
     s[:paper_running] = Ref(true)
