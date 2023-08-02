@@ -64,7 +64,7 @@ get_time(v::Py, k) =
         @something pyconvert(Option{DateTime}, d) now()
     end
 live_amount(lp::Py) = get_float(lp, "contracts")
-live_entryprice(lp::Py) = get_float(lp, "entryprice")
+live_entryprice(lp::Py) = get_float(lp, "entryPrice")
 live_mmr(lp::Py, pos) =
     let v = get_float(lp, "maintenanceMarginPercentage")
         if v > ZERO
