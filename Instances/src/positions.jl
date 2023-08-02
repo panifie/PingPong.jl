@@ -210,19 +210,19 @@ end
 
 @doc "Sets initial margin (should always be positive)."
 function initial!(po::Position, v=0.0)
-    po.initial_margin[] = _roundpos(abs(v))
+    po.initial_margin[] = abs(v) |> _roundpos
 end
 
 @doc "Sets additional margin (should always be positive)."
 function additional!(po::Position, v=0.0)
     @deassert v + margin(po) <= notional(po)
-    po.additional_margin[] = abs(v)
+    po.additional_margin[] = abs(v) |> _roundpos
 end
 
 @doc "Adds margin to a position."
 function addmargin!(po::Position, v)
     @deassert margin(po) + v <= notional(po)
-    po.additional_margin[] = max(0.0, v + additional(po))
+    po.additional_margin[] = max(0.0, v + additional(po)) |> _roundpos
 end
 
 @doc "Sets maintenance margin."
@@ -283,8 +283,8 @@ function Base.show(io::IO, po::Position)
     write(io, string(cash(po)))
     write(io, "\nnotional: ")
     write(io, string(notional(po)))
-    write(io, "\nmargin: ")
-    write(io, string(margin(po)))
+    write(io, "\ncollateral: ")
+    write(io, string(collateral(po)))
     write(io, "\nleverage: ")
     write(io, string(leverage(po)))
     write(io, "\nmaintenance: ")
