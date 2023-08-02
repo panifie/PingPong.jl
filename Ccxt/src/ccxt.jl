@@ -2,8 +2,8 @@ using Python
 using Misc: DATA_PATH
 using Misc.ConcurrentCollections: ConcurrentDict
 using Misc.Lang: @lget!
-using Python: pynew
-using Python.PythonCall: pyisnull, pycopy!
+using Python: pynew, pyisnone
+using Python.PythonCall: pyisnull, pycopy!, pybuiltins
 
 const ccxt = Ref{Union{Nothing,Py}}(nothing)
 const ccxt_ws = Ref{Union{Nothing,Py}}(nothing)
@@ -66,15 +66,29 @@ const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
 
 # NOTE: watch_tickers([...]) returns empty sometimes...
 # so call without args, and select the input
-function choosefunc(exc, suffix, inputs::AbstractVector; kwargs...)
-    @lget! FUNCTION_WRAPPERS hash((exc.id, suffix, inputs, kwargs...)) begin
+function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs...)
+    @lget! FUNCTION_WRAPPERS hash((
+        exc.id, pyisnone(exc.urls.get("apiBackup")), suffix, elkey, inputs, kwargs...
+    )) begin
         hasinputs = length(inputs) > 0
         f, kind = _multifunc(exc, suffix, hasinputs)
         if hasinputs
             if kind == :multi
                 () -> begin
-                    data = pyfetch(f; kwargs...)
-                    Dict(i => data[i] for i in inputs)
+                    args = isempty(inputs) ? () : (inputs,)
+                    data = pyfetch(f, args...; kwargs...)
+                    if pyisinstance(data, pybuiltins.list)
+                        if length(data) == length(inputs)
+                            Dict(i => v for (v, i) in zip(data, inputs))
+                        else
+                            @assert !isnothing(elkey) "Functions returned a list, but element key not provided."
+                            Dict(v[elkey] => v for v in data)
+                        end
+                    elseif pyisinstance(data, pybuiltins.dict)
+                        Dict(i => data[i] for i in inputs)
+                    else
+                        Dict(inputs => data)
+                    end
                 end
             else
                 () -> begin
