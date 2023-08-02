@@ -36,7 +36,7 @@ end
     @precomp begin
         assets(s)
         instances(s)
-        exchange(typeof(s))
+        exchangeid(typeof(s))
         freecash(s)
         execmode(s)
         nameof(s)

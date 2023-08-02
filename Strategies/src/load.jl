@@ -81,7 +81,7 @@ function strategy!(mod::Module, cfg::Config)
         s_type = _concrete(s_type, typeof(cfg.margin))
         _concrete(s_type, typeof(cfg.qc))
     end
-    strat_exc = exchange(s_type)
+    strat_exc = exchangeid(s_type)
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc

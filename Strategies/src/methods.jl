@@ -12,13 +12,13 @@ assets(s::Strategy) = universe(s).data.asset
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy main exchange id."
-exchange(::S) where {S<:Strategy} = S.parameters[3].parameters[1]
-exchange(t::Type{<:Strategy}) = t.parameters[3].parameters[1]
+exchange(s::S) where {S<:Strategy} = attr(s, :exc)
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
     E
 end
+Exchanges.issandbox(s::Strategy) = Exchanges.issandbox(attr(s, :exc))
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
 @doc "Get the strategy margin mode."
@@ -53,7 +53,7 @@ reset!(s::Strategy, config=false) = begin
     ordersdefault!(s)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
-    s.config.exchange = exchange(s)
+    s.config.exchange = nameof(exchange(s))
     ping!(s, ResetStrategy())
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."

@@ -96,6 +96,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         buyorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeBuyOrder{eid}}}()
         sellorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeSellOrder{eid}}}()
         name = nameof(self)
+        config.attrs[:exc] = exc
         new{typeof(mode),name,eid,typeof(margin),config.qc}(
             self,
             config,
