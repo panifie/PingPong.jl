@@ -6,7 +6,7 @@ using Reexport
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange
 using Ccxt: Ccxt, ccxt_exchange, choosefunc
-using Python: Py, pyconvert, pyfetch, PyDict, pydict, pyimport, @pystr
+using Python: Py, pyconvert, pyfetch, PyDict, PyList, pydict, pyimport, @pystr
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
 using Pbar.Term: RGB
@@ -45,6 +45,34 @@ function isfileyounger(f::AbstractString, p::Period)
     isfile(f) && dt(stat(f).mtime) < now() - p
 end
 
+function _elconvert(v)
+    if v isa PyDict
+        ans = pyconvert(Dict{Any,Any}, v)
+        for (k, v) in ans
+            ans[k] = _elconvert(v)
+        end
+        ans
+    elseif v isa PyList
+        ans = pyconvert(Vector{Any}, v)
+        for i in eachindex(ans)
+            ans[i] = _elconvert(ans[i])
+        end
+        ans
+    elseif v isa Py
+        pyconvert(Any, v)
+    else
+        v
+    end
+end
+
+function jlpyconvert(py)
+    d = pyconvert(Dict{Any,Any}, py)
+    for (k, v) in d
+        d[k] = _elconvert(v)
+    end
+    d
+end
+
 @doc "Load exchange markets:
 - `cache`: rely on storage cache
 - `agemax`: max cache valid period [1 day]."
@@ -52,23 +80,31 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     sbox = issandbox(exc) ? "_sandbox" : ""
     mkt = joinpath(DATA_PATH, exc.name, "markets$(sbox).jlz")
     empty!(exc.markets)
+    pyjson = pyimport("json")
     function force_load()
         @debug "Loading markets from exchange and caching at $mkt."
         pyfetch(exc.loadMarkets, true)
-        pd = pyconvert(OptionsDict, exc.py.markets)
         mkpath(dirname(mkt))
-        serialize(mkt, PyDict(pd))
-        merge!(exc.markets, pd)
+        cache = Dict{Symbol, String}()
+        cache[:markets] = string(pyjson.dumps(exc.py.markets))
+        cache[:markets_by_id] = string(pyjson.dumps(exc.py.markets_by_id))
+        cache[:currencies] = string(pyjson.dumps(exc.py.currencies))
+        cache[:symbols] = string(pyjson.dumps(exc.py.symbols))
+        write(mkt, json(cache))
+        merge!(exc.markets, jlpyconvert(exc.py.markets))
     end
     if isfileyounger(mkt, agemax) && cache
         try
             @debug "Loading markets from cache."
-            cached_dict = deserialize(mkt) # this should be a PyDict
-            merge!(exc.markets, pyconvert(OptionsDict, cached_dict))
-            exc.py.markets = pydict(cached_dict)
-            exc.py.markets_by_id = exc.py.index_by(exc.markets, "id")
+            cache = JSON.parse(read(mkt, String)) # this should be a PyDict
+            merge!(exc.markets, JSON.parse(cache["markets"]))
+            exc.py.markets = pyjson.loads(cache["markets"])
+            exc.py.markets_by_id = pyjson.loads(cache["markets_by_id"])
+            exc.py.symbols = pyjson.loads(cache["symbols"])
+            exc.py.currencies = pyjson.loads(cache["currencies"])
         catch error
             @warn error
+            Base.show_backtrace(stderr, catch_backtrace())
             force_load()
         end
     else
