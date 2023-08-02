@@ -15,8 +15,7 @@ end
 
 function _assetval(ai::MarginInstance, n_holdings, min_hold, max_hold; price)
     for p in (Long(), Short())
-        pos = position(ai, p)
-        iszero(cash(pos)) && continue
+        iszero(ai, p) && continue
         n_holdings += 1
         val = value(ai, p; current_price=price)
         min_hold, max_hold = _mmh(ai, val, min_hold, max_hold)
