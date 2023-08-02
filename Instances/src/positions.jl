@@ -133,7 +133,7 @@ function tier(po::Position, size)
     @deassert tier(po.tiers[], po.cash.value) == tier(po.tiers[], negate(po.cash.value))
     tier(po.tiers[], size)
 end
-posside(::Position{P}) where {P<:PositionSide} = P
+posside(::Position{P}) where {P<:PositionSide} = P()
 posside(::Long) = Long()
 posside(::Short) = Short()
 

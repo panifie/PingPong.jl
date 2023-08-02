@@ -131,7 +131,7 @@ Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :fu
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 
 posside(::NoMarginInstance) = Long()
-posside(ai::MarginInstance) = posside(position(ai))()
+posside(ai::MarginInstance) = posside(position(ai))
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
 ishedged(ai::AssetInstance) = marginmode(ai) |> ishedged
 isopen(ai::NoMarginInstance) = !iszero(ai)

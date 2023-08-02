@@ -113,7 +113,7 @@ function liquidation!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai::MarginInstanc
     pos = position(ai)
     isnothing(pos) && return nothing
     @deassert !isopen(opposite(ai, pos))
-    p = posside(pos)()
+    p = posside(pos)
     isliquidatable(s, ai, p, date) && liquidate!(s, ai, p, date)
 end
 
@@ -153,7 +153,7 @@ end
 function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, pos::Position=position(ai))
     # NOTE: Order of calls is important
     @deassert isopen(pos)
-    p = posside(pos)()
+    p = posside(pos)
     @deassert notional(pos) != 0.0
     timestamp!(pos, date)
     if isliquidatable(s, ai, p, date)
