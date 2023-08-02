@@ -12,7 +12,6 @@ using .Instances:
     position,
     reset!,
     isdust,
-    _status!,
     liqprice!,
     entryprice!,
     entryprice,
@@ -35,7 +34,7 @@ using .Instances:
     tier!
 using Base: negate
 
-function live_position(ai::MarginInstance; keep_info=false)
+function live_position(ai::MarginInstance, side=posside(position(ai))(); keep_info=false)
     exc = exchange(ai)
     resp = if exc.has[:fetchPosition]
         pyfetch(exc.fetchPosition, raw(ai))
@@ -46,7 +45,18 @@ function live_position(ai::MarginInstance; keep_info=false)
         return nothing
     elseif pyisinstance(resp, pybuiltins.list)
         isempty(resp) && return nothing
-        first(resp)
+        let v = nothing
+            for this in resp
+                if _ccxtposside(this) == side
+                    v = this
+                    break
+                end
+            end
+            isnothing(v) && return nothing
+            v
+        end
+    else
+        resp
     end
     if pyisinstance(ccxt_pos, pybuiltins.dict) &&
         pyisTrue(ccxt_pos.get("symbol") == @pystr(raw(ai)))
@@ -101,8 +111,19 @@ const Pos =
         percentage="percentage",
     )
 
+live_side(v::Py) = v.get("side", @pystr("")).lower()
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
+_ccxtisshort(v::Py) = pyisTrue(live_side(v) == @pystr("short"))
+_ccxtislong(v::Py) = pyisTrue(live_side(v) == @pystr("long"))
+_ccxtposside(v::Py) =
+    if _ccxtislong(v)
+        Long()
+    elseif _ccxtisshort(v)
+        Short()
+    else
+        _ccxtpnlside(v)
+    end
 _ccxtposprice(ai, update) =
     let lp = update.get(Pos.lastPrice) |> pytofloat
         if lp <= zero(DFT)
@@ -179,6 +200,7 @@ function sync!(
         return pos
     end
     pos.status[] = PositionOpen()
+    ai.lastpos[] = pos
     dowarn(what, val) = @warn "Unable to sync $what from $(nameof(exchange(ai))), got $val"
     # price is always positive
     ep = if ep > zero(DFT)
@@ -281,7 +303,7 @@ end
 function live_pnl!(ai::MarginInstance, p::ByPos; keep_info=false)
     lp = live_position(ai::MarginInstance)
     pos = position(ai, p)
-    pnl = lp.get("unrealizedPnl") |> pytofloat
+    pnl = lp.get(Pos.unrealizedPnl) |> pytofloat
     if iszero(pnl)
         amount = lp.get("contracts") |> pytofloat
         function dowarn(a, b)

@@ -120,7 +120,7 @@ function market!(pair::AbstractString, exc::Exchange=exc)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
-_tickerfunc(exc) = get(exc.has, :watchTicker, false) ? exc.watchTicker : exc.fetchTicker
+_tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker )
 function ticker!(
     pair::AbstractString, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc)
 )

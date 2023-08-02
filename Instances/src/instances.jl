@@ -525,7 +525,7 @@ pnlpct(ai::MarginInstance, v::Number) = begin
     pnlpct(pos, v)
 end
 
-lastprice(ai::AssetInstance) = lastprice(ai.asset.raw, ai.exchange)
+lastprice(ai::AssetInstance, args...; kwargs...) = lastprice(ai.asset.raw, ai.exchange, args...; kwargs...)
 
 include("constructors.jl")
 
