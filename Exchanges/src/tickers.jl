@@ -1,5 +1,6 @@
 using Lang: @get, @multiget, @lget!, Option
 using Misc: config, NoMargin, DFT
+using Misc.ConcurrentCollections: ConcurrentDict
 using Instruments: isfiatquote, spotpair
 using Python: @pystr, pyfetch_timeout
 
@@ -114,17 +115,18 @@ end
 const marketsCache1Min = safettl(String, Py, Minute(1))
 const tickersCache10Sec = safettl(String, Py, Second(10))
 const activeCache1Min = safettl(String, Bool, Minute(1))
+const tickersLockDict = ConcurrentDict(Dict{String,ReentrantLock}())
 @doc "Retrieves a cached market (1minute) or fetches it from exchange."
-function market!(pair::AbstractString, exc::Exchange=exc)
+function market!(pair, exc::Exchange=exc)
     @lget! marketsCache1Min pair exc.py.market(pair)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
-_tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker )
-function ticker!(
-    pair::AbstractString, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc)
-)
-    @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
+_tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker)
+function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
+    lock(@lget!(tickersLockDict, pair, ReentrantLock())) do
+        @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
+    end
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
