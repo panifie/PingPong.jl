@@ -136,8 +136,8 @@ end
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
-    p_amount = pyconvert(DFT, mkt[@pystr("amount")])
-    p_price = pyconvert(DFT, mkt[@pystr("price")])
+    p_amount = pyconvert(DFT, mkt["amount"])
+    p_price = pyconvert(DFT, mkt["price"])
     (; amount=p_amount, price=p_price)
 end
 market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
@@ -157,7 +157,7 @@ _min_from_precision(::Nothing) = nothing
 _min_from_precision(v::Int) = 1.0 / 10.0^v
 _min_from_precision(v::Real) = v
 function _minmax_pair(mkt, l, prec, default)
-    k = @pystr(l)
+    k = string(l)
     Symbol(l) => (;
         min=(@something pyconvert(Option{DFT}, get(mkt[k], "min", nothing)) _min_from_precision(
             prec
