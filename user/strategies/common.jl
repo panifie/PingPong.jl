@@ -49,7 +49,10 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
             safewait(w.beacon.process)
             isstopped(w) && break
             for ai in s.universe
-                propagate_ohlcv!(ai.data)
+                try
+                    propagate_ohlcv!(ai.data)
+                catch
+                end
             end
         end
         w[:process_task] = @async w[:process_func]()
