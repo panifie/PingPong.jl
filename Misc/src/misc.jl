@@ -7,6 +7,7 @@ using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
 using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
 using ThreadPools: ThreadPools, @tspawnat
+using Mocking: Mocking
 
 include("lists.jl")
 include("sandbox.jl")
