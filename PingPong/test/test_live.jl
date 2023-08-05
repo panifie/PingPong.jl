@@ -1,18 +1,6 @@
 using Python
 using Lang: @lget!
 
-live_strat() = begin
-    backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Live())
-    lm.exc_live_funcs!(s)
-    s
-end
-
-live_stubs_file(name) = begin
-    d = joinpath(@__DIR__, "stubs", "live")
-    mkpath(d)
-    joinpath(d, name)
-end
-
 function _live_load()
     @eval begin
         using Test
@@ -37,6 +25,32 @@ function _live_load()
         using .ect.Instruments.Derivatives: sc
         using .ect.OrderTypes
     end
+end
+
+live_strat() = begin
+    backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Live())
+    lm.exc_live_funcs!(s)
+    s
+end
+
+live_stubs_file(name) = begin
+    d = joinpath(@__DIR__, "stubs", "live")
+    mkpath(d)
+    joinpath(d, name)
+end
+
+live_dump_fetch_orders_json(s) = begin
+    ai = s[m"btc"]
+    v = lm.fetch_orders(s, ai)
+    j = pyimport("json").dumps(v)
+    write(live_stubs_file("fetch_orders.json"), string(j))
+end
+
+function live_dump_fetch_positions_json(s)
+    ai = s[m"btc"]
+    v = lm.fetch_positions(s, [s[m"btc"], s[m"eth"]])
+    j = pyimport("json").dumps(v)
+    write(live_stubs_file("fetch_positions.json"), string(j))
 end
 
 function test_live_nomargin_gtc(s)
@@ -212,18 +226,28 @@ function test_live_cancel_all_orders(s)
     lm.exc_live_funcs!(ts)
 end
 
-live_dump_fetch_orders_json(s) = begin
-    ai = s[m"btc"]
-    v = lm.fetch_orders(s, ai)
-    j = pyimport("json").dumps(v)
-    write(live_stubs_file("fetch_orders.json"), string(j))
-end
-
-function live_dump_fetch_positions_json(s)
-    ai = s[m"btc"]
-    v = lm.fetch_positions(s, [s[m"btc"], s[m"eth"]])
-    j = pyimport("json").dumps(v)
-    write(live_stubs_file("fetch_positions.json"), string(j))
+function test_live_position(s)
+    Mocking.activate()
+    resps = []
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        if occursin("position", string(f.__name__))
+            v = read(live_stubs_file("fetch_positions.json"), String)
+            pyimport("json").loads(v)
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    Mocking.apply([patch1]) do
+        v = lm.live_position(s, s[m"btc"], Short())
+        @test pyisinstance(v, pybuiltins.dict)
+        @test string(v.get("symbol")) == "BTC/USDT:USDT"
+        @test "info" ∉ v.keys()
+        @test string(v.get("side")) == "short"
+        v = lm.live_position(s, s[m"btc"], Long())
+        @test isnothing(v)
+        v = lm.live_position(s, s[m"btc"], Short(), keep_info=true)
+        @test pyisinstance(v.get("info"), pybuiltins.dict)
+    end
 end
 
 function test_live()
@@ -237,5 +261,7 @@ function test_live()
         @testset "live_fetch_positions" test_live_fetch_positions(s)
         @testset "live_cancel_orders" test_live_cancel_orders(s)
         @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
+        @testset "live_position" test_live_position(s)
+        # @testset "live_position_sync" test_live_cancel_all_orders(s)
     end
 end

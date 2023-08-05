@@ -181,6 +181,9 @@ function exc_live_funcs!(s::Strategy{Live})
 end
 
 fetch_orders(s, args...; kwargs...) = st.attr(s, :live_orders_func)(args...; kwargs...)
+function fetch_positions(s, ai::AssetInstance, args...; kwargs...)
+    fetch_positions(s, (ai,), args...; kwargs...)
+end
 function fetch_positions(s, args...; kwargs...)
     st.attr(s, :live_positions_func)(args...; kwargs...)
 end

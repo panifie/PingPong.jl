@@ -34,13 +34,16 @@ using .Instances:
     tier!
 using Base: negate
 
-function live_position(ai::MarginInstance, side=posside(position(ai))(); keep_info=false)
-    exc = exchange(ai)
-    resp = if exc.has[:fetchPosition]
-        pyfetch(exc.fetchPosition, raw(ai))
-    else
-        pyfetch(exc.fetchPositions, (raw(ai),))
+_optposside(ai) =
+    let p = position(ai)
+        isnothing(p) ? nothing : posside(p)
     end
+
+function live_position(
+    s::MarginStrategy, ai::MarginInstance, side=_optposside(ai); keep_info=false
+)
+    # TODO: use watchPositions
+    resp = fetch_positions(s, ai)
     ccxt_pos = if resp isa PyException
         return nothing
     elseif pyisinstance(resp, pybuiltins.list)
@@ -161,7 +164,7 @@ function sync!(
             @warn "Position side not provided, inferring from position state"
             _ccxtpnlside(update)
         else
-            posside(p)()
+            posside(p)
         end
     else
         let side_str = ccxt_side.lower()
@@ -296,12 +299,13 @@ function sync!(
 end
 
 function sync!(s::MarginStrategy, ai::MarginInstance, p=position(ai))
-    update = live_position(ai)
+    update = live_position(s, ai, posside(p))
     sync!(s, ai, p, update)
 end
 
-function live_pnl!(ai::MarginInstance, p::ByPos; keep_info=false)
-    lp = live_position(ai::MarginInstance)
+function live_pnl!(s::MarginStrategy, ai::MarginInstance, p::ByPos; keep_info=false)
+    pside = posside(p)
+    lp = live_position(s, ai::MarginInstance, pside)
     pos = position(ai, p)
     pnl = lp.get(Pos.unrealizedPnl) |> pytofloat
     if iszero(pnl)
@@ -314,14 +318,16 @@ function live_pnl!(ai::MarginInstance, p::ByPos; keep_info=false)
             if !isapprox(amount, abs(cash(pos)))
                 dowarn(amount, abs(cash(pos).value))
             end
-            ep = lp.get("entryprice") |> pytofloat
+            ep = live_entryprice(lp)
             if !isapprox(ep, entryprice(pos))
                 dowarn(amount, entryprice(pos))
             end
             # calc pnl manually
             v = pnl(pos)
             if resync
+                sync!(s, ai, pside, lp; commits=false)
             end
+            v
         else
             pnl
         end

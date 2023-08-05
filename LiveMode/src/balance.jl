@@ -97,15 +97,15 @@ function balance!(
 end
 
 function balance(s::LiveStrategy, args...; kwargs...)
-    balance(getexchange!(exchange(s)), args...; kwargs...)
+    balance(exchange(s), args...; kwargs...)
 end
 
 function balance(s::LiveStrategy, sym, args...; kwargs...)
-    balance(getexchange!(exchange(s)), sym, args...; kwargs...)
+    balance(exchange(s), sym, args...; kwargs...)j
 end
 
 function balance!(s::LiveStrategy, args...; kwargs...)
-    balance!(getexchange!(exchange(s)), args...; kwargs...)
+    balance!(exchange(s), args...; kwargs...)
 end
 
 function current_total(
