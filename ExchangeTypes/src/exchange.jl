@@ -1,5 +1,6 @@
 using Python: pyschedule, pywait_fut, Python, pyisinstance
 using Base: with_logger, NullLogger
+using Mocking: @mock, Mocking
 
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
@@ -75,10 +76,13 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
-has(exc::Exchange, s::Symbol) =
+_has_check(exc::Exchange, s::Symbol) =
     let h = getfield(exc, :has)
         haskey(h, s) && h[s]
     end
+_has(args...; kwargs...) = _has_check(args...; kwargs...)
+has(args...; kwargs...) = @mock _has(args...; kwargs...)
+
 function Base.first(exc::Exchange, args::Vararg{Symbol})
     for a in args
         has(exc, a) && return getproperty(getfield(exc, :py), a)
