@@ -5,6 +5,8 @@ using .OrderTypes: LimitOrderType, MarketOrderType
 
 _ccxtordertype(::LimitOrder) = @pystr "limit"
 _ccxtordertype(::MarketOrder) = @pystr "market"
+_ccxtorderside(::Type{Buy}) = @pystr "buy"
+_ccxtorderside(::Type{Sell}) = @pystr "sell"
 _ccxtorderside(::BuyOrder) = @pystr "buy"
 _ccxtorderside(::SellOrder) = @pystr "buy"
 
@@ -25,6 +27,7 @@ function createorder(exc::Exchange, o)
     end
 end
 
-function orders(ai::AssetInstance)
-   @pyfetch ai.exchange.fetchOrders()
-end
+# function orders(s::LiveStrategy, ai::AssetInstance)
+#    fetch_orders(s, )
+#    s[:live_orders_func](ai)
+# end

@@ -2,6 +2,7 @@ using PaperMode
 using PaperMode.Executors
 using .Executors: Strategies as st
 using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMarginInstance
+using .Instances
 using .Exchanges
 using .Exchanges: Python
 using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy
@@ -9,9 +10,12 @@ using PaperMode.OrderTypes
 using PaperMode.Misc
 using .Misc: Lang
 using .Misc.TimeTicks
+using .Misc.Mocking: Mocking, @mock
 using .Lang: @deassert
 using Base: SimpleLogger, with_logger
 
+include("utils.jl")
+include("orders/utils.jl")
 include("orders/limit.jl")
 include("orders/pong.jl")
 include("positions/utils.jl")
