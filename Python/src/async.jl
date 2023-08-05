@@ -2,6 +2,7 @@ using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert, pyisTrue
 using Dates: Period, Second
 using ThreadPools: @tspawnat
+using Mocking: @mock, Mocking
 
 """
     PythonAsync(;pyaio::Py = pynew(), pyuv::Py = pynew(), pythreads::Py = pynew(), pyrunner::Py = pynew(), pyloop::Py = pynew(), pycoro_type::Py = pynew(), task::Ref{Task} = Ref{Task}())
@@ -228,7 +229,7 @@ pycancel(fut::Py) = pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(f
 
 Fetches the result of a Python function call synchronously.
 """
-function pyfetch(f::Py, args...; kwargs...)
+function _pyfetch(f::Py, args...; kwargs...)
     let (fut, task) = pytask(f(args...; kwargs...), Val(:fut))
         try
             fetch(task)
@@ -248,7 +249,7 @@ end
 
 Fetches the result of a Python function call synchronously and returns an exception if any.
 """
-function pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
+function _pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     try
         fut, task = pytask(f, Val(:fut), args...; kwargs...)
         try
@@ -271,7 +272,9 @@ end
 
 Fetches the result of a Julia function call synchronously.
 """
-pyfetch(f::Function, args...; kwargs...) = fetch(@async(f(args...; kwargs...)))
+_pyfetch(f::Function, args...; kwargs...) = fetch(@async(f(args...; kwargs...)))
+_mockable_pyfetch(args...; kwargs...) = _pyfetch(args...; kwargs...)
+pyfetch(args...; kwargs...) = @mock _mockable_pyfetch(args...; kwargs...)
 
 """
     pyfetch_timeout(
@@ -281,7 +284,7 @@ pyfetch(f::Function, args...; kwargs...) = fetch(@async(f(args...; kwargs...)))
 Fetches the result of a Python function call synchronously with a timeout. If the timeout is reached,
 it calls another function and returns its result.
 """
-function pyfetch_timeout(
+function _pyfetch_timeout(
     f1::Py, f2::Union{Function,Py}, timeout::Period, args...; kwargs...
 )
     coro = gpa.pyaio.wait_for(f1(args...; kwargs...); timeout=Second(timeout).value)
@@ -297,6 +300,8 @@ function pyfetch_timeout(
         end
     end
 end
+
+pyfetch_timeout(args...; kwargs...) = @mock _pyfetch_timeout(args...; kwargs...)
 
 # function isrunning_func(running)
 #     @pyexec (running) => """
