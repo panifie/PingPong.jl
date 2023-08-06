@@ -37,7 +37,14 @@ universe(s::Strategy) = getfield(s, :universe)
 
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
-reset!(s::Strategy, config=false) = begin
+function reset!(s::Strategy, config=false)
+    let attrs = s.attrs
+        if (haskey(attrs, :paper_running) && attrs[:paper_running][]) ||
+            (haskey(attrs, :live_running) && attrs[:live_running][])
+            @warn "Aborting reset because $(nameof(s)) is running in $(execmode(s)) mode!"
+            return nothing
+        end
+    end
     for d in values(s.buyorders)
         empty!(d)
     end
