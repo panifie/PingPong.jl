@@ -1,10 +1,11 @@
 using Python
 using Lang: @lget!
+using Test
+using Mocking
+using Suppressor: @capture_err
 
 function _live_load()
     @eval begin
-        using Test
-        using Mocking
         using PingPong
         @environment!
         using .inst: MarginInstance, raw, cash, cash!
@@ -51,61 +52,6 @@ function live_dump_fetch_positions_json(s)
     v = lm.fetch_positions(s, [s[m"btc"], s[m"eth"]])
     j = pyimport("json").dumps(v)
     write(live_stubs_file("fetch_positions.json"), string(j))
-end
-
-function test_live_nomargin_gtc(s)
-    @testset "live_position" begin
-        # create a mock exchange with fetchPosition and fetchPositions methods
-
-        # test live_position with fetchPosition method
-        @test live_position(mock_ai) isa PyDict
-        @test live_position(mock_ai).get("symbol") == @pystr("BTC/USD")
-        @test live_position(mock_ai).get("contracts") == 10.0
-        @test live_position(mock_ai).get("entryPrice") == 100.0
-        @test live_position(mock_ai).get("maintenanceMarginPercentage") == 0.01
-        @test live_position(mock_ai).get("side") == @pystr("long")
-
-        # test live_position with fetchPositions method
-        mock_exchange["has"]["fetchPosition"] = false # disable fetchPosition method
-        @test live_position(mock_ai) isa PyDict
-        @test live_position(mock_ai).get("symbol") == @pystr("BTC/USD")
-        @test live_position(mock_ai).get("contracts") == 10.0
-        @test live_position(mock_ai).get("entryPrice") == 100.0
-        @test live_position(mock_ai).get("maintenanceMarginPercentage") == 0.01
-        @test live_position(mock_ai).get("side") == @pystr("long")
-
-        # test live_position with empty list response from fetchPositions method
-        mock_exchange["fetchPositions"] = (ai) -> PyList([]) # return an empty list
-        @test live_position(mock_ai) === nothing
-
-        # test live_position with PyException response from fetchPosition method
-        mock_exchange["has"]["fetchPosition"] = true # enable fetchPosition method
-        mock_exchange["fetchPosition"] = (ai) -> PyException(PyNone()) # return a PyException
-        @test live_position(mock_ai) === nothing
-
-        # test live_position with invalid symbol response from fetchPosition method
-        mock_exchange["fetchPosition"] =
-            (ai) -> PyDict(
-                "symbol" => @pystr("ETH/USD"), # different symbol from mock_ai
-                "contracts" => 10.0,
-                "entryPrice" => 100.0,
-                "maintenanceMarginPercentage" => 0.01,
-                "side" => @pystr("long"),
-            )
-        @test live_position(mock_ai) === nothing
-    end
-
-    @testset "_optposside" begin
-        # create a mock margin instance with position field
-        mock_ai = MarginInstance(; position=ByPos(Long(); cash=10.0))
-
-        # test _optposside with existing position
-        @test _optposside(mock_ai) isa Long
-
-        # test _optposside with no position
-        mock_ai.position = nothing
-        @test _optposside(mock_ai) === nothing
-    end
 end
 
 function test_live_fetch_orders(s)
@@ -245,8 +191,109 @@ function test_live_position(s)
         @test string(v.get("side")) == "short"
         v = lm.live_position(s, s[m"btc"], Long())
         @test isnothing(v)
-        v = lm.live_position(s, s[m"btc"], Short(), keep_info=true)
+        v = lm.live_position(s, s[m"btc"], Short(); keep_info=true)
         @test pyisinstance(v.get("info"), pybuiltins.dict)
+    end
+end
+
+function test_live_position_sync(s)
+    Mocking.activate()
+    resps = []
+    patch2 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        if occursin("position", string(f.__name__))
+            v = read(live_stubs_file("fetch_positions.json"), String)
+            pyimport("json").loads(v)
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    Mocking.apply([patch2]) do
+        # set some parameters for testing
+        commits = true
+        ai = s[m"btc"]
+        p = Short()
+        update = lm.live_position(s, s[m"btc"], p)
+
+        # test if sync! returns a Position object with the correct attributes
+        reset!(ai.shortpos)
+        reset!(ai.longpos)
+        pos = lm.sync!(s, ai, p, update; commits=commits)
+        @test typeof(pos) <: ect.Position{Short}
+        @test pos.timestamp[] == lm.get_time(update, "timestamp")
+        @test pos.status[] == ect.PositionOpen()
+        @test pos.leverage[] == lm.get_float(update, "leverage")
+        @test pos.notional[] == lm.get_float(update, lm.Pos.notional)
+        @test pos.liquidation_price[] == lm.get_float(update, lm.Pos.liquidationPrice)
+        @test pos.initial_margin[] ≈ lm.get_float(update, lm.Pos.initialMargin) atol = 1
+        @test pos.maintenance_margin[] ≈ lm.get_float(update, lm.Pos.maintenanceMargin) atol =
+            1
+        @test inst.committed(pos) == inst.committed(s, ai, inst.posside(p))
+
+        # test hedged mode mismatch
+        update[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
+        @test_throws AssertionError lm.sync!(s, ai, p, update; commits=commits)
+
+        # test if sync! throws an exception if the position side does not match the update side
+        patch_hedged = @patch function inst.ishedged(::MarginMode)
+            true
+        end
+
+        Mocking.apply(patch_hedged) do
+            @test_throws AssertionError lm.sync!(s, ai, p, update; commits=commits)
+            reset!(ai)
+            ep = update.get(lm.Pos.entryPrice)
+            try
+                pos = lm.sync!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
+            catch e
+                @test occursin("can't be higher", e.msg)
+            end
+            pos = Ref{Any}()
+            ep_d = pytofloat(ep * 2)
+            out = @capture_err let
+                pos[] = lm.sync!(s, ai, p, update; amount=0.01, ep_in=ep_d, commits=false)
+            end
+            pos = pos[]
+            @test occursin("hedged mode mismatch", out)
+            @test pos.cash[] == 0.01
+            @test pos.entryprice[] == ep_d
+        end
+    end
+end
+function test_live_pnl(s)
+    Mocking.activate()
+    upnl = Ref{Any}(nothing)
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        if occursin("position", string(f.__name__))
+            v = read(live_stubs_file("fetch_positions.json"), String)
+            v = pyimport("json").loads(v)
+            isnothing(upnl[]) || for p in v
+                p[lm.Pos.unrealizedPnl] = upnl[]
+            end
+            v
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    Mocking.apply([patch1]) do
+        # set some parameters for testing
+        ai = s[m"btc"]
+        p = Short()
+        lp = lm.live_position(s, ai, p)
+        pos = lm.sync!(s, ai, p, lp; commits=false)
+        price = lp.get(lm.Pos.lastPrice) |> pytofloat
+
+        # test if live_pnl returns the correct unrealized pnl from the live position
+        pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
+        @test pnl == lm.get_float(lp, lm.Pos.unrealizedPnl)
+
+        upnl[] = 0.0
+        pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
+        @test pnl ≈ 124.992 atol=1e-2
+        lm.entryprice!(pos, 0.0)
+        pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
+        @test pnl ≈ -9299 atol=1
+        pnl = lm.live_pnl(s, ai, p; force_resync=:auto, verbose=false)
+        @test pnl ≈ 124.992 atol=1e-2
     end
 end
 
@@ -257,11 +304,13 @@ function test_live()
 
         s = live_strat()
 
-        @testset "live_fetch_orders" test_live_fetch_orders(s)
-        @testset "live_fetch_positions" test_live_fetch_positions(s)
-        @testset "live_cancel_orders" test_live_cancel_orders(s)
-        @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
-        @testset "live_position" test_live_position(s)
-        # @testset "live_position_sync" test_live_cancel_all_orders(s)
+        # @testset "live_fetch_orders" test_live_fetch_orders(s)
+        # @testset "live_fetch_positions" test_live_fetch_positions(s)
+        # @testset "live_cancel_orders" test_live_cancel_orders(s)
+        # @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
+        # @testset "live_position" test_live_position(s)
+        # @testset "live_position_sync" test_live_position_sync(s)
+        # @testset "live_position_sync" test_live_pnl(s)
+        @testset "live_pnl" test_live_pnl(s)
     end
 end

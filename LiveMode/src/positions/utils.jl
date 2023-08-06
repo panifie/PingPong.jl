@@ -154,7 +154,7 @@ function sync!(
     p::Option{ByPos},
     update::Py;
     amount=live_amount(update),
-    ep=live_entryprice(update),
+    ep_in=live_entryprice(update),
     commits=true,
 )
     # If position side doesn't match we should abort sync
@@ -181,9 +181,9 @@ function sync!(
     pos = position(ai, pside)
 
     # check hedged mode
-    get_bool(update, Pos.hedged) == pos.hedged ||
+    get_bool(update, Pos.hedged) == ishedged(pos) ||
         @warn "Position hedged mode mismatch (local: $(pos.hedged))"
-    @assert pos.hedged || !isopen(opposite(ai, pside)) "Double position open in NON hedged mode."
+    @assert ishedged(pos) || !isopen(opposite(ai, pside)) "Double position open in NON hedged mode."
     this_time = get_time(update, "timestamp")
     pos.timestamp[] == this_time && return pos
 
@@ -206,6 +206,7 @@ function sync!(
     ai.lastpos[] = pos
     dowarn(what, val) = @warn "Unable to sync $what from $(nameof(exchange(ai))), got $val"
     # price is always positive
+    ep = pytofloat(ep_in)
     ep = if ep > zero(DFT)
         entryprice!(pos, ep)
         ep
@@ -303,7 +304,9 @@ function sync!(s::MarginStrategy, ai::MarginInstance, p=position(ai))
     sync!(s, ai, p, update)
 end
 
-function live_pnl!(s::MarginStrategy, ai::MarginInstance, p::ByPos; keep_info=false)
+function live_pnl(
+    s::MarginStrategy, ai::MarginInstance, p::ByPos; force_resync=:auto, verbose=true
+)
     pside = posside(p)
     lp = live_position(s, ai::MarginInstance, pside)
     pos = position(ai, p)
@@ -316,18 +319,18 @@ function live_pnl!(s::MarginStrategy, ai::MarginInstance, p::ByPos; keep_info=fa
         resync = false
         if amount > zero(DFT)
             if !isapprox(amount, abs(cash(pos)))
-                dowarn(amount, abs(cash(pos).value))
+                verbose && dowarn(amount, abs(cash(pos).value))
+                resync = true
             end
             ep = live_entryprice(lp)
             if !isapprox(ep, entryprice(pos))
-                dowarn(amount, entryprice(pos))
+                verbose && dowarn(amount, entryprice(pos))
+                resync = true
             end
-            # calc pnl manually
-            v = pnl(pos)
-            if resync
+            if force_resync == :yes || (force_resync == :auto && resync)
                 sync!(s, ai, pside, lp; commits=false)
             end
-            v
+            Instances.pnl(pos, _ccxtposprice(ai, lp))
         else
             pnl
         end

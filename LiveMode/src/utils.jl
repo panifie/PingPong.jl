@@ -1,7 +1,7 @@
 using PaperMode.OrderTypes
 using PaperMode: reset_logs
 using .Lang: @lget!
-using .Python: @pystr, Py, PyList
+using .Python: @pystr, Py, PyList, @py
 
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs

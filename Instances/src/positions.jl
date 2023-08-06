@@ -1,4 +1,4 @@
-using Misc: MarginMode, WithMargin, Long, Short, PositionSide, ExecAction
+using Misc: MarginMode, WithMargin, Long, Short, PositionSide, ExecAction, HedgedMode
 import Misc: opposite, reset!
 using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
@@ -6,6 +6,7 @@ import Exchanges: maxleverage, tier
 using Lang: @ifdebug
 using Base: negate
 import OrderTypes: isshort, islong
+using Misc.Mocking: @mock, Mocking
 
 const OneVec = Vector{DFT}
 
@@ -128,6 +129,9 @@ isshort(::Position{Short}) = true
 isshort(::Position{Long}) = false
 isshort(::Union{Type{Short},Short}) = true
 isshort(::Union{Type{Long},Long}) = false
+function ishedged(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode}
+    @mock ishedged(M())
+end
 function tier(po::Position, size)
     # tier should work with abs values
     @deassert tier(po.tiers[], po.cash.value) == tier(po.tiers[], negate(po.cash.value))
