@@ -7,8 +7,8 @@ _ccxtordertype(::LimitOrder) = @pystr "limit"
 _ccxtordertype(::MarketOrder) = @pystr "market"
 _ccxtorderside(::Type{Buy}) = @pystr "buy"
 _ccxtorderside(::Type{Sell}) = @pystr "sell"
-_ccxtorderside(::BuyOrder) = @pystr "buy"
-_ccxtorderside(::SellOrder) = @pystr "buy"
+_ccxtorderside(::Union{BuyOrder,Type{<:BuyOrder}}) = @pystr "buy"
+_ccxtorderside(::Union{SellOrder,Type{<:SellOrder}}) = @pystr "buy"
 
 function createorder(exc::Exchange, o)
     sym = o.asset.raw
