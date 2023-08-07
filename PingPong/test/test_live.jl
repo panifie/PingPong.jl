@@ -217,7 +217,7 @@ function test_live_position_sync(s)
         # test if sync! returns a Position object with the correct attributes
         reset!(ai.shortpos)
         reset!(ai.longpos)
-        pos = lm.sync!(s, ai, p, update; commits=commits)
+        pos = lm.live_sync!(s, ai, p, update; commits=commits)
         @test typeof(pos) <: ect.Position{Short}
         @test pos.timestamp[] == lm.get_time(update, "timestamp")
         @test pos.status[] == ect.PositionOpen()
@@ -231,7 +231,7 @@ function test_live_position_sync(s)
 
         # test hedged mode mismatch
         update[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
-        @test_throws AssertionError lm.sync!(s, ai, p, update; commits=commits)
+        @test_throws AssertionError lm.live_sync!(s, ai, p, update; commits=commits)
 
         # test if sync! throws an exception if the position side does not match the update side
         patch_hedged = @patch function inst.ishedged(::MarginMode)
@@ -239,18 +239,20 @@ function test_live_position_sync(s)
         end
 
         Mocking.apply(patch_hedged) do
-            @test_throws AssertionError lm.sync!(s, ai, p, update; commits=commits)
+            @test_throws AssertionError lm.live_sync!(s, ai, p, update; commits=commits)
             reset!(ai)
             ep = update.get(lm.Pos.entryPrice)
             try
-                pos = lm.sync!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
+                pos = lm.live_sync!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
             catch e
                 @test occursin("can't be higher", e.msg)
             end
             pos = Ref{Any}()
             ep_d = pytofloat(ep * 2)
             out = @capture_err let
-                pos[] = lm.sync!(s, ai, p, update; amount=0.01, ep_in=ep_d, commits=false)
+                pos[] = lm.live_sync!(
+                    s, ai, p, update; amount=0.01, ep_in=ep_d, commits=false
+                )
             end
             pos = pos[]
             @test occursin("hedged mode mismatch", out)
@@ -279,7 +281,7 @@ function test_live_pnl(s)
         ai = s[m"btc"]
         p = Short()
         lp = lm.live_position(s, ai, p)
-        pos = lm.sync!(s, ai, p, lp; commits=false)
+        pos = lm.live_sync!(s, ai, p, lp; commits=false)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
         # test if live_pnl returns the correct unrealized pnl from the live position
@@ -288,12 +290,48 @@ function test_live_pnl(s)
 
         upnl[] = 0.0
         pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
-        @test pnl ≈ 124.992 atol=1e-2
+        @test pnl ≈ 124.992 atol = 1e-2
         lm.entryprice!(pos, 0.0)
         pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
-        @test pnl ≈ -9299 atol=1
+        @test pnl ≈ -9299 atol = 1
         pnl = lm.live_pnl(s, ai, p; force_resync=:auto, verbose=false)
-        @test pnl ≈ 124.992 atol=1e-2
+        @test pnl ≈ 124.992 atol = 1e-2
+    end
+end
+
+function test_live_create_order(s)
+    Mocking.activate()
+    doerror = Ref(false)
+    tries = Ref(0)
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        doerror[] && begin
+            tries[] += 1
+            return ErrorException("")
+        end
+        if occursin("create_order", string(f.__name__))
+            v = read(live_stubs_file("create_order.json"), String)
+            pyimport("json").loads(v)
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    Mocking.apply(patch1) do
+        resp = lm.live_create_order(
+            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000.0
+        )
+        @test pyisinstance(resp, pybuiltins.dict)
+        @test string(resp.get("id")) == "997477f8-3857-45f6-b20b-8bae58ab28d9"
+        doerror[] = true
+        resp = lm.live_create_order(
+            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000
+        )
+        @test resp isa ErrorException
+        tries[] = 0
+        resp = lm.live_create_order(
+            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000, retries=3
+        )
+        @test tries[] == 4
+        @test resp isa ErrorException
     end
 end
 
@@ -311,6 +349,9 @@ function test_live()
         # @testset "live_position" test_live_position(s)
         # @testset "live_position_sync" test_live_position_sync(s)
         # @testset "live_position_sync" test_live_pnl(s)
-        @testset "live_pnl" test_live_pnl(s)
+        # @testset "live_pnl" test_live_pnl(s)
+        # TODO: test fetch_open_orders
+        # TODO: test fetch_closed_orders
+        test_live_create_order(s)
     end
 end

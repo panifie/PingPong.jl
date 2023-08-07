@@ -148,7 +148,7 @@ function _ccxtpnlside(update)
     ifelse(upnl >= ZERO && liqprice < eprice, Long(), Short())
 end
 
-function sync!(
+function live_sync!(
     s::MarginStrategy,
     ai::MarginInstance,
     p::Option{ByPos},
@@ -299,9 +299,9 @@ function sync!(
     return pos
 end
 
-function sync!(s::MarginStrategy, ai::MarginInstance, p=position(ai))
+function live_sync!(s::MarginStrategy, ai::MarginInstance, p=position(ai))
     update = live_position(s, ai, posside(p))
-    sync!(s, ai, p, update)
+    live_sync!(s, ai, p, update)
 end
 
 function live_pnl(
@@ -328,7 +328,7 @@ function live_pnl(
                 resync = true
             end
             if force_resync == :yes || (force_resync == :auto && resync)
-                sync!(s, ai, pside, lp; commits=false)
+                live_sync!(s, ai, pside, lp; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
         else
