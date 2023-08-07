@@ -1,8 +1,10 @@
 using PaperMode.OrderTypes
 using PaperMode: reset_logs
 using .Lang: @lget!
-using .Python: @pystr, Py, PyList, @py
+using .Python: @pystr, Py, PyList, @py, pylist
+import .Executors.Instances: raw
 
+raw(v::AbstractString) = v
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
         _simmode_defaults!(s, attrs)
@@ -44,6 +46,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
             (o) -> (pyconvert(String, o.get("id")) ∉ ids_set || notside(o))
         end
     end
+    resp isa PyException && throw(resp)
     _pyfilter!(resp, should_skip)
 end
 
@@ -55,6 +58,29 @@ function _orders_func!(attrs, exc)
         (ai; ids, kwargs...) -> let out = pylist()
             @sync for id in ids
                 @async out.append(_execfunc(exc.fetchOrder, ai, id; kwargs...))
+            end
+            out
+        end
+    end
+end
+
+function _open_orders_func!(attrs, exc; open=true)
+    # TODO: `watchOrders` support
+    oc = open ? "open" : "closed"
+    cap = open ? "Open" : "Closed"
+    attrs[Symbol("live_$(oc)_orders_func")] = if has(exc, Symbol("fetch$(cap)Orders"))
+        (ai; kwargs...) ->
+            _fetch_orders(ai, getproperty(exc, Symbol("fetch$(cap)Orders")); kwargs...)
+    else
+        fetch_func = get(attrs, :live_orders_func, nothing)
+        @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
+        open_str = @pystr("open")
+        pred_func = o -> pyisTrue(o.get("status") == open_str)
+        pred_func = open ? pred_func : !pred_func
+        (ai; kwargs...) -> let out = pylist()
+            all_orders = fetch_func(raw(ai); kwargs...)
+            for o in all_orders
+                pred_func(o) && out.append(o)
             end
             out
         end
@@ -171,16 +197,31 @@ function _cancel_orders_func!(attrs, exc)
     end
 end
 
+function _create_order_func!(attrs, exc)
+    func = first(exc, :createOrderWs, :createOrder)
+    @assert !isnothing(func) "Exchange doesn't have a `create_order` function"
+    attrs[:live_create_order_func] = (args...; kwargs...) -> pyfetch(func, args...; kwargs...)
+end
+
 function exc_live_funcs!(s::Strategy{Live})
     attrs = s.attrs
     exc = exchange(s)
     _orders_func!(attrs, exc)
+    _create_order_func!(attrs, exc)
     _positions_func!(attrs, exc)
     _cancel_orders_func!(attrs, exc)
     _cancel_all_orders_func!(attrs, exc)
+    _open_orders_func!(attrs, exc; open=true)
+    _open_orders_func!(attrs, exc; open=false)
 end
 
 fetch_orders(s, args...; kwargs...) = st.attr(s, :live_orders_func)(args...; kwargs...)
+function fetch_open_orders(s, args...; kwargs...)
+    st.attr(s, :live_open_orders_func)(args...; kwargs...)
+end
+function fetch_closed_orders(s, args...; kwargs...)
+    st.attr(s, :live_closed_orders_func)(args...; kwargs...)
+end
 function fetch_positions(s, ai::AssetInstance, args...; kwargs...)
     fetch_positions(s, (ai,), args...; kwargs...)
 end
@@ -190,6 +231,9 @@ end
 cancel_orders(s, args...; kwargs...) = st.attr(s, :live_cancel_func)(args...; kwargs...)
 function cancel_all_orders(s, args...; kwargs...)
     st.attr(s, :live_cancel_all_func)(args...; kwargs...)
+end
+function create_order(s, args...; kwargs...)
+    st.attr(s, :live_create_order_func)(args...; kwargs...)
 end
 
 function st.current_total(s::NoMarginStrategy{Live})
