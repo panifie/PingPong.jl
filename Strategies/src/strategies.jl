@@ -16,7 +16,7 @@ using Data.DataStructures: SortedDict, Ordering
 import Data.DataStructures: lt
 using Data: closelast
 using Misc
-using Misc: DFT
+using Misc: DFT, IsolatedMargin
 using Lang: @lget!
 using Pkg: Pkg
 
@@ -96,6 +96,8 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         buyorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeBuyOrder{eid}}}()
         sellorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeSellOrder{eid}}}()
         name = nameof(self)
+        # set exchange
+        exc.options["defaultMarginMode"] = margin isa IsolatedMargin ? "isolated" : "cross"
         config.attrs[:exc] = exc
         new{typeof(mode),name,eid,typeof(margin),config.qc}(
             self,
