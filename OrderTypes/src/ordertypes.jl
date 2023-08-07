@@ -21,6 +21,7 @@ abstract type OrderType{S<:OrderSide} end
 abstract type LimitOrderType{S} <: OrderType{S} end
 abstract type AtomicOrderType{S} <: LimitOrderType{S} end
 abstract type GTCOrderType{S} <: LimitOrderType{S} end
+abstract type PostOnlyOrderType{S} <: GTCOrderType{S} end
 abstract type FOKOrderType{S} <: AtomicOrderType{S} end
 abstract type IOCOrderType{S} <: AtomicOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
@@ -126,7 +127,7 @@ macro deforders(issuper, types...)
     end
     out
 end
-@deforders false GTC FOK IOC Market
+@deforders false GTC PostOnly FOK IOC Market
 @deforders true Limit
 
 const ordersdefault! = Returns(nothing)
