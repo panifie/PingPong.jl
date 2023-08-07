@@ -158,6 +158,8 @@ dt(::Nothing) = :nothing
 dt(d::DateTime) = d
 dt(num::R) where {R<:Real} = unix2datetime(num / 1e3)
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
+dtstamp(d::I) where {I<:Integer} = d
+dtstamp(d::F) where {F<:AbstractFloat} = dt(d) |> dtstamp
 dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1_000
 dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d))
 
