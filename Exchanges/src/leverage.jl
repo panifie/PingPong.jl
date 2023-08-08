@@ -1,18 +1,23 @@
-using Python: PyException
+using Python: PyException, pyisTrue
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
 using Misc: IsolatedMargin, CrossMargin
 
-@doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
-function leverage!(exc::Exchange, v::Real, sym::AbstractString)
-    resp = pyfetch(exc.setLeverage, Val(:try), v, sym)
+_handle_leverage(resp) = begin
     if resp isa PyException
         @debug resp
         false
     else
-        Bool(resp.get("code", @pystr("")) == @pystr("0"))
+        pyisTrue(resp.get("code", @pystr("")) == @pystr("0"))
     end
+end
+
+
+@doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
+function leverage!(exc::Exchange, v::Real, sym::AbstractString)
+    resp = pyfetch(exc.setLeverage, Val(:try), v, sym)
+    _handle_leverage(resp)
 end
 
 @kwdef struct LeverageTier{T<:Real}

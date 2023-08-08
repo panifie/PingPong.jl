@@ -32,3 +32,9 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol)
     resp isa PyException && return resp
     Bool(get(resp, "code", @pystr("1")) == @pystr("0"))
 end
+
+function leverage!(exc::Exchange{ExchangeID{:bybit}}, v::Real, sym::AbstractString)
+    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), v, sym)
+    isnothing(resp) && return false
+    _handle_leverage(resp)
+end
