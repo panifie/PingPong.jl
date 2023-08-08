@@ -185,7 +185,7 @@ _op(::Val{:append}, args...; kwargs...) = appendmax!(args...; kwargs...)
 _op(::Val{:prepend}, args...; kwargs...) = prependmax!(args...; kwargs...)
 _fromto(to, prd, cap, kept) = to - prd * (cap - kept) - 2prd
 function _from(df, to, tf, cap, ::Val{:append})
-    @ifdebug @assert to >= _lastdate(tf)
+    @ifdebug @assert to >= _lastdate(df)
     date_cap = (to - tf * cap) - tf # add one more period to ensure from inclusion
     (isempty(df) ? date_cap : min(date_cap, _lastdate(df)))
 end
@@ -240,9 +240,12 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         if !isempty(df) && firstdate(cleaned) != lastdate(df) + prd
             _fetch_error(w, from, to, sym, firstdate(cleaned))
         end
-        if isempty(df) ||
-            (op == Val(:prepend) && lastdate(cleaned) + prd == firstdate(df)) ||
-            (op == Val(:append) && firstdate(cleaned) - prd == lastdate(df))
+        isleftadj() = lastdate(cleaned) + prd == firstdate(df)
+        isrightadj() = firstdate(cleaned) - prd == lastdate(df)
+        isrecent() = firstdate(cleaned) > lastdate(df)
+        isprep() = op == Val(:prepend) && isleftadj()
+        isapp() = op == Val(:append) && (isrightadj() || (isrecent() && (empty!(df); true)))
+        if isempty(df) || isprep() || isapp()
             _op(op, df, cleaned, w.capacity.view)
         end
         @ifdebug @assert nrow(df) <= w.capacity.view
