@@ -19,7 +19,7 @@ A structure that holds references to the Python asynchronous objects and state.
     task::Ref{Task} = Ref{Task}()
 end
 
-const gpa = PythonAsync()
+isdefined(@__MODULE__, :gpa) || @eval const gpa = PythonAsync()
 
 """
     isinitialized_async(pa::PythonAsync)
@@ -73,7 +73,7 @@ function _async_init(pa::PythonAsync)
                     if v isa Py
                         pycopy!(v, getfield(pa, f))
                     elseif f == :task
-                        isassigned(v) && (pa.task[] = v[])
+                        isassigned(pa.task) && (v[] = pa.task[])
                     else
                         error()
                     end
