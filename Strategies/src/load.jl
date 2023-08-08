@@ -86,7 +86,9 @@ function strategy!(mod::Module, cfg::Config)
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc
     end
-    @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
+    if get(cfg.attrs, :exchange_override, false)
+        @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
+    end
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
     invokelatest(mod.ping!, mod.S, cfg, LoadStrategy())
 end
