@@ -1,6 +1,7 @@
 using Lang: @ifdebug, safewait, safenotify
 using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
 
+__revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
