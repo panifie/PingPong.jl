@@ -25,7 +25,6 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     _reset!(s)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
         _tickers_watcher(s)
-        inst.stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
     end
     s
 end
