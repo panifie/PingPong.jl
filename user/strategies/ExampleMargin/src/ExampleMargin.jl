@@ -16,9 +16,11 @@ include("common.jl")
 
 # function __init__() end
 function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0))
-    for ai in s.universe
-        pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
-        pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
+    @sync for ai in s.universe
+        @async begin
+            pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
+            pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
+        end
     end
 end
 
@@ -54,7 +56,6 @@ function ping!(::Type{<:S}, config, ::LoadStrategy)
     _reset_pos!(s)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
         _tickers_watcher(s)
-        inst.stub!(s.universe, s[:tickers_watcher].view; fromfiat=false)
     end
     s
 end
@@ -85,7 +86,7 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
     end
 end
 
-function marketsid(::Type{<:S})
+function marketsid(::Type{<:Union{S, Strategy{<:ExecMode,NAME,ExchangeID{:bybit}, Isolated}}})
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 

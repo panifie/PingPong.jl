@@ -53,8 +53,9 @@ end
 
 function _cur(exc, sym)
     sym_str = uppercase(string(sym))
-    curs = @lget! currenciesCache1Hour exc.id pyfetch(exc.fetchCurrencies)
-    curs = pyisnone(curs) ? exc.currencies : curs
+    curs = @lget! currenciesCache1Hour exc.id let v = pyfetch(exc.fetchCurrencies)
+       v isa PyException ? exc.currencies : v
+    end
     isempty(curs) ? nothing : curs.get(sym_str, nothing)
 end
 
