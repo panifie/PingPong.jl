@@ -213,7 +213,7 @@ pytask(f::Py, args...; kwargs...) = pytask(f(args...; kwargs...), Val(:coro))
 
 Creates a Julia task from a Python function call and returns the Python future and the Julia task.
 """
-function pytask(f::Py, ::Val{:fut}, args...; kwargs...)
+function pytask(f::Py, ::Val{:sched}, args...; kwargs...)
     pytask(f(args...; kwargs...), Val(:fut))
 end
 
@@ -251,7 +251,7 @@ Fetches the result of a Python function call synchronously and returns an except
 """
 function _pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     try
-        fut, task = pytask(f, Val(:fut), args...; kwargs...)
+        fut, task = pytask(f, Val(:sched), args...; kwargs...)
         try
             fetch(task)
         catch e
