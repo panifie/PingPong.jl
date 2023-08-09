@@ -132,6 +132,7 @@ end
 
 const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
+orderside(::Type{O}) where {O<:Order{T}} where {T<:OrderType{S}} where {S<:OrderSide} = S
 ordertype(::Order{T}) where {T} = T
 function positionside(
     ::Union{Type{O},O}
