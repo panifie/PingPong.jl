@@ -190,6 +190,12 @@ function _from(df, to, tf, cap, ::Val{:append})
     (isempty(df) ? date_cap : min(date_cap, _lastdate(df)))
 end
 _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
+_empty!!(df::DataFrame) =
+    try
+        empty!(df)
+    catch
+        copysubs!(df, empty)
+    end
 
 @doc "`op`: `appendmax!` or `prependmax!`
 If the watcher has attribute `resync_noncontig` set to true, preloaded data will be discarded if non contiguous."
@@ -244,7 +250,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         isrightadj() = firstdate(cleaned) - prd == lastdate(df)
         isrecent() = firstdate(cleaned) > lastdate(df)
         isprep() = op == Val(:prepend) && isleftadj()
-        isapp() = op == Val(:append) && (isrightadj() || (isrecent() && (empty!(df); true)))
+        isapp() = op == Val(:append) && (isrightadj() || (isrecent() && (_empty!!(df); true)))
         if isempty(df) || isprep() || isapp()
             _op(op, df, cleaned, w.capacity.view)
         end
