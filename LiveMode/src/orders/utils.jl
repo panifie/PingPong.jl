@@ -1,5 +1,5 @@
 using .Misc.Lang: @lget!, @deassert, Option, @logerror
-using .Python: @py
+using .Python: @py, pydict
 
 function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=nothing)
     (func, kwargs) = if all
@@ -58,7 +58,7 @@ time_in_force_value(::Exchange, v) = v
 time_in_force_key(::Exchange) = "timeInForce"
 
 function _ccxttif(exc, type)
-    @pystr if type <: PostOnlyOrder
+    if type <: PostOnlyOrder
         @assert has(exc, :createPostOnlyOrder) "Exchange $(nameof(exc)) doesn't support post only orders."
         "PO"
     elseif type <: GTCOrder
@@ -73,6 +73,16 @@ function _ccxttif(exc, type)
     end
 end
 
+const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
+
+function trigger_dict(exc, v)
+    out = pydict()
+    out[@pystr("type")] = _ccxtordertype(exc, v.type)
+    out[@pystr("price")] = pyconvert(Py, v.price)
+    out[@pystr("triggerPrice")] = pyconvert(Py, v.trigger)
+    out
+end
+
 function live_create_order(
     s::LiveStrategy,
     ai,
@@ -81,7 +91,12 @@ function live_create_order(
     amount,
     price=lastprice(ai),
     retries=0,
-    params::Option{D} where {D<:AbstractDict}=nothing,
+    post_only=false,
+    reduce_only=false,
+    stop_trigger=nothing,
+    profit_trigger=nothing,
+    stop_loss::Option{TriggerOrderTuple}=nothing,
+    take_profit::Option{TriggerOrderTuple}=nothing,
     kwargs...,
 )
     sym = raw(ai)
@@ -91,12 +106,29 @@ function live_create_order(
     tif = _ccxttif(exc, t)
     tif_k = @pystr(time_in_force_key(exc))
     tif_v = @pystr(time_in_force_value(exc, tif))
-    if isnothing(params)
-        params = LittleDict((tif_k,), (tif_v,))
-    else
-        params[tif_k] = tif_v
+    params = LittleDict{Py,Any}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
+    get!(params, tif_k, tif_v)
+    function supportmsg(feat)
+        @warn "$feat requested, but exchange $(nameof(exc)) doesn't support it"
     end
-    resp = create_order(s, sym, args...; side, type, price, amount, params, kwargs...)
+    get!(params, @pystr("postOnly"), post_only) &&
+        (has(exc, :createPostOnlyOrder) || supportmsg("Post Only"))
+    get!(params, @pystr("reduceOnly"), reduce_only) &&
+        (has(exc, :createReduceOnlyOrder) || supportmsg("Reduce Only"))
+    let stop_k = @pystr("stopLoss")
+        haskey(params, stop_k) || (params[stop_k] = trigger_dict(exc, stop_loss))
+    end
+    let take_k = @pystr("takeProfit")
+        haskey(params, take_k) || (params[take_k] = trigger_dict(exc, take_profit))
+    end
+    let stop_k = @pystr("stopLossPrice")
+        haskey(params, stop_k) || (params[stop_k] = pyconvert(Py, stop_trigger))
+    end
+    let take_k = @pystr("takeProfitPrice")
+        haskey(params, take_k) || (params[take_k] = pyconvert(Py, profit_trigger))
+    end
+
+    resp = create_order(s, sym, args...; side, type, price, amount, params)
     while resp isa Exception && retries > 0
         retries -= 1
         resp = create_order(s, sym, args...; kwargs...)
