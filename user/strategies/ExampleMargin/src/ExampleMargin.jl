@@ -9,6 +9,7 @@ using Data: stub!
 const NAME = :ExampleMargin
 const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
+const SX{E, M} = Strategy{M,NAME,E,Isolated}
 const TF = tf"1m"
 __revise_mode__ = :eval
 
@@ -86,7 +87,11 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
     end
 end
 
-function marketsid(::Type{<:Union{S, Strategy{<:ExecMode,NAME,ExchangeID{:bybit}, Isolated}}})
+function marketsid(::Type{<:S})
+    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
+end
+
+function marketsid(::SX{ExchangeID{:bybit}})
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
