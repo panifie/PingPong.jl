@@ -34,23 +34,23 @@ using .Instances:
     tier!
 using Base: negate
 
+_issym(py, sym) = pyisTrue(py.get("symbol") == @pystr(sym))
 _optposside(ai) =
     let p = position(ai)
         isnothing(p) ? nothing : posside(p)
     end
 
-function live_position(
-    s::MarginStrategy, ai::MarginInstance, side=_optposside(ai); keep_info=false
-)
+function live_position(s::LiveStrategy, ai, side=_optposside(ai); keep_info=false)
     # TODO: use watchPositions
     resp = fetch_positions(s, ai)
+    sym = raw(ai)
     ccxt_pos = if resp isa PyException
         return nothing
     elseif pyisinstance(resp, pybuiltins.list)
         isempty(resp) && return nothing
         let v = nothing
             for this in resp
-                if _ccxtposside(this) == side
+                if _ccxtposside(this) == side && _issym(this, sym)
                     v = this
                     break
                 end
@@ -61,8 +61,7 @@ function live_position(
     else
         resp
     end
-    if pyisinstance(ccxt_pos, pybuiltins.dict) &&
-        pyisTrue(ccxt_pos.get("symbol") == @pystr(raw(ai)))
+    if pyisinstance(ccxt_pos, pybuiltins.dict) && _issym(ccxt_pos, sym)
         keep_info || ccxt_pos.pop("info")
         ccxt_pos
     else
@@ -149,8 +148,8 @@ function _ccxtpnlside(update)
 end
 
 function live_sync!(
-    s::MarginStrategy,
-    ai::MarginInstance,
+    s::LiveStrategy,
+    ai,
     p::Option{ByPos},
     update::Py;
     amount=live_amount(update),
@@ -299,14 +298,12 @@ function live_sync!(
     return pos
 end
 
-function live_sync!(s::MarginStrategy, ai::MarginInstance, p=position(ai))
+function live_sync!(s::LiveStrategy, ai, p=position(ai); kwargs...)
     update = live_position(s, ai, posside(p))
-    live_sync!(s, ai, p, update)
+    live_sync!(s, ai, p, update; kwargs...)
 end
 
-function live_pnl(
-    s::MarginStrategy, ai::MarginInstance, p::ByPos; force_resync=:auto, verbose=true
-)
+function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=true)
     pside = posside(p)
     lp = live_position(s, ai::MarginInstance, pside)
     pos = position(ai, p)
