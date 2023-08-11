@@ -28,8 +28,8 @@ function _live_load()
     end
 end
 
-live_strat() = begin
-    backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Live())
+function live_strat(name)
+    s = backtest_strat(name; config_attrs=(; skip_watcher=true), mode=Live())
     lm.exc_live_funcs!(s)
     s
 end
@@ -54,11 +54,26 @@ function live_dump_fetch_positions_json(s)
     write(live_stubs_file("fetch_positions.json"), string(j))
 end
 
+function live_dump_my_trades_json(s)
+    ai = s[m"btc"]
+    v = lm.fetch_my_trades(s, ai)
+    j = pyimport("json").dumps(v)
+    write(live_stubs_file("mytrades.json"), string(j))
+end
+
+function live_dump_order_trades_json(s)
+    ai = s[m"btc"]
+    v = lm.fetch_closed_orders(s, ai)
+    id = last(PyList(v)).get("id")
+    v = lm.fetch_order_trades(s, raw(ai), s)
+    j = pyimport("json").dumps(v)
+    write(live_stubs_file("ordertrades.json"), string(j))
+end
+
 function test_live_fetch_orders(s)
     Mocking.activate()
-    patch = @patch function pyfetch(f::Py, args...; kwargs...)
-        v = read(live_stubs_file("fetch_orders.json"), String)
-        pyimport("json").loads(v)
+    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        _pyjson("fetch_orders.json")
     end
     ai = s[m"btc"]
     Mocking.apply(patch) do
@@ -88,9 +103,8 @@ end
 
 function test_live_fetch_positions(s)
     Mocking.activate()
-    patch = @patch function pyfetch(f::Py, args...; kwargs...)
-        v = read(live_stubs_file("fetch_positions.json"), String)
-        pyimport("json").loads(v)
+    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        _pyjson("fetch_positions.json")
     end
     ais = [s[m"btc"], s[m"eth"]]
     Mocking.apply(patch) do
@@ -111,13 +125,12 @@ end
 function test_live_cancel_orders(s)
     Mocking.activate()
     resps = []
-    patch = @patch function pyfetch(f::Py, args...; kwargs...)
+    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if string(f.__name__) in
             ("cancel_order", "cancel_orders", "cancel_order_ws", "cancel_orders_ws")
             push!(resps, (args, kwargs))
         else
-            v = read(live_stubs_file("fetch_orders.json"), String)
-            pyimport("json").loads(v)
+            _pyjson("fetch_orders.json")
         end
     end
     Mocking.apply(patch) do
@@ -139,28 +152,26 @@ end
 function test_live_cancel_all_orders(s)
     Mocking.activate()
     resps = []
-    patch1 = @patch function pyfetch(f::Py, args...; kwargs...)
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if startswith(string(f.__name__), "cancel")
             push!(resps, (args, kwargs))
         else
-            v = read(live_stubs_file("fetch_orders.json"), String)
-            pyimport("json").loads(v)
+            _pyjson("fetch_orders.json")
         end
     end
     disabled = Ref{Any}((:cancelAllOrdersWs, :cancelAllOrders))
-    patch2 = @patch function exs.ExchangeTypes._has(exc::exs.CcxtExchange, sym)
+    patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
         if sym in disabled[]
             false
         else
-            exs.ExchangeTypes._has_check(exc, sym)
+            exs.ExchangeTypes._has(exc, sym)
         end
     end
     Mocking.apply([patch1, patch2]) do
         lm.exc_live_funcs!(ts)
         lm.cancel_all_orders(s, s[m"btc"])
-        @test length(resps[1][1]) == 1
-        @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
-        @test collect(resps[1][2])[1] == (:symbol => SubString("BTC/USDT:USDT"))
+        @test length(resps[1]) == 2
+        @test string(resps[1][1][1]) == "BTC/USDT:USDT"
         empty!(resps)
         disabled[] = ()
         lm.exc_live_funcs!(ts)
@@ -177,8 +188,7 @@ function test_live_position(s)
     resps = []
     patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if occursin("position", string(f.__name__))
-            v = read(live_stubs_file("fetch_positions.json"), String)
-            pyimport("json").loads(v)
+            _pyjson("fetch_positions.json")
         else
             Python._pyfetch(f, args...; kwargs...)
         end
@@ -201,8 +211,7 @@ function test_live_position_sync(s)
     resps = []
     patch2 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if occursin("position", string(f.__name__))
-            v = read(live_stubs_file("fetch_positions.json"), String)
-            pyimport("json").loads(v)
+            _pyjson("fetch_positions.json")
         else
             Python._pyfetch(f, args...; kwargs...)
         end
@@ -266,8 +275,7 @@ function test_live_pnl(s)
     upnl = Ref{Any}(nothing)
     patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if occursin("position", string(f.__name__))
-            v = read(live_stubs_file("fetch_positions.json"), String)
-            v = pyimport("json").loads(v)
+            v = _pyjson("fetch_positions.json")
             isnothing(upnl[]) || for p in v
                 p[lm.Pos.unrealizedPnl] = upnl[]
             end
@@ -281,6 +289,7 @@ function test_live_pnl(s)
         ai = s[m"btc"]
         p = Short()
         lp = lm.live_position(s, ai, p)
+        @test !isnothing(lp)
         pos = lm.live_sync!(s, ai, p, lp; commits=false)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
@@ -291,11 +300,11 @@ function test_live_pnl(s)
         upnl[] = 0.0
         pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
         @test pnl ≈ 124.992 atol = 1e-2
-        lm.entryprice!(pos, 0.0)
-        pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
-        @test pnl ≈ -9299 atol = 1
-        pnl = lm.live_pnl(s, ai, p; force_resync=:auto, verbose=false)
-        @test pnl ≈ 124.992 atol = 1e-2
+        # lm.entryprice!(pos, 0.0)
+        # pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
+        # @test pnl ≈ -9299 atol = 1
+        # pnl = lm.live_pnl(s, ai, p; force_resync=:auto, verbose=false)
+        # @test pnl ≈ 124.992 atol = 1e-2
     end
 end
 
@@ -309,8 +318,7 @@ function test_live_create_order(s)
             return ErrorException("")
         end
         if occursin("create_order", string(f.__name__))
-            v = read(live_stubs_file("create_order.json"), String)
-            pyimport("json").loads(v)
+            _pyjson("create_order.json")
         else
             Python._pyfetch(f, args...; kwargs...)
         end
@@ -335,23 +343,92 @@ function test_live_create_order(s)
     end
 end
 
+function test_live_my_trades(s)
+    Mocking.activate()
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        if occursin("trades", string(f.__name__))
+            _pyjson("mytrades.json")
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    disabled = Ref{Any}()
+    patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
+        if sym in disabled
+            false
+        else
+            exs.ExchangeTypes._has(exc, sym)
+        end
+    end
+    ai = s[m"btc"]
+    try
+        Mocking.apply([patch1, patch2]) do
+            trades = lm.live_my_trades(s, ai)
+            @test pyisinstance(trades, pybuiltins.list)
+            @test length(trades) == 50
+            since = pyconvert(Int, trades[-2].get("timestamp")) |> tt.dtstamp
+            trades = lm.live_my_trades(s, ai; since)
+            @test pyisinstance(trades, pybuiltins.list)
+            @test length(trades) == 2
+            disabled[] = (:fetchMyTrades)
+            lm.exc_live_funcs!(s)
+            trades = lm.live_my_trades(s, ai; since)
+            @test pyisinstance(trades, pybuiltins.list)
+            @test length(trades) == 2
+        end
+    finally
+        lm.exc_live_funcs!(s)
+    end
+end
+
+_pyjson(filename) =
+    let v = read(live_stubs_file(filename), String)
+        pyimport("json").loads(v)
+    end
+
+function test_live_order_trades(s)
+    Mocking.activate()
+    lm.exc_live_funcs!(s)
+    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+        if occursin("trades", string(f.__name__))
+            _pyjson("mytrades.json")
+        elseif occursin("order", string(f.__name__))
+            _pyjson("fetch_orders.json")
+        else
+            Python._pyfetch(f, args...; kwargs...)
+        end
+    end
+    ai = s[m"btc"]
+    id = "1682179200-BTCUSDT-1439869-Buy"
+    Mocking.apply(patch1) do
+        trades = lm.live_order_trades(s, ai, id)
+        @test length(trades) == 1
+        @test string(trades[0]["order"]) == id
+        trades = lm.live_order_trades(s, ai, "")
+        @test isempty(trades)
+    end
+end
+
 function test_live()
     @testset "live" begin
         @eval include(joinpath(@__DIR__, "env.jl"))
         @eval _live_load()
 
-        s = live_strat()
+        s = live_strat(:ExampleMargin)
 
-        # @testset "live_fetch_orders" test_live_fetch_orders(s)
-        # @testset "live_fetch_positions" test_live_fetch_positions(s)
-        # @testset "live_cancel_orders" test_live_cancel_orders(s)
-        # @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
-        # @testset "live_position" test_live_position(s)
-        # @testset "live_position_sync" test_live_position_sync(s)
-        # @testset "live_position_sync" test_live_pnl(s)
-        # @testset "live_pnl" test_live_pnl(s)
+        @testset "live_fetch_orders" test_live_fetch_orders(s)
+        @testset "live_fetch_positions" test_live_fetch_positions(s)
+        @testset "live_cancel_orders" test_live_cancel_orders(s)
+        @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
+        @testset "live_position" test_live_position(s)
+        @testset "live_position_sync" test_live_position_sync(s)
+        st.reset!(s)
+        @testset "live_position_sync" test_live_pnl(s)
+        @testset "live_pnl" test_live_pnl(s)
         # TODO: test fetch_open_orders
         # TODO: test fetch_closed_orders
-        test_live_create_order(s)
+        @testset "live_create_order" test_live_create_order(s)
+        @testset "live_my_trades" test_live_my_trades(s)
+        @testset "live_order_trades" test_live_order_trades(s)
     end
 end

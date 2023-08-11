@@ -1,5 +1,6 @@
 using PaperMode.OrderTypes
-using PaperMode: reset_logs
+using PaperMode: reset_logs, SimMode
+using .SimMode: _simmode_defaults!
 using .Lang: @lget!
 using .Python: @pystr, Py, PyList, @py, pylist
 import .Executors.Instances: raw
@@ -138,10 +139,9 @@ function _cancel_all_orders_single(ai, orders_f, cancel_f)
 end
 
 function _cancel_all_orders_func!(attrs, exc)
-    attrs[:live_cancel_all_func] = if has(exc, :cancelAllOrdersWs)
-        (ai) -> _execfunc(exc.cancelAllOrdersWs, raw(ai))
-    elseif has(exc, :cancelAllOrders)
-        (ai) -> _execfunc(exc.cancelAllOrders, raw(ai))
+    attrs[:live_cancel_all_func] = if has(exc, :cancelAllOrders)
+        func = first(exc, :cancelAllOrdersWs, :cancelAllOrders)
+        (ai) -> _execfunc(func, raw(ai))
     else
         let fetch_func = get(attrs, :live_orders_func, nothing)
             @assert !isnothing(fetch_func) "Exchange $(nameof(exc)) doesn't support fetchOrders."
