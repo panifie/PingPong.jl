@@ -115,16 +115,16 @@ function live_create_order(
         (has(exc, :createPostOnlyOrder) || supportmsg("Post Only"))
     get!(params, @pystr("reduceOnly"), reduce_only) &&
         (has(exc, :createReduceOnlyOrder) || supportmsg("Reduce Only"))
-    let stop_k = @pystr("stopLoss")
+    isnothing(stop_loss) || let stop_k = @pystr("stopLoss")
         haskey(params, stop_k) || (params[stop_k] = trigger_dict(exc, stop_loss))
     end
-    let take_k = @pystr("takeProfit")
+    isnothing(take_profit) || let take_k = @pystr("takeProfit")
         haskey(params, take_k) || (params[take_k] = trigger_dict(exc, take_profit))
     end
-    let stop_k = @pystr("stopLossPrice")
+    isnothing(stop_trigger) || let stop_k = @pystr("stopLossPrice")
         haskey(params, stop_k) || (params[stop_k] = pyconvert(Py, stop_trigger))
     end
-    let take_k = @pystr("takeProfitPrice")
+    isnothing(profit_trigger) || let take_k = @pystr("takeProfitPrice")
         haskey(params, take_k) || (params[take_k] = pyconvert(Py, profit_trigger))
     end
 

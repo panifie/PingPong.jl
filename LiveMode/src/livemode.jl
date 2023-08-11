@@ -8,7 +8,7 @@ using .Exchanges: Python
 using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy
 using PaperMode.OrderTypes
 using PaperMode.Misc
-using .Misc: Lang
+using .Misc: Lang, LittleDict
 using .Misc.TimeTicks
 using .Misc.Mocking: Mocking, @mock
 using .Lang: @deassert
@@ -18,6 +18,7 @@ include("utils.jl")
 include("orders/utils.jl")
 include("orders/limit.jl")
 include("orders/pong.jl")
+include("adhoc/utils.jl")
 include("positions/utils.jl")
 include("positions/pong.jl")
 include("instances.jl")
