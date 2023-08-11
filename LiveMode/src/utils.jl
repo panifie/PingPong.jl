@@ -200,7 +200,70 @@ end
 function _create_order_func!(attrs, exc)
     func = first(exc, :createOrderWs, :createOrder)
     @assert !isnothing(func) "Exchange doesn't have a `create_order` function"
-    attrs[:live_create_order_func] = (args...; kwargs...) -> pyfetch(func, args...; kwargs...)
+    attrs[:live_create_order_func] =
+        (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
+end
+
+function _ordertrades(resp, isid=(x) -> length(x) > 0)
+    (pyisnone(resp) || resp isa PyException || isempty(resp)) && return nothing
+    out = pylist()
+    for o in resp
+        id = o.get("order")
+        (pyisinstance(id, pybuiltins.str) && isid(id)) && out.append(o)
+    end
+    out
+end
+
+_skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
+
+function _my_trades_func!(attrs, exc)
+    # TODO: watchMyTrades support
+    attrs[:live_my_trades_func] = if has(exc, :fetchMyTrades)
+        let f = exc.fetchMyTrades
+            (
+                (ai; since=nothing, params=nothing) ->
+                    _execfunc(f, raw(ai); _skipkwargs(; since, params)...)
+            )
+        end
+        # TODO: watcTrades support
+    elseif has(exc, :fetchTrades)
+        let f = first(exc, :fetchTradesWs, :fetchTrades)
+            (
+                (ai; since=nothing, params=nothing) ->
+                    let resp = _execfunc(f, raw(ai); _skipkwargs(; since, params)...)
+                        _ordertrades(resp)
+                    end
+            )
+        end
+    else
+        error("Exchange $(nameof(exc)) does not have a method to fetch account trades")
+    end
+end
+
+_isstrequal(a::Py, b::String) = string(a) == b
+_isstrequal(a::Py, b::Py) = pyisTrue(a == b)
+
+function _order_trades_func!(attrs, exc)
+    attrs[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
+        f = exc.fetchOrderTrades
+        (ai, id; since=nothing, params=nothing) ->
+            _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
+    else
+        fetch_func = attrs[:live_my_trades_func]
+        o_func = attrs[:live_orders_func]
+        (ai, id; since=nothing, params=nothing) -> begin
+            since = @something since let o = _execfunc(o_func, ai; ids=(id,))
+                try
+                    _orderdate(o[0])
+                catch
+                    now()
+                end
+            end
+            let resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
+                _ordertrades(resp, ((x) -> string(x) == id))
+            end
+        end
+    end
 end
 
 function exc_live_funcs!(s::Strategy{Live})
@@ -213,6 +276,8 @@ function exc_live_funcs!(s::Strategy{Live})
     _cancel_all_orders_func!(attrs, exc)
     _open_orders_func!(attrs, exc; open=true)
     _open_orders_func!(attrs, exc; open=false)
+    _my_trades_func!(attrs, exc)
+    _order_trades_func!(attrs, exc)
 end
 
 fetch_orders(s, args...; kwargs...) = st.attr(s, :live_orders_func)(args...; kwargs...)
@@ -234,6 +299,12 @@ function cancel_all_orders(s, args...; kwargs...)
 end
 function create_order(s, args...; kwargs...)
     st.attr(s, :live_create_order_func)(args...; kwargs...)
+end
+function fetch_my_trades(s, args...; kwargs...)
+    st.attr(s, :live_my_trades_func)(args...; kwargs...)
+end
+function fetch_order_trades(s, args...; kwargs...)
+    st.attr(s, :live_order_trades_func)(args...; kwargs...)
 end
 
 function st.current_total(s::NoMarginStrategy{Live})
