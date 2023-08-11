@@ -76,12 +76,12 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
-_has_check(exc::Exchange, s::Symbol) =
+_has(exc::Exchange, s::Symbol) =
     let h = getfield(exc, :has)
         haskey(h, s) && h[s]
     end
-_has(args...; kwargs...) = _has_check(args...; kwargs...)
-has(args...; kwargs...) = @mock _has(args...; kwargs...)
+_mockable_has(args...; kwargs...) = _has(args...; kwargs...)
+has(args...; kwargs...) = @mock _mockable_has(args...; kwargs...)
 
 function Base.first(exc::Exchange, args::Vararg{Symbol})
     for a in args
