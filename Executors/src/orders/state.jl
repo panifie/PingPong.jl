@@ -33,6 +33,7 @@ function basicorder(
     date,
     take=nothing,
     stop=nothing,
+    id="",
 )
     ismonotonic(stop, price, take) || return nothing
     iscost(ai, amount, stop, price, take) || return nothing
@@ -49,6 +50,7 @@ function basicorder(
             date,
             price,
             amount,
+            id,
             attrs=basic_order_state(take, stop, committed, unfilled),
         )
     end
