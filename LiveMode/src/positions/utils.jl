@@ -87,30 +87,32 @@ live_mmr(lp::Py, pos) =
     end
 
 const Pos =
-    PosFields = (;
-        liquidationPrice="liquidationPrice",
-        initialMargin="initialMargin",
-        maintenanceMargin="maintenanceMargin",
-        collateral="collateral",
-        entryPrice="entryPrice",
-        timestamp="timestamp",
-        lastUpdateTimestamp="lastUpdateTimestamp",
-        additionalMargin="additionalMargin",
-        notional="notional",
-        contracts="contracts",
-        symbol="symbol",
-        unrealizedPnl="unrealizedPnl",
-        leveraged="leveraged",
-        id="id",
-        contractSize="contractSize",
-        markPrice="markPrice",
-        lastPrice="lastPrice",
-        marginMode="marginMode",
-        marginRatio="marginRatio",
-        datetime="datetime",
-        side="side",
-        hedged="hedged",
-        percentage="percentage",
+    PosFields = NamedTuple(
+        Symbol(f) => f for f in (
+            "liquidationPrice",
+            "initialMargin",
+            "maintenanceMargin",
+            "collateral",
+            "entryPrice",
+            "timestamp",
+            "datetime",
+            "lastUpdateTimestamp",
+            "additionalMargin",
+            "notional",
+            "contracts",
+            "symbol",
+            "unrealizedPnl",
+            "leverage",
+            "id",
+            "contractSize",
+            "markPrice",
+            "lastPrice",
+            "marginMode",
+            "marginRatio",
+            "side",
+            "hedged",
+            "percentage",
+        )
     )
 
 live_side(v::Py) = v.get("side", @pystr("")).lower()
