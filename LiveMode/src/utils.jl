@@ -4,6 +4,7 @@ using .SimMode: _simmode_defaults!
 using .Lang: @lget!
 using .Python: @pystr, Py, PyList, @py, pylist
 import .Executors.Instances: raw
+using .TimeTicks: dtstamp
 
 raw(v::AbstractString) = v
 function OrderTypes.ordersdefault!(s::Strategy{Live})
@@ -252,13 +253,13 @@ function _order_trades_func!(attrs, exc)
         fetch_func = attrs[:live_my_trades_func]
         o_func = attrs[:live_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
-            since = @something since let o = _execfunc(o_func, ai; ids=(id,))
+            since = ((@something since let o = _execfunc(o_func, ai; ids=(id,))
                 try
                     _orderdate(o[0])
                 catch
                     now()
                 end
-            end
+            end) |> dtstamp) - 1
             let resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
                 _ordertrades(resp, ((x) -> string(x) == id))
             end
