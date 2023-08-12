@@ -32,6 +32,22 @@ _orderdate(o::Py) =
     let v = o.get("timestamp")
         if pyisinstance(v, pybuiltins.str)
             _asdate(v)
+        elseif pyisinstance(v, pybuiltins.int)
+            pyconvert(Int, v) |> dt
+        elseif pyisinstance(v, pybuiltins.float)
+            pyconvert(DFT, v) |> dt
+        end
+    end
+
+_orderid(o::Py) =
+    let v = o.get("id")
+        if pyisinstance(v, pybuiltins.str)
+            return string(v)
+        else
+            v = o.get("clientOrderId")
+            if pyisinstance(v, pybuiltins.str)
+                return string(v)
+            end
         end
     end
 
@@ -50,5 +66,11 @@ function create_live_limit_order(
     stop = _orderfloat(resp, @pystr("stopLossPrice"))
     take = _orderfloat(resp, @pystr("takeProfitPrice"))
     date = @something _orderdate(resp) now()
-    create_sim_limit_order(s, type, ai; amount, date, type, price, stop, take, kwargs...)
+    id = @something _orderid(resp) begin
+        @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
+        string(hash((price, date)))
+    end
+    create_sim_limit_order(
+        s, type, ai; id, amount, date, type, price, stop, take, kwargs...
+    )
 end
