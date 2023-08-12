@@ -42,6 +42,22 @@ function iscashenough(s::IsolatedStrategy, ai, actual_amount, o::ShortBuyOrder)
     abs(inst.freecash(ai, Short())) + abs(committed(o)) >= actual_amount
 end
 
+macro maketrade()
+    expr = quote
+        Trade(
+            o;
+            date,
+            amount=actual_amount,
+            price=actual_price,
+            fees=trade_fees,
+            size,
+            lev=leverage(ai, o),
+            entryprice=price(ai, actual_price, o),
+        )
+    end
+    esc(expr)
+end
+
 function maketrade(
     s::Strategy{<:Union{Sim,Paper}},
     o::IncreaseOrder,
@@ -57,16 +73,7 @@ function maketrade(
     @deassert size > 0.0 && net_cost > 0.0
     trade_fees = size - net_cost
     @deassert trade_fees > 0.0 || fees < 0.0
-    Trade(
-        o;
-        date,
-        amount=actual_amount,
-        price=actual_price,
-        fees=trade_fees,
-        size,
-        lev=leverage(ai, o),
-        entryprice=price(ai, actual_price, o),
-    )
+    @maketrade
 end
 
 function maketrade(
@@ -85,16 +92,7 @@ function maketrade(
     @deassert size > 0.0 && net_cost > 0.0
     trade_fees = net_cost - size
     @deassert trade_fees > 0.0 || fees < 0.0
-    Trade(
-        o;
-        date,
-        amount=actual_amount,
-        price=actual_price,
-        fees=trade_fees,
-        size,
-        lev=leverage(ai, o),
-        entryprice=price(ai, actual_price, o),
-    )
+    @maketrade
 end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
@@ -107,13 +105,14 @@ function trade!(
     actual_amount,
     fees=maxfees(ai),
     slippage=true,
+    kwargs...,
 )
     @deassert abs(committed(o)) > 0.0
     @ifdebug _afterorder()
     @amount! ai actual_amount
     actual_price = slippage ? with_slippage(s, o, ai; date, price, actual_amount) : price
     @price! ai actual_price
-    trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees)
+    trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees, kwargs...)
     isnothing(trade) && begin
         # unqueue or decommit order if filled
         aftertrade!(s, ai, o)
