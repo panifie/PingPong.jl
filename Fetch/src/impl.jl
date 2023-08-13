@@ -88,7 +88,7 @@ function _fetch_ohlcv_from_to(
 )
     (from, to) = _check_from_to(from, to)
     @debug "Fetching $ohlcv_kind ohlcv for $pair from $(exc.name) at $timeframe - from: $(from |> dt) - to: $(to |> dt)."
-    py_fetch_func = getproperty(exc, ohlcv_func_bykind(ohlcv_kind))
+    py_fetch_func = ohlcv_func_bykind(exc, ohlcv_kind)
     function fetch_func(pair, since, limit; usetimeframe=true)
         kwargs = LittleDict()
         isnothing(since) || (kwargs[:since] = since)
@@ -319,16 +319,17 @@ function _fetch_with_delay(
     end
 end
 
-function ohlcv_func_bykind(kind)
-    if kind == :mark
-        :fetchMarkOHLCV
+function ohlcv_func_bykind(exc, kind)
+    args = if kind == :mark
+        (:fetchMarkOHLCVWs, :fetchMarkOHLCV)
     elseif kind == :index
-        :fetchIndexOHLCV
+        (:fetchIndexOHLCVWs, :fetchIndexOHLCV)
     elseif kind == :premium
-        :fetchPremiumIndexOHLCV
+        (:fetchPremiumIndexOHLCVWs, :fetchPremiumIndexOHLCV)
     else
-        :fetchOHLCV
+        (:fetchOHLCVWs, :fetchOHLCV)
     end
+    first(exc, args...)
 end
 
 function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kwargs...)
@@ -336,7 +337,7 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kw
     limit = fetch_limit(exc, limit)
     timeframe = get(kwargs, :timeframe, config.min_timeframe)
     params = get(kwargs, :params, PyDict())
-    py_fetch_func = getproperty(exc, ohlcv_func_bykind(ohlcv_kind))
+    py_fetch_func = ohlcv_func_bykind(exc, ohlcv_kind)
     function fetch_func(pair, since, limit; usetimeframe=true)
         kwargs = LittleDict()
         isnothing(since) || (kwargs[:since] = since)
