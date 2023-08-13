@@ -1,6 +1,7 @@
 using Python: pyschedule, pywait_fut, Python, pyisinstance
 using Base: with_logger, NullLogger
 using Mocking: @mock, Mocking
+using OrderedCollections: OrderedSet
 
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
@@ -17,7 +18,7 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const id::I
     const name::String
     const precision::Vector{ExcPrecisionMode}
-    const timeframes::Set{String}
+    const timeframes::OrderedSet{String}
     const markets::OptionsDict
     const types::Set{Symbol}
     const has::Dict{Symbol,Bool}
@@ -46,7 +47,7 @@ function Exchange(x::Py)
         id,
         name,
         [excDecimalPlaces],
-        Set{String}(),
+        OrderedSet{String}(),
         OptionsDict(),
         Set{Symbol}(),
         Dict{Symbol,Bool}(),

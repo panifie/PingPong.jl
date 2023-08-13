@@ -14,6 +14,7 @@ using JSON
 using TimeTicks
 using Instruments
 using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict
+using Misc.OrderedCollections: OrderedSet
 using Misc.TimeToLive
 using Lang: @lget!
 
@@ -85,7 +86,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
         @debug "Loading markets from exchange and caching at $mkt."
         pyfetch(exc.loadMarkets, true)
         mkpath(dirname(mkt))
-        cache = Dict{Symbol, String}()
+        cache = Dict{Symbol,String}()
         cache[:markets] = string(pyjson.dumps(exc.py.markets))
         cache[:markets_by_id] = string(pyjson.dumps(exc.py.markets_by_id))
         cache[:currencies] = string(pyjson.dumps(exc.py.currencies))
@@ -149,9 +150,10 @@ end
 function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     empty!(exc.timeframes)
     tfkeys = if pyisnone(exc.py.timeframes)
-        Set{String}()
+        OrderedSet{String}()
     else
-        pyconvert(Set{String}, exc.py.timeframes.keys())
+        tf_strings = [v |> string for v in exc.py.timeframes.keys()]
+        OrderedSet{String}(string(v) for v in sort!(tf_strings; by=t -> timeframe(t)))
     end
     isempty(tfkeys) || push!(exc.timeframes, tfkeys...)
     @debug "Loading Markets..."
