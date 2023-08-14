@@ -15,7 +15,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         elseif isnothing(resp)
             true
         elseif pyisinstance(resp, pybuiltins.dict)
-            pyisTrue(resp.get("code") == @pystr("0"))
+            pyisTrue(get_py(resp, "code") == @pystr("0"))
         else
             false
         end
@@ -32,7 +32,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         else
             side_str = _ccxtorderside(side)
             for o in open_orders
-                pyisTrue(o.get("side") == side_str) && return false
+                pyisTrue(get_py(o, "side") == side_str) && return false
             end
         end
     end
@@ -43,10 +43,10 @@ function _checkordertype(exc, sym)
     @assert has(exc, sym) "Exchange $(nameof(exc)) doesn't support $sym orders."
 end
 function _ccxtordertype(exc, type)
-    @pystr if type <: LimitOrder
+    @pystr if type <: AnyLimitOrder
         _checkordertype(exc, :createLimitOrder)
         "limit"
-    elseif type <: MarketOrder
+    elseif type <: AnyMarketOrder
         _checkordertype(exc, :createMarketOrder)
         "market"
     else
@@ -61,11 +61,11 @@ function _ccxttif(exc, type)
     if type <: PostOnlyOrder
         @assert has(exc, :createPostOnlyOrder) "Exchange $(nameof(exc)) doesn't support post only orders."
         "PO"
-    elseif type <: GTCOrder
+    elseif type <: AnyGTCOrder
         "GTC"
-    elseif type <: FOKOrder
+    elseif type <: AnyFOKOrder
         "FOK"
-    elseif type <: IOCOrder
+    elseif type <: AnyIOCOrder
         "IOC"
     else
         @warn "Unable to choose time-in-force setting for order type $type (defaulting to GTC)."

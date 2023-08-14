@@ -2,7 +2,7 @@ using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances:
     MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, _deducted_amount
-using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType
+using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType, PostOnlyOrderType
 using OrderTypes: ExchangeID, ByPos, ordertype
 using Instruments: AbstractAsset
 using Base: negate
@@ -17,6 +17,9 @@ const AnyFOKOrder = Union{FOKOrder,ShortFOKOrder}
 const AnyIOCOrder = Union{IOCOrder,ShortIOCOrder}
 const AnyMarketOrder{S<:OrderSide,P<:PositionSide} = Order{
     <:MarketOrderType{S},<:AbstractAsset,<:ExchangeID,P
+}
+const AnyPostOnlyOrder{S<:OrderSide,P<:PositionSide} = Order{
+    <:PostOnlyOrderType{S},<:AbstractAsset,<:ExchangeID,P
 }
 
 function _doclamp(clamper, ai, whats...)

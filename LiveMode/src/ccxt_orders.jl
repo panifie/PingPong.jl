@@ -7,8 +7,8 @@ _ccxtordertype(::LimitOrder) = @pystr "limit"
 _ccxtordertype(::MarketOrder) = @pystr "market"
 _ccxtorderside(::Type{Buy}) = @pystr "buy"
 _ccxtorderside(::Type{Sell}) = @pystr "sell"
-_ccxtorderside(::Union{BuyOrder,Type{<:BuyOrder}}) = @pystr "buy"
-_ccxtorderside(::Union{SellOrder,Type{<:SellOrder}}) = @pystr "buy"
+_ccxtorderside(::Union{AnyBuyOrder,Type{<:AnyBuyOrder}}) = @pystr "buy"
+_ccxtorderside(::Union{AnySellOrder,Type{<:AnySellOrder}}) = @pystr "buy"
 
 function createorder(exc::Exchange, o)
     sym = o.asset.raw
@@ -17,7 +17,7 @@ function createorder(exc::Exchange, o)
     price = o.price
     amount = o.amount
     ccxt_order = @pyfetch exc.py.createOrder(sym, type, side, amount, price)
-    id = ccxt_order.get("id", "")
+    id = get_py(ccxt_order, "id", "")
     @ifdebug begin
         resp = exc.py.fetchOrder(id, sym)
         @assert resp["side"] == side
