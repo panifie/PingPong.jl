@@ -42,27 +42,36 @@ macro amount!(ai, amounts...)
 end
 
 @doc "Without margin, committment is cost + fees (in quote currency)."
-function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount, args...)
+function committment(
+    ::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount; kwargs...
+)
     @deassert amount > 0.0
     withfees(cost(price, amount), maxfees(ai), IncreaseOrder)
 end
 @doc "When entering a leveraged position, what's committed is margin + fees (in quote currency)."
-function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount, args...)
+function committment(
+    o::Type{<:IncreaseOrder},
+    ai::MarginInstance,
+    price,
+    amount;
+    ntl=cost(price, amount),
+    fees=ntl * maxfees(ai),
+    lev=leverage(ai, positionside(o)()),
+    kwargs...,
+)
     @deassert amount > 0.0
-    ntl = cost(price, amount)
-    fees = ntl * maxfees(ai)
-    margin = ntl / leverage(ai, positionside(o)())
+    margin = ntl / lev
     margin + fees
 end
 
 @doc "When exiting a position, what's committed is always the asset cash
 But for longs the asset is already held, so its positive"
-function committment(::Type{<:SellOrder}, ai, price, amount, fees_base=ZERO)
+function committment(::Type{<:SellOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
     @deassert amount > 0.0
     _deducted_amount(amount, fees_base)
 end
 @doc "For shorts the asset is un-held, so its committment is negative."
-function committment(::Type{<:ShortBuyOrder}, ai, price, amount, fees_base=ZERO)
+function committment(::Type{<:ShortBuyOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
     @deassert amount > 0.0
     _deducted_amount(negate(amount), fees_base)
 end
@@ -70,7 +79,9 @@ end
 @doc "The partial committment of a trade, such that `sum(committment.(trades(o))) == committed(o)`."
 function committment(ai::AssetInstance, t::Trade)
     o = t.order
-    committment(typeof(o), ai, o.price, t.amount, t.fees_base)
+    committment(
+        typeof(o), ai, o.price, t.amount; t.fees_base, t.fees, ntl=t.value, lev=t.leverage
+    )
 end
 
 function unfillment(t::Type{<:AnyBuyOrder}, amount)
