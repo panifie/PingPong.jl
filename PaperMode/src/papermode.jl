@@ -17,7 +17,7 @@ using .Instances.Exchanges: CcxtTrade
 using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
 import Executors: pong!
-using Fetch: pytofloat
+using Fetch: Fetch, pytofloat
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
