@@ -116,7 +116,9 @@ _check_unfillment(o::LongOrder) = attr(o, :unfilled)[] > 0.0
 _check_unfillment(o::ShortOrder) = attr(o, :unfilled)[] < 0.0
 
 # NOTE: unfilled is always negative
-function fill!(ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
+function fill!(
+    ::Strategy{<:Union{Sim,Paper}}, ai::NoMarginInstance, o::BuyOrder, t::BuyTrade
+)
     @deassert o isa IncreaseOrder && _check_unfillment(o) unfilled(o), typeof(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     # from neg to 0 (buy amount is pos)
@@ -127,7 +129,9 @@ function fill!(ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
     @deassert gtxzero(ai, committed(o), Val(:price)) || o isa MarketOrder o,
     committment(ai, t)
 end
-function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
+function fill!(
+    ::Strategy{<:Union{Sim,Paper}}, ai::AssetInstance, o::SellOrder, t::SellTrade
+)
     @deassert o isa SellOrder && _check_unfillment(o)
     @deassert committed(o) == o.attrs.committed[] && committed(o) |> gtxzero
     # from pos to 0 (sell amount is neg)
@@ -137,7 +141,9 @@ function fill!(ai::AssetInstance, o::SellOrder, t::SellTrade)
     attr(o, :committed)[] += t.amount
     @deassert committed(o) |> gtxzero
 end
-function fill!(ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
+function fill!(
+    ::Strategy{<:Union{Sim,Paper}}, ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade
+)
     @deassert o isa ShortBuyOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) |> ltxzero
     @deassert attr(o, :unfilled)[] < 0.0
@@ -151,7 +157,9 @@ function fill!(ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
 end
 
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
-function fill!(ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade)
+function fill!(
+    ::MarginStrategy{<:Union{Sim,Paper}}, ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade
+)
     @deassert o isa IncreaseOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0 t
     attr(o, :unfilled)[] += t.amount
