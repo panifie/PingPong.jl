@@ -65,7 +65,7 @@ function balance(
     d = _symdict!(exc)
     @lget! d (sym, status, type) begin
         b = balance(exc, args...; type, status, kwargs...)
-        pyconvert(Float64, b.get(_pystrsym(sym), 0.0))
+        pyconvert(Float64, get_py(b, _pystrsym(sym), 0.0))
     end
 end
 
@@ -91,7 +91,7 @@ function balance!(
 )
     b = balance!(exc, args...; type, status, kwargs...)
     d = _symdict!(exc)
-    v = pyconvert(Float64, b.get(_pystrsym(sym), 0.0))
+    v = pyconvert(Float64, get_py(b, _pystrsym(sym), 0.0))
     d[(Symbol(sym), status, type)] = v
     pyconvert(DFT, v)
 end

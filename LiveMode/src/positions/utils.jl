@@ -34,7 +34,7 @@ using .Instances:
     tier!
 using Base: negate
 
-_issym(py, sym) = pyisTrue(py.get("symbol") == @pystr(sym))
+_issym(py, sym) = pyisTrue(get_py(py, "symbol") == @pystr(sym))
 _optposside(ai) =
     let p = position(ai)
         isnothing(p) ? nothing : posside(p)
@@ -69,10 +69,12 @@ function live_position(s::LiveStrategy, ai, side=_optposside(ai); keep_info=fals
     end
 end
 
-get_float(v::Py, k) = v.get(k) |> pytofloat
-get_bool(v::Py, k) = v.get(k) |> pytruth
+get_py(v::Py, k) = v.get(@pystr(k))
+get_py(v::Py, k, def) = v.get(@pystr(k), def)
+get_float(v::Py, k) = v.get(@pystr(k)) |> pytofloat
+get_bool(v::Py, k) = v.get(@pystr(k)) |> pytruth
 get_time(v::Py, k) =
-    let d = v.get(k)
+    let d = v.get(@pystr(k))
         @something pyconvert(Option{DateTime}, d) now()
     end
 live_amount(lp::Py) = get_float(lp, "contracts")
@@ -115,7 +117,7 @@ const Pos =
         )
     )
 
-live_side(v::Py) = v.get("side", @pystr("")).lower()
+live_side(v::Py) = get_py(v, "side", @pystr("")).lower()
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
 _ccxtisshort(v::Py) = pyisTrue(live_side(v) == @pystr("short"))
@@ -129,9 +131,9 @@ _ccxtposside(v::Py) =
         _ccxtpnlside(v)
     end
 _ccxtposprice(ai, update) =
-    let lp = update.get(Pos.lastPrice) |> pytofloat
+    let lp = get_float(update, Pos.lastPrice)
         if lp <= zero(DFT)
-            lp = update.get(Pos.markPrice) |> pytofloat
+            lp = get_float(update, Pos.markPrice)
             if lp <= zero(DFT)
                 lastprice(ai)
             else
@@ -143,15 +145,15 @@ _ccxtposprice(ai, update) =
     end
 
 function _ccxtpnlside(update)
-    upnl = update.get(Pos.unrealizedPnl) |> pytofloat
-    liqprice = update.get(Pos.liquidationPrice) |> pytofloat
-    eprice = update.get(Pos.entryPrice) |> pytofloat
+    upnl = get_float(update, Pos.unrealizedPnl)
+    liqprice = get_float(update, Pos.liquidationPrice)
+    eprice = get_float(update, Pos.entryPrice)
     ifelse(upnl >= ZERO && liqprice < eprice, Long(), Short())
 end
 
 function live_sync!(
     s::LiveStrategy,
-    ai,
+    ai::MarginInstance,
     p::Option{ByPos},
     update::Py;
     amount=live_amount(update),
@@ -159,7 +161,7 @@ function live_sync!(
     commits=true,
 )
     # If position side doesn't match we should abort sync
-    ccxt_side = update.get(Pos.side)
+    ccxt_side = get_py(update, Pos.side)
     pside = if pyisnone(ccxt_side)
         if isnothing(p)
             @warn "Position side not provided, inferring from position state"
@@ -189,7 +191,7 @@ function live_sync!(
     pos.timestamp[] == this_time && return pos
 
     # Margin/hedged mode are immutable so just check for mismatch
-    let mm = update.get(Pos.marginMode)
+    let mm = get_py(update, Pos.marginMode)
         pyisnone(mm) ||
             mm == @pystr(marginmode(pos)) ||
             @warn "Position margin mode mismatch (local: $(marginmode(pos)))"
@@ -309,9 +311,9 @@ function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=tru
     pside = posside(p)
     lp = live_position(s, ai::MarginInstance, pside)
     pos = position(ai, p)
-    pnl = lp.get(Pos.unrealizedPnl) |> pytofloat
+    pnl = get_float(lp, Pos.unrealizedPnl)
     if iszero(pnl)
-        amount = lp.get("contracts") |> pytofloat
+        amount = get_float(lp, "contracts")
         function dowarn(a, b)
             @warn "Position amount for $(raw(ai)) unsynced from exchange $(nameof(exchange(ai))) ($a != $b), resyncing..."
         end

@@ -35,7 +35,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         else
             (_ccxtorderside(side),)
         end
-        (o) -> @py o.get("side") ∉ sides
+        (o) -> @py get_py(o, "side") ∉ sides
     end
     should_skip = if isempty(ids)
         if side == Both
@@ -45,7 +45,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     else
         let ids_set = Set(ids)
-            (o) -> (pyconvert(String, o.get("id")) ∉ ids_set || notside(o))
+            (o) -> (pyconvert(String, get_py(o, "id")) ∉ ids_set || notside(o))
         end
     end
     resp isa PyException && throw(resp)
@@ -77,7 +77,7 @@ function _open_orders_func!(attrs, exc; open=true)
         fetch_func = get(attrs, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
         open_str = @pystr("open")
-        pred_func = o -> pyisTrue(o.get("status") == open_str)
+        pred_func = o -> pyisTrue(get_py(o, "status") == open_str)
         pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
             all_orders = fetch_func(raw(ai); kwargs...)
@@ -95,7 +95,7 @@ function _filter_positions(out, side::Union{Hedged,PositionSide}=Hedged())
         out
     elseif isshort(side) || islong(side)
         side_str = @pystr(_ccxtposside(side))
-        _pyfilter!(out, (o) -> pyisTrue(o.get("side") != side_str))
+        _pyfilter!(out, (o) -> pyisTrue(get_py(o, "side") != side_str))
     end
 end
 
@@ -122,9 +122,9 @@ _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 function _cancel_all_orders(ai, orders_f, cancel_f)
     let sym = raw(ai)
         all_orders = _execfunc(orders_f, ai)
-        _pyfilter!(all_orders, o -> pyisTrue(o.get("status") != @pystr("open")))
+        _pyfilter!(all_orders, o -> pyisTrue(get_py(o, "status") != @pystr("open")))
         if !isempty(all_orders)
-            ids = ((o.get("id") for o in all_orders)...,)
+            ids = ((get_py(o, "id") for o in all_orders)...,)
             _execfunc(cancel_f, ids; symbol=sym)
         end
     end
@@ -163,19 +163,19 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     all_orders = _execfunc(orders_f, ai; (isnothing(side) ? () : (; side))...)
     open_orders = (
-        (o for o in all_orders if pyisTrue(o.get("status") == @pystr("open")))...,
+        (o for o in all_orders if pyisTrue(get_py(o, "status") == @pystr("open")))...,
     )
     if !isempty(open_orders)
         if side ∈ (Buy, Sell)
             side_str = _ccxtorderside(side)
             side_ids = (
                 (
-                    o.get("id") for o in open_orders if pyisTrue(o.get("side") == side_str)
+                    get_py(o, "id") for o in open_orders if pyisTrue(get_py(o, "side") == side_str)
                 )...,
             )
             _execfunc(cancel_f, side_ids; symbol=sym)
         else
-            orders_ids = ((o.get("id") for o in open_orders)...,)
+            orders_ids = ((get_py(o, "id") for o in open_orders)...,)
             _execfunc(cancel_f, orders_ids; symbol=sym)
         end
     end
@@ -209,7 +209,7 @@ function _ordertrades(resp, isid=(x) -> length(x) > 0)
     (pyisnone(resp) || resp isa PyException || isempty(resp)) && return nothing
     out = pylist()
     for o in resp
-        id = o.get("order")
+        id = get_py(o, "order")
         (pyisinstance(id, pybuiltins.str) && isid(id)) && out.append(o)
     end
     out

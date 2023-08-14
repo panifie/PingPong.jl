@@ -2,7 +2,7 @@ using .Executors: AnyLimitOrder
 using .PaperMode: _asdate, create_sim_limit_order
 
 _ordertif(o::Py) =
-    let tif = o.get("timeInForce")
+    let tif = get_py(o, "timeInForce")
         if tif == "PO" || tif == "GTC"
             GTCOrder
         elseif tif == "FOK"
@@ -13,7 +13,7 @@ _ordertif(o::Py) =
     end
 
 _orderside(o::Py) =
-    let v = o.get("side")
+    let v = get_py(o, "side")
         if v == @pystr("buy")
             Buy
         elseif v == @pystr("sell")
@@ -22,14 +22,14 @@ _orderside(o::Py) =
     end
 
 _orderfloat(o::Py, k) =
-    let v = o.get(k)
+    let v = get_py(o, k)
         if pyisinstance(v, pybuiltins.float)
             pytofloat(v)
         end
     end
 
 pytodate(py::Py) =
-    let v = py.get("timestamp")
+    let v = get_py(py, "timestamp")
         if pyisinstance(v, pybuiltins.str)
             _asdate(v)
         elseif pyisinstance(v, pybuiltins.int)
@@ -40,11 +40,11 @@ pytodate(py::Py) =
     end
 
 _orderid(o::Py) =
-    let v = o.get("id")
+    let v = get_py(o, "id")
         if pyisinstance(v, pybuiltins.str)
             return string(v)
         else
-            v = o.get("clientOrderId")
+            v = get_py(o, "clientOrderId")
             if pyisinstance(v, pybuiltins.str)
                 return string(v)
             end
@@ -54,6 +54,15 @@ _orderid(o::Py) =
 function create_live_limit_order(
     s::LiveStrategy, resp, ai, args...; t, price, amount, kwargs...
 )
+    try
+        pyisTrue(get_py(resp, "status") == @pystr("open")) ||
+            get_float(resp, "filled") > ZERO ||
+            begin
+                @warn "Order is not open, and does not appear to be fillled"
+                return nothing
+            end
+    catch
+    end
     type = let ot = _ordertif(resp)
         if isnothing(ot)
             t
@@ -65,7 +74,7 @@ function create_live_limit_order(
     price = @something _orderfloat(resp, @pystr("price")) price
     stop = _orderfloat(resp, @pystr("stopLossPrice"))
     take = _orderfloat(resp, @pystr("takeProfitPrice"))
-    date = @something _pytodate(resp) now()
+    date = @something pytodate(resp) now()
     id = @something _orderid(resp) begin
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
         string(hash((price, date)))
@@ -73,4 +82,39 @@ function create_live_limit_order(
     create_sim_limit_order(
         s, type, ai; id, amount, date, type, price, stop, take, kwargs...
     )
+end
+
+macro _isfilled()
+    expr = quote
+        # fallback to local
+        if isfilled(o)
+            decommit!(s, o, ai)
+            delete!(s, ai, o)
+        end
+    end
+    esc(expr)
+end
+
+islist(v) = pyisinstance(v, pybuiltins.list)
+isdict(v) = pyisinstance(v, pybuiltins.dict)
+function isfilled(resp::Py)
+    pyisTrue(get_py(resp, "filled") == get_py(resp, "amount")) &&
+    iszero(get_float(resp, "remaining"))
+end
+@doc "Remove a limit order from orders queue if it is filled."
+function aftertrade!(s::LiveStrategy, ai, o::AnyLimitOrder)
+    resp = fetch_orders(s, ai; ids=(o.id,))
+    if islist(resp) && !isempty(resp)
+        o = first(resp)
+        if isdict(o)
+            if isfilled(o)
+                decommit!(s, o, ai)
+                delete!(s, ai, o)
+            end
+        else
+            @_isfilled()
+        end
+    else
+        @_isfilled()
+    end
 end
