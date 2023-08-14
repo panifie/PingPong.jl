@@ -1,6 +1,7 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
-using Instances: MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount
+using Instances:
+    MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, _deducted_amount
 using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType
 using OrderTypes: ExchangeID, ByPos, ordertype
 using Instruments: AbstractAsset
@@ -41,12 +42,12 @@ macro amount!(ai, amounts...)
 end
 
 @doc "Without margin, committment is cost + fees (in quote currency)."
-function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount)
+function committment(::Type{<:IncreaseOrder}, ai::NoMarginInstance, price, amount, args...)
     @deassert amount > 0.0
     withfees(cost(price, amount), maxfees(ai), IncreaseOrder)
 end
 @doc "When entering a leveraged position, what's committed is margin + fees (in quote currency)."
-function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount)
+function committment(o::Type{<:IncreaseOrder}, ai::MarginInstance, price, amount, args...)
     @deassert amount > 0.0
     ntl = cost(price, amount)
     fees = ntl * maxfees(ai)
@@ -56,21 +57,20 @@ end
 
 @doc "When exiting a position, what's committed is always the asset cash
 But for longs the asset is already held, so its positive"
-function committment(::Type{<:SellOrder}, ai, _, amount)
+function committment(::Type{<:SellOrder}, ai, price, amount, fees_base=ZERO)
     @deassert amount > 0.0
-    amount
+    _deducted_amount(amount, fees_base)
 end
 @doc "For shorts the asset is un-held, so its committment is negative."
-function committment(::Type{<:ShortBuyOrder}, ai, _, amount)
+function committment(::Type{<:ShortBuyOrder}, ai, price, amount, fees_base=ZERO)
     @deassert amount > 0.0
-    negate(amount)
+    _deducted_amount(negate(amount), fees_base)
 end
 
 @doc "The partial committment of a trade, such that `sum(committment.(trades(o))) == committed(o)`."
 function committment(ai::AssetInstance, t::Trade)
-    let o = t.order
-        committment(typeof(o), ai, o.price, abs(t.amount))
-    end
+    o = t.order
+    committment(typeof(o), ai, o.price, t.amount, t.fees_base)
 end
 
 function unfillment(t::Type{<:AnyBuyOrder}, amount)

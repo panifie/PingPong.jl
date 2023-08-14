@@ -302,16 +302,25 @@ Instruments.sub!(ai::MarginInstance, v, p::PositionSide) = sub!(cash(ai, p), v)
 Instruments.cash!(ai::NoMarginInstance, v, args...) = cash!(cash(ai), v)
 Instruments.cash!(ai::MarginInstance, v, p::PositionSide) = cash!(cash(ai, p), v)
 Instruments.cash!(ai::NoMarginInstance, t::BuyTrade) = add!(cash(ai), t.amount)
+# Positive `fees_base` go `trade --> exchange`
+# Negative `fees_base` go `exchange --> trade`
+# When reducing a position: t.amount is fee adjusted, but we need to update the local cash value,
+# so we also need to deduct the `fees_base` qty, but only when those fees are paid
+# from the trade to the exchange.
+_deducted_amount(amt, fb) = fb > ZERO ? amt + sign(amt) * fb : amt
+_deducted_amount(t::Trade) = _deducted_amount(t.amount, t.fees_base)
 function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
-    add!(cash(ai), t.amount)
-    add!(committed(ai), t.amount)
+    amt = _deducted_amount(t)
+    add!(cash(ai), amt)
+    add!(committed(ai), amt)
 end
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
     add!(cash(ai, positionside(t)()), t.amount)
 end
 function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
-    add!(cash(ai, positionside(t)()), t.amount)
-    add!(committed(ai, positionside(t)()), t.amount)
+    amt = _deducted_amount(t)
+    add!(cash(ai, positionside(t)()), amt)
+    add!(committed(ai, positionside(t)()), amt)
 end
 function freecash(ai::NoMarginInstance, args...)
     ca = cash(ai) - committed(ai)
@@ -525,7 +534,9 @@ pnlpct(ai::MarginInstance, v::Number) = begin
     pnlpct(pos, v)
 end
 
-lastprice(ai::AssetInstance, args...; kwargs...) = lastprice(ai.asset.raw, ai.exchange, args...; kwargs...)
+function lastprice(ai::AssetInstance, args...; kwargs...)
+    lastprice(ai.asset.raw, ai.exchange, args...; kwargs...)
+end
 
 include("constructors.jl")
 
