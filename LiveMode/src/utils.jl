@@ -243,6 +243,7 @@ end
 
 _isstrequal(a::Py, b::String) = string(a) == b
 _isstrequal(a::Py, b::Py) = pyisTrue(a == b)
+_ispydict(v) = pyisinstance(v, pybuiltins.dict)
 
 function _order_trades_func!(attrs, exc)
     attrs[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
@@ -252,19 +253,30 @@ function _order_trades_func!(attrs, exc)
     else
         fetch_func = attrs[:live_my_trades_func]
         o_func = attrs[:live_orders_func]
+        o_closed_func = attrs[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
-            since = ((@something since let o = _execfunc(o_func, ai; ids=(id,))
-                try
-                    _orderdate(o[0])
-                catch
-                    now()
-                end
-            end) |> dtstamp) - 1
+            since =
+                ((@something since let ords = _execfunc(o_func, ai; ids=(id,))
+                        try
+                            if isempty(ords) # its possible for the order to not be present in
+                                # the fetch orders function if it is closed
+                                ords = _execfunc(o_closed_func, ai; ids=(id,))
+                            end
+                            pytodate(ords[0])
+                        catch
+                            now()
+                        end
+                    end) |> dtstamp) - 1
             let resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
                 _ordertrades(resp, ((x) -> string(x) == id))
             end
         end
     end
+end
+
+function _fetch_candles_func!(attrs, exc)
+    fetch_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
+    attrs[:live_fetch_candles_func] = (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
 end
 
 function exc_live_funcs!(s::Strategy{Live})
@@ -279,6 +291,7 @@ function exc_live_funcs!(s::Strategy{Live})
     _open_orders_func!(attrs, exc; open=false)
     _my_trades_func!(attrs, exc)
     _order_trades_func!(attrs, exc)
+    _fetch_candles_func!(attrs, exc)
 end
 
 fetch_orders(s, args...; kwargs...) = st.attr(s, :live_orders_func)(args...; kwargs...)
@@ -306,6 +319,9 @@ function fetch_my_trades(s, args...; kwargs...)
 end
 function fetch_order_trades(s, args...; kwargs...)
     st.attr(s, :live_order_trades_func)(args...; kwargs...)
+end
+function fetch_candles(s, args...; kwargs...)
+    st.attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
 
 function st.current_total(s::NoMarginStrategy{Live})

@@ -28,8 +28,8 @@ _orderfloat(o::Py, k) =
         end
     end
 
-_orderdate(o::Py) =
-    let v = o.get("timestamp")
+pytodate(py::Py) =
+    let v = py.get("timestamp")
         if pyisinstance(v, pybuiltins.str)
             _asdate(v)
         elseif pyisinstance(v, pybuiltins.int)
@@ -65,7 +65,7 @@ function create_live_limit_order(
     price = @something _orderfloat(resp, @pystr("price")) price
     stop = _orderfloat(resp, @pystr("stopLossPrice"))
     take = _orderfloat(resp, @pystr("takeProfitPrice"))
-    date = @something _orderdate(resp) now()
+    date = @something _pytodate(resp) now()
     id = @something _orderid(resp) begin
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
         string(hash((price, date)))
