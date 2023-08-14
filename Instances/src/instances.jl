@@ -307,7 +307,7 @@ Instruments.cash!(ai::NoMarginInstance, t::BuyTrade) = add!(cash(ai), t.amount)
 # When reducing a position: t.amount is fee adjusted, but we need to update the local cash value,
 # so we also need to deduct the `fees_base` qty, but only when those fees are paid
 # from the trade to the exchange.
-_deducted_amount(amt, fb) = fb > ZERO ? amt + sign(amt) * fb : amt
+_deducted_amount(amt, fb) = fb > ZERO ? (amt > ZERO ? amt + fb : amt - fb) : amt
 _deducted_amount(t::Trade) = _deducted_amount(t.amount, t.fees_base)
 function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
     amt = _deducted_amount(t)
