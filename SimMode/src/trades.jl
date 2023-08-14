@@ -49,7 +49,8 @@ macro maketrade()
             date,
             amount=actual_amount,
             price=actual_price,
-            fees=trade_fees,
+            fees=fees_quote,
+            fees_base,
             size,
             lev=leverage(ai, o),
             entryprice=price(ai, actual_price, o),
@@ -71,8 +72,9 @@ function maketrade(
     size = withfees(net_cost, fees, o)
     iscashenough(s, ai, size, o) || return nothing
     @deassert size > 0.0 && net_cost > 0.0
-    trade_fees = size - net_cost
-    @deassert trade_fees > 0.0 || fees < 0.0
+    fees_quote = size - net_cost
+    fees_base = ZERO
+    @deassert fees_quote > 0.0 || fees < 0.0
     @maketrade
 end
 
@@ -90,8 +92,9 @@ function maketrade(
     net_cost = cost(actual_price, actual_amount)
     size = withfees(net_cost, fees, o)
     @deassert size > 0.0 && net_cost > 0.0
-    trade_fees = net_cost - size
-    @deassert trade_fees > 0.0 || fees < 0.0
+    fees_quote = net_cost - size
+    fees_base = ZERO
+    @deassert fees_quote > 0.0 || fees < 0.0
     @maketrade
 end
 
