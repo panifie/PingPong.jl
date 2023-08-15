@@ -9,7 +9,7 @@ using Ccxt: Ccxt, ccxt_exchange, choosefunc
 using Python: Py, pyconvert, pyfetch, PyDict, PyList, pydict, pyimport, @pystr
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
-using Pbar.Term: RGB
+using Pbar.Term: RGB, tprint
 using JSON
 using TimeTicks
 using Instruments
