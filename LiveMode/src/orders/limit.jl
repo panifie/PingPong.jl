@@ -28,8 +28,14 @@ _orderfloat(o::Py, k) =
         end
     end
 
-pytodate(py::Py) =
-    let v = get_py(py, "timestamp")
+get_timestamp(py, keys=("timestamp", "lastUpdateTimestamp")) =
+    for k in keys
+        v = get_py(py, k)
+        pyisnone(v) || return v
+    end
+
+function pytodate(py::Py, keys=("timestamp", "lastUpdateTimestamp"))
+    let v = get_timestamp(py, keys)
         if pyisinstance(v, pybuiltins.str)
             _asdate(v)
         elseif pyisinstance(v, pybuiltins.int)
@@ -38,6 +44,7 @@ pytodate(py::Py) =
             pyconvert(DFT, v) |> dt
         end
     end
+end
 
 _orderid(o::Py) =
     let v = get_py(o, "id")
@@ -99,7 +106,7 @@ islist(v) = pyisinstance(v, pybuiltins.list)
 isdict(v) = pyisinstance(v, pybuiltins.dict)
 function isfilled(resp::Py)
     pyisTrue(get_py(resp, "filled") == get_py(resp, "amount")) &&
-    iszero(get_float(resp, "remaining"))
+        iszero(get_float(resp, "remaining"))
 end
 @doc "Remove a limit order from orders queue if it is filled."
 function aftertrade!(s::LiveStrategy, ai, o::AnyLimitOrder)
