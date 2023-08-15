@@ -34,4 +34,6 @@ function pyisnonzero(v::Py)::Bool
     end
 end
 
+PythonCall.PyDict(p::Pair) = PyDict((p,))
+
 export @pystr, pytofloat, pyisnonzero
