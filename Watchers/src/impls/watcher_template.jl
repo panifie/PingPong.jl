@@ -1,4 +1,5 @@
-using ..Watchers: @logerror
+using .Watchers: @watcher_interface!;
+@watcher_interface!()
 
 const ThisVal = Val{:this_val}
 

@@ -73,6 +73,7 @@ _exc!(w::Watcher, exc) = _exc!(w.attrs, exc)
 _tfunc!(attrs, suffix, k) = attrs[k] = _multifunc(_exc(attrs), suffix, true)[1]
 _tfunc!(attrs, suffix) = attrs[:tfunc] = _multifunc(_exc(attrs), suffix, true)[1]
 _tfunc!(attrs, exc::Exchange, args...) = attrs[:tfunc] = choosefunc(exc, args...)
+_tfunc!(attrs, f::Function) = attrs[:tfunc] = f
 _tfunc(w::Watcher) = w.attrs[:tfunc]
 _sym(w::Watcher) = w.attrs[:sym]
 _sym!(attrs, v) = attrs[:sym] = v
