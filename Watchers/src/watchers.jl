@@ -158,7 +158,7 @@ function _watcher(
     view_capacity=1000,
     attrs=Dict(),
 )
-    _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
+    flush && _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
     @debug "new watcher: $name"
     w = Watcher22{T}(;
         buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
