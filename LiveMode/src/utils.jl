@@ -7,10 +7,12 @@ import .Executors.Instances: raw
 using .TimeTicks: dtstamp
 
 raw(v::AbstractString) = v
+ordertasks(s::Strategy) = @lget! s.attrs :live_order_tasks Dict{Order,Task}()
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
         _simmode_defaults!(s, attrs)
         reset_logs(s)
+        ordertasks(s)
     end
 end
 
@@ -53,7 +55,6 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
 end
 
 function _orders_func!(attrs, exc)
-    # TODO: `watchOrders` support
     attrs[:live_orders_func] = if has(exc, :fetchOrders)
         (ai; kwargs...) -> _fetch_orders(ai, exc.fetchOrders; kwargs...)
     elseif has(exc, :fetchOrder)
@@ -67,7 +68,6 @@ function _orders_func!(attrs, exc)
 end
 
 function _open_orders_func!(attrs, exc; open=true)
-    # TODO: `watchOrders` support
     oc = open ? "open" : "closed"
     cap = open ? "Open" : "Closed"
     attrs[Symbol("live_$(oc)_orders_func")] = if has(exc, Symbol("fetch$(cap)Orders"))
@@ -100,7 +100,6 @@ function _filter_positions(out, side::Union{Hedged,PositionSide}=Hedged())
 end
 
 function _positions_func!(attrs, exc)
-    # TODO: `watchPositions` support
     attrs[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), kwargs...) ->
             let out = pyfetch(exc.fetchPositions, _syms(ais); kwargs...)
@@ -170,7 +169,8 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
             side_str = _ccxtorderside(side)
             side_ids = (
                 (
-                    get_py(o, "id") for o in open_orders if pyisTrue(get_py(o, "side") == side_str)
+                    get_py(o, "id") for
+                    o in open_orders if pyisTrue(get_py(o, "side") == side_str)
                 )...,
             )
             _execfunc(cancel_f, side_ids; symbol=sym)
@@ -218,7 +218,6 @@ end
 _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
 
 function _my_trades_func!(attrs, exc)
-    # TODO: watchMyTrades support
     attrs[:live_my_trades_func] = if has(exc, :fetchMyTrades)
         let f = exc.fetchMyTrades
             (
@@ -276,7 +275,8 @@ end
 
 function _fetch_candles_func!(attrs, exc)
     fetch_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
-    attrs[:live_fetch_candles_func] = (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
+    attrs[:live_fetch_candles_func] =
+        (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
 end
 
 function exc_live_funcs!(s::Strategy{Live})
