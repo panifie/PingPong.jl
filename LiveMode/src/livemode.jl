@@ -25,6 +25,7 @@ include("instances.jl")
 include("balance.jl")
 include("trades.jl")
 include("ccxt_orders.jl")
+include("watchers/positions.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end

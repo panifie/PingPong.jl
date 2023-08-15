@@ -123,3 +123,23 @@ function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
         deleteat!(w.buffer, (from_idx + 1):to_idx)
     end
 end
+
+macro watcher_interface!()
+    quote
+        import .Watchers:
+            _fetch!,
+            _load!,
+            _flush!,
+            _init!,
+            _delete!,
+            _deleteat!,
+            _start!,
+            _stop!,
+            _process!,
+            _push!,
+            _pop!,
+            _get
+    end
+end
+
+export @watcher_interface!
