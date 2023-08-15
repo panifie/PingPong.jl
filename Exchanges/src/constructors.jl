@@ -83,16 +83,20 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     empty!(exc.markets)
     pyjson = pyimport("json")
     function force_load()
-        @debug "Loading markets from exchange and caching at $mkt."
-        pyfetch(exc.loadMarkets, true)
-        mkpath(dirname(mkt))
-        cache = Dict{Symbol,String}()
-        cache[:markets] = string(pyjson.dumps(exc.py.markets))
-        cache[:markets_by_id] = string(pyjson.dumps(exc.py.markets_by_id))
-        cache[:currencies] = string(pyjson.dumps(exc.py.currencies))
-        cache[:symbols] = string(pyjson.dumps(exc.py.symbols))
-        write(mkt, json(cache))
-        merge!(exc.markets, jlpyconvert(exc.py.markets))
+        try
+            @debug "Loading markets from exchange and caching at $mkt."
+            pyfetch(exc.loadMarkets, true)
+            mkpath(dirname(mkt))
+            cache = Dict{Symbol,String}()
+            cache[:markets] = string(pyjson.dumps(exc.py.markets))
+            cache[:markets_by_id] = string(pyjson.dumps(exc.py.markets_by_id))
+            cache[:currencies] = string(pyjson.dumps(exc.py.currencies))
+            cache[:symbols] = string(pyjson.dumps(exc.py.symbols))
+            write(mkt, json(cache))
+            merge!(exc.markets, jlpyconvert(exc.py.markets))
+        catch e
+            @warn e
+        end
     end
     if isfileyounger(mkt, agemax) && cache
         try
