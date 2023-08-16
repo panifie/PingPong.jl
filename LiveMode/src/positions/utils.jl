@@ -42,40 +42,46 @@ _optposside(ai) =
 
 function _force_fetch(s, ai, sym, side; fallback_kwargs)
     resp = fetch_positions(s, ai; fallback_kwargs...)
-    if resp isa PyException
-        nothing
+    pos = if resp isa PyException
+        return nothing
     elseif islist(resp)
         if isempty(resp)
-            nothing
+            return nothing
         else
-            let v = nothing
-                for this in resp
-                    if _ccxtposside(this) == side && _issym(this, sym)
-                        v = this
-                        break
-                    end
+            for this in resp
+                if _ccxtposside(this) == side && _issym(this, sym)
+                    return this
                 end
-                v
             end
         end
     end
 end
 
+_isold(snap, since) = !isnothing(since) && @something(pytodate(snap), since) < since
 function live_position(
-    s::LiveStrategy, ai, side=_optposside(ai); fallback_kwargs=(), force=false
+    s::LiveStrategy,
+    ai,
+    side=_optposside(ai);
+    fallback_kwargs=(),
+    since=nothing,
+    force=false,
 )
     data = get_positions(s, side)
     sym = raw(ai)
-    ccxt_pos = get(data, sym, nothing)
-    if force || isnothing(ccxt_pos)
-        ccxt_pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
-        if isdict(ccxt_pos) && _issym(ccxt_pos, sym)
-            get(positions_watcher(s).attrs, :keep_info, false) || _deletek(ccxt_pos, "info")
-
-            data[sym] = (date=now(), notify=Condition(), pos=ccxt_pos)
+    tup = get(data, sym, nothing)
+    if isnothing(tup) && force
+        pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
+        if isdict(pos) && _issym(pos, sym)
+            get(positions_watcher(s).attrs, :keep_info, false) || _deletek(pos, "info")
+            date = @something pytodate(pos) now()
+            tup = data[sym] = (date, notify=Base.Threads.Condition(), pos)
         end
     end
-    ccxt_pos
+    while !isnothing(tup) && _isold(tup.pos, since)
+        safewait(tup.notify)
+        tup = get(data, sym, nothing)
+    end
+    tup isa NamedTuple ? tup.pos : nothing
 end
 
 get_py(v::Py, k) = v.get(@pystr(k))
@@ -314,8 +320,8 @@ function live_sync!(
     return pos
 end
 
-function live_sync!(s::LiveStrategy, ai, p=position(ai); kwargs...)
-    update = live_position(s, ai, posside(p))
+function live_sync!(s::LiveStrategy, ai, p=position(ai); since=nothing, kwargs...)
+    update = live_position(s, ai, posside(p); since)
     live_sync!(s, ai, p, update; kwargs...)
 end
 
