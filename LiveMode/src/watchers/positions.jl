@@ -6,7 +6,9 @@ using .Exchanges: check_timeout
 using .Lang: splitkws, safenotify
 
 const CcxtPositionsVal = Val{:ccxt_positions}
-const PositionUpdate4 = NamedTuple{(:date, :notify, :pos),Tuple{DateTime,Base.Threads.Condition,Py}}
+const PositionUpdate4 = NamedTuple{
+    (:date, :notify, :pos),Tuple{DateTime,Base.Threads.Condition,Py}
+}
 
 function guess_settle(s::MarginStrategy)
     try
@@ -16,29 +18,33 @@ function guess_settle(s::MarginStrategy)
     end
 end
 
-_dopush!(w, v) =
-    if islist(v)
+_dopush!(w, v; if_func=islist) =
+    if if_func(v)
         pushnew!(w, v)
         _lastfetched!(w, now())
     end
 
-function _fetch_func(s, interval; kwargs)
+function split_params(kwargs)
+    (split, rest) = splitkws(:params; kwargs)
+    tup = tuple(split...)
+    # (params, reset)
+    isempty(tup) ? LittleDict{Py,Any}() : tup[1][2], rest
+end
+
+function _w_fetch_positions_func(s, interval; kwargs)
     exc = exchange(s)
-    params, rest = let (split, rest) = splitkws(:params; kwargs)
-        tup = tuple(split...)
-        isempty(tup) ? LittleDict{Py,Any}() : tup[1][2], rest
-    end
+    params, rest = split_params(kwargs)
     @lget! params @pystr("settle") guess_settle(s)
     if has(exc, :watchPositions)
         f = exc.watchPositions
         (w) -> try
-            v = _execfunc(f; params, kwargs...)
+            v = _execfunc(f; params, rest...)
             _dopush!(w, v)
         catch
         end
     else
         (w) -> try
-            v = fetch_positions(s, (); params, kwargs...)
+            v = fetch_positions(s, (); params, rest...)
             _dopush!(w, v)
             sleep(interval)
         catch
@@ -60,7 +66,7 @@ function ccxt_positions_watcher(
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
     attrs[:keep_info] = keep_info
-    _tfunc!(attrs, _fetch_func(s, interval; kwargs))
+    _tfunc!(attrs, _w_fetch_positions_func(s, interval; kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))

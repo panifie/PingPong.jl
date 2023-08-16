@@ -326,14 +326,15 @@ function fetch_candles(s, args...; kwargs...)
     st.attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
 
-function get_positions(s)
-    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(
-        s; interval=st.attr(s, :throttle), start=true
-    )
+function _get_watcher_view(s, k, f::Function; start=true)
+    w = @lget! s.attrs k ccxt_positions_watcher(s; interval=st.attr(s, :throttle), start)
     w.view
 end
+
+get_positions(s) = _get_watcher_view(s, :live_positions_watcher, ccxt_positions_watcher)
 get_positions(s, ::Long) = get_positions(s).long
 get_positions(s, ::Short) = get_positions(s).short
+get_balance(s) = _get_watcher_view(s, :live_balance_watcher, ccxt_balance_watcher)
 
 function st.current_total(s::NoMarginStrategy{Live})
     bal = balance(s)

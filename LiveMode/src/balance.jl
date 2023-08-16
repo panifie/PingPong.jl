@@ -27,7 +27,7 @@ function Base.string(v::BalanceStatus)
 end
 
 function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(exc.py.fetchBalance, args...; splitkws(:type; kwargs).rest...)
+    pyfetch(first(exc, :fetchBalanceWs, :fetchBalance), args...; splitkws(:type; kwargs).rest...)
 end
 function _balancedict!(exc)
     @lget! BalanceCacheDict5 (exchangeid(exc), issandbox(exc)) Dict{
@@ -101,7 +101,7 @@ function balance(s::LiveStrategy, args...; kwargs...)
 end
 
 function balance(s::LiveStrategy, sym, args...; kwargs...)
-    balance(exchange(s), sym, args...; kwargs...)j
+    balance(exchange(s), sym, args...; kwargs...)
 end
 
 function balance!(s::LiveStrategy, args...; kwargs...)
