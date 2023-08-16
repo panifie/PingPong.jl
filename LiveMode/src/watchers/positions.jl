@@ -6,7 +6,7 @@ using .Exchanges: check_timeout
 using .Lang: splitkws, safenotify
 
 const CcxtPositionsVal = Val{:ccxt_positions}
-const PositionUpdate4 = NamedTuple{(:date, :notify, :pos),Tuple{DateTime,Condition,Py}}
+const PositionUpdate4 = NamedTuple{(:date, :notify, :pos),Tuple{DateTime,Base.Threads.Condition,Py}}
 
 function guess_settle(s::MarginStrategy)
     try
@@ -118,7 +118,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         prev = get(side_dict, sym, nothing)
         date = @something pytodate(pos) now()
         pos_tuple = if isnothing(prev)
-            (; date, notify=Condition(), pos)
+            (; date, notify=Base.Threads.Condition(), pos)
         elseif prev.date < date
             keep_info || _deletek(pos)
             (; date, prev.notify, pos)
