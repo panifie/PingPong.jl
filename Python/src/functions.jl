@@ -1,4 +1,5 @@
 using PythonCall: pystr, Py, PyException, pyisstr, pyisnone, pyfloat
+import PythonCall: PyDict
 
 function pylist_to_matrix(data::Py)
     permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
@@ -34,6 +35,6 @@ function pyisnonzero(v::Py)::Bool
     end
 end
 
-PythonCall.PyDict(p::Pair) = PyDict((p,))
+PyDict(p::Pair) = PyDict((p,))
 
 export @pystr, pytofloat, pyisnonzero
