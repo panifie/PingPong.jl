@@ -12,8 +12,10 @@ function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
         _simmode_defaults!(s, attrs)
         reset_logs(s)
+        get!(attrs, :throttle, Second(5))
         ordertasks(s)
     end
+    exc_live_funcs!(s)
 end
 
 _pyfilter!(out, pred::Function) = begin
@@ -323,6 +325,15 @@ end
 function fetch_candles(s, args...; kwargs...)
     st.attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
+
+function get_positions(s)
+    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(
+        s; interval=st.attr(s, :throttle), start=true
+    )
+    w.view
+end
+get_positions(s, ::Long) = get_positions(s).long
+get_positions(s, ::Short) = get_positions(s).short
 
 function st.current_total(s::NoMarginStrategy{Live})
     bal = balance(s)

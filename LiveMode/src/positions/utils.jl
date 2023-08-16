@@ -40,33 +40,42 @@ _optposside(ai) =
         isnothing(p) ? nothing : posside(p)
     end
 
-function live_position(s::LiveStrategy, ai, side=_optposside(ai); keep_info=false)
-    # TODO: use watchPositions
-    resp = fetch_positions(s, ai)
-    sym = raw(ai)
-    ccxt_pos = if resp isa PyException
-        return nothing
-    elseif pyisinstance(resp, pybuiltins.list)
-        isempty(resp) && return nothing
-        let v = nothing
-            for this in resp
-                if _ccxtposside(this) == side && _issym(this, sym)
-                    v = this
-                    break
+function _force_fetch(s, ai, sym, side; fallback_kwargs)
+    resp = fetch_positions(s, ai; fallback_kwargs...)
+    if resp isa PyException
+        nothing
+    elseif islist(resp)
+        if isempty(resp)
+            nothing
+        else
+            let v = nothing
+                for this in resp
+                    if _ccxtposside(this) == side && _issym(this, sym)
+                        v = this
+                        break
+                    end
                 end
+                v
             end
-            isnothing(v) && return nothing
-            v
         end
-    else
-        resp
     end
-    if pyisinstance(ccxt_pos, pybuiltins.dict) && _issym(ccxt_pos, sym)
-        keep_info || ccxt_pos.pop("info")
-        ccxt_pos
-    else
-        return nothing
+end
+
+function live_position(
+    s::LiveStrategy, ai, side=_optposside(ai); fallback_kwargs=(), force=false
+)
+    data = get_positions(s, side)
+    sym = raw(ai)
+    ccxt_pos = get(data, sym, nothing)
+    if force || isnothing(ccxt_pos)
+        ccxt_pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
+        if isdict(ccxt_pos) && _issym(ccxt_pos, sym)
+            get(positions_watcher(s).attrs, :keep_info, false) || _deletek(ccxt_pos, "info")
+
+            data[sym] = (date=now(), notify=Condition(), pos=ccxt_pos)
+        end
     end
+    ccxt_pos
 end
 
 get_py(v::Py, k) = v.get(@pystr(k))
@@ -151,18 +160,9 @@ function _ccxtpnlside(update)
     ifelse(upnl >= ZERO && liqprice < eprice, Long(), Short())
 end
 
-function live_sync!(
-    s::LiveStrategy,
-    ai::MarginInstance,
-    p::Option{ByPos},
-    update::Py;
-    amount=live_amount(update),
-    ep_in=live_entryprice(update),
-    commits=true,
-)
-    # If position side doesn't match we should abort sync
+function get_side(update, p::Option{ByPos}=nothing)
     ccxt_side = get_py(update, Pos.side)
-    pside = if pyisnone(ccxt_side)
+    if pyisnone(ccxt_side)
         if isnothing(p)
             @warn "Position side not provided, inferring from position state"
             _ccxtpnlside(update)
@@ -181,6 +181,18 @@ function live_sync!(
             end
         end
     end
+end
+
+function live_sync!(
+    s::LiveStrategy,
+    ai::MarginInstance,
+    p::Option{ByPos},
+    update::Py;
+    amount=live_amount(update),
+    ep_in=live_entryprice(update),
+    commits=true,
+)
+    pside = get_side(update, p)
     pos = position(ai, pside)
 
     # check hedged mode

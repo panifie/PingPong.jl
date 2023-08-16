@@ -56,7 +56,6 @@ function ccxt_positions_watcher(
     start=true,
     kwargs...,
 )
-    # s[:live_positions_watcher] = w
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
@@ -97,8 +96,10 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     return true
 end
 
+const PositionsDict = Dict{String,PositionUpdate4}
+
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
-    default_init(w, Dict{String,PositionUpdate4}(), false)
+    default_init(w, (; long=PositionsDict(), short=PositionsDict()), false)
     _lastfetched!(w, DateTime(0))
 end
 
@@ -112,7 +113,9 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     for pos in update
         isdict(pos) || continue
         sym = get_py(pos, "symbol") |> string
-        prev = get(data, sym, nothing)
+        side = get_side(pos)
+        side_dict = getproperty(data, ifelse(islong(side), :long, :short))
+        prev = get(side_dict, sym, nothing)
         date = @something pytodate(pos) now()
         pos_tuple = if isnothing(prev)
             (; date, notify=Condition(), pos)
@@ -121,7 +124,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
             (; date, prev.notify, pos)
         end
         isnothing(pos_tuple) || begin
-            data[sym] = pos_tuple
+            side_dict[sym] = pos_tuple
             try
                 safenotify(pos_tuple.notify)
             catch
@@ -129,6 +132,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         end
     end
 end
+
+positions_watcher(s) = s[:live_positions_watcher]
 
 # function _load!(w::Watcher, ::ThisVal) end
 

@@ -10,7 +10,7 @@ end
 @doc "Helper function to push a new value to the watcher buffer if it is different from the last one."
 function pushnew!(w::Watcher, value, time=nothing)
     # NOTE: use object inequality to avoid non determinsm
-    if !isnothing(value) && (isempty(w.buffer) || value != w.buffer[end].value)
+    if !isnothing(value) && (isempty(w.buffer) || Bool(value != w.buffer[end].value))
         push!(w.buffer, (time=@something(time, now()), value))
     end
 end
