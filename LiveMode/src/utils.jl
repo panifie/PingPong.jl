@@ -2,18 +2,24 @@ using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
 using .Lang: @lget!
-using .Python: @pystr, Py, PyList, @py, pylist
+using .Python: @pystr, Py, PyList, @py, pylist, pytuple
 import .Executors.Instances: raw
 using .TimeTicks: dtstamp
 
 raw(v::AbstractString) = v
-ordertasks(s::Strategy) = @lget! s.attrs :live_order_tasks Dict{Order,Task}()
+order_tasks(s::Strategy) = @lget! s.attrs :live_order_tasks Dict{Order,Vector{Task}}()
+function market_tasks(s::Strategy)
+    @lget! s.attrs :live_market_tasks Dict{AssetInstance,Vector{Task}}()
+end
+account_tasks(s::Strategy) = @lget! s.attrs :live_account_tasks Dict{String,Vector{Task}}()
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
         _simmode_defaults!(s, attrs)
         reset_logs(s)
         get!(attrs, :throttle, Second(5))
-        ordertasks(s)
+        order_tasks(s)
+        market_tasks(s)
+        account_tasks(s)
     end
     exc_live_funcs!(s)
 end
@@ -38,8 +44,10 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
             (_ccxtorderside(side),)
+        end |> pytuple
+        (o) -> let s = get_py(o, "side")
+            @py s ∉ sides
         end
-        (o) -> @py get_py(o, "side") ∉ sides
     end
     should_skip = if isempty(ids)
         if side == Both
@@ -203,7 +211,7 @@ end
 function _create_order_func!(attrs, exc)
     func = first(exc, :createOrderWs, :createOrder)
     @assert !isnothing(func) "Exchange doesn't have a `create_order` function"
-    attrs[:live_create_order_func] =
+    attrs[:live_send_order_func] =
         (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
 end
 
@@ -314,7 +322,7 @@ function cancel_all_orders(s, args...; kwargs...)
     st.attr(s, :live_cancel_all_func)(args...; kwargs...)
 end
 function create_order(s, args...; kwargs...)
-    st.attr(s, :live_create_order_func)(args...; kwargs...)
+    st.attr(s, :live_send_order_func)(args...; kwargs...)
 end
 function fetch_my_trades(s, args...; kwargs...)
     st.attr(s, :live_my_trades_func)(args...; kwargs...)

@@ -13,6 +13,7 @@ using .Misc.TimeTicks
 using .Misc.Mocking: Mocking, @mock
 using .Lang: @deassert
 using Base: SimpleLogger, with_logger
+import .Executors: pong!
 
 include("utils.jl")
 include("orders/utils.jl")
@@ -26,6 +27,8 @@ include("balance.jl")
 include("trades.jl")
 include("ccxt_orders.jl")
 include("watchers/positions.jl")
+include("watchers/balance.jl")
+# include("watchers/mytrades.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end
