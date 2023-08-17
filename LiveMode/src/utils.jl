@@ -3,15 +3,17 @@ using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
 using .Lang: @lget!
 using .Python: @pystr, Py, PyList, @py, pylist, pytuple
-import .Executors.Instances: raw
 using .TimeTicks: dtstamp
 
-raw(v::AbstractString) = v
-order_tasks(s::Strategy) = @lget! s.attrs :live_order_tasks Dict{Order,Vector{Task}}()
-function market_tasks(s::Strategy)
-    @lget! s.attrs :live_market_tasks Dict{AssetInstance,Vector{Task}}()
+function order_tasks(s::Strategy)
+    @lget! s.attrs :live_order_tasks Dict{Order,Vector{Tuple{Task,Any}}}()
 end
-account_tasks(s::Strategy) = @lget! s.attrs :live_account_tasks Dict{String,Vector{Task}}()
+function market_tasks(s::Strategy)
+    @lget! s.attrs :live_market_tasks Dict{AssetInstance,Vector{Tuple{Task,Any}}}()
+end
+function account_tasks(s::Strategy)
+    @lget! s.attrs :live_account_tasks Dict{String,Vector{Tuple{Task,Any}}}()
+end
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
         _simmode_defaults!(s, attrs)
