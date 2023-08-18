@@ -145,5 +145,7 @@ end
 approxzero(v::T; atol=ATOL) where {T} = isapprox(v, zero(T); atol)
 gtxzero(v::T; atol=ATOL) where {T} = v > zero(T) || isapprox(v, zero(T); atol)
 ltxzero(v::T; atol=ATOL) where {T} = v < zero(T) || isapprox(v, zero(T); atol)
+negative(v) = v >= zero(v) ? -v : v  # Base.negate(abs(v))
+positive(v) = v >= zero(v) ? v : -v # abs(v)
 
-export approxzero, gtxzero, ltxzero
+export approxzero, gtxzero, ltxzero, negative, positive
