@@ -284,8 +284,9 @@ function _my_trades_func!(attrs, exc)
     attrs[:live_my_trades_func] = if has(exc, :fetchMyTrades)
         let f = exc.fetchMyTrades
             (
-                (ai; since=nothing, params=nothing) ->
+                (ai; since=nothing, params=nothing) -> begin
                     _execfunc(f, raw(ai); _skipkwargs(; since, params)...)
+                end
             )
         end
         # TODO: watcTrades support
