@@ -4,15 +4,66 @@ using .SimMode: _simmode_defaults!
 using .Lang: @lget!
 using .Python: @pystr, Py, PyList, @py, pylist, pytuple
 using .TimeTicks: dtstamp
+using .Misc: LittleDict
+
+struct TaskFlag
+    f::Function
+end
+TaskFlag() =
+    let sto = task_local_storage()
+        TaskFlag(() -> sto[:running])
+    end
+# The task flag is passed to `pyfetch/pytask` as a tuple
+pycoro_running() = (TaskFlag(),)
+Base.getindex(t::TaskFlag) = t.f()
+stop_task(t::Task) =
+    try
+        t.storage[:running] = false
+        istaskdone(t)
+    catch
+        @error "Running flag not set on task $t"
+    end
+
+start_task(t::Task, state) = (init_task(t, state); schedule(t); t)
+
+init_task(t::Task, state) = begin
+    if isnothing(t.storage)
+        sto = t.storage = IdDict{Any,Any}()
+    end
+    sto[:running] = true
+    sto[:state] = state
+    sto[:notify] = Base.Threads.Condition()
+    t
+end
+init_task(state) = init_task(current_task, state)
+
+istaskrunning() = task_local_storage(:running)
+
+wait_update(task::Task) = wait(task.storage[:notify])
+update!(t::Task, k, v) =
+    let sto = t.storage
+        sto[:state][k] = v
+        safenotify(sto[:notify])
+        v
+    end
+
+macro start_task(state, code)
+    expr = quote
+        let t = @task $code
+            start_task(t, $state)
+        end
+    end
+    esc(expr)
+end
 
 function order_tasks(s::Strategy)
-    @lget! s.attrs :live_order_tasks Dict{Order,Vector{Tuple{Task,Any}}}()
+    @lget! s.attrs :live_order_tasks Dict{Order,Task}()
 end
 function market_tasks(s::Strategy)
-    @lget! s.attrs :live_market_tasks Dict{AssetInstance,Vector{Tuple{Task,Any}}}()
+    @lget! s.attrs :live_market_tasks Dict{AssetInstance,LittleDict{Symbol,Task}}()
 end
 function account_tasks(s::Strategy)
-    @lget! s.attrs :live_account_tasks Dict{String,Vector{Tuple{Task,Any}}}()
+    @lget! s.attrs :live_account_tasks Dict{String,LittleDict{Symbol,Task}}()
 end
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
