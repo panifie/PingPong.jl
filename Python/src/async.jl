@@ -170,7 +170,7 @@ pywait_fut(fut::Py) = begin
     end
 end
 
-pywait_fut(fut::Py, running::Ref{Bool}) = begin
+pywait_fut(fut::Py, running) = begin
     while !_isfutdone(fut)
         running[] || begin
             try
