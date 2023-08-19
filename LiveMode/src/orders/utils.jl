@@ -1,4 +1,4 @@
-using .Misc.Lang: @lget!, @deassert, Option, @logerror
+using .Misc.Lang: @lget!, @deassert, Option
 using .Python: @py, pydict
 using .Executors: AnyGTCOrder, AnyMarketOrder, AnyIOCOrder, AnyFOKOrder, AnyPostOnlyOrder
 
@@ -68,6 +68,8 @@ function _ccxttif(exc, type)
         "FOK"
     elseif type <: AnyIOCOrder
         "IOC"
+    elseif type <: AnyMarketOrder
+        ""
     else
         @warn "Unable to choose time-in-force setting for order type $type (defaulting to GTC)."
         "GTC"
@@ -84,7 +86,7 @@ function trigger_dict(exc, v)
     out
 end
 
-function live_create_order(
+function live_send_order(
     s::LiveStrategy,
     ai,
     t=GTCOrder{Buy},
