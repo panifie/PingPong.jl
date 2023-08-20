@@ -45,10 +45,11 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
         w.attemps += 1
         return nothing
     end
+    waiting = Ref(true)
     try
         w[:task] = task = _fetch_task(w, Val(w._exec.threads); kwargs...)
         @async let slept = @lget! w.attrs :fetch_timeout Ref(0.0)
-            while slept[] < timeout
+            while waiting[] && slept[] < timeout
                 slept[] += 0.1
                 sleep(0.1)
             end
@@ -66,6 +67,7 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
         w.attempts += 1
         logerror(w, e, stacktrace(catch_backtrace()))
     finally
+        waiting[] = false
         w[:fetch_timeout][] = Inf
     end
 end
