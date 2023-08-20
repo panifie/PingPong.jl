@@ -198,32 +198,37 @@ function is_pair_active(pair::AbstractString, exc::Exchange=exc)
 end
 is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
 
+_default_fees(exc, side) = @something get(exc.fees, side, nothing) 0.001
+function _fees_byside(exc, mkt, side)
+    @something get(mkt, string(side), nothing) _default_fees(exc, Symbol(side))
+end
 @doc "Taker fees for market."
 function market_fees(
     pair::AbstractString, exc::Exchange=exc; only_taker::Union{Bool,Nothing}=nothing
 )
     m = exc.markets[pair]
     if isnothing(only_taker)
-        taker = m["taker"]
+        taker = get(m, "taker", nothing)
         if isnothing(taker)
             # Fall back to fees from spot market
             m = get(exc.markets, spotpair(pair), nothing)
             if isnothing(m)
                 # always ensure
-                @warn "Failed to fetch $pair fees from $(exc.name), defaulting to 0.001 fees."
-                taker, maker = 0.001, 0.001
+                @warn "Failed to fetch $pair fees from $(exc.name), using default fees."
+                taker = _default_fees(exc, :taker)
+                maker = _default_fees(exc, :maker)
             else
-                taker = @something m["taker"] 0.001
-                maker = @something m["maker"] 0.001
+                taker = _fees_byside(exc, m, :taker)
+                maker = _fees_byside(exc, m, :maker)
             end
         else
-            maker = @something m["maker"] 0.001
+            maker = _fees_byside(exc, m, :maker)
         end
         (; taker, maker, min=min(taker, maker), max=max(taker, maker))
-    elseif taker
-        m["taker"]
+    elseif only_taker
+        _fees_byside(exc, m, :taker)
     else
-        m["maker"]
+        _fees_byside(exc, m, :maker)
     end
 end
 market_fees(a::AbstractAsset, args...; kwargs...) = market_fees(a.raw, args...; kwargs...)

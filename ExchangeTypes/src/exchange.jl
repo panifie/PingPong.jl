@@ -21,6 +21,7 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const timeframes::OrderedSet{String}
     const markets::OptionsDict
     const types::Set{Symbol}
+    const fees::Dict{Symbol,Union{Symbol,<:Number,<:AbstractDict}}
     const has::Dict{Symbol,Bool}
 end
 
@@ -50,6 +51,7 @@ function Exchange(x::Py)
         OrderedSet{String}(),
         OptionsDict(),
         Set{Symbol}(),
+        Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
     )
     isnone ? e : finalizer(close_exc, e)

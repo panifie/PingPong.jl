@@ -168,6 +168,21 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     setflags!(exc)
     precision = getfield(exc, :precision)
     precision[1] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
+    fees = getfield(exc, :fees)
+    for (k, v) in exc.py.fees["trading"].items()
+        fees[Symbol(k)] = let c = pyconvert(Any, v)
+            if c isa String
+                Symbol(c)
+            elseif c isa AbstractFloat
+                convert(DFT, c)
+            elseif c isa AbstractDict # tiers
+                LittleDict{Symbol,Vector{Vector{DFT}}}(Symbol(k) => v for (k, v) in c)
+            else
+                c
+            end
+        end
+    end
+
     exckeys!(exc)
     exc
 end
@@ -348,6 +363,11 @@ end
 @doc "Check if exchange is in sandbox mode."
 function issandbox(exc::Exchange=exc)
     "apiBackup" in exc.py.urls.keys()
+end
+
+@doc "Check if market has percentage or absolute fees."
+function ispercentage(mkt)
+    something(get(mkt, "percentage", true), true)
 end
 
 @doc "Enable or disable rate limit."

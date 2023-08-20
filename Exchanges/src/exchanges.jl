@@ -9,7 +9,7 @@ include("adhoc/leverage.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, tickers, pairs
-export issandbox, ratelimit!
+export issandbox, ratelimit!, ispercentage
 export timestamp, timeout!, check_timeout
 export ticker!, lastprice
 
