@@ -1,4 +1,7 @@
 using .PaperMode.Instances: _deducted_amount
+using Base: negate
+using .Executors: attr
+import Base: fill!
 
 # NOTE: unfilled is always negative
 function fill!(::NoMarginStrategy{Live}, ai::NoMarginInstance, o::BuyOrder, t::BuyTrade)
@@ -26,7 +29,9 @@ function fill!(::LiveStrategy, ai::AssetInstance, o::SellOrder, t::SellTrade)
     attr(o, :committed)[] += amt
     @deassert committed(o) |> gtxzero
 end
-function fill!(::LiveStrategy, ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade)
+function fill!(
+    ::MarginStrategy{Live}, ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade
+)
     @deassert o isa ShortBuyOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) |> ltxzero
     @deassert attr(o, :unfilled)[] < 0.0
@@ -53,4 +58,14 @@ function fill!(
     # Market order spending can exceed the estimated committment
     # ShortSell limit orders can spend more than committed because of slippage
     @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
+end
+
+function aftertrade!(s::MarginStrategy{Live}, ai::A, o::O, t::Trade) where {A,O}
+    @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
+    try
+        live_sync!(s, ai, o)
+        # live_sync!(s)
+    catch
+    end
+    t
 end

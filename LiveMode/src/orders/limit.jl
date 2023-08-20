@@ -59,8 +59,12 @@ _orderid(o::Py) =
     end
 
 function create_live_limit_order(
-    s::LiveStrategy, resp, ai, args...; t, price, amount, kwargs...
+    s::LiveStrategy, resp, ai::AssetInstance; t, price, amount, kwargs...
 )
+    isnothing(resp) && begin
+        @warn "trying to create limit order with empty response ($(raw(ai)))"
+        return nothing
+    end
     try
         pyisTrue(get_py(resp, "status") == @pystr("open")) ||
             get_float(resp, "filled") > ZERO ||
@@ -86,9 +90,18 @@ function create_live_limit_order(
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
         string(hash((price, date)))
     end
-    create_sim_limit_order(
+    o = create_sim_limit_order(
         s, type, ai; id, amount, date, type, price, stop, take, kwargs...
     )
+    isnothing(o) || set_active_order!(s, ai, o)
+    return o
+end
+
+function create_live_limit_order(
+    s::LiveStrategy, ai::AssetInstance, args...; t, amount, price=lastprice(ai), kwargs...
+)
+    resp = live_send_order(s, ai, t, args...; amount, price, kwargs...)
+    create_live_limit_order(s, resp, ai; amount, price, t, kwargs...)
 end
 
 macro _isfilled()

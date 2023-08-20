@@ -140,5 +140,20 @@ function live_send_order(
         @warn "Couldn't create order $(sym) on $(nameof(exchange(ai))) $(resp)"
         return nothing
     end
+    pyisnone(get_py(resp, "id")) && return nothing
     resp
+end
+
+const AssetInstanceOrders = LittleDict{String,Order}
+
+function active_orders(s::LiveStrategy)
+    @lget! s.attrs :live_active_orders Dict{AssetInstance,AssetInstanceOrders}()
+end
+function active_orders(s::LiveStrategy, ai)
+    ords = active_orders(s)
+    @lget! ords ai AssetInstanceOrders()
+end
+
+function set_active_order!(s::LiveStrategy, ai, o)
+    active_orders(s, ai)[o.id] = o
 end

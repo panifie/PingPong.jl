@@ -1,4 +1,4 @@
-import .SimMode: maketrade
+import .SimMode: maketrade, trade!
 using .SimMode: @maketrade, iscashenough, cost
 using .Executors.Instruments: compactnum as cnum
 using .Misc.TimeToLive: safettl
@@ -57,7 +57,7 @@ function check_limits(v, ai, lim_sym)
         min = getproperty(lims, lim_sym).min,
         max = getproperty(lims, lim_sym).max
 
-        if !(min < v < max)
+        if !(min <= v <= max)
             @warn "Trade amount $(v) outside limits ($(min)-$(max))"
         end
     end
@@ -116,7 +116,32 @@ end
 #     end
 # end
 
-function _tradefees(resp, ai)
+function _default_trade_fees(ai, side; fees_base, fees_quote, actual_amount, net_cost)
+    default_fees = maxfees(ai)
+    # Default to get since it should be the most common
+    feeside = get(market(ai), "feeSide", "get")
+    if feeside == "get"
+        if side == Buy
+            fees_base += actual_amount * default_fees
+        else
+            fees_quote += net_cost * default_fees
+        end
+    elseif feeside == "give"
+        if side == Sell
+            fees_base += actual_amount * default_fees
+        else
+            fees_quote += net_cost * default_fees
+        end
+    elseif feeside == "quote"
+        fees_quote += net_cost * default_fees
+    elseif feeside == "base"
+        fees_base += actual_amount * default_fees
+    end
+    (fees_quote, fees_base)
+end
+
+market(ai) = exchange(ai).markets[raw(ai)]
+function _tradefees(resp, side, ai; actual_amount, net_cost)
     v = get_py(resp, Trf.fee)
     if pyisinstance(v, pybuiltins.dict)
         return _feecost(v, ai)
@@ -132,6 +157,11 @@ function _tradefees(resp, ai)
             fees_base += b
         end
     end
+    if iszero(fees_quote) && iszero(fees_base)
+        (fees_quote, fees_base) = _default_trade_fees(
+            ai, side; fees_base, fees_quote, actual_amount, net_cost
+        )
+    end
     return (fees_quote, fees_base)
 end
 
@@ -140,32 +170,52 @@ _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
 function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
     pyisinstance(resp, pybuiltins.dict) || begin
-        @warn "Invalid trade for order $(raw(ai)), order: $o"
+        @warn "Invalid trade for order $(raw(ai)), order: $o, aborting."
         return nothing
     end
-    get_py(resp, Trf.symbol, @pystr("")) == @pystr(raw(ai)) || begin
-        @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset)"
+    pyisTrue(get_py(resp, Trf.symbol, @pystr("")) == @pystr(raw(ai))) || begin
+        @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), aborting."
         return nothing
     end
     string(get_py(resp, Trf.order, @pystr(""))) == o.id || begin
-        @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id)"
+        @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), aborting."
+        return nothing
+    end
+    side = let side = get_py(resp, Trf.side, nothing)
+        if side == @pystr("buy")
+            Buy
+        elseif side == @pystr("sell")
+            Sell
+        else
+            orderside(o)
+        end
+    end
+    if side != orderside(o)
+        @warn "Mismatching trade side $side and order side $(orderside(o)), aborting."
         return nothing
     end
     actual_amount = get_float(resp, Trf.amount)
-    check_limits(actual_amount, ai, :amount)
     actual_price = get_float(resp, Trf.price)
+    if actual_price <= ZERO
+        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(nameof(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
+        return nothing
+    end
     check_limits(actual_price, ai, :price)
-    net_cost = cost(actual_price, actual_amount)
+    if actual_amount <= ZERO
+        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost."
+        net_cost = get_float(resp, "cost")
+        actual_amount = net_cost / actual_price
+    else
+        net_cost = cost(actual_price, actual_amount)
+    end
     check_limits(net_cost, ai, :cost)
+    check_limits(actual_amount, ai, :amount)
 
     iscashenough(s, ai, actual_amount, o) ||
         @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(nameof(ai))) likely out of sync!"
-    isapprox(net_cost, get_float(resp, Trf.cost)) || let
-        rcv_cost = get_float(resp, Trf.cost)
-        @warn "Unexpected trade cost (expected: $(cnum(net_cost)), received: $(cnum(rcv_cost)))"
-    end
+    date = @something pytodate(resp) now()
 
-    fees_quote, fees_base = _tradefees(resp, ai)
+    fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)
 
     @maketrade

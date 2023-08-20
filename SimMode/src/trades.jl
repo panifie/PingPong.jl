@@ -100,7 +100,7 @@ end
 
 @doc "Fills an order with a new trade w.r.t the strategy instance."
 function trade!(
-    s::Strategy{<:Union{Sim,Paper}},
+    s::Strategy,
     o,
     ai;
     date,
@@ -124,7 +124,7 @@ function trade!(
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     @deassert !isdust(ai, o) committed(o), o
-    fill!(ai, o, trade)
+    fill!(s, ai, o, trade)
     push!(ai.history, trade)
     push!(attr(o, :trades), trade)
     # update cash

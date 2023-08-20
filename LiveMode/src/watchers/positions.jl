@@ -3,7 +3,7 @@ using Watchers: default_init
 using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _lastfetched!, _lastfetched
 @watcher_interface!
 using .Exchanges: check_timeout
-using .Lang: splitkws, safenotify
+using .Lang: splitkws, safenotify, safewait
 
 const CcxtPositionsVal = Val{:ccxt_positions}
 const PositionUpdate4 = NamedTuple{

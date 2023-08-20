@@ -56,14 +56,24 @@ macro start_task(state, code)
     esc(expr)
 end
 
+const AssetOrder = Tuple{Order,AssetInstance}
+const TasksDict = LittleDict{Symbol,Task}
 function order_tasks(s::Strategy)
-    @lget! s.attrs :live_order_tasks Dict{Order,Task}()
+    @lget! s.attrs :live_order_tasks Dict{AssetOrder,Task}()
 end
 function market_tasks(s::Strategy)
-    @lget! s.attrs :live_market_tasks Dict{AssetInstance,LittleDict{Symbol,Task}}()
+    @lget! s.attrs :live_market_tasks Dict{AssetInstance,TasksDict}()
+end
+function market_tasks(s::Strategy, ai)
+    tasks = market_tasks(s)
+    @lget! tasks ai TasksDict()
 end
 function account_tasks(s::Strategy)
-    @lget! s.attrs :live_account_tasks Dict{String,LittleDict{Symbol,Task}}()
+    @lget! s.attrs :live_account_tasks Dict{String,TasksDict}()
+end
+function account_tasks(s::Strategy, account)
+    tasks = account_tasks(s)
+    @lget! tasks account TasksDict()
 end
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let attrs = s.attrs
@@ -394,8 +404,8 @@ function _get_watcher_view(s, k, f::Function; start=true)
 end
 
 get_positions(s) = _get_watcher_view(s, :live_positions_watcher, ccxt_positions_watcher)
-get_positions(s, ::Long) = get_positions(s).long
-get_positions(s, ::Short) = get_positions(s).short
+get_positions(s, ::ByPos{Long}) = get_positions(s).long
+get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_balance(s) = _get_watcher_view(s, :live_balance_watcher, ccxt_balance_watcher)
 
 function st.current_total(s::NoMarginStrategy{Live})

@@ -6,3 +6,4 @@ version = "0.1.0"
 [deps]
 PaperMode = "b2ae67eb-72da-414f-85db-6054cbf44090"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
+Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"

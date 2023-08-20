@@ -17,6 +17,7 @@ import .Executors: pong!
 
 include("utils.jl")
 include("orders/utils.jl")
+include("orders/state.jl")
 include("orders/limit.jl")
 include("orders/pong.jl")
 include("adhoc/utils.jl")
@@ -28,7 +29,7 @@ include("trades.jl")
 include("ccxt_orders.jl")
 include("watchers/positions.jl")
 include("watchers/balance.jl")
-# include("watchers/mytrades.jl")
+include("watchers/mytrades.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end

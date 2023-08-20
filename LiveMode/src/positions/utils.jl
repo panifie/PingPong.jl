@@ -84,8 +84,17 @@ function live_position(
     tup isa NamedTuple ? tup.pos : nothing
 end
 
+pytostring(v) = pytruth(v) ? string(v) : ""
 get_py(v::Py, k) = v.get(@pystr(k))
 get_py(v::Py, k, def) = v.get(@pystr(k), def)
+get_py(v::Py, def, keys::Vararg{String}) = begin
+    for k in keys
+        ans = v.get(k)
+        pyisnone(ans) || (return ans)
+    end
+    return def
+end
+get_string(v::Py, k) = v.get(@pystr(k)) |> pytostring
 get_float(v::Py, k) = v.get(@pystr(k)) |> pytofloat
 get_bool(v::Py, k) = v.get(@pystr(k)) |> pytruth
 get_time(v::Py, k) =
@@ -320,9 +329,12 @@ function live_sync!(
     return pos
 end
 
-function live_sync!(s::LiveStrategy, ai, p=position(ai); since=nothing, kwargs...)
-    update = live_position(s, ai, posside(p); since)
-    live_sync!(s, ai, p, update; kwargs...)
+function live_sync!(s::LiveStrategy, ai::MarginInstance; since=nothing, kwargs...)
+    @sync for pos in (Long, Short)
+        @async let update = live_position(s, ai, pos; since)
+            isnothing(update) || live_sync!(s, ai, pos, update; kwargs...)
+        end
+    end
 end
 
 function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=true)

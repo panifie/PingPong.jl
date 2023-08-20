@@ -185,7 +185,7 @@ const ByPos{P<:PositionSide} = Union{
     P,Type{P},Order{O,A,E,P},Trade{O,A,E,P}
 } where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
 
-export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade
+export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder

@@ -4,7 +4,7 @@ using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _lastfetched!, _lastfetche
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Exchanges.Python: @py
-using .Lang: splitkws, safenotify
+using .Lang: splitkws, safenotify, safewait
 
 const CcxtBalanceVal = Val{:ccxt_balance_val}
 function _w_fetch_balance_func(s, interval; kwargs)
