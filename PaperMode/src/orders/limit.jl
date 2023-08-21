@@ -3,7 +3,7 @@ using .Misc.Lang: @logerror
 using .Instances.Exchanges: Py, pyfetch, @pystr, has
 using SimMode: trade!
 using .Executors: AnyGTCOrder
-using .OrderTypes: AtomicOrderType, OrderCancelled
+using .OrderTypes: ImmediateOrderType, OrderCancelled
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
@@ -87,7 +87,7 @@ function limitorder!(s, ai, t; amount, date, kwargs...)
         # Queue GTC orders
         if o isa AnyGTCOrder
             paper_limitorder!(s, ai, o)
-        elseif !isfilled(ai, o) && ordertype(o) <: AtomicOrderType
+        elseif !isfilled(ai, o) && ordertype(o) <: ImmediateOrderType
             cancel!(s, o, ai; err=OrderCancelled(o))
         end
         # return first trade (if any)

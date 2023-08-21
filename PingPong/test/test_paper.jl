@@ -236,7 +236,7 @@ function test_paper_nomargin_ioc(s)
     )
     _, _, total_vol = st.attr(s, :paper_liquidity)[ai]
     @test t isa ot.Trade
-    @test ot.isatomic(t.order)
+    @test ot.isimmediate(t.order)
     @test t.amount ≈ 0.01
     @test ect.isfilled(ai, t.order)
     @test ect.orderscount(s, ai) == 0
@@ -255,7 +255,7 @@ function test_paper_nomargin_ioc(s)
         date,
     )
     @test t isa ot.Trade
-    @test ot.isatomic(t.order)
+    @test ot.isimmediate(t.order)
     o = t.order
     @test ect.orderscount(s, ai_unlimited) == 0
     @test length(o.attrs.trades) == 0 || ect.unfilled(o) < o.amount
@@ -275,7 +275,7 @@ function test_paper_nomargin_fok(s)
     t = ect.pong!(
         s, ai, ot.FOKOrder{ot.Buy}; amount=0.01, price=this_p + this_p / 50.0, date
     )
-    @test ot.isatomic(t.order)
+    @test ot.isimmediate(t.order)
     @test t isa ot.BuyTrade
     @test ect.isfilled(ai, t.order)
     @test s.cash < prev_cash
@@ -284,7 +284,7 @@ function test_paper_nomargin_fok(s)
     t = ect.pong!(
         s, ai, ot.FOKOrder{ot.Sell}; amount=cash(ai).value, price=sell_price, date
     )
-    @test ot.isatomic(t.order)
+    @test ot.isimmediate(t.order)
     @test t isa ot.SellTrade
     @test t.price >= sell_price
     @test ect.isfilled(ai, t.order)

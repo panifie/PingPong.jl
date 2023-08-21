@@ -1,7 +1,7 @@
 using SimMode: create_sim_market_order, marketorder!, AnyFOKOrder, AnyIOCOrder
 using Fetch: orderbook
 using .Instances.Exchanges: ticker!, pyconvert
-using .OrderTypes: ordertype, positionside, NotEnoughLiquidity, isatomic
+using .OrderTypes: ordertype, positionside, NotEnoughLiquidity, isimmediate
 using Executors: isfilled
 
 _istriggered(o::AnyLimitOrder{Buy}, price) = price <= o.price

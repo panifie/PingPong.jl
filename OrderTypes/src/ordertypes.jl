@@ -19,11 +19,11 @@ abstract type Both <: OrderSide end
 
 abstract type OrderType{S<:OrderSide} end
 abstract type LimitOrderType{S} <: OrderType{S} end
-abstract type AtomicOrderType{S} <: LimitOrderType{S} end
+abstract type ImmediateOrderType{S} <: LimitOrderType{S} end
 abstract type GTCOrderType{S} <: LimitOrderType{S} end
 abstract type PostOnlyOrderType{S} <: GTCOrderType{S} end
-abstract type FOKOrderType{S} <: AtomicOrderType{S} end
-abstract type IOCOrderType{S} <: AtomicOrderType{S} end
+abstract type FOKOrderType{S} <: ImmediateOrderType{S} end
+abstract type IOCOrderType{S} <: ImmediateOrderType{S} end
 abstract type MarketOrderType{S} <: OrderType{S} end
 abstract type LiquidationType{S} <: MarketOrderType{S} end
 abstract type ForcedType{S} <: MarketOrderType{S} end
@@ -168,7 +168,7 @@ islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
-isatomic(::Order{T}) where {T<:OrderType} = T <: AtomicOrderType
+isimmediate(::Order{T}) where {T<:OrderType} = T <: ImmediateOrderType
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 trades(args...; kwargs...) = error("not implemented")
