@@ -50,12 +50,18 @@ function _multifunc(exc, suffix, hasinputs=false)
     end
         getproperty(py, fname), :single
     elseif begin
+        fname = "fetch" * suffix * "sWs"
+        issupported(exc, fname)
+    end || begin
         fname = "fetch" * suffix * "s"
         issupported(exc, fname)
     end
         getproperty(py, fname), :multi
     else
-        fname = "fetch" * suffix
+        fname = "fetch" * suffix * "Ws"
+        if !issupported(exc, fname)
+            fname = "fetch" * suffix
+        end
         @assert issupported(exc, fname) "Exchange $(exc.name) does not support $fname"
         @assert hasinputs "Single function needs inputs."
         getproperty(py, fname), :single
