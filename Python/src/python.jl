@@ -8,6 +8,7 @@ const PYTHONPATH = Ref("")
 const PY_V = Ref("")
 const pynull = pynew()
 const pytryfloat = pynew()
+const pyisvalue_func = pynew()
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
@@ -69,6 +70,7 @@ function _doinit()
         end
         empty!(CALLBACKS)
         _pytryfloat_func!()
+        _pyisvalue_func!()
     catch e
         @debug e
     end
@@ -76,19 +78,40 @@ function _doinit()
 end
 
 function _pytryfloat_func!(force=false)
-    pyisnull(pytryfloat) ||
-        force && begin
-            code = """
-            def tryfloat(v):
-                try:
-                    return float(v)
-                except:
-                    pass
-            """
-            func = pyexec(NamedTuple{(:tryfloat,),Tuple{Py}}, code, pydict()).tryfloat
-            pycopy!(pytryfloat, func)
-        end
+    (pyisnull(pytryfloat) || force) && begin
+        code = """
+        def tryfloat(v):
+            try:
+                return float(v)
+            except:
+                pass
+        """
+        func = pyexec(NamedTuple{(:tryfloat,),Tuple{Py}}, code, pydict()).tryfloat
+        pycopy!(pytryfloat, func)
+    end
 end
+
+function _pyisvalue_func!(force=false)
+    (pyisnull(pyisvalue_func) || force) && begin
+        code = """
+        global value_type
+        value_type = (str, bool, int, float, type(None))
+        def isvalue(v):
+            try:
+                return isinstance(v, value_type)
+            except:
+                false
+        """
+        func = pyexec(NamedTuple{(:isvalue,),Tuple{Py}}, code, pydict()).isvalue
+        pycopy!(pyisvalue_func, func)
+    end
+end
+pyisvalue(v) =
+    if pyisnull(pyisvalue_func)
+        false
+    else
+        pyisvalue_func(v) |> pyisTrue
+    end
 
 include("async.jl")
 
