@@ -58,8 +58,13 @@ end
 
 const AssetOrder = Tuple{Order,AssetInstance}
 const TasksDict = LittleDict{Symbol,Task}
+const OrderTasksDict = Dict{Order,Task}
 function order_tasks(s::Strategy)
-    @lget! s.attrs :live_order_tasks Dict{AssetOrder,Task}()
+    @lget! s.attrs :live_order_tasks Dict{AssetInstance,OrderTasksDict}()
+end
+function order_tasks(s::Strategy, ai)
+    tasks = order_tasks(s)
+    @lget! tasks ai OrderTasksDict()
 end
 function market_tasks(s::Strategy)
     @lget! s.attrs :live_market_tasks Dict{AssetInstance,TasksDict}()
@@ -292,7 +297,7 @@ _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v)
 
 function _my_trades_func!(attrs, exc)
     attrs[:live_my_trades_func] = if has(exc, :fetchMyTrades)
-        let f = exc.fetchMyTrades
+        let f = first(exc, :fetchMyTradesWs, :fetchMyTrades)
             (
                 (ai; since=nothing, params=nothing) -> begin
                     _execfunc(f, raw(ai); _skipkwargs(; since, params)...)

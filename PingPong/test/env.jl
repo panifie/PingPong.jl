@@ -3,6 +3,7 @@ using Stubs
 using Random
 @environment!
 const ot = ect.OrderTypes
+using OrderTypes
 
 function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
     cfg = Config(sym; mode, kwargs...)

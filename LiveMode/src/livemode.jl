@@ -30,6 +30,7 @@ include("ccxt_orders.jl")
 include("watchers/positions.jl")
 include("watchers/balance.jl")
 include("watchers/mytrades.jl")
+include("watchers/orders.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end

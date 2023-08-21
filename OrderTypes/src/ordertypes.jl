@@ -93,6 +93,7 @@ const LongOrder{O,A,E} = Order{O,A,E,Long}
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
 const ShortBuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Short}
 const ShortSellOrder{A,E} = Order{<:OrderType{Sell},A,E,Short}
+const AnyImmediateOrder{A,E,P} = Order{<:ImmediateOrderType,A,E,P}
 
 @doc "An order that increases the size of a position."
 const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
@@ -189,7 +190,7 @@ export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
-export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder
+export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
 export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos

@@ -93,7 +93,11 @@ function create_live_limit_order(
     o = create_sim_limit_order(
         s, type, ai; id, amount, date, type, price, stop, take, kwargs...
     )
-    isnothing(o) || set_active_order!(s, ai, o)
+    if isnothing(o)
+        @warn "Exchange order created (id: $(get_py(resp, "id"))), but couldn't sync locally, $(nameof(s)) $(raw(ai))"
+    else
+        set_active_order!(s, ai, o)
+    end
     return o
 end
 

@@ -37,4 +37,17 @@ end
 
 PyDict(p::Pair) = PyDict((p,))
 
-export @pystr, pytofloat, pyisnonzero
+pydicthash(d) =
+    let h = zero(hash(0))
+        try
+            for v in d.values()
+                if pyisvalue(v)
+                    h = hash((h, v))
+                end
+            end
+        catch
+        end
+        return h
+    end
+
+export @pystr, pytofloat, pyisnonzero, pydicthash

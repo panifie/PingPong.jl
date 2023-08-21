@@ -182,9 +182,9 @@ function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
         return nothing
     end
     side = let side = get_py(resp, Trf.side, nothing)
-        if side == @pystr("buy")
+        if pyisTrue(side == @pystr("buy"))
             Buy
-        elseif side == @pystr("sell")
+        elseif pyisTrue(side == @pystr("sell"))
             Sell
         else
             orderside(o)
@@ -197,7 +197,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
     actual_amount = get_float(resp, Trf.amount)
     actual_price = get_float(resp, Trf.price)
     if actual_price <= ZERO
-        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(nameof(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
+        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
         return nothing
     end
     check_limits(actual_price, ai, :price)
@@ -212,7 +212,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
     check_limits(actual_amount, ai, :amount)
 
     iscashenough(s, ai, actual_amount, o) ||
-        @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(nameof(ai))) likely out of sync!"
+        @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(raw(ai))) likely out of sync!"
     date = @something pytodate(resp) now()
 
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)

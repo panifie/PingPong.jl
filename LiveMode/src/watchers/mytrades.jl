@@ -1,4 +1,6 @@
 using .PaperMode.SimMode: trade!
+using .Lang: splitkws
+using .Python: pydicthash
 
 _still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
@@ -8,13 +10,21 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
     interval = st.attr(s, :throttle, Second(5))
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
-        f = if has(exc, :watchMyTrades)
+        f = if false # has(exc, :watchMyTrades)
             let sym = raw(ai), func = exc.watchMyTrades
                 () -> pyfetch(func, sym; coro_running=pycoro_running())
             end
         else
-            fetch_my_trades(s, ai; fetch_kwargs...)
-            sleep(interval)
+            _, other_fetch_kwargs = splitkws(:since; kwargs=fetch_kwargs)
+            since = Ref(DateTime(0))
+            () -> begin
+                since[] == DateTime(0) || sleep(interval)
+                resp = fetch_my_trades(s, ai; since=dtstamp(since[]) + 1, other_fetch_kwargs...)
+                if !isnothing(resp) && islist(resp) && length(resp) > 0
+                    since[] = @something pytodate(resp[-1]) now()
+                end
+                resp
+            end
         end
         while istaskrunning()
             try
@@ -37,13 +47,37 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
 end
 
 tradestask(tasks) = get(tasks, :trades_task, nothing)
-tradestask(s, ai) = tradestask(market_tasks(s)[ai])
+tradestask(s, ai) = tradestask(market_tasks(s, ai))
 function ispyexception(e, pyexception)
     pyisinstance(e, pyexception) ||
         (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
 end
 function ispyresult_error(e)
     ispyexception(e, Python.gpa.pyaio.InvalidStateError)
+end
+
+_trade_kv_hash(resp) = begin
+    p1 = get_py(resp, "price")
+    p2 = get_py(resp, "timestamp")
+    p3 = get_py(resp, "amount")
+    p4 = get_py(resp, "side")
+    p5 = get_py(resp, "type")
+    p6 = get_py(resp, "takerOrMaker")
+    hash((p1, p2, p3, p4, p5, p6))
+end
+
+function trade_hash(resp)
+    id = get_py(resp, "id")
+    if pyisnone(id)
+        info = get_py(resp, "info")
+        if pyisnone(info)
+            _trade_kv_hash(resp)
+        else
+            pydicthash(info)
+        end
+    else
+        hash(id)
+    end
 end
 
 function handle_trades!(s, ai, orders_byid, trades)
@@ -54,21 +88,25 @@ function handle_trades!(s, ai, orders_byid, trades)
                 @warn "Missing order id"
                 continue
             else
-                o = get(orders_byid, id, nothing)
-                isnothing(o) || begin
-                    t = trade!(
-                        s,
-                        o,
-                        ai;
-                        resp,
-                        date=nothing,
-                        price=nothing,
-                        actual_amount=nothing,
-                        fees=nothing,
-                        slippage=false,
-                    )
-                    t isa Trade && safenotify(task_local_storage(:notify))
-                end
+                (o, prev_trades_hashes) = get(orders_byid, id, (nothing, nothing))
+                this_hash = trade_hash(resp)
+                isnothing(o) ||
+                    this_hash ∈ prev_trades_hashes ||
+                    begin
+                        push!(prev_trades_hashes, this_hash)
+                        t = trade!(
+                            s,
+                            o,
+                            ai;
+                            resp,
+                            date=nothing,
+                            price=nothing,
+                            actual_amount=nothing,
+                            fees=nothing,
+                            slippage=false,
+                        )
+                        t isa Trade && safenotify(task_local_storage(:notify))
+                    end
             end
         end
 
@@ -95,7 +133,7 @@ function waitforcond(cond, time)
                 sleep(0.1)
                 slept[] += 100
             end
-            slept[] > timeout && safenotify(cond)
+            slept[] >= timeout && safenotify(cond)
         end
         safewait(cond)
     catch
