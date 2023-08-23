@@ -56,28 +56,23 @@ macro start_task(state, code)
     esc(expr)
 end
 
-const AssetOrder = Tuple{Order,AssetInstance}
+# const AssetOrder = Tuple{Order,AssetInstance}
 const TasksDict = LittleDict{Symbol,Task}
 const OrderTasksDict = Dict{Order,Task}
-function order_tasks(s::Strategy)
-    @lget! s.attrs :live_order_tasks Dict{AssetInstance,OrderTasksDict}()
+const AssetTasks = NamedTuple{(:byname, :byorder),Tuple{TasksDict,OrderTasksDict}}
+order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
+function asset_tasks(s::Strategy)
+    @lget! s.attrs :live_asset_tasks Dict{AssetInstance, AssetTasks}()
 end
-function order_tasks(s::Strategy, ai)
-    tasks = order_tasks(s)
-    @lget! tasks ai OrderTasksDict()
+function asset_tasks(s::Strategy, ai)
+    tasks = asset_tasks(s)
+    @lget! tasks ai (; byname=TasksDict(), byorder=OrderTasksDict())
 end
-function market_tasks(s::Strategy)
-    @lget! s.attrs :live_market_tasks Dict{AssetInstance,TasksDict}()
+function strategy_tasks(s::Strategy)
+    @lget! s.attrs :live_strategy_tasks Dict{String,TasksDict}()
 end
-function market_tasks(s::Strategy, ai)
-    tasks = market_tasks(s)
-    @lget! tasks ai TasksDict()
-end
-function account_tasks(s::Strategy)
-    @lget! s.attrs :live_account_tasks Dict{String,TasksDict}()
-end
-function account_tasks(s::Strategy, account)
-    tasks = account_tasks(s)
+function strategy_tasks(s::Strategy, account)
+    tasks = strategy_tasks(s)
     @lget! tasks account TasksDict()
 end
 function OrderTypes.ordersdefault!(s::Strategy{Live})
@@ -85,9 +80,8 @@ function OrderTypes.ordersdefault!(s::Strategy{Live})
         _simmode_defaults!(s, attrs)
         reset_logs(s)
         get!(attrs, :throttle, Second(5))
-        order_tasks(s)
-        market_tasks(s)
-        account_tasks(s)
+        asset_tasks(s)
+        strategy_tasks(s)
     end
     exc_live_funcs!(s)
 end
@@ -125,7 +119,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     else
         let ids_set = Set(ids)
-            (o) -> (pyconvert(String, get_py(o, "id")) ∉ ids_set || notside(o))
+            (o) -> (get_string(o, "id") ∉ ids_set || notside(o))
         end
     end
     resp isa PyException && throw(resp)
@@ -134,11 +128,14 @@ end
 
 function _orders_func!(attrs, exc)
     attrs[:live_orders_func] = if has(exc, :fetchOrders)
-        (ai; kwargs...) -> _fetch_orders(ai, exc.fetchOrders; kwargs...)
+        (ai; kwargs...) ->
+            _fetch_orders(ai, first(exc, :fetchOrdersWs, :fetchOrders); kwargs...)
     elseif has(exc, :fetchOrder)
         (ai; ids, kwargs...) -> let out = pylist()
             @sync for id in ids
-                @async out.append(_execfunc(exc.fetchOrder, ai, id; kwargs...))
+                @async out.append(
+                    _execfunc(first(exc, :fetchOrderWs, :fetchOrder), ai, id; kwargs...),
+                )
             end
             out
         end
@@ -148,9 +145,12 @@ end
 function _open_orders_func!(attrs, exc; open=true)
     oc = open ? "open" : "closed"
     cap = open ? "Open" : "Closed"
-    attrs[Symbol("live_$(oc)_orders_func")] = if has(exc, Symbol("fetch$(cap)Orders"))
-        (ai; kwargs...) ->
-            _fetch_orders(ai, getproperty(exc, Symbol("fetch$(cap)Orders")); kwargs...)
+    func_sym = Symbol("fetch$(cap)Orders")
+    func_sym_ws = Symbol("fetch$(cap)OrdersWs")
+    attrs[Symbol("live_$(oc)_orders_func")] = if has(exc, func_sym)
+        let f = first(exc, func_sym_ws, func_sym)
+            (ai; kwargs...) -> _fetch_orders(ai, f; kwargs...)
+        end
     else
         fetch_func = get(attrs, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
@@ -304,18 +304,8 @@ function _my_trades_func!(attrs, exc)
                 end
             )
         end
-        # TODO: watcTrades support
-    elseif has(exc, :fetchTrades)
-        let f = first(exc, :fetchTradesWs, :fetchTrades)
-            (
-                (ai; since=nothing, params=nothing) ->
-                    let resp = _execfunc(f, raw(ai); _skipkwargs(; since, params)...)
-                        _ordertrades(resp)
-                    end
-            )
-        end
     else
-        error("Exchange $(nameof(exc)) does not have a method to fetch account trades")
+        @warn "Exchange $(nameof(exc)) does not have a method to fetch account trades (trades will be emulated)"
     end
 end
 
