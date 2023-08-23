@@ -79,6 +79,13 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
+_has(exc::Exchange, syms::Vararg{Symbol}) =
+    let h = getfield(exc, :has)
+        for s in syms
+            haskey(h, s) && return h[s]
+        end
+    end
+
 _has(exc::Exchange, s::Symbol) =
     let h = getfield(exc, :has)
         haskey(h, s) && h[s]
