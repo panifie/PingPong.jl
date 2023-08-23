@@ -12,12 +12,12 @@ _vv(v) = v isa Vector ? v[] : v
 function _printcommitted(io, o)
     hasproperty(o.attrs, :committed) && begin
         write(io, "\nCommitted: ")
-        write(io, string(cnum(_vv(o.attrs.committed))))
+        write(io, string(cnum(_vv(o.attrs.committed[]))))
     end
 end
 _printunfilled(io, o) = hasproperty(o.attrs, :unfilled) && begin
     write(io, "\nUnfilled: ")
-    write(io, cnum(_vv(o.attrs.unfilled)))
+    write(io, cnum(_vv(o.attrs.unfilled[])))
 end
 
 function Base.show(io::IO, o::Order)
@@ -37,7 +37,6 @@ function Base.show(io::IO, o::Order)
     _printunfilled(io, o)
     write(io, "\nDate: ")
     write(io, string(o.date))
-    write(io, "\n")
 end
 
 function Base.show(io::IO, t::Trade)
