@@ -90,12 +90,12 @@ end
 function unfillment(t::Type{<:AnyBuyOrder}, amount)
     @deassert amount > 0.0
     @deassert !(t isa AnySellOrder)
-    [negate(amount)]
+    Ref(negate(amount))
 end
 function unfillment(t::Type{<:AnySellOrder}, amount)
     @deassert amount > 0.0
     @deassert !(t isa AnyBuyOrder)
-    [amount]
+    Ref(amount)
 end
 
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, ai)

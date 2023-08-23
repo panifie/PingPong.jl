@@ -148,7 +148,7 @@ _toprec(cc::AbstractCash, c::Cash) = toprecision(value(c), _prec(cc))
 
 _applyop!(op, c, v) =
     let cv = getfield(_cash(c), :value)
-        cv[1] = _toprec(c, op(cv[1], v))
+        cv[] = _toprec(c, op(cv[], v))
     end
 
 add!(c::CurrencyCash, v) = _applyop!(+, c, v)

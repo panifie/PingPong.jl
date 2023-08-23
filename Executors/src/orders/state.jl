@@ -13,11 +13,11 @@ import Base: fill!
 ##  committed::DFT # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{
     (:take, :stop, :committed, :unfilled, :trades),
-    Tuple{Option{T},Option{T},Vector{T},Vector{T},Vector{Trade}},
+    Tuple{Option{T},Option{T},Ref{T},Ref{T},Vector{Trade}},
 }
 
 function basic_order_state(
-    take, stop, committed::Vector{T}, unfilled::Vector{T}, trades=Trade[]
+    take, stop, committed::Ref{T}, unfilled::Ref{T}, trades=Trade[]
 ) where {T<:Real}
     _BasicOrderState{T}((take, stop, committed, unfilled, trades))
 end

@@ -7,7 +7,7 @@ function marketorder(
 )
     @price! ai take stop
     @amount! ai amount
-    comm = [committment(type, ai, price, amount)]
+    comm = Ref(committment(type, ai, price, amount))
     if iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end

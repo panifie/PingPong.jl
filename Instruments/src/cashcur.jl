@@ -11,11 +11,11 @@ abstract type AbstractCash <: Number end
 
 """
 struct Cash{S,T} <: AbstractCash
-    value::Vector{T}
-    Cash{C,N}(val) where {C,N} = new{C,N}([val])
-    Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}([val])
+    value::Ref{T}
+    Cash{C,N}(val) where {C,N} = new{C,N}(Ref(val))
+    Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(Ref(val))
     function Cash(_::Cash{C,N}, val::R) where {C,N,R}
-        new{C,N}([convert(eltype(N), val)])
+        new{C,N}(Ref(convert(eltype(N), val)))
     end
 end
 
