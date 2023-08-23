@@ -81,21 +81,19 @@ end
 
 _has(exc::Exchange, syms::Vararg{Symbol}) =
     let h = getfield(exc, :has)
-        for s in syms
-            haskey(h, s) && return h[s]
-        end
+        any(s -> get(h, s, false), syms)
     end
 
 _has(exc::Exchange, s::Symbol) =
     let h = getfield(exc, :has)
-        haskey(h, s) && h[s]
+        get(h, s, false)
     end
 _mockable_has(args...; kwargs...) = _has(args...; kwargs...)
 has(args...; kwargs...) = @mock _mockable_has(args...; kwargs...)
 
 function Base.first(exc::Exchange, args::Vararg{Symbol})
-    for a in args
-        has(exc, a) && return getproperty(getfield(exc, :py), a)
+    for name in args
+        has(exc, name) && return getproperty(getfield(exc, :py), name)
     end
 end
 
