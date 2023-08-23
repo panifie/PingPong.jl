@@ -2,24 +2,30 @@ using .PaperMode.SimMode: trade!
 using .Lang: splitkws
 using .Python: pydicthash
 
+ismytrades_supported(exc) = has(exc, :watchMyTrades, :fetchMyTradesWs, :fetchMyTrades)
 _still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
-    tasks = market_tasks(s, ai)
+    tasks = asset_tasks(s, ai).byname
     _still_running(tradestask(tasks)) && return nothing
     exc = exchange(ai)
+    ismytrades_supported(exc) || return nothing
     interval = st.attr(s, :throttle, Second(5))
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
-        f = if false # has(exc, :watchMyTrades)
+        f = if has(exc, :watchMyTrades)
             let sym = raw(ai), func = exc.watchMyTrades
-                () -> pyfetch(func, sym; coro_running=pycoro_running())
+                () -> if pycoro_running()[1][]
+                    pyfetch(func, sym; coro_running=pycoro_running(), fetch_kwargs...)
+                end
             end
         else
             _, other_fetch_kwargs = splitkws(:since; kwargs=fetch_kwargs)
             since = Ref(DateTime(0))
             () -> begin
                 since[] == DateTime(0) || sleep(interval)
-                resp = fetch_my_trades(s, ai; since=dtstamp(since[]) + 1, other_fetch_kwargs...)
+                resp = fetch_my_trades(
+                    s, ai; since=dtstamp(since[]) + 1, other_fetch_kwargs...
+                )
                 if !isnothing(resp) && islist(resp) && length(resp) > 0
                     since[] = @something pytodate(resp[-1]) now()
                 end
@@ -33,13 +39,13 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
                     handle_trades!(s, ai, orders_byid, trades)
                 end
             catch
-                @debug "trade watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
                 sleep(1)
             end
         end
     end
     try
-        market_tasks(s)[ai][:trades_task] = task
+        asset_tasks(s)[ai].byname[:trades_task] = task
         task
     catch
         task
@@ -47,7 +53,7 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
 end
 
 tradestask(tasks) = get(tasks, :trades_task, nothing)
-tradestask(s, ai) = tradestask(market_tasks(s, ai))
+tradestask(s, ai) = tradestask(asset_tasks(s, ai).byname)
 function ispyexception(e, pyexception)
     pyisinstance(e, pyexception) ||
         (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
@@ -116,8 +122,7 @@ function handle_trades!(s, ai, orders_byid, trades)
 end
 
 function stop_watch_trades!(s::LiveStrategy, ai)
-    tasks = market_tasks(s)[ai]
-    t = tradestask(tasks)
+    t = tradestask(s, ai)
     if _still_running(t)
         stop_task(t)
     end
