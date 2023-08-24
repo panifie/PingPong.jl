@@ -198,7 +198,7 @@ function get_side(update, p::Option{ByPos}=nothing)
     end
 end
 
-function live_sync!(
+function live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
     p::Option{ByPos},
@@ -329,10 +329,10 @@ function live_sync!(
     return pos
 end
 
-function live_sync!(s::LiveStrategy, ai::MarginInstance; since=nothing, kwargs...)
+function live_sync_position!(s::LiveStrategy, ai::MarginInstance; since=nothing, kwargs...)
     @sync for pos in (Long, Short)
         @async let update = live_position(s, ai, pos; since)
-            isnothing(update) || live_sync!(s, ai, pos, update; kwargs...)
+            isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
         end
     end
 end
@@ -359,7 +359,7 @@ function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=tru
                 resync = true
             end
             if force_resync == :yes || (force_resync == :auto && resync)
-                live_sync!(s, ai, pside, lp; commits=false)
+                live_sync_position!(s, ai, pside, lp; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
         else

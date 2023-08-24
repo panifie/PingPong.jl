@@ -226,7 +226,7 @@ function test_live_position_sync(s)
         # test if sync! returns a Position object with the correct attributes
         reset!(ai.shortpos)
         reset!(ai.longpos)
-        pos = lm.live_sync!(s, ai, p, update; commits=commits)
+        pos = lm.live_sync_position!(s, ai, p, update; commits=commits)
         @test typeof(pos) <: ect.Position{Short}
         @test pos.timestamp[] == lm.get_time(update, "timestamp")
         @test pos.status[] == ect.PositionOpen()
@@ -240,7 +240,7 @@ function test_live_position_sync(s)
 
         # test hedged mode mismatch
         update[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
-        @test_throws AssertionError lm.live_sync!(s, ai, p, update; commits=commits)
+        @test_throws AssertionError lm.live_sync_position!(s, ai, p, update; commits=commits)
 
         # test if sync! throws an exception if the position side does not match the update side
         patch_hedged = @patch function inst.ishedged(::MarginMode)
@@ -248,18 +248,18 @@ function test_live_position_sync(s)
         end
 
         Mocking.apply(patch_hedged) do
-            @test_throws AssertionError lm.live_sync!(s, ai, p, update; commits=commits)
+            @test_throws AssertionError lm.live_sync_position!(s, ai, p, update; commits=commits)
             reset!(ai)
             ep = update.get(lm.Pos.entryPrice)
             try
-                pos = lm.live_sync!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
+                pos = lm.live_sync_position!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
             catch e
                 @test occursin("can't be higher", e.msg)
             end
             pos = Ref{Any}()
             ep_d = pytofloat(ep * 2)
             out = @capture_err let
-                pos[] = lm.live_sync!(
+                pos[] = lm.live_sync_position!(
                     s, ai, p, update; amount=0.01, ep_in=ep_d, commits=false
                 )
             end
@@ -290,7 +290,7 @@ function test_live_pnl(s)
         p = Short()
         lp = lm.live_position(s, ai, p)
         @test !isnothing(lp)
-        pos = lm.live_sync!(s, ai, p, lp; commits=false)
+        pos = lm.live_sync_position!(s, ai, p, lp; commits=false)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
         # test if live_pnl returns the correct unrealized pnl from the live position
@@ -408,6 +408,13 @@ function test_live_order_trades(s)
         @test isempty(trades)
     end
 end
+
+test_live_watch_trades(s) = begin
+    ai = s[m"btc"]
+    lm.watch_trades
+end
+
+test_live_limit_order(s) = begin end
 
 function test_live()
     @testset "live" begin
