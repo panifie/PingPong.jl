@@ -243,6 +243,7 @@ end
 
 attr(o::Order, sym) = getfield(getfield(o, :attrs), sym)
 unfilled(o::Order) = abs(attr(o, :unfilled)[])
+filled_amount(o) = abs(o.amount) - unfilled(o)
 
 commit!(s::Strategy, o::IncreaseOrder, _) = begin
     @deassert committed(o) |> gtxzero
