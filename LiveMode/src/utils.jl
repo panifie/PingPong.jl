@@ -14,7 +14,8 @@ TaskFlag() =
         TaskFlag(() -> sto[:running])
     end
 # The task flag is passed to `pyfetch/pytask` as a tuple
-pycoro_running() = (TaskFlag(),)
+pycoro_running(flag) = (flag,)
+pycoro_running() = pycoro_running(TaskFlag())
 Base.getindex(t::TaskFlag) = t.f()
 stop_task(t::Task) =
     try
@@ -39,6 +40,44 @@ init_task(state) = init_task(current_task, state)
 
 istaskrunning() = task_local_storage(:running)
 
+stop_asset_tasks(s::LiveStrategy, ai) = begin
+    tasks = asset_tasks(s, ai)
+    for task in values(tasks.byname)
+        stop_task(task)
+    end
+    empty!(tasks.byname)
+    for task in values(tasks.byorder)
+        stop_task(task)
+    end
+    empty!(tasks.byorder)
+end
+
+stop_all_asset_tasks(s::LiveStrategy) =
+    for ai in s.universe
+        stop_asset_tasks(s, ai)
+    end
+
+stop_strategy_tasks(s::LiveStrategy, account) = begin
+    tasks = strategy_tasks(s, account)
+    for task in values(tasks)
+        stop_task(task)
+    end
+    empty!(tasks)
+end
+
+stop_all_strategy_tasks(s::LiveStrategy) = begin
+    accounts = strategy_tasks(s)
+    for acc in keys(accounts)
+        stop_strategy_tasks(s, acc)
+    end
+    empty!(accounts)
+end
+
+stop_all_tasks(s::LiveStrategy) = begin
+    stop_all_asset_tasks(s)
+    stop_all_strategy_tasks(s)
+end
+
 wait_update(task::Task) = wait(task.storage[:notify])
 update!(t::Task, k, v) =
     let sto = t.storage
@@ -62,7 +101,7 @@ const OrderTasksDict = Dict{Order,Task}
 const AssetTasks = NamedTuple{(:byname, :byorder),Tuple{TasksDict,OrderTasksDict}}
 order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
 function asset_tasks(s::Strategy)
-    @lget! s.attrs :live_asset_tasks Dict{AssetInstance, AssetTasks}()
+    @lget! s.attrs :live_asset_tasks Dict{AssetInstance,AssetTasks}()
 end
 function asset_tasks(s::Strategy, ai)
     tasks = asset_tasks(s)
