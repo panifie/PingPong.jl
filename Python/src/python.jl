@@ -42,6 +42,7 @@ function _setup!()
             Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
         _ensure_env!()
     end
+    _INITIALIZED[] = false
 end
 
 @doc "Remove wrong python version libraries dirs from python loading path."
