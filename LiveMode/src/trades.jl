@@ -53,13 +53,13 @@ const Trf =
     )
 
 function check_limits(v, ai, lim_sym)
-    let lims = ai.limits,
-        min = getproperty(lims, lim_sym).min,
-        max = getproperty(lims, lim_sym).max
+    lims = ai.limits
+    min = getproperty(lims, lim_sym).min
+    max = getproperty(lims, lim_sym).max
 
-        if !(min <= v <= max)
-            @warn "Trade amount $(v) outside limits ($(min)-$(max))"
-        end
+    min <= v <= max || begin
+        @warn "Trade amount $(v) outside limits ($(min)-$(max))"
+        return false
     end
 end
 
@@ -81,9 +81,8 @@ function anyprice(cur::String, sym, exc)
 end
 
 _feebysign(rate, cost) = rate >= ZERO ? cost : -cost
-_getfee(fee_dict) = begin
+_getfee(fee_dict, cost=get_float(fee_dict, "cost")) = begin
     rate = get_float(fee_dict, "rate")
-    cost = get_float(fee_dict, "cost")
     _feebysign(rate, cost)
 end
 
@@ -116,26 +115,39 @@ end
 #     end
 # end
 
-function _default_trade_fees(ai, side; fees_base, fees_quote, actual_amount, net_cost)
-    default_fees = maxfees(ai)
+function trade_feecur(ai, side::Type{<:OrderSide})
     # Default to get since it should be the most common
     feeside = get(market(ai), "feeSide", "get")
     if feeside == "get"
         if side == Buy
-            fees_base += actual_amount * default_fees
+            :base
         else
-            fees_quote += net_cost * default_fees
+            :quote
         end
     elseif feeside == "give"
         if side == Sell
-            fees_base += actual_amount * default_fees
+            :base
         else
-            fees_quote += net_cost * default_fees
+            :quote
         end
     elseif feeside == "quote"
-        fees_quote += net_cost * default_fees
+        :quote
     elseif feeside == "base"
+        :base
+    else
+        :quote
+    end
+end
+
+function _default_trade_fees(
+    ai, side::Type{<:OrderSide}; fees_base, fees_quote, actual_amount, net_cost
+)
+    feecur = trade_feecur(ai, side)
+    default_fees = maxfees(ai)
+    if feecur == :base
         fees_base += actual_amount * default_fees
+    else
+        fees_quote += net_cost * default_fees
     end
     (fees_quote, fees_base)
 end
@@ -168,38 +180,66 @@ end
 _addfees(net_cost, fees_quote, ::IncreaseOrder) = net_cost + fees_quote
 _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
-function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
-    pyisinstance(resp, pybuiltins.dict) || begin
-        @warn "Invalid trade for order $(raw(ai)), order: $o, aborting."
-        return nothing
-    end
+function _check_symbol(ai, o, resp)::Bool
     pyisTrue(get_py(resp, Trf.symbol, @pystr("")) == @pystr(raw(ai))) || begin
         @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), aborting."
-        return nothing
+        return false
     end
+end
+
+function _check_type(ai, o, resp)::Bool
+    pyisinstance(resp, pybuiltins.dict) || begin
+        @warn "Invalid trade for order $(raw(ai)), order: $o, aborting."
+        return false
+    end
+end
+
+function _check_id(ai, o, resp)::Bool
     string(get_py(resp, Trf.order, @pystr(""))) == o.id || begin
         @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), aborting."
-        return nothing
+        return false
     end
-    side = let side = get_py(resp, Trf.side, nothing)
-        if pyisTrue(side == @pystr("buy"))
-            Buy
-        elseif pyisTrue(side == @pystr("sell"))
-            Sell
-        else
-            orderside(o)
-        end
+end
+
+function _tradeside(resp, o)::Type{<:OrderSide}
+    side = get_py(resp, Trf.side, nothing)
+    if pyisTrue(side == @pystr("buy"))
+        Buy
+    elseif pyisTrue(side == @pystr("sell"))
+        Sell
+    else
+        orderside(o)
     end
-    if side != orderside(o)
+end
+function _check_side(side, o)::Bool
+    side == orderside(o) || begin
         @warn "Mismatching trade side $side and order side $(orderside(o)), aborting."
-        return nothing
+        return false
     end
+end
+
+function _check_price(s, ai, actual_price)::Bool
+    actual_price > ZERO || begin
+        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
+        return false
+    end
+end
+
+function _warn_cash(s, ai, o; actual_amount)
+    iscashenough(s, ai, actual_amount, o) ||
+        @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(raw(ai))) likely out of sync!"
+end
+
+function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, kwargs...)
+    trade isa Trade && return trade
+    _check_type(ai, o, resp) || return nothing
+    _check_symbol(ai, o, resp) || return nothing
+    _check_id(ai, o, resp) || return nothing
+    side = _tradeside(resp, o)
+    _check_side(side, o) || return nothing
     actual_amount = get_float(resp, Trf.amount)
     actual_price = get_float(resp, Trf.price)
-    if actual_price <= ZERO
-        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
-        return nothing
-    end
+    _check_price(s, ai, actual_price) || return nothing
     check_limits(actual_price, ai, :price)
     if actual_amount <= ZERO
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost."
@@ -211,8 +251,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, kwargs...)
     check_limits(net_cost, ai, :cost)
     check_limits(actual_amount, ai, :amount)
 
-    iscashenough(s, ai, actual_amount, o) ||
-        @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(raw(ai))) likely out of sync!"
+    _warn_cash(s, ai, o; actual_amount)
     date = @something pytodate(resp) now()
 
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
