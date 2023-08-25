@@ -144,7 +144,11 @@ function live_send_order(
     resp
 end
 
-const AssetOrdersDict = LittleDict{String,Tuple{Order, Vector{UInt64}, Ref{UInt64}}}
+const LiveOrderState = NamedTuple{
+    (:order, :trade_hashes, :update_hash, :average_price),
+    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT}},
+}
+const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
 function active_orders(s::LiveStrategy)
     @lget! s.attrs :live_active_orders Dict{AssetInstance,AssetOrdersDict}()
@@ -155,5 +159,10 @@ function active_orders(s::LiveStrategy, ai)
 end
 
 function set_active_order!(s::LiveStrategy, ai, o)
-    active_orders(s, ai)[o.id] = (o, UInt64[], Ref{UInt64}(0))
+    active_orders(s, ai)[o.id] = (;
+        order=o,
+        trade_hashes=UInt64[],
+        update_hash=Ref{UInt64}(0),
+        average_price=Ref(o.price),
+    )
 end

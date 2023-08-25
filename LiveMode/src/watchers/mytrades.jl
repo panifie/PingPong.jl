@@ -96,15 +96,15 @@ function handle_trades!(s, ai, orders_byid, trades)
                 @warn "Missing order id"
                 continue
             else
-                (o, prev_trades_hashes) = get(orders_byid, id, (nothing, nothing))
+                state = get(orders_byid, id, (nothing, nothing))
                 this_hash = trade_hash(resp)
-                isnothing(o) ||
-                    this_hash ∈ prev_trades_hashes ||
+                isnothing(state.order) ||
+                    this_hash ∈ state.trade_hashes ||
                     begin
-                        push!(prev_trades_hashes, this_hash)
+                        push!(state.trade_hashes, this_hash)
                         t = trade!(
                             s,
-                            o,
+                            state.order,
                             ai;
                             resp,
                             date=nothing,
