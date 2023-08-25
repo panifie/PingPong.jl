@@ -14,8 +14,8 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
     task = @start_task orders_byid begin
         f = if has(exc, :watchMyTrades)
             let sym = raw(ai), func = exc.watchMyTrades
-                () -> if pycoro_running()[1][]
-                    pyfetch(func, sym; coro_running=pycoro_running(), fetch_kwargs...)
+                (flag, coro_running) -> if flag[]
+                    pyfetch(func, sym; coro_running, fetch_kwargs...)
                 end
             end
         else
@@ -32,10 +32,12 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
                 resp
             end
         end
+        flag = TaskFlag()
+        coro_running = pycoro_running(flag)
         while istaskrunning()
             try
                 while istaskrunning()
-                    trades = f()
+                    trades = f(flag, coro_running)
                     handle_trades!(s, ai, orders_byid, trades)
                 end
             catch
