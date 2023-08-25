@@ -140,6 +140,7 @@ end
 posside(::Position{P}) where {P<:PositionSide} = P()
 posside(::Long) = Long()
 posside(::Short) = Short()
+posside(::Type{<:ByPos{P}}) where {P<:PositionSide} = P()
 
 @doc "Position entryprice."
 price(po::Position) = po.entryprice[]

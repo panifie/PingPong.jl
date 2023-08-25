@@ -552,5 +552,5 @@ include("constructors.jl")
 export AssetInstance, instance, load!, @rprice, @ramount
 export asset, raw, ohlcv, bc, qc
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
-export Long, Short, position, liqprice, leverage, bankruptcy, cash, committed, price
+export Long, Short, position, posside, liqprice, leverage, bankruptcy, cash, committed, price
 export leverage, mmr, status!

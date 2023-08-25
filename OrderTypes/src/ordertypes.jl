@@ -145,6 +145,7 @@ const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
 orderside(::Type{O}) where {O<:Order{T}} where {T<:OrderType{S}} where {S<:OrderSide} = S
 ordertype(::Order{T}) where {T} = T
+ordertype(::Type{O}) where {O<:Order{T}} where {T<:OrderType} = T
 function positionside(
     ::Union{Type{O},O}
 ) where {O<:Order{T,<:AbstractAsset,<:ExchangeID,P}} where {T,P}
@@ -156,6 +157,7 @@ exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 commit!(args...; kwargs...) = error("not implemented")
 opposite(::Type{Buy}) = Sell
 opposite(::Type{Sell}) = Buy
+opposite(::Type{T}) where {S,T<:OrderType{S}} = getfield(T.name.module, T.name.name){opposite(S)}
 sidetopos(::Type{Buy}) = Long
 sidetopos(::Type{Sell}) = Short
 liqside(::Union{Long,Type{Long}}) = Sell
@@ -190,7 +192,8 @@ export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
-export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
+export IncreaseOrder,
+    ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
 export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos
