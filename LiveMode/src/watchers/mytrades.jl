@@ -152,26 +152,30 @@ end
 
 function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     tt = tradestask(s, ai)
-    isnothing(tt) && return 0
+    timeout = Millisecond(waitfor).value
     cond = tt.storage[:notify]
     prev_count = length(ai.history)
     slept = 0
-    timeout = Millisecond(waitfor).value
     while slept < timeout
-        slept += waitforcond(cond, waitfor)
-        length(ai.history) > prev_count && return slept
+        if _still_running(tt)
+            slept += waitforcond(cond, waitfor)
+            length(ai.history) > prev_count && return slept
+        else
+            return timeout
+        end
     end
     return slept
 end
 
 function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(1))
     order_trades = o.attrs.trades
-    prev_count = length(order_trades)
+    this_count = prev_count = length(order_trades)
     slept = 0
     timeout = Millisecond(waitfor).value
     while slept < timeout
         slept += waitfortrade(s, ai; waitfor)
-        length(order_trades) > prev_count && return prev_count + 1
+        this_count = length(order_trades)
+        this_count > prev_count && break
     end
-    return prev_count
+    return this_count
 end
