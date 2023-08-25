@@ -144,7 +144,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
     notside = let sides = if side == Both
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
-            (_ccxtorderside(side),)
+            (_ccxtorderside(opposite(side)),)
         end |> pytuple
         (o) -> let s = get_py(o, "side")
             @py s ∉ sides
