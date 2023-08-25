@@ -15,12 +15,14 @@ function _printcommitted(io, o)
         write(io, string(cnum(_vv(o.attrs.committed[]))))
     end
 end
-_printunfilled(io, o) = hasproperty(o.attrs, :unfilled) && begin
-    write(io, "\nUnfilled: ")
-    write(io, cnum(_vv(o.attrs.unfilled[])))
+function _printunfilled(io, o)
+    hasproperty(o.attrs, :unfilled) && begin
+        write(io, "\nUnfilled: ")
+        write(io, cnum(_vv(o.attrs.unfilled[])))
+    end
 end
 
-function Base.show(io::IO, o::Order)
+function Base.display(io::IO, o::Order)
     write(io, replace(string(ordertype(o)), "$(@__MODULE__)." => ""))
     write(io, "($(positionside(o)))")
     write(io, "\n")
@@ -39,31 +41,32 @@ function Base.show(io::IO, o::Order)
     write(io, string(o.date))
 end
 
-function Base.show(io::IO, t::Trade)
+function Base.display(io::IO, t::Trade)
     write(io, "Trade($(positionside(t))): ")
     write(io, cnum(t.amount))
     write(io, " at ")
     write(io, cnum(abs(t.size / t.amount)))
     write(io, " (size $(cnum(t.size)))")
-    write(io, "(lev $(cnum(t.leverage))) ")
+    write(io, " (lev $(cnum(t.leverage))) ")
     write(io, string(t.date))
     write(io, "\n")
-    show(io, t.order)
+    display(io, t.order)
 end
+Base.display(t::Trade) = display(stdout, t)
 
 _verb(o::AnyBuyOrder) = "Bought "
 _verb(o::AnySellOrder) = "Sold "
 
-Base.display(o::Order) = begin
-    write(stdout, _verb(o))
-    write(stdout, cnum(o.amount))
-    write(stdout, " ")
-    write(stdout, o.asset.bc)
-    write(stdout, " on ")
-    write(stdout, string(o.exc))
-    write(stdout, " priced at ")
-    write(stdout, cnum(o.price))
-    write(stdout, " ")
-    write(stdout, o.asset.qc)
-    write(stdout, "\n")
+Base.show(io::IO, o::Order) = begin
+    write(io, _verb(o))
+    write(io, cnum(o.amount))
+    write(io, " ")
+    write(io, o.asset.bc)
+    write(io, " on ")
+    write(io, string(o.exc))
+    write(io, " priced at ")
+    write(io, cnum(o.price))
+    write(io, " ")
+    write(io, o.asset.qc)
 end
+Base.display(o::Order) = Base.display(stdout, o)
