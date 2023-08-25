@@ -2,13 +2,13 @@ using .PaperMode.SimMode: trade!
 using .Lang: splitkws
 using .Python: pydicthash
 
-ismytrades_supported(exc) = has(exc, :watchMyTrades, :fetchMyTradesWs, :fetchMyTrades)
+hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
 _still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
     tasks = asset_tasks(s, ai).byname
     _still_running(tradestask(tasks)) && return nothing
     exc = exchange(ai)
-    ismytrades_supported(exc) || return nothing
+    hasmytrades(exc) || return nothing
     interval = st.attr(s, :throttle, Second(5))
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
