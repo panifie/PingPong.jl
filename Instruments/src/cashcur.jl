@@ -1,5 +1,6 @@
 using Lang: @deassert, @ifdebug
 using Misc: ATOL
+using Printf
 abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
@@ -50,42 +51,37 @@ USDT: 1000.0
 macro c_str(sym, val=0.0)
     :($(Cash(Symbol(sym), val)))
 end
-compactnum(val::Number) =
-    if val < 1e-12
-        "$(round(val, digits=3))"
+function scaled_string(val, scale=1e0, unit="")
+    q, r = divrem(val, scale)
+    "$(round(q+r * 1/scale, digits=3, RoundDown))($(unit))"
+end
+compactnum(val::N) where {N<:Number} = begin
+    if iszero(val)
+        "$val"
+    elseif val < 1e-12
+        @sprintf "%.3e" val
     elseif val < 1e-9
-        q, r = divrem(val, 1e-10)
-        "$(Int(q)),$(round(Int, r))(n)"
+        scaled_string(val, 1e-10, "n")
     elseif val < 1e-6
-        q, r = divrem(val, 1e-7)
-        "$(Int(q)),$(round(Int, r))(μ)"
+        scaled_string(val, 1e-7, "μ")
     elseif val < 1e-2
-        q, r = divrem(val, 1e-4)
-        "$(Int(q)),$(round(Int, r))(m)"
+        scaled_string(val, 1e-4, "m")
     elseif val < 1e3
         "$(round(val, digits=3))"
     elseif val < 1e6
-        q, r = divrem(val, 1e3)
-        "$(Int(q)),$(round(Int, r))(K)"
+        scaled_string(val, 1e3, "K")
     elseif val < 1e9
-        q, r = divrem(val, 1e6)
-        r /= 1e3
-        "$(Int(q)),$(round(Int, r))(M)"
+        scaled_string(val, 1e6, "M")
     elseif val < 1e12
-        q, r = divrem(val, 1e9)
-        r /= 1e6
-        "$(Int(q)),$(round(Int, r))(B)"
+        scaled_string(val, 1e9, "B")
     elseif val < 1e15
-        q, r = divrem(val, 1e12)
-        r /= 1e9
-        "$(Int(q)),$(round(Int, r))(T)"
+        scaled_string(val, 1e12, "T")
     elseif val < 1e18
-        q, r = divrem(val, 1e15)
-        r /= 1e12
-        "$(Int(q)),$(round(Int, r))(Q)"
+        scaled_string(val, 1e12, "Q")
     else
-        "$val"
+        @sprintf "%.3e" val
     end
+end
 
 compactnum(c::Cash) = compactnum(value(c))
 compactnum(val, n) = split(compactnum(val), ".")[n]
