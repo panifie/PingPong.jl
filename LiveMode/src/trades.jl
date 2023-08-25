@@ -194,8 +194,8 @@ function _check_type(ai, o, resp)::Bool
     end
 end
 
-function _check_id(ai, o, resp)::Bool
-    string(get_py(resp, Trf.order, @pystr(""))) == o.id || begin
+function _check_id(ai, o, resp; k=Trf.order)::Bool
+    string(get_py(resp, k, @pystr(""))) == o.id || begin
         @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), aborting."
         return false
     end
