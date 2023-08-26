@@ -12,3 +12,14 @@ end
 function OrderTypes.ordersdefault!(s::Strategy{Sim})
     _simmode_defaults!(s, s.attrs)
 end
+
+function construct_order_func(t::Type{<:Union{<:Order{<:LimitOrderType},<:LimitOrderType}})
+    create_sim_limit_order
+end
+construct_order_func(t) = begin
+    @warn "Order type $t unknown, defaulting to sim limit order"
+    create_sim_limit_order
+end
+function construct_order_func(t::Type{<:Union{<:Order{<:MarketOrderType},<:MarketOrderType}})
+    create_sim_market_order
+end

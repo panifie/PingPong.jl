@@ -1,6 +1,6 @@
 using Lang: @deassert, @lget!, Option, @ifdebug
 using OrderTypes: ExchangeID
-import OrderTypes: commit!, positionside, LiquidationType
+import OrderTypes: commit!, positionside, LiquidationType, trades
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using Instances: notional, pnl, Instances
 import Instances: committed
@@ -314,6 +314,7 @@ end
 aftertrade!(s, ai, o, _) = aftertrade!(s, ai, o)
 
 amount(o::Order) = getfield(o, :amount)
+trades(o::Order) = getfield(o, :attrs).trades
 function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
     @deassert attr(o, :committed)[] |> ltxzero o
     attr(o, :committed)[]

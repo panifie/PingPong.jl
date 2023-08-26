@@ -35,6 +35,6 @@ export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions
 export OptSetup, OptRun, OptScore
 export limitorder, marketorder
-export unfilled, committed, isfilled, islastfill, isfirstfill
+export unfilled, committed, isfilled, islastfill, isfirstfill, trades
 export queue!, cancel!, commit!
 export hasorders

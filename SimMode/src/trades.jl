@@ -126,7 +126,7 @@ function trade!(
     @deassert !isdust(ai, o) committed(o), o
     fill!(s, ai, o, trade)
     push!(ai.history, trade)
-    push!(attr(o, :trades), trade)
+    push!(trades(o), trade)
     # update cash
     cash!(s, ai, trade)
     # unqueue or decommit order if filled
