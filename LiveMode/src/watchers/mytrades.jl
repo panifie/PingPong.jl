@@ -144,6 +144,7 @@ function waitforcond(cond, time)
         end
         safewait(cond)
     catch
+        slept[] = timeout
     finally
         waiting[] = false
     end

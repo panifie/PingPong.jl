@@ -2,6 +2,7 @@ import .PaperMode: SimMode
 using .Executors: filled_amount, orderscount
 using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
+# using .OrderTypes: OrderFailed
 
 function watch_orders!(s::LiveStrategy, ai; fetch_kwargs=())
     _still_running(asset_orders_task(s, ai)) && return nothing
@@ -93,6 +94,9 @@ order_update_hash(resp) = begin
     end
 end
 
+_ccxtisopen(resp) = pyisTrue(get_py(resp, "status") == @pystr("open"))
+_ccxtisclosed(resp) = pyisTrue(get_py(resp, "status") == @pystr("closed"))
+
 function handle_orders!(s, ai, orders_byid, orders)
     try
         for resp in orders
@@ -105,13 +109,29 @@ function handle_orders!(s, ai, orders_byid, orders)
                 isnothing(state.order) || begin
                     this_hash = order_update_hash(resp)
                     if state.update_hash[] != this_hash
+                        # always update hash on new data
                         state.update_hash[] = this_hash
+                        # only emulate trade if trade watcher task
+                        # is not running
                         hasmytrades(exchange(ai)) ||
                             emulate_trade!(s, state.order, ai; state, resp)
-                        if Executors.isfilled(ai, state.order)
+                        # if order is filled remove it from the task orders map.
+                        # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
+                        if Executors.isfilled(ai, state.order) || !_ccxtisopen(resp)
+                            # Order did not complete, send an error
+                            if !_ccxtisclosed(resp)
+                                cancel!(
+                                    s,
+                                    state.order,
+                                    ai;
+                                    err=OrderFailed(get_string(resp, "status")),
+                                )
+                            end
                             delete!(orders_byid, id)
+                            # if there are no more orders, stop the monitoring task
                             if orderscount(s, ai) == 0
                                 stop_watch_orders!(s, ai)
+                                # also stop the trades task if running
                                 if hasmytrades(exchange(ai))
                                     stop_watch_trades!(s, ai)
                                 end
@@ -196,8 +216,8 @@ function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
     )
 end
 
-function waitfororder(s::LiveStrategy, ai; waitfor=Second(1))
-    aot = asset_orders_task(s)
+function waitfororder(s::LiveStrategy, ai; waitfor=Second(5))
+    aot = asset_orders_task(s, ai)
     timeout = Millisecond(waitfor).value
     cond = aot.storage[:notify]
     if _still_running(aot)
@@ -207,15 +227,15 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(1))
     end
 end
 
-function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(1))
+function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     slept = 0
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
     while slept < timeout
         slept += waitfororder(s, ai; waitfor)
-        if isorder_filled(o) || !haskey(orders_byid, o.id)
-            return true
+        if !haskey(orders_byid, o.id)
+            break
         end
     end
-    return isorder_filled(o)
+    return isorder_filled(ai, o)
 end
