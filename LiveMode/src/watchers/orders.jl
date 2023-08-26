@@ -99,51 +99,68 @@ _ccxtisclosed(resp) = pyisTrue(get_py(resp, "status") == @pystr("closed"))
 
 function handle_orders!(s, ai, orders_byid, orders)
     try
-        for resp in orders
+        cond = task_local_storage(:notify)
+        @sync for resp in orders
             id = get_string(resp, "id")
             if isempty(id)
                 @warn "Missing order id"
                 continue
             else
-                state = get(orders_byid, id, (nothing, nothing))
-                isnothing(state.order) || begin
-                    this_hash = order_update_hash(resp)
-                    if state.update_hash[] != this_hash
-                        # always update hash on new data
-                        state.update_hash[] = this_hash
-                        # only emulate trade if trade watcher task
-                        # is not running
-                        hasmytrades(exchange(ai)) ||
-                            emulate_trade!(s, state.order, ai; state, resp)
-                        # if order is filled remove it from the task orders map.
-                        # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
-                        if Executors.isfilled(ai, state.order) || !_ccxtisopen(resp)
-                            # Order did not complete, send an error
-                            if !_ccxtisclosed(resp)
-                                cancel!(
-                                    s,
-                                    state.order,
-                                    ai;
-                                    err=OrderFailed(get_string(resp, "status")),
+                @async let state = get_order_state(orders_byid, id)
+                    if state isa LiveOrderState
+                        this_hash = order_update_hash(resp)
+                        if state.update_hash[] != this_hash
+                            # always update hash on new data
+                            state.update_hash[] = this_hash
+                            # only emulate trade if trade watcher task
+                            # is not running
+                            hasmytrades(exchange(ai)) ||
+                                emulate_trade!(s, state.order, ai; state, resp)
+                            # if order is filled remove it from the task orders map.
+                            # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
+                            order_open = _ccxtisopen(resp)
+                            order_closed = _ccxtisclosed(resp)
+                            order_trades = trades(state.order)
+                            if isorder_filled(ai, state.order) || !order_open
+                                # Wait for trades to be processed if trades are not emulated
+                                if hasmytrades(exchange(ai)) && (
+                                    (
+                                        !isempty(order_trades) &&
+                                        last(order_trades).date < pytodate(resp)
+                                    ) || !isorder_synced(state.order, ai, resp)
                                 )
-                            end
-                            delete!(orders_byid, id)
-                            # if there are no more orders, stop the monitoring task
-                            if orderscount(s, ai) == 0
-                                stop_watch_orders!(s, ai)
-                                # also stop the trades task if running
-                                if hasmytrades(exchange(ai))
-                                    stop_watch_trades!(s, ai)
+                                    waitfortrade(s, ai, state.order; waitfor=Second(10))
+                                end
+                                # Order did not complete, send an error
+                                if !order_closed
+                                    cancel!(
+                                        s,
+                                        state.order,
+                                        ai;
+                                        err=OrderFailed(get_string(resp, "status")),
+                                    )
+                                end
+                                delete!(orders_byid, id)
+                                # if there are no more orders, stop the monitoring task
+                                if orderscount(s, ai) == 0
+                                    stop_watch_orders!(s, ai)
+                                    # also stop the trades task if running
+                                    if hasmytrades(exchange(ai))
+                                        stop_watch_trades!(s, ai)
+                                    end
                                 end
                             end
+                            safenotify(cond)
                         end
-                        safenotify(task_local_storage(:notify))
+                    else
+                        @error "(orders task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
                     end
                 end
             end
         end
 
     catch e
+        # Main.e[] = e
         ispyresult_error(e) || @error e
     end
 end
@@ -234,8 +251,11 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     while slept < timeout
         slept += waitfororder(s, ai; waitfor)
         if !haskey(orders_byid, o.id)
+            if o isa MarketOrder
+                waitfortrade(s, ai, o; waitfor=waitfor - Millisecond(slept))
+            end
             break
         end
     end
-    return isorder_filled(ai, o)
+    return slept
 end

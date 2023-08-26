@@ -29,10 +29,10 @@ function create_live_order(
             Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
         end
     end
-    amount = @something _orderfloat(resp, @pystr("amount")) amount
-    price = @something _orderfloat(resp, @pystr("price")) price
-    stop = _orderfloat(resp, @pystr("stopLossPrice"))
-    take = _orderfloat(resp, @pystr("takeProfitPrice"))
+    amount = get_float(resp::Py, "amount", amount, Val(:amount); ai)
+    price = get_float(resp::Py, "price", price, Val(:price); ai)
+    stop = _orderfloat(resp, "stopLossPrice")
+    take = _orderfloat(resp, "takeProfitPrice")
     date = @something pytodate(resp) now()
     id = @something _orderid(resp) begin
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"

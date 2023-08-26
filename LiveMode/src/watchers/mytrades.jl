@@ -88,33 +88,47 @@ function trade_hash(resp)
     end
 end
 
+function get_order_state(orders_byid, id; waitfor=Second(10))
+    @something(
+        get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
+        begin
+            waitforcond(() -> haskey(orders_byid, id), waitfor)
+            get(orders_byid, id, missing)
+        end
+    )
+end
+
 function handle_trades!(s, ai, orders_byid, trades)
     try
-        for resp in trades
+        cond = task_local_storage(:notify)
+        @sync for resp in trades
             id = get_string(resp, "order")
             if isempty(id)
                 @warn "Missing order id"
                 continue
             else
-                state = get(orders_byid, id, (nothing, nothing))
-                this_hash = trade_hash(resp)
-                isnothing(state.order) ||
-                    this_hash ∈ state.trade_hashes ||
-                    begin
-                        push!(state.trade_hashes, this_hash)
-                        t = trade!(
-                            s,
-                            state.order,
-                            ai;
-                            resp,
-                            date=nothing,
-                            price=nothing,
-                            actual_amount=nothing,
-                            fees=nothing,
-                            slippage=false,
-                        )
-                        t isa Trade && safenotify(task_local_storage(:notify))
+                @async let state = get_order_state(orders_byid, id)
+                    if state isa LiveOrderState
+                        this_hash = trade_hash(resp)
+                        this_hash ∈ state.trade_hashes || begin
+                            push!(state.trade_hashes, this_hash)
+                            t = trade!(
+                                s,
+                                state.order,
+                                ai;
+                                resp,
+                                date=nothing,
+                                price=nothing,
+                                actual_amount=nothing,
+                                fees=nothing,
+                                slippage=false,
+                            )
+                            t isa Trade && safenotify(cond)
+                        end
+                    else
+                        @error "(trades task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
                     end
+                end
             end
         end
 
@@ -128,6 +142,24 @@ function stop_watch_trades!(s::LiveStrategy, ai)
     if _still_running(t)
         stop_task(t)
     end
+end
+
+function waitforcond(cond::Function, time)
+    timeout = Millisecond(time).value
+    waiting = Ref(true)
+    slept = Ref(0)
+    try
+        while waiting[] && slept[] < timeout
+            cond() && break
+            sleep(0.1)
+            slept[] += 100
+        end
+    catch
+        slept[] = timeout
+    finally
+        waiting[] = false
+    end
+    return slept[]
 end
 
 function waitforcond(cond, time)

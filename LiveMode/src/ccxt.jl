@@ -118,7 +118,26 @@ end
 time_in_force_value(::Exchange, v) = v
 time_in_force_key(::Exchange) = "timeInForce"
 
-function isfilled(resp::Py)
+function _ccxtisfilled(resp::Py)
     pyisTrue(get_py(resp, "filled") == get_py(resp, "amount")) &&
         iszero(get_float(resp, "remaining"))
+end
+
+function isorder_synced(o, ai, resp::Py)
+    isapprox(ai, filled_amount(o), get_float(resp, "filled"), Val(:amount)) ||
+        let ntrades = length(get_py(resp, "trades", ()))
+            ntrades > 0 && ntrades == length(trades(o))
+        end
+end
+
+function get_float(resp::Py, k, def, args...; ai)
+    v = _orderfloat(resp, k)
+    if isnothing(v)
+        def
+    else
+        isapprox(ai, v, def, args...) || begin
+            @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
+        end
+        v
+    end
 end
