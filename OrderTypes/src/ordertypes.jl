@@ -172,6 +172,7 @@ islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
 isimmediate(::Order{T}) where {T<:OrderType} = T <: ImmediateOrderType
+isimmediate(::Order{T}) where {T<:MarketOrderType} = true
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 trades(args...; kwargs...) = error("not implemented")
