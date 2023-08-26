@@ -7,6 +7,7 @@ import Instances: committed
 using Misc: Short, DFT, toprecision
 using Instruments
 using Instruments: @importcash!, AbstractAsset
+import .Checks: cost
 @importcash!
 import Base: fill!
 
@@ -158,7 +159,10 @@ end
 
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
 function fill!(
-    ::MarginStrategy{<:Union{Sim,Paper}}, ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade
+    ::MarginStrategy{<:Union{Sim,Paper}},
+    ai::MarginInstance,
+    o::IncreaseOrder,
+    t::IncreaseTrade,
 )
     @deassert o isa IncreaseOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0 t
@@ -323,3 +327,4 @@ function committed(o::Order)
     @ifdebug _check_committment(o)
     attr(o, :committed)[]
 end
+cost(o::Order) = o.price * abs(o.amount)
