@@ -9,7 +9,7 @@ _handle_leverage(resp) = begin
         @debug resp
         false
     else
-        pyisTrue(resp.get("code", @pystr("")) == @pystr("0"))
+        pyisTrue(resp.get("code", @pyconst("")) == @pyconst("0"))
     end
 end
 

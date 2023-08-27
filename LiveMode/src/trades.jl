@@ -181,7 +181,7 @@ _addfees(net_cost, fees_quote, ::IncreaseOrder) = net_cost + fees_quote
 _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
 function _check_symbol(ai, o, resp)::Bool
-    pyisTrue(get_py(resp, Trf.symbol, @pystr("")) == @pystr(raw(ai))) || begin
+    pyisTrue(get_py(resp, Trf.symbol, @pyconst("")) == @pystr(raw(ai))) || begin
         @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), refusing construction."
         return false
     end
@@ -195,7 +195,7 @@ function _check_type(ai, o, resp)::Bool
 end
 
 function _check_id(ai, o, resp; k=Trf.order)::Bool
-    string(get_py(resp, k, @pystr(""))) == o.id || begin
+    string(get_py(resp, k, @pyconst(""))) == o.id || begin
         @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), refusing construction."
         return false
     end
@@ -203,9 +203,9 @@ end
 
 function _tradeside(resp, o)::Type{<:OrderSide}
     side = get_py(resp, Trf.side, nothing)
-    if pyisTrue(side == @pystr("buy"))
+    if pyisTrue(side == @pyconst("buy"))
         Buy
-    elseif pyisTrue(side == @pystr("sell"))
+    elseif pyisTrue(side == @pyconst("sell"))
         Sell
     else
         orderside(o)

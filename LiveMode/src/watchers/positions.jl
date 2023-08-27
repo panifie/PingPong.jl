@@ -34,7 +34,7 @@ end
 function _w_fetch_positions_func(s, interval; kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
-    @lget! params @pystr("settle") guess_settle(s)
+    @lget! params @pyconst("settle") guess_settle(s)
     if has(exc, :watchPositions)
         f = exc.watchPositions
         (w) -> try
@@ -109,7 +109,7 @@ function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
     _lastfetched!(w, DateTime(0))
 end
 
-_deletek(py, k=@pystr("info")) = haskey(py, k) && py.pop(k)
+_deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     isempty(w.buffer) && return nothing
     _, update = last(w.buffer)

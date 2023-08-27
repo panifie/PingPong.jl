@@ -14,7 +14,7 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol)
     pos isa PyException && return pos
     this_lev = nothing
     for item in pos
-        item_sym = get(item, "symbol", @pystr(""))
+        item_sym = get(item, "symbol", @pyconst(""))
         if Bool(item_sym == @pystr(symbol))
             this_lev = pytofloat(get(item, "leverage", nothing))
             break
@@ -30,7 +30,7 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol)
     end
     resp = pyfetch(exc.setLeverage, lev, symbol)
     resp isa PyException && return resp
-    Bool(get(resp, "code", @pystr("1")) == @pystr("0"))
+    Bool(get(resp, "code", @pyconst("1")) == @pyconst("0"))
 end
 
 function leverage!(exc::Exchange{ExchangeID{:bybit}}, v::Real, sym::AbstractString)

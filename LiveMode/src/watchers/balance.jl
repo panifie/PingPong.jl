@@ -94,7 +94,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     date = @something pytodate(update) now()
     date == w.view.date[] && return nothing
     for (sym, sym_bal) in update.items()
-        (isdict(sym_bal) && haskey(sym_bal, @pystr("free"))) || continue
+        (isdict(sym_bal) && haskey(sym_bal, @pyconst("free"))) || continue
         k = Symbol(sym)
         bal[k] = (;
             total=get_float(sym_bal, "total"),

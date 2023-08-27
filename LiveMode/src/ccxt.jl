@@ -1,20 +1,20 @@
 using .Lang: @ifdebug
-using .Python: @pystr
+using .Python: @pystr, @pyconst
 using .OrderTypes
 const ot = OrderTypes
 
-_ccxtordertype(::LimitOrder) = @pystr "limit"
-_ccxtordertype(::MarketOrder) = @pystr "market"
-_ccxtorderside(::Type{Buy}) = @pystr "buy"
-_ccxtorderside(::Type{Sell}) = @pystr "sell"
-_ccxtorderside(::Union{AnyBuyOrder,Type{<:AnyBuyOrder}}) = @pystr "buy"
-_ccxtorderside(::Union{AnySellOrder,Type{<:AnySellOrder}}) = @pystr "sell"
+_ccxtordertype(::LimitOrder) = @pyconst "limit"
+_ccxtordertype(::MarketOrder) = @pyconst "market"
+_ccxtorderside(::Type{Buy}) = @pyconst "buy"
+_ccxtorderside(::Type{Sell}) = @pyconst "sell"
+_ccxtorderside(::Union{AnyBuyOrder,Type{<:AnyBuyOrder}}) = @pyconst "buy"
+_ccxtorderside(::Union{AnySellOrder,Type{<:AnySellOrder}}) = @pyconst "sell"
 
 ordertype_fromccxt(resp) =
     let v = get_py(resp, "type")
-        if v == @pystr "market"
+        if v == @pyconst "market"
             MarketOrderType
-        elseif v == @pystr "limit"
+        elseif v == @pyconst "limit"
             ordertype_fromtif(resp)
         end
     end
@@ -42,22 +42,36 @@ end
 
 ordertype_fromtif(o::Py) =
     let tif = get_py(o, "timeInForce")
-        if pyisTrue(tif == @pystr("PO"))
+        if pyisTrue(tif == @pyconst("PO"))
             ot.PostOnlyOrderType
-        elseif pyisTrue(tif == @pystr("GTC"))
+        elseif pyisTrue(tif == @pyconst("GTC"))
             ot.GTCOrderType
-        elseif pyisTrue(tif == @pystr("FOK"))
+        elseif pyisTrue(tif == @pyconst("FOK"))
             ot.FOKOrderType
-        elseif pyisTrue(tif == @pystr("IOC"))
+        elseif pyisTrue(tif == @pyconst("IOC"))
+            ot.IOCOrderType
+        end
+    end
+
+using Python.PythonCall: pygetitem, pyeq
+ordertype_fromtif2(o::Py) =
+    let tif = pygetitem(o, "timeInForce", pybuiltins.None)
+        if pyeq(Bool, tif, @pyconst("PO"))
+            ot.PostOnlyOrderType
+        elseif pyeq(Bool, tif, @pyconst("GTC"))
+            ot.GTCOrderType
+        elseif pyeq(Bool, tif, @pyconst("FOK"))
+            ot.FOKOrderType
+        elseif pyeq(Bool, tif, @pyconst("IOC"))
             ot.IOCOrderType
         end
     end
 
 _orderside(o::Py) =
     let v = get_py(o, "side")
-        if pyisTrue(v == @pystr("buy"))
+        if pyisTrue(v == @pyconst("buy"))
             Buy
-        elseif pyisTrue(v == @pystr("sell"))
+        elseif pyisTrue(v == @pyconst("sell"))
             Sell
         end
     end

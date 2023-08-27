@@ -50,4 +50,4 @@ pydicthash(d) =
         return h
     end
 
-export @pystr, pytofloat, pyisnonzero, pydicthash
+export @pystr, @pystr, pytofloat, pyisnonzero, pydicthash

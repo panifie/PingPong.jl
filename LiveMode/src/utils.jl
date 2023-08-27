@@ -2,7 +2,7 @@ using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
 using .Lang: @lget!
-using .Python: @pystr, Py, PyList, @py, pylist, pytuple
+using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
 
@@ -193,7 +193,7 @@ function _open_orders_func!(attrs, exc; open=true)
     else
         fetch_func = get(attrs, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
-        open_str = @pystr("open")
+        open_str = @pyconst("open")
         pred_func = o -> pyisTrue(get_py(o, "status") == open_str)
         pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
@@ -238,7 +238,7 @@ _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 function _cancel_all_orders(ai, orders_f, cancel_f)
     let sym = raw(ai)
         all_orders = _execfunc(orders_f, ai)
-        _pyfilter!(all_orders, o -> pyisTrue(get_py(o, "status") != @pystr("open")))
+        _pyfilter!(all_orders, o -> pyisTrue(get_py(o, "status") != @pyconst("open")))
         if !isempty(all_orders)
             ids = ((get_py(o, "id") for o in all_orders)...,)
             _execfunc(cancel_f, ids; symbol=sym)
@@ -279,7 +279,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     all_orders = _execfunc(orders_f, ai; (isnothing(side) ? () : (; side))...)
     open_orders = (
-        (o for o in all_orders if pyisTrue(get_py(o, "status") == @pystr("open")))...,
+        (o for o in all_orders if pyisTrue(get_py(o, "status") == @pyconst("open")))...,
     )
     if !isempty(open_orders)
         if side ∈ (Buy, Sell)

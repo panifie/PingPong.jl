@@ -1,5 +1,5 @@
 using .Instances: MarginInstance, raw, cash, cash!
-using .Python: PyException, pyisinstance, pybuiltins, @pystr, pytryfloat, pytruth, pyconvert
+using .Python: PyException, pyisinstance, pybuiltins, @pystr, @pyconst, pytryfloat, pytruth, pyconvert
 using .Python.PythonCall: pyisTrue, Py, pyisnone
 using .Misc.Lang: @lget!, Option
 using .Executors.OrderTypes: ByPos
@@ -141,11 +141,11 @@ const Pos =
         )
     )
 
-live_side(v::Py) = get_py(v, "side", @pystr("")).lower()
+live_side(v::Py) = get_py(v, "side", @pyconst("")).lower()
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
-_ccxtisshort(v::Py) = pyisTrue(live_side(v) == @pystr("short"))
-_ccxtislong(v::Py) = pyisTrue(live_side(v) == @pystr("long"))
+_ccxtisshort(v::Py) = pyisTrue(live_side(v) == @pyconst("short"))
+_ccxtislong(v::Py) = pyisTrue(live_side(v) == @pyconst("long"))
 _ccxtposside(v::Py) =
     if _ccxtislong(v)
         Long()
@@ -186,9 +186,9 @@ function get_side(update, p::Option{ByPos}=nothing)
         end
     else
         let side_str = ccxt_side.lower()
-            if pyisTrue(side_str == @pystr("short"))
+            if pyisTrue(side_str == @pyconst("short"))
                 Short()
-            elseif pyisTrue(side_str == @pystr("long"))
+            elseif pyisTrue(side_str == @pyconst("long"))
                 Long()
             else
                 @warn "Position side flag not valid, inferring from position state"

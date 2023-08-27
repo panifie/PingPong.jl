@@ -2,7 +2,7 @@ using Lang: @get, @multiget, @lget!, Option
 using Misc: config, NoMargin, DFT
 using Misc.ConcurrentCollections: ConcurrentDict
 using Instruments: isfiatquote, spotpair
-using Python: @pystr, pyfetch_timeout
+using Python: @pystr, @pyconst, pyfetch_timeout
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
 - `:yes` : Leveraged pairs will not be filtered.

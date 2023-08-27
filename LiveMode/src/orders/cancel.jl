@@ -12,7 +12,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         elseif isnothing(resp)
             true
         elseif pyisinstance(resp, pybuiltins.dict)
-            pyisTrue(get_py(resp, "code") == @pystr("0"))
+            pyisTrue(get_py(resp, "code") == @pyconst("0"))
         else
             false
         end

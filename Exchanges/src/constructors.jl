@@ -6,7 +6,7 @@ using Reexport
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange
 using Ccxt: Ccxt, ccxt_exchange, choosefunc
-using Python: Py, pyconvert, pyfetch, PyDict, PyList, pydict, pyimport, @pystr
+using Python: Py, pyconvert, pyfetch, PyDict, PyList, pydict, pyimport, @pystr, @pyconst
 using Python.PythonCall: pyisnone
 using Data: Data, DataFrame
 using Pbar.Term: RGB, tprint
@@ -252,11 +252,11 @@ macro tickers!(type=nothing, force=false)
                 tickers_cache[k] = let f = first($(exc), :watchTickers, :fetchTickers)
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        let v = pyfetch(f; params=LittleDict("type" => @pystr(tp)))
+                        let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
                             if v isa PyException && Bool(f == $exc.watchTickers)
                                 pyfetch(
                                     $(exc).fetchTickers;
-                                    params=LittleDict("type" => @pystr(tp)),
+                                    params=LittleDict(@pyconst("type") => @pystr(tp)),
                                 )
                             elseif v isa Exception
                                 throw(v)
