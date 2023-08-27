@@ -34,6 +34,7 @@ islive(::Strategy{M}) where {M<:ExecMode} = M == Live
 Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
 Base.nameof(s::Strategy) = nameof(typeof(s))
 universe(s::Strategy) = getfield(s, :universe)
+throttle(s::Strategy) = attr(s, :throttle, Second(5))
 
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
