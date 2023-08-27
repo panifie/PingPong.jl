@@ -26,6 +26,8 @@ include("orders/cancel.jl")
 include("orders/pong.jl")
 include("adhoc/utils.jl")
 include("positions/utils.jl")
+include("positions/sync.jl")
+include("positions/pnl.jl")
 include("positions/pong.jl")
 include("instances.jl")
 include("balance.jl")
@@ -37,3 +39,7 @@ include("watchers/orders.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end
+
+# pong!
+# PositionClose
+# UpdateLeverage
