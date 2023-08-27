@@ -1,4 +1,5 @@
-using Python: pyschedule, pywait_fut, Python, pyisinstance
+using Python: pyschedule, pywait_fut, Python, pyisinstance, pygetattr, @pystr
+using Lang: @lget!
 using Base: with_logger, NullLogger
 using Mocking: @mock, Mocking
 using OrderedCollections: OrderedSet
@@ -72,7 +73,7 @@ function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
         end
     else
         !isempty(e) || throw("Can't access non instantiated exchange object.")
-        getproperty(getfield(e, :py), k)
+        pygetattr(getfield(e, :py), @pystr(k))
     end
 end
 function Base.propertynames(e::E) where {E<:Exchange}
