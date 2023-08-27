@@ -8,7 +8,10 @@ end
 const pyCached = Dict{Any,Py}()
 macro pystr(k)
     s = esc(k)
-    :($__module__.@lget! $pyCached $s pystr($s))
+    v = Ref{Any}()
+    quote
+        isassigned($v) ? $v[] : $v[] = $__module__.@lget! $pyCached $s pystr($s)
+    end
 end
 
 function py_except_name(e::PyException)
