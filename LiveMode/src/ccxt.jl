@@ -62,13 +62,6 @@ _orderside(o::Py) =
         end
     end
 
-_orderfloat(o::Py, k) =
-    let v = get_py(o, k)
-        if pyisinstance(v, pybuiltins.float)
-            pytofloat(v)
-        end
-    end
-
 get_timestamp(py, keys=("timestamp", "lastUpdateTimestamp")) =
     for k in keys
         v = get_py(py, k)
@@ -130,8 +123,15 @@ function isorder_synced(o, ai, resp::Py)
         end
 end
 
+_option_float(o::Py, k) =
+    let v = get_py(o, k)
+        if pyisinstance(v, pybuiltins.float)
+            pytofloat(v)
+        end
+    end
+
 function get_float(resp::Py, k, def, args...; ai)
-    v = _orderfloat(resp, k)
+    v = _option_float(resp, k)
     if isnothing(v)
         def
     else

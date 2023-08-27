@@ -182,21 +182,21 @@ _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
 function _check_symbol(ai, o, resp)::Bool
     pyisTrue(get_py(resp, Trf.symbol, @pystr("")) == @pystr(raw(ai))) || begin
-        @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), aborting."
+        @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), refusing construction."
         return false
     end
 end
 
 function _check_type(ai, o, resp)::Bool
     pyisinstance(resp, pybuiltins.dict) || begin
-        @warn "Invalid trade for order $(raw(ai)), order: $o, aborting."
+        @warn "Invalid trade for order $(raw(ai)), order: $o, refusing construction."
         return false
     end
 end
 
 function _check_id(ai, o, resp; k=Trf.order)::Bool
     string(get_py(resp, k, @pystr(""))) == o.id || begin
-        @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), aborting."
+        @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), refusing construction."
         return false
     end
 end
@@ -213,14 +213,14 @@ function _tradeside(resp, o)::Type{<:OrderSide}
 end
 function _check_side(side, o)::Bool
     side == orderside(o) || begin
-        @warn "Mismatching trade side $side and order side $(orderside(o)), aborting."
+        @warn "Mismatching trade side $side and order side $(orderside(o)), refusing construction."
         return false
     end
 end
 
 function _check_price(s, ai, actual_price)::Bool
     actual_price > ZERO || begin
-        @warn "Trade price can't be zero, aborting! ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), aborting."
+        @warn "Trade price can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), refusing construction."
         return false
     end
 end

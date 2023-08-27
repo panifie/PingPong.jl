@@ -4,8 +4,8 @@ using .Executors: AnyGTCOrder, AnyMarketOrder, AnyIOCOrder, AnyFOKOrder, AnyPost
 
 const LiveOrderState = NamedTuple{
     (:order, :trade_hashes, :update_hash, :average_price),
-    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT},Ref{Bool}},
-}
+    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT}}}
+
 const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
 function active_orders(s::LiveStrategy)

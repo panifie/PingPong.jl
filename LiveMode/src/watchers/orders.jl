@@ -94,6 +94,9 @@ order_update_hash(resp) = begin
     end
 end
 
+_ccxtisstatus(status::String, what) = pyisTrue(@pystr(status) == @pystr(what))
+_ccxtisstatus(resp, statuses::Vararg{String}) = any(x -> _ccxtisstatus(resp, x), statuses)
+_ccxtisstatus(resp, status::String) = pyisTrue(get_py(resp, "status") == @pystr(status))
 _ccxtisopen(resp) = pyisTrue(get_py(resp, "status") == @pystr("open"))
 _ccxtisclosed(resp) = pyisTrue(get_py(resp, "status") == @pystr("closed"))
 

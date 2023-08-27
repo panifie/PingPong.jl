@@ -11,15 +11,12 @@ function create_live_order(
         @warn "trying to create limit order with empty response ($(raw(ai)))"
         return nothing
     end
-    try
-        pyisTrue(get_py(resp, "status") == @pystr("open")) ||
-            get_float(resp, "filled") > ZERO ||
-            begin
-                @warn "Order is not open, and does not appear to be fillled"
-                return nothing
-            end
-    catch
-    end
+    _ccxtisopen(resp) ||
+        get_float(resp, "filled") > ZERO ||
+        begin
+            @warn "Order is not open, and does not appear to be (partially) fillled, refusing construction."
+            return nothing
+        end
     type = let ot = ordertype_fromtif(resp)
         if isnothing(ot)
             t
@@ -29,10 +26,10 @@ function create_live_order(
             Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
         end
     end
-    amount = get_float(resp::Py, "amount", amount, Val(:amount); ai)
-    price = get_float(resp::Py, "price", price, Val(:price); ai)
-    stop = _orderfloat(resp, "stopLossPrice")
-    take = _orderfloat(resp, "takeProfitPrice")
+    amount = get_float(resp, "amount", amount, Val(:amount); ai)
+    price = get_float(resp, "price", price, Val(:price); ai)
+    stop = _option_float(resp, "stopLossPrice")
+    take = _option_float(resp, "takeProfitPrice")
     date = @something pytodate(resp) now()
     id = @something _orderid(resp) begin
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
