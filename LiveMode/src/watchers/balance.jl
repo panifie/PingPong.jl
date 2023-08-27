@@ -105,6 +105,10 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     w.view.date[] = date
 end
 
+function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
+    @lget! s.attrs :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
+end
+
 balance_watcher(s) = s[:live_balance_watcher]
 
 # function _load!(w::Watcher, ::CcxtBalanceVal) end

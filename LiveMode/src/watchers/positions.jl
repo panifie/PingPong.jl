@@ -85,6 +85,12 @@ function ccxt_positions_watcher(
     )
 end
 
+function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
+    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(s; interval, start=true)
+    isstopped(w) && start!(w)
+    w
+end
+
 _position_task!(w) = begin
     f = _tfunc(w)
     @async while isstarted(w)
