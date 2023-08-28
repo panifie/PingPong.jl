@@ -36,7 +36,7 @@ function _lpf(exc, cur)
         precision = 8
         fees = zero(DFT)
     else
-        limits = let l = cur.get("limits", nothing)
+        limits = let l = get(cur, "limits", nothing)
             if isnothing(l)
                 (min=1e-8, max=1e8)
             elseif haskey(l, "amount")
@@ -45,8 +45,8 @@ function _lpf(exc, cur)
                 (min=1e-8, max=1e8)
             end
         end
-        precision = to_num(cur.get("precision"))
-        fees = to_float(cur.get("fee", nothing))
+        precision = to_num(get(cur, "precision", nothing))
+        fees = to_float(get(cur, "fee", nothing))
     end
     (; limits, precision, fees)
 end
@@ -54,9 +54,9 @@ end
 function _cur(exc, sym)
     sym_str = uppercase(string(sym))
     curs = @lget! currenciesCache1Hour exc.id let v = pyfetch(exc.fetchCurrencies)
-       v isa PyException ? exc.currencies : v
+        v isa PyException ? exc.currencies : v
     end
-    isempty(curs) ? nothing : curs.get(sym_str, nothing)
+    isempty(curs) ? nothing : get(curs, sym_str, nothing)
 end
 
 @doc "A `CurrencyCash` contextualizes a `Cash` instance w.r.t. an exchange.

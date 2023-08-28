@@ -94,11 +94,11 @@ order_update_hash(resp) = begin
     end
 end
 
-_ccxtisstatus(status::String, what) = pyisTrue(@pystr(status) == @pystr(what))
+_ccxtisstatus(status::String, what) = pyeq(Bool, @pystr(status), @pystr(what))
 _ccxtisstatus(resp, statuses::Vararg{String}) = any(x -> _ccxtisstatus(resp, x), statuses)
-_ccxtisstatus(resp, status::String) = pyisTrue(get_py(resp, "status") == @pystr(status))
-_ccxtisopen(resp) = pyisTrue(get_py(resp, "status") == @pyconst("open"))
-_ccxtisclosed(resp) = pyisTrue(get_py(resp, "status") == @pyconst("closed"))
+_ccxtisstatus(resp, status::String) = pyeq(Bool, get_py(resp, "status"), @pystr(status))
+_ccxtisopen(resp) = pyeq(Bool, get_py(resp, "status"), @pyconst("open"))
+_ccxtisclosed(resp) = pyeq(Bool, get_py(resp, "status"), @pyconst("closed"))
 
 function handle_orders!(s, ai, orders_byid, orders)
     try

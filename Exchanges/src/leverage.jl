@@ -1,4 +1,4 @@
-using Python: PyException, pyisTrue
+using Python: PyException, pyisTrue, pygetitem, pyeq, @py
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
@@ -9,7 +9,7 @@ _handle_leverage(resp) = begin
         @debug resp
         false
     else
-        pyisTrue(resp.get("code", @pyconst("")) == @pyconst("0"))
+        pyeq(Bool, pygetitem(resp, @pystr("code"), @pystr("")), @pystr("0"))
     end
 end
 

@@ -1,6 +1,7 @@
 using .Instances: MarginInstance, raw, cash, cash!
-using .Python: PyException, pyisinstance, pybuiltins, @pystr, @pyconst, pytryfloat, pytruth, pyconvert
-using .Python.PythonCall: pyisTrue, Py, pyisnone
+using .Python:
+    PyException, pyisinstance, pybuiltins, @pystr, @pyconst, pytryfloat, pytruth, pyconvert, pyeq
+using .Python.PythonCall: pyisTrue, pyeq, Py, pyisnone
 using .Misc.Lang: @lget!, Option
 using .Executors.OrderTypes: ByPos
 using .Executors: committed, marginmode, update_leverage!, liqprice!, update_maintenance!
@@ -34,7 +35,7 @@ using .Instances:
     tier!
 using Base: negate
 
-_issym(py, sym) = pyisTrue(get_py(py, "symbol") == @pystr(sym))
+_issym(py, sym) = pyeq(Bool, get_py(py, "symbol"), @pystr(sym))
 _optposside(ai) =
     let p = position(ai)
         isnothing(p) ? nothing : posside(p)
@@ -85,20 +86,20 @@ function live_position(
 end
 
 pytostring(v) = pytruth(v) ? string(v) : ""
-get_py(v::Py, k) = v.get(@pystr(k))
-get_py(v::Py, k, def) = v.get(@pystr(k), def)
+get_py(v::Py, k) = get(v, @pystr(k), pybuiltins.None)
+get_py(v::Py, k, def) = get(v, @pystr(k), def)
 get_py(v::Py, def, keys::Vararg{String}) = begin
     for k in keys
-        ans = v.get(k)
+        ans = get_py(v, k)
         pyisnone(ans) || (return ans)
     end
     return def
 end
-get_string(v::Py, k) = v.get(@pystr(k)) |> pytostring
-get_float(v::Py, k) = v.get(@pystr(k)) |> pytofloat
-get_bool(v::Py, k) = v.get(@pystr(k)) |> pytruth
+get_string(v::Py, k) = get_py(v, k) |> pytostring
+get_float(v::Py, k) = get_py(v, k) |> pytofloat
+get_bool(v::Py, k) = get_py(v, k) |> pytruth
 get_time(v::Py, k) =
-    let d = v.get(@pystr(k))
+    let d = get_py(v, k)
         @something pyconvert(Option{DateTime}, d) now()
     end
 live_amount(lp::Py) = get_float(lp, "contracts")
@@ -144,8 +145,8 @@ const Pos =
 live_side(v::Py) = get_py(v, "side", @pyconst("")).lower()
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
-_ccxtisshort(v::Py) = pyisTrue(live_side(v) == @pyconst("short"))
-_ccxtislong(v::Py) = pyisTrue(live_side(v) == @pyconst("long"))
+_ccxtisshort(v::Py) = pyeq(Bool, live_side(v), @pyconst("short"))
+_ccxtislong(v::Py) = pyeq(Bool, live_side(v), @pyconst("long"))
 _ccxtposside(v::Py) =
     if _ccxtislong(v)
         Long()
@@ -186,9 +187,9 @@ function get_side(update, p::Option{ByPos}=nothing)
         end
     else
         let side_str = ccxt_side.lower()
-            if pyisTrue(side_str == @pyconst("short"))
+            if pyeq(Bool, side_str, @pyconst("short"))
                 Short()
-            elseif pyisTrue(side_str == @pyconst("long"))
+            elseif pyeq(Bool, side_str, @pyconst("long"))
                 Long()
             else
                 @warn "Position side flag not valid, inferring from position state"
@@ -198,6 +199,4 @@ function get_side(update, p::Option{ByPos}=nothing)
     end
 end
 
-function _ccxt_isposclosed(pos::Py)
-
-end
+function _ccxt_isposclosed(pos::Py) end

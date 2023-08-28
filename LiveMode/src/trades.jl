@@ -88,9 +88,9 @@ end
 
 function _feecost(fee_dict, ai; qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai)))
     cur = get_py(fee_dict, "currency")
-    if pyisTrue(cur == qc_py)
+    if pyeq(Bool, cur, qc_py)
         (_getfee(fee_dict), ZERO)
-    elseif pyisTrue(cur == bc_py)
+    elseif pyeq(Bool, cur, bc_py)
         (ZERO, _getfee(fee_dict))
     else
         (ZERO, ZERO)
@@ -99,7 +99,7 @@ end
 
 # This tries to always convert the fees in quote currency
 # function _feecost_quote(s, ai, bc_price, date, qc_py=@pystr(qc(ai)), bc_py=@pystr(bc(ai)))
-#     if pyisTrue(cur == bc_py)
+#     if pyeq(Bool, cur, bc_py)
 #         _feebysign(rate, cost * bc_price)
 #     else
 #         # Fee currency is neither quote nor base, fetch the price from the candle
@@ -181,7 +181,7 @@ _addfees(net_cost, fees_quote, ::IncreaseOrder) = net_cost + fees_quote
 _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
 function _check_symbol(ai, o, resp)::Bool
-    pyisTrue(get_py(resp, Trf.symbol, @pyconst("")) == @pystr(raw(ai))) || begin
+    pyeq(Bool, get_py(resp, Trf.symbol, @pyconst("")), @pystr(raw(ai))) || begin
         @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), refusing construction."
         return false
     end
@@ -203,9 +203,9 @@ end
 
 function _tradeside(resp, o)::Type{<:OrderSide}
     side = get_py(resp, Trf.side, nothing)
-    if pyisTrue(side == @pyconst("buy"))
+    if pyeq(Bool, side, @pyconst("buy"))
         Buy
-    elseif pyisTrue(side == @pyconst("sell"))
+    elseif pyeq(Bool, side, @pyconst("sell"))
         Sell
     else
         orderside(o)

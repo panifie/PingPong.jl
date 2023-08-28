@@ -8,9 +8,8 @@ end
 const pyCached = Dict{Any,Py}()
 macro pystr(k)
     s = esc(k)
-    v = Ref{Any}()
     quote
-        isassigned($v) ? $v[] : $v[] = $__module__.@lget! $pyCached $s pystr($s)
+        $__module__.@lget! $pyCached $s pystr($s)
     end
 end
 

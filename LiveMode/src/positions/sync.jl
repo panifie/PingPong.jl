@@ -20,7 +20,7 @@ function live_sync_position!(
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = get_py(update, Pos.marginMode)
         pyisnone(mm) ||
-            mm == @pystr(marginmode(pos)) ||
+            pyeq(Bool, mm, @pystr(marginmode(pos))) ||
             @warn "Position margin mode mismatch (local: $(marginmode(pos)))"
     end
 

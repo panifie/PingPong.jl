@@ -12,7 +12,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         elseif isnothing(resp)
             true
         elseif pyisinstance(resp, pybuiltins.dict)
-            pyisTrue(get_py(resp, "code") == @pyconst("0"))
+            pyeq(Bool, get_py(resp, "code"), @pyconst("0"))
         else
             false
         end
@@ -29,7 +29,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         else
             side_str = _ccxtorderside(side)
             for o in open_orders
-                pyisTrue(get_py(o, "side") == side_str) && return false
+                pyeq(Bool, get_py(o, "side"), side_str) && return false
             end
         end
     end

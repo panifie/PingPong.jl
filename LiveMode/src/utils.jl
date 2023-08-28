@@ -194,7 +194,7 @@ function _open_orders_func!(attrs, exc; open=true)
         fetch_func = get(attrs, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
         open_str = @pyconst("open")
-        pred_func = o -> pyisTrue(get_py(o, "status") == open_str)
+        pred_func = o -> pyeq(Bool, get_py(o, "status"), open_str)
         pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
             all_orders = fetch_func(raw(ai); kwargs...)
@@ -279,7 +279,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     all_orders = _execfunc(orders_f, ai; (isnothing(side) ? () : (; side))...)
     open_orders = (
-        (o for o in all_orders if pyisTrue(get_py(o, "status") == @pyconst("open")))...,
+        (o for o in all_orders if pyeq(Bool, get_py(o, "status"), @pyconst("open")))...,
     )
     if !isempty(open_orders)
         if side ∈ (Buy, Sell)
@@ -287,7 +287,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
             side_ids = (
                 (
                     get_py(o, "id") for
-                    o in open_orders if pyisTrue(get_py(o, "side") == side_str)
+                    o in open_orders if pyeq(Bool, get_py(o, "side"), side_str)
                 )...,
             )
             _execfunc(cancel_f, side_ids; symbol=sym)
@@ -349,7 +349,7 @@ function _my_trades_func!(attrs, exc)
 end
 
 _isstrequal(a::Py, b::String) = string(a) == b
-_isstrequal(a::Py, b::Py) = pyisTrue(a == b)
+_isstrequal(a::Py, b::Py) = pyeq(Bool, a, b)
 _ispydict(v) = pyisinstance(v, pybuiltins.dict)
 
 function _order_trades_func!(attrs, exc)

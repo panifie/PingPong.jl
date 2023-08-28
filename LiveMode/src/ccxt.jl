@@ -12,9 +12,9 @@ _ccxtorderside(::Union{AnySellOrder,Type{<:AnySellOrder}}) = @pyconst "sell"
 
 ordertype_fromccxt(resp) =
     let v = get_py(resp, "type")
-        if v == @pyconst "market"
+        if pyeq(Bool, v, @pyconst "market")
             MarketOrderType
-        elseif v == @pyconst "limit"
+        elseif pyeq(Bool, v, @pyconst "limit")
             ordertype_fromtif(resp)
         end
     end
@@ -42,20 +42,6 @@ end
 
 ordertype_fromtif(o::Py) =
     let tif = get_py(o, "timeInForce")
-        if pyisTrue(tif == @pyconst("PO"))
-            ot.PostOnlyOrderType
-        elseif pyisTrue(tif == @pyconst("GTC"))
-            ot.GTCOrderType
-        elseif pyisTrue(tif == @pyconst("FOK"))
-            ot.FOKOrderType
-        elseif pyisTrue(tif == @pyconst("IOC"))
-            ot.IOCOrderType
-        end
-    end
-
-using Python.PythonCall: pygetitem, pyeq
-ordertype_fromtif2(o::Py) =
-    let tif = pygetitem(o, "timeInForce", pybuiltins.None)
         if pyeq(Bool, tif, @pyconst("PO"))
             ot.PostOnlyOrderType
         elseif pyeq(Bool, tif, @pyconst("GTC"))
@@ -69,9 +55,9 @@ ordertype_fromtif2(o::Py) =
 
 _orderside(o::Py) =
     let v = get_py(o, "side")
-        if pyisTrue(v == @pyconst("buy"))
+        if pyeq(Bool, v, @pyconst("buy"))
             Buy
-        elseif pyisTrue(v == @pyconst("sell"))
+        elseif pyeq(Bool, v, @pyconst("sell"))
             Sell
         end
     end
@@ -126,7 +112,7 @@ time_in_force_value(::Exchange, v) = v
 time_in_force_key(::Exchange) = "timeInForce"
 
 function _ccxtisfilled(resp::Py)
-    pyisTrue(get_py(resp, "filled") == get_py(resp, "amount")) &&
+    pyeq(Bool, get_py(resp, "filled"), get_py(resp, "amount")) &&
         iszero(get_float(resp, "remaining"))
 end
 
