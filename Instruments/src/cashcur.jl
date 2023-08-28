@@ -56,27 +56,28 @@ function scaled_string(val, scale=1e0, unit="")
     "$(round(q+r * 1/scale, digits=3, RoundDown))($(unit))"
 end
 compactnum(val::N) where {N<:Number} = begin
-    if iszero(val)
+    av = abs(val)
+    if iszero(av)
         "$val"
-    elseif val < 1e-12
+    elseif av < 1e-12
         @sprintf "%.3e" val
-    elseif val < 1e-9
+    elseif av < 1e-9
         scaled_string(val, 1e-10, "n")
-    elseif val < 1e-6
+    elseif av < 1e-6
         scaled_string(val, 1e-7, "μ")
-    elseif val < 1e-2
+    elseif av < 1e-2
         scaled_string(val, 1e-4, "m")
-    elseif val < 1e3
+    elseif av < 1e3
         "$(round(val, digits=3))"
-    elseif val < 1e6
+    elseif av < 1e6
         scaled_string(val, 1e3, "K")
-    elseif val < 1e9
+    elseif av < 1e9
         scaled_string(val, 1e6, "M")
-    elseif val < 1e12
+    elseif av < 1e12
         scaled_string(val, 1e9, "B")
-    elseif val < 1e15
+    elseif av < 1e15
         scaled_string(val, 1e12, "T")
-    elseif val < 1e18
+    elseif av < 1e18
         scaled_string(val, 1e12, "Q")
     else
         @sprintf "%.3e" val
@@ -86,6 +87,7 @@ end
 compactnum(c::Cash) = compactnum(value(c))
 compactnum(val, n) = split(compactnum(val), ".")[n]
 compactnum(s) = string(s)
+cnum(args...; kwargs...) = compactnum(args...; kwargs...)
 Base.string(c::Cash{C}) where {C} = "$C: $(compactnum(c.value))"
 Base.show(io::IO, c::Cash) = write(io, string(c))
 
@@ -159,7 +161,7 @@ div!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] ÷= v; c)
 mod!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] %= v; c)
 cash!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] = v; c)
 
-export value, cash
+export value, cash, cnum
 
 @doc """Cash should not be edited by a strategy, therefore functions that mutate its value should be
 explicitly imported.
