@@ -1,12 +1,14 @@
 using Misc: MarginMode, WithMargin, Long, Short, PositionSide, ExecAction, HedgedMode
-import Misc: opposite, reset!
+import Misc: opposite, reset!, Misc
 using Instruments.Derivatives: Derivative
 using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 using Lang: @ifdebug
 using Base: negate
-import OrderTypes: isshort, islong
+import OrderTypes: isshort, islong, commit!
 using Misc.Mocking: @mock, Mocking
+import Misc: marginmode
+import Instruments: cash!
 
 const OneVec = Vector{DFT}
 
@@ -129,6 +131,7 @@ isshort(::Position{Short}) = true
 isshort(::Position{Long}) = false
 isshort(::Union{Type{Short},Short}) = true
 isshort(::Union{Type{Long},Long}) = false
+Misc.marginmode(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode} = M()
 function ishedged(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode}
     @mock ishedged(M())
 end
@@ -238,9 +241,9 @@ function maintenance!(po::Position, v)
 end
 
 @doc "Set position cash value."
-cash!(po::Position, v) = cash!(cash(po), v)
+Instruments.cash!(po::Position, v) = cash!(cash(po), v)
 @doc "Set position committed cash value."
-commit!(po::Position, v) = cash!(committed(po), v)
+OrderTypes.commit!(po::Position, v) = cash!(committed(po), v)
 
 @doc "Calc PNL for long position given `current_price` as input."
 function pnl(po::Position{Long}, current_price, amount=cash(po))
