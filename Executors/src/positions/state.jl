@@ -56,7 +56,7 @@ function update_maintenance!(po::Position; ntl=notional(po), mmr=mmr(po))
     maintenance!(po, mm)
 end
 
-@doc "Update position price, notional and cash from a new trade."
+@doc "Update position price, notional and leverage from a new trade."
 function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) where {P}
     # the position cash should already be updated at trade creation
     # so this not-equation should be true since the position is in a stale state
@@ -98,7 +98,9 @@ function isliquidatable(
 end
 
 @doc "Tests if a position should be liquidated at a particular price."
-function isliquidatable(::Strategy{Paper}, ai::MarginInstance, p::PositionSide, date::DateTime)
+function isliquidatable(
+    ::Strategy{<:Union{Paper,Live}}, ai::MarginInstance, p::PositionSide, date::DateTime
+)
     price = lastprice(ai) # pytofloat(ticker!(ai.asset.raw, ai.exchange)["last"])
     _iscrossed(ai, price, p)
 end
