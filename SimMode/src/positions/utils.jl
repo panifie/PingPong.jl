@@ -109,7 +109,7 @@ function liquidate!(
 end
 
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
-function liquidation!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai::MarginInstance, date)
+function liquidation!(s::IsolatedStrategy, ai::MarginInstance, date)
     pos = position(ai)
     isnothing(pos) && return nothing
     @deassert !isopen(opposite(ai, pos))
@@ -118,7 +118,7 @@ function liquidation!(s::IsolatedStrategy{<:Union{Sim,Paper}}, ai::MarginInstanc
 end
 
 function update_position!(
-    s::IsolatedStrategy{<:Union{Paper,Sim}}, ai, t::PositionTrade{P}
+    s::IsolatedStrategy, ai, t::PositionTrade{P}
 ) where {P<:PositionSide}
     # NOTE: Order of calls is important
     po = position(ai, P)
@@ -131,7 +131,7 @@ end
 
 @doc "Updates an isolated position in `Sim` mode from a new trade."
 function position!(
-    s::IsolatedStrategy{<:Union{Paper,Sim}}, ai::MarginInstance, t::PositionTrade{P};
+    s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P}
 ) where {P<:PositionSide}
     @deassert exchangeid(s) == exchangeid(t)
     @deassert t.order.asset == ai.asset
@@ -176,7 +176,6 @@ _checkorders(s) = begin
         end
     end
 end
-
 
 @doc "Updates all open positions in a isolated (non hedged) strategy."
 function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
