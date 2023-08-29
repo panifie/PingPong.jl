@@ -26,7 +26,11 @@ struct ExchangeID{I}
         end
         ExchangeID(pyconvert(Symbol, s))
     end
+    function ExchangeID{sym}() where {sym}
+        ExchangeID(sym)
+    end
 end
+const EIDType = Type{<:ExchangeID}
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
 Base.nameof(::Union{T,Type{T}}) where {T<:ExchangeID} = T.parameters[1]
 Base.show(io::IO, id::ExchangeID) = begin

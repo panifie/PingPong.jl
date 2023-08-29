@@ -8,7 +8,15 @@ include("exchangeid.jl")
 include("exchange.jl")
 
 export Exchange,
-    ExchangeID, ExcPrecisionMode, exchange, exchangeid, exchanges, sb_exchanges, globalexchange!, has
+    ExchangeID,
+    EIDType,
+    ExcPrecisionMode,
+    exchange,
+    exchangeid,
+    exchanges,
+    sb_exchanges,
+    globalexchange!,
+    has
 
 function _doinit()
     waitfunc(Ccxt.isinitialized)
