@@ -1,6 +1,14 @@
 using .Instances: MarginInstance, raw, cash, cash!
 using .Python:
-    PyException, pyisinstance, pybuiltins, @pystr, @pyconst, pytryfloat, pytruth, pyconvert, pyeq
+    PyException,
+    pyisinstance,
+    pybuiltins,
+    @pystr,
+    @pyconst,
+    pytryfloat,
+    pytruth,
+    pyconvert,
+    pyeq
 using .Python.PythonCall: pyisTrue, pyeq, Py, pyisnone
 using .Misc.Lang: @lget!, Option
 using .Executors.OrderTypes: ByPos
@@ -35,7 +43,7 @@ using .Instances:
     tier!
 using Base: negate
 
-_issym(py, sym) = pyeq(Bool, get_py(py, "symbol"), @pystr(sym))
+_ispossym(py, sym, eid::EIDType) = pyeq(Bool, resp_position_symbol(py, eid), @pystr(sym))
 _optposside(ai) =
     let p = position(ai)
         isnothing(p) ? nothing : posside(p)
@@ -43,6 +51,7 @@ _optposside(ai) =
 
 function _force_fetch(s, ai, sym, side; fallback_kwargs)
     resp = fetch_positions(s, ai; fallback_kwargs...)
+    eid = exchangeid(ai)
     pos = if resp isa PyException
         return nothing
     elseif islist(resp)
@@ -50,7 +59,7 @@ function _force_fetch(s, ai, sym, side; fallback_kwargs)
             return nothing
         else
             for this in resp
-                if _ccxtposside(this) == side && _issym(this, sym)
+                if _ccxtposside(this, eid) == side && _ispossym(this, sym, eid)
                     return this
                 end
             end
@@ -58,7 +67,9 @@ function _force_fetch(s, ai, sym, side; fallback_kwargs)
     end
 end
 
-_isold(snap, since) = !isnothing(since) && @something(pytodate(snap), since) < since
+function _isold(snap, since, eid)
+    !isnothing(since) && @something(pytodate(snap, eid), since) < since
+end
 function live_position(
     s::LiveStrategy,
     ai,
@@ -69,43 +80,26 @@ function live_position(
 )
     data = get_positions(s, side)
     sym = raw(ai)
+    eid = exchangeid(ai)
     tup = get(data, sym, nothing)
+    eid = exchangeid(ai)
     if isnothing(tup) && force
         pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
-        if isdict(pos) && _issym(pos, sym)
-            get(positions_watcher(s).attrs, :keep_info, false) || _deletek(pos, "info")
-            date = @something pytodate(pos) now()
+        if isdict(pos) && _ispossym(pos, sym, eid)
+            get(positions_watcher(s).attrs, :keep_info, true) || _deletek(pos, "info")
+            date = @something pytodate(pos, eid) now()
             tup = data[sym] = (date, notify=Base.Threads.Condition(), pos)
         end
     end
-    while !isnothing(tup) && _isold(tup.pos, since)
+    while !isnothing(tup) && _isold(tup.pos, since, eid)
         safewait(tup.notify)
         tup = get(data, sym, nothing)
     end
     tup isa NamedTuple ? tup.pos : nothing
 end
 
-pytostring(v) = pytruth(v) ? string(v) : ""
-get_py(v::Py, k) = get(v, @pystr(k), pybuiltins.None)
-get_py(v::Py, k, def) = get(v, @pystr(k), def)
-get_py(v::Py, def, keys::Vararg{String}) = begin
-    for k in keys
-        ans = get_py(v, k)
-        pyisnone(ans) || (return ans)
-    end
-    return def
-end
-get_string(v::Py, k) = get_py(v, k) |> pytostring
-get_float(v::Py, k) = get_py(v, k) |> pytofloat
-get_bool(v::Py, k) = get_py(v, k) |> pytruth
-get_time(v::Py, k) =
-    let d = get_py(v, k)
-        @something pyconvert(Option{DateTime}, d) now()
-    end
-live_amount(lp::Py) = get_float(lp, "contracts")
-live_entryprice(lp::Py) = get_float(lp, "entryPrice")
-live_mmr(lp::Py, pos) =
-    let v = get_float(lp, "maintenanceMarginPercentage")
+_ccxtmmr(lp::Py, pos, eid) =
+    let v = resp_position_mmr(lp, eid)
         if v > ZERO
             v
         else
@@ -113,75 +107,76 @@ live_mmr(lp::Py, pos) =
         end
     end
 
-const Pos =
-    PosFields = NamedTuple(
-        Symbol(f) => f for f in (
-            "liquidationPrice",
-            "initialMargin",
-            "maintenanceMargin",
-            "collateral",
-            "entryPrice",
-            "timestamp",
-            "datetime",
-            "lastUpdateTimestamp",
-            "additionalMargin",
-            "notional",
-            "contracts",
-            "symbol",
-            "unrealizedPnl",
-            "leverage",
-            "id",
-            "contractSize",
-            "markPrice",
-            "lastPrice",
-            "marginMode",
-            "marginRatio",
-            "side",
-            "hedged",
-            "percentage",
-        )
+const Pos = NamedTuple(
+    Symbol(f) => f for f in (
+        "liquidationPrice",
+        "initialMargin",
+        "maintenanceMargin",
+        "collateral",
+        "entryPrice",
+        "timestamp",
+        "datetime",
+        "lastUpdateTimestamp",
+        "additionalMargin",
+        "notional",
+        "contracts",
+        "symbol",
+        "unrealizedPnl",
+        "leverage",
+        "id",
+        "contractSize",
+        "markPrice",
+        "lastPrice",
+        "marginMode",
+        "marginRatio",
+        "side",
+        "hedged",
+        "percentage",
     )
+)
 
-live_side(v::Py) = get_py(v, "side", @pyconst("")).lower()
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
-_ccxtisshort(v::Py) = pyeq(Bool, live_side(v), @pyconst("short"))
-_ccxtislong(v::Py) = pyeq(Bool, live_side(v), @pyconst("long"))
-_ccxtposside(v::Py) =
-    if _ccxtislong(v)
+function _ccxtisshort(v::Py, eid::EIDType)
+    pyeq(Bool, resp_position_side(v, eid), @pyconst("short"))
+end
+_ccxtislong(v::Py, eid::EIDType) = pyeq(Bool, resp_position_side(v, eid), @pyconst("long"))
+_ccxtposside(v::Py, eid::EIDType) =
+    if _ccxtislong(v, eid)
         Long()
-    elseif _ccxtisshort(v)
+    elseif _ccxtisshort(v, eid)
         Short()
     else
-        _ccxtpnlside(v)
+        _ccxtpnlside(v, eid)
     end
-_ccxtposprice(ai, update) =
-    let lp = get_float(update, Pos.lastPrice)
+function _ccxtposprice(ai, update)
+    eid = exchangeid(ai)
+    lp = resp_position_lastprice(update, eid)
+    if lp <= zero(DFT)
+        lp = resp_position_markprice(update, eid)
         if lp <= zero(DFT)
-            lp = get_float(update, Pos.markPrice)
-            if lp <= zero(DFT)
-                lastprice(ai)
-            else
-                lp
-            end
+            lastprice(ai)
         else
             lp
         end
+    else
+        lp
     end
-
-function _ccxtpnlside(update)
-    upnl = get_float(update, Pos.unrealizedPnl)
-    liqprice = get_float(update, Pos.liquidationPrice)
-    eprice = get_float(update, Pos.entryPrice)
-    ifelse(upnl >= ZERO && liqprice < eprice, Long(), Short())
 end
 
-function get_side(update, p::Option{ByPos}=nothing)
-    ccxt_side = get_py(update, Pos.side)
+function _ccxtpnlside(update, eid::EIDType)
+    unpnl = resp_position_unpnl(update, eid)
+    liqprice = resp_position_liqprice(update, eid)
+    eprice = resp_position_entryprice(update, eid)
+    ifelse(unpnl >= ZERO && liqprice < eprice, Long(), Short())
+end
+
+function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
+    ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
         if isnothing(p)
             @warn "Position side not provided, inferring from position state"
-            _ccxtpnlside(update)
+            _ccxtpnlside(update, eid)
         else
             posside(p)
         end
@@ -193,10 +188,32 @@ function get_side(update, p::Option{ByPos}=nothing)
                 Long()
             else
                 @warn "Position side flag not valid, inferring from position state"
-                _ccxtpnlside(update)
+                _ccxtpnlside(update, eid)
             end
         end
     end
 end
 
-function _ccxt_isposclosed(pos::Py) end
+function _ccxt_isposopen(pos::Py, eid::EIDType)
+    c = resp_position_contracts(pos, eid) > ZERO
+    i = !iszero(resp_position_initial_margin(pos, eid))
+    n = !iszero(resp_position_notional(pos, eid))
+    p = !iszero(resp_position_unpnl(pos, eid))
+    l = !iszero(resp_position_liqprice(pos, eid))
+    if c && !(i && n && p && l)
+        @warn "Position state dirty, contracts: $c > 0, but margin: $i, notional: $n, pnl: $p, liqprice: $l"
+    end
+    c
+end
+
+function _ccxt_isposclosed(pos::Py, eid::EIDType)
+    c = iszero(resp_position_contracts(pos, eid))
+    i = !iszero(resp_position_initial_margin(pos, eid))
+    n = !iszero(resp_position_notional(pos, eid))
+    p = !iszero(resp_position_unpnl(pos, eid))
+    l = !iszero(resp_position_liqprice(pos, eid))
+    if c && (i || n || p || l)
+        @warn "Position state dirty, contracts: $c == 0, but margin: $i, notional: $n, pnl: $p, liqprice: $l"
+    end
+    c
+end

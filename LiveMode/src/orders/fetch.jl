@@ -1,10 +1,11 @@
 function live_order_byid(s::LiveStrategy, ai; resp)
-    id = get_string(resp, "id")
+    eid = exchangeid(ai)
+    id = resp_order_id(resp, eid, String)
     if isempty(id)
         @warn "Missing order id when trying to fetch an order from ($(raw(ai))@$(nameof(s)))"
         return nothing
     end
-    status = get_py(resp, "status")
+    status = resp_order_status(resp, eid)
     status_open = _ccxtisstatus("open", status)
     fetch_resp = if status_open
         fetch_open_orders(s, ai; ids=(id,))
@@ -14,7 +15,7 @@ function live_order_byid(s::LiveStrategy, ai; resp)
     function _byid(list_resp)
         if islist(fetch_resp) && !isempty(fetch_resp)
             for o in list_resp
-                if get_string(o, "id") == id
+                if resp_order_id(o, eid, String) == id
                     return o
                 end
             end

@@ -13,13 +13,15 @@ function _check_and_filter(resp; ai, since, kind="")
     else
         out = pylist()
         for t in resp
-            _timestamp(t) >= since && out.append(t)
+            _timestamp(t, exchangeid(ai)) >= since && out.append(t)
         end
         out
     end
 end
 
-_timestamp(v) = pyconvert(Int, get_py(v, "timestamp", 0)) |> TimeTicks.dtstamp
+function _timestamp(v, eid::EIDType)
+    pyconvert(Int, resp_trade_timestamp(v, eid)) |> TimeTicks.dtstamp
+end
 
 function live_my_trades(s::LiveStrategy, ai; since=nothing, kwargs...)
     resp = fetch_my_trades(s, ai; since, kwargs...)
@@ -31,26 +33,25 @@ function live_order_trades(s::LiveStrategy, ai, id; since=nothing, kwargs...)
     _check_and_filter(resp; ai, since, kind="order")
 end
 
-const Trf =
-    TradeField = NamedTuple(
-        Symbol(f) => f for f in (
-            "id",
-            "timestamp",
-            "datetime",
-            "symbol",
-            "order",
-            "type",
-            "side",
-            "takerOrMaker",
-            "price",
-            "amount",
-            "cost",
-            "fee",
-            "fees",
-            "currency",
-            "rate",
-        )
+const Trf = NamedTuple(
+    Symbol(f) => f for f in (
+        "id",
+        "timestamp",
+        "datetime",
+        "symbol",
+        "order",
+        "type",
+        "side",
+        "takerOrMaker",
+        "price",
+        "amount",
+        "cost",
+        "fee",
+        "fees",
+        "currency",
+        "rate",
     )
+)
 
 function check_limits(v, ai, lim_sym)
     lims = ai.limits
@@ -81,12 +82,14 @@ function anyprice(cur::String, sym, exc)
 end
 
 _feebysign(rate, cost) = rate >= ZERO ? cost : -cost
-_getfee(fee_dict, cost=get_float(fee_dict, "cost")) = begin
+function _getfee(fee_dict, cost=get_float(fee_dict, "cost"))
     rate = get_float(fee_dict, "rate")
     _feebysign(rate, cost)
 end
 
-function _feecost(fee_dict, ai; qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai)))
+function _feecost(
+    fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai))
+)
     cur = get_py(fee_dict, "currency")
     if pyeq(Bool, cur, qc_py)
         (_getfee(fee_dict), ZERO)
@@ -154,17 +157,18 @@ end
 
 market(ai) = exchange(ai).markets[raw(ai)]
 function _tradefees(resp, side, ai; actual_amount, net_cost)
-    v = get_py(resp, Trf.fee)
+    eid = exchangeid(ai)
+    v = resp_trade_fee(resp, eid)
     if pyisinstance(v, pybuiltins.dict)
-        return _feecost(v, ai)
+        return _feecost(v, ai, eid)
     end
-    v = get_py(resp, Trf.fees)
+    v = resp_trade_fees(resp, eid)
     fees_quote, fees_base = ZERO, ZERO
     if pyisinstance(v, pybuiltins.list) && !isempty(v)
         qc_py = @pystr(qc(ai))
         bc_py = @pystr(bc(ai))
         for fee in v
-            (q, b) = _feecost(fee, ai; qc_py, bc_py)
+            (q, b) = _feecost(fee, ai, eid; qc_py, bc_py)
             fees_quote += q
             fees_base += b
         end
@@ -180,37 +184,27 @@ end
 _addfees(net_cost, fees_quote, ::IncreaseOrder) = net_cost + fees_quote
 _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
-function _check_symbol(ai, o, resp)::Bool
-    pyeq(Bool, get_py(resp, Trf.symbol, @pyconst("")), @pystr(raw(ai))) || begin
-        @warn "Mismatching trade for $(raw(ai))($(get_py(resp, Trf.symbol))), order: $(o.asset), refusing construction."
+function check_symbol(ai, o, resp, eid::EIDType; getter=resp_trade_symbol)::Bool
+    pyeq(Bool, getter(resp, eid), @pystr(raw(ai))) || begin
+        @warn "Mismatching trade for $(raw(ai))($(resp_trade_symbol(resp, eid))), order: $(o.asset), refusing construction."
         return false
     end
 end
 
-function _check_type(ai, o, resp)::Bool
-    pyisinstance(resp, pybuiltins.dict) || begin
-        @warn "Invalid trade for order $(raw(ai)), order: $o, refusing construction."
+function check_type(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
+    pyisinstance(resp, type) || begin
+        @warn "Invalid response for order $(raw(ai)), order: $o, refusing construction."
         return false
     end
 end
 
-function _check_id(ai, o, resp; k=Trf.order)::Bool
-    string(get_py(resp, k, @pyconst(""))) == o.id || begin
-        @warn "Mismatching trade order id $(raw(ai))($(get_py(resp, Trf.order))), order: $(o.id), refusing construction."
+function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_id)::Bool
+    string(getter(resp, eid)) == o.id || begin
+        @warn "Mismatching $k key $(raw(ai))($(resp_trade_order(resp, eid))), order: $(o.id), refusing construction."
         return false
     end
 end
 
-function _tradeside(resp, o)::Type{<:OrderSide}
-    side = get_py(resp, Trf.side, nothing)
-    if pyeq(Bool, side, @pyconst("buy"))
-        Buy
-    elseif pyeq(Bool, side, @pyconst("sell"))
-        Sell
-    else
-        orderside(o)
-    end
-end
 function _check_side(side, o)::Bool
     side == orderside(o) || begin
         @warn "Mismatching trade side $side and order side $(orderside(o)), refusing construction."
@@ -218,9 +212,21 @@ function _check_side(side, o)::Bool
     end
 end
 
-function _check_price(s, ai, actual_price)::Bool
+function _check_price(s, ai, actual_price, o; resp)::Bool
+    isapprox(actual_price, o.price; rtol=0.05) ||
+        o isa AnyMarketOrder ||
+        begin
+            @warn "Trade price far off from order price, order: $(o.price), exchange: $(actual_price) ($(nameof(s)) @ ($(raw(ai)))"
+        end
     actual_price > ZERO || begin
-        @warn "Trade price can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(get_string(resp, "id"))), refusing construction."
+        @warn "Trade price can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
+        return false
+    end
+end
+
+function _check_amount(s, ai, actual_amount; resp)::Bool
+    actual_amount > ZERO || begin
+        @warn "Trade amount can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
         return false
     end
 end
@@ -231,20 +237,22 @@ function _warn_cash(s, ai, o; actual_amount)
 end
 
 function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, kwargs...)
+    eid = exchangeid(ai)
     trade isa Trade && return trade
-    _check_type(ai, o, resp) || return nothing
-    _check_symbol(ai, o, resp) || return nothing
-    _check_id(ai, o, resp) || return nothing
-    side = _tradeside(resp, o)
+    check_type(ai, o, resp, eid) || return nothing
+    check_symbol(ai, o, resp, eid) || return nothing
+    check_id(ai, o, resp, eid) || return nothing
+    side = _ccxt_sidetype(resp, o, eid)
     _check_side(side, o) || return nothing
-    actual_amount = get_float(resp, Trf.amount)
-    actual_price = get_float(resp, Trf.price)
-    _check_price(s, ai, actual_price) || return nothing
+    actual_amount = resp_trade_amount(resp, eid)
+    actual_price = resp_trade_price(resp, eid)
+    _check_price(s, ai, actual_price, o; resp) || return nothing
     check_limits(actual_price, ai, :price)
     if actual_amount <= ZERO
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost."
-        net_cost = get_float(resp, "cost")
+        net_cost = resp_trade_cost(resp, eid)
         actual_amount = net_cost / actual_price
+        _check_amount(s, ai, actual_amount; resp) || return nothing
     else
         net_cost = cost(actual_price, actual_amount)
     end
@@ -252,7 +260,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     check_limits(actual_amount, ai, :amount)
 
     _warn_cash(s, ai, o; actual_amount)
-    date = @something pytodate(resp) now()
+    date = @something pytodate(resp, eid) now()
 
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)

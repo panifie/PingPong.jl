@@ -1,4 +1,5 @@
 function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=nothing)
+    eid = exchangeid(ai)
     (func, kwargs) = if all
         (cancel_all_orders, (;))
     else
@@ -12,7 +13,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         elseif isnothing(resp)
             true
         elseif pyisinstance(resp, pybuiltins.dict)
-            pyeq(Bool, get_py(resp, "code"), @pyconst("0"))
+            pyeq(Bool, resp_code(resp, eid), @pyconst("0"))
         else
             false
         end
@@ -29,7 +30,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         else
             side_str = _ccxtorderside(side)
             for o in open_orders
-                pyeq(Bool, get_py(o, "side"), side_str) && return false
+                pyeq(Bool, resp_order_side(o, eid), side_str) && return false
             end
         end
     end

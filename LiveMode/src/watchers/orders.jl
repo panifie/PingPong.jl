@@ -4,7 +4,7 @@ using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
 # using .OrderTypes: OrderFailed
 
-function watch_orders!(s::LiveStrategy, ai; fetch_kwargs=())
+function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     _still_running(asset_orders_task(s, ai)) && return nothing
     exc = exchange(ai)
     interval = st.attr(s, :throttle, Second(5))
@@ -13,20 +13,19 @@ function watch_orders!(s::LiveStrategy, ai; fetch_kwargs=())
         f = if has(exc, :watchOrders)
             let sym = raw(ai), func = exc.watchOrders
                 (flag, coro_running) -> if flag[]
-                    pyfetch(func, sym; coro_running, fetch_kwargs...)
+                    pyfetch(func, sym; coro_running, exc_kwargs...)
                 end
             end
         else
-            _, other_fetch_kwargs = splitkws(:since; kwargs=fetch_kwargs)
+            _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
             since = Ref(now())
             since_start = since[]
+            eid = exchangeid(ai)
             () -> begin
                 since[] == since_start || sleep(interval)
-                resp = fetch_orders(
-                    s, ai; since=dtstamp(since[]) + 1, other_fetch_kwargs...
-                )
+                resp = fetch_orders(s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...)
                 if !isnothing(resp) && islist(resp) && length(resp) > 0
-                    since[] = @something pytodate(resp[-1]) now()
+                    since[] = @something pytodate(resp[-1], eid) now()
                 end
                 resp
             end
@@ -56,20 +55,20 @@ end
 asset_orders_task(tasks) = get(tasks, :orders_task, nothing)
 asset_orders_task(s, ai) = asset_orders_task(asset_tasks(s, ai).byname)
 
-_order_kv_hash(resp) = begin
-    p1 = get_py(resp, "price")
-    p2 = get_py(resp, "timestamp")
-    p3 = get_py(resp, "stopPrice")
-    p4 = get_py(resp, "triggerPrice")
-    p5 = get_py(resp, "amount")
-    p6 = get_py(resp, "cost")
-    p7 = get_py(resp, "average")
-    p8 = get_py(resp, "filled")
-    p9 = get_py(resp, "remaining")
-    p10 = get_py(resp, "status")
-    p10 = get_py(resp, "stopLossPrice")
-    p10 = get_py(resp, "takeProfitPrice")
-    p11 = get_py(resp, "lastUpdateTimeStamp")
+function _order_kv_hash(resp, eid::EIDType)
+    p1 = resp_order_price(resp, eid, Py)
+    p2 = resp_order_timestamp(resp, eid, Py)
+    p3 = resp_order_stop_price(resp, eid)
+    p4 = resp_order_trigger_price(resp, eid)
+    p5 = resp_order_amount(resp, eid, Py)
+    p6 = resp_order_cost(resp, eid, Py)
+    p7 = resp_order_average(resp, eid, Py)
+    p8 = resp_order_filled(resp, eid, Py)
+    p9 = resp_order_remaining(resp, eid, Py)
+    p10 = resp_order_status(resp, eid)
+    p10 = resp_order_loss_price(resp, eid)
+    p10 = resp_order_profit_price(resp, eid)
+    p11 = resp_order_lastupdate(resp, eid)
     hash((p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
 end
 
@@ -80,12 +79,12 @@ function stop_watch_orders!(s::LiveStrategy, ai)
     end
 end
 
-order_update_hash(resp) = begin
-    last_update = get_py(resp, "lastUpdateTimestamp")
+order_update_hash(resp, eid) = begin
+    last_update = resp_order_lastupdate(resp, eid)
     if pyisnone(last_update)
-        info = get_py(resp, "info")
+        info = resp_order_info(resp, eid)
         if pyisnone(info)
-            _order_kv_hash(resp)
+            _order_kv_hash(resp, eid)
         else
             pydicthash(info)
         end
@@ -94,17 +93,12 @@ order_update_hash(resp) = begin
     end
 end
 
-_ccxtisstatus(status::String, what) = pyeq(Bool, @pystr(status), @pystr(what))
-_ccxtisstatus(resp, statuses::Vararg{String}) = any(x -> _ccxtisstatus(resp, x), statuses)
-_ccxtisstatus(resp, status::String) = pyeq(Bool, get_py(resp, "status"), @pystr(status))
-_ccxtisopen(resp) = pyeq(Bool, get_py(resp, "status"), @pyconst("open"))
-_ccxtisclosed(resp) = pyeq(Bool, get_py(resp, "status"), @pyconst("closed"))
-
 function handle_orders!(s, ai, orders_byid, orders)
     try
         cond = task_local_storage(:notify)
+        eid = exchangeid(ai)
         @sync for resp in orders
-            id = get_string(resp, "id")
+            id = resp_order_id(resp, eid, String)
             if isempty(id)
                 @warn "Missing order id"
                 continue
@@ -129,7 +123,8 @@ function handle_orders!(s, ai, orders_byid, orders)
                                 if hasmytrades(exchange(ai)) && (
                                     (
                                         !isempty(order_trades) &&
-                                        last(order_trades).date < pytodate(resp)
+                                        last(order_trades).date <
+                                        pytodate(resp, exchangeid(ai))
                                     ) || !isorder_synced(state.order, ai, resp)
                                 )
                                     waitfortrade(s, ai, state.order; waitfor=Second(10))
@@ -140,7 +135,9 @@ function handle_orders!(s, ai, orders_byid, orders)
                                         s,
                                         state.order,
                                         ai;
-                                        err=OrderFailed(get_string(resp, "status")),
+                                        err=OrderFailed(
+                                            resp_order_status(resp, eid, String)
+                                        ),
                                     )
                                 end
                                 delete!(orders_byid, id)
@@ -174,26 +171,27 @@ function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
         @error "Tried to execute a trade over a closed order ($(o.id))"
         return nothing
     end
-    _check_type(ai, o, resp) || return nothing
-    _check_symbol(ai, o, resp) || return nothing
-    _check_id(ai, o, resp; k=Trf.id) || return nothing
-    side = _tradeside(resp, o)
+    eid = exchangeid(ai)
+    check_type(ai, o, resp, eid) || return nothing
+    check_symbol(ai, o, resp, eid) || return nothing
+    check_id(ai, o, resp, eid; k=Trf.id) || return nothing
+    side = _ccxt_sidetype(resp, o, eid)
     _check_side(side, o) || return nothing
-    new_filled = get_float(resp, "filled")
+    new_filled = resp_order_filled(resp, eid)
     prev_filled = filled_amount(o)
     actual_amount = new_filled - prev_filled
     ltxzero(ai, actual_amount, Val(:amount)) && return nothing
     prev_cost = state.average_price[] * prev_filled
-    (net_cost, actual_price) = let ap = get_float(resp, "average_price")
+    (net_cost, actual_price) = let ap = resp_order_average(resp, eid)
         if ap > zero(ap)
-            net_cost = let c = get_float(resp, "cost")
+            net_cost = let c = resp_order_cost(resp, eid)
                 iszero(c) ? ap * actual_amount : c
             end
             this_price = (ap - prev_cost) / actual_amount
             state.average_price[] = ap
             (net_cost, this_price)
         else
-            this_cost = get_float(resp, "cost")
+            this_cost = resp_order_cost(resp, eid)
             if iszero(this_cost)
                 @error "Cannot emulate trade $(raw(ai)) because exchange ($(nameof(exchange(ai)))) doesn't provide either `average` or `cost` order fields."
                 (ZERO, ZERO)
@@ -210,13 +208,13 @@ function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
             end
         end
     end
-    _check_price(s, ai, actual_price) || return nothing
+    _check_price(s, ai, actual_price, o; resp) || return nothing
     check_limits(actual_price, ai, :price) || return nothing
     check_limits(net_cost, ai, :cost) || return nothing
     check_limits(actual_amount, ai, :amount) || return nothing
 
     _warn_cash(s, ai, o; actual_amount)
-    date = @something pytodate(resp) now()
+    date = @something pytodate(resp, eid) now()
     fees_quote, fees_base = _tradefees(
         resp, orderside(o), ai; actual_amount=actual_amount, net_cost=net_cost
     )

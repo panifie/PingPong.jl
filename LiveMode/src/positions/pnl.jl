@@ -1,10 +1,11 @@
 function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=true)
     pside = posside(p)
-    lp = live_position(s, ai::MarginInstance, pside)
+    eid = exchangeid(ai)
+    lp = live_position(s, ai, pside)
     pos = position(ai, p)
-    pnl = get_float(lp, Pos.unrealizedPnl)
+    pnl = resp_position_unpnl(lp, eid)
     if iszero(pnl)
-        amount = get_float(lp, "contracts")
+        amount = resp_position_contracts(lp, eid)
         function dowarn(a, b)
             @warn "Position amount for $(raw(ai)) unsynced from exchange $(nameof(exchange(ai))) ($a != $b), resyncing..."
         end
@@ -14,7 +15,7 @@ function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=tru
                 verbose && dowarn(amount, abs(cash(pos).value))
                 resync = true
             end
-            ep = live_entryprice(lp)
+            ep = resp_position_entryprice(lp, eid)
             if !isapprox(ep, entryprice(pos))
                 verbose && dowarn(amount, entryprice(pos))
                 resync = true

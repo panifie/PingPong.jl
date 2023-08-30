@@ -56,12 +56,12 @@ function live_send_order(
     resp = create_order(s, sym, args...; side, type, price, amount, params)
     while resp isa Exception && retries > 0
         retries -= 1
-        resp = create_order(s, sym, args...; kwargs...)
+        resp = create_order(s, sym, args...; side, type, price, amount, params)
     end
     if resp isa PyException
         @warn "Couldn't create order $(sym) on $(nameof(exchange(ai))) $(resp)"
         return nothing
     end
-    pyisnone(get_py(resp, "id")) && return nothing
+    pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing
     resp
 end

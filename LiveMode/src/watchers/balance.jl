@@ -1,6 +1,6 @@
 using Watchers
 using Watchers: default_init
-using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _lastfetched!, _lastfetched
+using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Exchanges.Python: @py
@@ -91,7 +91,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     _, update = last(w.buffer)
     bal = w.view.balance
     isdict(update) || return nothing
-    date = @something pytodate(update) now()
+    date = @something pytodate(update, exchangeid(_exc(w))) now()
     date == w.view.date[] && return nothing
     for (sym, sym_bal) in update.items()
         (isdict(sym_bal) && haskey(sym_bal, @pyconst("free"))) || continue

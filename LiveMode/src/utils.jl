@@ -2,7 +2,7 @@ using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
 using .Lang: @lget!
-using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple
+using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
 
@@ -140,13 +140,14 @@ end
 
 function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
     symbol = raw(ai)
+    eid = exchangeid(ai)
     resp = _execfunc(fetch_func; symbol, kwargs...)
     notside = let sides = if side == Both
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
             (_ccxtorderside(opposite(side)),)
         end |> pytuple
-        (o) -> let s = get_py(o, "side")
+        (o) -> let s = resp_order_side(o, eid)
             @py s ∉ sides
         end
     end
@@ -158,7 +159,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     else
         let ids_set = Set(ids)
-            (o) -> (get_string(o, "id") ∉ ids_set || notside(o))
+            (o) -> (resp_order_id(o, eid, String) ∉ ids_set || notside(o))
         end
     end
     resp isa PyException && throw(resp)
@@ -194,7 +195,8 @@ function _open_orders_func!(attrs, exc; open=true)
         fetch_func = get(attrs, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
         open_str = @pyconst("open")
-        pred_func = o -> pyeq(Bool, get_py(o, "status"), open_str)
+        eid = typeof(exchangeid(exc))
+        pred_func = o -> pyeq(Bool, resp_order_status(o, eid), open_str)
         pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
             all_orders = fetch_func(raw(ai); kwargs...)
@@ -207,27 +209,28 @@ function _open_orders_func!(attrs, exc; open=true)
 end
 
 _syms(ais) = ((raw(ai) for ai in ais)...,)
-function _filter_positions(out, side::Union{Hedged,PositionSide}=Hedged())
+function _filter_positions(out, eid::EIDType, side::Union{Hedged,PositionSide}=Hedged())
     if (@something side Hedged()) == Hedged()
         out
     elseif isshort(side) || islong(side)
         side_str = @pystr(_ccxtposside(side))
-        _pyfilter!(out, (o) -> pyisTrue(get_py(o, "side") != side_str))
+        _pyfilter!(out, (p) -> pyne(Bool, resp_position_side(p, eid), side_str))
     end
 end
 
 function _positions_func!(attrs, exc)
+    eid = typeof(exc.id)
     attrs[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), kwargs...) ->
             let out = pyfetch(exc.fetchPositions, _syms(ais); kwargs...)
-                _filter_positions(out, side)
+                _filter_positions(out, eid, side)
             end
     else
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
             @sync for ai in ais
                 @async out.append(pyfetch(exc.fetchPosition, raw(ai); kwargs...))
             end
-            _filter_positions(out, side)
+            _filter_positions(out, eid, side)
         end
     end
 end
@@ -236,13 +239,13 @@ _execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
 _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 
 function _cancel_all_orders(ai, orders_f, cancel_f)
-    let sym = raw(ai)
-        all_orders = _execfunc(orders_f, ai)
-        _pyfilter!(all_orders, o -> pyisTrue(get_py(o, "status") != @pyconst("open")))
-        if !isempty(all_orders)
-            ids = ((get_py(o, "id") for o in all_orders)...,)
-            _execfunc(cancel_f, ids; symbol=sym)
-        end
+    sym = raw(ai)
+    eid = exchangeid(ai)
+    all_orders = _execfunc(orders_f, ai)
+    _pyfilter!(all_orders, o -> pyne(Bool, resp_order_status(o, eid), @pyconst("open")))
+    if !isempty(all_orders)
+        ids = ((resp_order_id(o, eid) for o in all_orders)...,)
+        _execfunc(cancel_f, ids; symbol=sym)
     end
 end
 function _cancel_all_orders_single(ai, orders_f, cancel_f)
@@ -277,22 +280,25 @@ end
 
 function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
+    eid = exchangeid(ai)
     all_orders = _execfunc(orders_f, ai; (isnothing(side) ? () : (; side))...)
     open_orders = (
-        (o for o in all_orders if pyeq(Bool, get_py(o, "status"), @pyconst("open")))...,
+        (
+            o for o in all_orders if pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
+        )...,
     )
     if !isempty(open_orders)
         if side ∈ (Buy, Sell)
             side_str = _ccxtorderside(side)
             side_ids = (
                 (
-                    get_py(o, "id") for
-                    o in open_orders if pyeq(Bool, get_py(o, "side"), side_str)
+                    resp_order_id(o, eid) for
+                    o in open_orders if pyeq(Bool, resp_order_side(o, eid), side_str)
                 )...,
             )
             _execfunc(cancel_f, side_ids; symbol=sym)
         else
-            orders_ids = ((get_py(o, "id") for o in open_orders)...,)
+            orders_ids = ((resp_order_id(o, eid) for o in open_orders)...,)
             _execfunc(cancel_f, orders_ids; symbol=sym)
         end
     end
@@ -322,11 +328,11 @@ function _create_order_func!(attrs, exc)
         (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
 end
 
-function _ordertrades(resp, isid=(x) -> length(x) > 0)
+function _ordertrades(resp, exc, isid=(x) -> length(x) > 0)
     (pyisnone(resp) || resp isa PyException || isempty(resp)) && return nothing
     out = pylist()
     for o in resp
-        id = get_py(o, "order")
+        id = resp_trade_order(o, typeof(exc.id))
         (pyisinstance(id, pybuiltins.str) && isid(id)) && out.append(o)
     end
     out
@@ -369,13 +375,13 @@ function _order_trades_func!(attrs, exc)
                                 # the fetch orders function if it is closed
                                 ords = _execfunc(o_closed_func, ai; ids=(id,))
                             end
-                            pytodate(ords[0])
+                            pytodate(ords[0], exchangeid(ai))
                         catch
                             now()
                         end
                     end) |> dtstamp) - 1
             let resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
-                _ordertrades(resp, ((x) -> string(x) == id))
+                _ordertrades(resp, exc, ((x) -> string(x) == id))
             end
         end
     end

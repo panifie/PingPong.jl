@@ -1,6 +1,6 @@
 using Watchers
 using Watchers: default_init
-using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _lastfetched!, _lastfetched
+using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Lang: splitkws, safenotify, safewait
@@ -58,7 +58,7 @@ function ccxt_positions_watcher(
     interval=Second(5),
     wid="ccxt_positions",
     buffer_capacity=10,
-    keep_info=false,
+    keep_info=true,
     start=true,
     kwargs...,
 )
@@ -86,7 +86,9 @@ function ccxt_positions_watcher(
 end
 
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
-    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(s; interval, start=true)
+    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(
+        s; interval, start=true
+    )
     isstopped(w) && start!(w)
     w
 end
@@ -122,13 +124,14 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     data = w.view
     islist(update) || return nothing
     keep_info = w[:keep_info]
+    eid = exchangeid(_exc(w))
     for pos in update
         isdict(pos) || continue
-        sym = get_py(pos, "symbol") |> string
-        side = get_side(pos)
+        sym = resp_position_symbol(pos, eid, String)
+        side = posside_fromccxt(pos, eid)
         side_dict = getproperty(data, ifelse(islong(side), :long, :short))
         prev = get(side_dict, sym, nothing)
-        date = @something pytodate(pos) now()
+        date = @something pytodate(pos, eid) now()
         pos_tuple = if isnothing(prev)
             (; date, notify=Base.Threads.Condition(), pos)
         elseif prev.date < date

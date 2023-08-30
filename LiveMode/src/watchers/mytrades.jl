@@ -4,7 +4,7 @@ using .Python: pydicthash
 
 hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
 _still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
-function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
+function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai).byname
     _still_running(tradestask(tasks)) && return nothing
     exc = exchange(ai)
@@ -15,19 +15,20 @@ function watch_trades!(s::LiveStrategy, ai; fetch_kwargs=())
         f = if has(exc, :watchMyTrades)
             let sym = raw(ai), func = exc.watchMyTrades
                 (flag, coro_running) -> if flag[]
-                    pyfetch(func, sym; coro_running, fetch_kwargs...)
+                    pyfetch(func, sym; coro_running, exc_kwargs...)
                 end
             end
         else
-            _, other_fetch_kwargs = splitkws(:since; kwargs=fetch_kwargs)
+            _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
             since = Ref(DateTime(0))
+            eid = exchangeid(ai)
             () -> begin
                 since[] == DateTime(0) || sleep(interval)
                 resp = fetch_my_trades(
-                    s, ai; since=dtstamp(since[]) + 1, other_fetch_kwargs...
+                    s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
                 )
                 if !isnothing(resp) && islist(resp) && length(resp) > 0
-                    since[] = @something pytodate(resp[-1]) now()
+                    since[] = @something pytodate(resp[-1], eid) now()
                 end
                 resp
             end
@@ -64,22 +65,22 @@ function ispyresult_error(e)
     ispyexception(e, Python.gpa.pyaio.InvalidStateError)
 end
 
-_trade_kv_hash(resp) = begin
-    p1 = get_py(resp, "price")
-    p2 = get_py(resp, "timestamp")
-    p3 = get_py(resp, "amount")
-    p4 = get_py(resp, "side")
-    p5 = get_py(resp, "type")
-    p6 = get_py(resp, "takerOrMaker")
+_trade_kv_hash(resp, eid::EIDType) = begin
+    p1 = resp_trade_price(resp, eid, Py)
+    p2 = resp_trade_timestamp(resp, eid)
+    p3 = resp_trade_amount(resp, eid, Py)
+    p4 = resp_trade_side(resp, eid)
+    p5 = resp_trade_type(resp, eid)
+    p6 = resp_trade_tom(resp, eid)
     hash((p1, p2, p3, p4, p5, p6))
 end
 
-function trade_hash(resp)
-    id = get_py(resp, "id")
+function trade_hash(resp, eid)
+    id = resp_trade_id(resp, eid)
     if pyisnone(id)
-        info = get_py(resp, "info")
+        info = resp_trade_info(resp, eid)
         if pyisnone(info)
-            _trade_kv_hash(resp)
+            _trade_kv_hash(resp, eid)
         else
             pydicthash(info)
         end
@@ -98,18 +99,24 @@ function get_order_state(orders_byid, id; waitfor=Second(10))
     )
 end
 
+# _asnum(resp, k) =
+#     let s = get_string(resp, k)
+#         @something tryparse(DFT, filter(!ispunct, s)) zero(DFT)
+#     end
+
 function handle_trades!(s, ai, orders_byid, trades)
     try
         cond = task_local_storage(:notify)
+        eid = exchangeid(ai)
         @sync for resp in trades
-            id = get_string(resp, "order")
+            id = resp_trade_order(resp, eid, String)
             if isempty(id)
                 @warn "Missing order id"
                 continue
             else
                 @async let state = get_order_state(orders_byid, id)
                     if state isa LiveOrderState
-                        this_hash = trade_hash(resp)
+                        this_hash = trade_hash(resp, eid)
                         this_hash ∈ state.trade_hashes || begin
                             push!(state.trade_hashes, this_hash)
                             t = trade!(
