@@ -2,7 +2,7 @@ using .Lang: @lget!, splitkws
 using .ExchangeTypes
 using .Exchanges: issandbox
 using .Misc.TimeToLive
-using .Misc: LittleDict
+using .Misc: LittleDict, DFT, ZERO
 using .Python: pytofloat, Py, @pystr, @pyconst, PyDict, @pyfetch, pyfetch, pyconvert
 using .Instances: bc, qc
 import .st: current_total, MarginStrategy, NoMarginStrategy
@@ -13,7 +13,7 @@ const BalanceCacheDict5 = safettl(
     Tuple{ExchangeID,Bool}, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
 )
 const BalanceCacheSyms7 = safettl(
-    Tuple{ExchangeID,Bool}, Dict{Tuple{Symbol,BalanceStatus,Symbol},Float64}, BalanceTTL[]
+    Tuple{ExchangeID,Bool}, Dict{Tuple{Symbol,BalanceStatus,Symbol},DFT}, BalanceTTL[]
 )
 
 function Base.string(v::BalanceStatus)
@@ -27,7 +27,9 @@ function Base.string(v::BalanceStatus)
 end
 
 function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(first(exc, :fetchBalanceWs, :fetchBalance), args...; splitkws(:type; kwargs).rest...)
+    pyfetch(
+        first(exc, :fetchBalanceWs, :fetchBalance), args...; splitkws(:type; kwargs).rest...
+    )
 end
 function _balancedict!(exc)
     @lget! BalanceCacheDict5 (exchangeid(exc), issandbox(exc)) Dict{
@@ -36,7 +38,7 @@ function _balancedict!(exc)
 end
 function _symdict!(exc)
     @lget! BalanceCacheSyms7 (exchangeid(exc), issandbox(exc)) Dict{
-        Tuple{Symbol,BalanceStatus,Symbol},Float64
+        Tuple{Symbol,BalanceStatus,Symbol},DFT
     }()
 end
 _balancetype(_, _) = Symbol()
@@ -50,9 +52,6 @@ function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwa
     end
 end
 
-_pystrsym(v::String) = @pystr(uppercase(v))
-_pystrsym(v::Symbol) = @pystr(uppercase(string(v)))
-
 @doc "Fetch balance for symbol, caching for $(BalanceTTL[])."
 function balance(
     exc::Exchange,
@@ -65,7 +64,7 @@ function balance(
     d = _symdict!(exc)
     @lget! d (sym, status, type) begin
         b = balance(exc, args...; type, status, kwargs...)
-        pyconvert(Float64, get_py(b, _pystrsym(sym), 0.0))
+        pyconvert(DFT, get_py(b, _pystrsym(sym), ZERO))
     end
 end
 
@@ -91,7 +90,7 @@ function balance!(
 )
     b = balance!(exc, args...; type, status, kwargs...)
     d = _symdict!(exc)
-    v = pyconvert(Float64, get_py(b, _pystrsym(sym), 0.0))
+    v = pyconvert(DFT, get_py(b, _pystrsym(sym), ZERO))
     d[(Symbol(sym), status, type)] = v
     pyconvert(DFT, v)
 end
