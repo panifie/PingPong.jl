@@ -26,10 +26,10 @@ function Base.string(v::BalanceStatus)
     end
 end
 
+_exc_balance_func(exc) = first(exc, :fetchBalanceWs, :fetchBalance)
+
 function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(
-        first(exc, :fetchBalanceWs, :fetchBalance), args...; splitkws(:type; kwargs).rest...
-    )
+    pyfetch(_exc_balance_func(exc), args...; splitkws(:type; kwargs).rest...)
 end
 function _balancedict!(exc)
     @lget! BalanceCacheDict5 (exchangeid(exc), issandbox(exc)) Dict{
@@ -46,25 +46,35 @@ _balancetype(_, _) = Symbol()
 @doc "Fetch balance, caching for $(BalanceTTL[])"
 function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwargs...)
     d = _balancedict!(exc)
-    @lget! d (status, type) begin
-        b = _fetch_balance(exc, args...; type, kwargs...)
-        b[@pystr(lowercase(string(status)))]
+    try
+        @lget! d (status, type) begin
+            b = _fetch_balance(exc, args...; type, kwargs...)
+            b[@pystr(lowercase(string(status)))]
+        end
+
+    catch
+        @warn "Could not fetch balance from $(nameof(exc))"
     end
 end
 
 @doc "Fetch balance for symbol, caching for $(BalanceTTL[])."
 function balance(
     exc::Exchange,
-    sym::Union{<:AssetInstance,Symbol},
+    sym::Union{<:AssetInstance,Symbol,String},
     args...;
     type=Symbol(),
     status=TotalBalance,
     kwargs...,
 )
     d = _symdict!(exc)
-    @lget! d (sym, status, type) begin
+    k = _pystrsym(sym)
+    @lget! d (Symbol(k), status, type) begin
         b = balance(exc, args...; type, status, kwargs...)
-        pyconvert(DFT, get_py(b, _pystrsym(sym), ZERO))
+        if b isa Py
+            pyconvert(DFT, get_py(b, k, ZERO))
+        else
+            return nothing
+        end
     end
 end
 
@@ -74,25 +84,33 @@ function balance!(
 )
     b = _fetch_balance(exc, args...; type, kwargs...)[@pystr(lowercase(string(status)))]
     d = _balancedict!(exc)
-    d[(status, type)] = b
-    empty!(_symdict!(exc))
-    raw ? b : pyconvert(Dict{Symbol,DFT}, b)
+    if b isa Py
+        d[(status, type)] = b
+        empty!(_symdict!(exc))
+        raw ? b : pyconvert(Dict{Symbol,DFT}, b)
+    end
 end
 
 @doc "Fetch balance forcefully for symbol, caching for $(BalanceTTL[])."
 function balance!(
     exc::Exchange,
-    sym::Union{String,Symbol},
+    sym::Union{<:AssetInstance,String,Symbol},
     args...;
     type=Symbol(),
     status=TotalBalance,
     kwargs...,
 )
-    b = balance!(exc, args...; type, status, kwargs...)
-    d = _symdict!(exc)
-    v = pyconvert(DFT, get_py(b, _pystrsym(sym), ZERO))
-    d[(Symbol(sym), status, type)] = v
-    pyconvert(DFT, v)
+    try
+        b = balance!(exc, args...; type, status, kwargs...)
+        d = _symdict!(exc)
+        k = _pystrsym(sym)
+        v = pyconvert(DFT, get(b, Symbol(k), ZERO))
+        d[(Symbol(k), status, type)] = v
+        pyconvert(DFT, v)
+
+    catch
+        @warn "Could not fetch balance from $(nameof(exc))"
+    end
 end
 
 function balance(s::LiveStrategy, args...; kwargs...)

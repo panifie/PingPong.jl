@@ -64,6 +64,7 @@ get_time(v::Py, keys...) = @something pytodate(v, keys...) now()
 
 _pystrsym(v::String) = @pystr(uppercase(v))
 _pystrsym(v::Symbol) = @pystr(uppercase(string(v)))
+_pystrsym(ai::AssetInstance) = @pystr(ai.bc)
 
 _ccxtordertype(::LimitOrder) = @pyconst "limit"
 _ccxtordertype(::MarketOrder) = @pyconst "market"

@@ -4,7 +4,7 @@ function _fetch_balance(exc::Exchange{ExchangeID{:bybit}}, args...; type=:spot, 
     tp = @lget! _bybitBalanceTypes2 type PyDict(
         LittleDict("type" => lowercase(String(type)))
     )
-    pyfetch(exc.py.fetchBalance, (args..., tp)...; splitkws(:code; kwargs)[2]...)
+    pyfetch(_exc_balance_func(exc), (args..., tp)...; splitkws(:code; kwargs)[2]...)
 end
 
 const _phemexBalanceTypes1 = Dict{Symbol,PyDict}()
@@ -15,5 +15,5 @@ function _fetch_balance(
         LittleDict("type" => lowercase(string(type)), "code" => uppercase(string(code)))
     )
 
-    pyfetch(exc.py.fetchBalance, (args..., tp)...; kwargs...)
+    pyfetch(_exc_balance_func(exc), (args..., tp)...; kwargs...)
 end
