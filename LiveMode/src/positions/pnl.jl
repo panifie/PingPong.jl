@@ -1,7 +1,14 @@
-function live_pnl(s::LiveStrategy, ai, p::ByPos; force_resync=:auto, verbose=true)
+function live_pnl(
+    s::LiveStrategy,
+    ai,
+    p::ByPos;
+    resp=nothing,
+    force_resync=:auto,
+    verbose=true,
+)
     pside = posside(p)
     eid = exchangeid(ai)
-    lp = live_position(s, ai, pside)
+    lp = @something resp live_position(s, ai, pside)
     pos = position(ai, p)
     pnl = resp_position_unpnl(lp, eid)
     if iszero(pnl)

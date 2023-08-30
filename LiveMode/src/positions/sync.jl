@@ -37,7 +37,7 @@ function live_sync_position!(
     ai.lastpos[] = pos
     dowarn(what, val) = @warn "Unable to sync $what from $(nameof(exchange(ai))), got $val"
     # price is always positive
-    ep = ep_in::DFT
+    ep = pytofloat(ep_in)
     ep = if ep > zero(DFT)
         entryprice!(pos, ep)
         ep

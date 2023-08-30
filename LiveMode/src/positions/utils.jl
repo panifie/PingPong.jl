@@ -82,7 +82,6 @@ function live_position(
     sym = raw(ai)
     eid = exchangeid(ai)
     tup = get(data, sym, nothing)
-    eid = exchangeid(ai)
     if isnothing(tup) && force
         pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
         if isdict(pos) && _ispossym(pos, sym, eid)
