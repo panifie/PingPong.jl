@@ -198,9 +198,9 @@ function check_type(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
     end
 end
 
-function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_id)::Bool
+function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_order)::Bool
     string(getter(resp, eid)) == o.id || begin
-        @warn "Mismatching $k key $(raw(ai))($(resp_trade_order(resp, eid))), order: $(o.id), refusing construction."
+        @warn "Mismatching id $(raw(ai))($(resp_trade_order(resp, eid))), order: $(o.id), refusing construction."
         return false
     end
 end

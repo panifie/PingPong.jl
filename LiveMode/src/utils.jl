@@ -221,13 +221,14 @@ function _positions_func!(attrs, exc)
     eid = typeof(exc.id)
     attrs[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), kwargs...) ->
-            let out = pyfetch(exc.fetchPositions, _syms(ais); kwargs...)
+            let out = positions_func(exc, ais; kwargs...)
                 _filter_positions(out, eid, side)
             end
     else
+        f = exc.fetchPosition
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
             @sync for ai in ais
-                @async out.append(pyfetch(exc.fetchPosition, raw(ai); kwargs...))
+                @async out.append(pyfetch(f, raw(ai); kwargs...))
             end
             _filter_positions(out, eid, side)
         end

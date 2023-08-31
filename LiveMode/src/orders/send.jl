@@ -62,6 +62,6 @@ function live_send_order(
         @warn "Couldn't create order $(sym) on $(nameof(exchange(ai))) $(resp)"
         return nothing
     end
-    pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing
+    resp isa Exception || (pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing)
     resp
 end

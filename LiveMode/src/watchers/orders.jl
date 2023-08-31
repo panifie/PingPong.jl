@@ -174,7 +174,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
     eid = exchangeid(ai)
     check_type(ai, o, resp, eid) || return nothing
     check_symbol(ai, o, resp, eid) || return nothing
-    check_id(ai, o, resp, eid; k=Trf.id) || return nothing
+    check_id(ai, o, resp, eid; resp_order_id) || return nothing
     side = _ccxt_sidetype(resp, o, eid)
     _check_side(side, o) || return nothing
     new_filled = resp_order_filled(resp, eid)

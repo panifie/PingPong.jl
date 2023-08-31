@@ -12,10 +12,11 @@ function create_live_order(
         return nothing
     end
     eid = exchangeid(ai)
-    _ccxtisopen(resp) ||
-        get_float(resp, "filled") > ZERO ||
+    _ccxtisopen(resp, eid) ||
+        resp_order_filled(resp, eid) > ZERO ||
+        !isempty(resp_order_id(resp, eid)) ||
         begin
-            @warn "Order is not open, and does not appear to be (partially) fillled, refusing construction."
+            @warn "Order is not open, and does not appear to be (partially) fillled, and id is empty, refusing construction."
             return nothing
         end
     type = let ot = ordertype_fromtif(resp, eid)

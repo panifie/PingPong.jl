@@ -32,12 +32,12 @@ function basicorder(
     ::SanitizeOff;
     type::Type{<:Order},
     date,
-    take=nothing,
-    stop=nothing,
+    loss=nothing,
+    profit=nothing,
     id="",
 )
-    ismonotonic(stop, price, take) || return nothing
-    iscost(ai, amount, stop, price, take) || return nothing
+    ismonotonic(loss, price, profit) || return nothing
+    iscost(ai, amount, loss, price, profit) || return nothing
     @deassert if type <: IncreaseOrder
         committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
     else
@@ -52,7 +52,7 @@ function basicorder(
             price,
             amount,
             id,
-            attrs=basic_order_state(take, stop, committed, unfilled),
+            attrs=basic_order_state(profit, loss, committed, unfilled),
         )
     end
 end
