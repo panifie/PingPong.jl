@@ -11,7 +11,7 @@ using Misc: DFT
 import Executors: position!
 
 function open_position!(
-    s::IsolatedStrategy{<:Union{Paper,Sim}}, ai::MarginInstance, t::PositionTrade{P};
+    s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P};
 ) where {P<:PositionSide}
     # NOTE: Order of calls is important
     po = position(ai, P)
@@ -59,7 +59,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
 end
 
 function close_position!(
-    s::IsolatedStrategy{<:Union{Paper,Sim}}, ai, p::PositionSide, date=nothing
+    s::IsolatedStrategy, ai, p::PositionSide, date=nothing
 )
     # when a date is given we should close pending orders and sell remaining cash
     isnothing(date) || force_exit_position(s, ai, p, date)
@@ -87,7 +87,7 @@ end
 `actual_price/amount`: the price/amount to execute the liquidation market order with (for paper mode).
 "
 function liquidate!(
-    s::MarginStrategy{<:Union{Paper,Sim}},
+    s::MarginStrategy,
     ai::MarginInstance,
     p::PositionSide,
     date,

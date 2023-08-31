@@ -13,10 +13,10 @@ abstract type AbstractCash <: Number end
 """
 struct Cash{S,T} <: AbstractCash
     value::Ref{T}
-    Cash{C,N}(val) where {C,N} = new{C,N}(Ref(val))
+    Cash{C,N}(val) where {C,N} = new{C,N}(val)
     Cash(s, val::R) where {R} = new{Symbol(uppercase(string(s))),R}(Ref(val))
     function Cash(_::Cash{C,N}, val::R) where {C,N,R}
-        new{C,N}(Ref(convert(eltype(N), val)))
+        new{C,N}(convert(eltype(N), Ref(val)))
     end
 end
 
@@ -130,20 +130,19 @@ const mylock = Base.ReentrantLock()
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
 function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, kwargs...)
-    let val = value(c)
-        if val > v
-            c
-        elseif isapprox(val, v; atol)
-            cash!(c, v)
-        else
-            @ifdebug -atol < value(c) < atol || begin
-                @debug value(c)
-                # st = stacktrace()
-                # throw(st[5])
-                # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
-            end
-            throw("$(val) <  $(value(v)) + $atol")
+    val = value(c)
+    if val > v
+        c
+    elseif isapprox(val, v; atol)
+        cash!(c, v)
+    else
+        @ifdebug -atol < value(c) < atol || begin
+            @debug value(c)
+            # st = stacktrace()
+            # throw(st[5])
+            # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
         end
+        throw("$(val) <  $(value(v)) + $atol")
     end
 end
 @doc "Add v to cash, approximating to zero if cash is a small value."
