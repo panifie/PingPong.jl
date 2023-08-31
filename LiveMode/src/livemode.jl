@@ -24,7 +24,6 @@ include("orders/create.jl")
 include("orders/fetch.jl")
 include("orders/cancel.jl")
 include("orders/pong.jl")
-include("adhoc/utils.jl")
 include("positions/utils.jl")
 include("positions/sync.jl")
 include("positions/pnl.jl")
@@ -36,6 +35,10 @@ include("watchers/positions.jl")
 include("watchers/balance.jl")
 include("watchers/mytrades.jl")
 include("watchers/orders.jl")
+
+include("adhoc/utils.jl")
+include("adhoc/balance.jl")
+include("adhoc/positions.jl")
 
 function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
 end

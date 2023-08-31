@@ -237,7 +237,9 @@ resp_order_clientid(resp, ::EIDType) = get_py(resp, "clientOrderId")
 resp_order_symbol(resp, ::EIDType) = get_py(resp, "symbol", @pyconst(""))
 resp_order_side(resp, ::EIDType) = get_py(resp, Trf.side)
 resp_order_status(resp, ::EIDType) = get_py(resp, "status")
-resp_order_status(resp, eid::EIDType, ::Type{String}) = resp_order_status(resp, eid) |> pytostring
+function resp_order_status(resp, eid::EIDType, ::Type{String})
+    resp_order_status(resp, eid) |> pytostring
+end
 resp_order_loss_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopLossPrice")
 resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
     _option_float(resp, "takeProfitPrice")
@@ -269,3 +271,7 @@ resp_position_timestamp(resp, ::EIDType)::DateTime = get_time(resp)
 resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
+
+function positions_func(exc::Exchange, ais, args...; kwargs...)
+    pyfetch(first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; kwargs...)
+end
