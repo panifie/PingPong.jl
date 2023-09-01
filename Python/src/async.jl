@@ -106,25 +106,38 @@ function py_start_loop(pa::PythonAsync=gpa)
     @assert pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
     if isassigned(pa.task) && !istaskdone(pa.task[])
         gpa.task_running[] = false
-        wait(pa.task[])
+        try
+            wait(pa.task[])
+        catch
+        end
     end
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    pa.task[] = @async try
-        gpa.task_running[] = true
-        pyisnull(pa.start_func) || pa.start_func(Python)
-    catch e
-        @debug e
-    finally
-        gpa.task_running[] = false
-        pyisnull(pyloop) || pyisnone(pyloop) || pyloop.stop()
-        pycopy!(pyloop, pybuiltins.None)
+    start_task() = pa.task[] = @async while true
+        try
+            gpa.task_running[] = true
+            pyisnull(pa.start_func) || pa.start_func(Python)
+        catch e
+            @debug e
+        finally
+            gpa.task_running[] = false
+            pyisnull(pyloop) || pyisnone(pyloop) || pyloop.stop()
+            pycopy!(pyloop, pybuiltins.None)
+        end
+        sleep(1)
     end
 
+    start_task()
     sleep(0)
+    sleep_t = 0.0
     while pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
         @info "waiting for python event loop to start"
         sleep(0.1)
+        sleep_t += 0.1
+        if sleep_t > 3.0
+            start_task()
+            sleep_t = 0.0
+        end
     end
 
     atexit(pyloop_stop_fn())
@@ -395,13 +408,8 @@ function async_start_runner_func!(pa)
         set_loop(pa, asyncio.get_running_loop())
         try:
             while running():
-                try:
-                    while running():
-                        await pysleep(1e-3)
-                        jlsleep(1e-1)
-                except:
-                    await pysleep(1e-1)
-                    pass
+                await pysleep(1e-3)
+                jlsleep(1e-1)
         finally:
             asyncio.get_running_loop().stop()
     """
