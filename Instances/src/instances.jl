@@ -189,10 +189,10 @@ ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.m
 gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min)
 ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min)
 function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount})
-    isapprox(v1, v2; atol=ai.precision.amount + eps(DFT))
+    isapprox(value(v1), value(v2); atol=ai.precision.amount + eps(DFT))
 end
 function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:price})
-    isapprox(v1, v2; atol=ai.precision.price + eps(DFT))
+    isapprox(value(v1), value(v2); atol=ai.precision.price + eps(DFT))
 end
 
 @doc "Constructs an asset instance loading data from a zarr instance. Requires an additional external constructor defined in `Engine`."
