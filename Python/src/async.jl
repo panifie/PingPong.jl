@@ -14,9 +14,12 @@ A structure that holds references to the Python asynchronous objects and state.
     pythreads::Py = pynew()
     pyloop::Py = pynew()
     pycoro_type::Py = pynew()
+    globs::Py = pynew()
+    start_func::Py = pynew()
     task::Ref{Task} = Ref{Task}()
     task_running::Ref{Bool} = Ref(false)
 end
+const PYREF = Ref{Any}()
 
 isdefined(@__MODULE__, :gpa) || @eval const gpa = PythonAsync()
 
@@ -43,7 +46,7 @@ function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
                 elseif f == :task
                     isassigned(v) && (pa_to.task[] = v[])
                 elseif f == :task_running
-                    pa_to.task_running[] = v[]
+                    continue
                 else
                     error()
                 end
@@ -64,8 +67,10 @@ function _async_init(pa::PythonAsync)
     isinitialized_async(pa) && return nothing
     copyto!(pa, gpa) && return nothing
     if pyisnull(pa.pyaio)
+        PYREF[] = pa
         pycopy!(pa.pyaio, pyimport("asyncio"))
         pycopy!(pa.pythreads, pyimport("threading"))
+        async_start_runner_func!(pa)
         py_start_loop(pa)
         if pyisnull(gpa.pyaio)
             for f in fieldnames(PythonAsync)
@@ -75,7 +80,7 @@ function _async_init(pa::PythonAsync)
                     elseif f == :task
                         isassigned(pa.task) && (v[] = pa.task[])
                     elseif f == :task_running
-                        v[] = pa.task_running[]
+                        continue
                     else
                         error()
                     end
@@ -98,24 +103,31 @@ function py_start_loop(pa::PythonAsync=gpa)
     pycoro_type = pa.pycoro_type
 
     @assert !pyisnull(pyaio)
-    @assert pyisnull(pyloop) ||
-        pyisnone(pyloop) ||
-        !pyisTrue(pyloop.is_running()) ||
-        (isassigned(pa.task) && istaskdone(pa.task[]))
+    @assert pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
+    if isassigned(pa.task) && !istaskdone(pa.task[])
+        gpa.task_running[] = false
+        wait(pa.task[])
+    end
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    @assert !isassigned(pa.task) || istaskdone(pa.task[])
     pa.task[] = @async try
         gpa.task_running[] = true
-        async_start_runner()()
+        pyisnull(pa.start_func) || pa.start_func(Python)
     catch e
         @debug e
     finally
         gpa.task_running[] = false
-        pyisnull(pyloop) || pyloop.stop()
+        pyisnull(pyloop) || pyisnone(pyloop) || pyloop.stop()
+        pycopy!(pyloop, pybuiltins.None)
     end
 
-    atexit(pyloop_stop_fn(pa))
+    sleep(0)
+    while pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
+        @info "waiting for python event loop to start"
+        sleep(0.1)
+    end
+
+    atexit(pyloop_stop_fn())
 end
 
 function py_stop_loop(pa::PythonAsync=gpa)
@@ -131,15 +143,11 @@ end
 
 Generates a function that terminates the python even loop.
 """
-function pyloop_stop_fn(pa)
+function pyloop_stop_fn()
     fn() = begin
-        !isassigned(pa.task) || istaskdone(pa.task[]) && return nothing
-        pa.task_running[] = false
-        pyisnull(pa.pyloop) || pa.pyloop.stop()
-        try
-            wait(pa.task[])
-        catch
-        end
+        !isassigned(gpa.task) || istaskdone(gpa.task[]) && return nothing
+        gpa.task_running[] = false
+        pyisnull(gpa.pyloop) || py_stop_loop(gpa)
     end
     fn
 end
@@ -363,11 +371,15 @@ pyfetch_timeout(args...; kwargs...) = @mock _pyfetch_timeout(args...; kwargs...)
 
 _pyisrunning() = gpa.task_running[]
 
-_set_loop(loop) = pycopy!(gpa.pyloop, loop)
+_set_loop(pa, loop) = pycopy!(pa.pyloop, loop)
+_get_ref() =
+    if isassigned(PYREF)
+        PYREF[]
+    end
 
-function async_start_runner()
+function async_start_runner_func!(pa)
     code = """
-    global asyncio, inf, juliacall, Main, jlyield, uvloop
+    global asyncio, inf, juliacall, Main, jlyield, uvloop, Python
     import asyncio
     import juliacall
     import uvloop
@@ -375,11 +387,12 @@ function async_start_runner()
     from juliacall import Main
     jlyield = getattr(Main, "yield")
     jlsleep = getattr(Main, "sleep")
-    running = getattr(Main, "Python")._pyisrunning
-    set_loop = getattr(Main, "Python")._set_loop
     pysleep = asyncio.sleep
-    async def main():
-        set_loop(asyncio.get_running_loop())
+    async def main(Python):
+        running = Python._pyisrunning
+        pa = Python._get_ref()
+        set_loop = Python._set_loop
+        set_loop(pa, asyncio.get_running_loop())
         try:
             while running():
                 try:
@@ -396,13 +409,15 @@ function async_start_runner()
     globs = pydict()
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, globs)
     code = """
-    global asyncio, inf, juliacall, Main, jlyield, uvloop
+    global asyncio, inf, juliacall, Main, jlyield, uvloop, Python
     import asyncio, uvloop
-    def start():
+    def start(Python):
         with asyncio.Runner(loop_factory=uvloop.new_event_loop) as runner:
-            runner.run(main())
+            runner.run(main(Python))
     """
-    pyexec(NamedTuple{(:start,),Tuple{Py}}, code, globs).start
+    start_func = pyexec(NamedTuple{(:start,),Tuple{Py}}, code, globs).start
+    pycopy!(pa.start_func, start_func)
+    pycopy!(pa.globs, globs)
 end
 
 export pytask, pyfetch, pycancel, @pytask, @pyfetch, pyfetch_timeout
