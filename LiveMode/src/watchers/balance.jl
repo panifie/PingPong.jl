@@ -91,7 +91,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     _, update = last(w.buffer)
     bal = w.view.balance
     isdict(update) || return nothing
-    date = @something pytodate(update, exchangeid(_exc(w))) now()
+    date = @something pytodate(update, typeof(exchangeid(_exc(w)))) now()
     date == w.view.date[] && return nothing
     for (sym, sym_bal) in update.items()
         (isdict(sym_bal) && haskey(sym_bal, @pyconst("free"))) || continue
