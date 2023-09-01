@@ -98,6 +98,9 @@ end
 Starts a python event loop, updating =pa=.
 """
 function py_start_loop(pa::PythonAsync=gpa)
+    if pa === gpa
+        PYREF[] = gpa
+    end
     pyaio = pa.pyaio
     pyloop = pa.pyloop
     pycoro_type = pa.pycoro_type
