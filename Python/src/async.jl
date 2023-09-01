@@ -74,7 +74,7 @@ function _async_init(pa::PythonAsync)
                         pycopy!(v, getfield(pa, f))
                     elseif f == :task
                         isassigned(pa.task) && (v[] = pa.task[])
-                    elseif f == :task_runnig
+                    elseif f == :task_running
                         v[] = pa.task_running[]
                     else
                         error()
