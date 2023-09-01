@@ -11,9 +11,7 @@ A structure that holds references to the Python asynchronous objects and state.
 """
 @kwdef struct PythonAsync
     pyaio::Py = pynew()
-    pyuv::Py = pynew()
     pythreads::Py = pynew()
-    pyrunner::Py = pynew()
     pyloop::Py = pynew()
     pycoro_type::Py = pynew()
     task::Ref{Task} = Ref{Task}()
@@ -67,7 +65,6 @@ function _async_init(pa::PythonAsync)
     copyto!(pa, gpa) && return nothing
     if pyisnull(pa.pyaio)
         pycopy!(pa.pyaio, pyimport("asyncio"))
-        pycopy!(pa.pyuv, pyimport("uvloop"))
         pycopy!(pa.pythreads, pyimport("threading"))
         py_start_loop(pa)
         if pyisnull(gpa.pyaio)
@@ -97,8 +94,6 @@ Starts a python event loop, updating =pa=.
 """
 function py_start_loop(pa::PythonAsync=gpa)
     pyaio = pa.pyaio
-    # pyuv = pa.pyuv
-    # pyrunner = pa.pyrunner
     pyloop = pa.pyloop
     pycoro_type = pa.pycoro_type
 
@@ -109,14 +104,9 @@ function py_start_loop(pa::PythonAsync=gpa)
         (isassigned(pa.task) && istaskdone(pa.task[]))
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    # pyisnull(pyrunner) &&
-    #     pycopy!(pyrunner, pyaio.Runner(; loop_factory=pyuv.new_event_loop))
-    # pyrunner = pyaio.Runner(; loop_factory=pyuv.new_event_loop)
-    # pycopy!(pyloop, pyrunner.get_loop())
     @assert !isassigned(pa.task) || istaskdone(pa.task[])
     pa.task[] = @async try
         gpa.task_running[] = true
-        # pyrunner.run(async_jl_func()())
         async_start_runner()()
     catch e
         @debug e
@@ -372,39 +362,6 @@ pyfetch_timeout(args...; kwargs...) = @mock _pyfetch_timeout(args...; kwargs...)
 # end
 
 _pyisrunning() = gpa.task_running[]
-
-# """
-#     async_jl_func()
-
-# Main async loop function, sleeps for a short time and yields to Julia tasks.
-# """
-# function async_jl_func()
-#     code = """
-#     global asyncio, inf, juliacall, Main, jlyield
-#     import asyncio
-#     import juliacall
-#     from math import inf
-#     from juliacall import Main
-#     jlyield = getattr(Main, "yield")
-#     jlsleep = getattr(Main, "sleep")
-#     running = getattr(Main, "Python")._pyisrunning
-#     pysleep = asyncio.sleep
-#     loop = asyncio.get_running_loop()
-#     async def main():
-#         try:
-#             while running():
-#                 try:
-#                     while running():
-#                         await pysleep(1e-3)
-#                         jlsleep(1e-1)
-#                 except:
-#                     await pysleep(1e-1)
-#                     pass
-#         finally:
-#             loop.stop()
-#     """
-#     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
-# end
 
 _set_loop(loop) = pycopy!(gpa.pyloop, loop)
 

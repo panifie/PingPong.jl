@@ -124,7 +124,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     data = w.view
     islist(update) || return nothing
     keep_info = w[:keep_info]
-    eid = exchangeid(_exc(w))
+    eid = typeof(exchangeid(_exc(w)))
     for pos in update
         isdict(pos) || continue
         sym = resp_position_symbol(pos, eid, String)
