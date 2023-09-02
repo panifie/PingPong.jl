@@ -135,7 +135,7 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    tot = current_total(s)
+    tot = current_total(s, lasttrade_price_func; local_bal=true)
     t = nameof(s.cash)
     write(out, "$(t): $(tot) (Total)")
 end

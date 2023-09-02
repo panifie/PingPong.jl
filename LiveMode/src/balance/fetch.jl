@@ -126,31 +126,51 @@ function balance!(s::LiveStrategy, args...; kwargs...)
 end
 
 function current_total(
-    s::LiveStrategy{N,E,M}, price_func=lastprice; type=:swap, code=_pystrsym(nameof(s.cash))
+    s::LiveStrategy{N,E,M};
+    price_func=lastprice,
+    type=:swap,
+    code=_pystrsym(nameof(s.cash)),
+    local_bal=false,
 ) where {N,E<:ExchangeID,M<:WithMargin}
-    tot = [zero(DFT)]
-    bal = balance(s; type, code)
+    tot = Ref(zero(DFT))
+    get_amount, s_tot = if local_bal
+        ((ai) -> cash(ai)), s.cash.value
+    else
+        let bal = balance(s; type, code),
+            s_tot = get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
+
+            bal = balance(s; type, code)
+            ((ai) -> get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat), s_tot
+        end
+    end
     @sync for ai in s.universe
-        amount = get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat
-        @async let v = price_func(ai) * amount
+        amount = @something get_amount(ai) zero(s_tot)
+        @async let v = @something(price_func(ai), zero(s_tot)) * amount
             tot[] += v
         end
     end
-    tot[] += get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
-    tot[]
+    tot[] + s_tot
 end
 
 function current_total(
-    s::LiveStrategy{N,E,NoMargin},
-    price_func=lastprice;
+    s::LiveStrategy{N,E,NoMargin};
+    price_func=lastprice,
     type=:spot,
     code=_pystrsym(nameof(s.cash)),
+    local_bal=false,
 ) where {N,E<:ExchangeID}
-    bal = balance(s; type, code)
-    tot = get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
+    get_amount, tot = if local_bal
+        ((ai) -> cash(ai)), s.cash.value
+    else
+        let bal = balance(s; type, code),
+            tot = get(bal, string(nameof(s.cash)), s.cash.value) |> pytofloat
+
+            ((ai) -> get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat), tot
+        end
+    end
     @sync for ai in s.universe
-        amount = get(bal, _pystrsym(bc(ai)), zero(DFT)) |> pytofloat
-        @async let v = price_func(ai) * amount
+        amount = @something get_amount(ai) zero(tot)
+        @async let v = @something(price_func(ai), zero(tot)) * amount
             # NOTE: `x += y` is rewritten as x = x + y
             # Because `price_func` can be async, the value of `x` might be stale by
             # the time `y` is fetched, and the assignment might clobber the most
@@ -160,8 +180,6 @@ function current_total(
     end
     tot
 end
-
-include("adhoc/balance.jl")
 
 export BalanceStatus, TotalBalance, FreeBalance, UsedBalance
 export balance, balance!
