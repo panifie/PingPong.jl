@@ -106,7 +106,7 @@ function py_start_loop(pa::PythonAsync=gpa)
     pycoro_type = pa.pycoro_type
 
     @assert !pyisnull(pyaio)
-    @assert pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
+    @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     if isassigned(pa.task) && !istaskdone(pa.task[])
         gpa.task_running[] = false
         try
@@ -124,8 +124,7 @@ function py_start_loop(pa::PythonAsync=gpa)
             @debug e
         finally
             gpa.task_running[] = false
-            pyisnull(pyloop) || pyisnone(pyloop) || pyloop.stop()
-            pycopy!(pyloop, pybuiltins.None)
+            pyisnull(pyloop) || pyloop.stop()
         end
         sleep(1)
     end
@@ -133,7 +132,7 @@ function py_start_loop(pa::PythonAsync=gpa)
     start_task()
     sleep(0)
     sleep_t = 0.0
-    while pyisnull(pyloop) || pyisnone(pyloop) || !Bool(pyloop.is_running())
+    while pyisnull(pyloop) || !Bool(pyloop.is_running())
         @info "waiting for python event loop to start"
         sleep(0.1)
         sleep_t += 0.1
