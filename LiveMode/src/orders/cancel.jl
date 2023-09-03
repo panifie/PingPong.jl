@@ -14,11 +14,14 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
             true
         elseif pyisinstance(resp, pybuiltins.dict)
             pyeq(Bool, resp_code(resp, eid), @pyconst("0"))
+        elseif pyisinstance(resp, pybuiltins.list)
+            true
         else
             false
         end
-    catch e
-        @warn "Couldn't cancel orders for $(raw(ai)) $e"
+    catch
+        @warn "Couldn't cancel orders for $(raw(ai))"
+        @debug_backtrace
         return false
     end
     if done && confirm
