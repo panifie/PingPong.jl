@@ -122,6 +122,10 @@ end
 isstopped(w::Watcher) = isnothing(w._timer) || !isopen(w._timer)
 @doc "True if timer is running."
 isstarted(w::Watcher) = !isnothing(w._timer) && isopen(w._timer)
+Base.islocked(w::Watcher) = islocked(w._exec.fetch_lock)
+Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(w._exec.buffer_lock)
+Base.lock(f, w::Watcher) = lock(f, w._exec.fetch_lock)
+Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, w._exec.buffer_lock)
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
@@ -145,7 +149,7 @@ function Base.show(out::IO, w::Watcher)
     write(out, "$(w.last_flush)")
     write(out, "\nActive: ")
     write(out, "$(isstarted(w))")
-    write(out, "\nAttemps: ")
+    write(out, "\nAttempts: ")
     write(out, "$(w.attempts)")
     e = lasterror(w)
     if !isnothing(e)
