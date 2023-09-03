@@ -60,12 +60,3 @@ function fill!(
     @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
 end
 
-function aftertrade!(s::MarginStrategy{Live}, ai::A, o::O, t::Trade) where {A,O}
-    @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
-    try
-        live_sync!(s, ai, o)
-        # live_sync!(s)
-    catch
-    end
-    t
-end
