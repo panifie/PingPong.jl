@@ -2,6 +2,7 @@ import .PaperMode: SimMode
 using .Executors: filled_amount, orderscount
 using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
+using .SimMode: @maketrade
 # using .OrderTypes: OrderFailed
 
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())

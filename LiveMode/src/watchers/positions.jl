@@ -120,10 +120,11 @@ end
 # TODO: Maybe call live_sync_position! directly here?
 
 function _posupdate(date, resp)
-    PositionUpdate7((; date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp))
+    PositionUpdate7((;
+        date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp
+    ))
 end
-function _posupdate!(prev, date, resp)
-    prev.read[] = false
+function _posupdate(prev, date, resp)
     PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
@@ -145,7 +146,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         pos_tuple = if isnothing(prev)
             _posupdate(date, resp)
         elseif prev.date < date
-            _posupdate!(prev, date, resp)
+            _posupdate(prev, date, resp)
         end
         isnothing(pos_tuple) || begin
             side_dict[sym] = pos_tuple
@@ -155,21 +156,19 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     end
     # do notify if we added at least one response, or removed at least one
     skip_notify = isempty(processed_syms) && isempty(long_dict) && isempty(short_dict)
-    _close_with_noupdates!(long_dict, Long(), processed_syms)
-    _close_with_noupdates!(short_dict, Short(), processed_syms)
+    _setposflags!(long_dict, Long(), processed_syms)
+    _setposflags!(short_dict, Short(), processed_syms)
     skip_notify || safenotify(w.beacon.process)
 end
 
-function _close_with_noupdates!(dict, side, processed_syms)
+function _setposflags!(dict, side, processed_syms)
     for (k, v) in dict
-        if (k, side) ∉ processed_syms
-            v.closed[] = true
-            v.read[] = false
-        end
+        v.closed[] = (k, side) ∉ processed_syms
+        v.read[] = false
     end
 end
 
-function _set_unread!(w)
+function _setunread!(w)
     data = w.view
     map(v -> (v.read[] = false), values(data.long))
     map(v -> (v.read[] = false), values(data.short))

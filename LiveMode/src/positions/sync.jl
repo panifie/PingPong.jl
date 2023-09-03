@@ -56,6 +56,7 @@ function live_sync_position!(
     # If the respd amount is "dust" the position should be considered closed, and to be reset
     pos_price = _ccxtposprice(ai, resp)
     if isdust(ai, pos_price, pside)
+        update.read[] = true
         reset!(pos)
         return pos
     end
@@ -185,6 +186,7 @@ function live_sync_position!(
         "min size", "notional", pos.min_size, notional(pos)
     )
     timestamp!(pos, resp_position_timestamp(resp, eid))
+    update.read[] = true
     return pos
 end
 
