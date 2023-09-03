@@ -547,6 +547,14 @@ end
 function lastprice(ai::AssetInstance, args...; kwargs...)
     lastprice(ai.asset.raw, ai.exchange, args...; kwargs...)
 end
+function lastprice(ai::AssetInstance, ::Val{:history})
+    v = ai.history
+    if length(v) > 0
+        last(v).price
+    else
+        lastprice(ai)
+    end
+end
 
 include("constructors.jl")
 
