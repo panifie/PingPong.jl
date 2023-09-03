@@ -157,7 +157,9 @@ exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 commit!(args...; kwargs...) = error("not implemented")
 opposite(::Type{Buy}) = Sell
 opposite(::Type{Sell}) = Buy
-opposite(::Type{T}) where {S,T<:OrderType{S}} = getfield(T.name.module, T.name.name){opposite(S)}
+function opposite(::Type{T}) where {S,T<:OrderType{S}}
+    getfield(T.name.module, T.name.name){opposite(S)}
+end
 sidetopos(::Type{Buy}) = Long
 sidetopos(::Type{Sell}) = Short
 liqside(::Union{Long,Type{Long}}) = Sell
@@ -184,10 +186,12 @@ include("print.jl")
 
 @doc "Dispatch by `OrderSide` or by an `Order` or `Trade` with the same side as parameter."
 const BySide{S<:OrderSide} = Union{S,Type{S},Order{<:OrderType{S}},Trade{<:OrderType{S}}}
+const AnyOrderPos{P<:PositionSide} =
+    Union{O,Type{O}} where {O<:Order{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
+const AnyTradePos{P<:PositionSide} =
+    Union{T,Type{T}} where {T<:Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
 @doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
-const ByPos{P<:PositionSide} = Union{
-    P,Type{P},Order{O,A,E,P},Trade{O,A,E,P}
-} where {O<:OrderType,A<:AbstractAsset,E<:ExchangeID}
+const ByPos{P<:PositionSide} = Union{P,Type{P},AnyOrderPos{P},AnyTradePos{P}}
 
 export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder

@@ -141,9 +141,10 @@ function tier(po::Position, size)
     tier(po.tiers[], size)
 end
 posside(::Position{P}) where {P<:PositionSide} = P()
-posside(::Long) = Long()
-posside(::Short) = Short()
-posside(::Type{<:ByPos{P}}) where {P<:PositionSide} = P()
+posside(::ByPos{P}) where {P<:PositionSide} = P()
+function posside(::Type{<:Order{<:O,<:A,<:E,P}}) where {O,A,E,P<:PositionSide}
+    P()
+end
 
 @doc "Position entryprice."
 price(po::Position) = po.entryprice[]
