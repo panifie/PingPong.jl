@@ -4,18 +4,19 @@ import Instances: leverage!, maintenance!, notional!, entryprice!, tier, liqpric
 using Executors.Instances: MarginInstance, liqprice!
 using Strategies: lowat, highat
 
-@doc "Update the entry price from notional and cash."
-function update_price!(po::Position, ntl)
+@doc "Update the entry price from notional, amount diff and cash."
+function update_price!(po::Position; ntl, prev_ntl, size)
     @deassert notional(po) >= 0.0 && ntl >= 0.0
-    po.entryprice[] = abs(ntl / cash(po))
+    po.entryprice[] = (prev_ntl + size) / cash(po)
 end
 @doc "Updates notional value."
-function update_notional!(po::Position; ntl)
+function update_notional!(po::Position; ntl, size)
     # NOTE: Order is important
     ntl = abs(ntl)
+    prev_ntl = po.notional[]
     po.notional[] = ntl
     tier!(po, ntl)
-    update_price!(po, ntl)
+    update_price!(po; ntl, prev_ntl, size)
     update_leverage!(po; lev=leverage(po))
 end
 
@@ -69,7 +70,7 @@ function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) 
     ntl = _roundpos(cash(po) * settle_price)
     @deassert ntl > 0.0 || cash(po) <= 0.0
     # notional updates the price, then leverage, then the liq price.
-    update_notional!(po; ntl)
+    update_notional!(po; ntl, size=t.value)
 end
 
 using Base: negate
