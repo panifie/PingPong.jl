@@ -220,10 +220,9 @@ end
 function _positions_func!(attrs, exc)
     eid = typeof(exc.id)
     attrs[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), kwargs...) ->
-            let out = positions_func(exc, ais; kwargs...)
-                _filter_positions(out, eid, side)
-            end
+        (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; kwargs...)
+            _filter_positions(out, eid, side)
+        end
     else
         f = exc.fetchPosition
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
@@ -360,7 +359,7 @@ _ispydict(v) = pyisinstance(v, pybuiltins.dict)
 
 function _order_trades_func!(attrs, exc)
     attrs[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
-        f = exc.fetchOrderTrades
+        f = first(exc, :fetchOrderTradesWs, :fetchOrderTrades)
         (ai, id; since=nothing, params=nothing) ->
             _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
     else
@@ -441,6 +440,7 @@ end
 get_positions(s) = watch_positions!(s; interval=st.throttle(s)).view
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
+get_positions(s, ai::AssetInstance) = get_positions(s, posside(ai))[raw(ai)]
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
 
 function st.current_total(s::NoMarginStrategy{Live})
