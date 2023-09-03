@@ -1,3 +1,5 @@
+using .Executors.Instruments: freecash
+
 const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
 
 function trigger_dict(exc, v)
@@ -6,6 +8,14 @@ function trigger_dict(exc, v)
     out[@pyconst("price")] = pyconvert(Py, v.price)
     out[@pyconst("triggerPrice")] = pyconvert(Py, v.trigger)
     out
+end
+
+function check_available_cash(s, ai, amount, ::Type{<:IncreaseOrder})
+    abs(freecash(s)) >= abs(amount)
+end
+
+function check_available_cash(s, ai, amount, o::Type{<:ReduceOrder})
+    abs(freecash(ai, posside(o))) >= abs(amount)
 end
 
 function live_send_order(
@@ -22,8 +32,15 @@ function live_send_order(
     profit_trigger=nothing,
     stop_loss::Option{TriggerOrderTuple}=nothing,
     take_profit::Option{TriggerOrderTuple}=nothing,
+    skipchecks=false,
     kwargs...,
 )
+    skipchecks ||
+        check_available_cash(s, ai, amount, t) ||
+        begin
+            @warn "Refusing to send order since local state doesn't have enough cash ($(cash(ai, posside(t))) < $amount). Maybe out of sync?"
+            return nothing
+        end
     sym = raw(ai)
     exc = exchange(ai)
     side = _ccxtorderside(t)
