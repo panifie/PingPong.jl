@@ -103,6 +103,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
         )
     end
     w.view.date[] = date
+    safenotify(w.beacon.process)
 end
 
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
