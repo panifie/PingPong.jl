@@ -148,9 +148,9 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         elseif prev.date < date
             _posupdate(prev, date, resp)
         end
+        push!(processed_syms, (sym, side))
         isnothing(pos_tuple) || begin
             side_dict[sym] = pos_tuple
-            push!(processed_syms, (sym, side))
             safenotify(pos_tuple.notify)
         end
     end
