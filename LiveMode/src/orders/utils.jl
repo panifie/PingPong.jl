@@ -4,7 +4,8 @@ using .Executors: AnyGTCOrder, AnyMarketOrder, AnyIOCOrder, AnyFOKOrder, AnyPost
 
 const LiveOrderState = NamedTuple{
     (:order, :trade_hashes, :update_hash, :average_price),
-    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT}}}
+    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT}},
+}
 
 const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
@@ -23,6 +24,16 @@ function set_active_order!(s::LiveStrategy, ai, o)
         update_hash=Ref{UInt64}(0),
         average_price=Ref(o.price),
     )
+end
+
+function show_active_orders(s::LiveStrategy, ai)
+    open_orders = fetch_open_orders(s, ai)
+    open_ids = Set(resp_order_id.(open_orders))
+    active = active_orders(s, ai)
+    for id in keys(active)
+        println(stdout, string(id, " open: ", id ∈ open_ids))
+    end
+    flush(stdout)
 end
 
 macro _isfilled()
