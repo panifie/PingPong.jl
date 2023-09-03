@@ -48,8 +48,10 @@ function _w_fetch_positions_func(s, interval; kwargs)
         end
     else
         (w) -> try
-            v = fetch_positions(s, (); params, rest...)
-            _dopush!(w, v)
+            lock(w) do
+                v = fetch_positions(s, (); params, rest...)
+                _dopush!(w, v)
+            end
             sleep(interval)
         catch
             sleep(interval)
