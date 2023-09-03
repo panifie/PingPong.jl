@@ -5,7 +5,14 @@ using .Executors.Instruments: AbstractAsset
 using .OrderTypes: ordertype
 
 function create_live_order(
-    s::LiveStrategy, resp, ai::AssetInstance; t, price, amount, kwargs...
+    s::LiveStrategy,
+    resp,
+    ai::AssetInstance;
+    t,
+    price,
+    amount,
+    retry_with_resync=true,
+    kwargs...,
 )
     isnothing(resp) && begin
         @warn "trying to create limit order with empty response ($(raw(ai)))"
@@ -38,10 +45,20 @@ function create_live_order(
         string(hash((price, date)))
     end
     o = let f = construct_order_func(type)
-        f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
+        o = f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
+        if isnothing(o)
+            @warn "Exchange order created (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (resyncing) $(nameof(s)) $(raw(ai))"
+            @sync begin
+                @async live_sync_strategy_cash!(s)
+                @async live_sync_universe_cash!(s)
+            end
+            o = f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
+        end
+        o
     end
     if isnothing(o)
-        @warn "Exchange order created (id: $(resp_order_id(resp, eid))), but couldn't sync locally, $(nameof(s)) $(raw(ai))"
+        @error "Failed to sync local order with remote order $(id) - $(raw(ai))@$(nameof(s))"
+        return nothing
     else
         set_active_order!(s, ai, o)
     end
