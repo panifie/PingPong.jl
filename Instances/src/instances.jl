@@ -426,6 +426,7 @@ function price(ai::MarginInstance, fromprice, ::ByPos{S}) where {S<:PositionSide
     v = position(ai, S) |> price
     ifelse(iszero(v), fromprice, v)
 end
+entryprice(ai::MarginInstance, fromprice, pos::ByPos) = price(ai, fromprice, pos)
 @doc "Asset entry price."
 price(::NoMarginInstance, fromprice, args...) = fromprice
 @doc "Asset position liquidation price."
@@ -552,5 +553,7 @@ include("constructors.jl")
 export AssetInstance, instance, load!, @rprice, @ramount
 export asset, raw, ohlcv, bc, qc
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
-export Long, Short, position, posside, liqprice, leverage, bankruptcy, cash, committed, price
+export Long, Short, position, posside, cash, committed
+export liqprice, leverage, bankruptcy, entryprice, price
+export additional, margin, maintenance
 export leverage, mmr, status!
