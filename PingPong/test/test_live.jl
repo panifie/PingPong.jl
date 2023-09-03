@@ -4,6 +4,17 @@ using Test
 using Mocking
 using Suppressor: @capture_err
 
+mockapp(f, args...; kwargs...) = Mocking.apply(f, args...; kwargs...)
+
+macro live_setup!()
+    ex = quote
+        reset!(s)
+        ai = s[m"btc"]
+        eid = exchangeid(ai)
+    end
+    esc(ex)
+end
+
 function _live_load()
     @eval begin
         using PingPong
@@ -75,7 +86,7 @@ function test_live_fetch_orders(s)
     patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         _pyjson("fetch_orders.json")
     end
-    ai = s[m"btc"]
+    @live_setup!
     Mocking.apply(patch) do
         let resp = lm.fetch_orders(s, ai)
             @test length(resp) == 15
@@ -106,6 +117,7 @@ function test_live_fetch_positions(s)
     patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         _pyjson("fetch_positions.json")
     end
+    @live_setup!
     ais = [s[m"btc"], s[m"eth"]]
     Mocking.apply(patch) do
         resp = lm.fetch_positions(s, ais)
@@ -133,20 +145,33 @@ function test_live_cancel_orders(s)
             _pyjson("fetch_orders.json")
         end
     end
+    @live_setup!
     Mocking.apply(patch) do
-        lm.cancel_orders(s, s[m"btc"])
+        lm.cancel_orders(s, ai)
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
         @test length(resps[1][2]) == 1
-        @test first(resps[1][2]) == (:symbol => "BTC/USDT:USDT")
+        @test first(resps[1][2]) == (:symbol => raw(ai))
         empty!(resps)
-        lm.cancel_orders(s, s[m"btc"]; side=Buy)
+        lm.cancel_orders(s, ai; side=Buy)
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
         @test length(resps[1][2]) == 1
-        @test resps[1][2][1] == "BTC/USDT:USDT"
+        @test resps[1][2][1] == raw(ai)
         empty!(resps)
-        lm.cancel_orders(s, s[m"btc"]; side=Sell)
+        lm.cancel_orders(s, ai; side=Sell)
         @test isempty(resps)
     end
+end
+
+function _has_patch()
+    disabled = Ref{Any}(())
+    patch = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
+        if sym in disabled[]
+            false
+        else
+            exs.ExchangeTypes._has(exc, sym)
+        end
+    end
+    (patch, disabled)
 end
 
 function test_live_cancel_all_orders(s)
@@ -159,26 +184,21 @@ function test_live_cancel_all_orders(s)
             _pyjson("fetch_orders.json")
         end
     end
-    disabled = Ref{Any}((:cancelAllOrdersWs, :cancelAllOrders))
-    patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
-        if sym in disabled[]
-            false
-        else
-            exs.ExchangeTypes._has(exc, sym)
-        end
-    end
+    patch2, disabled = _has_patch()
+    disabled[] = (:cancelAllOrdersWs, :cancelAllOrders)
+    @live_setup!
     Mocking.apply([patch1, patch2]) do
         lm.exc_live_funcs!(s)
-        lm.cancel_all_orders(s, s[m"btc"])
+        lm.cancel_all_orders(s, ai)
         @test length(resps[1]) == 2
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
-        @test string(resps[1][2][1]) == "BTC/USDT:USDT" #
+        @test string(resps[1][2][1]) == raw(ai) #
         empty!(resps)
         disabled[] = ()
         lm.exc_live_funcs!(s)
-        lm.cancel_all_orders(s, s[m"btc"])
+        lm.cancel_all_orders(s, ai)
         @test length(resps[1][1]) == 1
-        @test string(resps[1][1][1]) == "BTC/USDT:USDT"
+        @test string(resps[1][1][1]) == raw(ai)
         @test isempty(resps[1][2])
     end
     lm.exc_live_funcs!(s)
@@ -194,15 +214,21 @@ function test_live_position(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
+    @live_setup!
     Mocking.apply([patch1]) do
-        v = lm.live_position(s, s[m"btc"], Short(); force=true)
+        update = lm.live_position(s, ai, Short(); force=true)
+        @test update.date <= now()
+        @test !update.read[]
+        @test !update.closed[]
+        @test update.notify isa Base.GenericCondition
+        v = update.resp
         @test pyisinstance(v, pybuiltins.dict)
-        @test string(v.get("symbol")) == "BTC/USDT:USDT"
+        @test string(v.get("symbol")) == raw(ai)
         @test "info" ∈ v.keys()
         @test string(v.get("side")) == "short"
-        v = lm.live_position(s, s[m"btc"], Long())
+        v = lm.live_position(s, ai, Long())
         @test isnothing(v)
-        v = lm.live_position(s, s[m"btc"], Short();)
+        v = lm.live_position(s, ai, Short();).resp
         @test pyisinstance(v.get("info"), pybuiltins.dict)
     end
 end
@@ -217,35 +243,36 @@ function test_live_position_sync(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
+    @live_setup!
     Mocking.apply([patch2]) do
         # set some parameters for testing
         commits = true
-        ai = s[m"btc"]
         p = Short()
-        update = lm.fetch_positions(s, s[m"btc"]; side=p)[0]
+        resp = lm.fetch_positions(s, ai; side=p)[0]
+        update = lm._posupdate(now(), resp)::lm.PositionUpdate7
 
         # test if sync! returns a Position object with the correct attributes
         reset!(ai.shortpos)
         reset!(ai.longpos)
         pos = lm.live_sync_position!(s, ai, p, update; commits=commits)
         @test typeof(pos) <: ect.Position{Short}
-        @test pos.timestamp[] == lm.get_time(update, "timestamp")
+        @test pos.timestamp[] <= lm.resp_position_timestamp(resp, eid)
         @test pos.status[] == ect.PositionOpen()
-        @test pos.leverage[] == lm.get_float(update, "leverage")
-        @test pos.notional[] == lm.get_float(update, lm.Pos.notional)
-        @test pos.liquidation_price[] == lm.get_float(update, lm.Pos.liquidationPrice)
-        @test pos.initial_margin[] ≈ lm.get_float(update, lm.Pos.initialMargin) atol = 1
-        @test pos.maintenance_margin[] ≈ lm.get_float(update, lm.Pos.maintenanceMargin) atol =
+        @test pos.leverage[] == lm.get_float(resp, "leverage")
+        @test pos.notional[] == lm.get_float(resp, lm.Pos.notional)
+        @test pos.liquidation_price[] == lm.get_float(resp, lm.Pos.liquidationPrice)
+        @test pos.initial_margin[] ≈ lm.get_float(resp, lm.Pos.initialMargin) atol = 1
+        @test pos.maintenance_margin[] ≈ lm.get_float(resp, lm.Pos.maintenanceMargin) atol =
             1
         @test inst.committed(pos) == inst.committed(s, ai, inst.posside(p))
 
         # test hedged mode mismatch
-        update[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
+        resp[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
         @test_throws AssertionError lm.live_sync_position!(
             s, ai, p, update; commits=commits
         )
 
-        # test if sync! throws an exception if the position side does not match the update side
+        # test if sync! throws an exception if the position side does not match the resp side
         patch_hedged = @patch function inst.ishedged(::MarginMode)
             true
         end
@@ -255,7 +282,7 @@ function test_live_position_sync(s)
                 s, ai, p, update; commits=commits
             )
             reset!(ai)
-            ep = update.get(lm.Pos.entryPrice)
+            ep = resp.get(lm.Pos.entryPrice)
             try
                 pos = lm.live_sync_position!(
                     s, ai, p, update; amount=0.01, ep_in=ep, commits=false
@@ -287,19 +314,20 @@ function test_live_pnl(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
+    @live_setup!
     Mocking.apply([patch1]) do
         # set some parameters for testing
-        ai = s[m"btc"]
         p = Short()
-        lp = lm.fetch_positions(s, s[m"btc"]; side=p)[0]
+        lp = lm.fetch_positions(s, ai; side=p)[0]
         @test !isnothing(lp)
-        pos = lm.live_sync_position!(s, ai, p, lp; commits=false)
+        update = lm.PositionUpdate7(lm._posupdate(now(), lp))
+        pos = lm.live_sync_position!(s, ai, p, update; commits=false)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
         # test if live_pnl returns the correct unrealized pnl from the live position
-        let lp = lm.live_position(s, s[m"btc"], p; force=true)
+        let resp = lm.live_position(s, ai, p; force=true).resp
             pnl = lm.live_pnl(s, ai, p; force_resync=:no, verbose=false)
-            @test pnl == lm.get_float(lp, lm.Pos.unrealizedPnl)
+            @test pnl == lm.resp_position_unpnl(resp, eid)
         end
         return nothing
 
@@ -329,23 +357,24 @@ function test_live_send_order(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
+    @live_setup!
     Mocking.apply(patch1) do
-        resp = lm.live_send_order(
-            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000.0
-        )
+        cash!(ai, 0.123, Long())
+        resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000.0)
         @test pyisinstance(resp, pybuiltins.dict)
         @test string(resp.get("id")) == "997477f8-3857-45f6-b20b-8bae58ab28d9"
         doerror[] = true
-        resp = lm.live_send_order(
-            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000
-        )
+        resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000)
         @test resp isa ErrorException
         tries[] = 0
         resp = lm.live_send_order(
-            s, s[m"btc"], ect.GTCOrder{Sell}; amount=0.123, price=60000, retries=3
+            s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000, retries=3
         )
         @test tries[] == 4
         @test resp isa ErrorException
+        cash!(ai, 0, Long())
+        resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000.0)
+        @test isnothing(resp)
     end
 end
 
@@ -366,7 +395,7 @@ function test_live_my_trades(s)
             exs.ExchangeTypes._has(exc, sym)
         end
     end
-    ai = s[m"btc"]
+    @live_setup!
     try
         Mocking.apply([patch1, patch2]) do
             trades = lm.live_my_trades(s, ai)
@@ -402,9 +431,11 @@ function test_live_order_trades(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
-    ai = s[m"btc"]
+    haspatch, disabled = _has_patch()
     id = "1682179200-BTCUSDT-1439869-Buy"
-    Mocking.apply(patch1) do
+    mockapp([patch1, haspatch]) do
+        disabled[] = (:fetchOrderTrades,)
+        @live_setup!
         trades = lm.live_order_trades(s, ai, id)
         @test length(trades) == 1
         @test string(trades[0]["order"]) == id
@@ -424,6 +455,7 @@ function test_live_openclosed_orders(s)
         end
     end
     disabled = Ref{Any}(())
+    @live_setup!
     patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
         if sym in disabled[]
             false
@@ -477,12 +509,10 @@ function test_live()
         @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
         @testset "live_position" test_live_position(s)
         @testset "live_position_sync" test_live_position_sync(s)
-        st.reset!(s)
         @testset "live_pnl" test_live_pnl(s)
-        # TODO: test fetch_open_orders
-        # TODO: test fetch_closed_orders
         @testset "live_send_order" test_live_send_order(s)
         @testset "live_my_trades" test_live_my_trades(s)
         @testset "live_order_trades" test_live_order_trades(s)
+        @testset "live_openclosed_order" test_live_openclosed_orders(s)
     end
 end
