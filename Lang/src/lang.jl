@@ -295,8 +295,14 @@ macro writeerror(filehandle)
     end
 end
 
+macro debug_backtrace()
+    quote
+        @ifdebug Base.show_backtrace(stderr, Base.catch_backtrace())
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws
 export @as, @sym_str, @exportenum
-export Option, toggle, @asyncm, @ifdebug, @deassert, @argstovec
+export Option, toggle, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
