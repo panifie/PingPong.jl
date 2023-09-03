@@ -6,9 +6,13 @@ using .Exchanges: check_timeout
 using .Lang: splitkws, safenotify, safewait
 
 const CcxtPositionsVal = Val{:ccxt_positions}
-const PositionUpdate4 = NamedTuple{
-    (:date, :notify, :pos),Tuple{DateTime,Base.Threads.Condition,Py}
+# :read, if true, the value of :pos has already be locally synced
+# :closed, if true, the value of :pos should be considered stale, and the position should be closed (contracts == 0)
+const PositionUpdate7 = NamedTuple{
+    (:date, :notify, :read, :closed, :resp),
+    Tuple{DateTime,Base.Threads.Condition,Ref{Bool},Ref{Bool},Py},
 }
+const PositionsDict2 = Dict{String,PositionUpdate7}
 
 function guess_settle(s::MarginStrategy)
     try
@@ -58,14 +62,12 @@ function ccxt_positions_watcher(
     interval=Second(5),
     wid="ccxt_positions",
     buffer_capacity=10,
-    keep_info=true,
     start=true,
     kwargs...,
 )
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    attrs[:keep_info] = keep_info
     _tfunc!(attrs, _w_fetch_positions_func(s, interval; kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
@@ -110,40 +112,53 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     return true
 end
 
-const PositionsDict = Dict{String,PositionUpdate4}
-
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
-    default_init(w, (; long=PositionsDict(), short=PositionsDict()), false)
+    default_init(w, (; long=PositionsDict2(), short=PositionsDict2()), false)
     _lastfetched!(w, DateTime(0))
 end
+
+# TODO: Maybe call live_sync_position! directly here?
 
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     isempty(w.buffer) && return nothing
-    _, update = last(w.buffer)
-    data = w.view
-    islist(update) || return nothing
-    keep_info = w[:keep_info]
+    _, data = last(w.buffer)
+    long_dict = w.view.long
+    short_dict = w.view.short
+    islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
-    for pos in update
-        isdict(pos) || continue
-        sym = resp_position_symbol(pos, eid, String)
-        side = posside_fromccxt(pos, eid)
-        side_dict = getproperty(data, ifelse(islong(side), :long, :short))
+    processed_syms = Set{Tuple{String,PositionSide}}()
+    for resp in data
+        isdict(resp) || continue
+        sym = resp_position_symbol(resp, eid, String)
+        side = posside_fromccxt(resp, eid)
+        side_dict = ifelse(islong(side), long_dict, short_dict)
         prev = get(side_dict, sym, nothing)
-        date = @something pytodate(pos, eid) now()
+        date = @something pytodate(resp, eid) now()
         pos_tuple = if isnothing(prev)
-            (; date, notify=Base.Threads.Condition(), pos)
+            (; date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp)
         elseif prev.date < date
-            keep_info || _deletek(pos)
-            (; date, prev.notify, pos)
+            prev.read[] = false
+            (; date, prev.notify, prev.read, prev.closed, resp)
         end
         isnothing(pos_tuple) || begin
             side_dict[sym] = pos_tuple
-            try
-                safenotify(pos_tuple.notify)
-            catch
-            end
+            push!(processed_syms, (sym, side))
+            safenotify(pos_tuple.notify)
+        end
+    end
+    # do notify if we added at least one response, or removed at least one
+    skip_notify = isempty(processed_syms) && isempty(long_dict) && isempty(short_dict)
+    _close_with_noupdates!(long_dict, Long(), processed_syms)
+    _close_with_noupdates!(short_dict, Short(), processed_syms)
+    skip_notify || safenotify(w.beacon.process)
+end
+
+function _close_with_noupdates!(dict, side, processed_syms)
+    for (k, v) in dict
+        if (k, side) ∉ processed_syms
+            v.closed[] = true
+            v.read[] = false
         end
     end
 end
