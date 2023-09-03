@@ -7,7 +7,7 @@ using Strategies: lowat, highat
 @doc "Update the entry price from notional, amount diff and cash."
 function update_price!(po::Position; ntl, prev_ntl, size)
     @deassert notional(po) >= 0.0 && ntl >= 0.0
-    po.entryprice[] = (prev_ntl + size) / cash(po)
+    po.entryprice[] = abs((prev_ntl + size) / cash(po))
 end
 @doc "Updates notional value."
 function update_notional!(po::Position; ntl, size)
