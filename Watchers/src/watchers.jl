@@ -42,7 +42,7 @@ _fetch_task(w, ::Disabled; kwargs...) = @async _tryfetch(w; kwargs...)
 function _schedule_fetch(w, timeout, threads; kwargs...)
     # skip fetching if already locked to avoid building up the queue
     islocked(w._exec.fetch_lock) && begin
-        w.attemps += 1
+        w.attempts += 1
         return nothing
     end
     waiting = Ref(true)
