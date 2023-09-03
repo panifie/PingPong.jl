@@ -2,13 +2,15 @@ function live_pnl(
     s::LiveStrategy,
     ai,
     p::ByPos;
-    resp=nothing,
+    update::Option{PositionUpdate7}=nothing,
     force_resync=:auto,
     verbose=true,
+    kwargs...
 )
     pside = posside(p)
     eid = exchangeid(ai)
-    lp = @something resp live_position(s, ai, pside)
+    update = @something update live_position(s, ai, pside; kwargs...)
+    lp = update.resp
     pos = position(ai, p)
     pnl = resp_position_unpnl(lp, eid)
     if iszero(pnl)
@@ -28,7 +30,7 @@ function live_pnl(
                 resync = true
             end
             if force_resync == :yes || (force_resync == :auto && resync)
-                live_sync_position!(s, ai, pside, lp; commits=false)
+                live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
         else

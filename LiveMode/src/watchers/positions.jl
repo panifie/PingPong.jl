@@ -119,6 +119,13 @@ end
 
 # TODO: Maybe call live_sync_position! directly here?
 
+function _posupdate(date, resp)
+    PositionUpdate7((; date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp))
+end
+function _posupdate!(prev, date, resp)
+    prev.read[] = false
+    PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
+end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     isempty(w.buffer) && return nothing
@@ -136,10 +143,9 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         prev = get(side_dict, sym, nothing)
         date = @something pytodate(resp, eid) now()
         pos_tuple = if isnothing(prev)
-            (; date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp)
+            _posupdate(date, resp)
         elseif prev.date < date
-            prev.read[] = false
-            (; date, prev.notify, prev.read, prev.closed, resp)
+            _posupdate!(prev, date, resp)
         end
         isnothing(pos_tuple) || begin
             side_dict[sym] = pos_tuple
@@ -161,6 +167,12 @@ function _close_with_noupdates!(dict, side, processed_syms)
             v.read[] = false
         end
     end
+end
+
+function _set_unread!(w)
+    data = w.view
+    map(v -> (v.read[] = false), values(data.long))
+    map(v -> (v.read[] = false), values(data.short))
 end
 
 positions_watcher(s) = s[:live_positions_watcher]

@@ -83,18 +83,17 @@ function live_position(
     eid = exchangeid(ai)
     tup = get(data, sym, nothing)
     if isnothing(tup) && force
-        pos = _force_fetch(s, ai, sym, side; fallback_kwargs)
-        if isdict(pos) && _ispossym(pos, sym, eid)
-            get(positions_watcher(s).attrs, :keep_info, true) || _deletek(pos, "info")
-            date = @something pytodate(pos, eid) now()
-            tup = data[sym] = (date, notify=Base.Threads.Condition(), pos)
+        resp = _force_fetch(s, ai, sym, side; fallback_kwargs)
+        if isdict(resp) && _ispossym(resp, sym, eid)
+            date = @something pytodate(resp, eid) now()
+            tup = data[sym] = _posupdate(date, resp)
         end
     end
-    while !isnothing(tup) && _isold(tup.pos, since, eid)
+    while !isnothing(tup) && _isold(tup.resp, since, eid)
         safewait(tup.notify)
         tup = get(data, sym, nothing)
     end
-    tup isa NamedTuple ? tup.pos : nothing
+    return tup
 end
 
 _ccxtmmr(lp::Py, pos, eid) =
@@ -197,10 +196,9 @@ function _ccxt_isposopen(pos::Py, eid::EIDType)
     c = resp_position_contracts(pos, eid) > ZERO
     i = !iszero(resp_position_initial_margin(pos, eid))
     n = !iszero(resp_position_notional(pos, eid))
-    p = !iszero(resp_position_unpnl(pos, eid))
     l = !iszero(resp_position_liqprice(pos, eid))
-    if c && !(i && n && p && l)
-        @warn "Position state dirty, contracts: $c > 0, but margin: $i, notional: $n, pnl: $p, liqprice: $l"
+    if c && !(i && n && l)
+        @warn "Position state dirty, contracts: $c > 0, but margin: $i, notional: $n, liqprice: $l"
     end
     c
 end
