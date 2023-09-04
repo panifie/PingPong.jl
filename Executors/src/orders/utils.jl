@@ -5,7 +5,7 @@ using Instances:
 using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType, PostOnlyOrderType
 using OrderTypes: ExchangeID, ByPos, ordertype
 using Instruments: AbstractAsset
-using Base: negate
+using Base: negate, beginsym
 using Lang: @lget!, @deassert
 using Misc: Long, Short, PositionSide
 
@@ -174,6 +174,9 @@ function orderscount(s::Strategy, ai::AssetInstance)
     end
     n
 end
+orderscount(s::Strategy, ai::AssetInstance, ::Type{Both}) = orderscount(s, ai)
+orderscount(s::Strategy, ai::AssetInstance, ::Type{Buy}) = length(buyorders(s, ai))
+orderscount(s::Strategy, ai::AssetInstance, ::Type{Sell}) = length(sellorders(s, ai))
 @doc "True if any of the holdings has non dust cash."
 function hascash(s::Strategy)
     for ai in s.holdings
