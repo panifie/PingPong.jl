@@ -45,6 +45,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     data::SortedDict{TimeFrame,DataFrame}
     history::Vector{Trade{O,T,E} where O<:OrderType}
     logs::Vector{AssetEvent{E}}
+    lock::ReentrantLock
     cash::Option{CCash{E}{S1}} where {S1}
     cash_committed::Option{CCash{E}{S2}} where {S2}
     exchange::Exchange{E}
@@ -75,6 +76,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
             data,
             Trade{OrderType,A,E}[],
             AssetEvent{E}[],
+            ReentrantLock(),
             cash,
             comm,
             e,
@@ -132,6 +134,7 @@ Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
+Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
 
 posside(::NoMarginInstance) = Long()
 posside(ai::MarginInstance) = posside(position(ai))
@@ -414,7 +417,7 @@ position(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide} = position(ai, 
 @doc "Returns the last open asset position or nothing."
 position(ai::MarginInstance) = getfield(ai, :lastpos)[]
 @doc "Check if an asset position is open."
-function isopen(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide}
+function isopen(ai::MarginInstance, ::Union{Type{S},S,Position{S}}) where {S<:PositionSide}
     isopen(position(ai, S))
 end
 @doc "Asset position notional value."
