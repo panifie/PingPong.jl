@@ -105,6 +105,10 @@ Base.getproperty(c::CurrencyCash, s::Symbol) =
     else
         getfield(c, s)
     end
+function Base.isapprox(cc::C, v::N) where {C<:CurrencyCash,N<:Number}
+    isapprox(value(cc), v; atol=_prec(cc))
+end
+Base.isapprox(v::N, cc::C) where {C<:CurrencyCash,N<:Number} = isapprox(cc, v)
 Base.setproperty!(::CurrencyCash, ::Symbol, v) = error("CurrencyCash is private.")
 Base.zero(c::Union{<:CurrencyCash,Type{<:CurrencyCash}}) = zero(c.cash)
 function Base.iszero(c::CurrencyCash{Cash{S,T}}) where {S,T}
