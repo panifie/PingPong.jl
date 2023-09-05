@@ -145,8 +145,8 @@ end
 const ordersdefault! = Returns(nothing)
 orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
 orderside(::Type{O}) where {O<:Order{T}} where {T<:OrderType{S}} where {S<:OrderSide} = S
-==(v1::Type{<:OrderSide}, v2::Type{<:Both}) = true
-==(v1::Type{<:Both}, v2::Type{<:OrderSide}) = true
+==(v1::Type{<:OrderSide}, v2::Type{Both}) = true
+==(v1::Type{Both}, v2::Type{<:OrderSide}) = true
 ordertype(::Order{T}) where {T} = T
 ordertype(::Type{O}) where {O<:Order{T}} where {T<:OrderType} = T
 function positionside(
