@@ -15,7 +15,7 @@ function create_live_order(
     kwargs...,
 )
     isnothing(resp) && begin
-        @warn "trying to create limit order with empty response ($(raw(ai)))"
+        @warn "trying to create order with empty response ($(raw(ai)))"
         return nothing
     end
     eid = exchangeid(ai)
@@ -52,7 +52,9 @@ function create_live_order(
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            o = f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
+            o = lock(ai) do
+                f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
+            end
         end
         o
     end
