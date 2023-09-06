@@ -69,7 +69,9 @@ function live_send_order(
     isnothing(profit_trigger) || let take_k = @pyconst("takeProfitPrice")
         haskey(params, take_k) || (params[take_k] = pyconvert(Py, profit_trigger))
     end
-
+    # start monitoring before sending the create request
+    watch_trades!(s, ai)
+    watch_orders!(s, ai)
     resp = create_order(s, sym, args...; side, type, price, amount, params)
     while resp isa Exception && retries > 0
         retries -= 1
