@@ -29,21 +29,12 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     this_kwargs = splitkws(:status; kwargs)
     tot = balance!(s; status=TotalBalance, this_kwargs...)
     used = balance!(s; status=UsedBalance, this_kwargs...)
-    for ai in s.universe
-        ai_tot = get(tot, ai.bc, ZERO)
-        cash!(ai, ai_tot)
+    @sync for ai in s.universe
+        @async lock(ai) do
+            ai_tot = get(tot, ai.bc, ZERO)
+            cash!(ai, ai_tot)
+            ai_used = get(used, ai.bc, ZERO)
+            cash!!(committed(ai), ai_used)
+        end
     end
-end
-
-
-function live_sync_universe!(s::MarginStrategy{Live}; kwargs...)
-end
-
-function live_sync_strategy!(s::LiveStrategy)
-    @sync begin
-        @async live_sync_strategy_cash!(s)
-        @async live_sync_universe!(s)
-        # TODO
-    end
-    s
 end
