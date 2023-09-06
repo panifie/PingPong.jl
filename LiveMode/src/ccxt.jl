@@ -30,7 +30,7 @@ function get_float(resp::Py, k, def, args...; ai)
     if isnothing(v)
         def
     else
-        isapprox(ai, v, def, args...) || begin
+        ismissing(def) || isapprox(ai, v, def, args...) || begin
             @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
         end
         v
@@ -163,6 +163,9 @@ function _ccxtisfilled(resp::Py, ::EIDType)
 end
 
 function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
+    @debug "Order synced" local_filled = filled_amount(o) resp_filled = resp_order_filled(
+        resp, eid
+    ) local_trades = length(trades(o)) remote_trades = length(resp_order_trades(resp, eid))
     isapprox(ai, filled_amount(o), resp_order_filled(resp, eid), Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
             ntrades > 0 && ntrades == length(trades(o))
@@ -196,6 +199,7 @@ resp_trade_amount(resp, ::EIDType, ::Type{Py}) = get_py(resp, Trf.amount)
 resp_trade_price(resp, ::EIDType)::DFT = get_float(resp, Trf.price)
 resp_trade_price(resp, ::EIDType, ::Type{Py}) = get_py(resp, Trf.price)
 resp_trade_timestamp(resp, ::EIDType) = get_py(resp, Trf.timestamp, @pyconst(0))
+resp_trade_timestamp(resp, ::EIDType, ::Type{DateTime}) = get_time(resp)
 resp_trade_symbol(resp, ::EIDType) = get_py(resp, Trf.symbol, @pyconst(""))
 resp_trade_id(resp, ::EIDType) = get_py(resp, Trf.id, @pyconst(""))
 resp_trade_side(resp, ::EIDType) = get_py(resp, Trf.side)

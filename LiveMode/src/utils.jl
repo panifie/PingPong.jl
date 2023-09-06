@@ -441,6 +441,16 @@ get_positions(s) = watch_positions!(s; interval=st.throttle(s)).view
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_positions(s, ai::AssetInstance) = get_positions(s, posside(ai))[raw(ai)]
+function get_position_side(s, ai::AssetInstance)
+    sym = raw(ai)
+    long, short = get_positions(s)
+    pos = get(long, sym, nothing)
+    !isnothing(pos) && return Long()
+    pos = get(short, sym, nothing)
+    !isnothing(pos) && return Short()
+    @warn "No position open for $sym, defaulting to long"
+    Long()
+end
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
 
 function st.current_total(s::NoMarginStrategy{Live})
