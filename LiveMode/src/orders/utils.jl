@@ -24,6 +24,8 @@ function set_active_order!(s::LiveStrategy, ai, o)
         update_hash=Ref{UInt64}(0),
         average_price=Ref(o.price),
     )
+    watch_trades!(s, ai) # ensure trade watcher is running
+    watch_orders!(s, ai) # ensure orders watcher is running
 end
 
 function show_active_orders(s::LiveStrategy, ai)
@@ -45,4 +47,21 @@ macro _isfilled()
         end
     end
     esc(expr)
+end
+
+function waitfor_closed(
+    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both
+)
+    active = active_orders(s, ai)
+    slept = Millisecond(0)
+    has_orders = false
+    while slept < waitfor
+        for state in values(active)
+            (has_orders = orderside(state.order) == t) && break
+        end
+        has_orders || break
+        sleep(0.1)
+        slept += Millisecond(100)
+    end
+    slept
 end

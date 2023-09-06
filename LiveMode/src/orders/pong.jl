@@ -58,10 +58,31 @@ end
 
 @doc "Cancel orders for a particular asset instance."
 function pong!(
-    s::Strategy{Live}, ai::AssetInstance, ::CancelOrders; t::Type{<:OrderSide}=Both
+    s::Strategy{Live},
+    ai::AssetInstance,
+    ::CancelOrders;
+    t::Type{<:OrderSide}=Both,
+    waitfor=Second(5),
+    confirm=false,
 )
-    if live_cancel(s, ai; side=t, confirm=true, all=true)::Bool
-        delete!(s, ai, Both)
+    if live_cancel(s, ai; side=t, confirm, all=true)::Bool
+        confirm || begin
+            waitfor_closed(s, ai, waitfor; t)
+            if orderscount(s, ai, t) > 0
+                @warn "Unexpected orders state $(raw(ai)), checking open orders from $(nameof(exchange(ai)))."
+                if try
+                    isempty(fetch_open_orders(s, ai, side=t))
+                catch
+                    false
+                end
+                    delete!(s, ai, t)
+                    return true
+                else
+                    @error "Deleted orders for side $t, but still tracking $(length(orderscount(s, ai, t))) orders for $(raw(ai))@$(nameof(s))"
+                    return false
+                end
+            end
+        end
         # remember to stop tasks
         stop_asset_tasks(s, ai)
         true
