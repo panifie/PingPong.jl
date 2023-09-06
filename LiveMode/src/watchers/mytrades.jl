@@ -9,7 +9,6 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     _still_running(tradestask(tasks)) && return nothing
     exc = exchange(ai)
     hasmytrades(exc) || return nothing
-    interval = st.attr(s, :throttle, Second(5))
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
         f = if has(exc, :watchMyTrades)
@@ -20,15 +19,19 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
             end
         else
             _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-            since = Ref(DateTime(0))
+            last_date = isempty(ai.history) ? now() : last(ai.history).date
+            since = Ref(last_date)
+            startup = Ref(true)
             eid = exchangeid(ai)
-            () -> begin
-                since[] == DateTime(0) || sleep(interval)
+            (_, _) -> begin
+                startup[] || sleep(1)
                 resp = fetch_my_trades(
                     s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
                 )
                 if !isnothing(resp) && islist(resp) && length(resp) > 0
-                    since[] = @something pytodate(resp[-1], eid) now()
+                    since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
+                elseif startup[]
+                    startup[] = false
                 end
                 resp
             end
@@ -42,7 +45,10 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                     handle_trades!(s, ai, orders_byid, trades)
                 end
             catch
-                @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                istaskrunning() || begin
+                    Base.show_backtrace(stdout, Base.catch_backtrace())
+                    @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                end
                 sleep(1)
             end
         end
@@ -89,10 +95,11 @@ function trade_hash(resp, eid)
     end
 end
 
-function get_order_state(orders_byid, id; waitfor=Second(10))
+function get_order_state(orders_byid, id; waitfor=Second(5))
     @something(
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
         begin
+            @debug "Order not found active, waiting" id = id waitfor = waitfor
             waitforcond(() -> haskey(orders_byid, id), waitfor)
             get(orders_byid, id, missing)
         end
@@ -110,6 +117,7 @@ function handle_trades!(s, ai, orders_byid, trades)
         eid = exchangeid(ai)
         @sync for resp in trades
             id = resp_trade_order(resp, eid, String)
+            @debug "Trades task, handling new trade" order = id
             if isempty(id)
                 @warn "Missing order id"
                 continue
@@ -119,17 +127,24 @@ function handle_trades!(s, ai, orders_byid, trades)
                         this_hash = trade_hash(resp, eid)
                         this_hash ∈ state.trade_hashes || begin
                             push!(state.trade_hashes, this_hash)
-                            t = trade!(
-                                s,
-                                state.order,
-                                ai;
-                                resp,
-                                date=nothing,
-                                price=nothing,
-                                actual_amount=nothing,
-                                fees=nothing,
-                                slippage=false,
-                            )
+                            @info "before locking"
+                            t = lock(ai) do
+                                @info "isopen" open = isopen(ai, state.order)
+                                if isopen(ai, state.order)
+                                    trade!(
+                                        s,
+                                        state.order,
+                                        ai;
+                                        resp,
+                                        date=nothing,
+                                        price=nothing,
+                                        actual_amount=nothing,
+                                        fees=nothing,
+                                        slippage=false,
+                                    )
+                                end
+                            end
+                            @debug "Trades task, after local trade" trade = t
                             t isa Trade && safenotify(cond)
                         end
                     else
@@ -208,10 +223,12 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
 end
 
 function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(1))
-    order_trades = o.attrs.trades
+    isfilled(ai, o) && return length(trades(o))
+    order_trades = trades(o)
     this_count = prev_count = length(order_trades)
     slept = 0
     timeout = Millisecond(waitfor).value
+    @debug "Waiting for trade " id = o.id timeout = timeout current_trades = this_count
     while slept < timeout
         slept += waitfortrade(s, ai; waitfor)
         this_count = length(order_trades)
