@@ -11,7 +11,7 @@ using PaperMode.Misc
 using .Misc: Lang, LittleDict
 using .Misc.TimeTicks
 using .Misc.Mocking: Mocking, @mock
-using .Lang: @deassert
+using .Lang: @deassert, @debug_backtrace
 using Base: SimpleLogger, with_logger
 import .Executors: pong!
 
@@ -25,6 +25,7 @@ include("orders/utils.jl")
 include("orders/state.jl")
 include("orders/send.jl")
 include("orders/create.jl")
+include("orders/sync.jl")
 include("orders/fetch.jl")
 include("orders/cancel.jl")
 include("orders/pong.jl")
