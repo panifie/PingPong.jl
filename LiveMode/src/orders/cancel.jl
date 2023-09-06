@@ -28,7 +28,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         open_orders = fetch_open_orders(
             s, ai; since=isnothing(since) ? nothing : TimeTicks.dtstamp(since)
         )
-        if side == Both
+        if side === Both
             isempty(open_orders) || return false
         else
             side_str = _ccxtorderside(side)

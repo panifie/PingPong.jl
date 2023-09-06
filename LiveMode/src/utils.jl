@@ -142,7 +142,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
     symbol = raw(ai)
     eid = exchangeid(ai)
     resp = _execfunc(fetch_func; symbol, kwargs...)
-    notside = let sides = if side == Both
+    notside = let sides = if side === Both # NOTE: strict equality
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
             (_ccxtorderside(side),)
@@ -152,7 +152,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     end
     should_skip = if isempty(ids)
-        if side == Both
+        if side === Both
             Returns(false)
         else
             notside
@@ -196,11 +196,11 @@ function _open_orders_func!(attrs, exc; open=true)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
         eid = typeof(exchangeid(exc))
         pred_func = o -> pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
-        pred_func = open ? pred_func : !pred_func
+        status_pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
             all_orders = fetch_func(ai; kwargs...)
             for o in all_orders
-                pred_func(o) && out.append(o)
+                status_pred_func(o) && out.append(o)
             end
             out
         end
