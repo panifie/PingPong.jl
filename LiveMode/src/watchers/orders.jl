@@ -8,7 +8,6 @@ using .SimMode: @maketrade
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     _still_running(asset_orders_task(s, ai)) && return nothing
     exc = exchange(ai)
-    interval = st.attr(s, :throttle, Second(5))
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
         f = if has(exc, :watchOrders)
@@ -22,8 +21,8 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             since = Ref(now())
             since_start = since[]
             eid = exchangeid(ai)
-            () -> begin
-                since[] == since_start || sleep(interval)
+            (_, _) -> begin
+                since[] == since_start || sleep(1)
                 resp = fetch_orders(s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...)
                 if !isnothing(resp) && islist(resp) && length(resp) > 0
                     since[] = @something pytodate(resp[-1], eid) now()
@@ -94,88 +93,160 @@ order_update_hash(resp, eid) = begin
     end
 end
 
+function update_order!(s, ai, eid; resp, state, cond)
+    this_hash = order_update_hash(resp, eid)
+    state.update_hash[] == this_hash && return nothing
+    # always update hash on new data
+    state.update_hash[] = this_hash
+    # only emulate trade if trade watcher task
+    # is not running
+    if hasmytrades(exchange(ai))
+    else
+        lock(ai) do
+            if isopen(ai, state.order)
+                t = emulate_trade!(s, state.order, ai; state, resp)
+                @debug "Emulated trade" trade = t id = state.order.id
+            end
+        end
+    end
+    # if order is filled remove it from the task orders map.
+    # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
+    order_open = _ccxtisopen(resp, eid)
+    order_closed = _ccxtisclosed(resp, eid)
+    order_trades = trades(state.order)
+    order_filled = isorder_filled(ai, state.order)
+    # order_partial = abs(unfilled(o)) != state.order.amount
+    if order_filled || !order_open
+        # Wait for trades to be processed if trades are not emulated
+        @debug "Orders task" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
+            order_trades
+        ) last_trade = if isempty(order_trades)
+            nothing
+        else
+            last(order_trades).date
+        end resp_date = pytodate(resp, exchangeid(ai))
+        if hasmytrades(exchange(ai))
+            while (order_filled && isempty(order_trades)) ||
+                !isorder_synced(state.order, ai, resp)
+                @debug "Orders task, waiting for trades" id = state.order.id
+                waitfortrade(s, ai, state.order; waitfor=Second(5))
+            end
+        end
+        # Order did not complete, send an error
+        if !order_closed
+            cancel!(
+                s, state.order, ai; err=OrderFailed(resp_order_status(resp, eid, String))
+            )
+        end
+        delete!(orders_byid, id)
+        # if there are no more orders, stop the monitoring task
+        if orderscount(s, ai) == 0
+            stop_watch_orders!(s, ai)
+            # also stop the trades task if running
+            if hasmytrades(exchange(ai))
+                stop_watch_trades!(s, ai)
+            end
+        end
+    end
+    safenotify(cond)
+end
+
+function re_activate_order!(s, ai, id; eid, resp, cond)
+    function docancel()
+        @error "Could not re-create order $id, cancelling from exchange ($(nameof(exchange(ai))))."
+        live_cancel(s, ai; ids=(id,), confirm=false, all=false)
+    end
+
+    new_order = true
+    # This should practically never happen
+    for o in orders(s, ai)
+        if o.id == id
+            set_active_order!(s, ai, o)
+            @warn "Re-activated an order ($id) that should already have been active ($(nameof(exchange(ai))))"
+            state = get_order_state(active_orders(s, ai), id)
+            if state isa LiveOrderState
+                update_order!(s, ai, eid; resp, state, cond)
+            else
+                docancel()
+            end
+            new_order = false
+            break
+        end
+    end
+    if new_order
+        o = create_live_order(
+            s,
+            resp,
+            ai;
+            t=get_position_side(s, ai),
+            price=missing,
+            amount=missing,
+            retry_with_resync=false,
+        )
+        if o isa Order
+            state = get_order_state(active_orders(s, ai), id)
+            if state isa LiveOrderState
+                update_order!(s, ai, eid; resp, state, cond)
+            else
+                docancel()
+            end
+        else
+            docancel()
+        end
+    end
+end
+
 function handle_orders!(s, ai, orders_byid, orders)
     try
         cond = task_local_storage(:notify)
         eid = exchangeid(ai)
         @sync for resp in orders
             id = resp_order_id(resp, eid, String)
+            @debug "Orders task" id = id status = resp_order_status(resp, eid)
             if isempty(id)
                 @warn "Missing order id"
                 continue
             else
+                # TODO: delete from orderby_id when cancelled
                 @async let state = get_order_state(orders_byid, id)
                     if state isa LiveOrderState
-                        this_hash = order_update_hash(resp)
-                        if state.update_hash[] != this_hash
-                            # always update hash on new data
-                            state.update_hash[] = this_hash
-                            # only emulate trade if trade watcher task
-                            # is not running
-                            hasmytrades(exchange(ai)) ||
-                                emulate_trade!(s, state.order, ai; state, resp)
-                            # if order is filled remove it from the task orders map.
-                            # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
-                            order_open = _ccxtisopen(resp)
-                            order_closed = _ccxtisclosed(resp)
-                            order_trades = trades(state.order)
-                            if isorder_filled(ai, state.order) || !order_open
-                                # Wait for trades to be processed if trades are not emulated
-                                if hasmytrades(exchange(ai)) && (
-                                    (
-                                        !isempty(order_trades) &&
-                                        last(order_trades).date <
-                                        pytodate(resp, exchangeid(ai))
-                                    ) || !isorder_synced(state.order, ai, resp)
-                                )
-                                    waitfortrade(s, ai, state.order; waitfor=Second(10))
-                                end
-                                # Order did not complete, send an error
-                                if !order_closed
-                                    cancel!(
-                                        s,
-                                        state.order,
-                                        ai;
-                                        err=OrderFailed(
-                                            resp_order_status(resp, eid, String)
-                                        ),
-                                    )
-                                end
-                                delete!(orders_byid, id)
-                                # if there are no more orders, stop the monitoring task
-                                if orderscount(s, ai) == 0
-                                    stop_watch_orders!(s, ai)
-                                    # also stop the trades task if running
-                                    if hasmytrades(exchange(ai))
-                                        stop_watch_trades!(s, ai)
-                                    end
-                                end
-                            end
-                            safenotify(cond)
-                        end
+                        update_order!(s, ai, eid; resp, state, cond)
+                    elseif _ccxtisopen(resp, eid)
+                        re_activate_order!(s, ai, id; eid, resp, state, cond)
                     else
-                        @error "(orders task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
+                        for o in orders(s, ai) # ensure order is not stored locally
+                            if o.id == id
+                                cancel!(
+                                    s,
+                                    o,
+                                    ai;
+                                    err=OrderFailed("Dangling order $id found in local state ($(raw(ai)))."),
+                                )
+                                break # do not expect duplicates
+                            end
+                        end
                     end
                 end
             end
         end
 
     catch e
-        # Main.e[] = e
+        Main.e[] = e
         ispyresult_error(e) || @error e
     end
 end
 
 # EXPERIMENTAL
-function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
+function emulate_trade!(s::LiveStrategy, o, ai; state, resp, exec=true)
     isopen(ai, o) || begin
         @error "Tried to execute a trade over a closed order ($(o.id))"
         return nothing
     end
+    @debug "Emulating trade" id = o.id
     eid = exchangeid(ai)
     check_type(ai, o, resp, eid) || return nothing
     check_symbol(ai, o, resp, eid) || return nothing
-    check_id(ai, o, resp, eid; resp_order_id) || return nothing
+    check_id(ai, o, resp, eid; getter=resp_order_id) || return nothing
     side = _ccxt_sidetype(resp, o, eid)
     _check_side(side, o) || return nothing
     new_filled = resp_order_filled(resp, eid)
@@ -221,18 +292,22 @@ function emulate_trade!(s::LiveStrategy, o, ai; state, resp)
     )
     size = _addfees(net_cost, fees_quote, o)
     trade = @maketrade
-    trade!(
-        s,
-        state.order,
-        ai;
-        resp,
-        trade,
-        date=nothing,
-        price=nothing,
-        actual_amount=nothing,
-        fees=nothing,
-        slippage=false,
-    )
+    if exec
+        trade!(
+            s,
+            state.order,
+            ai;
+            resp,
+            trade,
+            date=nothing,
+            price=nothing,
+            actual_amount=nothing,
+            fees=nothing,
+            slippage=false,
+        )
+    else
+        trade
+    end
 end
 
 function waitfororder(s::LiveStrategy, ai; waitfor=Second(5))
@@ -250,12 +325,14 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     slept = 0
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
+    @debug "Waiting for order" id = o.id timeout = timeout
     while slept < timeout
         slept += waitfororder(s, ai; waitfor)
         if !haskey(orders_byid, o.id)
             if o isa MarketOrder
                 waitfortrade(s, ai, o; waitfor=waitfor - Millisecond(slept))
             end
+            @debug "Order was removed from active set" id = o.id
             break
         end
     end
