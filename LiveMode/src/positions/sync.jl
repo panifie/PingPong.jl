@@ -216,8 +216,12 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; kwargs...)
     @sync for ai in s.universe
         @async begin
             @sync begin
-                @async dosync(ai, Long(), long)
-                @async dosync(ai, Short(), short)
+                @async lock(ai) do
+                    dosync(ai, Long(), long)
+                end
+                @async lock(ai) do
+                    dosync(ai, Short(), short)
+                end
             end
             set_active_position!(ai; default_date)
         end
