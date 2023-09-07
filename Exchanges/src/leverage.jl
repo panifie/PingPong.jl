@@ -1,23 +1,24 @@
-using Python: PyException, pyisTrue, pygetitem, pyeq, @py
+using Python: PyException, pyisTrue, pygetitem, pyeq, @py, pyfetch_timeout
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
 using Misc: IsolatedMargin, CrossMargin
 
-_handle_leverage(resp) = begin
+# TODO: export to livemode
+resp_code(resp, ::ExchangeID) = pygetitem(resp, @pyconst("code"), @pyconst(""))
+function _handle_leverage(e::Exchange, resp)
     if resp isa PyException
         @debug resp
-        false
+        occursin("not modified", string(resp))
     else
-        pyeq(Bool, pygetitem(resp, @pystr("code"), @pystr("")), @pystr("0"))
+        pyeq(Bool, resp_code(resp, typeof(e.id)), @pyconst("0"))
     end
 end
 
-
 @doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
 function leverage!(exc::Exchange, v::Real, sym::AbstractString)
-    resp = pyfetch(exc.setLeverage, Val(:try), v, sym)
-    _handle_leverage(resp)
+    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), v, sym)
+    _handle_leverage(exc, resp)
 end
 
 @kwdef struct LeverageTier{T<:Real}
