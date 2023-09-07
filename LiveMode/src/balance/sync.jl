@@ -8,17 +8,22 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
         @warn "Couldn't sync strategy($(nameof(s))) $what, currency $bc not found in exchange $(nameof(exchange(s)))"
     end
 
-    if isnothing(tot_cash)
+    c = if isnothing(tot_cash)
         dowarn("total cash")
+        ZERO
     else
-        cash!(s.cash, tot_cash)
+        tot_cash
     end
+    cash!(s.cash, c)
+
     used_cash = get(used, bc, nothing)
-    if isnothing(tot_cash)
+    cc = if isnothing(tot_cash)
         dowarn("committed cash")
+        ZERO
     else
-        cash!(s.cash_committed, used_cash)
+        used_cash
     end
+    cash!(s.cash_committed, cc)
 end
 
 @doc """ Asset balance is the true balance when no margin is invoved.

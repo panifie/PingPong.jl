@@ -190,11 +190,16 @@ function live_sync_position!(
     return pos
 end
 
-function live_sync_position!(s::LiveStrategy, ai::MarginInstance; since=nothing, kwargs...)
+function live_sync_position!(
+    s::LiveStrategy, ai::MarginInstance, pos::ByPos; since=nothing, kwargs...
+)
+    update = live_position(s, ai, pos; since)
+    isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
+end
+
+function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
     @sync for pos in (Long, Short)
-        @async let update = live_position(s, ai, pos; since)
-            isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
-        end
+        @async live_sync_position!(s, ai, pos; kwargs...)
     end
 end
 
@@ -209,7 +214,10 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; kwargs...)
         if isnothing(update)
             update = live_position(s, ai, side; force=true)
         end
-        isnothing(update) || begin
+        if isnothing(update)
+            reset!(ai, Long())
+            reset!(ai, Short())
+        else
             live_sync_position!(s, ai, side, update; kwargs...)
         end
     end
