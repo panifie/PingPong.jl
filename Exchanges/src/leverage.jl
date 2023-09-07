@@ -5,7 +5,7 @@ using Instruments: splitpair
 using Misc: IsolatedMargin, CrossMargin
 
 # TODO: export to livemode
-resp_code(resp, ::ExchangeID) = pygetitem(resp, @pyconst("code"), @pyconst(""))
+resp_code(resp, ::Type{ExchangeID}) = pygetitem(resp, @pyconst("code"), @pyconst(""))
 function _handle_leverage(e::Exchange, resp)
     if resp isa PyException
         @debug resp
