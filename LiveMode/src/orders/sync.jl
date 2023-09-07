@@ -84,7 +84,7 @@ apply_trade!(s::LiveStrategy, ai, o, trade) = begin
 end
 
 function live_sync_active_orders!(s::LiveStrategy; kwargs...)
-    @sync for ai in s
+    @sync for ai in s.universe
         @async live_sync_active_orders!(s, ai; kwargs...)
     end
     @info "Cash sync is required after orders sync."
