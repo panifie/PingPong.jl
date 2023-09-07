@@ -348,7 +348,11 @@ function _pyfetch_timeout(
         fetch(task)
     catch e
         if e isa TaskFailedException
-            pyfetch(f2, args...; coro_running, kwargs...)
+            if e.task.result isa PyException
+                e.task.result
+            else
+                pyfetch(f2, args...; coro_running, kwargs...)
+            end
         else
             istaskdone(task) || (pycancel(fut); wait(task))
             rethrow(e)
