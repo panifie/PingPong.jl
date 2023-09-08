@@ -348,7 +348,8 @@ function _pyfetch_timeout(
         fetch(task)
     catch e
         if e isa TaskFailedException
-            if e.task.result isa PyException
+            if e.task.result isa PyException &&
+                !pyisinstance(e.task.result, pybuiltins.TimeoutError)
                 e.task.result
             else
                 pyfetch(f2, args...; coro_running, kwargs...)
