@@ -109,7 +109,7 @@ function liquidate!(
 end
 
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
-function liquidation!(s::IsolatedStrategy, ai::MarginInstance, date)
+function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date)
     pos = position(ai)
     isnothing(pos) && return nothing
     @deassert !isopen(opposite(ai, pos))
@@ -129,7 +129,7 @@ function update_position!(
     ping!(s, ai, t, po, PositionUpdate())
 end
 
-@doc "Updates an isolated position in `Sim` mode from a new trade."
+@doc "Updates an isolated position in mode from a new trade."
 function position!(
     s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P}
 ) where {P<:PositionSide}
@@ -146,7 +146,7 @@ function position!(
     else
         open_position!(s, ai, t)
     end
-    liquidation!(s, ai, t.date)
+    maybe_liquidate!(s, ai, t.date)
 end
 
 @doc "Updates an isolated position in `Sim` mode from a new candle."
