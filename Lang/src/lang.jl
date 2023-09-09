@@ -164,8 +164,14 @@ macro m_str(s)
     :(MatchString($s))
 end
 
+macro __modulename__()
+    :($(string(__module__)))
+end
+
 _asbool(v::Bool) = v
-_asbool(v::String) = @something tryparse(Bool, v) v == "all"
+function _asbool(v::String)
+    @something tryparse(Bool, v) occursin(@__modulename__(), v) v == "all"
+end
 function _isdebug()
     @something _asbool(@something get(ENV, "JULIA_DEBUG", nothing) false) false
 end
