@@ -210,6 +210,12 @@ end
 function hasorders(s::Strategy, ai::AssetInstance)
     (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
 end
+hasorders(s::Strategy, ai, id::String) = begin
+    for o in values(s, ai)
+        o.id == id && return true
+    end
+    false
+end
 hasorders(s::Strategy, ai, ::ByPos) = hasorders(s, ai)
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
