@@ -125,7 +125,17 @@ market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 _tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker)
 function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
     lock(@lget!(tickersLockDict, pair, ReentrantLock())) do
-        @lget! tickersCache10Sec pair pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
+        @lget! tickersCache10Sec pair let v = nothing::Option{Py}
+            while true
+                v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
+                if v isa PyException
+                    @error "Fetch ticker error: $v"
+                else
+                    break
+                end
+            end
+            v
+        end
     end
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)

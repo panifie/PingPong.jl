@@ -18,7 +18,12 @@ end
 @doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
 function leverage!(exc::Exchange, v::Real, sym::AbstractString)
     resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), v, sym)
-    _handle_leverage(exc, resp)
+    if isnothing(resp)
+        @warn "Couldn't set leverage to $v for $sym on $(nameof(exc))"
+        false
+    else
+        _handle_leverage(exc, resp)
+    end
 end
 
 @kwdef struct LeverageTier{T<:Real}
