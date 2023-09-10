@@ -13,6 +13,7 @@ using .Misc.TimeTicks
 using .Misc.Mocking: Mocking, @mock
 using .Lang: @deassert, @debug_backtrace
 using Base: SimpleLogger, with_logger
+using .Executors.Instruments: cnum
 import .Executors: pong!
 
 include("utils.jl")
@@ -30,6 +31,7 @@ include("orders/fetch.jl")
 include("orders/cancel.jl")
 include("orders/pong.jl")
 include("positions/utils.jl")
+include("positions/state.jl")
 include("positions/active.jl")
 include("positions/sync.jl")
 include("positions/pnl.jl")
@@ -38,6 +40,7 @@ include("instances.jl")
 include("balance/fetch.jl")
 include("balance/sync.jl")
 include("trades.jl")
+include("sync.jl")
 
 include("adhoc/utils.jl")
 include("adhoc/balance.jl")
