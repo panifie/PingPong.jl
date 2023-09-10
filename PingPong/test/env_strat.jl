@@ -1,6 +1,5 @@
 include("env.jl")
 
-
 loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...) = @eval begin
     GC.gc()
     s = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
@@ -10,4 +9,4 @@ loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...) = @eval begin
     lm.exc_live_funcs!(s)
     eth = s[m"eth"]
 end
-loadstrat!(mode=Live())
+
