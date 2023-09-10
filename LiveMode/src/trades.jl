@@ -1,6 +1,5 @@
 import .SimMode: maketrade, trade!
 using .SimMode: @maketrade, iscashenough, cost
-using .Executors.Instruments: compactnum as cnum
 using .Misc.TimeToLive: safettl
 
 function _check_and_filter(resp; ai, since, kind="")
@@ -265,5 +264,6 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)
 
+    @debug "Consctructing trade $(raw(ai))@$(nameof(s))"
     @maketrade
 end
