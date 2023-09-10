@@ -30,9 +30,11 @@ function get_float(resp::Py, k, def, args...; ai)
     if isnothing(v)
         def
     else
-        ismissing(def) || isapprox(ai, v, def, args...) || begin
-            @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
-        end
+        ismissing(def) ||
+            isapprox(ai, v, def, args...) ||
+            begin
+                @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
+            end
         v
     end
 end
@@ -172,12 +174,16 @@ function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
         end
 end
 
-function _ccxt_sidetype(resp, o, eid::EIDType; getter=resp_trade_side)::Type{<:OrderSide}
+function _ccxt_sidetype(
+    resp, eid::EIDType; o=nothing, getter=resp_trade_side
+)::Type{<:OrderSide}
     side = getter(resp, eid)
     if pyeq(Bool, side, @pyconst("buy"))
         Buy
     elseif pyeq(Bool, side, @pyconst("sell"))
         Sell
+    elseif isnothing(o)
+        nothing
     else
         orderside(o)
     end
@@ -259,7 +265,7 @@ end
 resp_position_contracts(resp, ::EIDType)::DFT = get_float(resp, Pos.contracts)
 resp_position_entryprice(resp, ::EIDType)::DFT = get_float(resp, Pos.entryPrice)
 resp_position_mmr(resp, ::EIDType)::DFT = get_float(resp, "maintenanceMarginPercentage")
-resp_position_side(resp, ::EIDType) = get_py(resp, Pos.side, @pyconst("")).lower()
+resp_position_side(resp, ::EIDType) = get_py(resp, @pyconst(""), Pos.side).lower()
 resp_position_unpnl(resp, ::EIDType)::DFT = get_float(resp, Pos.unrealizedPnl)
 resp_position_leverage(resp, ::EIDType)::DFT = get_float(resp, Pos.leverage)
 resp_position_liqprice(resp, ::EIDType)::DFT = get_float(resp, Pos.liquidationPrice)
