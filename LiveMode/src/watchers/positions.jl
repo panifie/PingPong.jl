@@ -167,6 +167,7 @@ function _setposflags!(dict, side, processed_syms)
     for (k, v) in dict
         v.closed[] = (k, side) ∉ processed_syms
         v.read[] = false
+        safenotify(v.notify)
     end
 end
 
