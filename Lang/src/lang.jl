@@ -164,24 +164,22 @@ macro m_str(s)
     :(MatchString($s))
 end
 
-macro __modulename__()
-    :($(string(__module__)))
+_asbool(v::Bool, args...) = v
+function _asbool(v::String, name)
+    @something tryparse(Bool, v) occursin(name, v) v == "all"
 end
-
-_asbool(v::Bool) = v
-function _asbool(v::String)
-    @something tryparse(Bool, v) occursin(@__modulename__(), v) v == "all"
-end
-function _isdebug()
-    @something _asbool(@something get(ENV, "JULIA_DEBUG", nothing) false) false
+function _isdebug(name)
+    @something _asbool((@something get(ENV, "JULIA_DEBUG", nothing) false), name) false
 end
 
 macro ifdebug(a, b=nothing)
-    esc(_isdebug() ? a : b)
+    name = string(__module__)
+    esc(_isdebug(name) ? a : b)
 end
 
 macro deassert(condition, msg=nothing)
-    if _isdebug()
+    name = string(__module__)
+    if _isdebug(name)
         if isnothing(msg)
             quote
                 # @assert $(esc(condition))
@@ -303,7 +301,15 @@ end
 
 macro debug_backtrace()
     quote
-        @ifdebug Base.show_backtrace(stderr, Base.catch_backtrace())
+        let buf = IOBuffer()
+            try
+                error, trace = first(Base.catch_stack())
+                Base.show_backtrace(buf, trace)
+                @debug String(take!(buf)) error = error
+            finally
+                close(buf)
+            end
+        end
     end
 end
 
