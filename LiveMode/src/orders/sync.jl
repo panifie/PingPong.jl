@@ -30,16 +30,14 @@ function live_sync_active_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         @warn "Active orders dict found not empty, deleting $(length(ao)) entries."
         empty!(ao)
     end
-    if orderscount(s) > 0
-        @warn "$(orderscount(s)) in the local state of the strategy, deleting $(length(ao)) entries."
-        foreach(ai -> delete!(s, ai), s.universe)
-    end
     eid = exchangeid(ai)
     open_orders = fetch_open_orders(s, ai; side)
-    pos = get_position_side(s, ai)
     maxout!(s, ai)
+    live_orders = Set{String}()
+    default_pos = get_position_side(s, ai)
     for resp in open_orders
-        o = (@something findorder(ai, resp) create_live_order(
+        pos = _ccxtposside(resp, eid, Val(:order), def=default_pos)
+        o = (@something findorder(s, ai, resp) create_live_order(
             s,
             resp,
             ai;
@@ -50,7 +48,13 @@ function live_sync_active_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
             create_kwargs...,
         ) missing)::Option{O where O<:Order}
         ismissing(o) && continue
+        push!(s.holdings, ai)
+        push!(live_orders, o.id)
+
         replay_order!(s, o, ai; resp)
+    end
+    for o in values(s)
+        o.id ∉ live_orders && delete!(s, ai, o)
     end
     if orderscount(s, ai) > 0
         watch_trades!(s, ai) # ensure trade watcher is running
@@ -59,16 +63,28 @@ function live_sync_active_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
     nothing
 end
 
-function findorder(ai, resp)
+function findorder(s, ai, resp)
     id = resp_order_id(resp, exchangeid(ai), String)
     if !isempty(id)
-        findfirst(t -> t.order.id == id, ai.history)
+        side = @something _ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side) Both
+        for o in values(s, ai, side)
+            if o.id == id
+                return o
+            end
+        end
+        o = findfirst(t -> t.order.id == id, ai.history)
+        if o isa Order
+            return o
+        end
     end
 end
 
 function replay_order!(s::LiveStrategy, o, ai; resp)
-    ao = active_orders(s, ai)
-    state = get_order_state(ao, o.id; waitfor=Second(0))
+    state = set_active_order!(s, ai, o)
+    if ismissing(state)
+        @error "Expected active order state to be present already."
+        return o
+    end
     order_trades = PyList(resp_order_trades(resp, exchangeid(ai)))
     new_trades = @view order_trades[(begin + length(trades(o))):end]
     if !isempty(new_trades)
@@ -78,7 +94,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp)
         end
     else
         trade = emulate_trade!(s, o, ai; state, resp, exec=false)
-        apply_trade!(s, ai, o, trade)
+        isnothing(trade) || apply_trade!(s, ai, o, trade)
     end
     o
 end
@@ -103,21 +119,26 @@ function live_sync_active_orders!(s::LiveStrategy; kwargs...)
 end
 
 function check_orders_sync(s::LiveStrategy)
-    eid = exchangeid(s)
-    local_ids = Set(o.id for (_, o) in Executors.orders(s))
-    exc_ids = Set{String}()
-    tracked_ids = Set{String}()
-    @sync for ai in s.universe
-        @async for o in fetch_open_orders(s, ai)
-            push!(exc_ids, resp_order_id(o, eid, String))
+    try
+        lock.(s.universe)
+        eid = exchangeid(s)
+        local_ids = Set(o.id for o in values(s))
+        exc_ids = Set{String}()
+        tracked_ids = Set{String}()
+        @sync for ai in s.universe
+            @async for o in fetch_open_orders(s, ai)
+                push!(exc_ids, resp_order_id(o, eid, String))
+            end
+            for id in keys(active_orders(s, ai))
+                push!(tracked_ids, id)
+            end
         end
-        for id in keys(active_orders(s, ai))
-            push!(tracked_ids, id)
-        end
+        @assert length(tracked_ids) == length(exc_ids)
+        @assert length(local_ids) == length(exc_ids)
+        @assert all(id ∈ exc_ids for id in local_ids)
+        @assert all(id ∈ exc_ids for id in tracked_ids)
+        @info "Currently tracking $(length(tracked_ids)) orders"
+    finally
+        unlock.(s.universe)
     end
-    @assert length(tracked_ids) == length(exc_ids)
-    @assert length(local_ids) == length(exc_ids)
-    @assert all(id ∈ exc_ids for id in local_ids)
-    @assert all(id ∈ exc_ids for id in tracked_ids)
-    @info "Currently tracking $(length(tracked_ids)) orders"
 end
