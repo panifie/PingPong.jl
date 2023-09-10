@@ -77,6 +77,7 @@ function live_position(
     fallback_kwargs=(),
     since=nothing,
     force=false,
+    waitfor=Second(5),
 )
     data = get_positions(s, side)
     sym = raw(ai)
@@ -89,9 +90,18 @@ function live_position(
             tup = data[sym] = _posupdate(date, resp)
         end
     end
+    slept = 0
+    timeout = Millisecond(waitfor).value
     while !isnothing(tup) && _isold(tup.resp, since, eid)
+        @debug "Waiting for a poition update more recent than $since"
+        if slept >= timeout
+            @warn "Position fetch since $(since) timed out $(raw(ai))@$(nameof(s))"
+            break
+        end
         safewait(tup.notify)
         tup = get(data, sym, nothing)
+        slept += 100
+        sleep(0.1)
     end
     return tup
 end
