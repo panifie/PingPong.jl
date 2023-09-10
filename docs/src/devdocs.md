@@ -56,6 +56,18 @@ using Data.DataFrames
 end
 ```
 
+### Segfaults
+See https://github.com/cjdoris/PythonCall.jl/issues/201
+Before loading PingPong disable the GC and re-enable it afterwards.
+
+``` julia
+GC.enable(false)
+using PingPong
+s = st.strategy()
+GC.enable(true)
+GC.gc()
+```
+
 ### Adding dependencies
 
 Only add a dependency to one of the subpackages, when using the same dependency from another subpackage, add the subpackage that already has that dependency instead of the dependency itself.
