@@ -101,14 +101,18 @@ const OrderTasksDict = Dict{Order,Task}
 const AssetTasks = NamedTuple{(:byname, :byorder),Tuple{TasksDict,OrderTasksDict}}
 order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
 function asset_tasks(s::Strategy)
-    @lget! s.attrs :live_asset_tasks Dict{AssetInstance,AssetTasks}()
+    @lget! s.attrs :live_asset_tasks finalizer(
+        (_) -> stop_all_asset_tasks(s), Dict{AssetInstance,AssetTasks}()
+    )
 end
 function asset_tasks(s::Strategy, ai)
     tasks = asset_tasks(s)
     @lget! tasks ai (; byname=TasksDict(), byorder=OrderTasksDict())
 end
 function strategy_tasks(s::Strategy)
-    @lget! s.attrs :live_strategy_tasks Dict{String,TasksDict}()
+    @lget! s.attrs :live_strategy_tasks finalizer(
+        (_) -> stop_all_strategy_tasks(s), Dict{String,TasksDict}()
+    )
 end
 function strategy_tasks(s::Strategy, account)
     tasks = strategy_tasks(s)
@@ -162,7 +166,10 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
             (o) -> (resp_order_id(o, eid, String) ∉ ids_set || notside(o))
         end
     end
-    resp isa PyException && throw(resp)
+    if resp isa PyException
+        @error "Error when fetching orders for $(raw(ai)) $resp"
+        return nothing
+    end
     _pyfilter!(resp, should_skip)
 end
 
