@@ -19,6 +19,8 @@ function create_live_order(
         return nothing
     end
     eid = exchangeid(ai)
+    @debug "Creating order" isopen = _ccxtisopen(resp, eid) filled =
+        resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
     _ccxtisopen(resp, eid) ||
         resp_order_filled(resp, eid) > ZERO ||
         !isempty(resp_order_id(resp, eid)) ||
@@ -52,9 +54,10 @@ function create_live_order(
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            o = lock(ai) do
-                f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
-            end
+            @debug "Locking ai"
+            o = @lock ai f(
+                s, type, ai; id, amount, date, type, price, loss, profit, kwargs...
+            )
         end
         o
     end

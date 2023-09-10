@@ -39,7 +39,8 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     tot = balance!(s; status=TotalBalance, this_kwargs...)
     used = balance!(s; status=UsedBalance, this_kwargs...)
     @sync for ai in s.universe
-        @async lock(ai) do
+        @debug "Locking ai"
+        @async @lock ai begin
             ai_tot = get(tot, ai.bc, ZERO)
             cash!(ai, ai_tot)
             ai_used = get(used, ai.bc, ZERO)

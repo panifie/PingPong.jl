@@ -102,11 +102,10 @@ function update_order!(s, ai, eid; resp, state, cond)
     # is not running
     if hasmytrades(exchange(ai))
     else
-        lock(ai) do
-            if isopen(ai, state.order)
-                t = emulate_trade!(s, state.order, ai; state, resp)
-                @debug "Emulated trade" trade = t id = state.order.id
-            end
+        @debug "Locking ai"
+        @lock ai if isopen(ai, state.order)
+            t = emulate_trade!(s, state.order, ai; state, resp)
+            @debug "Emulated trade" trade = t id = state.order.id
         end
     end
     # if order is filled remove it from the task orders map.
