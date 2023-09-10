@@ -2,7 +2,8 @@ using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using Instances:
     MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, _deducted_amount
-using OrderTypes: IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType, PostOnlyOrderType
+using OrderTypes:
+    IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType, PostOnlyOrderType
 using OrderTypes: ExchangeID, ByPos, ordertype
 using Instruments: AbstractAsset
 using Base: negate, beginsym
@@ -129,12 +130,17 @@ end
 orders(s, ai, ::Type{Both}) = orders(s, ai)
 orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
 orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
+
 @doc "Get strategy buy orders for asset."
 function orders(s::Strategy{M,S,E}, ai, ::BySide{Buy}) where {M,S,E}
     @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
 end
 function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
+end
+Base.keys(s::Strategy, args...; kwargs...) = (k for (k, _) in orders(s, args...; kwargs...))
+function Base.values(s::Strategy, args...; kwargs...)
+    (o for (_, o) in orders(s, args...; kwargs...))
 end
 function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0
