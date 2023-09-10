@@ -66,8 +66,13 @@ end
 tradestask(tasks) = get(tasks, :trades_task, nothing)
 tradestask(s, ai) = tradestask(asset_tasks(s, ai).byname)
 function ispyexception(e, pyexception)
-    pyisinstance(e, pyexception) ||
+    pyisinstance(e, pyexception) || try
         (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
+    catch
+        isdefined(Main, :e) && (Main.e[] = e)
+        @error "Can't check exception of type $(typeof(e))"
+        false
+    end
 end
 function ispyresult_error(e)
     ispyexception(e, Python.gpa.pyaio.InvalidStateError)
@@ -157,6 +162,7 @@ function handle_trades!(s, ai, orders_byid, trades)
         end
 
     catch e
+        @ifdebug isdefined(Main.e) && Main.e[] = e
         ispyresult_error(e) || @error e
     end
 end
