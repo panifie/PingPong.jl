@@ -10,7 +10,7 @@ using Processing.DataFrames: DataFrame
 using Base.Threads: @spawn
 
 function _tryfetch(w)::Bool
-    result = lock(w._exec.fetch_lock) do
+    result = lock(w) do
         w.last_fetch = now()
         try
             _fetch!(w, w._val)
@@ -41,7 +41,7 @@ _fetch_task(w, ::Enabled; kwargs...) = @spawn _tryfetch(w; kwargs...)
 _fetch_task(w, ::Disabled; kwargs...) = @async _tryfetch(w; kwargs...)
 function _schedule_fetch(w, timeout, threads; kwargs...)
     # skip fetching if already locked to avoid building up the queue
-    islocked(w._exec.fetch_lock) && begin
+    islocked(w) && begin
         w.attempts += 1
         return nothing
     end
