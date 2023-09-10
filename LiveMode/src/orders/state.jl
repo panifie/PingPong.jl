@@ -1,6 +1,6 @@
 using .PaperMode.Instances: _deducted_amount
 using Base: negate
-using .Executors: attr, committment
+using .Executors: attr, committment, _check_unfillment, IncreaseLimitOrder
 import Base: fill!
 
 # NOTE: unfilled is always negative
