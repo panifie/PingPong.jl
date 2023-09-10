@@ -126,6 +126,10 @@ Base.islocked(w::Watcher) = islocked(w._exec.fetch_lock)
 Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(w._exec.buffer_lock)
 Base.lock(f, w::Watcher) = lock(f, w._exec.fetch_lock)
 Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, w._exec.buffer_lock)
+Base.lock(w::Watcher) = lock(w._exec.fetch_lock)
+Base.lock(w::Watcher, ::Val{:buffer}) = lock(w._exec.buffer_lock)
+Base.unlock(w::Watcher) = unlock(w._exec.fetch_lock)
+Base.unlock(w::Watcher, ::Val{:buffer}) = unlock(w._exec.buffer_lock)
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
