@@ -53,6 +53,7 @@ function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwa
         end
 
     catch
+        @debug_backtrace
         @warn "Could not fetch balance from $(nameof(exc))"
     end
 end
@@ -82,7 +83,17 @@ end
 function balance!(
     exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...
 )
-    b = _fetch_balance(exc, args...; type, kwargs...)[@pystr(lowercase(string(status)))]
+    b = let resp = _fetch_balance(exc, args...; type, kwargs...)
+        if resp isa Exception
+            @debug resp
+        else
+            resp[@pystr(lowercase(string(status)))]
+        end
+    end
+    if isnothing(b)
+        @warn "Failed to fetch balance from $(nameof(exc)) $args"
+        return nothing
+    end
     d = _balancedict!(exc)
     if b isa Py
         d[(status, type)] = b
