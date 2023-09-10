@@ -38,8 +38,13 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                     orders = f(flag, coro_running)
                     handle_orders!(s, ai, orders_byid, orders)
                 end
-            catch
-                @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+            catch e
+                if e isa InterruptException
+                    break
+                else
+                    @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                end
+                @debug Base.show_backtrace(stdout, catch_backtrace())
                 sleep(1)
             end
         end

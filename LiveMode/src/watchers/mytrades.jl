@@ -44,9 +44,11 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                     trades = f(flag, coro_running)
                     handle_trades!(s, ai, orders_byid, trades)
                 end
-            catch
-                istaskrunning() || begin
-                    Base.show_backtrace(stdout, Base.catch_backtrace())
+            catch e
+                if e isa InterruptException()
+                    break
+                else
+                    @ifdebug Base.show_backtrace(stdout, Base.catch_backtrace())
                     @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
                 end
                 sleep(1)
