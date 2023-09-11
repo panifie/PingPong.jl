@@ -241,7 +241,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     check_type(ai, o, resp, eid) || return nothing
     check_symbol(ai, o, resp, eid) || return nothing
     check_id(ai, o, resp, eid) || return nothing
-    side = _ccxt_sidetype(resp, o, eid)
+    side = _ccxt_sidetype(resp, eid; o)
     _check_side(side, o) || return nothing
     actual_amount = resp_trade_amount(resp, eid)
     actual_price = resp_trade_price(resp, eid)
