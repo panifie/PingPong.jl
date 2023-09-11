@@ -81,7 +81,7 @@ function Base.close(w::Watcher; doflush=true) # @lock w._exec.fetch_lock begin
         w._stop = true
     end
 end
-Base.empty!(w::Watcher) = empty!(w.buffer)
+Base.empty!(w::Watcher) = empty!(buffer(w))
 Base.getproperty(w::Watcher, p::Symbol) = begin
     if p == :view
         Base.get(w)
