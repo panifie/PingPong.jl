@@ -172,6 +172,8 @@ cash(po::Position) = po.cash
 committed(po::Position) = po.cash_committed
 @doc "Maximum value that can be lost by the position"
 collateral(po::Position) = margin(po) + additional(po)
+@doc "Last position update time"
+timestamp(po::Position) = po.timestamp[]
 
 @doc "The price where the position is fully liquidated."
 function bankruptcy(price::Real, lev::Real)

@@ -19,6 +19,7 @@ using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
 import Exchanges: lastprice, leverage!
+import OrderTypes: trades
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 
@@ -188,12 +189,16 @@ function Base.iszero(ai::AssetInstance)
     iszero(ai, Long()) && iszero(ai, Short())
 end
 approxzero(ai::AssetInstance, args...; kwargs...) = iszero(ai, args...; kwargs...)
-gtxzero(ai::AssetInstance, v, ::Val{:amount}) = gtxzero(v; atol=ai.limits.amount.min)
-ltxzero(ai::AssetInstance, v, ::Val{:amount}) = ltxzero(v; atol=ai.limits.amount.min)
-gtxzero(ai::AssetInstance, v, ::Val{:price}) = gtxzero(v; atol=ai.limits.price.min)
-ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.min)
-gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min)
-ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min)
+function gtxzero(ai::AssetInstance, v, ::Val{:amount})
+    gtxzero(v; atol=ai.limits.amount.min - eps())
+end
+function ltxzero(ai::AssetInstance, v, ::Val{:amount})
+    ltxzero(v; atol=ai.limits.amount.min - eps())
+end
+gtxzero(ai::AssetInstance, v, ::Val{:price}) = gtxzero(v; atol=ai.limits.price.min - eps())
+ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.min - eps())
+gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min - eps())
+ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min - eps())
 function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount})
     isapprox(value(v1), value(v2); atol=ai.precision.amount - eps(DFT))
 end
@@ -419,6 +424,25 @@ position(ai::MarginInstance, ::ByPos{Short}) = getfield(ai, :shortpos)
 position(ai::MarginInstance, ::ByPos{S}) where {S<:PositionSide} = position(ai, S)
 @doc "Returns the last open asset position or nothing."
 position(ai::MarginInstance) = getfield(ai, :lastpos)[]
+trades(ai::AssetInstance) = getfield(ai, :history)
+_history_timestamp(ai) =
+    let history = trades(ai)
+        if isempty(history)
+            DateTime(0)
+        else
+            last(history).date
+        end
+    end
+timestamp(ai::NoMarginInstance) = _history_timestamp(ai)
+timestamp(::MarginInstance, ::Nothing) = DateTime(0)
+function timestamp(ai::MarginInstance, ::ByPos{P}=posside(ai)) where {P}
+    pos = position(ai, P())
+    if isnothing(pos)
+        _history_timestamp(ai)
+    else
+        timestamp(pos)
+    end
+end
 @doc "Check if an asset position is open."
 function isopen(ai::MarginInstance, ::Union{Type{S},S,Position{S}}) where {S<:PositionSide}
     isopen(position(ai, S))
