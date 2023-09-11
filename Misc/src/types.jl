@@ -1,5 +1,6 @@
 using TimeTicks
 using .Sandbox: safereval
+import Base: ==
 const td_tf = TimeTicks.td_tf
 
 abstract type ExecAction end
@@ -31,6 +32,9 @@ opposite(::Type{Long}) = Short
 opposite(::Long) = Short()
 opposite(::Type{Short}) = Long
 opposite(::Short) = Long()
+const ObjectOrType{T} = Union{T, Type{T}}
+==(::ObjectOrType{Long}, ::ObjectOrType{Long}) = true
+==(::ObjectOrType{Short}, ::ObjectOrType{Short}) = true
 
 const StrOrVec = Union{AbstractString,AbstractVector}
 @doc "The floating point number type to use."
