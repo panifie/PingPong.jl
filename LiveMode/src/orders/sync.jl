@@ -133,8 +133,16 @@ function check_orders_sync(s::LiveStrategy)
                 push!(tracked_ids, id)
             end
         end
-        @assert length(tracked_ids) == length(exc_ids)
-        @assert length(local_ids) == length(exc_ids)
+        if length(tracked_ids) != length(exc_ids)
+            @error "Tracked ids not matching exchange ids" non_exc_ids = Set(
+                id for id in tracked_ids if id ∉ exc_ids
+            )
+        end
+        if length(local_ids) != length(exc_ids)
+            @error "Local ids not matching exchange ids" non_exc_ids = Set(
+                id for id in local_ids if id ∉ exc_ids
+            )
+        end
         @assert all(id ∈ exc_ids for id in local_ids)
         @assert all(id ∈ exc_ids for id in tracked_ids)
         @info "Currently tracking $(length(tracked_ids)) orders"
