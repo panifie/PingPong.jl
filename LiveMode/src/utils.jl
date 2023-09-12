@@ -371,23 +371,57 @@ function _order_trades_func!(attrs, exc)
             _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
     else
         fetch_func = attrs[:live_my_trades_func]
+        o_id_func = @something first(exc, :fetchOrderWs, :fetchOrder) Returns(())
         o_func = attrs[:live_orders_func]
         o_closed_func = attrs[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
-            since =
-                ((@something since let ords = _execfunc(o_func, ai; ids=(id,))
-                        try
+            resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
+            trades = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+            !isemptish(trades) && return trades
+            trades = nothing
+            let since = (
+                    (@something since try
+                        eid = exchangeid(ai)
+                        ords = _execfunc(o_id_func, id, raw(ai))
+                        if isemptish(ords)
+                            ords = _execfunc(o_func, ai; ids=(id,))
                             if isempty(ords) # its possible for the order to not be present in
                                 # the fetch orders function if it is closed
                                 ords = _execfunc(o_closed_func, ai; ids=(id,))
                             end
-                            pytodate(ords[0], exchangeid(ai))
-                        catch
-                            now()
                         end
-                    end) |> dtstamp) - 1
-            let resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
-                _ordertrades(resp, exc, ((x) -> string(x) == id))
+                        if isemptish(ords)
+                            @debug "Couldn't fetch order id $id ($(raw(ai))@$(nameof(exc))) (defaulting to last day orders)"
+                            now() - Day(1)
+                        else
+                            o = if isdict(ords)
+                                ords
+                            elseif islist(ords)
+                                ords[0]
+                            else
+                                @error "Unexpected returned value while fetching orders for $id \n $ords"
+                                return nothing
+                            end
+                            trades = resp_order_trades(o, eid)
+                            if isemptish(trades)
+                                resp_order_timestamp(o, eid)
+                            else
+                                return trades
+                            end
+                        end
+                    catch
+                        @debug_backtrace
+                        now() - Day(1)
+                    end) - Second(1) |> dtstamp
+                )
+                tries = 0
+                while tries < 3 && isemptish(trades)
+                    resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
+                    trades = _ordertrades(resp, exc, ((x) -> string(x) == id))
+                    since -= 86400000
+                    tries += 1
+                end
+                return trades
             end
         end
     end
