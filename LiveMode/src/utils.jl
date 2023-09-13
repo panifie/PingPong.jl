@@ -353,9 +353,11 @@ end
 function _ordertrades(resp, exc, isid=(x) -> length(x) > 0)
     (pyisnone(resp) || resp isa PyException || isempty(resp)) && return nothing
     out = pylist()
+    eid = typeof(exc.id)
+    append = out.append
     for o in resp
-        id = resp_trade_order(o, typeof(exc.id))
-        (pyisinstance(id, pybuiltins.str) && isid(id)) && out.append(o)
+        id = resp_trade_order(o, eid)
+        (pyisinstance(id, pybuiltins.str) && isid(id)) && append(o)
     end
     out
 end
@@ -379,6 +381,18 @@ end
 _isstrequal(a::Py, b::String) = string(a) == b
 _isstrequal(a::Py, b::Py) = pyeq(Bool, a, b)
 _ispydict(v) = pyisinstance(v, pybuiltins.dict)
+isemptish(v::Py) =
+    try
+        pyisnone(v) || isempty(v)
+    catch
+        true
+    end
+isemptish(v) =
+    try
+        isnothing(v) || isempty(v)
+    catch
+        true
+    end
 
 function _order_trades_func!(attrs, exc)
     attrs[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
@@ -498,6 +512,7 @@ get_positions(s) = watch_positions!(s; interval=st.throttle(s)).view
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_positions(s, ai::AssetInstance) = get_positions(s, posside(ai))[raw(ai)]
+get_positions(s, ai, bp::ByPos) = get(get_positions(s, bp), raw(ai), nothing)
 function get_position_side(s, ai::AssetInstance)
     sym = raw(ai)
     long, short = get_positions(s)
