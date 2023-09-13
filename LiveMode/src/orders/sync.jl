@@ -1,3 +1,4 @@
+using .Executors: _cashfrom
 
 # Before syncing orders, set cash of both strategy and asset instance to maximum to avoid failing order creation.
 maxout!(s::LiveStrategy, ai) = begin
@@ -24,29 +25,34 @@ maxout!(s::LiveStrategy, ai) = begin
     end
 end
 
-function live_sync_active_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both)
+function live_sync_active_orders!(
+    s::LiveStrategy, ai; strict=true, create_kwargs=(;), side=Both
+)
     ao = active_orders(s, ai)
-    if !isempty(ao)
-        @warn "Active orders dict found not empty, deleting $(length(ao)) entries."
-        empty!(ao)
-    end
     eid = exchangeid(ai)
     open_orders = fetch_open_orders(s, ai; side)
-    maxout!(s, ai)
+    strict && maxout!(s, ai)
     live_orders = Set{String}()
     default_pos = get_position_side(s, ai)
-    for resp in open_orders
-        pos = _ccxtposside(resp, eid, Val(:order), def=default_pos)
-        o = (@something findorder(s, ai, resp) create_live_order(
+    @ifdebug begin
+        cash_long = cash(ai, Long())
+        comm_long = committed(ai, Long())
+        cash_short = cash(ai, Short())
+        comm_short = committed(ai, Short())
+    end
+    @lock ai for resp in open_orders
+        id = resp_order_id(resp, eid)
+        o = (@something get(ao, id, nothing) findorder(s, ai; resp) create_live_order(
             s,
             resp,
             ai;
-            t=pos,
+            t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
             price=missing,
             amount=missing,
             retry_with_resync=false,
-            create_kwargs...,
-        ) missing)::Option{O where O<:Order}
+            skipcommit=(!strict),
+            withoutkws(:skipcommit; create_kwargs)...,
+        ) missing)::Option{Order}
         ismissing(o) && continue
         push!(s.holdings, ai)
         push!(live_orders, o.id)
@@ -60,6 +66,14 @@ function live_sync_active_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         watch_trades!(s, ai) # ensure trade watcher is running
         watch_orders!(s, ai) # ensure orders watcher is running
     end
+    # @ifdebug @debug "" cash_long cash_short comm_long comm_short
+    @ifdebug @assert all((
+        cash_long == cash(ai, Long()),
+        comm_long == committed(ai, Long()),
+        cash_short == cash(ai, Short()),
+        comm_short == committed(ai, Short()),
+    ))
+    strict && @warn "Strategy and assets cash need to be resynced." maxlog=1
     nothing
 end
 
@@ -99,23 +113,32 @@ function replay_order!(s::LiveStrategy, o, ai; resp)
     o
 end
 
+function aftertrade_nocommit!(s, ai, o::AnyLimitOrder, _)
+    if isfilled(ai, o)
+        delete!(s, ai, o)
+    end
+end
+function aftertrade_nocommit!(s, ai, o::Union{AnyFOKOrder,AnyIOCOrder}, _)
+    delete!(s, ai, o)
+    isfilled(ai, o) || ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
+end
+aftertrade_nocommit!(_, _, o::AnyMarketOrder) = nothing
 @doc """ Similar to `trade!` but doesn't update cash.
 
 
 """
-apply_trade!(s::LiveStrategy, ai, o, trade) = begin
+function apply_trade!(s::LiveStrategy, ai, o, trade)
     isnothing(trade) && return nothing
     fill!(s, ai, o, trade)
     push!(ai.history, trade)
     push!(trades(o), trade)
-    aftertrade!(s, ai, o, trade)
+    aftertrade_nocommit!(s, ai, o, trade)
 end
 
 function live_sync_active_orders!(s::LiveStrategy; kwargs...)
     @sync for ai in s.universe
         @async live_sync_active_orders!(s, ai; kwargs...)
     end
-    @info "Cash sync is required after orders sync."
 end
 
 function check_orders_sync(s::LiveStrategy)

@@ -12,6 +12,7 @@ function create_live_order(
     price,
     amount,
     retry_with_resync=true,
+    skipcommit=false,
     kwargs...,
 )
     isnothing(resp) && begin
@@ -47,17 +48,18 @@ function create_live_order(
         string(hash((price, date)))
     end
     o = let f = construct_order_func(type)
-        o = f(s, type, ai; id, amount, date, type, price, loss, profit, kwargs...)
-        if isnothing(o)
-            @warn "Exchange order created (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (resyncing) $(nameof(s)) $(raw(ai))"
+        function create()
+            f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
+        end
+        o = create()
+        if isnothing(o) && retry_with_resync
+            @warn "Exchange order existing (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (resyncing) $(nameof(s)) $(raw(ai))"
             @sync begin
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
             @debug "Locking ai"
-            o = @lock ai f(
-                s, type, ai; id, amount, date, type, price, loss, profit, kwargs...
-            )
+            o = @lock ai create()
         end
         o
     end
@@ -65,7 +67,7 @@ function create_live_order(
         @error "Failed to sync local order with remote order $(id) - $(raw(ai))@$(nameof(s))"
         return nothing
     else
-        set_active_order!(s, ai, o)
+        set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     end
     return o
 end
