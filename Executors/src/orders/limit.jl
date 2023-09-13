@@ -29,12 +29,13 @@ function limitorder(
     price=priceat(s, type, ai, date),
     take=nothing,
     stop=nothing,
+    skipcommit=false,
     kwargs...,
 )
     @price! ai price take stop
     @amount! ai amount
     comm = Ref(committment(type, ai, price, amount))
-    if iscommittable(s, type, comm, ai)
+    if skipcommit || iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end
@@ -69,12 +70,12 @@ function isfirstfill(::AssetInstance, t::Trade{<:LimitOrderType})
 end
 
 @doc "Add a limit order to the pending orders of the strategy."
-function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai) where {S<:OrderSide}
+function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai; skipcommit=false) where {S<:OrderSide}
     # This is already done in general by the function that creates the order
-    iscommittable(s, o, ai) || return false
+    skipcommit || iscommittable(s, o, ai) || return false
     push!(s, ai, o)
     @deassert hasorders(s, ai, positionside(o))
-    commit!(s, o, ai)
+    skipcommit || commit!(s, o, ai)
     hold!(s, ai, o)
     return true
 end

@@ -3,12 +3,21 @@ using Base: negate
 import Instruments: cash!
 
 function marketorder(
-    s::Strategy, ai, amount; date, type, take=nothing, stop=nothing, price, kwargs...
+    s::Strategy,
+    ai,
+    amount;
+    date,
+    type,
+    take=nothing,
+    stop=nothing,
+    price,
+    skipcommit=false,
+    kwargs...,
 )
     @price! ai take stop
     @amount! ai amount
     comm = Ref(committment(type, ai, price, amount))
-    if iscommittable(s, type, comm, ai)
+    if skipcommit || iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
 end

@@ -7,11 +7,11 @@ import OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sim
 using Strategies: Strategies as st
 
-function create_sim_limit_order(s, t, ai; amount, kwargs...)
-    o = limitorder(s, ai, amount; type=t, kwargs...)
+function create_sim_limit_order(s, t, ai; amount, skipcommit=false, kwargs...)
+    o = limitorder(s, ai, amount; type=t, skipcommit, kwargs...)
     isnothing(o) && return nothing
-    queue!(s, o, ai) || return nothing
-    @deassert abs(committed(o)) > 0.0
+    queue!(s, o, ai; skipcommit) || return nothing
+    @deassert skipcommit || abs(committed(o)) > 0.0
     return o
 end
 

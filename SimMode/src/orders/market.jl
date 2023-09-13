@@ -1,10 +1,12 @@
 function create_sim_market_order(
-    s, t, ai; amount, date, price=priceat(s, t, ai, date), kwargs...
+    s, t, ai; amount, date, price=priceat(s, t, ai, date), skipcommit=false, kwargs...
 )
     o = marketorder(s, ai, amount; type=t, date, price, kwargs...)
     isnothing(o) && return nothing
-    iscommittable(s, o, ai) || return nothing
-    commit!(s, o, ai)
+    skipcommit || begin
+        iscommittable(s, o, ai) || return nothing
+        commit!(s, o, ai)
+    end
     return o
 end
 
