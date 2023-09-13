@@ -44,7 +44,7 @@ function basicorder(
     else
         abs(committed[]) >= ai.limits.amount.min
     end "Order committment too low\n$(committed[]), $(ai.asset) $date"
-    let unfilled = unfillment(type, amount)
+    let unfilled = Ref(unfillment(type, amount))
         @deassert type <: AnyBuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
         OrderTypes.Order(
             ai,

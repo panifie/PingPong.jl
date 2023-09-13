@@ -88,16 +88,21 @@ function committment(ai::AssetInstance, t::Trade)
     )
 end
 
+function committment(ai::AssetInstance, o::Order; kwargs...)
+    committment(typeof(o), ai, o.price, o.amount; kwargs...)
+end
+
 function unfillment(t::Type{<:AnyBuyOrder}, amount)
     @deassert amount > 0.0
     @deassert !(t isa AnySellOrder)
-    Ref(negate(amount))
+    negate(amount)
 end
 function unfillment(t::Type{<:AnySellOrder}, amount)
     @deassert amount > 0.0
     @deassert !(t isa AnyBuyOrder)
-    Ref(amount)
+    amount
 end
+unfillment(o::Order) = unfillment(typeof(o), o.amount)
 
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, ai)
     @deassert st.freecash(s) |> gtxzero
