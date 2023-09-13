@@ -233,7 +233,7 @@ resp_order_amount(resp, ::EIDType, ::Type{Py}) = get_py(resp, "amount")
 function resp_order_amount(resp, ::EIDType, args...; kwargs...)::DFT
     get_float(resp, "amount", args...; kwargs...)
 end
-resp_order_trades(resp, ::EIDType) = get_py(resp, "trades", ())
+resp_order_trades(resp, ::EIDType) = get_py(resp, (), "trades")
 resp_order_type(resp, ::EIDType) = get_py(resp, "type")
 resp_order_tif(resp, ::EIDType) = get_py(resp, "timeInForce")
 resp_order_lastupdate(resp, ::EIDType) = get_py(resp, "lastUpdateTimestamp")
