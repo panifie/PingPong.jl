@@ -40,6 +40,9 @@ function splitkws(kws...; kwargs)
     (filtered=filterkws(kws...; kwargs), rest=filterkws(kws...; kwargs, pred=∉))
 end
 
+@doc "Returns `kwargs` without `kws...`"
+withoutkws(kws...; kwargs) = splitkws(kws...; kwargs).rest
+
 @doc """Get a value from a container that *should not contain* `nothing`, lazily evaluating the default value.
 ```julia
 > @get Dict("a" => false) "a" (println("hello"); true)
