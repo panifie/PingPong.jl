@@ -1,56 +1,101 @@
 import .PaperMode: SimMode
-using .Executors: filled_amount, orderscount
+using .Executors: filled_amount, orderscount, orders
 using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
 using .SimMode: @maketrade
 # using .OrderTypes: OrderFailed
 
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
-    _still_running(asset_orders_task(s, ai)) && return nothing
+    istaskrunning(asset_orders_task(s, ai)) && return nothing
     exc = exchange(ai)
     orders_byid = active_orders(s, ai)
+    stop_delay = Ref(Second(10))
     task = @start_task orders_byid begin
-        f = if has(exc, :watchOrders)
+        (f, iswatch) = if has(exc, :watchOrders)
             let sym = raw(ai), func = exc.watchOrders
-                (flag, coro_running) -> if flag[]
-                    pyfetch(func, sym; coro_running, exc_kwargs...)
-                end
+                (
+                    (flag, coro_running) -> if flag[]
+                        pyfetch(func, sym; coro_running, exc_kwargs...)
+                    end,
+                    true,
+                )
             end
         else
             _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
             since = Ref(now())
             since_start = since[]
             eid = exchangeid(ai)
-            (_, _) -> begin
-                since[] == since_start || sleep(1)
-                resp = fetch_orders(s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...)
-                if !isnothing(resp) && islist(resp) && length(resp) > 0
-                    since[] = @something pytodate(resp[-1], eid) now()
-                end
-                resp
-            end
+            (
+                (_, _) -> begin
+                    since[] == since_start || sleep(1)
+                    resp = fetch_orders(
+                        s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                    )
+                    if !isnothing(resp) && islist(resp) && length(resp) > 0
+                        since[] = @something pytodate(resp[-1], eid) now()
+                    end
+                    resp
+                end,
+                false,
+            )
         end
         flag = TaskFlag()
         coro_running = pycoro_running(flag)
+        cond = task_local_storage(:notify)
         while istaskrunning()
             try
                 while istaskrunning()
-                    orders = f(flag, coro_running)
-                    handle_orders!(s, ai, orders_byid, orders)
+                    updates = f(flag, coro_running)
+                    if updates isa Exception
+                        @ifdebug ispyresult_error(updates) ||
+                            @debug "Error fetching orders (using watch: $(iswatch))" updates
+                        sleep(1)
+                    else
+                        handle_orders!(s, ai, orders_byid, updates)
+                        safenotify(cond)
+                    end
+                    stop_delay[] = Second(10)
                 end
             catch e
                 if e isa InterruptException
                     break
                 else
                     @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                    @debug_backtrace
                 end
-                @debug Base.show_backtrace(stdout, catch_backtrace())
                 sleep(1)
             end
         end
     end
+    cond = task.storage[:notify]
+    stop_task = @async begin
+        task_local_storage(:sleep, 10)
+        task_local_storage(:running, true)
+        while istaskrunning()
+            safewait(cond)
+            sleep(stop_delay[])
+            stop_delay[] = Second(0)
+            # if there are no more orders, stop the monitoring tasks
+            if orderscount(s, ai) == 0
+                task_local_storage(:running, false)
+                try
+                    @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))"
+                    stop_watch_orders!(s, ai)
+                    # also stop the trades task if running
+                    if hasmytrades(exchange(ai))
+                        @debug "Stopping trades watcher for $(raw(ai))@($(nameof(s)))"
+                        stop_watch_trades!(s, ai)
+                    end
+                finally
+                    break
+                end
+            end
+        end
+    end
     try
-        asset_tasks(s, ai).byname[:orders_task] = task
+        byname = asset_tasks(s, ai).byname
+        byname[:orders_task] = task
+        byname[:orders_stop_task] = stop_task
         task
     catch
         task
@@ -59,6 +104,8 @@ end
 
 asset_orders_task(tasks) = get(tasks, :orders_task, nothing)
 asset_orders_task(s, ai) = asset_orders_task(asset_tasks(s, ai).byname)
+asset_orders_stop_task(tasks) = get(tasks, :orders_stop_task, nothing)
+asset_orders_stop_task(s, ai) = asset_orders_stop_task(asset_tasks(s, ai).byname)
 
 function _order_kv_hash(resp, eid::EIDType)
     p1 = resp_order_price(resp, eid, Py)
@@ -78,10 +125,8 @@ function _order_kv_hash(resp, eid::EIDType)
 end
 
 function stop_watch_orders!(s::LiveStrategy, ai)
-    t = asset_orders_task(s, ai)
-    if _still_running(t)
-        stop_task(t)
-    end
+    asset_orders_stop_task(s, ai) |> stop_task
+    asset_orders_task(s, ai) |> stop_task
 end
 
 order_update_hash(resp, eid) = begin
@@ -98,7 +143,7 @@ order_update_hash(resp, eid) = begin
     end
 end
 
-function update_order!(s, ai, eid; resp, state, cond)
+function update_order!(s, ai, eid; resp, state)
     this_hash = order_update_hash(resp, eid)
     state.update_hash[] == this_hash && return nothing
     # always update hash on new data
