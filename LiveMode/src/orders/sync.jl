@@ -54,14 +54,40 @@ function live_sync_active_orders!(
             withoutkws(:skipcommit; create_kwargs)...,
         ) missing)::Option{Order}
         ismissing(o) && continue
-        push!(s.holdings, ai)
-        push!(live_orders, o.id)
-
-        replay_order!(s, o, ai; resp)
+        if isfilled(ai, o)
+            isempty(trades(o)) && replay_order!(s, o, ai; resp)
+            @debug "Removing active order since filled." o.id ai = raw(ai) s = nameof(s)
+            delete!(ao, o.id)
+        else
+            @debug "Setting active order." o.id ai = raw(ai) s = nameof(s)
+            push!(live_orders, o.id)
+            replay_order!(s, o, ai; resp)
+            if filled_amount(o) > ZERO && o isa IncreaseOrder
+                @ifdebug if ai ∉ s.holdings
+                    @debug "Expected $(raw(ai)) to be in holdings $(nameof(s))"
+                end
+                push!(s.holdings, ai)
+            end
+        end
     end
-    for o in values(s)
-        o.id ∉ live_orders && delete!(s, ai, o)
+    for o in values(s, ai)
+        if o.id ∉ live_orders
+            @debug "Local order non open on exchange." o.id ai = raw(ai) exc = nameof(
+                exchange(ai)
+            )
+            delete!(s, ai, o)
+        end
     end
+    for (id, state) in ao
+        if id ∉ live_orders
+            @debug "Tracked local order was not open on exchange" id ai = raw(ai) exc = nameof(
+                exchange(ai)
+            )
+            @deassert id == state.order.id
+            delete!(ao, id)
+        end
+    end
+    @deassert orderscount(s, ai) == length(live_orders)
     if orderscount(s, ai) > 0
         watch_trades!(s, ai) # ensure trade watcher is running
         watch_orders!(s, ai) # ensure orders watcher is running
@@ -77,16 +103,20 @@ function live_sync_active_orders!(
     nothing
 end
 
-function findorder(s, ai, resp)
-    id = resp_order_id(resp, exchangeid(ai), String)
+function findorder(
+    s,
+    ai;
+    resp=nothing,
+    id=resp_order_id(resp, exchangeid(ai), String),
+    side=@something(_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side), Both)
+)
     if !isempty(id)
-        side = @something _ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side) Both
         for o in values(s, ai, side)
             if o.id == id
                 return o
             end
         end
-        o = findfirst(t -> t.order.id == id, ai.history)
+        o = findfirst(t -> t.order.id == id, trades(ai))
         if o isa Order
             return o
         end
@@ -94,20 +124,53 @@ function findorder(s, ai, resp)
 end
 
 function replay_order!(s::LiveStrategy, o, ai; resp)
-    state = set_active_order!(s, ai, o)
+    eid = exchangeid(ai)
+    state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
+    if iszero(resp_order_filled(resp, eid))
+        iszero(filled_amount(o)) || reset!(o)
+        return o
+    end
     if ismissing(state)
         @error "Expected active order state to be present already."
         return o
     end
-    order_trades = PyList(resp_order_trades(resp, exchangeid(ai)))
-    new_trades = @view order_trades[(begin + length(trades(o))):end]
+    local_trades = trades(o)
+    local_count = length(local_trades)
+    # Try to get order trades from order struct first
+    # otherwise from api call
+    order_trades = let otr = resp_order_trades(resp, eid)
+        if isempty(otr)
+            otr = fetch_order_trades(s, ai, o.id)
+        else
+            otr
+        end |> PyList
+    end
+    # Sanity check between local and exc trades by
+    # comparing the amount of the first trade
+    if length(order_trades) > 0 && local_count > 0
+        trade = first(order_trades)
+        local_amt = abs(first(trades(o)).amount)
+        resp_amt = resp_trade_amount(trade, eid)
+        # When a mismatch happens we reset local state for the order
+        if !isapprox(ai, local_amt, resp_amt, Val(:amount))
+            @warn "Resetting local trades because of mismatching amounts \
+            $local_amt (local) $resp_amt ($(nameof(exchange(ai)))) \
+            for order $(o.id) ($(raw(ai))@$(nameof(s))). (And removing from trades history)"
+            local_count = 0
+            # remove trades from asset trades history
+            filter!(t -> t.order !== o, trades(ai))
+            # reset order
+            reset!(o)
+        end
+    end
+    new_trades = @view order_trades[(begin + local_count):end]
     if !isempty(new_trades)
         for trade_resp in new_trades
             trade = maketrade(s, o, ai; resp=trade_resp)
             apply_trade!(s, ai, o, trade)
         end
     else
-        trade = emulate_trade!(s, o, ai; state, resp, exec=false)
+        trade = emulate_trade!(s, o, ai; state.average_price, resp, exec=false)
         isnothing(trade) || apply_trade!(s, ai, o, trade)
     end
     o
