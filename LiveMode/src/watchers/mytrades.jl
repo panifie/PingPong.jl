@@ -2,6 +2,28 @@ using .PaperMode.SimMode: trade!
 using .Lang: splitkws
 using .Python: pydicthash
 
+function startup_watch_since(s::LiveStrategy, offset=Millisecond(1))
+    last_date = DateTime(0)
+    for o in values(s)
+        otrades = trades(o)
+        if isempty(otrades)
+            if o.date > last_date
+                last_date = o.date
+            end
+        else
+            date = last(otrades).date
+            if date > last_date
+                last_date = date
+            end
+        end
+    end
+    if last_date == DateTime(0)
+        now()
+    else
+        last_date + offset
+    end
+end
+
 hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
 _still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
