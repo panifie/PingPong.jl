@@ -6,34 +6,28 @@ function Executors.aftertrade!(
 ) where {A,O,T<:Trade}
     @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(cnum(t.amount)) of $(t.order.asset) at $(cnum(t.price))($(cnum(t.size)) $(ai.asset.qc))"
     try
-        invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o)
-        update = get(get_positions(s, positionside(o)), raw(ai), nothing)
-        if isnothing(update) || update.date < t.date
-            @debug "After trade, re-fetch postiion for updates $(raw(ai))" id = t.order.id
-            w = positions_watcher(s)
-            if islocked(w)
-                @debug "waiting for positions watcher to process new updates"
-                safewait(w.beacon.process)
-            else
-                @debug "force fetching position updates from watcher"
-                fetch!(positions_watcher(s))
-            end
-            @debug "Retrieving position update response" locked = islocked(w)
-            update = lock(w) do
-                live_position(s, ai, positionside(o); since=t.date)
-            end
-        end
-        @ifdebug if isopen(position(ai, posside(o)))
-            liqprice(ai, o) > 0 || @warn "Liqprice below zero ($(liqprice(ai, o)))"
-            entryprice(ai, o.price, o) > 0 ||
-                @warn "Entryprice below zero ($(entryprice(ai, o.price, o)))"
-        end
+        invoke(aftertrade!, Tuple{Strategy,A,O,T}, s, ai, o, t)
+        # Update local state asap, since syncing can have long delays
         position!(s, ai, t)
-        @ifdebug if isnothing(ai.lastpos[]) || isdust(ai, ai.lastpos[].entryprice[])
-            @debug "Position state closed ($(raw(ai))): $(ai.lastpos[].entryprice[]), isdust: $(isdust(ai, ai.lastpos[].entryprice[]))"
+        # NOTE: shift by 1ms to allow for some margin of error
+        # ideally exchanges should be tested to see how usually timestamps
+        # are handled when a trade event would update the timestamp of an order
+        # and a position
+        since = t.date - Millisecond(1)
+        @debug "After trade, fetching position for updates $(raw(ai))" id = t.order.id
+        update = live_position(s, ai, posside(o); since, force=true)
+        @ifdebug begin
+            if isopen(position(ai, posside(o)))
+                liqprice(ai, o) > 0 || @warn "Liqprice below zero ($(liqprice(ai, o)))"
+                entryprice(ai, o.price, o) > 0 ||
+                    @warn "Entryprice below zero ($(entryprice(ai, o.price, o)))"
+            end
+            if isnothing(ai.lastpos[]) || isdust(ai, ai.lastpos[].entryprice[])
+                @debug "Position state closed ($(raw(ai))): $(ai.lastpos[].entryprice[]), isdust: $(isdust(ai, ai.lastpos[].entryprice[]))"
+            end
         end
         if isnothing(update)
-            @warn "Couldn't fetch position status from exchange."
+            @warn "Couldn't fetch position status from exchange, possibly diverging local state"
         else
             live_sync_position!(s, ai, o, update)
         end
@@ -43,7 +37,7 @@ function Executors.aftertrade!(
             cash(ai, posside(o)) <= 0 || @warn " cash for short should be negative"
         end
     catch
-        @ifdebug Base.show_backtrace(stdout, Base.catch_backtrace())
+        @debug_backtrace
         @warn "After trade failed for $(raw(ai))@$(nameof(s))[$(exchange(ai))]"
     end
     t
