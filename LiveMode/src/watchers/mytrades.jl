@@ -156,9 +156,15 @@ end
 
 function handle_trades!(s, ai, orders_byid, trades)
     try
-        cond = task_local_storage(:notify)
+        @debug "Trades task:" trades = trades
+        sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
+        if length(sem.queue) > 0
+            @warn "Expected queue (trades) to be empty."
+            empty!(sem.queue)
+        end
+        empty!(sem.queue)
         eid = exchangeid(ai)
-        @sync for resp in trades
+        @sync for (n, resp) in enumerate(trades)
             id = resp_trade_order(resp, eid, String)
             @debug "Trades task, handling new trade" order = id
             if isempty(id)
@@ -282,25 +288,25 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     prev_count = length(ai.history)
     slept = 0
     while slept < timeout
-        if _still_running(tt)
-            slept += waitforcond(cond, waitfor)
-            length(ai.history) > prev_count && return slept
+        if istaskrunning(tt)
+            slept += waitforcond(cond, timeout - slept)
+            length(ai.history) != prev_count && break
         else
-            return timeout
+            break
         end
     end
-    return slept
+    slept
 end
 
 function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(1))
     isfilled(ai, o) && return length(trades(o))
     order_trades = trades(o)
     this_count = prev_count = length(order_trades)
-    slept = 0
     timeout = Millisecond(waitfor).value
+    slept = 0
     @debug "Waiting for trade " id = o.id timeout = timeout current_trades = this_count
     while slept < timeout
-        slept += waitfortrade(s, ai; waitfor)
+        slept += waitfortrade(s, ai; waitfor=timeout - slept)
         this_count = length(order_trades)
         this_count > prev_count && break
     end
