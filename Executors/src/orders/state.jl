@@ -10,6 +10,7 @@ using Instruments: @importcash!, AbstractAsset
 import .Checks: cost
 @importcash!
 import Base: fill!
+import Misc: reset!
 
 ##  committed::DFT # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{
@@ -318,7 +319,7 @@ end
 aftertrade!(s, ai, o, _) = aftertrade!(s, ai, o)
 
 amount(o::Order) = getfield(o, :amount)
-trades(o::Order) = getfield(o, :attrs).trades
+trades(o::Order) = attr(o, :trades)
 function committed(o::ShortBuyOrder{<:AbstractAsset,<:ExchangeID})
     @deassert attr(o, :committed)[] |> ltxzero o
     attr(o, :committed)[]
@@ -328,3 +329,9 @@ function committed(o::Order)
     attr(o, :committed)[]
 end
 cost(o::Order) = o.price * abs(o.amount)
+
+function reset!(o::Order)
+    empty!(trades(o))
+    attr(o, :committed)[] = committment(ai, o)
+    attr(o, :unfilled)[] = unfillment(o)
+end
