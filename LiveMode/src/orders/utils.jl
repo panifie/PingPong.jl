@@ -17,15 +17,28 @@ function active_orders(s::LiveStrategy, ai)
     @lget! ords ai AssetOrdersDict()
 end
 
-function set_active_order!(s::LiveStrategy, ai, o)
-    active_orders(s, ai)[o.id] = (;
+avgprice(o::Order) =
+    let order_trades = trades(o)
+        isempty(order_trades) && return o.price
+        val = zero(DFT)
+        amt = zero(DFT)
+        for t in order_trades
+            val += t.value
+            amt += t.amount
+        end
+        return val / amt
+    end
+
+function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
+    state = @lget! active_orders(s, ai) o.id (;
         order=o,
         trade_hashes=UInt64[],
         update_hash=Ref{UInt64}(0),
-        average_price=Ref(o.price),
+        average_price=Ref(iszero(ap) ? avgprice(o) : ap),
     )
     watch_trades!(s, ai) # ensure trade watcher is running
     watch_orders!(s, ai) # ensure orders watcher is running
+    state
 end
 
 function show_active_orders(s::LiveStrategy, ai)
@@ -49,9 +62,7 @@ macro _isfilled()
     esc(expr)
 end
 
-function waitfor_closed(
-    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both
-)
+function waitfor_closed(s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both)
     active = active_orders(s, ai)
     slept = Millisecond(0)
     has_orders = false
@@ -65,3 +76,4 @@ function waitfor_closed(
     end
     slept
 end
+
