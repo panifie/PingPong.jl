@@ -17,12 +17,21 @@ TaskFlag() =
 pycoro_running(flag) = (flag,)
 pycoro_running() = pycoro_running(TaskFlag())
 Base.getindex(t::TaskFlag) = t.f()
+istaskrunning(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 stop_task(t::Task) =
-    try
-        t.storage[:running] = false
-        istaskdone(t)
-    catch
-        @error "Running flag not set on task $t"
+    if istaskrunning(t)
+        try
+            t.storage[:running] = false
+            let cond = get(t.storage, :notify, nothing)
+                isnothing(cond) || safenotify(cond)
+            end
+            istaskdone(t)
+        catch
+            @error "Running flag not set on task $t"
+            false
+        end
+    else
+        true
     end
 
 start_task(t::Task, state) = (init_task(t, state); schedule(t); t)
@@ -31,60 +40,67 @@ init_task(t::Task, state) = begin
     if isnothing(t.storage)
         sto = t.storage = IdDict{Any,Any}()
     end
-    sto[:running] = true
-    sto[:state] = state
-    sto[:notify] = Base.Threads.Condition()
+    @lget! sto :running true
+    @lget! sto :state state
+    @lget! sto :notify Base.Threads.Condition()
     t
 end
 init_task(state) = init_task(current_task, state)
 
 istaskrunning() = task_local_storage(:running)
 
-stop_asset_tasks(s::LiveStrategy, ai) = begin
+function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
     tasks = asset_tasks(s, ai)
     for task in values(tasks.byname)
         stop_task(task)
     end
-    empty!(tasks.byname)
     for task in values(tasks.byorder)
         stop_task(task)
     end
-    empty!(tasks.byorder)
+    if reset
+        foreach(wait, values(tasks.byname))
+        foreach(wait, values(tasks.byorder))
+        empty!(tasks.byname)
+        empty!(tasks.byorder)
+    end
 end
 
-stop_all_asset_tasks(s::LiveStrategy) =
+stop_all_asset_tasks(s::LiveStrategy; kwargs...) =
     for ai in s.universe
-        stop_asset_tasks(s, ai)
+        stop_asset_tasks(s, ai; kwargs...)
     end
 
-stop_strategy_tasks(s::LiveStrategy, account) = begin
+function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
     tasks = strategy_tasks(s, account)
     for task in values(tasks)
         stop_task(task)
     end
-    empty!(tasks)
+    if reset
+        foreach(wait, values(tasks))
+        empty!(tasks)
+    end
 end
 
-stop_all_strategy_tasks(s::LiveStrategy) = begin
+function stop_all_strategy_tasks(s::LiveStrategy; kwargs...)
     accounts = strategy_tasks(s)
-    for acc in keys(accounts)
-        stop_strategy_tasks(s, acc)
+    @sync for acc in keys(accounts)
+        @async stop_strategy_tasks(s, acc; kwargs...)
     end
     empty!(accounts)
 end
 
-stop_all_tasks(s::LiveStrategy) = begin
-    stop_all_asset_tasks(s)
-    stop_all_strategy_tasks(s)
+stop_all_tasks(s::LiveStrategy, reset=true) = @sync begin
+    @async stop_all_asset_tasks(s; reset)
+    @async stop_all_strategy_tasks(s; reset)
 end
 
-wait_update(task::Task) = wait(task.storage[:notify])
-update!(t::Task, k, v) =
-    let sto = t.storage
-        sto[:state][k] = v
-        safenotify(sto[:notify])
-        v
-    end
+# wait_update(task::Task) = safewait(task.storage[:notify])
+# update!(t::Task, k, v) =
+#     let sto = t.storage
+#         sto[:state][k] = v
+#         safenotify(sto[:notify])
+#         v
+#     end
 
 macro start_task(state, code)
     expr = quote
