@@ -25,19 +25,21 @@ function startup_watch_since(s::LiveStrategy, offset=Millisecond(1))
 end
 
 hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
-_still_running(t) = !isnothing(t) && istaskstarted(t) && !istaskdone(t)
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai).byname
-    _still_running(tradestask(tasks)) && return nothing
+    istaskrunning(asset_trades_task(tasks)) && return nothing
     exc = exchange(ai)
     hasmytrades(exc) || return nothing
     orders_byid = active_orders(s, ai)
     task = @start_task orders_byid begin
-        f = if has(exc, :watchMyTrades)
+        (f, iswatch) = if has(exc, :watchMyTrades)
             let sym = raw(ai), func = exc.watchMyTrades
-                (flag, coro_running) -> if flag[]
-                    pyfetch(func, sym; coro_running, exc_kwargs...)
-                end
+                (
+                    (flag, coro_running) -> if flag[]
+                        pyfetch(func, sym; coro_running, exc_kwargs...)
+                    end,
+                    true,
+                )
             end
         else
             _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
@@ -45,32 +47,43 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
             since = Ref(last_date)
             startup = Ref(true)
             eid = exchangeid(ai)
-            (_, _) -> begin
-                startup[] || sleep(1)
-                resp = fetch_my_trades(
-                    s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
-                )
-                if !isnothing(resp) && islist(resp) && length(resp) > 0
-                    since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
-                elseif startup[]
-                    startup[] = false
-                end
-                resp
-            end
+            (
+                (_, _) -> begin
+                    startup[] || sleep(1)
+                    resp = fetch_my_trades(
+                        s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                    )
+                    if !isnothing(resp) && islist(resp) && length(resp) > 0
+                        since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
+                    elseif startup[]
+                        startup[] = false
+                    end
+                    resp
+                end,
+                false,
+            )
         end
         flag = TaskFlag()
+        cond = task_local_storage(:notify)
         coro_running = pycoro_running(flag)
         while istaskrunning()
             try
                 while istaskrunning()
                     trades = f(flag, coro_running)
-                    handle_trades!(s, ai, orders_byid, trades)
+                    if trades isa Exception
+                        @ifdebug ispyresult_error(trades) ||
+                            @debug "Error fetching trades (using watch: $(iswatch))" trades
+                        sleep(1)
+                    else
+                        handle_trades!(s, ai, orders_byid, trades)
+                        safenotify(cond)
+                    end
                 end
             catch e
                 if e isa InterruptException()
                     break
                 else
-                    @ifdebug Base.show_backtrace(stdout, Base.catch_backtrace())
+                    @debug_backtrace
                     @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
                 end
                 sleep(1)
@@ -85,8 +98,8 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     end
 end
 
-tradestask(tasks) = get(tasks, :trades_task, nothing)
-tradestask(s, ai) = tradestask(asset_tasks(s, ai).byname)
+asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
+asset_trades_task(s, ai) = asset_trades_task(asset_tasks(s, ai).byname)
 function ispyexception(e, pyexception)
     pyisinstance(e, pyexception) || try
         (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
@@ -124,11 +137,12 @@ function trade_hash(resp, eid)
     end
 end
 
-function get_order_state(orders_byid, id; waitfor=Second(5))
+function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, line=@__LINE__)
     @something(
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
         begin
-            @debug "Order not found active, waiting" id = id waitfor = waitfor
+            @debug "Order not found active, waiting" id = id waitfor = waitfor _file = file _line =
+                line
             waitforcond(() -> haskey(orders_byid, id), waitfor)
             get(orders_byid, id, missing)
         end
@@ -151,47 +165,73 @@ function handle_trades!(s, ai, orders_byid, trades)
                 @warn "Missing order id"
                 continue
             else
-                @async let state = get_order_state(orders_byid, id)
-                    if state isa LiveOrderState
-                        this_hash = trade_hash(resp, eid)
-                        this_hash ∈ state.trade_hashes || begin
-                            push!(state.trade_hashes, this_hash)
-                            @info "before locking"
-                            t = lock(ai) do
-                                @info "isopen" open = isopen(ai, state.order)
-                                if isopen(ai, state.order)
-                                    trade!(
-                                        s,
-                                        state.order,
-                                        ai;
-                                        resp,
-                                        date=nothing,
-                                        price=nothing,
-                                        actual_amount=nothing,
-                                        fees=nothing,
-                                        slippage=false,
-                                    )
+                # remember events order
+                push!(sem.queue, n)
+                @async try
+                    let state = get_order_state(orders_byid, id)
+                        if state isa LiveOrderState
+                            this_hash = trade_hash(resp, eid)
+                            this_hash ∈ state.trade_hashes || begin
+                                push!(state.trade_hashes, this_hash)
+                                # wait for earlier events to be processed
+                                while first(sem.queue) != n
+                                    safewait(sem.cond)
+                                end
+                                @debug "Locking ai"
+                                t = @lock ai begin
+                                    @debug "Before trade exec" open =
+                                        if ismissing(state)
+                                            missing
+                                        else
+                                            isopen(ai, state.order)
+                                        end state = typeof(state)
+                                    if isopen(ai, state.order)
+                                        trade!(
+                                            s,
+                                            state.order,
+                                            ai;
+                                            resp,
+                                            date=nothing,
+                                            price=nothing,
+                                            actual_amount=nothing,
+                                            fees=nothing,
+                                            slippage=false,
+                                        )
+                                    end
+                                end
+                                @debug "Trades task, after local trade" trade = t
+                            end
+                        else
+                            # NOTE: give id directly since the resp is for a trade and not an order
+                            let o = findorder(s, ai; resp, id)
+                                if o isa Order && isfilled(ai, o) && length(trades(o)) > 0
+                                    amount = resp_trade_amount(resp, eid)
+                                    last_amount = last(trades(o)).amount
+                                    @warn "Trade without matching active order, possibly a late trade. emulated: $last_amount, exchange: $amount "
+                                else
+                                    @error "(trades task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
                                 end
                             end
-                            @debug "Trades task, after local trade" trade = t
-                            t isa Trade && safenotify(cond)
                         end
-                    else
-                        @error "(trades task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
                     end
+                finally
+                    idx = findfirst(x -> x == n, sem.queue)
+                    isnothing(idx) || deleteat!(sem.queue, idx)
+                    safenotify(sem.cond)
                 end
             end
         end
 
     catch e
-        @ifdebug isdefined(Main.e) && Main.e[] = e
+        @ifdebug isdefined(Main, :e) && (Main.e[] = e)
+        @debug_backtrace
         ispyresult_error(e) || @error e
     end
 end
 
 function stop_watch_trades!(s::LiveStrategy, ai)
-    t = tradestask(s, ai)
-    if _still_running(t)
+    t = asset_trades_task(s, ai)
+    if istaskrunning(t)
         stop_task(t)
     end
 end
@@ -236,7 +276,7 @@ function waitforcond(cond, time)
 end
 
 function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
-    tt = tradestask(s, ai)
+    tt = asset_trades_task(s, ai)
     timeout = Millisecond(waitfor).value
     cond = tt.storage[:notify]
     prev_count = length(ai.history)
