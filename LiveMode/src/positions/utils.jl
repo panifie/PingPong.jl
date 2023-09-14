@@ -278,8 +278,8 @@ function waitforpos(
 
     while slept < timeout
         slept += waitforcond(update.notify, timeout - slept)
-        this_timestamp = @something pytodate(update.resp, eid) prev_timestamp
-        if this_timestamp > prev_timestamp
+        this_timestamp = @something pytodate(update.resp, eid) prev_timestamp - Millisecond(1)
+        if this_timestamp >= prev_timestamp
             break
         else
             @debug "Waiting $(Millisecond(timeout - slept)) for a position update more recent than \
