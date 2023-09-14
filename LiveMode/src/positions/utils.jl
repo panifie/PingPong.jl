@@ -274,14 +274,22 @@ function waitforpos(
     this_timestamp = prev_timestamp - Millisecond(1)
     timeout = Millisecond(waitfor).value
     slept = 0
-    @debug "Waiting for position " side = bp timeout = timeout red = update.read[] closed = update.closed[]
+    prev_closed = update.closed[]
+    @debug "Waiting for position " side = bp timeout = timeout read = update.read[] closed
 
     while slept < timeout
         slept += waitforcond(update.notify, timeout - slept)
-        this_timestamp = @something pytodate(update.resp, eid) prev_timestamp - Millisecond(1)
+        this_timestamp = @something pytodate(update.resp, eid) prev_timestamp -
+            Millisecond(1)
         if this_timestamp >= prev_timestamp
             break
         else
+            this_closed = update.closed[]
+            if this_closed && this_closed != prev_closed
+                break # Position was closed but timestamp wasn't updated
+            else
+                prev_closed = this_closed
+            end
             @debug "Waiting $(Millisecond(timeout - slept)) for a position update more recent than \
                     $prev_timestamp (current: $(pytodate(update.resp, eid))) ($(raw(ai))$(posside(ai)))"
         end
