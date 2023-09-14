@@ -66,7 +66,9 @@ function _handle_pos_resp(resp, ai, side)
                     return this
                 end
             end
-            @debug "Force fetch position did not find the requested symbol $sym($side)" resp
+            @ifdebug if isopen(ai)
+                @debug "Force fetch position did not find the requested symbol $sym($side)" resp
+            end
             return nothing
         end
     elseif isdict(resp) && _ccxtposside(resp, eid) == side && _ispossym(resp, sym, eid)
@@ -261,7 +263,7 @@ function waitforpos(
     ai,
     bp::ByPos=posside(ai);
     since::Option{DateTime}=nothing,
-    waitfor=Second(1),
+    waitfor=Second(3),
 )
     pos = position(ai, bp)
     eid = exchangeid(ai)
@@ -275,7 +277,7 @@ function waitforpos(
     timeout = Millisecond(waitfor).value
     slept = 0
     prev_closed = update.closed[]
-    @debug "Waiting for position " side = bp timeout = timeout read = update.read[] closed
+    @debug "Waiting for position " side = bp timeout = timeout read = update.read[] prev_closed
 
     while slept < timeout
         slept += waitforcond(update.notify, timeout - slept)
@@ -299,6 +301,18 @@ function waitforpos(
     return this_timestamp
 end
 
+function waitforpos(s::LiveStrategy, ai, bp::ByPos, ::Val{:local}; waitfor=Second(3))
+    pos = position(ai, bp)
+    eid = exchangeid(ai)
+    this_timestmap = prev_timestamp = timestamp(pos)
+    slept = 0
+    timeout = Millisecond(waitfor).value
+    while slept < timeout
+        this_timestamp = timestamp(pos)
+        this_timestamp != prev_timestamp && break
+    end
+end
+
 function waitposclose(s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5))
     pos = position(ai, bp)
     update = get_positions(s, ai, bp)
@@ -308,5 +322,8 @@ function waitposclose(s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second
         slept += waitforcond(update.notify, timeout - slept)
         slept >= timeout && break
     end
-    isopen(pos)
+    @ifdebug if slept >= timeout
+        @debug "Waiting for position close timedout" ai = raw(ai) bp
+    end
+    !isopen(pos)
 end
