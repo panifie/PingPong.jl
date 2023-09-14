@@ -28,7 +28,17 @@ function live_sync_position!(
     resp_position_hedged(resp, eid) == ishedged(pos) ||
         @warn "Position hedged mode mismatch (local: $(pos.hedged))"
     skipchecks || begin
-        @assert ishedged(pos) || !isopen(opposite(ai, pside)) "Double position open in NON hedged mode."
+        if !ishedged(pos) && isopen(opposite(ai, pside))
+            @warn "Double position open in NON hedged mode. Resetting opposite side." opposite_side = opposite(
+                pside
+            ) raw(ai) nameof(s)
+            pong!(s, ai, opposite(pside), now(), PositionClose())
+            if isopen(opposite(ai, pside))
+                @error "Failed to close opposite position" opposite_position = opposite(
+                    ai, pside
+                ) raw(ai) nameof(s)
+            end
+        end
         update.read[] && return pos
     end
 
@@ -66,7 +76,7 @@ function live_sync_position!(
     # price is always positive
     ep = pytofloat(ep_in)
     ep = if ep > zero(DFT)
-        isapprox(ai, entryprice(pos), ep, Val(:price)) ||
+        isapprox(entryprice(pos), ep; rtol=1e-3) ||
             @warn_unsynced "entryprice" entryprice(pos) ep
         entryprice!(pos, ep)
         ep
@@ -129,10 +139,10 @@ function live_sync_position!(
     adt = max(zero(DFT), coll - mrg)
     mrg_set =
         mrg > zero(DFT) && begin
-            isapprox(ai, mrg, margin(pos), Val(:price)) ||
+            isapprox(mrg, margin(pos); rtol=1e-2) ||
                 @warn_unsynced "initial margin" margin(pos) mrg
             initial!(pos, mrg)
-            isapprox(ai, adt, additional(pos), Val(:price)) ||
+            isapprox(adt, additional(pos); rtol=1e-2) ||
                 @warn_unsynced "additional margin" additional(pos) adt
             additional!(pos, adt)
             true
