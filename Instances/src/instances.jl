@@ -141,7 +141,10 @@ Base.unlock(ai::AssetInstance) = unlock(getfield(ai, :lock))
 Base.islocked(ai::AssetInstance) = islocked(getfield(ai, :lock))
 
 posside(::NoMarginInstance) = Long()
-posside(ai::MarginInstance) = posside(position(ai))
+posside(ai::MarginInstance) =
+    let pos = position(ai)
+        isnothing(pos) ? nothing : posside(pos)
+    end
 ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
 ishedged(ai::AssetInstance) = marginmode(ai) |> ishedged
 isopen(ai::NoMarginInstance) = !iszero(ai)
