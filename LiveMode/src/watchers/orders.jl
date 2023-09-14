@@ -47,7 +47,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                 while istaskrunning()
                     updates = f(flag, coro_running)
                     if updates isa Exception
-                        @ifdebug ispyresult_error(updates) ||
+                        @ifdebug ispyminor_error(updates) ||
                             @debug "Error fetching orders (using watch: $(iswatch))" updates
                         sleep(1)
                     else
@@ -167,7 +167,7 @@ function update_order!(s, ai, eid; resp, state)
     # order_partial = abs(unfilled(o)) != state.order.amount
     if order_filled || !order_open
         # Wait for trades to be processed if trades are not emulated
-        @debug "Orders task" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
+        @debug "Orders event" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
             order_trades
         ) last_trade = if isempty(order_trades)
             nothing
@@ -177,13 +177,13 @@ function update_order!(s, ai, eid; resp, state)
         if hasmytrades(exchange(ai))
             trades_count = length(order_trades)
             if (order_filled && trades_count == 0) || !isorder_synced(state.order, ai, resp)
-                @debug "Orders task, waiting trades watcher" id = state.order.id
+                @debug "Waiting for trade events" id = state.order.id
                 waitfortrade(s, ai, state.order; waitfor=Second(5))
-                if length(trades(state.order)) == trades_count
-                    @warn "Waiting for remaining trades timeout, falling back to emulation." locked = islocked(
-                        ai
-                    )
-                    @lock ai begin
+                if length(order_trades) == trades_count
+                    @lock ai if isopen(ai, state.order)
+                        @warn "Waiting for remaining trades timeout, falling back to emulation." locked = islocked(
+                            ai
+                        ) trades_count
                         @debug "Emulating order " id = state.order.id
                         t = emulate_trade!(s, state.order, ai; state.average_price, resp)
                         @debug "Emulated trade" trade = t id = state.order.id
@@ -250,19 +250,25 @@ function re_activate_order!(s, ai, id; eid, resp)
     end
 end
 
-function handle_orders!(s, ai, orders_byid, orders_updates)
+_pyvalue_info(v) =
     try
-        @debug "Orders task: " updates = orders_updates
+        length(v)
+    catch
+        typeof(v)
+    end
+function handle_orders!(s, ai, orders_byid, order_updates)
+    try
+        @debug "Orders events" n_updates = _pyvalue_info(order_updates)
         sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
         if length(sem.queue) > 0
             @warn "Expected queue (orders) to be empty."
             empty!(sem.queue)
         end
         eid = exchangeid(ai)
-        @sync for (n, resp) in enumerate(orders_updates)
+        @sync for (n, resp) in enumerate(order_updates)
             try
                 id = resp_order_id(resp, eid, String)
-                @debug "Orders task" id = id status = resp_order_status(resp, eid)
+                @debug "Orders event" id = id status = resp_order_status(resp, eid)
                 if isempty(id)
                     @warn "Missing order id"
                     continue
@@ -274,7 +280,7 @@ function handle_orders!(s, ai, orders_byid, orders_updates)
                         state = get_order_state(orders_byid, id)
                         # wait for earlier events to be processed
                         while first(sem.queue) != n
-                            @debug "Orders task: waiting for queue $n"
+                            @debug "Waiting for queue $n"
                             safewait(sem.cond)
                         end
                         if state isa LiveOrderState
@@ -282,10 +288,10 @@ function handle_orders!(s, ai, orders_byid, orders_updates)
                         elseif _ccxtisopen(resp, eid)
                             re_activate_order!(s, ai, id; eid, resp)
                         else
-                            @debug "Orders task, cancelling local order $id since non open remotely ($(raw(ai))@$(nameof(s)))"
+                            @debug "Cancelling local order $id since non open remotely ($(raw(ai))@$(nameof(s)))"
                             for o in values(s, ai) # ensure order is not stored locally
                                 if o.id == id
-                                    @debug "Orders task, cancelling order $id"
+                                    @debug "Cancelling..."
                                     cancel!(
                                         s,
                                         o,
@@ -311,7 +317,7 @@ function handle_orders!(s, ai, orders_byid, orders_updates)
     catch e
         @ifdebug isdefined(Main, :e) && (Main.e[] = e)
         @debug_backtrace
-        ispyresult_error(e) || @error e
+        ispyminor_error(e) || @error e
     end
 end
 

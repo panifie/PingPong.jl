@@ -71,7 +71,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                 while istaskrunning()
                     trades = f(flag, coro_running)
                     if trades isa Exception
-                        @ifdebug ispyresult_error(trades) ||
+                        @ifdebug ispyminor_error(trades) ||
                             @debug "Error fetching trades (using watch: $(iswatch))" trades
                         sleep(1)
                     else
@@ -80,7 +80,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                     end
                 end
             catch e
-                if e isa InterruptException()
+                if e isa InterruptException
                     break
                 else
                     @debug_backtrace
@@ -102,15 +102,23 @@ asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
 asset_trades_task(s, ai) = asset_trades_task(asset_tasks(s, ai).byname)
 function ispyexception(e, pyexception)
     pyisinstance(e, pyexception) || try
-        (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
+        hasproperty(e, :args) &&
+            (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
     catch
+        @debug_backtrace
         isdefined(Main, :e) && (Main.e[] = e)
         @error "Can't check exception of type $(typeof(e))"
         false
     end
 end
-function ispyresult_error(e)
+function ispyminor_error(e)
+    ispycancelled_error(e) || ispyinvstate_error(e)
+end
+function ispyinvstate_error(e)
     ispyexception(e, Python.gpa.pyaio.InvalidStateError)
+end
+function ispycancelled_error(e)
+    ispyexception(e, Python.gpa.pyaio.CancelledError)
 end
 
 _trade_kv_hash(resp, eid::EIDType) = begin
@@ -166,7 +174,7 @@ function handle_trades!(s, ai, orders_byid, trades)
         eid = exchangeid(ai)
         @sync for (n, resp) in enumerate(trades)
             id = resp_trade_order(resp, eid, String)
-            @debug "Trades task, handling new trade" order = id
+            @debug "Trades event" order = id
             if isempty(id)
                 @warn "Missing order id"
                 continue
@@ -231,7 +239,7 @@ function handle_trades!(s, ai, orders_byid, trades)
     catch e
         @ifdebug isdefined(Main, :e) && (Main.e[] = e)
         @debug_backtrace
-        ispyresult_error(e) || @error e
+        ispyminor_error(e) || @error e
     end
 end
 

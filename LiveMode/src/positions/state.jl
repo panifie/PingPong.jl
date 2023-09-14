@@ -18,9 +18,9 @@ function Executors.aftertrade!(
         update = live_position(s, ai, posside(o); since, force=true)
         @ifdebug begin
             if isopen(position(ai, posside(o)))
-                liqprice(ai, o) > 0 || @warn "Liqprice below zero ($(liqprice(ai, o)))"
+                liqprice(ai, o) > 0 || @error "Liqprice below zero ($(liqprice(ai, o)))"
                 entryprice(ai, o.price, o) > 0 ||
-                    @warn "Entryprice below zero ($(entryprice(ai, o.price, o)))"
+                    @error "Entryprice below zero ($(entryprice(ai, o.price, o)))"
             end
             if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
                 @debug "Position state closed ($(raw(ai))): $(ai.lastpos[].entryprice[]), isdust: $(isdust(ai, ai.lastpos[].entryprice[]))"
@@ -32,9 +32,9 @@ function Executors.aftertrade!(
             live_sync_position!(s, ai, o, update)
         end
         @ifdebug if islong(o)
-            cash(ai, posside(o)) >= 0 || @warn " cash for long should be positive."
+            cash(ai, posside(o)) >= 0 || @error " cash for long should be positive."
         else
-            cash(ai, posside(o)) <= 0 || @warn " cash for short should be negative"
+            cash(ai, posside(o)) <= 0 || @error " cash for short should be negative"
         end
     catch
         @debug_backtrace
