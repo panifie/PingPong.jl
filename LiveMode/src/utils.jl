@@ -517,11 +517,19 @@ function get_position_side(s, ai::AssetInstance)
     sym = raw(ai)
     long, short = get_positions(s)
     pos = get(long, sym, nothing)
-    !isnothing(pos) && return Long()
+    !isnothing(pos) && !pos.closed[] && return Long()
     pos = get(short, sym, nothing)
-    !isnothing(pos) && return Short()
-    @warn "No position open for $sym, defaulting to long"
-    Long()
+    !isnothing(pos) && !pos.closed[] && return Short()
+    if hasorders(s, ai)
+        @info "No position open for $sym, inferring from open orders"
+        posside(first(orders(s, ai)).second)
+    elseif length(trades(ai)) > 0
+        @info "No position open for $sym, inferring from last trade"
+        posside(last(trades(ai)))
+    else
+        @info "No position open for $sym, defaulting to long"
+        Long()
+    end
 end
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
 
