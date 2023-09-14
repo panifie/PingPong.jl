@@ -1,7 +1,7 @@
 function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
-    tot = balance!(s; status=TotalBalance, this_kwargs...)
-    used = balance!(s; status=UsedBalance, this_kwargs...)
+    tot = @something balance!(s; status=TotalBalance, this_kwargs...) (;)
+    used = @something balance!(s; status=UsedBalance, this_kwargs...) (;)
     bc = nameof(s.cash)
     tot_cash = get(tot, bc, nothing)
     function dowarn(what)
@@ -36,8 +36,8 @@ end
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     this_kwargs = splitkws(:status; kwargs)
-    tot = balance!(s; status=TotalBalance, this_kwargs...)
-    used = balance!(s; status=UsedBalance, this_kwargs...)
+    tot = @something balance!(s; status=TotalBalance, this_kwargs...) (;)
+    used = @something balance!(s; status=UsedBalance, this_kwargs...) (;)
     @sync for ai in s.universe
         @debug "Locking ai"
         @async @lock ai begin

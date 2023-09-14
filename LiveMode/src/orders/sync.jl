@@ -31,6 +31,10 @@ function live_sync_active_orders!(
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
     open_orders = fetch_open_orders(s, ai; side)
+    if isnothing(open_orders)
+        @error "Couldn't fetch open orders, skipping sync" ai = raw(ai) s = nameof(s)
+        return nothing
+    end
     strict && maxout!(s, ai)
     live_orders = Set{String}()
     default_pos = get_position_side(s, ai)
@@ -51,7 +55,7 @@ function live_sync_active_orders!(
             amount=missing,
             retry_with_resync=false,
             skipcommit=(!strict),
-            withoutkws(:skipcommit; create_kwargs)...,
+            withoutkws(:skipcommit; kwargs=create_kwargs)...,
         ) missing)::Option{Order}
         ismissing(o) && continue
         if isfilled(ai, o)
@@ -99,7 +103,7 @@ function live_sync_active_orders!(
         cash_short == cash(ai, Short()),
         comm_short == committed(ai, Short()),
     ))
-    strict && @warn "Strategy and assets cash need to be resynced." maxlog=1
+    strict && @warn "Strategy and assets cash need to be resynced." maxlog = 1
     nothing
 end
 
