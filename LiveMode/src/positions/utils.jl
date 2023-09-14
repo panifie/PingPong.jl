@@ -213,7 +213,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
     ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
         if isnothing(p)
-            @warn "Position side not provided, inferring from position state"
+            @debug "Position side not provided, inferring from position state"
             _ccxtpnlside(update, eid)
         else
             posside(p)
@@ -225,7 +225,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
             elseif pyeq(Bool, side_str, @pyconst("long"))
                 Long()
             else
-                @warn "Position side flag not valid (non open pos?), inferring from position state"
+                @debug "Position side flag not valid (non open pos?), inferring from position state"
                 # @debug "Resp of invalid position flag" update
                 _ccxtpnlside(update, eid)
             end
