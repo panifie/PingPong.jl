@@ -64,14 +64,18 @@ function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) 
     @deassert iszero(price(po)) ||
         abs(notional(po) / cash(po)) != price(po) ||
         abs(cash(po)) == abs(t.order.amount) - abs(t.amount)
+    @debug "Entryprice" entryprice(po)
     timestamp!(po, t.date)
     @deassert settle_price != t.price || t.order.asset.sc == t.order.asset.qc
     # @show cash(po) t.amount positionside(t) orderside(t)
     ntl = _roundpos(cash(po) * settle_price)
     @deassert ntl > 0.0 || cash(po) <= 0.0
     # notional updates the price, then leverage, then the liq price.
-    update_notional!(po; ntl, size=t.value)
+    update_notional!(po; ntl, size=byflow(t, :value))
 end
+
+byflow(t::ReduceTrade, k) = negate(getproperty(t, k))
+byflow(t::IncreaseTrade, k) = abs(getproperty(t, k))
 
 using Base: negate
 @doc "Some exchanges add funding rates and trading fees to the liquidation price, we use a default buffer of $LIQUIDATION_BUFFER."
