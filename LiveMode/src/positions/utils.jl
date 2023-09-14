@@ -290,3 +290,15 @@ function waitforpos(
         @warn "Position fetch since $(prev_timestamp) timed out $(raw(ai))@$(nameof(s))"
     return this_timestamp
 end
+
+function waitposclose(s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5))
+    pos = position(ai, bp)
+    update = get_positions(s, ai, bp)
+    slept = 0
+    timeout = Millisecond(waitfor).value
+    while isopen(pos)
+        slept += waitforcond(update.notify, timeout - slept)
+        slept >= timeout && break
+    end
+    isopen(pos)
+end
