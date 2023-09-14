@@ -35,6 +35,12 @@ function live_sync_active_orders!(
         @error "Couldn't fetch open orders, skipping sync" ai = raw(ai) s = nameof(s)
         return nothing
     end
+    # Pre-delete local orders not open on exc to fix commit calculation
+    let exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
+        for o in values(s, ai)
+            o.id ∉ exc_ids && delete!(s, ai, o)
+        end
+    end
     strict && maxout!(s, ai)
     live_orders = Set{String}()
     default_pos = get_position_side(s, ai)
