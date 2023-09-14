@@ -29,14 +29,25 @@ function live_sync_position!(
         @warn "Position hedged mode mismatch (local: $(pos.hedged))"
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside))
-            @warn "Double position open in NON hedged mode. Resetting opposite side." opposite_side = opposite(
-                pside
-            ) raw(ai) nameof(s)
-            pong!(s, ai, opposite(pside), now(), PositionClose())
-            if isopen(opposite(ai, pside))
-                @error "Failed to close opposite position" opposite_position = opposite(
-                    ai, pside
-                ) raw(ai) nameof(s)
+            let amount = resp_position_contracts(
+                    get_positions(s, ai, opposite(pside)).resp, eid
+                ),
+                oppos = opposite(pside)
+
+                @warn "Double position open in NON hedged mode. Resetting opposite side." oppos raw(
+                    ai
+                ) nameof(s)
+                if amount > ZERO
+                    pong!(s, ai, oppos, now(), PositionClose(); amount)
+                    if isopen(opposite(ai, pside))
+                        @error "Failed to close opposite position" opposite_position = position(
+                            ai, oppos
+                        ) raw(ai) nameof(s)
+                        return pos
+                    end
+                else
+                    reset!(ai, oppos)
+                end
             end
         end
         update.read[] && return pos
@@ -60,7 +71,7 @@ function live_sync_position!(
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
         isapprox(ai, cash(pos), rv, Val(:amount)) ||
-            @warn_unsynced "amount" cash(pos) amount
+            @warn_unsynced "amount" abs(cash(pos)) amount
         cash!(pos, rv)
     end
     # If the respd amount is "dust" the position should be considered closed, and to be reset
@@ -86,6 +97,7 @@ function live_sync_position!(
         pos_price
     end
     commits && let comm = committed(s, ai, pside)
+        @debug "Local committment" comm ai = raw(ai) side = pside
         isapprox(committed(pos).value, comm) || commit!(pos, comm)
     end
 
@@ -173,7 +185,7 @@ function live_sync_position!(
     mrg_set || _margin!()
     mm_set || resp_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
     function higherwarn(whata, whatb, a, b)
-        "($(raw(ai))) $whata ($(a)) can't be higher than $whatb $(b)"
+        "($(raw(ai))) $whata ($(a)) can't be higher than $whatb ($(b))"
     end
     @assert maintenance(pos) <= collateral(pos) higherwarn(
         "maintenance", "collateral", maintenance(pos), collateral(pos)
@@ -187,7 +199,7 @@ function live_sync_position!(
         "liquidation price", "entry price", liqprice(pos), entryprice(pos)
     )
     @assert committed(pos) <= abs(cash(pos)) higherwarn(
-        "committment", "cash", committed(pos), cash(pos).value
+        "committment", "cash", abs(committed(pos)), abs(cash(pos))
     )
     @assert leverage(pos) <= maxleverage(pos) higherwarn(
         "leverage", "max leverage", leverage(pos), maxleverage(pos)
