@@ -514,20 +514,25 @@ get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_positions(s, ai::AssetInstance) = get_positions(s, posside(ai))[raw(ai)]
 get_positions(s, ai, bp::ByPos) = get(get_positions(s, bp), raw(ai), nothing)
 function get_position_side(s, ai::AssetInstance)
-    sym = raw(ai)
-    long, short = get_positions(s)
-    pos = get(long, sym, nothing)
-    !isnothing(pos) && !pos.closed[] && return Long()
-    pos = get(short, sym, nothing)
-    !isnothing(pos) && !pos.closed[] && return Short()
-    if hasorders(s, ai)
-        @info "No position open for $sym, inferring from open orders"
-        posside(first(orders(s, ai)).second)
-    elseif length(trades(ai)) > 0
-        @info "No position open for $sym, inferring from last trade"
-        posside(last(trades(ai)))
-    else
-        @info "No position open for $sym, defaulting to long"
+    try
+        sym = raw(ai)
+        long, short = get_positions(s)
+        pos = get(long, sym, nothing)
+        !isnothing(pos) && !pos.closed[] && return Long()
+        pos = get(short, sym, nothing)
+        !isnothing(pos) && !pos.closed[] && return Short()
+        if hasorders(s, ai)
+            @info "No position open for $sym, inferring from open orders"
+            posside(first(orders(s, ai)).second)
+        elseif length(trades(ai)) > 0
+            @info "No position open for $sym, inferring from last trade"
+            posside(last(trades(ai)))
+        else
+            @info "No position open for $sym, defaulting to long"
+            Long()
+        end
+    catch
+        @debug_backtrace
         Long()
     end
 end
