@@ -22,7 +22,7 @@ function Executors.aftertrade!(
                 entryprice(ai, o.price, o) > 0 ||
                     @warn "Entryprice below zero ($(entryprice(ai, o.price, o)))"
             end
-            if isnothing(ai.lastpos[]) || isdust(ai, ai.lastpos[].entryprice[])
+            if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
                 @debug "Position state closed ($(raw(ai))): $(ai.lastpos[].entryprice[]), isdust: $(isdust(ai, ai.lastpos[].entryprice[]))"
             end
         end
