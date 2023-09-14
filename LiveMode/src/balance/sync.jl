@@ -14,7 +14,7 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     else
         tot_cash
     end
-    isapprox(s.cash, c) ||
+    isapprox(s.cash, c, rtol=1e-4) ||
         @warn "strategy cash unsynced, local ($(s.cash.value)), remote ($c)"
     cash!(s.cash, c)
 
@@ -25,7 +25,7 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     else
         used_cash
     end
-    isapprox(s.cash, cc) ||
+    isapprox(s.cash_committed, cc, rtol=1e-4) ||
         @warn "strategy committment unsynced, local ($(s.cash_committed.value)), remote ($cc)"
     cash!(s.cash_committed, cc)
 end
