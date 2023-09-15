@@ -301,18 +301,18 @@ function Base.similar(
 end
 
 cash(ai::NoMarginInstance) = getfield(ai, :cash)
-cash(ai::NoMarginInstance, ::Long) = cash(ai)
-cash(ai::NoMarginInstance, ::Short) = 0.0
+cash(ai::NoMarginInstance, ::ByPos{Long}) = cash(ai)
+cash(ai::NoMarginInstance, ::ByPos{Short}) = 0.0
 cash(ai::MarginInstance) =
     let pos = position(ai)
         isnothing(pos) && return nothing
         getfield((pos), :cash)
     end
-cash(ai::MarginInstance, ::Long) = getfield(position(ai, Long()), :cash)
-cash(ai::MarginInstance, ::Short) = getfield(position(ai, Short()), :cash)
+cash(ai::MarginInstance, ::ByPos{Long}) = getfield(position(ai, Long()), :cash)
+cash(ai::MarginInstance, ::ByPos{Short}) = getfield(position(ai, Short()), :cash)
 committed(ai::NoMarginInstance) = getfield(ai, :cash_committed)
-committed(ai::NoMarginInstance, ::Long) = committed(ai)
-committed(ai::NoMarginInstance, ::Short) = 0.0
+committed(ai::NoMarginInstance, ::ByPos{Long}) = committed(ai)
+committed(ai::NoMarginInstance, ::ByPos{Short}) = 0.0
 function committed(ai::MarginInstance, ::ByPos{P}) where {P}
     getfield(position(ai, P), :cash_committed)
 end
@@ -350,14 +350,14 @@ function freecash(ai::NoMarginInstance, args...)
     @deassert ca |> gtxzero (cash(ai), committed(ai))
     ca
 end
-function freecash(ai::MarginInstance, p::Long)
+function freecash(ai::MarginInstance, p::ByPos{Long})
     @deassert cash(ai, p) |> gtxzero
     @deassert committed(ai, p) |> gtxzero
     ca = max(0.0, cash(ai, p) - committed(ai, p))
     @deassert ca |> gtxzero (cash(ai, p), committed(ai, p))
     ca
 end
-function freecash(ai::MarginInstance, p::Short)
+function freecash(ai::MarginInstance, p::ByPos{Short})
     @deassert cash(ai, p) |> ltxzero
     @deassert committed(ai, p) |> ltxzero
     ca = min(0.0, cash(ai, p) - committed(ai, p))
