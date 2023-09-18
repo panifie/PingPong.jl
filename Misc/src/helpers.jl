@@ -147,5 +147,28 @@ gtxzero(v::T; atol=ATOL) where {T} = v > zero(T) || isapprox(v, zero(T); atol)
 ltxzero(v::T; atol=ATOL) where {T} = v < zero(T) || isapprox(v, zero(T); atol)
 positive(v) = abs(v)
 negative(v) = Base.negate(abs(v))
+inc!(v::Ref{I}) where {I<:Integer} = v[] += one(I)
+dec!(v::Ref{I}) where {I<:Integer} = v[] -= one(I)
+attrs(d) = getfield(d, :attrs)
+attrs(d, keys...) =
+    let a = attrs(d)
+        (a[k] for k in keys)
+    end
+attr(d, k) = attrs(d)[k]
+attr(d, k, v) = get(attrs(d), k, v)
+attr!(d, k, v) = get!(attrs(d), k, v)
+modifyattr!(d, v, op, keys...) =
+    let a = attrs(d)
+        for k in keys
+            a[k] = op(a[k], v)
+        end
+    end
+setattr!(d, v, keys...) = setindex!(attrs(d), v, keys...)
+hasattr(d, k) = haskey(attrs(d), k)
+hasattr(d, keys...) =
+    let a = attrs(d)
+        any(haskey(a, k) for k in keys)
+    end
 
-export approxzero, gtxzero, ltxzero, negative, positive
+export approxzero, gtxzero, ltxzero, negative, positive, inc!, dec!
+export attrs, attr, hasattr, attr!, setattr!, modifyattr!

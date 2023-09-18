@@ -43,6 +43,7 @@ end
         nameof(typeof(s))
         reset!(s)
         propertynames(s)
+        attrs(s)
         s.attrs
         coll.iscashable(s)
         minmax_holdings(s)

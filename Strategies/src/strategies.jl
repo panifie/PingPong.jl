@@ -72,6 +72,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     holdings::Set{ExchangeAsset{E}}
     universe::AssetCollection
     logs::Vector{StrategyEvent{E}}
+    lock::ReentrantLock
     function Strategy(
         self::Module,
         mode::ExecMode,
@@ -98,7 +99,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         name = nameof(self)
         # set exchange
         exc.options["defaultMarginMode"] = margin isa IsolatedMargin ? "isolated" : "cross"
-        config.attrs[:exc] = exc
+        setattr!(config, :exc, exc)
         new{typeof(mode),name,eid,typeof(margin),config.qc}(
             self,
             config,
@@ -110,6 +111,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
             holdings,
             uni,
             StrategyEvent{eid}[],
+            ReentrantLock(),
         )
     end
 end
@@ -123,6 +125,8 @@ const CrossStrategy = Strategy{X,N,<:ExchangeID,Cross,C} where {X<:ExecMode,N,C}
 const MarginStrategy =
     Strategy{X,N,<:ExchangeID,<:Union{Isolated,Cross},C} where {X<:ExecMode,N,C}
 const NoMarginStrategy = Strategy{X,N,<:ExchangeID,NoMargin,C} where {X<:ExecMode,N,C}
+@doc "Functions that are called (with the strategy as argument) right after strategy construction."
+const STRATEGY_LOAD_CALLBACKS = (; (m => Function[] for m in (:sim, :paper, :live))...)
 
 include("methods.jl")
 include("interface.jl")
@@ -134,5 +138,5 @@ export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange, universe, throttle
 export LoadStrategy, ResetStrategy, WarmupPeriod
 export SimStrategy, PaperStrategy, LiveStrategy, IsolatedStrategy, CrossStrategy
-export attr, attrs, setattr!, modifyattr!
+export attr, attrs, setattr!
 export issim, ispaper, islive

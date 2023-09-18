@@ -10,7 +10,7 @@ using Instruments: @importcash!, AbstractAsset
 import .Checks: cost
 @importcash!
 import Base: fill!
-import Misc: reset!
+import Misc: reset!, attr
 
 ##  committed::DFT # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{

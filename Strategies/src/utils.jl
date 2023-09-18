@@ -133,7 +133,7 @@ _setmax!(d, k, v) = d[k] = max(get(d, k, v), v)
 _sizehint!(c, d, k, f=length) = Base.sizehint!(c, _setmax!(d, k, f(c)))
 @doc "Keeps track of max allocated containers size for strategy and asset instances in the universe."
 function sizehint!(s::Strategy)
-    sizes = @lget! s.attrs :_sizes Dict{Symbol,Union{Dict,Int}}()
+    sizes = @lget! attrs(s) :_sizes Dict{Symbol,Union{Dict,Int}}()
     s_sizes = @lget! sizes :_s_sizes Dict{Symbol,Int}()
     _sizehint!(s.buyorders, s_sizes, :buyorders)
     _sizehint!(s.sellorders, s_sizes, :sellorders)

@@ -25,7 +25,7 @@ function find_path(file, cfg)
 end
 
 function _file(src, cfg)
-    file = get(cfg.attrs, "include_file", nothing)
+    file = get(attrs(cfg), "include_file", nothing)
     if isnothing(file)
         file = get(cfg.sources, src, nothing)
         if isnothing(file)
@@ -86,7 +86,7 @@ function strategy!(mod::Module, cfg::Config)
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc
     end
-    if get(cfg.attrs, :exchange_override, false)
+    if attr(cfg, :exchange_override, false)
         @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     end
     @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
@@ -120,7 +120,7 @@ function strategy(src::Union{Symbol,Module,String}; load=false, config_args...)
 end
 
 function save_strategy(s)
-    cache_path = @lget! s.attrs :config_cache_path strategy_cache_path()
+    cache_path = @lget! attrs(s) :config_cache_path strategy_cache_path()
     save_cache(string(nameof(s)); raise=false, cache_path)
 end
 
