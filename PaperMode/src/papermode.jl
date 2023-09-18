@@ -67,8 +67,8 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
         name = nameof(s)
         paper_running = attr(s, :paper_running)
         @assert isassigned(paper_running)
-        setattr!(s, :paper_start, now())
-        setattr!(s, :paper_stop, nothing)
+        setattr!(s, now(), :paper_start)
+        setattr!(s, nothing, :paper_stop)
         @sync while paper_running[]
             try
                 infofunc()
@@ -87,7 +87,7 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
                 sleep(throttle)
             finally
                 paper_running[] = false
-                setattr!(s, :paper_stop, now())
+                setattr!(s, now(), :paper_stop)
             end
         end
     end

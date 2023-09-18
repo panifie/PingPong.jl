@@ -7,7 +7,7 @@ const OrderTaskTuple = NamedTuple{(:task, :alive),Tuple{Task,Ref{Bool}}}
 
 function reset_logs(s::Strategy)
     mode = execmode(s) |> typeof |> string
-    logfile = @lget! s.attrs :logfile st.logpath(s, name="$(mode)_events")
+    logfile = @lget! attrs(s) :logfile st.logpath(s, name="$(mode)_events")
     write(logfile, "")
 end
 
