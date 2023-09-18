@@ -17,6 +17,7 @@ import Data.DataStructures: lt
 using Data: closelast
 using Misc
 using Misc: DFT, IsolatedMargin
+import Misc: reset!, Long, Short, attrs
 using Lang: @lget!
 using Pkg: Pkg
 
@@ -99,7 +100,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         name = nameof(self)
         # set exchange
         exc.options["defaultMarginMode"] = margin isa IsolatedMargin ? "isolated" : "cross"
-        setattr!(config, :exc, exc)
+        setattr!(config, exc, :exc)
         new{typeof(mode),name,eid,typeof(margin),config.qc}(
             self,
             config,

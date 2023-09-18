@@ -1,9 +1,7 @@
 using Lang: @lget!, @deassert, MatchString
-using Misc: attr, setattr!
 import Instances.ExchangeTypes: exchangeid, exchange
-import Misc: reset!, Long, Short, attrs
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
-
+using Misc: attr, setattr!
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersdefault!
 
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -19,7 +17,7 @@ function exchangeid(
 ) where {E<:ExchangeID}
     E
 end
-Exchanges.issandbox(s::Strategy) = Exchanges.issandbox(attr(s, :exc))
+Exchanges.issandbox(s::Strategy) = Exchanges.issandbox(exchange(s))
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = s.cash - s.cash_committed
 @doc "Get the strategy margin mode."
@@ -36,6 +34,7 @@ Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
 Base.nameof(s::Strategy) = nameof(typeof(s))
 universe(s::Strategy) = getfield(s, :universe)
 throttle(s::Strategy) = attr(s, :throttle, Second(5))
+attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 
 @doc "Resets strategy state.
 `defaults`: if `true` reapply strategy config defaults."
@@ -86,32 +85,32 @@ Base.fill!(s::Strategy; kwargs...) = begin
     coll.fill!(universe(s), tfs...; kwargs...)
 end
 
+_config_attr(s, k) = getfield(getfield(s, :config), k)
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
-        attrs(s)
+        _config_attr(s, :attrs)
     elseif sym == :exchange
-        attr(s, :exchange)
+        _config_attr(s, :exchange)
     elseif sym == :path
-        attr(s, :path)
+        _config_attr(s, :path)
     elseif sym == :initial_cash
-        attr(s, :initial_cash)
+        _config_attr(s, :initial_cash)
     elseif sym == :min_size
-        attr(s, :min_size)
+        _config_attr(s, :min_size)
     elseif sym == :min_vol
-        attr(s, :min_vol)
+        _config_attr(s, :min_vol)
     elseif sym == :qc
-        attr(s, :qc)
+        _config_attr(s, :qc)
     elseif sym == :margin
-        attr(s, :margin)
+        _config_attr(s, :margin)
     elseif sym == :leverage
-        attr(s, :leverage)
+        _config_attr(s, :leverage)
     elseif sym == :mode
-        attr(s, :mode)
+        _config_attr(s, :mode)
     else
         getfield(s, sym)
     end
 end
-attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 
 function logpath(s::Strategy; name="events", path_nodes...)
     dirpath = joinpath(realpath(dirname(s.path)), "logs", path_nodes...)
