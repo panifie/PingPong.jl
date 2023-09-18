@@ -210,7 +210,7 @@ end
 @doc "Check if the asset instance has pending orders."
 hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(orders(s, ai, Buy))
 function hasorders(s::Strategy, ai, ::Type{Sell})
-    !(iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell)) == 0)
+    !iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell))
 end
 function hasorders(s::Strategy, ai::AssetInstance)
     (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
