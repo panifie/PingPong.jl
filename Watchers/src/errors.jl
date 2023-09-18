@@ -1,8 +1,8 @@
 errors(w::Watcher) = w._exec.errors
 @doc "Stores an error to the watcher log journal."
 function logerror(w::Watcher, e, bt=[])
-    if haskey(w.attrs, :logfile)
-        file = w.attrs[:logfile]
+    if hasattr(w, :logfile)
+        file = attr(w, :logfile)
         open(file, "a") do f
             println(f, string(Dates.now()))
             Base.showerror(f, e)

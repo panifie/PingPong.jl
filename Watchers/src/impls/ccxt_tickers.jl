@@ -26,7 +26,7 @@ const CcxtTicker = @NamedTuple begin
 end
 
 _ids!(attrs, ids) = attrs[:ids] = ids
-_ids(w) = w.attrs[:ids]
+_ids(w) = attr(w, :ids)
 
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt).
 
@@ -92,7 +92,7 @@ wpyconvert(::Type{Union{Nothing,DateTime}}, py::Py) =
 wpyconvert(::Type{T}, v::Symbol) where {T} = T(v)
 
 function _fetch!(w::Watcher, ::CcxtTickerVal)
-    data = w.attrs[:tfunc]() |> PyDict
+    data = attr(w, :tfunc)() |> PyDict
     if length(data) > 0
         result = Dict{String,CcxtTicker}()
         for py_ticker in values(data)

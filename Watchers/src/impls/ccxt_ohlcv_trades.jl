@@ -13,10 +13,10 @@ Python.pyconvert(::Type{TradeSide}, py::Py) = TradeSide(py)
 Python.pyconvert(::Type{TradeRole}, py::Py) = TradeRole(py)
 
 trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, v)
-_trades(w::Watcher) = w.attrs[:trades]
-_trades!(w) = w.attrs[:trades] = CcxtTrade[]
-_lastfetched(w) = w.attrs[:last_fetched]
-_lastfetched!(w, v) = w.attrs[:last_fetched] = v
+_trades(w::Watcher) = attr(w, :trades)
+_trades!(w) = setattr!(w, CcxtTrade[], :trades)
+_lastfetched(w) = attr(w, :last_fetched)
+_lastfetched!(w, v) = setattr!(w, v, :last_fetched)
 
 @doc """ Create a `Watcher` instance that tracks ohlcv for an exchange (ccxt).
 
@@ -78,11 +78,11 @@ end
 
 _load!(w::Watcher, ::CcxtOHLCVVal) = _fastforward(w)
 
-_tradestask(w) = get(w.attrs, :trades_task, nothing)
+_tradestask(w) = attr(w, :trades_task, nothing)
 _tradestask!(w) = begin
     task = _tradestask(w)
     if isnothing(task) || istaskfailed(task)
-        w.attrs[:trades_task] = @async _fetch_trades_loop(w)
+        setattr!(w, @async(_fetch_trades_loop(w)), :trades_task)
     end
 end
 function _start!(w::Watcher, ::CcxtOHLCVVal)

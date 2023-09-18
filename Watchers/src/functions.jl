@@ -1,6 +1,6 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
 
-exchange(w::Watcher) = get(getfield(w, :attrs), :exc, nothing)
+exchange(w::Watcher) = attr(w, :exc, nothing)
 exchangeid(w::Watcher) =
     let e = exchange(w)
         isnothing(e) ? nothing : nameof(e)
@@ -70,8 +70,8 @@ function Base.close(w::Watcher; doflush=true) # @lock w._exec.fetch_lock begin
             isstopped(w) || stop!(w)
             doflush && flush!(w)
             if haskey(WATCHERS, w.name)
-                get(WATCHERS[w.name].attrs, :started, DateTime(0)) ==
-                get(w.attrs, :started, DateTime(0)) && delete!(WATCHERS, w.name)
+                attr(WATCHERS[w.name], :started, DateTime(0)) ==
+                attr(w, :started, DateTime(0)) && delete!(WATCHERS, w.name)
             end
             nothing
         finally
@@ -89,11 +89,9 @@ Base.getproperty(w::Watcher, p::Symbol) = begin
         getfield(w, p)
     end
 end
-attrs(w::Watcher) = getfield(w, :attrs)
-attr(w::Watcher, i) = getindex(getfield(w, :attrs), i)
 buffer(w::Watcher) = getfield(w, :buffer)
-Base.getindex(w::Watcher, i::Symbol) = getindex(attrs(w), i)
-Base.setindex!(w::Watcher, v, i::Symbol) = setindex!(attrs(w), v, i)
+Base.getindex(w::Watcher, i::Symbol) = attr(w, i)
+Base.setindex!(w::Watcher, v, i::Symbol) = setattr!(w, v, i)
 Base.first(w::Watcher) = first(attrs(w))
 Base.pairs(w::Watcher) = pairs(attrs(w))
 Base.values(w::Watcher) = values(attrs(w))

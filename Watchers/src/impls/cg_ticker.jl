@@ -35,7 +35,7 @@ end
 cg_ticker_watcher(syms::Vararg) = cg_ticker_watcher([syms...])
 
 _fetch!(w::Watcher, ::CgTickerVal) = begin
-    mkts = cg.coinsmarkets(; ids=w.attrs[:ids])
+    mkts = cg.coinsmarkets(; ids=attr(w, :ids))
     if length(mkts) > 0
         value = @parsedata CgTick mkts "symbol"
         pushnew!(w, value)

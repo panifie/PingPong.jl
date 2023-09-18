@@ -57,9 +57,9 @@ Base.convert(::Type{DateTime}, s::LazyJSON.Number) = unix2datetime(s)
 Base.convert(::Type{String}, s::Symbol) = string(s)
 Base.convert(::Type{Symbol}, s::AbstractString) = Symbol(s)
 
-_checks(w) = w.attrs[:checks]
-_checksoff!(w) = w.attrs[:checks] = Val(:off)
-_checkson!(w) = w.attrs[:checks] = Val(:on)
+_checks(w) = attr(w, :checks)
+_checksoff!(w) = setattr!(w, Val(:off), :checks)
+_checkson!(w) = setattr!(w, Val(:on), :checks)
 function _do_check_contig(w, df, ::Val{:on})
     isempty(df) || _contiguous_ts(df.timestamp, timefloat(_tfr(w)))
 end
@@ -67,21 +67,21 @@ _do_check_contig(_, _, ::Val{:off}) = nothing
 _check_contig(w, df) = !isempty(df) && _do_check_contig(w, df, _checks(w))
 
 _exc(attrs) = attrs[:exc]
-_exc(w::Watcher) = _exc(w.attrs)
+_exc(w::Watcher) = _exc(attrs(w))
 _exc!(attrs, exc) = attrs[:exc] = exc
-_exc!(w::Watcher, exc) = _exc!(w.attrs, exc)
+_exc!(w::Watcher, exc) = _exc!(attrs(w), exc)
 _tfunc!(attrs, suffix, k) = attrs[k] = _multifunc(_exc(attrs), suffix, true)[1]
 _tfunc!(attrs, suffix) = attrs[:tfunc] = _multifunc(_exc(attrs), suffix, true)[1]
 _tfunc!(attrs, exc::Exchange, args...) = attrs[:tfunc] = choosefunc(exc, args...)
 _tfunc!(attrs, f::Function) = attrs[:tfunc] = f
-_tfunc(w::Watcher) = w.attrs[:tfunc]
-_sym(w::Watcher) = w.attrs[:sym]
+_tfunc(w::Watcher) = attr(w, :tfunc)
+_sym(w::Watcher) = attr(w, :sym)
 _sym!(attrs, v) = attrs[:sym] = v
-_sym!(w::Watcher, v) = _sym!(w.attrs, v)
+_sym!(w::Watcher, v) = _sym!(attrs(w), v)
 _tfr(attrs) = attrs[:timeframe]
-_tfr(w::Watcher) = _tfr(w.attrs)
+_tfr(w::Watcher) = _tfr(attrs(w))
 _tfr!(attrs, tf) = attrs[:timeframe] = tf
-_tfr!(w::Watcher, tf) = w.attrs[:timeframe] = tf
+_tfr!(w::Watcher, tf) = setattr!(w, tf, :timeframe)
 _firstdate(df::DataFrame, range::UnitRange) = df[range.start, :timestamp]
 _firstdate(df::DataFrame) = df[begin, :timestamp]
 _firsttrade(w::Watcher) = first(_trades(w))
@@ -92,10 +92,10 @@ _lastdate(z::ZArray) = z[end, 1] # the first col is a to
 _curdate(tf) = apply(tf, now())
 _nextdate(tf) = _curdate(tf) + tf
 _dateidx(tf, from, to) = max(1, (to - from) ÷ period(tf))
-_lastflushed!(w::Watcher, v) = w.attrs[:last_flushed] = v
-_lastflushed(w::Watcher) = w.attrs[:last_flushed]
-_lastprocessed!(w::Watcher, v) = w.attrs[:last_processed] = v
-_lastprocessed(w::Watcher) = w.attrs[:last_processed]
+_lastflushed!(w::Watcher, v) = setattr!(w, v, :last_flushed)
+_lastflushed(w::Watcher) = attr(w, :last_flushed)
+_lastprocessed!(w::Watcher, v) = setattr(w, v, :last_processed)
+_lastprocessed(w::Watcher) = attr(w, :last_processed)
 
 struct Warmed end
 struct Pending end
@@ -112,24 +112,24 @@ macro ispending(w)
     :(_ispending(_status($w)))
 end
 _warmed!(_, ::Warmed) = nothing
-_warmed!(w, ::Pending) = w.attrs[:status] = Warmed()
+_warmed!(w, ::Pending) = setattr!(w, Warmed(), :status)
 _pending!(attrs) = attrs[:status] = Pending()
-_pending!(w::Watcher) = _pending!(w.attrs)
-_status(w::Watcher) = w.attrs[:status]
-_chill!(w) = w.attrs[:warmup_target] = apply(_tfr(w), now())
+_pending!(w::Watcher) = _pending!(attrs(w))
+_status(w::Watcher) = attr(w, :status)
+_chill!(w) = setattr!(w, apply(_tfr(w), now()), :warmup_target)
 _warmup!(_, ::Warmed) = nothing
 @doc "Checks if we can start processing data, after we are past the initial incomplete timeframe."
 function _warmup!(w, ::Pending)
-    apply(_tfr(w), now()) > w.attrs[:warmup_target] && _warmed!(w, _status(w))
+    apply(_tfr(w), now()) > attr(w, :warmup_target) && _warmed!(w, _status(w))
 end
 macro warmup!(w)
     w = esc(w)
     :(_warmup!($w, _status($w)))
 end
 
-_key!(w::Watcher, k) = w.attrs[:key] = k
-_key(w::Watcher) = w.attrs[:key]
-_view!(w, v) = w.attrs[:view] = v
+_key!(w::Watcher, v) = setattr!(w, v, :key)
+_key(w::Watcher) = attr(w, :key)
+_view!(w, v) = setattr!(w, v, :view)
 _view(w) = attr(w, :view)
 
 function _get_available(w, z, to)
@@ -207,7 +207,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         _check_contig(w, df)
     catch e
         logerror(w, e, catch_backtrace())
-        if get(w.attrs, :resync_noncontig, false)
+        if attr(w, :resync_noncontig, false)
             # df can have immutable vectors which can't be emptied
             try
                 empty!(df)
@@ -251,7 +251,9 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         isrightadj() = firstdate(cleaned) - prd == lastdate(df)
         isrecent() = firstdate(cleaned) > lastdate(df)
         isprep() = op == Val(:prepend) && isleftadj()
-        isapp() = op == Val(:append) && (isrightadj() || (isrecent() && (_empty!!(df); true)))
+        function isapp()
+            op == Val(:append) && (isrightadj() || (isrecent() && (_empty!!(df); true)))
+        end
         if isempty(df) || isprep() || isapp()
             _op(op, df, cleaned, w.capacity.view)
         end

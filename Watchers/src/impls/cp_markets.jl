@@ -22,7 +22,7 @@ function cp_markets_watcher(exc_name::AbstractString, interval=Minute(3))
 end
 
 function _fetch!(w::Watcher, ::CpMarketsVal)
-    mkts = cp.markets(w.attrs[:exc])
+    mkts = cp.markets(attr(w, :exc))
     if length(mkts) > 0
         result = Dict{String,CpTick}()
         for (_, m) in mkts

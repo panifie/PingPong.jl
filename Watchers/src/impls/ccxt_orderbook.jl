@@ -3,8 +3,8 @@ using Fetch: OrderBookLevel, L1, L2, L3
 const CcxtOrderBookVal = Val{:ccxt_order_book}
 
 # da.DataFrame(AskOrderTuple{Float64}.(pyconvert.(Tuple, ob["bids"])))
-_l1func(w) = w.attrs[:l1func]
-_l2func(w) = w.attrs[:l2func]
+_l1func(w) = attr(w, :l1func)
+_l2func(w) = attr(w, :l2func)
 function _ob_func(attrs, level)
     name = "$(level)OrderBook"
     names = if level == L1

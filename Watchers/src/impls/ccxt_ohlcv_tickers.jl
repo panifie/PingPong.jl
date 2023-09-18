@@ -39,13 +39,15 @@ function ccxt_ohlcv_tickers_watcher(
         process=true,
         kwargs...,
     )
-    w.attrs[:tickers_ohlcv] = true
-    w.attrs[:timeframe] = timeframe
+
+    a = attrs(w)
+    a[:tickers_ohlcv] = true
+    a[:timeframe] = timeframe
     @assert price_source ∈ PRICE_SOURCES "price_source $price_source is not one of: $PRICE_SOURCES"
-    w.attrs[:price_source] = price_source
-    w.attrs[:volume_divisor] = Day(1) / period(timeframe)
-    ids = w.attrs[:ids]
-    isnothing(logfile) || (w.attrs[:logfile] = logfile)
+    a[:price_source] = price_source
+    a[:volume_divisor] = Day(1) / period(timeframe)
+    ids =  a[:ids]
+    isnothing(logfile) || (a[:logfile] = logfile)
     _key!(w, "ccxt_$(exc.name)_ohlcv_tickers_$(join(ids, "_"))")
     _pending!(w)
     w
@@ -67,22 +69,23 @@ end
     end
 end
 
-_symlock(w, sym) = w.attrs[:sym_locks][sym]
-_loaded!(w, sym, v=true) = w.attrs[:loaded][sym] = v
-_isloaded(w, sym) = get(w.attrs[:loaded], sym, false)
+_symlock(w, sym) = attr(w, :sym_locks)[sym]
+_loaded!(w, sym, v=true) = attr(w, :loaded)[sym] = v
+_isloaded(w, sym) = get(attr(w, :loaded), sym, false)
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     _view!(w, Dict{String,DataFrame}())
-    w.attrs[:temp_ohlcv] = Dict{String,TempCandle}()
-    w.attrs[:candle_ticks] = Dict{String,Int}()
-    w.attrs[:loaded] = Dict{String,Bool}()
-    w.attrs[:sym_locks] = Dict{String,ReentrantLock}()
+    a = attrs(w)
+    a[:temp_ohlcv] = Dict{String,TempCandle}()
+    a[:candle_ticks] = Dict{String,Int}()
+    a[:loaded] = Dict{String,Bool}()
+    a[:sym_locks] = Dict{String,ReentrantLock}()
     _initsyms!(w)
     _checkson!(w)
 end
 
 function _initsyms!(w::Watcher)
-    loaded = w.attrs[:loaded]
-    locks = w.attrs[:sym_locks]
+    loaded = attr(w, :loaded)
+    locks = attr(w, :sym_locks)
     for sym in _ids(w)
         loaded[sym] = false
         locks[sym] = ReentrantLock()
@@ -97,13 +100,13 @@ _resetcandle!(w, cdl, ts, price) = begin
     cdl.close = price
     cdl.volume = ifelse(_isvwap(w), NaN, 0)
 end
-_isvwap(w) = w.attrs[:price_source] == :vwap
-_ohlcv(w) = w.attrs[:temp_ohlcv]
-_ticks(w) = w.attrs[:candle_ticks]
+_isvwap(w) = attr(w, :price_source) == :vwap
+_ohlcv(w) = attr(w, :temp_ohlcv)
+_ticks(w) = attr(w, :candle_ticks)
 _tick!(w, sym) = _ticks(w)[sym] += 1
 _zeroticks!(w, sym) = _ticks(w)[sym] = 0
 function _meanvolume!(w, sym, temp_candle)
-    temp_candle.volume = temp_candle.volume / _ticks(w)[sym] / w.attrs[:volume_divisor]
+    temp_candle.volume = temp_candle.volume / _ticks(w)[sym] / attr(w, :volume_divisor)
 end
 # Appends temp_candle ensuring contiguity
 function _ensure_contig!(w, df, temp_candle, tf, sym)
@@ -121,7 +124,7 @@ function _update_sym_ohlcv(w, ticker, last_time)
     sym = ticker.symbol
     df = @lget! w.view sym empty_ohlcv()
     latest_timestamp = apply(_tfr(w), last_time)
-    price = getproperty(ticker, w.attrs[:price_source])
+    price = getproperty(ticker, attr(w, :price_source))
     temp_candle = @lget! _ohlcv(w) sym begin
         c = TempCandle(; timestamp=latest_timestamp)
         _resetcandle!(w, c, latest_timestamp, price)

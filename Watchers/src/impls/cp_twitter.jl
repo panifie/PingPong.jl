@@ -20,7 +20,7 @@ end
 cp_twitter_watcher(syms...) = cp_twitter_watcher([syms...])
 
 function _fetch!(w::Watcher, ::CpTwitterVal)
-    tweets = Dict(s => cp.twitter(s) for s in w.attrs[:ids])
+    tweets = Dict(s => cp.twitter(s) for s in attr(w, :ids))
     if length(tweets) > 0
         result = Dict{String,Vector{CpTweet}}()
         temp = Dict{String,Any}()

@@ -2,6 +2,7 @@ module WatchersImpls
 using LazyJSON
 using Lang: @lget!, @kget!, fromdict, Option
 using TimeTicks
+using Misc
 using ..Watchers
 import ..Watchers:
     _fetch!,
