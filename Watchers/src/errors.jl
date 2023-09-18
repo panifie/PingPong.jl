@@ -1,4 +1,4 @@
-errors(w::Watcher) = w._exec.errors
+errors(w::Watcher) = _errors(w)
 @doc "Stores an error to the watcher log journal."
 function logerror(w::Watcher, e, bt=[])
     if hasattr(w, :logfile)
@@ -9,7 +9,7 @@ function logerror(w::Watcher, e, bt=[])
             isempty(bt) || Base.show_backtrace(f, bt)
         end
     else
-        push!(w._exec.errors, (e, bt))
+        push!(_errors(w), (e, bt))
     end
     e
 end

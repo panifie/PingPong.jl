@@ -85,7 +85,7 @@ _init!(w::Watcher, ::Val) = default_init(w)
 @doc "Returns the processed `view` of the watcher data."
 _get(w::Watcher, ::Val) = default_get(w)
 @doc "Returns the processed `view` of the watcher data. Accessible also as a `view` property of the watcher object."
-Base.get(w::Watcher) = _get(w, w._val)
+Base.get(w::Watcher) = _get(w, _val(w))
 @doc "If the watcher manager a group of things that it is fetching, `_push!` should add an element to it."
 _push!(w::Watcher, ::Val) = _notimpl(push!, w)
 @doc "Same as `_push!` but for removing elements."
@@ -100,7 +100,7 @@ _start!(_::Watcher, ::Val) = nothing
 _stop!(_::Watcher, ::Val) = nothing
 @doc "Deletes all watcher data from storage backend. Also empties the buffer."
 function Base.delete!(w::Watcher)
-    _delete!(w, w._val)
+    _delete!(w, _val(w))
     empty!(w.buffer)
 end
 function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)

@@ -1,5 +1,12 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
 
+_timer(w) = getfield(w, :_timer)
+_exec(w) = getfield(w, :_exec)
+_fetch_lock(w) = getfield(_exec(w), :fetch_lock)
+_buffer_lock(w) = getfield(_exec(w), :buffer_lock)
+_errors(w) = getfield(_exec(w), :errors)
+_val(w) = getfield(w, :_val)
+
 exchange(w::Watcher) = attr(w, :exc, nothing)
 exchangeid(w::Watcher) =
     let e = exchange(w)
@@ -8,7 +15,7 @@ exchangeid(w::Watcher) =
 
 @doc "Delete watcher data from storage backend within the date range specified."
 function Base.deleteat!(w::Watcher, range::DateTuple)
-    _deleteat!(w, w._val; from=range.start, to=range.stop)
+    _deleteat!(w, _val(w); from=range.start, to=range.stop)
 end
 
 @doc "Flush the watcher. If wait is `true`, block until flush completes."
@@ -18,7 +25,7 @@ function flush!(w::Watcher; force=true, sync=false)
         t = @async begin
             result = @lock w._exec.buffer_lock begin
                 w.last_flush = time_now
-                _flush!(w, w._val)
+                _flush!(w, _val(w))
                 safenotify(w.beacon.flush)
             end
             ifelse(result isa Exception, logerror(w, result), result)
@@ -42,19 +49,19 @@ end
 
 function process!(w::Watcher, args...; kwargs...)
     @logerror w begin
-        _process!(w, w._val, args...; kwargs...)
+        _process!(w, _val(w), args...; kwargs...)
         safenotify(w.beacon.process)
     end
 end
-load!(w::Watcher, args...; kwargs...) = _load!(w, w._val, args...; kwargs...)
-init!(w::Watcher, args...; kwargs...) = _init!(w, w._val, args...; kwargs...)
+load!(w::Watcher, args...; kwargs...) = _load!(w, _val(w), args...; kwargs...)
+init!(w::Watcher, args...; kwargs...) = _init!(w, _val(w), args...; kwargs...)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
-    _push!(w, w._val, v, args...; kwargs...)
+    _push!(w, _val(w), v, args...; kwargs...)
 end
 @doc "Remove `v` from the things the watcher is fetching."
 function Base.pop!(w::Watcher, v, args...; kwargs...)
-    _pop!(w, w._val, v, args...; kwargs...)
+    _pop!(w, _val(w), v, args...; kwargs...)
 end
 
 @doc "True if last available data entry is older than `now() + fetch_interval + fetch_timeout`."
@@ -103,31 +110,37 @@ Base.getindex(w::Watcher, i) = getindex(attr(w, :view), i)
 stop!(w::Watcher) = begin
     @assert isstarted(w) "Tried to stop an already stopped watcher."
     Base.close(w._timer)
-    _stop!(w, w._val)
+    _stop!(w, _val(w))
     nothing
 end
 @doc "Resets the watcher timer."
 start!(w::Watcher) = begin
     @assert isstopped(w) "Tried to start an already started watcher."
-    empty!(w._exec.errors)
+    empty!(_errors(w))
     w[:started] = now()
-    _start!(w, w._val)
+    _start!(w, _val(w))
     _timer!(w)
     w._stop = false
     nothing
 end
 @doc "True if timer is not running."
-isstopped(w::Watcher) = isnothing(w._timer) || !isopen(w._timer)
+isstopped(w::Watcher) =
+    let t = _timer(w)
+        isnothing(t) || !isopen(t)
+    end
 @doc "True if timer is running."
-isstarted(w::Watcher) = !isnothing(w._timer) && isopen(w._timer)
-Base.islocked(w::Watcher) = islocked(w._exec.fetch_lock)
-Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(w._exec.buffer_lock)
-Base.lock(f, w::Watcher) = lock(f, w._exec.fetch_lock)
-Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, w._exec.buffer_lock)
-Base.lock(w::Watcher) = lock(w._exec.fetch_lock)
-Base.lock(w::Watcher, ::Val{:buffer}) = lock(w._exec.buffer_lock)
-Base.unlock(w::Watcher) = unlock(w._exec.fetch_lock)
-Base.unlock(w::Watcher, ::Val{:buffer}) = unlock(w._exec.buffer_lock)
+isstarted(w::Watcher) =
+    let t = _timer(w)
+        !isnothing(t) && isopen(t)
+    end
+Base.islocked(w::Watcher) = islocked(_fetch_lock(w))
+Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(_buffer_lock(w))
+Base.lock(f, w::Watcher) = lock(f, _fetch_lock(w))
+Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, _buffer_lock(w))
+Base.lock(w::Watcher) = lock(_fetch_lock(w))
+Base.lock(w::Watcher, ::Val{:buffer}) = lock(_buffer_lock(w))
+Base.unlock(w::Watcher) = unlock(_fetch_lock(w))
+Base.unlock(w::Watcher, ::Val{:buffer}) = unlock(_buffer_lock(w))
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"

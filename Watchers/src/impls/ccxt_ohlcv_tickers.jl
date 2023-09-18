@@ -3,7 +3,7 @@ using Data.DFUtils: lastdate
 using Misc: between
 using Processing: iscomplete
 using Lang: fromstruct, ifproperty!, ifkey!
-using ..Watchers: @logerror
+using ..Watchers: @logerror, _val
 
 const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
@@ -203,6 +203,6 @@ function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
     (isempty(w.buffer) || isempty(w.view)) && return nothing
     syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
     @sync for sym in syms
-        @async @logerror w _load!(w, w._val, sym)
+        @async @logerror w _load!(w, _val(w), sym)
     end
 end

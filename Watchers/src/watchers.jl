@@ -13,7 +13,7 @@ function _tryfetch(w)::Bool
     result = lock(w) do
         w.last_fetch = now()
         try
-            _fetch!(w, w._val)
+            _fetch!(w, _val(w))
         catch e
             e
         end::Union{Bool,Exception}
@@ -73,7 +73,9 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
 end
 
 function _timer!(w)
-    isnothing(w._timer) || close(w._timer)
+    let t = w._timer
+        isnothing(t) || close(t)
+    end
     w._timer = Timer(
         # NOTE: the callback for the timer requires 1 arg (the timer itself)
         (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
@@ -179,13 +181,13 @@ function _watcher(
         _val=val,
         attrs,
     )
-    @assert applicable(_fetch!, w, w._val) "`_fetch!` function not declared for `Watcher` \
+    @assert applicable(_fetch!, w, _val(w)) "`_fetch!` function not declared for `Watcher` \
         with id $(w.name) (It must accept a `Watcher` as argument, and return a boolean)."
     w = finalizer(close, w)
     @debug "_init $name"
-    _init!(w, w._val)
+    _init!(w, _val(w))
     @debug "_load for $name? $(w.has.load)"
-    w.has.load && _load!(w, w._val)
+    w.has.load && _load!(w, _val(w))
     w.last_flush = now() # skip flush on start
     @debug "setting timer for $name"
     start && _timer!(w)
