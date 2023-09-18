@@ -11,7 +11,13 @@ function Strategies.Strategy(
     exc = getexchange!(config.exchange; sandbox)
     timeframe = @something self.TF config.min_timeframe first(config.timeframes)
     uni = AssetCollection(assets; load_data, timeframe=string(timeframe), exc, margin)
-    Strategy(self, mode, margin, timeframe, exc, uni; config)
+    s = Strategy(self, mode, margin, timeframe, exc, uni; config)
+    for funcs in values(Strategies.STRATEGY_LOAD_CALLBACKS)
+        for f in funcs
+            f(s)
+        end
+    end
+    s
 end
 
 function Base.similar(
