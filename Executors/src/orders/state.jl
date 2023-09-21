@@ -309,6 +309,7 @@ function release!(s::Strategy, ai, o::Order)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
+    @debug "Cancelling order" o.id ai = raw(ai) err
     if isqueued(o, s, ai)
         decommit!(s, o, ai, true)
         delete!(s, ai, o)
