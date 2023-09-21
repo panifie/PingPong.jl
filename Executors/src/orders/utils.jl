@@ -198,6 +198,9 @@ end
 hasorders(s::Strategy) = orderscount(s) == 0
 buyorders(s::Strategy, ai) = orders(s, ai, Buy)
 sellorders(s::Strategy, ai) = orders(s, ai, Sell)
+sideorders(s::Strategy, ai, ::Type{Buy}) = buyorders(s, ai)
+sideorders(s::Strategy, ai, ::Type{Sell}) = sellorders(s, ai)
+sideorders(s::Strategy, ai, ::BySide{S}) where {S} = sideorders(s, ai, S)
 _hasany(arr) = begin
     n = 0
     for _ in arr
@@ -221,7 +224,16 @@ hasorders(s::Strategy, ai, id::String) = begin
     end
     false
 end
-hasorders(s::Strategy, ai, ::ByPos) = hasorders(s, ai)
+function hasorders(s::Strategy, ai, id::String, ::BySide{S}) where {S<:OrderSide}
+    for o in values(s, ai, S)
+        o.id == id && return true
+    end
+    false
+end
+Base.haskey(s::Strategy, ai, o::Order) = haskey(sideorders(s, ai, o), pricetime(o))
+function Base.haskey(s::Strategy, ai, pt::st.PriceTime, side::BySide)
+    haskey(sideorders(s, ai, side), pt)
+end
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
     for (_, ords) in s.sellorders
