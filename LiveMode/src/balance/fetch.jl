@@ -28,6 +28,10 @@ end
 
 _exc_balance_func(exc) = first(exc, :fetchBalanceWs, :fetchBalance)
 
+function fetch_balance(s::LiveStrategy, args...; kwargs...)
+    _fetch_balance(exchange(s), args...; kwargs...)
+end
+
 function _fetch_balance(exc, args...; kwargs...)
     pyfetch(_exc_balance_func(exc), args...; splitkws(:type; kwargs).rest...)
 end
@@ -181,7 +185,13 @@ function current_total(
     end
     @sync for ai in s.universe
         amount = @something get_amount(ai) zero(tot)
-        @async let v = @something(price_func(ai), zero(tot)) * amount
+        @async let v = @something(
+                try
+                    price_func(ai)
+                catch
+                end,
+                zero(tot)
+            ) * amount
             # NOTE: `x += y` is rewritten as x = x + y
             # Because `price_func` can be async, the value of `x` might be stale by
             # the time `y` is fetched, and the assignment might clobber the most
