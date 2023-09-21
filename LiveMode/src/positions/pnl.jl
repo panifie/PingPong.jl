@@ -30,7 +30,8 @@ function live_pnl(
                 resync = true
             end
             if force_resync == :yes || (force_resync == :auto && resync)
-                live_sync_position!(s, ai, pside, update; commits=false)
+                @debug "Locking $(raw(ai)) $(pside)"
+                @lock ai live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
         else
