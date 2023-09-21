@@ -176,8 +176,8 @@ islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
-isimmediate(::Order{T}) where {T<:OrderType} = T <: ImmediateOrderType
-isimmediate(::Order{T}) where {T<:MarketOrderType} = true
+isimmediate(::Order{<:Union{ImmediateOrderType,MarketOrderType}}) = true
+isimmediate(::Order) = false
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
 trades(args...; kwargs...) = error("not implemented")
@@ -204,5 +204,5 @@ export IncreaseOrder,
     ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
-export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos
+export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos, isimmediate
 export liqside, sidetopos, opposite
