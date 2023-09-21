@@ -3,14 +3,14 @@ using .Python: @py, pydict
 using .Executors: AnyGTCOrder, AnyMarketOrder, AnyIOCOrder, AnyFOKOrder, AnyPostOnlyOrder
 
 const LiveOrderState = NamedTuple{
-    (:order, :trade_hashes, :update_hash, :average_price),
-    Tuple{Order,Vector{UInt64},Ref{UInt64},Ref{DFT}},
+    (:order, :lock, :trade_hashes, :update_hash, :average_price),
+    Tuple{Order,ReentrantLock,Vector{UInt64},Ref{UInt64},Ref{DFT}},
 }
 
 const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
 function active_orders(s::LiveStrategy)
-    @lget! s.attrs :live_active_orders Dict{AssetInstance,AssetOrdersDict}()
+    @lget! attrs(s) :live_active_orders Dict{AssetInstance,AssetOrdersDict}()
 end
 function active_orders(s::LiveStrategy, ai)
     ords = active_orders(s)
@@ -32,6 +32,7 @@ avgprice(o::Order) =
 function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     state = @lget! active_orders(s, ai) o.id (;
         order=o,
+        lock=ReentrantLock(),
         trade_hashes=UInt64[],
         update_hash=Ref{UInt64}(0),
         average_price=Ref(iszero(ap) ? avgprice(o) : ap),
@@ -62,18 +63,53 @@ macro _isfilled()
     esc(expr)
 end
 
-function waitfor_closed(s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both)
-    active = active_orders(s, ai)
-    slept = Millisecond(0)
-    has_orders = false
-    while slept < waitfor
-        for state in values(active)
-            (has_orders = orderside(state.order) == t) && break
+function waitfor_closed(
+    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both, resync=true
+)
+    try
+        active = active_orders(s, ai)
+        slept = Millisecond(0)
+        success = true
+        @debug "Wait for orders close: waiting" ai = raw(ai) side = t
+        while true
+            isactive(s, ai; active, side=t) || begin
+                @debug "Wait for orders close: done" ai = raw(ai)
+                break
+            end
+            slept < waitfor || begin
+                success = false
+                @debug "Wait for orders close: timedout" ai = raw(ai) side = t waitfor
+                if resync
+                    @warn "Wait for orders close: resyncing"
+                    live_sync_active_orders!(s, ai; side=t, strict=false)
+                    success = if isactive(s, ai; side=t)
+                        @error "Wait for orders close: orders still active" side = t n = orderscount(
+                            s, ai, t
+                        )
+                        false
+                    else
+                        true
+                    end
+                end
+                break
+            end
+            sleep(0.1)
+            slept += Millisecond(100)
         end
-        has_orders || break
-        sleep(0.1)
-        slept += Millisecond(100)
+        success
+    catch
+        @debug_backtrace
+        false
     end
-    slept
 end
 
+function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=Both)
+    for state in values(active)
+        orderside(state.order) == side && return true
+    end
+    return false
+end
+
+function isactive(s::LiveStrategy, ai, o; active=active_orders(s, ai))
+    haskey(active, o.id)
+end
