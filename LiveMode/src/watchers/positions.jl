@@ -90,7 +90,7 @@ function ccxt_positions_watcher(
 end
 
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
-    w = @lget! s.attrs :live_positions_watcher ccxt_positions_watcher(
+    w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
         s; interval, start=true
     )
     isstopped(w) && start!(w)
@@ -104,7 +104,7 @@ _position_task!(w) = begin
     end
 end
 
-_position_task(w) = @lget! w.attrs :position_task _position_task!(w)
+_position_task(w) = @lget! attrs(w) :position_task _position_task!(w)
 
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     task = _position_task(w)
