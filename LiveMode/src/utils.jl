@@ -5,6 +5,7 @@ using .Lang: @lget!
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
+import .Instances: timestamp
 
 struct TaskFlag
     f::Function
@@ -62,13 +63,24 @@ function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
         foreach(wait, values(tasks.byorder))
         empty!(tasks.byname)
         empty!(tasks.byorder)
+        iszero(tasks.queue[]) || begin
+            @warn "Expected asset queue to be zero, found $(tasks.queue[]) (resetting)"
+            tasks.queue[] = 0
+        end
     end
 end
 
-stop_all_asset_tasks(s::LiveStrategy; kwargs...) =
-    for ai in s.universe
-        stop_asset_tasks(s, ai; kwargs...)
+function stop_all_asset_tasks(s::LiveStrategy; reset=false, kwargs...)
+    if reset
+        @sync for ai in s.universe
+            @async stop_asset_tasks(s, ai; reset, kwargs...)
+        end
+    else
+        for ai in s.universe
+            stop_asset_tasks(s, ai; kwargs...)
+        end
     end
+end
 
 function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
     tasks = strategy_tasks(s, account)
@@ -81,15 +93,21 @@ function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
     end
 end
 
-function stop_all_strategy_tasks(s::LiveStrategy; kwargs...)
+function stop_all_strategy_tasks(s::LiveStrategy; reset=false, kwargs...)
     accounts = strategy_tasks(s)
-    @sync for acc in keys(accounts)
-        @async stop_strategy_tasks(s, acc; kwargs...)
+    if reset
+        @sync for acc in keys(accounts)
+            @async stop_strategy_tasks(s, acc; reset, kwargs...)
+        end
+    else
+        for acc in keys(accounts)
+            stop_strategy_tasks(s, acc; kwargs...)
+        end
     end
     empty!(accounts)
 end
 
-stop_all_tasks(s::LiveStrategy, reset=true) = @sync begin
+stop_all_tasks(s::LiveStrategy; reset=true) = @sync begin
     @async stop_all_asset_tasks(s; reset)
     @async stop_all_strategy_tasks(s; reset)
 end
@@ -114,31 +132,40 @@ end
 # const AssetOrder = Tuple{Order,AssetInstance}
 const TasksDict = LittleDict{Symbol,Task}
 const OrderTasksDict = Dict{Order,Task}
-const AssetTasks = NamedTuple{(:byname, :byorder),Tuple{TasksDict,OrderTasksDict}}
+const AssetTasks = NamedTuple{
+    (:lock, :queue, :byname, :byorder),
+    Tuple{ReentrantLock,Ref{Int},TasksDict,OrderTasksDict},
+}
+const StrategyTasks = NamedTuple{
+    (:lock, :queue, :tasks),Tuple{ReentrantLock,Ref{Int},TasksDict}
+}
 order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
+asset_queue(s::Strategy, ai) = asset_tasks(s, ai).queue
 function asset_tasks(s::Strategy)
-    @lget! s.attrs :live_asset_tasks finalizer(
+    @lock s @lget! attrs(s) :live_asset_tasks finalizer(
         (_) -> stop_all_asset_tasks(s), Dict{AssetInstance,AssetTasks}()
     )
 end
 function asset_tasks(s::Strategy, ai)
     tasks = asset_tasks(s)
-    @lget! tasks ai (; byname=TasksDict(), byorder=OrderTasksDict())
+    @lock s @lget! tasks ai (;
+        lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
+    )
 end
 function strategy_tasks(s::Strategy)
-    @lget! s.attrs :live_strategy_tasks finalizer(
+    @lock s @lget! attrs(s) :live_strategy_tasks finalizer(
         (_) -> stop_all_strategy_tasks(s), Dict{String,TasksDict}()
     )
 end
 function strategy_tasks(s::Strategy, account)
     tasks = strategy_tasks(s)
-    @lget! tasks account TasksDict()
+    @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
 end
 function OrderTypes.ordersdefault!(s::Strategy{Live})
-    let attrs = s.attrs
-        _simmode_defaults!(s, attrs)
+    let a = attrs(s)
+        _simmode_defaults!(s, a)
         reset_logs(s)
-        get!(attrs, :throttle, Second(5))
+        get!(a, :throttle, Second(5))
         asset_tasks(s)
         strategy_tasks(s)
     end
@@ -189,8 +216,8 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
     _pyfilter!(resp, should_skip)
 end
 
-function _orders_func!(attrs, exc)
-    attrs[:live_orders_func] = if has(exc, :fetchOrders)
+function _orders_func!(a, exc)
+    a[:live_orders_func] = if has(exc, :fetchOrders)
         (ai; kwargs...) ->
             _fetch_orders(ai, first(exc, :fetchOrdersWs, :fetchOrders); kwargs...)
     elseif has(exc, :fetchOrder)
@@ -205,17 +232,17 @@ function _orders_func!(attrs, exc)
     end
 end
 
-function _open_orders_func!(attrs, exc; open=true)
+function _open_orders_func!(a, exc; open=true)
     oc = open ? "open" : "closed"
     cap = open ? "Open" : "Closed"
     func_sym = Symbol("fetch$(cap)Orders")
     func_sym_ws = Symbol("fetch$(cap)OrdersWs")
-    attrs[Symbol("live_$(oc)_orders_func")] = if has(exc, func_sym)
+    a[Symbol("live_$(oc)_orders_func")] = if has(exc, func_sym)
         let f = first(exc, func_sym_ws, func_sym)
             (ai; kwargs...) -> _fetch_orders(ai, f; kwargs...)
         end
     else
-        fetch_func = get(attrs, :live_orders_func, nothing)
+        fetch_func = get(a, :live_orders_func, nothing)
         @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
         eid = typeof(exchangeid(exc))
         pred_func = o -> pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
@@ -240,9 +267,9 @@ function _filter_positions(out, eid::EIDType, side::Union{Hedged,PositionSide}=H
     end
 end
 
-function _positions_func!(attrs, exc)
+function _positions_func!(a, exc)
     eid = typeof(exc.id)
-    attrs[:live_positions_func] = if has(exc, :fetchPositions)
+    a[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; kwargs...)
             _filter_positions(out, eid, side)
         end
@@ -280,12 +307,12 @@ function _cancel_all_orders_single(ai, orders_f, cancel_f)
     )
 end
 
-function _cancel_all_orders_func!(attrs, exc)
-    attrs[:live_cancel_all_func] = if has(exc, :cancelAllOrders)
+function _cancel_all_orders_func!(a, exc)
+    a[:live_cancel_all_func] = if has(exc, :cancelAllOrders)
         func = first(exc, :cancelAllOrdersWs, :cancelAllOrders)
         (ai) -> _execfunc(func, raw(ai))
     else
-        let fetch_func = get(attrs, :live_orders_func, nothing)
+        let fetch_func = get(a, :live_orders_func, nothing)
             @assert !isnothing(fetch_func) "Exchange $(nameof(exc)) doesn't support fetchOrders."
             if has(exc, :cancelOrders)
                 cancel_func = first(exc, :cancelOrdersWs, :cancelOrders)
@@ -326,9 +353,9 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     end
 end
 
-function _cancel_orders_func!(attrs, exc)
-    orders_f = attrs[:live_orders_func]
-    attrs[:live_cancel_func] = if has(exc, :cancelOrders)
+function _cancel_orders_func!(a, exc)
+    orders_f = a[:live_orders_func]
+    a[:live_cancel_func] = if has(exc, :cancelOrders)
         cancel_f = first(exc, :cancelOrdersWs, :cancelOrders)
         (ai; side=nothing, ids=()) -> _cancel_orders(ai, side, ids, orders_f, cancel_f)
     elseif has(exc, :cancelOrder)
@@ -343,11 +370,10 @@ function _cancel_orders_func!(attrs, exc)
     end
 end
 
-function _create_order_func!(attrs, exc)
+function _create_order_func!(a, exc)
     func = first(exc, :createOrderWs, :createOrder)
     @assert !isnothing(func) "Exchange doesn't have a `create_order` function"
-    attrs[:live_send_order_func] =
-        (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
+    a[:live_send_order_func] = (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
 end
 
 function _ordertrades(resp, exc, isid=(x) -> length(x) > 0)
@@ -364,8 +390,8 @@ end
 
 _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
 
-function _my_trades_func!(attrs, exc)
-    attrs[:live_my_trades_func] = if has(exc, :fetchMyTrades)
+function _my_trades_func!(a, exc)
+    a[:live_my_trades_func] = if has(exc, :fetchMyTrades)
         let f = first(exc, :fetchMyTradesWs, :fetchMyTrades)
             (
                 (ai; since=nothing, params=nothing) -> begin
@@ -394,16 +420,16 @@ isemptish(v) =
         true
     end
 
-function _order_trades_func!(attrs, exc)
-    attrs[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
+function _order_trades_func!(a, exc)
+    a[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
         f = first(exc, :fetchOrderTradesWs, :fetchOrderTrades)
         (ai, id; since=nothing, params=nothing) ->
             _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
     else
-        fetch_func = attrs[:live_my_trades_func]
+        fetch_func = a[:live_my_trades_func]
         o_id_func = @something first(exc, :fetchOrderWs, :fetchOrder) Returns(())
-        o_func = attrs[:live_orders_func]
-        o_closed_func = attrs[:live_closed_orders_func]
+        o_func = a[:live_orders_func]
+        o_closed_func = a[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
             resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
             trades = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
@@ -457,62 +483,69 @@ function _order_trades_func!(attrs, exc)
     end
 end
 
-function _fetch_candles_func!(attrs, exc)
+function _fetch_candles_func!(a, exc)
     fetch_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
-    attrs[:live_fetch_candles_func] =
+    a[:live_fetch_candles_func] =
         (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
 end
 
 function exc_live_funcs!(s::Strategy{Live})
-    attrs = s.attrs
+    a = attrs(s)
     exc = exchange(s)
-    _orders_func!(attrs, exc)
-    _create_order_func!(attrs, exc)
-    _positions_func!(attrs, exc)
-    _cancel_orders_func!(attrs, exc)
-    _cancel_all_orders_func!(attrs, exc)
-    _open_orders_func!(attrs, exc; open=true)
-    _open_orders_func!(attrs, exc; open=false)
-    _my_trades_func!(attrs, exc)
-    _order_trades_func!(attrs, exc)
-    _fetch_candles_func!(attrs, exc)
+    _orders_func!(a, exc)
+    _create_order_func!(a, exc)
+    _positions_func!(a, exc)
+    _cancel_orders_func!(a, exc)
+    _cancel_all_orders_func!(a, exc)
+    _open_orders_func!(a, exc; open=true)
+    _open_orders_func!(a, exc; open=false)
+    _my_trades_func!(a, exc)
+    _order_trades_func!(a, exc)
+    _fetch_candles_func!(a, exc)
 end
 
-fetch_orders(s, args...; kwargs...) = st.attr(s, :live_orders_func)(args...; kwargs...)
+if exc_live_funcs! ∉ st.STRATEGY_LOAD_CALLBACKS.live
+    push!(st.STRATEGY_LOAD_CALLBACKS.live, exc_live_funcs!)
+end
+
+fetch_orders(s, args...; kwargs...) = attr(s, :live_orders_func)(args...; kwargs...)
 function fetch_open_orders(s, args...; kwargs...)
-    st.attr(s, :live_open_orders_func)(args...; kwargs...)
+    attr(s, :live_open_orders_func)(args...; kwargs...)
 end
 function fetch_closed_orders(s, args...; kwargs...)
-    st.attr(s, :live_closed_orders_func)(args...; kwargs...)
+    attr(s, :live_closed_orders_func)(args...; kwargs...)
 end
 function fetch_positions(s, ai::AssetInstance, args...; kwargs...)
     fetch_positions(s, (ai,), args...; kwargs...)
 end
 function fetch_positions(s, args...; kwargs...)
-    st.attr(s, :live_positions_func)(args...; kwargs...)
+    attr(s, :live_positions_func)(args...; kwargs...)
 end
-cancel_orders(s, args...; kwargs...) = st.attr(s, :live_cancel_func)(args...; kwargs...)
+cancel_orders(s, args...; kwargs...) = attr(s, :live_cancel_func)(args...; kwargs...)
 function cancel_all_orders(s, args...; kwargs...)
-    st.attr(s, :live_cancel_all_func)(args...; kwargs...)
+    attr(s, :live_cancel_all_func)(args...; kwargs...)
 end
 function create_order(s, args...; kwargs...)
-    st.attr(s, :live_send_order_func)(args...; kwargs...)
+    attr(s, :live_send_order_func)(args...; kwargs...)
 end
 function fetch_my_trades(s, args...; kwargs...)
-    st.attr(s, :live_my_trades_func)(args...; kwargs...)
+    attr(s, :live_my_trades_func)(args...; kwargs...)
 end
 function fetch_order_trades(s, args...; kwargs...)
-    st.attr(s, :live_order_trades_func)(args...; kwargs...)
+    attr(s, :live_order_trades_func)(args...; kwargs...)
 end
 function fetch_candles(s, args...; kwargs...)
-    st.attr(s, :live_fetch_candles_func)(args...; kwargs...)
+    attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
 
-get_positions(s) = watch_positions!(s; interval=st.throttle(s)).view
+get_positions(s) = attr(watch_positions!(s; interval=st.throttle(s)), :view)
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
-get_positions(s, ai::AssetInstance) = get_positions(s, posside(ai))[raw(ai)]
 get_positions(s, ai, bp::ByPos) = get(get_positions(s, bp), raw(ai), nothing)
+function get_positions(s, ai, ::Nothing)
+    get(get_positions(s, get_position_side(s, ai)), raw(ai), nothing)
+end
+get_positions(s, ai::AssetInstance) = get_positions(s, ai, posside(ai))
 function get_position_side(s, ai::AssetInstance)
     try
         sym = raw(ai)
@@ -522,13 +555,13 @@ function get_position_side(s, ai::AssetInstance)
         pos = get(short, sym, nothing)
         !isnothing(pos) && !pos.closed[] && return Short()
         if hasorders(s, ai)
-            @info "No position open for $sym, inferring from open orders"
+            @debug "No position open for $sym, inferring from open orders"
             posside(first(orders(s, ai)).second)
         elseif length(trades(ai)) > 0
-            @info "No position open for $sym, inferring from last trade"
+            @debug "No position open for $sym, inferring from last trade"
             posside(last(trades(ai)))
         else
-            @info "No position open for $sym, defaulting to long"
+            @debug "No position open for $sym, defaulting to long"
             Long()
         end
     catch
@@ -536,10 +569,52 @@ function get_position_side(s, ai::AssetInstance)
         Long()
     end
 end
+_balance_bytype(::Nothing, ::Symbol) = nothing
+_balance_bytype(v, sym) = getproperty(v, sym)
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
+get_balance(s, sym) =
+    let bal = get_balance(s)
+        isnothing(bal) && return nothing
+        (; date=bal.date[], balance=get(bal.balance, sym, nothing))
+    end
+get_balance(s, sym, type)::Option{DFT} =
+    let bal = get_balance(s)
+        @ifdebug @assert type ∈ (:used, :total, :free)
+        isnothing(bal) && return nothing
+        _balance_bytype(get(bal.balance, sym, nothing), type)
+    end
+get_balance(s, ai::AssetInstance, args...) = get_balance(s, bc(ai), args...)
+
+function timestamp(s, ai::AssetInstance; side=posside(ai))
+    order_date = if hasorders(s, ai)
+        v = first(keys(s, ai)).time
+        @deassert v >= last(collect(keys(s, ai)))
+        v
+    else
+        DateTime(0)
+    end
+    trade_date = if !isempty(trades(ai))
+        last(trades(ai)).date
+    else
+        DateTime(0)
+    end
+    pos_date = if isnothing(side)
+        DateTime(0)
+    else
+        timestamp(ai, side)
+    end
+    max(order_date, trade_date, pos_date)
+end
 
 function st.current_total(s::NoMarginStrategy{Live})
     bal = balance(s)
     price_func(ai) = bal[@pystr(raw(ai))] |> pytofloat
     invoke(st.current_total, Tuple{NoMarginStrategy,Function}, s, price_func)
+end
+
+macro timeout_start(start=nothing)
+    esc(:(timeout_date = @something($start, now()) + waitfor))
+end
+macro timeout_now()
+    esc(:(max(Millisecond(0), timeout_date - now())))
 end
