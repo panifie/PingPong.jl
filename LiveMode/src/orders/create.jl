@@ -11,7 +11,7 @@ function create_live_order(
     t,
     price,
     amount,
-    retry_with_resync=true,
+    resync=true,
     skipcommit=false,
     kwargs...,
 )
@@ -20,7 +20,7 @@ function create_live_order(
         return nothing
     end
     eid = exchangeid(ai)
-    @debug "Creating order" isopen = _ccxtisopen(resp, eid) filled =
+    @debug "Creating order" status = resp_order_status(resp, eid) filled =
         resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
     _ccxtisopen(resp, eid) ||
         resp_order_filled(resp, eid) > ZERO ||
@@ -52,13 +52,13 @@ function create_live_order(
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
         o = create()
-        if isnothing(o) && retry_with_resync
+        if isnothing(o) && resync
             @warn "Exchange order existing (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (resyncing) $(nameof(s)) $(raw(ai))"
             @sync begin
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            @debug "Locking ai"
+            @debug "Locking ai" ai = raw(ai) side = posside(t)
             o = @lock ai create()
         end
         o
