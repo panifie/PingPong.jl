@@ -38,7 +38,11 @@ function live_send_order(
     skipchecks ||
         check_available_cash(s, ai, amount, t) ||
         begin
-            @warn "Refusing to send order since local state doesn't have enough cash ($(cash(ai, posside(t))) < $amount). Maybe out of sync?"
+            @warn "Refusing to send order since local state doesn't have enough cash. Maybe out of sync?" this_cash = cash(
+                ai, posside(t)
+            ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
+                ai
+            ) strat_comm = s.cash_committed order_cash = amount
             return nothing
         end
     sym = raw(ai)
