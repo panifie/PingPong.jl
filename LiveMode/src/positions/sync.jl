@@ -2,7 +2,7 @@ macro warn_unsynced(what, loc, rem, msg="unsynced")
     ex = quote
         (
             wasopen &&
-            @warn "Position $($msg) ($($what)) local: $($loc), remote: $($rem) ($(raw(ai))@$(nameof(s)))"
+            @warn "Position $($msg) ($($what)) local: $($loc), remote: $($rem) $this_timestamp ($(raw(ai))@$(nameof(s)))"
         )
     end
     esc(ex)
@@ -18,6 +18,12 @@ function live_sync_position!(
     commits=true,
     skipchecks=false,
 )
+    let queue = asset_queue(s, ai)
+        if queue[] > 1
+            @debug "Skipping position sync since events queue is congested ($(queue[]))"
+            return nothing
+        end
+    end
     eid = exchangeid(ai)
     resp = update.resp
     pside = posside_fromccxt(resp, eid, p)
@@ -25,8 +31,10 @@ function live_sync_position!(
     wasopen = isopen(pos) # by macro warn_unsynced
 
     # check hedged mode
-    resp_position_hedged(resp, eid) == ishedged(pos) ||
+    resp_position_hedged(resp, eid) == ishedged(pos) || begin
         @warn "Position hedged mode mismatch (local: $(pos.hedged))"
+        marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai))
+    end
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside))
             let amount = resp_position_contracts(
@@ -34,10 +42,10 @@ function live_sync_position!(
                 ),
                 oppos = opposite(pside)
 
-                @warn "Double position open in NON hedged mode. Resetting opposite side." oppos raw(
-                    ai
-                ) nameof(s)
                 if amount > ZERO
+                    @warn "Double position open in NON hedged mode. Resetting opposite side." oppos raw(
+                        ai
+                    ) nameof(s)
                     pong!(s, ai, oppos, now(), PositionClose(); amount)
                     if isopen(opposite(ai, pside))
                         @error "Failed to close opposite position" opposite_position = position(
@@ -60,6 +68,10 @@ function live_sync_position!(
         reset!(pos)
         return pos
     end
+    this_timestamp = resp_position_timestamp(resp, eid)
+    @ifdebug if this_timestamp <= timestamp(pos)
+        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp
+    end
 
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
@@ -79,10 +91,16 @@ function live_sync_position!(
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
+        @debug "Position should be closed " isopen(ai, p)
         return pos
     end
+    @debug "Syncing position" date = timestamp(pos) ai = raw(ai) side = pside
     pos.status[] = PositionOpen()
-    ai.lastpos[] = pos
+    let lap = ai.lastpos
+        if isnothing(lap[]) || timestamp(ai, opposite(pside)) <= this_timestamp
+            lap[] = pos
+        end
+    end
     dowarn(what, val) = @warn "Unable to sync $what from $(nameof(exchange(ai))), got $val"
     # price is always positive
     ep = pytofloat(ep_in)
@@ -148,7 +166,7 @@ function live_sync_position!(
 
     mrg = resp_position_initial_margin(resp, eid)
     coll = resp_position_collateral(resp, eid)
-    adt = max(zero(DFT), coll - mrg)
+    adt = max(zero(DFT), coll - (mrg + 2(mrg * maxfees(ai))))
     mrg_set =
         mrg > zero(DFT) && begin
             isapprox(mrg, margin(pos); rtol=1e-2) ||
@@ -207,15 +225,15 @@ function live_sync_position!(
     @assert pos.min_size <= notional(pos) higherwarn(
         "min size", "notional", pos.min_size, notional(pos)
     )
-    timestamp!(pos, resp_position_timestamp(resp, eid))
+    timestamp!(pos, this_timestamp)
     update.read[] = true
     return pos
 end
 
 function live_sync_position!(
-    s::LiveStrategy, ai::MarginInstance, pos::ByPos; since=nothing, kwargs...
+    s::LiveStrategy, ai::MarginInstance, pos::ByPos; force=true, since=nothing, kwargs...
 )
-    update = live_position(s, ai, pos; since)
+    update = live_position(s, ai, pos; force, since)
     isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
 end
 
@@ -225,6 +243,32 @@ function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
     end
 end
 
+function live_sync_cash!(
+    s::MarginStrategy{Live},
+    ai,
+    bp::ByPos=@something(posside(ai), get_position_side(s, ai));
+    since=nothing,
+    waitfor=Second(5),
+    kwargs...,
+)
+    side = posside(bp)
+    pup = live_position(s, ai, side; since, force=true, waitfor)
+    if isnothing(pup)
+        @warn "Resetting position cash (not found)" ai = raw(ai)
+        reset!(ai, Long())
+        reset!(ai, Short())
+    elseif pup.closed[]
+        reset!(ai, side)
+    elseif isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
+        live_sync_position!(s, ai, side, pup; kwargs...)
+    else
+        @error "Could not update position cash" last_updated = timestamp(ai, side) since pup.date ai = raw(
+            ai
+        ) side pup.closed[] pup.read[]
+    end
+    position(ai, bp)
+end
+
 @doc """ Asset balance is the position of the asset when margin is involved.
 
 """
@@ -232,15 +276,15 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; kwargs...)
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        update = get(dict, raw(ai), nothing)
-        if isnothing(update)
-            update = live_position(s, ai, side; force=true)
+        pup = get(dict, raw(ai), nothing)
+        if isnothing(pup)
+            pup = live_position(s, ai, side; force=true)
         end
-        if isnothing(update)
+        if isnothing(pup)
             reset!(ai, Long())
             reset!(ai, Short())
         else
-            live_sync_position!(s, ai, side, update; kwargs...)
+            live_sync_position!(s, ai, side, pup; kwargs...)
         end
     end
     @sync for ai in s.universe
