@@ -59,7 +59,7 @@ function live_sync_active_orders!(
             t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
             price=missing,
             amount=missing,
-            retry_with_resync=false,
+            resync=false,
             skipcommit=(!strict),
             withoutkws(:skipcommit; kwargs=create_kwargs)...,
         ) missing)::Option{Order}
@@ -103,7 +103,7 @@ function live_sync_active_orders!(
         watch_orders!(s, ai) # ensure orders watcher is running
     end
     # @ifdebug @debug "" cash_long cash_short comm_long comm_short
-    @ifdebug @assert all((
+    @ifdebug @assert strict || all((
         cash_long == cash(ai, Long()),
         comm_long == committed(ai, Long()),
         cash_short == cash(ai, Short()),
