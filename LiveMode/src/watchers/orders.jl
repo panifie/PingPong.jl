@@ -6,99 +6,107 @@ using .SimMode: @maketrade
 # using .OrderTypes: OrderFailed
 
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
-    istaskrunning(asset_orders_task(s, ai)) && return nothing
-    exc = exchange(ai)
-    orders_byid = active_orders(s, ai)
-    stop_delay = Ref(Second(10))
-    task = @start_task orders_byid begin
-        (f, iswatch) = if has(exc, :watchOrders)
-            let sym = raw(ai), func = exc.watchOrders
+    tasks = asset_tasks(s, ai)
+    @lock tasks.lock begin
+        @deassert tasks.byname === asset_tasks(s, ai).byname
+        let task = asset_orders_task(tasks.byname)
+            istaskrunning(task) && return task
+        end
+        exc = exchange(ai)
+        orders_byid = active_orders(s, ai)
+        stop_delay = Ref(Second(60))
+        task = @start_task orders_byid begin
+            (f, iswatch) = if has(exc, :watchOrders)
+                let sym = raw(ai), func = exc.watchOrders
+                    (
+                        (flag, coro_running) -> if flag[]
+                            pyfetch(func, sym; coro_running, exc_kwargs...)
+                        end,
+                        true,
+                    )
+                end
+            else
+                _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
+                since = Ref(now())
+                since_start = since[]
+                eid = exchangeid(ai)
                 (
-                    (flag, coro_running) -> if flag[]
-                        pyfetch(func, sym; coro_running, exc_kwargs...)
+                    (_, _) -> begin
+                        since[] == since_start || sleep(1)
+                        resp = fetch_orders(
+                            s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                        )
+                        if !isnothing(resp) && islist(resp) && length(resp) > 0
+                            since[] = @something pytodate(resp[-1], eid) now()
+                        end
+                        resp
                     end,
-                    true,
+                    false,
                 )
             end
-        else
-            _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-            since = Ref(now())
-            since_start = since[]
-            eid = exchangeid(ai)
-            (
-                (_, _) -> begin
-                    since[] == since_start || sleep(1)
-                    resp = fetch_orders(
-                        s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
-                    )
-                    if !isnothing(resp) && islist(resp) && length(resp) > 0
-                        since[] = @something pytodate(resp[-1], eid) now()
-                    end
-                    resp
-                end,
-                false,
-            )
-        end
-        flag = TaskFlag()
-        coro_running = pycoro_running(flag)
-        cond = task_local_storage(:notify)
-        while istaskrunning()
-            try
-                while istaskrunning()
-                    updates = f(flag, coro_running)
-                    if updates isa Exception
-                        @ifdebug ispyminor_error(updates) ||
-                            @debug "Error fetching orders (using watch: $(iswatch))" updates
-                        sleep(1)
-                    else
-                        handle_orders!(s, ai, orders_byid, updates)
-                        safenotify(cond)
-                    end
-                    stop_delay[] = Second(10)
-                end
-            catch e
-                if e isa InterruptException
-                    break
-                else
-                    @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
-                    @debug_backtrace
-                end
-                sleep(1)
-            end
-        end
-    end
-    cond = task.storage[:notify]
-    stop_task = @async begin
-        task_local_storage(:sleep, 10)
-        task_local_storage(:running, true)
-        while istaskrunning()
-            safewait(cond)
-            sleep(stop_delay[])
-            stop_delay[] = Second(0)
-            # if there are no more orders, stop the monitoring tasks
-            if orderscount(s, ai) == 0
-                task_local_storage(:running, false)
+            queue = tasks.queue
+            flag = TaskFlag()
+            coro_running = pycoro_running(flag)
+            cond = task_local_storage(:notify)
+            while istaskrunning()
                 try
-                    @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))"
-                    stop_watch_orders!(s, ai)
-                    # also stop the trades task if running
-                    if hasmytrades(exchange(ai))
-                        @debug "Stopping trades watcher for $(raw(ai))@($(nameof(s)))"
-                        stop_watch_trades!(s, ai)
+                    while istaskrunning()
+                        updates = f(flag, coro_running)
+                        stop_delay[] = Second(60)
+                        if updates isa Exception
+                            @ifdebug ispyminor_error(updates) ||
+                                @debug "Error fetching orders (using watch: $(iswatch))" updates
+                            sleep(1)
+                        else
+                            handle_orders!(s, ai, orders_byid, updates)
+                            safenotify(cond)
+                        end
                     end
-                finally
-                    break
+                catch e
+                    if e isa InterruptException
+                        break
+                    else
+                        @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                        @debug_backtrace
+                    end
+                    sleep(1)
                 end
             end
         end
-    end
-    try
-        byname = asset_tasks(s, ai).byname
-        byname[:orders_task] = task
-        byname[:orders_stop_task] = stop_task
-        task
-    catch
-        task
+        cond = task.storage[:notify]
+        stop_task = @async begin
+            task_local_storage(:sleep, 10)
+            task_local_storage(:running, true)
+            while istaskrunning()
+                safewait(cond)
+                sleep(stop_delay[])
+                stop_delay[] = Second(0)
+                # if there are no more orders, stop the monitoring tasks
+                if orderscount(s, ai) == 0
+                    task_local_storage(:running, false)
+                    try
+                        @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" current_task()
+                        @lock tasks.lock begin
+                            stop_watch_orders!(s, ai)
+                            # also stop the trades task if running
+                            if hasmytrades(exchange(ai))
+                                @debug "Stopping trades watcher for $(raw(ai))@($(nameof(s)))"
+                                stop_watch_trades!(s, ai)
+                            end
+                        end
+                    finally
+                        break
+                    end
+                end
+            end
+        end
+        try
+            tasks.byname[:orders_task] = task
+            tasks.byname[:orders_stop_task] = stop_task
+            task
+        catch
+            task
+        end
     end
 end
 
@@ -144,64 +152,77 @@ order_update_hash(resp, eid) = begin
 end
 
 function update_order!(s, ai, eid; resp, state)
-    this_hash = order_update_hash(resp, eid)
-    state.update_hash[] == this_hash && return nothing
-    # always update hash on new data
-    state.update_hash[] = this_hash
-    # only emulate trade if trade watcher task
-    # is not running
-    if hasmytrades(exchange(ai))
-    else
-        @debug "Locking ai"
-        @lock ai if isopen(ai, state.order)
-            t = emulate_trade!(s, state.order, ai; state.average_price, resp)
-            @debug "Emulated trade" trade = t id = state.order.id
-        end
-    end
-    # if order is filled remove it from the task orders map.
-    # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
-    order_open = _ccxtisopen(resp, eid)
-    order_closed = _ccxtisclosed(resp, eid)
-    order_trades = trades(state.order)
-    order_filled = isorder_filled(ai, state.order)
-    # order_partial = abs(unfilled(o)) != state.order.amount
-    if order_filled || !order_open
-        # Wait for trades to be processed if trades are not emulated
-        @debug "Orders event" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
-            order_trades
-        ) last_trade = if isempty(order_trades)
-            nothing
-        else
-            last(order_trades).date
-        end resp_date = pytodate(resp, exchangeid(ai))
+    @lock state.lock begin
+        this_hash = order_update_hash(resp, eid)
+        state.update_hash[] == this_hash && return nothing
+        # always update hash on new data
+        state.update_hash[] = this_hash
+        # only emulate trade if trade watcher task
+        # is not running
         if hasmytrades(exchange(ai))
-            trades_count = length(order_trades)
-            if (order_filled && trades_count == 0) || !isorder_synced(state.order, ai, resp)
-                @debug "Waiting for trade events" id = state.order.id
-                waitfortrade(s, ai, state.order; waitfor=Second(5))
-                if length(order_trades) == trades_count
-                    @lock ai if isopen(ai, state.order)
-                        @warn "Waiting for remaining trades timeout, falling back to emulation." locked = islocked(
-                            ai
-                        ) trades_count
-                        @debug "Emulating order " id = state.order.id
-                        t = emulate_trade!(s, state.order, ai; state.average_price, resp)
-                        @debug "Emulated trade" trade = t id = state.order.id
+        else
+            @debug "Locking ai $(raw(ai)) $(posside(state.order))"
+            @lock ai if isopen(ai, state.order)
+                t = emulate_trade!(s, state.order, ai; state.average_price, resp)
+                @debug "Emulated trade" trade = t id = state.order.id
+            end
+        end
+        # if order is filled remove it from the task orders map.
+        # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
+        order_open = _ccxtisopen(resp, eid)
+        order_closed = _ccxtisclosed(resp, eid)
+        order_trades = trades(state.order)
+        order_filled = isorder_filled(ai, state.order)
+        # order_partial = abs(unfilled(o)) != state.order.amount
+        if order_filled || !order_open
+            # Wait for trades to be processed if trades are not emulated
+            @debug "Orders event" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
+                order_trades
+            ) last_trade = if isempty(order_trades)
+                nothing
+            else
+                last(order_trades).date
+            end resp_date = pytodate(resp, exchangeid(ai)) local_filled = filled_amount(state.order) resp_filled = resp_order_filled(
+                resp, eid
+            ) local_trades = length(trades(state.order)) remote_trades = length(
+                resp_order_trades(resp, eid)
+            ) status = resp_order_status(resp, eid)
+
+            if hasmytrades(exchange(ai))
+                trades_count = length(order_trades)
+                if (order_filled && trades_count == 0) ||
+                    !isorder_synced(state.order, ai, resp)
+                    @debug "Waiting for trade events" id = state.order.id
+                    waitfortrade(s, ai, state.order; waitfor=Second(1))
+                    if length(order_trades) == trades_count
+                        @lock ai if isopen(ai, state.order)
+                            @warn "Waiting for remaining trades timeout, falling back to emulation." locked = islocked(
+                                ai
+                            ) trades_count
+                            @debug "Emulating order " id = state.order.id
+                            t = emulate_trade!(
+                                s, state.order, ai; state.average_price, resp
+                            )
+                            @debug "Emulated trade" trade = t id = state.order.id
+                        end
                     end
                 end
             end
-        end
-        # Order did not complete, send an error
-        if !order_closed
-            cancel!(
-                s, state.order, ai; err=OrderFailed(resp_order_status(resp, eid, String))
-            )
-        end
-        @debug "Deleting order $(state.order.id) from active orders ($(raw(ai)))@($(nameof(s)))"
-        delete!(active_orders(s, ai), state.order.id)
-        @ifdebug if hasorders(s, ai, state.order.id)
-            @warn "Order $(state.order.id) should have been deleted from local active orders, \
-            possible emulation problem" order_trades = trades(state.order)
+            # Order did not complete, send an error
+            if !order_closed
+                cancel!(
+                    s,
+                    state.order,
+                    ai;
+                    err=OrderFailed(resp_order_status(resp, eid, String)),
+                )
+            end
+            @debug "Deleting order $(state.order.id) from active orders ($(raw(ai)))@($(nameof(s)))"
+            delete!(active_orders(s, ai), state.order.id)
+            @ifdebug if hasorders(s, ai, state.order.id)
+                @warn "Order $(state.order.id) should have been deleted from local active orders, \
+                possible emulation problem" order_trades = trades(state.order)
+            end
         end
     end
 end
@@ -235,7 +256,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             t=get_position_side(s, ai),
             price=missing,
             amount=missing,
-            retry_with_resync=false,
+            resync=false,
         )
         if o isa Order
             state = get_order_state(active_orders(s, ai), o.id)
@@ -265,7 +286,7 @@ function handle_orders!(s, ai, orders_byid, order_updates)
             empty!(sem.queue)
         end
         eid = exchangeid(ai)
-        @sync for (n, resp) in enumerate(order_updates)
+        @sync for resp in order_updates
             try
                 id = resp_order_id(resp, eid, String)
                 @debug "Orders event" id = id status = resp_order_status(resp, eid)
@@ -274,8 +295,8 @@ function handle_orders!(s, ai, orders_byid, order_updates)
                     continue
                 else
                     # remember events order
+                    n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
                     push!(sem.queue, n)
-                    # TODO: delete from orderby_id when cancelled
                     @async try
                         state = get_order_state(orders_byid, id)
                         # wait for earlier events to be processed
@@ -284,8 +305,10 @@ function handle_orders!(s, ai, orders_byid, order_updates)
                             safewait(sem.cond)
                         end
                         if state isa LiveOrderState
+                            @debug "Updating order" id ai = raw(ai)
                             update_order!(s, ai, eid; resp, state)
                         elseif _ccxtisopen(resp, eid)
+                            @debug "Re activating (open) order" id ai = raw(ai)
                             re_activate_order!(s, ai, id; eid, resp)
                         else
                             @debug "Cancelling local order $id since non open remotely ($(raw(ai))@$(nameof(s)))"
@@ -310,8 +333,8 @@ function handle_orders!(s, ai, orders_byid, order_updates)
                         safenotify(sem.cond)
                     end
                 end
-            catch e
-                @error e
+            catch
+                @debug_backtrace
             end
         end
     catch e
@@ -381,54 +404,73 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     size = _addfees(net_cost, fees_quote, o)
     trade = @maketrade
     if exec
-        trade!(
-            s,
-            o,
-            ai;
-            resp,
-            trade,
-            date=nothing,
-            price=nothing,
-            actual_amount=nothing,
-            fees=nothing,
-            slippage=false,
-        )
+        queue = asset_queue(s, ai)
+        try
+            inc!(queue)
+            trade!(
+                s,
+                o,
+                ai;
+                resp,
+                trade,
+                date=nothing,
+                price=nothing,
+                actual_amount=nothing,
+                fees=nothing,
+                slippage=false,
+            )
+        finally
+            dec!(queue)
+        end
     else
         trade
     end
 end
 
-function waitfororder(s::LiveStrategy, ai; waitfor=Second(5))
-    aot = asset_orders_task(s, ai)
+function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
+    aot = @something asset_orders_task(s, ai) watch_orders!(s, ai) missing
+    ismissing(aot) && return 0
     timeout = Millisecond(waitfor).value
     cond = aot.storage[:notify]
     prev_count = orderscount(s, ai)
     slept = 0
+    @debug "Wait for any order" ai = raw(ai) waitfor
     while slept < timeout
         if istaskrunning(aot)
             slept += waitforcond(cond, timeout - slept)
-            orderscount(s, ai) != prev_count && break
+            orderscount(s, ai) != prev_count && begin
+                @debug "New order event" ai = raw(ai) slept
+                break
+            end
         else
+            @error "Wait for order: orders task is not running" ai = raw(ai)
             break
         end
     end
     slept
 end
 
-function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
+function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     slept = 0
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
-    @debug "Waiting for order" id = o.id timeout = timeout
+    @debug "Wait for order: start" id = o.id timeout = timeout
     while slept < timeout
         slept += waitfororder(s, ai; waitfor)
         if !haskey(orders_byid, o.id)
-            if o isa MarketOrder
-                waitfortrade(s, ai, o; waitfor=timeout - slept)
+            @ifdebug if isimmediate(o) && isempty(trades(o))
+                @warn "Wait for order: immediate order has no trades"
             end
-            @debug "Order was removed from active set" id = o.id
-            break
+            @debug "Wait for order: not tracked" id = o.id
+            return true
+        elseif !haskey(s, ai, o)
+            @debug "Wait for order: not found" id = o.id
+            return true
+        end
+        slept < timeout || begin
+            @debug "Wait for order: timedout" o.id timeout
+            return false
         end
     end
-    return slept
+    return false
 end
