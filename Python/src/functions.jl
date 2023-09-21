@@ -6,10 +6,15 @@ function pylist_to_matrix(data::Py)
 end
 
 const pyCached = Dict{Any,Py}()
-macro pystr(k)
+macro pystr(k, v=nothing)
     s = esc(k)
+    ev = if v isa Expr
+        esc(v)
+    else
+        s
+    end
     quote
-        $__module__.@lget! $pyCached $s pystr($s)
+        $__module__.@lget! $pyCached $s pystr($ev)
     end
 end
 
