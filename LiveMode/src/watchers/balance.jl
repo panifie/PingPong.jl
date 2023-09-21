@@ -10,20 +10,30 @@ const CcxtBalanceVal = Val{:ccxt_balance_val}
 function _w_fetch_balance_func(s, interval; kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
+    fetch_f = first(exc, :fetchBalanceWs, :fetchBalance)
     if has(exc, :watchBalance)
         f = exc.watchBalance
+        init = Ref(true)
         (w) -> try
-            v = _execfunc(f; params, rest...)
-            _dopush!(w, v; if_func=isdict)
+            if init[]
+                v = _execfunc(fetch_f; params, rest...)
+                _dopush!(w, v; if_func=isdict)
+                init[] = false
+                sleep(interval)
+            else
+                v = _execfunc(f; params, rest...)
+                _dopush!(w, v; if_func=isdict)
+            end
         catch
+            @debug_backtrace
         end
     else
-        f = first(exc, :fetchBalanceWs, :fetchBalance)
         (w) -> try
-            v = _execfunc(f; params, rest...)
+            v = _execfunc(fetch_f; params, rest...)
             _dopush!(w, v; if_func=isdict)
             sleep(interval)
         catch
+            @debug_backtrace
             sleep(interval)
         end
     end
@@ -66,7 +76,7 @@ _balance_task!(w) = begin
     end
 end
 
-_balance_task(w) = @lget! w.attrs :balance_task _balance_task!(w)
+_balance_task(w) = @lget! attrs(w) :balance_task _balance_task!(w)
 
 function Watchers._fetch!(w::Watcher, ::CcxtBalanceVal)
     task = _balance_task(w)
@@ -107,7 +117,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
 end
 
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
-    @lget! s.attrs :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
+    @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
 end
 
 balance_watcher(s) = s[:live_balance_watcher]
