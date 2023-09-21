@@ -165,15 +165,10 @@ function _ccxtisfilled(resp::Py, ::EIDType)
 end
 
 function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
-    v =
-        isapprox(ai, filled_amount(o), resp_order_filled(resp, eid), Val(:amount)) ||
+    isapprox(ai, filled_amount(o), resp_order_filled(resp, eid), Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
             ntrades > 0 && ntrades == length(trades(o))
         end
-    @debug "Order synced?" v local_filled = filled_amount(o) resp_filled = resp_order_filled(
-        resp, eid
-    ) local_trades = length(trades(o)) remote_trades = length(resp_order_trades(resp, eid))
-    v
 end
 
 function _ccxt_sidetype(
