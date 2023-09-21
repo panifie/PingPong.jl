@@ -4,9 +4,14 @@ using .Instances: value
 function Executors.aftertrade!(
     s::MarginStrategy{Live}, ai::A, o::O, t::T
 ) where {A,O,T<:Trade}
-    @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(cnum(t.amount)) of $(t.order.asset) at $(cnum(t.price))($(cnum(t.size)) $(ai.asset.qc))"
+    @info "Trade" t cash = cash(ai, posside(t)) nameof(s)
     try
         invoke(aftertrade!, Tuple{Strategy,A,O,T}, s, ai, o, t)
+        # skip update if the position has already been updated by another event
+        if timestamp(ai) >= t.date
+            @debug "Skipping position sync since position state ($(timestamp(ai))) newer than trade $(t.date)"
+            return nothing
+        end
         # Update local state asap, since syncing can have long delays
         position!(s, ai, t)
         # NOTE: shift by 1ms to allow for some margin of error
@@ -14,12 +19,12 @@ function Executors.aftertrade!(
         # are handled when a trade event would update the timestamp of an order
         # and a position
         since = t.date - Millisecond(1)
-        @debug "After trade, fetching position for updates $(raw(ai))" id = t.order.id
+        @debug "After trade: fetching position for updates $(raw(ai))" id = t.order.id
         update = live_position(s, ai, posside(o); since, force=true)
         @ifdebug begin
             if isopen(position(ai, posside(o)))
-                liqprice(ai, o) > 0 || @error "Liqprice below zero ($(liqprice(ai, o)))"
-                entryprice(ai, o.price, o) > 0 ||
+                liqprice(ai, o) >= 0 || @error "Liqprice below zero ($(liqprice(ai, o)))"
+                entryprice(ai, o.price, o) >= 0 ||
                     @error "Entryprice below zero ($(entryprice(ai, o.price, o)))"
             end
             if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
@@ -28,8 +33,14 @@ function Executors.aftertrade!(
         end
         if isnothing(update)
             @warn "Couldn't fetch position status from exchange, possibly diverging local state"
-        else
+        elseif update.date >= since
+            @deassert islocked(ai)
+            @debug "After trade: syncing with position" update.date update.closed[] contracts = resp_position_contracts(
+                update.resp, exchangeid(ai)
+            )
             live_sync_position!(s, ai, o, update)
+        else
+            @warn "Stale position update" update.date since
         end
         @ifdebug if islong(o)
             cash(ai, posside(o)) >= 0 || @error " cash for long should be positive."
