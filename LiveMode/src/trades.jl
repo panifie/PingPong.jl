@@ -264,6 +264,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)
 
-    @debug "Consctructing trade $(raw(ai))@$(nameof(s))"
+    @debug "Constructing trade" cash = cash(ai, posside(o)) ai = raw(ai) s = nameof(s)
     @maketrade
 end
+
