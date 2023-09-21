@@ -132,7 +132,7 @@ end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     isempty(w.buffer) && return nothing
-    _, data = last(w.buffer)
+    data_date, data = last(w.buffer)
     long_dict = w.view.long
     short_dict = w.view.short
     islist(data) || return nothing
@@ -143,31 +143,38 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         sym = resp_position_symbol(resp, eid, String)
         side = posside_fromccxt(resp, eid)
         side_dict = ifelse(islong(side), long_dict, short_dict)
-        prev = get(side_dict, sym, nothing)
-        date = @something pytodate(resp, eid) now()
-        pos_tuple = if isnothing(prev)
+        pup_prev = get(side_dict, sym, nothing)
+        date = let this_date = @something pytodate(resp, eid) data_date
+            if this_date == pup_prev.date
+                data_date
+            else
+                this_date
+            end
+        end
+        pup = if isnothing(pup_prev)
             _posupdate(date, resp)
-        elseif prev.date < date
-            _posupdate(prev, date, resp)
+        elseif pup_prev.date < date
+            _posupdate(pup_prev, date, resp)
         end
         push!(processed_syms, (sym, side))
-        isnothing(pos_tuple) || begin
-            side_dict[sym] = pos_tuple
-            safenotify(pos_tuple.notify)
-        end
+        isnothing(pup) || (side_dict[sym] = pup)
     end
     # do notify if we added at least one response, or removed at least one
-    skip_notify = isempty(processed_syms) && isempty(long_dict) && isempty(short_dict)
-    _setposflags!(long_dict, Long(), processed_syms)
-    _setposflags!(short_dict, Short(), processed_syms)
+    skip_notify = all(isempty(x for x in (processed_syms, long_dict, short_dict)))
+    _setposflags!(data_date, long_dict, Long(), processed_syms)
+    _setposflags!(data_date, short_dict, Short(), processed_syms)
     skip_notify || safenotify(w.beacon.process)
 end
 
-function _setposflags!(dict, side, processed_syms)
-    for (k, v) in dict
-        v.closed[] = (k, side) ∉ processed_syms
-        v.read[] = false
-        safenotify(v.notify)
+function _setposflags!(data_date, dict, side, processed_syms)
+    for (sym, pup) in dict
+        if (pup.closed[] = (sym, side) ∉ processed_syms)
+            pup_prev = get(dict, sym, nothing)
+            @deassert pup_prev === pup
+            dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+        end
+        pup.read[] = false
+        safenotify(pup.notify)
     end
 end
 
