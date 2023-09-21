@@ -26,75 +26,81 @@ end
 
 hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
-    tasks = asset_tasks(s, ai).byname
-    istaskrunning(asset_trades_task(tasks)) && return nothing
-    exc = exchange(ai)
-    hasmytrades(exc) || return nothing
-    orders_byid = active_orders(s, ai)
-    task = @start_task orders_byid begin
-        (f, iswatch) = if has(exc, :watchMyTrades)
-            let sym = raw(ai), func = exc.watchMyTrades
+    tasks = asset_tasks(s, ai)
+    @lock tasks.lock begin
+        @deassert tasks.byname === asset_tasks(s, ai).byname
+        let task = asset_trades_task(tasks.byname)
+            istaskrunning(task) && return task
+        end
+        exc = exchange(ai)
+        hasmytrades(exc) || return nothing
+        orders_byid = active_orders(s, ai)
+        task = @start_task orders_byid begin
+            (f, iswatch) = if has(exc, :watchMyTrades)
+                let sym = raw(ai), func = exc.watchMyTrades
+                    (
+                        (flag, coro_running) -> if flag[]
+                            pyfetch(func, sym; coro_running, exc_kwargs...)
+                        end,
+                        true,
+                    )
+                end
+            else
+                _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
+                last_date = isempty(ai.history) ? now() : last(ai.history).date
+                since = Ref(last_date)
+                startup = Ref(true)
+                eid = exchangeid(ai)
                 (
-                    (flag, coro_running) -> if flag[]
-                        pyfetch(func, sym; coro_running, exc_kwargs...)
+                    (_, _) -> begin
+                        startup[] || sleep(1)
+                        resp = fetch_my_trades(
+                            s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                        )
+                        if !isnothing(resp) && islist(resp) && length(resp) > 0
+                            since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
+                        elseif startup[]
+                            startup[] = false
+                        end
+                        resp
                     end,
-                    true,
+                    false,
                 )
             end
-        else
-            _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-            last_date = isempty(ai.history) ? now() : last(ai.history).date
-            since = Ref(last_date)
-            startup = Ref(true)
-            eid = exchangeid(ai)
-            (
-                (_, _) -> begin
-                    startup[] || sleep(1)
-                    resp = fetch_my_trades(
-                        s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
-                    )
-                    if !isnothing(resp) && islist(resp) && length(resp) > 0
-                        since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
-                    elseif startup[]
-                        startup[] = false
+            queue = tasks.queue
+            flag = TaskFlag()
+            cond = task_local_storage(:notify)
+            coro_running = pycoro_running(flag)
+            while istaskrunning()
+                try
+                    while istaskrunning()
+                        trades = f(flag, coro_running)
+                        if trades isa Exception
+                            @ifdebug ispyminor_error(trades) ||
+                                @debug "Error fetching trades (using watch: $(iswatch))" trades
+                            sleep(1)
+                        else
+                            handle_trades!(s, ai, orders_byid, trades)
+                            safenotify(cond)
+                        end
                     end
-                    resp
-                end,
-                false,
-            )
-        end
-        flag = TaskFlag()
-        cond = task_local_storage(:notify)
-        coro_running = pycoro_running(flag)
-        while istaskrunning()
-            try
-                while istaskrunning()
-                    trades = f(flag, coro_running)
-                    if trades isa Exception
-                        @ifdebug ispyminor_error(trades) ||
-                            @debug "Error fetching trades (using watch: $(iswatch))" trades
-                        sleep(1)
+                catch e
+                    if e isa InterruptException
+                        break
                     else
-                        handle_trades!(s, ai, orders_byid, trades)
-                        safenotify(cond)
+                        @debug_backtrace
+                        @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
                     end
+                    sleep(1)
                 end
-            catch e
-                if e isa InterruptException
-                    break
-                else
-                    @debug_backtrace
-                    @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
-                end
-                sleep(1)
             end
         end
-    end
-    try
-        asset_tasks(s)[ai].byname[:trades_task] = task
-        task
-    catch
-        task
+        try
+            tasks.byname[:trades_task] = task
+            task
+        catch
+            task
+        end
     end
 end
 
@@ -166,73 +172,94 @@ function handle_trades!(s, ai, orders_byid, trades)
     try
         @debug "Trades task:" trades = trades
         sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
-        if length(sem.queue) > 0
-            @warn "Expected queue (trades) to be empty."
-            empty!(sem.queue)
-        end
-        empty!(sem.queue)
         eid = exchangeid(ai)
-        @sync for (n, resp) in enumerate(trades)
-            id = resp_trade_order(resp, eid, String)
-            @debug "Trades event" order = id
-            if isempty(id)
-                @warn "Missing order id"
-                continue
-            else
-                # remember events order
-                push!(sem.queue, n)
-                @async try
-                    let state = get_order_state(orders_byid, id)
-                        if state isa LiveOrderState
-                            this_hash = trade_hash(resp, eid)
-                            this_hash ∈ state.trade_hashes || begin
-                                push!(state.trade_hashes, this_hash)
-                                # wait for earlier events to be processed
-                                while first(sem.queue) != n
-                                    safewait(sem.cond)
-                                end
-                                @debug "Locking ai"
-                                t = @lock ai begin
-                                    @debug "Before trade exec" open =
-                                        if ismissing(state)
-                                            missing
+        @sync for resp in trades
+            try
+                id = resp_trade_order(resp, eid, String)
+                @debug "Trades event" order = id
+                if isempty(id)
+                    @warn "Missing order id"
+                    continue
+                else
+                    # remember events order
+                    n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
+                    push!(sem.queue, n)
+                    @async try
+                        let state = get_order_state(orders_byid, id)
+                            if state isa LiveOrderState
+                                @lock state.lock begin
+                                    this_hash = trade_hash(resp, eid)
+                                    this_hash ∈ state.trade_hashes || begin
+                                        push!(state.trade_hashes, this_hash)
+                                        # wait for earlier events to be processed
+                                        while first(sem.queue) != n
+                                            safewait(sem.cond)
+                                        end
+                                        @debug "Locking ai" ai = raw(ai)
+                                        t = @lock ai begin
+                                            @debug "Before trade exec" open =
+                                                if ismissing(state)
+                                                    missing
+                                                else
+                                                    isopen(ai, state.order)
+                                                end state isa LiveOrderState
+                                            if isopen(ai, state.order)
+                                                queue = asset_queue(s, ai)
+                                                inc!(queue)
+                                                try
+                                                    trade!(
+                                                        s,
+                                                        state.order,
+                                                        ai;
+                                                        resp,
+                                                        date=nothing,
+                                                        price=nothing,
+                                                        actual_amount=nothing,
+                                                        fees=nothing,
+                                                        slippage=false,
+                                                    )
+                                                finally
+                                                    dec!(queue)
+                                                end
+                                            end
+                                        end
+                                        @debug "Trades task, after local trade" trade =
+                                            t cash = cash(ai) side = if isnothing(t)
+                                            get_position_side(s, ai)
                                         else
-                                            isopen(ai, state.order)
-                                        end state = typeof(state)
-                                    if isopen(ai, state.order)
-                                        trade!(
-                                            s,
-                                            state.order,
-                                            ai;
-                                            resp,
-                                            date=nothing,
-                                            price=nothing,
-                                            actual_amount=nothing,
-                                            fees=nothing,
-                                            slippage=false,
-                                        )
+                                            posside(t)
+                                        end
                                     end
                                 end
-                                @debug "Trades task, after local trade" trade = t
-                            end
-                        else
-                            # NOTE: give id directly since the resp is for a trade and not an order
-                            let o = findorder(s, ai; resp, id)
-                                if o isa Order && isfilled(ai, o) && length(trades(o)) > 0
-                                    amount = resp_trade_amount(resp, eid)
-                                    last_amount = last(trades(o)).amount
-                                    @warn "Trade without matching active order, possibly a late trade. emulated: $last_amount, exchange: $amount "
-                                else
-                                    @error "(trades task) Could not retrieve live order state for $id ($(raw(ai))@$(nameof(s)))"
+                            else
+                                # NOTE: give id directly since the resp is for a trade and not an order
+                                let o = findorder(s, ai; resp, id)
+                                    if o isa Order
+                                        if isfilled(ai, o) && length(trades(o)) > 0
+                                            amount = resp_trade_amount(resp, eid)
+                                            last_amount = last(trades(o)).amount
+                                            @warn "Trade without matching active order, possibly a late trade. emulated: $last_amount, exchange: $amount "
+                                        else
+                                            @error "(trades) expected live order state since order was not filled" id ai = raw(
+                                                ai
+                                            ) s = nameof(s)
+                                        end
+                                    else
+                                        @warn "(trades) trade event without matching order nor state" id ai = raw(
+                                            ai
+                                        ) s = nameof(s)
+                                    end
                                 end
                             end
                         end
+                    finally
+                        idx = findfirst(x -> x == n, sem.queue)
+                        isnothing(idx) || deleteat!(sem.queue, idx)
+                        safenotify(sem.cond)
                     end
-                finally
-                    idx = findfirst(x -> x == n, sem.queue)
-                    isnothing(idx) || deleteat!(sem.queue, idx)
-                    safenotify(sem.cond)
                 end
+            catch
+                @debug_backtrace
             end
         end
 
@@ -253,7 +280,7 @@ end
 function waitforcond(cond::Function, time)
     timeout = Millisecond(time).value
     waiting = Ref(true)
-    slept = Ref(0)
+    slept = Ref(1)
     try
         while waiting[] && slept[] < timeout
             cond() && break
@@ -261,6 +288,7 @@ function waitforcond(cond::Function, time)
             slept[] += 100
         end
     catch
+        @debug_backtrace
         slept[] = timeout
     finally
         waiting[] = false
@@ -269,9 +297,9 @@ function waitforcond(cond::Function, time)
 end
 
 function waitforcond(cond, time)
-    timeout = Millisecond(time).value
+    timeout = max(Millisecond(time).value, 100)
     waiting = Ref(true)
-    slept = Ref(0)
+    slept = Ref(1)
     try
         @async begin
             while waiting[] && slept[] < timeout
@@ -282,6 +310,7 @@ function waitforcond(cond, time)
         end
         safewait(cond)
     catch
+        @debug_backtrace
         slept[] = timeout
     finally
         waiting[] = false
@@ -306,17 +335,30 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     slept
 end
 
-function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(1))
+function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     isfilled(ai, o) && return length(trades(o))
     order_trades = trades(o)
     this_count = prev_count = length(order_trades)
     timeout = Millisecond(waitfor).value
     slept = 0
+    side = orderside(o)
+    pt = pricetime(o)
     @debug "Waiting for trade " id = o.id timeout = timeout current_trades = this_count
-    while slept < timeout
+    while true
+        slept < timeout || return false
+        haskey(s, ai, pt, o) || return false
         slept += waitfortrade(s, ai; waitfor=timeout - slept)
         this_count = length(order_trades)
-        this_count > prev_count && break
+        this_count > prev_count && return true
     end
-    return this_count
+    this_count > prev_count
+end
+
+function _force_fetchtrade(s, ai, o)
+    resp = fetch_order_trades(s, ai, o.id)
+    if resp isa Exception
+        @ifdebug ispyminor_error(resp) || @debug "Error fetching trades (force fetch)" resp
+    else
+        handle_trades!(s, ai, active_orders(s, ai), resp)
+    end
 end
