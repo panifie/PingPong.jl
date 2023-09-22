@@ -158,7 +158,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
             _posupdate(pup_prev, date, resp)
         end
         push!(processed_syms, (sym, side))
-        @info pup
         isnothing(pup) || (side_dict[sym] = pup)
     end
     # do notify if we added at least one response, or removed at least one
