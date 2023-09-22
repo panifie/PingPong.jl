@@ -145,7 +145,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
         side_dict = ifelse(islong(side), long_dict, short_dict)
         pup_prev = get(side_dict, sym, nothing)
         date = let this_date = @something pytodate(resp, eid) data_date
-            if this_date == pup_prev.date
+            prev_date = isnothing(pup_prev) ? DateTime(0) : pup_prev.date
+            if this_date == prev_date
                 data_date
             else
                 this_date
@@ -157,6 +158,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
             _posupdate(pup_prev, date, resp)
         end
         push!(processed_syms, (sym, side))
+        @info pup
         isnothing(pup) || (side_dict[sym] = pup)
     end
     # do notify if we added at least one response, or removed at least one
