@@ -60,7 +60,7 @@ function _handle_pos_resp(resp, ai, side)
             for this in resp
                 @debug "force fetch el: " resp_position_timestamp(this, eid) resp_position_contracts(
                     this, eid
-                ) side = _ccxtposside(this, eid) issym = _ispossym(this, sym, eid)
+                ) side _ccxtposside(this, eid) issym = _ispossym(this, sym, eid)
                 if _ccxtposside(this, eid) == side && _ispossym(this, sym, eid)
                     @deassert !isnothing(this) && isdict(this)
                     return this

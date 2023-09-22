@@ -50,6 +50,7 @@ function live_sync_active_orders!(
         cash_short = cash(ai, Short())
         comm_short = committed(ai, Short())
     end
+    @debug "Syncing orders" islocked(ai) length(open_orders)
     @lock ai for resp in open_orders
         id = resp_order_id(resp, eid)
         o = (@something get(ao, id, nothing) findorder(s, ai; resp) create_live_order(

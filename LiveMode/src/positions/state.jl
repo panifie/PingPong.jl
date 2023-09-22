@@ -32,7 +32,9 @@ function Executors.aftertrade!(
             end
         end
         if isnothing(update)
-            @warn "Couldn't fetch position status from exchange, possibly diverging local state"
+            @warn "Couldn't fetch position status from exchange, possibly diverging local state" side = posside(
+                o
+            ) o.id t.date
         elseif update.date >= since
             @deassert islocked(ai)
             @debug "After trade: syncing with position" update.date update.closed[] contracts = resp_position_contracts(
