@@ -316,8 +316,32 @@ macro debug_backtrace()
     end
 end
 
+_dedup_funcs(st::Vector{Base.StackFrame}) = begin
+    fnames = String[]
+    for frame in st
+        name = string(frame.func)
+        if occursin("#", name)
+            name = split(name, "#")[2]
+        end
+        push!(fnames, name)
+    end
+    unique!(fnames)
+end
+
+macro caller(n=4)
+    quote
+        let funcs = stacktrace() |> $_dedup_funcs
+            if length(funcs) > 2
+                join(reverse!(@view(funcs[(begin + 1):min(length(funcs), $n)])), " > ")
+            else
+                ""
+            end
+        end
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
-export @as, @sym_str, @exportenum
+export @as, @sym_str, @exportenum, @caller
 export Option, toggle, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
