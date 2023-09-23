@@ -48,7 +48,7 @@ function waitforbal(
         end
     end
 
-    prev_timestamp = bal.date[]
+    prev_timestamp = @something bal.date[] DateTime(0)
     @debug "Wait for balance" prev_timestamp since
     isnothing(since) || if prev_timestamp >= since
         return true
@@ -92,16 +92,16 @@ function live_balance(
     isnothing(since) ||
         isnothing(bal) ||
         begin
-            if waitforbal(s, ai)
+            if waitforbal(s, ai; force, waitfor, fallback_kwargs)
             elseif force
                 @debug "live bal: last force fetch"
                 _force_fetchbal(s; fallback_kwargs)
             end
             bal = get_balance(s, ai)
             if isnothing(bal) || bal.date < since
-                @error "Unexpected balance" date = isnothing(bal) ? nothing : bal.date since ai = raw(
+                @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since ai = raw(
                     ai
-                )
+                ) f = @caller
                 return nothing
             end
         end
