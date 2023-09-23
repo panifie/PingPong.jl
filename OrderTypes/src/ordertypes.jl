@@ -174,8 +174,13 @@ islong(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Long()
 isshort(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Short()
 islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
+islong(_) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
+isshort(_) = false
+isside(what::ByPos{Long}, side::ByPos{Long}) = true
+isside(what::ByPos{Short}, side::ByPos{Short}) = true
+isside(args...) = false
 isimmediate(::Order{<:Union{ImmediateOrderType,MarketOrderType}}) = true
 isimmediate(::Order) = false
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
@@ -204,5 +209,6 @@ export IncreaseOrder,
     ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
-export ordersdefault!, orderside, positionside, pricetime, islong, isshort, ispos, isimmediate
+export ordersdefault!,
+    orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
 export liqside, sidetopos, opposite
