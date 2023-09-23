@@ -258,12 +258,11 @@ function _open_orders_func!(a, exc; open=true)
 end
 
 _syms(ais) = ((raw(ai) for ai in ais)...,)
-function _filter_positions(out, eid::EIDType, side::Union{Hedged,PositionSide}=Hedged())
-    if (@something side Hedged()) == Hedged()
+function _filter_positions(out, eid::EIDType, side=Hedged())
+    if (@something side Hedged) == Hedged
         out
     elseif isshort(side) || islong(side)
-        side_str = @pystr(_ccxtposside(side))
-        _pyfilter!(out, (p) -> pyne(Bool, resp_position_side(p, eid), side_str))
+        _pyfilter!(out, (p) -> !isside(posside_fromccxt(p, eid), side))
     end
 end
 
@@ -554,7 +553,7 @@ function get_position_side(s, ai::AssetInstance)
         !isnothing(pos) && !pos.closed[] && return Long()
         pos = get(short, sym, nothing)
         !isnothing(pos) && !pos.closed[] && return Short()
-        if hasorders(s, ai)
+        @something posside(ai) if hasorders(s, ai)
             @debug "No position open for $sym, inferring from open orders"
             posside(first(orders(s, ai)).second)
         elseif length(trades(ai)) > 0
