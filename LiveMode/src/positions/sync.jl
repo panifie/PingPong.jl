@@ -55,18 +55,26 @@ function live_sync_position!(
                         return pos
                     end
                 else
+                    @debug "sync pos: resetting opposite position" ai = raw(ai) oppos
                     reset!(ai, oppos)
                 end
             end
         end
-        update.read[] && return pos
+        update.read[] && begin
+            @debug "sync pos: update already read" ai = raw(ai) pside
+            return pos
+        end
     end
 
     if update.closed[]
-        isdust(ai, _ccxtposprice(ai, resp), pside) ||
-            @warn "sync pos: cash expected to be (close to) zero, found $(cash(ai, pside))"
+        if isdust(ai, _ccxtposprice(ai, resp), pside) && isfinite(cash(pos))
+            @warn "sync pos: cash expected to be (close to) zero, found" cash = cash(
+                ai, pside
+            ) cash(ai, pside).precision
+        end
         update.read[] = true
         reset!(pos)
+        @debug "sync pos: closed flag set, reset"
         return pos
     end
     this_timestamp = resp_position_timestamp(resp, eid)
@@ -93,7 +101,7 @@ function live_sync_position!(
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
-        @debug "Position should be closed " isopen(ai, p)
+        @debug "sync pos: amount is dust, reset" isopen(ai, p)
         return pos
     end
     @debug "sync pos: syncing" date = timestamp(pos) ai = raw(ai) side = pside
@@ -258,10 +266,11 @@ function live_sync_cash!(
     side = posside(bp)
     pup = live_position(s, ai, side; since, force=true, waitfor)
     if isnothing(pup)
-        @warn "Resetting position cash (not found)" ai = raw(ai)
+        @warn "sync cash: resetting (both) position cash (not found)" ai = raw(ai)
         reset!(ai, Long())
         reset!(ai, Short())
     elseif pup.closed[]
+        @warn "sync cash: resetting position cash (closed)" ai = raw(ai) side
         reset!(ai, side)
     elseif isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
         live_sync_position!(s, ai, side, pup; kwargs...)

@@ -68,22 +68,23 @@ function waitfor_closed(
 )
     try
         active = active_orders(s, ai)
-        slept = Millisecond(0)
+        slept = 0
+        timeout = Millisecond(waitfor).value
         success = true
-        @debug "Wait for orders close: waiting" ai = raw(ai) side = t
+        @debug "wait ord close: waiting" ai = raw(ai) side = t
         while true
             isactive(s, ai; active, side=t) || begin
-                @debug "Wait for orders close: done" ai = raw(ai)
+                @debug "wait ord close: done" ai = raw(ai)
                 break
             end
-            slept < waitfor || begin
+            slept < timeout || begin
                 success = false
-                @debug "Wait for orders close: timedout" ai = raw(ai) side = t waitfor
+                @debug "wait ord close: timedout" ai = raw(ai) side = t waitfor f = @caller
                 if resync
-                    @warn "Wait for orders close: resyncing"
+                    @warn "wait ord close: resyncing"
                     live_sync_active_orders!(s, ai; side=t, strict=false)
                     success = if isactive(s, ai; side=t)
-                        @error "Wait for orders close: orders still active" side = t n = orderscount(
+                        @error "wait ord close: orders still active" side = t n = orderscount(
                             s, ai, t
                         )
                         false
@@ -94,9 +95,19 @@ function waitfor_closed(
                 break
             end
             sleep(0.1)
-            slept += Millisecond(100)
+            slept += 100
         end
-        success
+        if success
+            if orderscount(s, ai, t) > 0
+                @debug "wait ord close: resyncing(2nd) f" orderscount(s, ai, t)
+                live_sync_active_orders!(s, ai; side=t, strict=false)
+                orderscount(s, ai, t) > 0
+            else
+                true
+            end
+        else
+            false
+        end
     catch
         @debug_backtrace
         false
