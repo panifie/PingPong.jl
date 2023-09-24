@@ -161,10 +161,10 @@ function update_order!(s, ai, eid; resp, state)
         # is not running
         if hasmytrades(exchange(ai))
         else
-            @debug "Locking ai $(raw(ai)) $(posside(state.order))"
+            @debug "update ord: locking ai" ai = raw(ai) side = posside(state.order)
             @lock ai if isopen(ai, state.order)
                 t = emulate_trade!(s, state.order, ai; state.average_price, resp)
-                @debug "Emulated trade" trade = t id = state.order.id
+                @debug "update ord: emulated trade" trade = t id = state.order.id
             end
         end
         # if order is filled remove it from the task orders map.
@@ -173,37 +173,40 @@ function update_order!(s, ai, eid; resp, state)
         order_closed = _ccxtisclosed(resp, eid)
         order_trades = trades(state.order)
         order_filled = isorder_filled(ai, state.order)
-        # order_partial = abs(unfilled(o)) != state.order.amount
+
         if order_filled || !order_open
             # Wait for trades to be processed if trades are not emulated
-            @debug "Orders event" is_synced = isorder_synced(state.order, ai, resp) n_trades = length(
-                order_trades
-            ) last_trade = if isempty(order_trades)
+            @debug "update ord: finalizing" is_synced = isorder_synced(
+                state.order, ai, resp
+            ) n_trades = length(order_trades) last_trade = if isempty(order_trades)
                 nothing
             else
                 last(order_trades).date
-            end resp_date = pytodate(resp, exchangeid(ai)) local_filled = filled_amount(state.order) resp_filled = resp_order_filled(
+            end resp_date = pytodate(resp, exchangeid(ai)) local_filled = filled_amount(
+                state.order
+            ) resp_filled = resp_order_filled(resp, eid) local_trades = length(
+                trades(state.order)
+            ) remote_trades = length(resp_order_trades(resp, eid)) status = resp_order_status(
                 resp, eid
-            ) local_trades = length(trades(state.order)) remote_trades = length(
-                resp_order_trades(resp, eid)
-            ) status = resp_order_status(resp, eid)
+            )
 
             if hasmytrades(exchange(ai))
                 trades_count = length(order_trades)
                 if (order_filled && trades_count == 0) ||
                     !isorder_synced(state.order, ai, resp)
-                    @debug "Waiting for trade events" id = state.order.id
+                    @debug "update ord: waiting for trade events" id = state.order.id
                     waitfortrade(s, ai, state.order; waitfor=Second(1))
                     if length(order_trades) == trades_count
                         @lock ai if isopen(ai, state.order)
-                            @warn "Waiting for remaining trades timeout, falling back to emulation." locked = islocked(
+                            @warn "update ord: falling back to emulation." locked = islocked(
                                 ai
                             ) trades_count
-                            @debug "Emulating order " id = state.order.id
+                            @debug "update ord: emulating trade" id = state.order.id
                             t = emulate_trade!(
                                 s, state.order, ai; state.average_price, resp
                             )
-                            @debug "Emulated trade" trade = t id = state.order.id
+                            @debug "update ord: emulation done" trade = t id =
+                                state.order.id
                         end
                     end
                 end
@@ -217,11 +220,13 @@ function update_order!(s, ai, eid; resp, state)
                     err=OrderFailed(resp_order_status(resp, eid, String)),
                 )
             end
-            @debug "Deleting order $(state.order.id) from active orders ($(raw(ai)))@($(nameof(s)))"
+            @debug "update ord: de activating order" id = state.order.id ai = raw(ai)
             delete!(active_orders(s, ai), state.order.id)
             @ifdebug if hasorders(s, ai, state.order.id)
-                @warn "Order $(state.order.id) should have been deleted from local active orders, \
-                possible emulation problem" order_trades = trades(state.order)
+                @warn "update ord: order should already have been removed from local state, \
+                possible emulation problem" id = state.order.id order_trades = trades(
+                    state.order
+                )
             end
         end
     end
@@ -229,7 +234,9 @@ end
 
 function re_activate_order!(s, ai, id; eid, resp)
     function docancel()
-        @error "Could not re-create order $id, cancelling from exchange ($(nameof(exchange(ai))))."
+        @error "reactivate ord: could not re-create order, cancelling from exchange" id exc = nameof(
+            exchange(ai)
+        )
         live_cancel(s, ai; ids=(id,), confirm=false, all=false)
     end
 
@@ -238,7 +245,7 @@ function re_activate_order!(s, ai, id; eid, resp)
     for o in values(s, ai)
         if o.id == id
             state = set_active_order!(s, ai, o)
-            @warn "Re-activated an order ($id) that should already have been active ($(nameof(exchange(ai))))"
+            @warn "reactivate ord: re-activation done" id exc = nameof(exchange(ai))
             if state isa LiveOrderState
                 update_order!(s, ai, eid; resp, state)
             else
@@ -279,19 +286,19 @@ _pyvalue_info(v) =
     end
 function handle_orders!(s, ai, orders_byid, order_updates)
     try
-        @debug "Orders events" n_updates = _pyvalue_info(order_updates)
+        @debug "handle ord: new events" n_updates = _pyvalue_info(order_updates)
         sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
         if length(sem.queue) > 0
-            @warn "Expected queue (orders) to be empty."
+            @warn "handle ord: expected queue (orders) to be empty." length(sem.queue)
             empty!(sem.queue)
         end
         eid = exchangeid(ai)
         @sync for resp in order_updates
             try
                 id = resp_order_id(resp, eid, String)
-                @debug "Orders event" id = id status = resp_order_status(resp, eid)
+                @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
                 if isempty(id)
-                    @warn "Missing order id"
+                    @warn "handle ord: missing order id"
                     continue
                 else
                     # remember events order
@@ -301,20 +308,20 @@ function handle_orders!(s, ai, orders_byid, order_updates)
                         state = get_order_state(orders_byid, id)
                         # wait for earlier events to be processed
                         while first(sem.queue) != n
-                            @debug "Waiting for queue $n"
+                            @debug "handle ord: waiting for queue" n
                             safewait(sem.cond)
                         end
                         if state isa LiveOrderState
-                            @debug "Updating order" id ai = raw(ai)
+                            @debug "handle ord: updating" id ai = raw(ai)
                             update_order!(s, ai, eid; resp, state)
                         elseif _ccxtisopen(resp, eid)
-                            @debug "Re activating (open) order" id ai = raw(ai)
+                            @debug "handle ord: re-activating (open) order" id ai = raw(ai)
                             re_activate_order!(s, ai, id; eid, resp)
                         else
-                            @debug "Cancelling local order $id since non open remotely ($(raw(ai))@$(nameof(s)))"
+                            @debug "handle ord: cancelling local order since non open remotely" id ai = raw(ai) s = nameof(s)
                             for o in values(s, ai) # ensure order is not stored locally
                                 if o.id == id
-                                    @debug "Cancelling..."
+                                    @debug "handle ord: cancelling..."
                                     cancel!(
                                         s,
                                         o,
