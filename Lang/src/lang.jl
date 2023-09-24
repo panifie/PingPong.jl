@@ -323,7 +323,7 @@ _dedup_funcs(st::Vector{Base.StackFrame}) = begin
         if occursin("#", name)
             name = split(name, "#")[2]
         end
-        push!(fnames, name)
+        push!(fnames, string(name, ":", frame.line))
     end
     unique!(fnames)
 end
