@@ -11,7 +11,7 @@ using .Python:
     pyeq
 using Watchers: buffer
 using .Python.PythonCall: pyisTrue, pyeq, Py, pyisnone
-using .Misc.Lang: @lget!, Option
+using .Misc.Lang: @lget!, Option, @caller
 using .Executors.OrderTypes: ByPos
 using .Executors: committed, marginmode, update_leverage!, liqprice!, update_maintenance!
 using .Executors.Instruments: qc, bc
@@ -81,8 +81,11 @@ end
 
 function _force_fetchpos(s, ai, side; fallback_kwargs)
     w = positions_watcher(s)
+    @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller
+    waslocked = islocked(w)
     @lock w begin
-        resp = fetch_positions(s, ai; fallback_kwargs...)
+        waslocked && return nothing
+        resp = fetch_positions(s, ai; side, fallback_kwargs...)
         pos = _handle_pos_resp(resp, ai, side)
         pushnew!(
             w,
@@ -92,8 +95,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
                 pylist((pos,))
             end,
         )
-        process!(w)
-        return pos
+        process!(w; sym=raw(ai))
     end
 end
 

@@ -130,7 +130,7 @@ function _posupdate(prev, date, resp)
     PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
-function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
+function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     isempty(w.buffer) && return nothing
     data_date, data = last(w.buffer)
     long_dict = w.view.long
@@ -162,20 +162,29 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal)
     end
     # do notify if we added at least one response, or removed at least one
     skip_notify = all(isempty(x for x in (processed_syms, long_dict, short_dict)))
-    _setposflags!(data_date, long_dict, Long(), processed_syms)
-    _setposflags!(data_date, short_dict, Short(), processed_syms)
+    _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
+    _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
     skip_notify || safenotify(w.beacon.process)
 end
 
-function _setposflags!(data_date, dict, side, processed_syms)
-    for (sym, pup) in dict
-        if (pup.closed[] = (sym, side) ∉ processed_syms)
-            pup_prev = get(dict, sym, nothing)
-            @deassert pup_prev === pup
-            dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
+    if isnothing(sym)
+        for (sym, pup) in dict
+            if (pup.closed[] = (sym, side) ∉ processed_syms)
+                pup_prev = get(dict, sym, nothing)
+                @deassert pup_prev === pup
+                dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+            end
+            pup.read[] = false
+            safenotify(pup.notify)
         end
-        pup.read[] = false
-        safenotify(pup.notify)
+    else
+        pup = get(dict, sym, nothing)
+        if pup isa PositionUpdate7
+            pup.read[] = false
+            pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
+            safenotify(pup.notify)
+        end
     end
 end
 
