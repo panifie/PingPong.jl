@@ -1,5 +1,6 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
+using .Strategies: PriceTime
 using Instances:
     MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, _deducted_amount
 using OrderTypes:
@@ -231,7 +232,7 @@ function hasorders(s::Strategy, ai, id::String, ::BySide{S}) where {S<:OrderSide
     false
 end
 Base.haskey(s::Strategy, ai, o::Order) = haskey(sideorders(s, ai, o), pricetime(o))
-function Base.haskey(s::Strategy, ai, pt::st.PriceTime, side::BySide)
+function Base.haskey(s::Strategy, ai, pt::PriceTime, side::BySide)
     haskey(sideorders(s, ai, side), pt)
 end
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
