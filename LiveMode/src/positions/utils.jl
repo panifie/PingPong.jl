@@ -138,7 +138,8 @@ function live_position(
             end
             pup = get_positions(s, ai, side)
             if isnothing(pup) || pup.date < since
-                @error "Unexpected position" date = isnothing(pup) ? nothing : pup.date since force pup.read[] pup.closed[]
+                @error "live pos: last force fetch failed" date =
+                    isnothing(pup) ? nothing : pup.date since force pup.read[] pup.closed[] f = @caller
                 return nothing
             end
         end
@@ -248,7 +249,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
     ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
         if isnothing(p)
-            @debug "Position side not provided, inferring from position state"
+            @debug "ccxt posside: side not provided, inferring from position state" @caller
             _ccxtpnlside(update, eid)
         else
             posside(p)
@@ -260,7 +261,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
             elseif pyeq(Bool, side_str, @pyconst("long"))
                 Long()
             else
-                @debug "Position side flag not valid (non open pos?), inferring from position state"
+                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" f = @caller
                 # @debug "Resp of invalid position flag" update
                 _ccxtpnlside(update, eid)
             end
@@ -311,8 +312,8 @@ function waitforpos(
             pup = get_positions(s, ai, bp)
             isnothing(pup) || break
             slept < timeout || begin
-                @debug "Wait for position: timedout (position not found)" ai = raw(ai) side =
-                    bp
+                @debug "wait for pos: timedout (position not found)" ai = raw(ai) side =
+                    bp f = @caller
                 return false
             end
             sleep(minsleep)
@@ -321,36 +322,36 @@ function waitforpos(
         end
     end
     prev_timestamp = pup.date
-    @debug "Wait for position" prev_timestamp since
+    @debug "wait for pos" prev_timestamp since
     isnothing(since) || if prev_timestamp >= since
         return true
     end
     this_timestamp = prev_timestamp - Millisecond(1)
     prev_closed = isnothing(pup) || pup.closed[]
-    @debug "Wait for position: waiting" side = bp timeout = timeout read = pup.read[] prev_closed
+    @debug "wait for pos: waiting" side = bp timeout = timeout read = pup.read[] prev_closed
 
     while true
         slept += waitforcond(pup.notify, timeout - slept)
         this_timestamp = @something pytodate(pup.resp, eid) prev_timestamp - Millisecond(1)
         if this_timestamp >= prev_timestamp >= since
-            @debug "Wait for position: up to date " prev_timestamp this_timestamp resp_position_contracts(
+            @debug "wait for pos: up to date " prev_timestamp this_timestamp resp_position_contracts(
                 pup.resp, eid
             ) pup.closed[]
             return true
         else
             this_closed = pup.closed[]
             if this_closed && this_closed != prev_closed
-                @debug "Wait for position: was closed"
+                @debug "wait for pos: closed"
                 return true # Position was closed but timestamp wasn't updated
             else
                 prev_closed = this_closed
             end
-            @debug "Wait for position:" time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp = pytodate(
+            @debug "wait for pos:" time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp = pytodate(
                 pup.resp, eid
             ) side = posside(bp) ai = raw(ai)
         end
         slept < timeout || begin
-            @debug "Wait for position: timedout" ai = raw(ai) side = bp
+            @debug "wait for pos: timedout" ai = raw(ai) side = bp f = @caller
             return false
         end
     end
@@ -368,21 +369,36 @@ function waitforpos(s::LiveStrategy, ai, bp::ByPos, ::Val{:local}; waitfor=Secon
     end
 end
 
-function waitposclose(s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5))
+function waitposclose(
+    s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5), sync=true
+)
     eid = exchangeid(ai)
     slept = 0
     timeout = Millisecond(waitfor).value
     update = get_positions(s, ai, bp)
+    last_sync = false
     while true
-        if update.closed[] || iszero(resp_position_contracts(update.resp, eid))
+        if update.closed[] ||
+            iszero(resp_position_contracts(update.resp, eid)) ||
+            isempty(resp_position_side(update.resp, eid))
             return true
         elseif slept >= timeout
-            @debug "Waiting for position close timedout" ai = raw(ai) bp
-            return false
+            if last_sync || !sync
+                @debug "wait pos close: timedout" ai = raw(ai) bp last_sync f = @caller
+                return false
+            else
+                @deassert sync
+                update = live_position(s, ai, bp; force=true)
+                @debug "wait pos close: last sync" ai = raw(ai) bp date =
+                    isnothing(update) ? nothing : update.date closed =
+                    isnothing(update) ? nothing : update.closed[]
+                last_sync = true
+                continue
+            end
         end
         slept += waitforcond(update.notify, timeout - slept)
         update = get_positions(s, ai, bp)
-        @debug "Waiting for position to be closed" ai = raw(ai) side = posside(bp) closed = update.closed[] contracts = resp_position_contracts(
+        @debug "wait pos close: waiting" ai = raw(ai) side = posside(bp) closed = update.closed[] contracts = resp_position_contracts(
             update.resp, eid
         ) slept timeout
     end
