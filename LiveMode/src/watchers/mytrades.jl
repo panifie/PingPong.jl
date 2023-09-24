@@ -354,11 +354,26 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     this_count > prev_count
 end
 
-function _force_fetchtrade(s, ai, o)
-    resp = fetch_order_trades(s, ai, o.id)
-    if resp isa Exception
-        @ifdebug ispyminor_error(resp) || @debug "Error fetching trades (force fetch)" resp
-    else
-        handle_trades!(s, ai, active_orders(s, ai), resp)
+function _force_fetchtrades(s, ai, o)
+    ordersby_id = active_orders(s, ai)
+    state = get_order_state(ordersby_id, o.id)
+    @debug "force fetch trades: " locked = isnothing(state) ? nothing : islocked(state.lock) ai = raw(
+        ai
+    ) f = @caller
+    prev_count = length(trades(o))
+    if state isa LiveOrderState
+        waslocked = islocked(state.lock)
+        @lock state.lock begin
+            waslocked && length(trades(o)) != prev_count && return nothing
+            resp = fetch_order_trades(s, ai, o.id)
+            if resp isa Exception
+                @ifdebug ispyminor_error(resp) ||
+                    @debug "Error fetching trades (force fetch)" resp
+            elseif islist(resp)
+                handle_trades!(s, ai, ordersby_id, resp)
+            else
+                @error "force fetch trades: invalid repsonse " resp_trades
+            end
+        end
     end
 end

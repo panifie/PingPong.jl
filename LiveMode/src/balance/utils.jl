@@ -12,12 +12,14 @@ end
 
 function _force_fetchbal(s; fallback_kwargs)
     w = balance_watcher(s)
+    @debug "force fetch bal: locking w" islocked(w) f = @caller ai = raw(ai)
+    waslocked = islocked(w)
     @lock w begin
+        waslocked && return nothing
         resp = fetch_balance(s; fallback_kwargs...)
         bal = _handle_bal_resp(resp)
         pushnew!(w, bal)
         process!(w)
-        return bal
     end
 end
 
