@@ -20,7 +20,7 @@ function live_sync_position!(
 )
     let queue = asset_queue(s, ai)
         if queue[] > 1
-            @debug "Skipping position sync since events queue is congested ($(queue[]))"
+            @debug "sync pos: skipping position sync since events queue is congested ($(queue[]))"
             return nothing
         end
     end
@@ -32,7 +32,7 @@ function live_sync_position!(
 
     # check hedged mode
     resp_position_hedged(resp, eid) == ishedged(pos) || begin
-        @warn "Position hedged mode mismatch (local: $(pos.hedged))"
+        @warn "sync pos: hedged mode mismatch (local: $(pos.hedged))"
         marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai))
     end
     skipchecks || begin
@@ -43,12 +43,12 @@ function live_sync_position!(
                 oppos = opposite(pside)
 
                 if amount > ZERO
-                    @warn "Double position open in NON hedged mode. Resetting opposite side." oppos raw(
+                    @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos raw(
                         ai
                     ) nameof(s)
                     pong!(s, ai, oppos, now(), PositionClose(); amount)
                     if isopen(opposite(ai, pside))
-                        @error "Failed to close opposite position" opposite_position = position(
+                        @error "sync pos: failed to close opposite position" opposite_position = position(
                             ai, oppos
                         ) raw(ai) nameof(s)
                         return pos
@@ -63,21 +63,22 @@ function live_sync_position!(
 
     if update.closed[]
         isdust(ai, _ccxtposprice(ai, resp), pside) ||
-            @warn "Position cash expected to be (close to) zero, found $(cash(ai, pside))"
+            @warn "sync pos: cash expected to be (close to) zero, found $(cash(ai, pside))"
         update.read[] = true
         reset!(pos)
         return pos
     end
     this_timestamp = resp_position_timestamp(resp, eid)
-    @ifdebug if this_timestamp <= timestamp(pos)
-        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp
+    if this_timestamp <= timestamp(pos)
+        @info "sync pos: position timestamp not newer" timestamp(pos) this_timestamp
+        return pos
     end
 
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
         pyisnone(mm) ||
             pyeq(Bool, mm, _ccxtmarginmode(pos)) ||
-            @warn "Position margin mode mismatch local: $(marginmode(pos)), remote: $(mm)"
+            @warn "sync pos: position margin mode mismatch local: $(marginmode(pos)), remote: $(mm)"
     end
 
     # resp cash, (always positive for longs, or always negative for shorts)
@@ -94,14 +95,16 @@ function live_sync_position!(
         @debug "Position should be closed " isopen(ai, p)
         return pos
     end
-    @debug "Syncing position" date = timestamp(pos) ai = raw(ai) side = pside
+    @debug "sync pos: syncing" date = timestamp(pos) ai = raw(ai) side = pside
     pos.status[] = PositionOpen()
     let lap = ai.lastpos
         if isnothing(lap[]) || timestamp(ai, opposite(pside)) <= this_timestamp
             lap[] = pos
         end
     end
-    dowarn(what, val) = @warn "Unable to sync $what from $(nameof(exchange(ai))), got $val"
+    function dowarn(what, val)
+        @warn "sync pos: unable to sync $what from $(nameof(exchange(ai))), got $val"
+    end
     # price is always positive
     ep = pytofloat(ep_in)
     ep = if ep > zero(DFT)
@@ -115,7 +118,7 @@ function live_sync_position!(
         pos_price
     end
     commits && let comm = committed(s, ai, pside)
-        @debug "Local committment" comm ai = raw(ai) side = pside
+        @debug "sync pos: local committment" comm ai = raw(ai) side = pside
         isapprox(committed(pos).value, comm) || commit!(pos, comm)
     end
 
@@ -151,7 +154,7 @@ function live_sync_position!(
             end
         end
     end
-    @assert ntl > ZERO "Notional can't be zero"
+    @assert ntl > ZERO "sync pos: notional can't be zero"
 
     tier!(pos, ntl)
     lqp = resp_position_liqprice(resp, eid)
@@ -203,7 +206,7 @@ function live_sync_position!(
     mrg_set || _margin!()
     mm_set || resp_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
     function higherwarn(whata, whatb, a, b)
-        "($(raw(ai))) $whata ($(a)) can't be higher than $whatb ($(b))"
+        "sync pos: ($(raw(ai))) $whata ($(a)) can't be higher than $whatb ($(b))"
     end
     @assert maintenance(pos) <= collateral(pos) higherwarn(
         "maintenance", "collateral", maintenance(pos), collateral(pos)
