@@ -254,7 +254,7 @@ resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopP
 resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice")
 resp_order_info(resp, ::EIDType)::Option{DFT} = get_py(resp, "info")
 
-resp_position_side(resp, ::EIDType) = get_py(resp, Pos.side)
+resp_position_side(resp, ::EIDType) = get_py(resp, @pyconst(""), Pos.side)
 resp_position_symbol(resp, ::EIDType) = get_py(resp, Pos.symbol)
 function resp_position_symbol(resp, ::EIDType, ::Type{String})
     get_py(resp, Pos.symbol) |> pytostring
