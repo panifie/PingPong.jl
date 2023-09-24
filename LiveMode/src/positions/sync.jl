@@ -17,6 +17,7 @@ function live_sync_position!(
     ep_in=resp_position_entryprice(update.resp, exchangeid(ai)),
     commits=true,
     skipchecks=false,
+    overwrite=true,
 )
     let queue = asset_queue(s, ai)
         if queue[] > 1
@@ -70,8 +71,8 @@ function live_sync_position!(
     end
     this_timestamp = resp_position_timestamp(resp, eid)
     if this_timestamp <= timestamp(pos)
-        @info "sync pos: position timestamp not newer" timestamp(pos) this_timestamp
-        return pos
+        @info "sync pos: position timestamp not newer" timestamp(pos) this_timestamp overwrite
+        overwrite || return pos
     end
 
     # Margin/hedged mode are immutable so just check for mismatch
@@ -275,19 +276,16 @@ end
 @doc """ Asset balance is the position of the asset when margin is involved.
 
 """
-function live_sync_universe_cash!(s::MarginStrategy{Live}; kwargs...)
+function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=true, kwargs...)
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        pup = get(dict, raw(ai), nothing)
-        if isnothing(pup)
-            pup = live_position(s, ai, side; force=true)
-        end
-        if isnothing(pup)
-            reset!(ai, Long())
-            reset!(ai, Short())
+        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force=true) missing
+        if ismissing(pup)
+            @debug "sync uni: resetting position (no update)" ai = raw(ai) side
+            reset!(ai, side)
         else
-            live_sync_position!(s, ai, side, pup; kwargs...)
+            live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
         end
     end
     @sync for ai in s.universe
