@@ -1,11 +1,11 @@
 function _handle_bal_resp(resp)
     if resp isa PyException
-        @debug "Force fetch balance error" resp
+        @debug "force fetch bal: error" resp
         return nothing
     elseif isdict(resp)
         return resp
     else
-        @debug "Force fetch balance unhandled response" resp
+        @debug "force fetch bal: unhandled response" resp
         return nothing
     end
 end
@@ -41,7 +41,7 @@ function waitforbal(
             bal = get_balance(s, ai)
             isnothing(bal) || break
             slept < timeout || begin
-                @debug "Wait for balance: timedout (balance not found)" ai = raw(ai)
+                @debug "wait bal: timedout (balance not found)" ai = raw(ai) f = @caller
                 return false
             end
             sleep(minsleep)
@@ -51,7 +51,7 @@ function waitforbal(
     end
 
     prev_timestamp = @something bal.date[] DateTime(0)
-    @debug "Wait for balance" prev_timestamp since
+    @debug "wait bal" prev_timestamp since
     isnothing(since) || if prev_timestamp >= since
         return true
     end
@@ -60,22 +60,22 @@ function waitforbal(
     w = balance_watcher(s)
     cond = w.beacon.process
     buf = buffer(w)
-    @debug "Wait for balance: waiting" timeout = timeout
+    @debug "wait bal: waiting" timeout = timeout
     while true
         slept += waitforcond(cond, timeout - slept)
         if length(buf) > 0
             this_timestamp = last(buf).time
         end
         if this_timestamp >= prev_timestamp >= since
-            @debug "Wait for balance: up to date " prev_timestamp this_timestamp
+            @debug "wait bal: up to date " prev_timestamp this_timestamp
             return true
         else
-            @debug "Wait for balance:" time_left = Millisecond(timeout - slept) prev_timestamp ai = raw(
+            @debug "wait bal:" time_left = Millisecond(timeout - slept) prev_timestamp ai = raw(
                 ai
             )
         end
         slept < timeout || begin
-            @debug "Wait for balance: timedout (balance not changed)" ai = raw(ai)
+            @debug "wait bal: timedout (balance not changed)" ai = raw(ai) f = @caller
             return false
         end
     end
