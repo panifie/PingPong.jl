@@ -11,7 +11,7 @@ using PaperMode.Misc
 using .Misc: Lang, LittleDict
 using .Misc.TimeTicks
 using .Misc.Mocking: Mocking, @mock
-using .Lang: @deassert, @debug_backtrace, withoutkws
+using .Lang: @deassert, @caller, @ifdebug, @debug_backtrace, withoutkws
 using Base: SimpleLogger, with_logger
 using .Executors.Instruments: cnum
 import .Executors: pong!

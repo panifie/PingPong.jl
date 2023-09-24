@@ -178,9 +178,6 @@ islong(_) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
 isshort(_) = false
-isside(what::ByPos{Long}, side::ByPos{Long}) = true
-isside(what::ByPos{Short}, side::ByPos{Short}) = true
-isside(args...) = false
 isimmediate(::Order{<:Union{ImmediateOrderType,MarketOrderType}}) = true
 isimmediate(::Order) = false
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
@@ -200,6 +197,10 @@ const AnyTradePos{P<:PositionSide} =
     Union{T,Type{T}} where {T<:Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
 @doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
 const ByPos{P<:PositionSide} = Union{P,Type{P},AnyOrderPos{P},AnyTradePos{P}}
+
+isside(what::ByPos{Long}, side::ByPos{Long}) = true
+isside(what::ByPos{Short}, side::ByPos{Short}) = true
+isside(args...) = false
 
 export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
