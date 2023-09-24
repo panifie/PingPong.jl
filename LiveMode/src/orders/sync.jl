@@ -32,7 +32,9 @@ function live_sync_active_orders!(
     eid = exchangeid(ai)
     open_orders = fetch_open_orders(s, ai; side)
     if isnothing(open_orders)
-        @error "Couldn't fetch open orders, skipping sync" ai = raw(ai) s = nameof(s)
+        @error "sync orders: couldn't fetch open orders, skipping sync" ai = raw(ai) s = nameof(
+            s
+        )
         return nothing
     end
     # Pre-delete local orders not open on exc to fix commit calculation
@@ -41,49 +43,53 @@ function live_sync_active_orders!(
             o.id ∉ exc_ids && delete!(s, ai, o)
         end
     end
-    strict && maxout!(s, ai)
     live_orders = Set{String}()
-    default_pos = get_position_side(s, ai)
     @ifdebug begin
         cash_long = cash(ai, Long())
         comm_long = committed(ai, Long())
         cash_short = cash(ai, Short())
         comm_short = committed(ai, Short())
     end
-    @debug "Syncing orders" islocked(ai) length(open_orders)
-    @lock ai for resp in open_orders
-        id = resp_order_id(resp, eid)
-        o = (@something get(ao, id, nothing) findorder(s, ai; resp) create_live_order(
-            s,
-            resp,
-            ai;
-            t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
-            price=missing,
-            amount=missing,
-            resync=false,
-            skipcommit=(!strict),
-            withoutkws(:skipcommit; kwargs=create_kwargs)...,
-        ) missing)::Option{Order}
-        ismissing(o) && continue
-        if isfilled(ai, o)
-            isempty(trades(o)) && replay_order!(s, o, ai; resp)
-            @debug "Removing active order since filled." o.id ai = raw(ai) s = nameof(s)
-            delete!(ao, o.id)
-        else
-            @debug "Setting active order." o.id ai = raw(ai) s = nameof(s)
-            push!(live_orders, o.id)
-            replay_order!(s, o, ai; resp)
-            if filled_amount(o) > ZERO && o isa IncreaseOrder
-                @ifdebug if ai ∉ s.holdings
-                    @debug "Expected $(raw(ai)) to be in holdings $(nameof(s))"
+    @debug "sync orders: syncing" islocked(ai) length(open_orders)
+    @lock ai begin
+        default_pos = get_position_side(s, ai)
+        strict && maxout!(s, ai)
+        for resp in open_orders
+            id = resp_order_id(resp, eid)
+            o = (@something get(ao, id, nothing) findorder(s, ai; resp) create_live_order(
+                s,
+                resp,
+                ai;
+                t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
+                price=missing,
+                amount=missing,
+                resync=false,
+                skipcommit=(!strict),
+                withoutkws(:skipcommit; kwargs=create_kwargs)...,
+            ) missing)::Option{Order}
+            ismissing(o) && continue
+            if isfilled(ai, o)
+                isempty(trades(o)) && replay_order!(s, o, ai; resp)
+                @debug "sync orders: removing active order since filled." o.id ai = raw(ai) s = nameof(
+                    s
+                )
+                delete!(ao, o.id)
+            else
+                @debug "sync orders: Setting active order." o.id ai = raw(ai) s = nameof(s)
+                push!(live_orders, o.id)
+                replay_order!(s, o, ai; resp)
+                if filled_amount(o) > ZERO && o isa IncreaseOrder
+                    @ifdebug if ai ∉ s.holdings
+                        @debug "sync orders: expected $(raw(ai)) to be in holdings $(nameof(s))"
+                    end
+                    push!(s.holdings, ai)
                 end
-                push!(s.holdings, ai)
             end
         end
     end
     for o in values(s, ai)
         if o.id ∉ live_orders
-            @debug "Local order non open on exchange." o.id ai = raw(ai) exc = nameof(
+            @debug "sync orders: local order non open on exchange." o.id ai = raw(ai) exc = nameof(
                 exchange(ai)
             )
             delete!(s, ai, o)
@@ -91,9 +97,9 @@ function live_sync_active_orders!(
     end
     for (id, state) in ao
         if id ∉ live_orders
-            @debug "Tracked local order was not open on exchange" id ai = raw(ai) exc = nameof(
-                exchange(ai)
-            )
+            @debug "sync orders: tracked local order was not open on exchange" id ai = raw(
+                ai
+            ) exc = nameof(exchange(ai))
             @deassert id == state.order.id
             delete!(ao, id)
         end
@@ -110,7 +116,7 @@ function live_sync_active_orders!(
         cash_short == cash(ai, Short()),
         comm_short == committed(ai, Short()),
     ))
-    strict && @warn "Strategy and assets cash need to be resynced." maxlog = 1
+    strict && @warn "sync orders: strategy and assets cash need to be resynced." maxlog = 1
     nothing
 end
 
