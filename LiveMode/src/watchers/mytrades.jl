@@ -155,8 +155,8 @@ function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, lin
     @something(
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
         begin
-            @debug "Order not found active, waiting" id = id waitfor = waitfor _file = file _line =
-                line
+            @debug "get ord state: order not found active, waiting" id = id waitfor =
+                waitfor _file = file _line = line
             waitforcond(() -> haskey(orders_byid, id), waitfor)
             get(orders_byid, id, missing)
         end
@@ -170,15 +170,15 @@ end
 
 function handle_trades!(s, ai, orders_byid, trades)
     try
-        @debug "Trades task:" trades = trades
+        @debug "handle trades:" trades
         sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
         eid = exchangeid(ai)
         @sync for resp in trades
             try
                 id = resp_trade_order(resp, eid, String)
-                @debug "Trades event" order = id
+                @debug "handle trades: new event" order = id
                 if isempty(id)
-                    @warn "Missing order id"
+                    @warn "handle trade: missing order id"
                     continue
                 else
                     # remember events order
@@ -187,6 +187,7 @@ function handle_trades!(s, ai, orders_byid, trades)
                     @async try
                         let state = get_order_state(orders_byid, id)
                             if state isa LiveOrderState
+                                @debug "handle trades: locking state"
                                 @lock state.lock begin
                                     this_hash = trade_hash(resp, eid)
                                     this_hash ∈ state.trade_hashes || begin
@@ -195,9 +196,9 @@ function handle_trades!(s, ai, orders_byid, trades)
                                         while first(sem.queue) != n
                                             safewait(sem.cond)
                                         end
-                                        @debug "Locking ai" ai = raw(ai)
+                                        @debug "handle trades: locking ai" ai = raw(ai)
                                         t = @lock ai begin
-                                            @debug "Before trade exec" open =
+                                            @debug "handle trades: before trade exec" open =
                                                 if ismissing(state)
                                                     missing
                                                 else
@@ -223,8 +224,9 @@ function handle_trades!(s, ai, orders_byid, trades)
                                                 end
                                             end
                                         end
-                                        @debug "Trades task, after local trade" trade =
-                                            t cash = cash(ai) side = if isnothing(t)
+                                        @debug "handle trades: after exec" trade = t cash = cash(
+                                            ai
+                                        ) side = if isnothing(t)
                                             get_position_side(s, ai)
                                         else
                                             posside(t)
@@ -238,14 +240,15 @@ function handle_trades!(s, ai, orders_byid, trades)
                                         if isfilled(ai, o) && length(trades(o)) > 0
                                             amount = resp_trade_amount(resp, eid)
                                             last_amount = last(trades(o)).amount
-                                            @warn "Trade without matching active order, possibly a late trade. emulated: $last_amount, exchange: $amount "
+                                            @warn "handle trades: no matching active order, possibly a late trade" emulated =
+                                                last_amount exchange = amount
                                         else
-                                            @error "(trades) expected live order state since order was not filled" id ai = raw(
+                                            @error "handle trades: expected live order state since order was not filled" id ai = raw(
                                                 ai
                                             ) s = nameof(s)
                                         end
                                     else
-                                        @warn "(trades) trade event without matching order nor state" id ai = raw(
+                                        @warn "handle trades: no matching order nor state" id ai = raw(
                                             ai
                                         ) s = nameof(s)
                                     end
