@@ -62,12 +62,12 @@ function live_sync_position!(
         end
         update.read[] && begin
             @debug "sync pos: update already read" ai = raw(ai) pside
-            return pos
+            overwrite || return pos
         end
     end
 
     if update.closed[]
-        if isdust(ai, _ccxtposprice(ai, resp), pside) && isfinite(cash(pos))
+        if !isdust(ai, _ccxtposprice(ai, resp), pside) && isfinite(cash(pos))
             @warn "sync pos: cash expected to be (close to) zero, found" cash = cash(
                 ai, pside
             ) cash(ai, pside).precision
@@ -77,9 +77,9 @@ function live_sync_position!(
         @debug "sync pos: closed flag set, reset"
         return pos
     end
-    this_timestamp = resp_position_timestamp(resp, eid)
+    this_timestamp = update.date
     if this_timestamp <= timestamp(pos)
-        @info "sync pos: position timestamp not newer" timestamp(pos) this_timestamp overwrite
+        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp overwrite f = @caller
         overwrite || return pos
     end
 
@@ -238,14 +238,23 @@ function live_sync_position!(
         "min size", "notional", pos.min_size, notional(pos)
     )
     timestamp!(pos, this_timestamp)
+    @debug "sync pos: synced" date = this_timestamp amount = resp_position_contracts(
+        update.resp, eid
+    ) ai = raw(ai) f = @caller
     update.read[] = true
     return pos
 end
 
 function live_sync_position!(
-    s::LiveStrategy, ai::MarginInstance, pos::ByPos; force=true, since=nothing, kwargs...
+    s::LiveStrategy,
+    ai::MarginInstance,
+    pos::ByPos;
+    force=true,
+    since=nothing,
+    waitfor=Second(5),
+    kwargs...,
 )
-    update = live_position(s, ai, pos; force, since)
+    update = live_position(s, ai, pos; force, since, waitfor)
     isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
 end
 
