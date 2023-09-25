@@ -317,15 +317,15 @@ macro debug_backtrace()
 end
 
 _dedup_funcs(st::Vector{Base.StackFrame}) = begin
-    fnames = String[]
+    fnames = NTuple{2,String}[]
     for frame in st
         name = string(frame.func)
         if occursin("#", name)
             name = split(name, "#")[2]
         end
-        push!(fnames, string(name, ":", frame.line))
+        push!(fnames, (name, string(":", frame.line)))
     end
-    unique!(fnames)
+    unique!(x -> x[1], fnames) .|> join
 end
 
 macro caller(n=4)
