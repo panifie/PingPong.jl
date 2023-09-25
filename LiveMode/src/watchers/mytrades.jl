@@ -343,10 +343,17 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     slept = 0
     side = orderside(o)
     pt = pricetime(o)
-    @debug "Waiting for trade " id = o.id timeout = timeout current_trades = this_count
+    active = active_orders(s, ai)
+    @debug "wait for trade:" id = o.id timeout = timeout current_trades = this_count
     while true
-        slept < timeout || return false
-        haskey(s, ai, pt, o) || return false
+        slept < timeout || begin
+            @debug "wait for trade: timedout"
+            return false
+        end
+        isactive(s, ai, o; pt, active) || begin
+            @debug "wait for trade: order not present"
+            return false
+        end
         slept += waitfortrade(s, ai; waitfor=timeout - slept)
         this_count = length(order_trades)
         this_count > prev_count && return true

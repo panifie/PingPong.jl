@@ -121,6 +121,12 @@ function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=Both)
     return false
 end
 
-function isactive(s::LiveStrategy, ai, o; active=active_orders(s, ai))
+function isactive(
+    s::LiveStrategy, ai, o::AnyLimitOrder; pt=pricetime(o), active=active_orders(s, ai)
+)
+    haskey(s, ai, pt, o) && haskey(active, o.id)
+end
+
+function isactive(s::LiveStrategy, ai, o; active=active_orders(s, ai), kwargs...)
     haskey(active, o.id)
 end
