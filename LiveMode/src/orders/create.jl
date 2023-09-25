@@ -3,6 +3,7 @@ using .PaperMode: create_sim_limit_order
 using .PaperMode.SimMode: construct_order_func
 using .Executors.Instruments: AbstractAsset
 using .OrderTypes: ordertype
+using .Lang: filterkws
 
 function create_live_order(
     s::LiveStrategy,

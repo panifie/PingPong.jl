@@ -40,7 +40,7 @@ function fill!(
     @deassert attr(o, :unfilled)[] |> ltxzero
     # NOTE: committment is always positive except for short buy orders
     # where that's committed is shorted (negative) asset cash
-    @deassert t.amount > 0.0 && committed(o) < 0.0
+    @deassert t.amount > 0.0 && committed(o) < 0.0 (committed(o), trades(o))
     attr(o, :committed)[] += amt # from neg to 0 (buy amount is pos)
     @deassert committed(o) |> ltxzero
 end
