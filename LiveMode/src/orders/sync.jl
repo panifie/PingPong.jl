@@ -25,8 +25,10 @@ maxout!(s::LiveStrategy, ai) = begin
     end
 end
 
+_amount_from_trades(trades) = sum(t.amount for t in trades)
+
 function live_sync_active_orders!(
-    s::LiveStrategy, ai; strict=true, create_kwargs=(;), side=Both
+    s::LiveStrategy, ai; strict=true, exec=false, create_kwargs=(;), side=Both
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
@@ -69,18 +71,22 @@ function live_sync_active_orders!(
             ) missing)::Option{Order}
             ismissing(o) && continue
             if isfilled(ai, o)
-                isempty(trades(o)) && replay_order!(s, o, ai; resp)
-                @debug "sync orders: removing active order since filled." o.id ai = raw(ai) s = nameof(
-                    s
-                )
+                isapprox(ai, _amount_from_trades(trades(o)), o.amount, Val(:amount)) ||
+                    begin
+                        @debug "sync orders: replaying filled order with no trades"
+                        replay_order!(s, o, ai; resp, exec=false)
+                    end
+                @debug "sync orders: removing filled active order" o.id o.amount trades_amount = _amount_from_trades(
+                    trades(o)
+                ) ai = raw(ai) s = nameof(s)
                 delete!(ao, o.id)
             else
-                @debug "sync orders: Setting active order." o.id ai = raw(ai) s = nameof(s)
+                @debug "sync orders: setting active order" o.id ai = raw(ai) s = nameof(s)
                 push!(live_orders, o.id)
-                replay_order!(s, o, ai; resp)
+                replay_order!(s, o, ai; resp, exec)
                 if filled_amount(o) > ZERO && o isa IncreaseOrder
                     @ifdebug if ai ∉ s.holdings
-                        @debug "sync orders: expected $(raw(ai)) to be in holdings $(nameof(s))"
+                        @debug "sync orders: asset not in holdings" ai = raw(ai)
                     end
                     push!(s.holdings, ai)
                 end
@@ -95,13 +101,37 @@ function live_sync_active_orders!(
             delete!(s, ai, o)
         end
     end
-    for (id, state) in ao
+    @sync for (id, state) in ao
         if id ∉ live_orders
             @debug "sync orders: tracked local order was not open on exchange" id ai = raw(
                 ai
             ) exc = nameof(exchange(ai))
             @deassert id == state.order.id
-            delete!(ao, id)
+            if isopen(ai, state.order) # need to sync trades
+                @async begin
+                    order_resp = try
+                        resp = fetch_orders(s, ai; ids=(id,))
+                        if islist(resp) && !isempty(resp)
+                            resp[0]
+                        elseif isdict(resp)
+                            resp
+                        end
+                    catch
+                        @debug_backtrace
+                    end
+                    @deassert resp_order_id(order_resp, eid, String) == id
+                    if isnothing(order_resp)
+                        @error "sync orders: local order not found on exchange" id ai = raw(
+                            ai
+                        ) exc = nameof(exchange(ai))
+                    else
+                        replay_order!(s, state.order, ai; resp=order_resp, exec)
+                    end
+                    delete!(ao, id)
+                end
+            else
+                delete!(ao, id)
+            end
         end
     end
     @deassert orderscount(s, ai) == length(live_orders)
@@ -140,7 +170,7 @@ function findorder(
     end
 end
 
-function replay_order!(s::LiveStrategy, o, ai; resp)
+function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
     eid = exchangeid(ai)
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
@@ -169,10 +199,10 @@ function replay_order!(s::LiveStrategy, o, ai; resp)
         local_amt = abs(first(trades(o)).amount)
         resp_amt = resp_trade_amount(trade, eid)
         # When a mismatch happens we reset local state for the order
-        if !isapprox(ai, local_amt, resp_amt, Val(:amount))
-            @warn "Resetting local trades because of mismatching amounts \
-            $local_amt (local) $resp_amt ($(nameof(exchange(ai)))) \
-            for order $(o.id) ($(raw(ai))@$(nameof(s))). (And removing from trades history)"
+        if isapprox(ai, local_amt, resp_amt, Val(:amount))
+            @warn "sync active: mismatching amounts (resetting)" local_amt resp_amt o.id ai = raw(
+                ai
+            ) exc = nameof(exchange(ai))
             local_count = 0
             # remove trades from asset trades history
             filter!(t -> t.order !== o, trades(ai))
@@ -181,14 +211,28 @@ function replay_order!(s::LiveStrategy, o, ai; resp)
         end
     end
     new_trades = @view order_trades[(begin + local_count):end]
-    if !isempty(new_trades)
-        for trade_resp in new_trades
-            trade = maketrade(s, o, ai; resp=trade_resp)
-            apply_trade!(s, ai, o, trade)
-        end
+    if isempty(new_trades)
+        trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
+        exec || isnothing(trade) || apply_trade!(s, ai, o, trade)
     else
-        trade = emulate_trade!(s, o, ai; state.average_price, resp, exec=false)
-        isnothing(trade) || apply_trade!(s, ai, o, trade)
+        for trade_resp in new_trades
+            if exec
+                trade!(
+                    s,
+                    state.order,
+                    ai;
+                    resp=trade_resp,
+                    date=nothing,
+                    price=nothing,
+                    actual_amount=nothing,
+                    fees=nothing,
+                    slippage=false,
+                )
+            else
+                trade = maketrade(s, o, ai; resp=trade_resp)
+                apply_trade!(s, ai, o, trade)
+            end
+        end
     end
     o
 end

@@ -82,7 +82,7 @@ function waitfor_closed(
                 @debug "wait ord close: timedout" ai = raw(ai) side = t waitfor f = @caller
                 if resync
                     @warn "wait ord close: resyncing"
-                    live_sync_active_orders!(s, ai; side=t, strict=false)
+                    live_sync_active_orders!(s, ai; side=t, strict=false, exec=true)
                     success = if isactive(s, ai; side=t)
                         @error "wait ord close: orders still active" side = t n = orderscount(
                             s, ai, t
@@ -100,7 +100,7 @@ function waitfor_closed(
         if success
             if orderscount(s, ai, t) > 0
                 @debug "wait ord close: resyncing(2nd) f" orderscount(s, ai, t)
-                live_sync_active_orders!(s, ai; side=t, strict=false)
+                live_sync_active_orders!(s, ai; side=t, strict=false, exec=true)
                 orderscount(s, ai, t) > 0
             else
                 true
