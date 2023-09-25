@@ -16,9 +16,10 @@ function _force_fetchbal(s; fallback_kwargs)
     waslocked = islocked(w)
     @lock w begin
         waslocked && return nothing
+        time = now()
         resp = fetch_balance(s; fallback_kwargs...)
         bal = _handle_bal_resp(resp)
-        pushnew!(w, bal)
+        pushnew!(w, bal, time)
         process!(w)
     end
 end

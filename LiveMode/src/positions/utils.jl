@@ -85,6 +85,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     waslocked = islocked(w)
     @lock w begin
         waslocked && return nothing
+        time = now()
         resp = fetch_positions(s, ai; side, fallback_kwargs...)
         pos = _handle_pos_resp(resp, ai, side)
         pushnew!(
@@ -94,6 +95,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
             else
                 pylist((pos,))
             end,
+            time,
         )
         process!(w; sym=raw(ai))
     end
