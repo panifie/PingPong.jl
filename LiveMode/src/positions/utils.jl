@@ -55,10 +55,10 @@ function _handle_pos_resp(resp, ai, side)
     elseif islist(resp)
         if isempty(resp)
             @debug "force fetch pos: returned an empty list $sym($side)"
-            return nothing
+            return resp
         else
             for this in resp
-                @debug "force fetch el: " resp_position_timestamp(this, eid) resp_position_contracts(
+                @debug "force fetch pos: list el" resp_position_timestamp(this, eid) resp_position_contracts(
                     this, eid
                 ) side _ccxtposside(this, eid) issym = _ispossym(this, sym, eid)
                 if _ccxtposside(this, eid) == side && _ispossym(this, sym, eid)
@@ -112,7 +112,7 @@ function live_position(
 )
     pup = get_positions(s, ai, side)::Option{PositionUpdate7}
 
-    @ifdebug force && @debug "Force fetching position" watcher_locked = islocked(
+    @ifdebug force && @debug "live pos: force fetching position" watcher_locked = islocked(
         positions_watcher(s)
     ) maxlog = 1
     if force &&
@@ -150,6 +150,11 @@ end
 
 function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     update = live_position(s, ai, args...; kwargs...)
+    @ifdebug if isnothing(update)
+        @debug "live contracts: " update
+    else
+        @debug "live contracts: " update.read[] update.closed[]
+    end
     if isnothing(update) || update.closed[]
         ZERO
     else
@@ -263,7 +268,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
             elseif pyeq(Bool, side_str, @pyconst("long"))
                 Long()
             else
-                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" f = @caller
+                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" side_str f = @caller
                 # @debug "Resp of invalid position flag" update
                 _ccxtpnlside(update, eid)
             end
@@ -314,8 +319,7 @@ function waitforpos(
             pup = get_positions(s, ai, bp)
             isnothing(pup) || break
             slept < timeout || begin
-                @debug "wait for pos: timedout (position not found)" ai = raw(ai) side =
-                    bp f = @caller
+                @debug "wait for pos: timedout (position not found)" ai = raw(ai) side = bp f = @caller
                 return false
             end
             sleep(minsleep)
@@ -324,7 +328,7 @@ function waitforpos(
         end
     end
     prev_timestamp = pup.date
-    @debug "wait for pos" prev_timestamp since
+    @debug "wait for pos" prev_timestamp since resp_position_contracts(pup.resp, eid) f = @caller
     isnothing(since) || if prev_timestamp >= since
         return true
     end
@@ -386,14 +390,15 @@ function waitposclose(
             return true
         elseif slept >= timeout
             if last_sync || !sync
-                @debug "wait pos close: timedout" ai = raw(ai) bp last_sync f = @caller
+                @debug "wait pos close: timedout" ai = raw(ai) bp last_sync f = @caller(5)
                 return false
             else
                 @deassert sync
                 update = live_position(s, ai, bp; force=true)
                 @debug "wait pos close: last sync" ai = raw(ai) bp date =
                     isnothing(update) ? nothing : update.date closed =
-                    isnothing(update) ? nothing : update.closed[]
+                    isnothing(update) ? nothing : update.closed[] amount =
+                    isnothing(update) ? nothing : resp_position_contracts(update.resp, eid)
                 last_sync = true
                 continue
             end
