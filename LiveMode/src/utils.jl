@@ -217,6 +217,8 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
 end
 
 function _orders_func!(a, exc)
+    # NOTE: these function are not similar since the single fetchOrder functions
+    # fetch by id, while fetchOrders might not find the order (if it is too old)
     a[:live_orders_func] = if has(exc, :fetchOrders)
         (ai; kwargs...) ->
             _fetch_orders(ai, first(exc, :fetchOrdersWs, :fetchOrders); kwargs...)
