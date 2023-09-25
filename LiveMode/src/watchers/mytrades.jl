@@ -363,24 +363,30 @@ end
 
 function _force_fetchtrades(s, ai, o)
     ordersby_id = active_orders(s, ai)
-    state = get_order_state(ordersby_id, o.id)
-    @debug "force fetch trades: " locked = isnothing(state) ? nothing : islocked(state.lock) ai = raw(
-        ai
-    ) f = @caller
-    prev_count = length(trades(o))
+    state = get_order_state(ordersby_id, o.id; waitfor=Millisecond(0))
+    @debug "force fetch trades: " locked =
+        state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller
+    function handler()
+        @debug "force fetch trades: fetching" o.id
+        resp = fetch_order_trades(s, ai, o.id)
+        if resp isa Exception
+            @ifdebug ispyminor_error(resp) ||
+                @debug "Error fetching trades (force fetch)" resp
+        elseif islist(resp)
+            handle_trades!(s, ai, ordersby_id, resp)
+        else
+            @error "force fetch trades: invalid repsonse " resp
+        end
+    end
+
     if state isa LiveOrderState
+        prev_count = length(trades(o))
         waslocked = islocked(state.lock)
         @lock state.lock begin
             waslocked && length(trades(o)) != prev_count && return nothing
-            resp = fetch_order_trades(s, ai, o.id)
-            if resp isa Exception
-                @ifdebug ispyminor_error(resp) ||
-                    @debug "Error fetching trades (force fetch)" resp
-            elseif islist(resp)
-                handle_trades!(s, ai, ordersby_id, resp)
-            else
-                @error "force fetch trades: invalid repsonse " resp_trades
-            end
+            handler()
         end
+    else
+        handler()
     end
 end
