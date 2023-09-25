@@ -168,22 +168,33 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
 end
 
 function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
+    set!(sym, pup) = begin
+        prev_closed = pup.closed[]
+        if (sym, side) ∉ processed_syms
+            pup_prev = get(dict, sym, nothing)
+            @deassert pup_prev === pup
+            dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+            pup.closed[] = true
+            # NOTE: this might fix some race conditions (when a position is updated right after)
+            # the new update might have a lower timestamp and would skip sync (from `live_position_sync!`). Therefore
+            # we only reset `read` state on the first time we check that a position is closed.
+            if prev_closed != pup.closed[]
+                pup.read[] = false
+            end
+        else
+            pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
+            pup.read[] = false
+        end
+        safenotify(pup.notify)
+    end
     if isnothing(sym)
         for (sym, pup) in dict
-            if (pup.closed[] = (sym, side) ∉ processed_syms)
-                pup_prev = get(dict, sym, nothing)
-                @deassert pup_prev === pup
-                dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
-            end
-            pup.read[] = false
-            safenotify(pup.notify)
+            set!(sym, pup)
         end
     else
         pup = get(dict, sym, nothing)
         if pup isa PositionUpdate7
-            pup.read[] = false
-            pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
-            safenotify(pup.notify)
+            set!(sym, pup)
         end
     end
 end
