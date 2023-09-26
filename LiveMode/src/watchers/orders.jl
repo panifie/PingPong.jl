@@ -3,7 +3,10 @@ using .Executors: filled_amount, orderscount, orders
 using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
 using .SimMode: @maketrade
-# using .OrderTypes: OrderFailed
+
+# TODO: `watch_orders!` and `watch_trades!` currently operate on one symbol only.
+# This could be improved by batching new tasks called within a short amount time
+# and use the `...ForSymbols` functions from ccxt.
 
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
