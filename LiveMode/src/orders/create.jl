@@ -21,6 +21,7 @@ function create_live_order(
         return nothing
     end
     eid = exchangeid(ai)
+    side = @something _orderside(resp, eid) orderside(t)
     @debug "Creating order" status = resp_order_status(resp, eid) filled =
         resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
     _ccxtisopen(resp, eid) ||
@@ -34,7 +35,6 @@ function create_live_order(
         if isnothing(ot)
             t
         else
-            side = @something _orderside(resp, eid) orderside(t)
             pos = posside(t)
             Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
         end
@@ -43,7 +43,13 @@ function create_live_order(
     price = resp_order_price(resp, eid, price, Val(:price); ai)
     loss = resp_order_loss_price(resp, eid)
     profit = resp_order_profit_price(resp, eid)
-    date = @something pytodate(resp, eid) now()
+    date = let this_date = @something pytodate(resp, eid) now()
+        # ensure order pricetime doesn't clash
+        while haskey(s, ai, (; price, time=this_date), side)
+            this_date += Millisecond(1)
+        end
+        this_date
+    end
     id = @something _orderid(resp, eid) begin
         @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
         string(hash((price, date)))

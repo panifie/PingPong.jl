@@ -232,9 +232,13 @@ function hasorders(s::Strategy, ai, id::String, ::BySide{S}) where {S<:OrderSide
     false
 end
 Base.haskey(s::Strategy, ai, o::Order) = haskey(sideorders(s, ai, o), pricetime(o))
-function Base.haskey(s::Strategy, ai, pt::PriceTime, side::BySide)
+function Base.haskey(s::Strategy, ai, pt::PriceTime, side::BySide{<:Union{Buy,Sell}})
     haskey(sideorders(s, ai, side), pt)
 end
+function Base.haskey(s::Strategy, ai, pt::PriceTime, ::BySide{Both})
+    haskey(sideorders(s, ai, Buy), pt) || haskey(sideorders(s, ai, Sell), pt)
+end
+Base.haskey(s::Strategy, ai, pt::PriceTime) = haskey(s, ai, pt, Both)
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 hasorders(s::Strategy, ::Type{Sell}) = begin
     for (_, ords) in s.sellorders
