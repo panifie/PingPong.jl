@@ -108,4 +108,17 @@ function live_balance(
                 return nothing
             end
         end
+    bal
 end
+
+function _live_kind(args...; kind, kwargs...)
+    bal = live_balance(args...; kwargs...)
+    if isnothing(bal)
+    else
+        getproperty(bal.balance, kind)
+    end
+end
+
+live_total(args...; kwargs...) = _live_kind(args...; kind=:total, kwargs...)
+live_used(args...; kwargs...) = _live_kind(args...; kind=:used, kwargs...)
+live_free(args...; kwargs...) = _live_kind(args...; kind=:free, kwargs...)
