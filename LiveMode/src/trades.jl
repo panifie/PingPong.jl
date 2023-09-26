@@ -232,7 +232,7 @@ end
 
 function _warn_cash(s, ai, o; actual_amount)
     iscashenough(s, ai, actual_amount, o) ||
-        @warn "Live trade executed with non local cash, strategy ($(nameof(s)))) or asset ($(raw(ai))) likely out of sync!"
+        @warn "make trade: local cash not enough" cash(ai) o.id actual_amount
 end
 
 function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, kwargs...)

@@ -23,6 +23,9 @@ function fill!(::LiveStrategy, ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert committed(o) == o.attrs.committed[] && committed(o) |> gtxzero
     # from pos to 0 (sell amount is neg)
     amt = _deducted_amount(t)
+    @ifdebug if o isa AnyMarketOrder
+        @info "AMOUNT: " amt attr(o, :unfilled) attr(o, :committed) o.amount
+    end
     attr(o, :unfilled)[] += amt
     @deassert attr(o, :unfilled)[] |> gtxzero
     # from pos to 0 (sell amount is neg)
@@ -59,4 +62,3 @@ function fill!(
     # ShortSell limit orders can spend more than committed because of slippage
     @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
 end
-

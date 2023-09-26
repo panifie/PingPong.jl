@@ -107,9 +107,12 @@ function stop_all_strategy_tasks(s::LiveStrategy; reset=false, kwargs...)
     empty!(accounts)
 end
 
-stop_all_tasks(s::LiveStrategy; reset=true) = @sync begin
-    @async stop_all_asset_tasks(s; reset)
-    @async stop_all_strategy_tasks(s; reset)
+function stop_all_tasks(s::LiveStrategy; reset=true)
+    @sync begin
+        @async stop_all_asset_tasks(s; reset)
+        @async stop_all_strategy_tasks(s; reset)
+    end
+    @debug "tasks: stopped all" s = nameof(s)
 end
 
 # wait_update(task::Task) = safewait(task.storage[:notify])
