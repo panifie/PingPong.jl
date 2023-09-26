@@ -174,7 +174,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
     eid = exchangeid(ai)
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
-        iszero(filled_amount(o)) || reset!(o)
+        iszero(filled_amount(o)) || reset!(o, ai)
         return o
     end
     if ismissing(state)
@@ -207,7 +207,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
             # remove trades from asset trades history
             filter!(t -> t.order !== o, trades(ai))
             # reset order
-            reset!(o)
+            reset!(o, ai)
         end
     end
     new_trades = @view order_trades[(begin + local_count):end]
@@ -246,7 +246,7 @@ function aftertrade_nocommit!(s, ai, o::Union{AnyFOKOrder,AnyIOCOrder}, _)
     delete!(s, ai, o)
     isfilled(ai, o) || ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
 end
-aftertrade_nocommit!(_, _, o::AnyMarketOrder) = nothing
+aftertrade_nocommit!(_, _, o::AnyMarketOrder, args...) = nothing
 @doc """ Similar to `trade!` but doesn't update cash.
 
 

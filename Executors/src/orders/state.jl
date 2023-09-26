@@ -331,7 +331,7 @@ function committed(o::Order)
 end
 cost(o::Order) = o.price * abs(o.amount)
 
-function reset!(o::Order)
+function reset!(o::Order, ai)
     empty!(trades(o))
     attr(o, :committed)[] = committment(ai, o)
     attr(o, :unfilled)[] = unfillment(o)
