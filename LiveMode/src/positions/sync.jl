@@ -17,7 +17,8 @@ function live_sync_position!(
     ep_in=resp_position_entryprice(update.resp, exchangeid(ai)),
     commits=true,
     skipchecks=false,
-    overwrite=true,
+    overwrite=false,
+    waitfor=Second(5),
 )
     let queue = asset_queue(s, ai)
         if queue[] > 1
@@ -47,22 +48,17 @@ function live_sync_position!(
                     @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos raw(
                         ai
                     ) nameof(s) f = @caller
-                    pong!(s, ai, oppos, now(), PositionClose(); amount)
-                    if isopen(opposite(ai, pside))
-                        @error "sync pos: failed to close opposite position" opposite_position = position(
-                            ai, oppos
-                        ) raw(ai) nameof(s) f = @caller
+                    pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
+                    oppos_pos = position(ai, oppos)
+                    if isopen(oppos_pos)
+                        @error "sync pos: failed to close opposite position" oppos_pos raw(ai) nameof(s) f = @caller
                         return pos
                     end
                 else
                     @debug "sync pos: resetting opposite position" ai = raw(ai) oppos
-                    reset!(ai, oppos)
+                    reset!(oppos_pos)
                 end
             end
-        end
-        update.read[] && begin
-            @debug "sync pos: update already read" ai = raw(ai) pside
-            overwrite || return pos
         end
     end
 
@@ -73,10 +69,17 @@ function live_sync_position!(
             ) cash(ai, pside).precision
         end
         update.read[] = true
-        reset!(pos)
+        reset!(pos) # if not full reset at least cash/committed
+        timestamp!(pos, update.date)
         @debug "sync pos: closed flag set, reset"
         return pos
     end
+
+    update.read[] && begin
+        @debug "sync pos: update already read" ai = raw(ai) pside overwrite f = @caller
+        overwrite || return pos
+    end
+
     this_timestamp = update.date
     if this_timestamp <= timestamp(pos)
         @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp overwrite f = @caller
