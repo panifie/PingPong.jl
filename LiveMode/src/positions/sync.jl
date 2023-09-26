@@ -46,12 +46,12 @@ function live_sync_position!(
                 if amount > ZERO
                     @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos raw(
                         ai
-                    ) nameof(s)
+                    ) nameof(s) f = @caller
                     pong!(s, ai, oppos, now(), PositionClose(); amount)
                     if isopen(opposite(ai, pside))
                         @error "sync pos: failed to close opposite position" opposite_position = position(
                             ai, oppos
-                        ) raw(ai) nameof(s)
+                        ) raw(ai) nameof(s) f = @caller
                         return pos
                     end
                 else
@@ -279,7 +279,7 @@ function live_sync_cash!(
         reset!(ai, Long())
         reset!(ai, Short())
     elseif pup.closed[]
-        @warn "sync cash: resetting position cash (closed)" ai = raw(ai) side
+        @info "sync cash: resetting position cash (closed)" ai = raw(ai) side
         reset!(ai, side)
     elseif isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
         live_sync_position!(s, ai, side, pup; kwargs...)

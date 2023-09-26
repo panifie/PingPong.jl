@@ -170,7 +170,7 @@ end
 
 function handle_trades!(s, ai, orders_byid, trades)
     try
-        @debug "handle trades:" trades
+        @debug "handle trades:" n = length(trades)
         sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
         eid = exchangeid(ai)
         @sync for resp in trades
@@ -187,7 +187,7 @@ function handle_trades!(s, ai, orders_byid, trades)
                     @async try
                         let state = get_order_state(orders_byid, id)
                             if state isa LiveOrderState
-                                @debug "handle trades: locking state"
+                                @debug "handle trades: locking state" id
                                 @lock state.lock begin
                                     this_hash = trade_hash(resp, eid)
                                     this_hash ∈ state.trade_hashes || begin
@@ -196,7 +196,7 @@ function handle_trades!(s, ai, orders_byid, trades)
                                         while first(sem.queue) != n
                                             safewait(sem.cond)
                                         end
-                                        @debug "handle trades: locking ai" ai = raw(ai)
+                                        @debug "handle trades: locking ai" ai = raw(ai) id
                                         t = @lock ai begin
                                             @debug "handle trades: before trade exec" open =
                                                 if ismissing(state)
@@ -350,7 +350,7 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     @debug "wait for trade:" id = o.id timeout = timeout current_trades = this_count
     while true
         slept < timeout || begin
-            @debug "wait for trade: timedout"
+            @debug "wait for trade: timedout" o.id f = @caller 7
             return false
         end
         isactive(s, ai, o; pt, active) || begin
@@ -368,7 +368,7 @@ function _force_fetchtrades(s, ai, o)
     ordersby_id = active_orders(s, ai)
     state = get_order_state(ordersby_id, o.id; waitfor=Millisecond(0))
     @debug "force fetch trades: " locked =
-        state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller
+        state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller 7
     function handler()
         @debug "force fetch trades: fetching" o.id
         resp = fetch_order_trades(s, ai, o.id)
@@ -385,10 +385,9 @@ function _force_fetchtrades(s, ai, o)
     if state isa LiveOrderState
         prev_count = length(trades(o))
         waslocked = islocked(state.lock)
-        @lock state.lock begin
-            waslocked && length(trades(o)) != prev_count && return nothing
-            handler()
-        end
+        @debug "force fetch trades: locking state" id = o.id
+        @lock state.lock waslocked && length(trades(o)) != prev_count && return nothing
+        handler()
     else
         handler()
     end

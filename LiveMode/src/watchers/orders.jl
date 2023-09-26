@@ -155,6 +155,7 @@ order_update_hash(resp, eid) = begin
 end
 
 function update_order!(s, ai, eid; resp, state)
+    @debug "update ord: locking state" id = state.order.id
     @lock state.lock begin
         this_hash = order_update_hash(resp, eid)
         state.update_hash[] == this_hash && return nothing
@@ -164,7 +165,7 @@ function update_order!(s, ai, eid; resp, state)
         # is not running
         if hasmytrades(exchange(ai))
         else
-            @debug "update ord: locking ai" ai = raw(ai) side = posside(state.order)
+            @debug "update ord: locking ai" ai = raw(ai) side = posside(state.order) id = state.order.id
             @lock ai if isopen(ai, state.order)
                 t = emulate_trade!(s, state.order, ai; state.average_price, resp)
                 @debug "update ord: emulated trade" trade = t id = state.order.id
