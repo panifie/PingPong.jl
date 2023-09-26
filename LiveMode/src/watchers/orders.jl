@@ -51,6 +51,8 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             flag = TaskFlag()
             coro_running = pycoro_running(flag)
             cond = task_local_storage(:notify)
+            sem = task_sem()
+            handler_tasks = Task[]
             while istaskrunning()
                 try
                     while istaskrunning()
@@ -61,9 +63,14 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                                 @debug "Error fetching orders (using watch: $(iswatch))" updates
                             sleep(1)
                         else
-                            handle_orders!(s, ai, orders_byid, updates)
+                            !islist(updates) && (updates = pylist(updates))
+                            for resp in updates
+                                ht = @async handle_order!(s, ai, orders_byid, resp, sem)
+                                push!(handler_tasks, ht)
+                            end
                             safenotify(cond)
                         end
+                        filter!(istaskrunning, handler_tasks)
                     end
                 catch e
                     if e isa InterruptException
@@ -85,7 +92,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                 sleep(stop_delay[])
                 stop_delay[] = Second(0)
                 # if there are no more orders, stop the monitoring tasks
-                if orderscount(s, ai) == 0
+                if orderscount(s, ai) == 0 && !isactive(s, ai)
                     task_local_storage(:running, false)
                     try
                         @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" current_task()
@@ -165,7 +172,8 @@ function update_order!(s, ai, eid; resp, state)
         # is not running
         if hasmytrades(exchange(ai))
         else
-            @debug "update ord: locking ai" ai = raw(ai) side = posside(state.order) id = state.order.id
+            @debug "update ord: locking ai" ai = raw(ai) side = posside(state.order) id =
+                state.order.id
             @lock ai if isopen(ai, state.order)
                 t = emulate_trade!(s, state.order, ai; state.average_price, resp)
                 @debug "update ord: emulated trade" trade = t id = state.order.id
@@ -282,70 +290,57 @@ function re_activate_order!(s, ai, id; eid, resp)
     end
 end
 
-_pyvalue_info(v) =
+function handle_order!(s, ai, orders_byid, resp, sem)
     try
-        length(v)
-    catch
-        typeof(v)
-    end
-function handle_orders!(s, ai, orders_byid, order_updates)
-    try
-        @debug "handle ord: new events" n_updates = _pyvalue_info(order_updates)
-        sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
-        if length(sem.queue) > 0
-            @warn "handle ord: expected queue (orders) to be empty." length(sem.queue)
-            empty!(sem.queue)
-        end
+        @debug "handle ord: new event" sem = length(sem)
         eid = exchangeid(ai)
-        @sync for resp in order_updates
+        id = resp_order_id(resp, eid, String)
+        @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
+        if isempty(id)
+            @warn "handle ord: missing order id"
+            return nothing
+        else
+            # TODO: we could repllace the queue with the handler_tasks vector
+            # since the order is the same
+            # remember events order
+            n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
+            push!(sem.queue, n)
             try
-                id = resp_order_id(resp, eid, String)
-                @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
-                if isempty(id)
-                    @warn "handle ord: missing order id"
-                    continue
+                state = get_order_state(orders_byid, id)
+                # wait for earlier events to be processed
+                while first(sem.queue) != n
+                    @debug "handle ord: waiting for queue" n
+                    safewait(sem.cond)
+                end
+                if state isa LiveOrderState
+                    @debug "handle ord: updating" id ai = raw(ai)
+                    update_order!(s, ai, eid; resp, state)
+                elseif _ccxtisopen(resp, eid)
+                    @debug "handle ord: re-activating (open) order" id ai = raw(ai)
+                    re_activate_order!(s, ai, id; eid, resp)
                 else
-                    # remember events order
-                    n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
-                    push!(sem.queue, n)
-                    @async try
-                        state = get_order_state(orders_byid, id)
-                        # wait for earlier events to be processed
-                        while first(sem.queue) != n
-                            @debug "handle ord: waiting for queue" n
-                            safewait(sem.cond)
+                    @debug "handle ord: cancelling local order since non open remotely" id ai = raw(
+                        ai
+                    ) s = nameof(s)
+                    for o in values(s, ai) # ensure order is not stored locally
+                        if o.id == id
+                            @debug "handle ord: cancelling..."
+                            cancel!(
+                                s,
+                                o,
+                                ai;
+                                err=OrderFailed(
+                                    "Dangling order $id found in local state ($(raw(ai)))."
+                                ),
+                            )
+                            break # do not expect duplicates
                         end
-                        if state isa LiveOrderState
-                            @debug "handle ord: updating" id ai = raw(ai)
-                            update_order!(s, ai, eid; resp, state)
-                        elseif _ccxtisopen(resp, eid)
-                            @debug "handle ord: re-activating (open) order" id ai = raw(ai)
-                            re_activate_order!(s, ai, id; eid, resp)
-                        else
-                            @debug "handle ord: cancelling local order since non open remotely" id ai = raw(ai) s = nameof(s)
-                            for o in values(s, ai) # ensure order is not stored locally
-                                if o.id == id
-                                    @debug "handle ord: cancelling..."
-                                    cancel!(
-                                        s,
-                                        o,
-                                        ai;
-                                        err=OrderFailed(
-                                            "Dangling order $id found in local state ($(raw(ai))).",
-                                        ),
-                                    )
-                                    break # do not expect duplicates
-                                end
-                            end
-                        end
-                    finally
-                        idx = findfirst(x -> x == n, sem.queue)
-                        isnothing(idx) || deleteat!(sem.queue, idx)
-                        safenotify(sem.cond)
                     end
                 end
-            catch
-                @debug_backtrace
+            finally
+                idx = findfirst(x -> x == n, sem.queue)
+                isnothing(idx) || deleteat!(sem.queue, idx)
+                safenotify(sem.cond)
             end
         end
     catch e
