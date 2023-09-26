@@ -338,7 +338,7 @@ function waitforpos(
 
     while true
         slept += waitforcond(pup.notify, timeout - slept)
-        this_timestamp = @something pytodate(pup.resp, eid) prev_timestamp - Millisecond(1)
+        this_timestamp = pup.date
         if this_timestamp >= prev_timestamp >= since
             @debug "wait for pos: up to date " prev_timestamp this_timestamp resp_position_contracts(
                 pup.resp, eid
@@ -352,9 +352,8 @@ function waitforpos(
             else
                 prev_closed = this_closed
             end
-            @debug "wait for pos:" time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp = pytodate(
-                pup.resp, eid
-            ) side = posside(bp) ai = raw(ai)
+            @debug "wait for pos:" time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp =
+                pup.date side = posside(bp) ai = raw(ai)
         end
         slept < timeout || begin
             @debug "wait for pos: timedout" ai = raw(ai) side = bp f = @caller
