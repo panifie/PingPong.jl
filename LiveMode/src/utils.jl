@@ -144,6 +144,8 @@ const StrategyTasks = NamedTuple{
 }
 order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
 asset_queue(s::Strategy, ai) = asset_tasks(s, ai).queue
+task_sem(task) = @lget! task.storage :sem (cond=Threads.Condition(), queue=Int[])
+task_sem() = task_sem(task_local_storage())
 function asset_tasks(s::Strategy)
     @lock s @lget! attrs(s) :live_asset_tasks finalizer(
         (_) -> stop_all_asset_tasks(s), Dict{AssetInstance,AssetTasks}()

@@ -54,15 +54,15 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                 (
                     (_, _) -> begin
                         startup[] || sleep(1)
-                        resp = fetch_my_trades(
+                        updates = fetch_my_trades(
                             s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
                         )
-                        if !isnothing(resp) && islist(resp) && length(resp) > 0
-                            since[] = resp_trade_timestamp(resp[-1], eid, DateTime)
+                        if !isnothing(updates) && islist(updates) && length(updates) > 0
+                            since[] = resp_trade_timestamp(updates[-1], eid, DateTime)
                         elseif startup[]
                             startup[] = false
                         end
-                        resp
+                        updates
                     end,
                     false,
                 )
@@ -71,18 +71,25 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
             flag = TaskFlag()
             cond = task_local_storage(:notify)
             coro_running = pycoro_running(flag)
+            sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
+            handler_tasks = Task[]
             while istaskrunning()
                 try
                     while istaskrunning()
-                        trades = f(flag, coro_running)
-                        if trades isa Exception
+                        updates = f(flag, coro_running)
+                        if updates isa Exception
                             @ifdebug ispyminor_error(trades) ||
-                                @debug "Error fetching trades (using watch: $(iswatch))" trades
+                                @debug "Error fetching trades (using watch: $(iswatch))" updates
                             sleep(1)
                         else
-                            handle_trades!(s, ai, orders_byid, trades)
+                            !islist(updates) && (updates = pylist(updates))
+                            for resp in updates
+                                ht = @async handle_trade!(s, ai, orders_byid, resp, sem)
+                                push!(handler_tasks, ht)
+                            end
                             safenotify(cond)
                         end
+                        filter!(istaskrunning, handler_tasks)
                     end
                 catch e
                     if e isa InterruptException
@@ -163,109 +170,94 @@ function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, lin
     )
 end
 
-# _asnum(resp, k) =
-#     let s = get_string(resp, k)
-#         @something tryparse(DFT, filter(!ispunct, s)) zero(DFT)
-#     end
-
-function handle_trades!(s, ai, orders_byid, trades)
+function handle_trade!(s, ai, orders_byid, resp, sem)
     try
-        @debug "handle trades:" n = length(trades)
-        sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
+        @debug "handle trade:" n = length(resp)
         eid = exchangeid(ai)
-        @sync for resp in trades
-            try
-                id = resp_trade_order(resp, eid, String)
-                @debug "handle trades: new event" order = id
-                if isempty(id)
-                    @warn "handle trade: missing order id"
-                    continue
-                else
-                    # remember events order
-                    n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
-                    push!(sem.queue, n)
-                    @async try
-                        let state = get_order_state(orders_byid, id)
-                            if state isa LiveOrderState
-                                @debug "handle trades: locking state" id
-                                @lock state.lock begin
-                                    this_hash = trade_hash(resp, eid)
-                                    this_hash ∈ state.trade_hashes || begin
-                                        push!(state.trade_hashes, this_hash)
-                                        # wait for earlier events to be processed
-                                        while first(sem.queue) != n
-                                            safewait(sem.cond)
-                                        end
-                                        @debug "handle trades: locking ai" ai = raw(ai) id
-                                        t = @lock ai begin
-                                            @debug "handle trades: before trade exec" open =
-                                                if ismissing(state)
-                                                    missing
-                                                else
-                                                    isopen(ai, state.order)
-                                                end state isa LiveOrderState
-                                            if isopen(ai, state.order)
-                                                queue = asset_queue(s, ai)
-                                                inc!(queue)
-                                                try
-                                                    trade!(
-                                                        s,
-                                                        state.order,
-                                                        ai;
-                                                        resp,
-                                                        date=nothing,
-                                                        price=nothing,
-                                                        actual_amount=nothing,
-                                                        fees=nothing,
-                                                        slippage=false,
-                                                    )
-                                                finally
-                                                    dec!(queue)
-                                                end
-                                            end
-                                        end
-                                        @debug "handle trades: after exec" trade = t cash = cash(
-                                            ai
-                                        ) side = if isnothing(t)
-                                            get_position_side(s, ai)
+        id = resp_trade_order(resp, eid, String)
+        @debug "handle trade: new event" order = id
+        if isempty(id)
+            @warn "handle trade: missing order id"
+            return nothing
+        else
+            # remember events order
+            n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
+            push!(sem.queue, n)
+            @async try
+                let state = get_order_state(orders_byid, id)
+                    if state isa LiveOrderState
+                        @debug "handle trade: locking state" id
+                        @lock state.lock begin
+                            this_hash = trade_hash(resp, eid)
+                            this_hash ∈ state.trade_hashes || begin
+                                push!(state.trade_hashes, this_hash)
+                                # wait for earlier events to be processed
+                                while first(sem.queue) != n
+                                    safewait(sem.cond)
+                                end
+                                @debug "handle trade: locking ai" ai = raw(ai) id
+                                t = @lock ai begin
+                                    @debug "handle trade: before trade exec" open =
+                                        if ismissing(state)
+                                            missing
                                         else
-                                            posside(t)
+                                            isopen(ai, state.order)
+                                        end state isa LiveOrderState
+                                    if isopen(ai, state.order)
+                                        queue = asset_queue(s, ai)
+                                        inc!(queue)
+                                        try
+                                            trade!(
+                                                s,
+                                                state.order,
+                                                ai;
+                                                resp,
+                                                date=nothing,
+                                                price=nothing,
+                                                actual_amount=nothing,
+                                                fees=nothing,
+                                                slippage=false,
+                                            )
+                                        finally
+                                            dec!(queue)
                                         end
                                     end
                                 end
-                            else
-                                # NOTE: give id directly since the resp is for a trade and not an order
-                                let o = findorder(s, ai; resp, id)
-                                    if o isa Order
-                                        if isfilled(ai, o) && length(trades(o)) > 0
-                                            amount = resp_trade_amount(resp, eid)
-                                            last_amount = last(trades(o)).amount
-                                            @warn "handle trades: no matching active order, possibly a late trade" emulated =
-                                                last_amount exchange = amount
-                                        else
-                                            @error "handle trades: expected live order state since order was not filled" id ai = raw(
-                                                ai
-                                            ) s = nameof(s)
-                                        end
-                                    else
-                                        @warn "handle trades: no matching order nor state" id ai = raw(
-                                            ai
-                                        ) s = nameof(s)
-                                    end
+                                @debug "handle trade: after exec" trade = t cash = cash(ai) side = if isnothing(t)
+                                    get_position_side(s, ai)
+                                else
+                                    posside(t)
                                 end
                             end
                         end
-                    finally
-                        idx = findfirst(x -> x == n, sem.queue)
-                        isnothing(idx) || deleteat!(sem.queue, idx)
-                        safenotify(sem.cond)
+                    else
+                        # NOTE: give id directly since the _resp is for a trade and not an order
+                        let o = findorder(s, ai; resp, id)
+                            if o isa Order
+                                if isfilled(ai, o) && length(resp(o)) > 0
+                                    amount = resp_trade_amount(resp, eid)
+                                    last_amount = last(resp(o)).amount
+                                    @warn "handle trade: no matching active order, possibly a late trade" emulated =
+                                        last_amount exchange = amount
+                                else
+                                    @error "handle trade: expected live order state since order was not filled" id ai = raw(
+                                        ai
+                                    ) s = nameof(s)
+                                end
+                            else
+                                @warn "handle trade: no matching order nor state" id ai = raw(
+                                    ai
+                                ) s = nameof(s)
+                            end
+                        end
                     end
                 end
-            catch
-                @debug_backtrace
+            finally
+                idx = findfirst(x -> x == n, sem.queue)
+                isnothing(idx) || deleteat!(sem.queue, idx)
+                safenotify(sem.cond)
             end
         end
-
     catch e
         @ifdebug isdefined(Main, :e) && (Main.e[] = e)
         @debug_backtrace
@@ -371,22 +363,28 @@ function _force_fetchtrades(s, ai, o)
         state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller 7
     function handler()
         @debug "force fetch trades: fetching" o.id
-        resp = fetch_order_trades(s, ai, o.id)
-        if resp isa Exception
-            @ifdebug ispyminor_error(resp) ||
-                @debug "Error fetching trades (force fetch)" resp
-        elseif islist(resp)
-            handle_trades!(s, ai, ordersby_id, resp)
+        trades_resp = fetch_order_trades(s, ai, o.id)
+        if trades_resp isa Exception
+            @ifdebug ispyminor_error(trades_resp) ||
+                @debug "Error fetching trades (force fetch)" trades_resp
+        elseif islist(trades_resp)
+            trades_task = @something asset_trades_task(s, ai) watch_trades!(s, ai)
+            sem = task_sem(trades_task)
+            for resp in trades_resp
+                handle_trade!(s, ai, ordersby_id, resp, sem)
+            end
         else
-            @error "force fetch trades: invalid repsonse " resp
+            @error "force fetch trades: invalid repsonse " trades_resp
         end
     end
 
     if state isa LiveOrderState
         prev_count = length(trades(o))
         waslocked = islocked(state.lock)
-        @debug "force fetch trades: locking state" id = o.id
-        @lock state.lock waslocked && length(trades(o)) != prev_count && return nothing
+        @debug "force fetch trades: locking state" id = o.id waslocked
+        @lock state.lock if waslocked && length(trades(o)) != prev_count
+            return nothing
+        end
         handler()
     else
         handler()
