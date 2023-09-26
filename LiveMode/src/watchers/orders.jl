@@ -266,7 +266,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             t=get_position_side(s, ai),
             price=missing,
             amount=missing,
-            resync=false,
+            synced=false,
         )
         if o isa Order
             state = get_order_state(active_orders(s, ai), o.id)

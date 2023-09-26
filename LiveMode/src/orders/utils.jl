@@ -1,6 +1,7 @@
 using .Misc.Lang: @lget!, @deassert, Option
 using .Python: @py, pydict
-using .Executors: AnyGTCOrder, AnyMarketOrder, AnyIOCOrder, AnyFOKOrder, AnyPostOnlyOrder
+using .Executors:
+    AnyGTCOrder, AnyMarketOrder, AnyLimitOrder, AnyIOCOrder, AnyFOKOrder, AnyPostOnlyOrder
 
 const LiveOrderState = NamedTuple{
     (:order, :lock, :trade_hashes, :update_hash, :average_price),
@@ -64,7 +65,7 @@ macro _isfilled()
 end
 
 function waitfor_closed(
-    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both, resync=true
+    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both, synced=true
 )
     try
         active = active_orders(s, ai)
@@ -80,8 +81,8 @@ function waitfor_closed(
             slept < timeout || begin
                 success = false
                 @debug "wait ord close: timedout" ai = raw(ai) side = t waitfor f = @caller
-                if resync
-                    @warn "wait ord close: resyncing"
+                if synced
+                    @warn "wait ord close: syncing"
                     live_sync_active_orders!(s, ai; side=t, strict=false, exec=true)
                     success = if isactive(s, ai; side=t)
                         @error "wait ord close: orders still active" side = t n = orderscount(
@@ -99,7 +100,7 @@ function waitfor_closed(
         end
         if success
             if orderscount(s, ai, t) > 0
-                @debug "wait ord close: resyncing(2nd) f" orderscount(s, ai, t)
+                @debug "wait ord close: syncing(2nd) f" orderscount(s, ai, t)
                 live_sync_active_orders!(s, ai; side=t, strict=false, exec=true)
                 orderscount(s, ai, t) > 0
             else

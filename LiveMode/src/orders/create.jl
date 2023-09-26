@@ -12,7 +12,7 @@ function create_live_order(
     t,
     price,
     amount,
-    resync=true,
+    synced=true,
     skipcommit=false,
     kwargs...,
 )
@@ -53,8 +53,8 @@ function create_live_order(
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
         o = create()
-        if isnothing(o) && resync
-            @warn "Exchange order existing (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (resyncing) $(nameof(s)) $(raw(ai))"
+        if isnothing(o) && synced
+            @warn "Exchange order existing (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (syncing) $(nameof(s)) $(raw(ai))"
             @sync begin
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)

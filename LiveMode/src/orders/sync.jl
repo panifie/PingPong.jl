@@ -65,7 +65,7 @@ function live_sync_active_orders!(
                 t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
                 price=missing,
                 amount=missing,
-                resync=false,
+                synced=false,
                 skipcommit=(!strict),
                 withoutkws(:skipcommit; kwargs=create_kwargs)...,
             ) missing)::Option{Order}
@@ -146,7 +146,7 @@ function live_sync_active_orders!(
         cash_short == cash(ai, Short()),
         comm_short == committed(ai, Short()),
     ))
-    strict && @warn "sync orders: strategy and assets cash need to be resynced." maxlog = 1
+    strict && @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
     nothing
 end
 

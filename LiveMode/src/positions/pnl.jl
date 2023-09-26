@@ -3,9 +3,9 @@ function live_pnl(
     ai,
     p::ByPos;
     update::Option{PositionUpdate7}=nothing,
-    force_resync=:auto,
+    synced=true,
     verbose=true,
-    kwargs...
+    kwargs...,
 )
     pside = posside(p)
     eid = exchangeid(ai)
@@ -16,21 +16,23 @@ function live_pnl(
     if iszero(pnl)
         amount = resp_position_contracts(lp, eid)
         function dowarn(a, b)
-            @warn "Position amount for $(raw(ai)) unsynced from exchange $(nameof(exchange(ai))) ($a != $b), resyncing..."
+            @warn "live pnl: position amount not matching exchange" ai = raw(ai) exc = nameof(
+                exchange(ai)
+            ) a != b
         end
-        resync = false
+        sync = false
         if amount > zero(DFT)
             if !isapprox(amount, abs(cash(pos)))
                 verbose && dowarn(amount, abs(cash(pos).value))
-                resync = true
+                sync = true
             end
             ep = resp_position_entryprice(lp, eid)
             if !isapprox(ep, entryprice(pos))
                 verbose && dowarn(amount, entryprice(pos))
-                resync = true
+                sync = true
             end
-            if force_resync == :yes || (force_resync == :auto && resync)
-                @debug "Locking $(raw(ai)) $(pside)"
+            if synced || sync
+                @debug "live pnl: locking ai " ai = raw(ai) side = pside
                 @lock ai live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
