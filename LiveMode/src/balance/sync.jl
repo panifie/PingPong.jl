@@ -19,7 +19,7 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     cash!(s.cash, c)
 
     used_cash = get(used, bc, nothing)
-    cc = if isnothing(tot_cash)
+    cc = if isnothing(used_cash)
         dowarn("committed cash")
         ZERO
     else
@@ -35,7 +35,7 @@ end
 
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
-    this_kwargs = splitkws(:status; kwargs)
+    this_kwargs = withoutkws(:status; kwargs)
     tot = @something balance!(s; status=TotalBalance, this_kwargs...) (;)
     used = @something balance!(s; status=UsedBalance, this_kwargs...) (;)
     @sync for ai in s.universe
