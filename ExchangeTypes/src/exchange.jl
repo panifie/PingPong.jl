@@ -7,6 +7,9 @@ using OrderedCollections: OrderedSet
 @doc "Same as ccxt precision mode enums."
 @enum ExcPrecisionMode excDecimalPlaces = 2 excSignificantDigits = 3 excTickSize = 4
 
+@doc "Functions `f(::Exchange)` to call when an exchange is loaded"
+const HOOKS = Dict{Symbol,Vector{Function}}()
+
 abstract type Exchange{I} end
 const OptionsDict = Dict{String,Dict{String,Any}}
 @doc """The exchange type wraps a ccxt exchange instance. Some attributes frequently accessed
@@ -55,7 +58,7 @@ function Exchange(x::Py)
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
     )
-    funcs = get(HOOKS, nameof(e), ())::Union{Tuple{},Vector{Function}}
+    funcs = get(HOOKS, nameof(id), ())::Union{Tuple{},Vector{Function}}
     for f in funcs
         f(e)
     end
@@ -118,8 +121,6 @@ exc = Exchange()
 const exchanges = Dict{Symbol,Exchange}()
 @doc "Global var holding Sandbox Exchange instances. Used as a cache."
 const sb_exchanges = Dict{Symbol,Exchange}()
-@doc "Functions `f(::Exchange)` to call when an exchange is loaded"
-const HOOKS = Dict{Symbol,Vector{Function}}
 
 _closeall() = begin
     @sync begin

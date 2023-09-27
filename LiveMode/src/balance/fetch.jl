@@ -1,6 +1,6 @@
 using .Lang: @lget!, splitkws
 using .ExchangeTypes
-using .Exchanges: issandbox
+using .Exchanges: issandbox, current_account
 using .Misc.TimeToLive
 using .Misc: LittleDict, DFT, ZERO
 using .Python: pytofloat, Py, @pystr, @pyconst, PyDict, @pyfetch, pyfetch, pyconvert
@@ -9,11 +9,13 @@ import .st: current_total, MarginStrategy, NoMarginStrategy
 
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
 const BalanceTTL = Ref(Second(5))
-const BalanceCacheDict5 = safettl(
-    Tuple{ExchangeID,Bool}, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
+const BalanceCacheDict = safettl(
+    Tuple{ExchangeID,String,Bool}, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
 )
-const BalanceCacheSyms7 = safettl(
-    Tuple{ExchangeID,Bool}, Dict{Tuple{Symbol,BalanceStatus,Symbol},DFT}, BalanceTTL[]
+const BalanceCacheSyms = safettl(
+    Tuple{ExchangeID,String,Bool},
+    Dict{Tuple{Symbol,BalanceStatus,Symbol},DFT},
+    BalanceTTL[],
 )
 
 function Base.string(v::BalanceStatus)
@@ -33,15 +35,15 @@ function fetch_balance(s::LiveStrategy, args...; kwargs...)
 end
 
 function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(_exc_balance_func(exc), args...; splitkws(:type; kwargs).rest...)
+    pyfetch(_exc_balance_func(exc), args...; (splitkws(:type; kwargs).rest)...)
 end
 function _balancedict!(exc)
-    @lget! BalanceCacheDict5 (exchangeid(exc), issandbox(exc)) Dict{
+    @lget! BalanceCacheDict (exchangeid(exc), current_account(exc), issandbox(exc)) Dict{
         Tuple{BalanceStatus,Symbol},Py
     }()
 end
 function _symdict!(exc)
-    @lget! BalanceCacheSyms7 (exchangeid(exc), issandbox(exc)) Dict{
+    @lget! BalanceCacheSyms (exchangeid(exc), current_account(exc), issandbox(exc)) Dict{
         Tuple{Symbol,BalanceStatus,Symbol},DFT
     }()
 end
