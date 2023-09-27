@@ -57,7 +57,7 @@ function marketsid(::Type{<:S})
 end
 
 function marketsid(::S_X{ExchangeID{:bybit}})
-    ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
+    ["ETH/USDT", "BTC/USDT", "ATOM/USDT"]
 end
 
 function buy!(s::S, ai, ats, ts)
