@@ -55,6 +55,10 @@ function Exchange(x::Py)
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
     )
+    funcs = get(HOOKS, nameof(e), ())::Union{Tuple{},Vector{Function}}
+    for f in funcs
+        f(e)
+    end
     isnone ? e : finalizer(close_exc, e)
 end
 
@@ -114,6 +118,8 @@ exc = Exchange()
 const exchanges = Dict{Symbol,Exchange}()
 @doc "Global var holding Sandbox Exchange instances. Used as a cache."
 const sb_exchanges = Dict{Symbol,Exchange}()
+@doc "Functions `f(::Exchange)` to call when an exchange is loaded"
+const HOOKS = Dict{Symbol,Vector{Function}}
 
 _closeall() = begin
     @sync begin
