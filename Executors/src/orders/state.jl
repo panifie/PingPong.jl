@@ -304,8 +304,11 @@ function hold!(s::Strategy, ai, o::IncreaseOrder)
     push!(s.holdings, ai)
 end
 hold!(::Strategy, _, ::ReduceOrder) = nothing
-function release!(s::Strategy, ai, o::Order)
+function release!(s::MarginStrategy, ai, o::Order)
     iszero(ai) && !hasorders(s, ai, positionside(o)) && delete!(s.holdings, ai)
+end
+function release!(s::NoMarginStrategy, ai, o::Order)
+    iszero(ai) && !hasorders(s, ai, orderside(o)) && delete!(s.holdings, ai)
 end
 @doc "Cancel an order with given error."
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)
