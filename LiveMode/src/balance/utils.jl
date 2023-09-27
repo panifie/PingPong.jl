@@ -105,7 +105,6 @@ function live_balance(
                 @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since ai = raw(
                     ai
                 ) f = @caller
-                return nothing
             end
         end
     bal
@@ -114,9 +113,10 @@ end
 function _live_kind(args...; kind, kwargs...)
     bal = live_balance(args...; kwargs...)
     if isnothing(bal)
-    else
-        getproperty(bal.balance, kind)
+        bal = zerobal()
+        bal.date[] = @something since now()
     end
+    getproperty(bal.balance, kind)
 end
 
 live_total(args...; kwargs...) = _live_kind(args...; kind=:total, kwargs...)

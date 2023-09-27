@@ -575,19 +575,24 @@ function get_position_side(s, ai::AssetInstance)
         Long()
     end
 end
+get_position_side(::NoMarginStrategy{Live}, ::AssetInstance) = Long()
+zerobal() = (; total=ZERO, free=ZERO, used=ZERO)
+function zerobal_tuple()
+    (; date=Ref(DateTime(0)), balance=zerobal())
+end
 _balance_bytype(::Nothing, ::Symbol) = nothing
 _balance_bytype(v, sym) = getproperty(v, sym)
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
 get_balance(s, sym) =
     let bal = get_balance(s)
-        isnothing(bal) && return nothing
-        (; date=bal.date[], balance=get(bal.balance, sym, nothing))
+        isnothing(bal) && return zerobal_tuple()
+        (; date=bal.date[], balance=@lget!(bal.balance, sym, zerobal()))
     end
 get_balance(s, sym, type)::Option{DFT} =
     let bal = get_balance(s)
         @ifdebug @assert type ∈ (:used, :total, :free)
-        isnothing(bal) && return nothing
-        _balance_bytype(get(bal.balance, sym, nothing), type)
+        isnothing(bal) && return zerobal_tuple()
+        _balance_bytype(@lget!(bal.balance, sym, zerobal()), type)
     end
 get_balance(s, ai::AssetInstance, args...) = get_balance(s, bc(ai), args...)
 
