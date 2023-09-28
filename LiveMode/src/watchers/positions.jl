@@ -29,10 +29,11 @@ _dopush!(w, v; if_func=islist) =
     end
 
 function split_params(kwargs)
-    (split, rest) = splitkws(:params; kwargs)
-    tup = tuple(split...)
-    # (params, reset)
-    isempty(tup) ? LittleDict{Py,Any}() : tup[1][2], rest
+    if haskey(kwargs, :params)
+        kwargs[:params], length(kwargs) == 1 ? () : withoutkws(:params; kwargs)
+    else
+        LittleDict{Py,Any}(), kwargs
+    end
 end
 
 function _w_fetch_positions_func(s, interval; kwargs)

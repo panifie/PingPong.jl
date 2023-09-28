@@ -26,6 +26,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
             end
         catch
             @debug_backtrace
+            sleep(1)
         end
     else
         (w) -> try
@@ -50,7 +51,22 @@ function ccxt_balance_watcher(
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs))
+    params = LittleDict{Py,Any}()
+    params[@pystr("type")] = if s isa MarginStrategy
+        @pystr("swap")
+    else
+        @pystr("spot")
+    end
+    func_kwargs = (;
+        params,
+        (if :params ∈ keys(kwargs)
+            merge!(params, kwargs[:params])
+            withoutkws(:params; kwargs)
+        else
+            kwargs
+        end)...,
+    )
+    _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs=func_kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))
@@ -71,7 +87,7 @@ end
 
 _balance_task!(w) = begin
     f = _tfunc(w)
-    @async while isstarted(w)
+    w[:balance_task] = @async while isstarted(w)
         f(w)
     end
 end
