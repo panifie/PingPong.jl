@@ -56,10 +56,10 @@ function live_sync_cash!(
     if isnothing(bal)
         @warn "Resetting asset cash (not found)" ai = raw(ai)
         cash!(ai, ZERO)
-        cash!(ai, ZERO)
+        cash!(committed(ai), ZERO)
     elseif isnothing(since) || bal.date >= since
         cash!(ai, bal.balance.total)
-        cash!(ai, bal.balance.used)
+        cash!(committed(ai), bal.balance.used)
     else
         @error "Could not update asset cash" since bal.date ai = raw(ai)
     end
