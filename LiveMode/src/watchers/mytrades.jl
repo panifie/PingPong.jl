@@ -331,7 +331,7 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
 end
 
 function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
-    isfilled(ai, o) && return length(trades(o))
+    isfilled(ai, o) && return true
     order_trades = trades(o)
     this_count = prev_count = length(order_trades)
     timeout = Millisecond(waitfor).value
