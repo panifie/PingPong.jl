@@ -9,8 +9,9 @@ function fill!(::NoMarginStrategy{Live}, ai::NoMarginInstance, o::BuyOrder, t::B
     @deassert committed(o) == o.attrs.committed[] && committed(o) >= 0.0
     # from neg to 0 (buy amount is pos)
     attr(o, :unfilled)[] += t.amount + t.fees_base
-    @deassert attr(o, :unfilled)[] |> ltxzero || ltxzero(t.fees_base) (
-        o, t.amount, t.fees_base
+    @deassert ltxzero(ai, attr(o, :unfilled)[], Val(:amount)) ||
+        gtxzero(ai, t.fees_base, Val(:amount)) (
+        o, attr(o, :unfilled)[], t.amount, t.fees_base
     )
     # from pos to 0 (buy size is neg)
     attr(o, :committed)[] -= committment(ai, t)
@@ -36,16 +37,16 @@ function fill!(
     ::MarginStrategy{Live}, ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade
 )
     @deassert o isa ShortBuyOrder && _check_unfillment(o) o
-    @deassert committed(o) == o.attrs.committed[] && committed(o) |> ltxzero
+    @deassert committed(o) == o.attrs.committed[] && ltxzero(ai, committed(o), Val(:price))
     @deassert attr(o, :unfilled)[] < 0.0
     amt = _deducted_amount(t)
     attr(o, :unfilled)[] += amt # from neg to 0 (buy amount is pos)
-    @deassert attr(o, :unfilled)[] |> ltxzero
+    @deassert ltxzero(ai, attr(o, :unfilled)[], Val(:amount))
     # NOTE: committment is always positive except for short buy orders
     # where that's committed is shorted (negative) asset cash
     @deassert t.amount > 0.0 && committed(o) < 0.0 (committed(o), trades(o))
     attr(o, :committed)[] += amt # from neg to 0 (buy amount is pos)
-    @deassert committed(o) |> ltxzero
+    @deassert ltxzero(ai, committed(o), Val(:amount))
 end
 
 @doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
@@ -55,10 +56,12 @@ function fill!(
     @deassert o isa IncreaseOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && committed(o) > 0.0 t
     attr(o, :unfilled)[] += t.amount
-    @deassert attr(o, :unfilled)[] |> ltxzero || o isa ShortSellOrder
+    @deassert ltxzero(ai, attr(o, :unfilled)[], Val(:amount)) || o isa ShortSellOrder
     @deassert t.value > 0.0
     attr(o, :committed)[] -= committment(ai, t)
     # Market order spending can exceed the estimated committment
     # ShortSell limit orders can spend more than committed because of slippage
-    @deassert committed(o) |> gtxzero || o isa AnyMarketOrder || o isa IncreaseLimitOrder
+    @deassert gtxzero(ai, committed(o), Val(:price)) ||
+        o isa AnyMarketOrder ||
+        o isa IncreaseLimitOrder
 end

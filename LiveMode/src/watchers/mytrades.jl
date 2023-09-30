@@ -172,7 +172,7 @@ end
 
 function handle_trade!(s, ai, orders_byid, resp, sem)
     try
-        @debug "handle trade:" n = length(resp)
+        @debug "handle trade:" n_keys = length(resp)
         eid = exchangeid(ai)
         id = resp_trade_order(resp, eid, String)
         @debug "handle trade: new event" order = id
@@ -186,7 +186,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             @async try
                 let state = get_order_state(orders_byid, id)
                     if state isa LiveOrderState
-                        @debug "handle trade: locking state" id
+                        @debug "handle trade: locking state" id resp
                         @lock state.lock begin
                             this_hash = trade_hash(resp, eid)
                             this_hash ∈ state.trade_hashes || begin
@@ -349,6 +349,7 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
             @debug "wait for trade: order not present"
             return false
         end
+        @debug "wait for trade: " isfilled(ai, o) length(order_trades)
         slept += waitfortrade(s, ai; waitfor=timeout - slept)
         this_count = length(order_trades)
         this_count > prev_count && return true
