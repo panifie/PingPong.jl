@@ -183,7 +183,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             # remember events order
             n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
             push!(sem.queue, n)
-            @async try
+            try
                 let state = get_order_state(orders_byid, id)
                     if state isa LiveOrderState
                         @debug "handle trade: locking state" id resp
