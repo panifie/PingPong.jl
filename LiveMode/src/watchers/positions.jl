@@ -29,17 +29,17 @@ _dopush!(w, v; if_func=islist) =
     end
 
 function split_params(kwargs)
-    if haskey(kwargs, :params)
-        kwargs[:params], length(kwargs) == 1 ? () : withoutkws(:params; kwargs)
+    if kwargs isa NamedTuple && haskey(kwargs, :params)
+        kwargs[:params], length(kwargs) == 1 ? (;) : withoutkws(:params; kwargs)
     else
-        LittleDict{Py,Any}(), kwargs
+        LittleDict{Any,Any}(), kwargs
     end
 end
 
 function _w_fetch_positions_func(s, interval; kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
-    @lget! params @pyconst("settle") guess_settle(s)
+    @lget! params "settle" guess_settle(s)
     if has(exc, :watchPositions)
         f = exc.watchPositions
         (w) -> try
