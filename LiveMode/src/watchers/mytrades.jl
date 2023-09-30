@@ -236,7 +236,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                             if o isa Order
                                 if isfilled(ai, o) && length(resp(o)) > 0
                                     amount = resp_trade_amount(resp, eid)
-                                    last_amount = last(resp(o)).amount
+                                    last_amount = last(trades(o)).amount
                                     @warn "handle trade: no matching active order, possibly a late trade" emulated =
                                         last_amount exchange = amount
                                 else
