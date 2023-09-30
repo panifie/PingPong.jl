@@ -35,16 +35,18 @@ end
 
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
-    this_kwargs = withoutkws(:status; kwargs)
-    tot = @something balance!(s; status=TotalBalance, this_kwargs...) (;)
-    used = @something balance!(s; status=UsedBalance, this_kwargs...) (;)
+    bal_dict = get_balance(s).balance
     @sync for ai in s.universe
         @debug "Locking ai" ai = raw(ai)
         @async @lock ai begin
-            ai_tot = get(tot, ai.bc, ZERO)
-            cash!(ai, ai_tot)
-            ai_used = get(used, ai.bc, ZERO)
-            cash!(committed(ai), ai_used)
+            bal_ai = get(bal_dict, bc(ai), nothing)
+            if isnothing(bal_ai)
+                cash!(ai, ZERO)
+                cash!(committed(ai), ZERO)
+            else
+                cash!(ai, bal_ai.total)
+                cash!(committed(ai), bal_ai.used)
+            end
         end
     end
 end
