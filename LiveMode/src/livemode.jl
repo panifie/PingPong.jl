@@ -18,6 +18,7 @@ import .Executors: pong!
 
 include("utils.jl")
 include("ccxt.jl")
+include("ccxt_functions.jl")
 include("watchers/positions.jl")
 include("watchers/balance.jl")
 include("watchers/mytrades.jl")
@@ -48,9 +49,10 @@ include("sync.jl")
 include("adhoc/utils.jl")
 include("adhoc/balance.jl")
 include("adhoc/positions.jl")
+include("adhoc/ccxt.jl")
+include("adhoc/ccxt_functions.jl")
 
-function live!(s::Strategy{Live}; throttle=Second(5), foreground=false)
-end
+function live!(s::Strategy{Live}; throttle=Second(5), foreground=false) end
 
 # pong!
 # PositionClose

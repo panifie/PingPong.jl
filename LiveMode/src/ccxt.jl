@@ -4,6 +4,9 @@ using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
 const ot = OrderTypes
 
+_execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
+_execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
+
 pytostring(v) = pytruth(v) ? string(v) : ""
 get_py(v::Py, k) = get(v, @pystr(k), pybuiltins.None)
 get_py(v::Py, k, def) = get(v, @pystr(k), def)
@@ -196,6 +199,9 @@ function _ccxtisclosed(resp, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pyconst("closed"))
 end
 
+_ccxtbalance_type(::NoMarginStrategy) = @pyconst("spot")
+_ccxtbalance_type(::MarginStrategy) = @pyconst("futures")
+
 resp_trade_cost(resp, ::EIDType)::DFT = get_float(resp, "cost")
 resp_trade_amount(resp, ::EIDType)::DFT = get_float(resp, Trf.amount)
 resp_trade_amount(resp, ::EIDType, ::Type{Py}) = get_py(resp, Trf.amount)
@@ -252,7 +258,7 @@ resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
     _option_float(resp, "takeProfitPrice")
 resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice")
 resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice")
-resp_order_info(resp, ::EIDType)::Option{DFT} = get_py(resp, "info")
+resp_order_info(resp, ::EIDType)::Option{DFT} = _option_float(resp, "info")
 
 resp_position_side(resp, ::EIDType) = get_py(resp, @pyconst(""), Pos.side)
 resp_position_symbol(resp, ::EIDType) = get_py(resp, Pos.symbol)
@@ -278,7 +284,3 @@ resp_position_timestamp(resp, ::EIDType)::DateTime = get_time(resp)
 resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
-
-function positions_func(exc::Exchange, ais, args...; kwargs...)
-    pyfetch(first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; kwargs...)
-end
