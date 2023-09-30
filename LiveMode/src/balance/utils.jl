@@ -12,13 +12,16 @@ end
 
 function _force_fetchbal(s; fallback_kwargs)
     w = balance_watcher(s)
-    @debug "force fetch bal: locking w" islocked(w) f = @caller ai = raw(ai)
+    @debug "force fetch bal: locking w" islocked(w) f = @caller
     waslocked = islocked(w)
     @lock w begin
         waslocked && return nothing
         time = now()
-        resp = fetch_balance(s; fallback_kwargs...)
+        params, rest = split_params(fallback_kwargs)
+        params["type"] = _ccxtbalance_type(s)
+        resp = fetch_balance(s; params, rest...)
         bal = _handle_bal_resp(resp)
+        isnothing(bal) && return nothing
         pushnew!(w, bal, time)
         process!(w)
     end
