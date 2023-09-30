@@ -14,7 +14,7 @@ function pong!(
     @timeout_start
     trade = _live_limit_order(s, ai, t; amount, price, waitfor, synced, kwargs)
     if synced && trade isa Trade
-        live_sync_cash!(s, ai, posside(trade); since=trade.date, waitfor=@timeout_now)
+        live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
     trade
 end
@@ -53,8 +53,10 @@ function pong!(
             @debug "pong cancel orders: syncing cash"
             live_sync_cash!(s, ai; waitfor=@timeout_now)
         end
+        @debug "pong cancel orders: " success
         success
     else
+        @debug "pong cancel orders: failed"
         false
     end
 end
