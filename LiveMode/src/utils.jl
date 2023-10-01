@@ -200,6 +200,10 @@ end
 function fetch_candles(s, args...; kwargs...)
     attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
+function fetch_l2ob(s, args...; kwargs...)
+    attr(s, :live_fetch_l2ob_func)(args...; kwargs...)
+end
+
 function OrderTypes.ordersdefault!(s::Strategy{Live})
     let a = attrs(s)
         _simmode_defaults!(s, a)
@@ -224,6 +228,7 @@ function exc_live_funcs!(s::Strategy{Live})
     ccxt_my_trades_func!(a, exc)
     ccxt_order_trades_func!(a, exc)
     ccxt_fetch_candles_func!(a, exc)
+    ccxt_fetch_l2ob_func!(a, exc)
 end
 
 if exc_live_funcs! ∉ st.STRATEGY_LOAD_CALLBACKS.live

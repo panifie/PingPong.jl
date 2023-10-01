@@ -27,14 +27,31 @@ function priceat(s::Strategy, ai::AssetInstance, date::DateTime; step=:open, sym
 end
 
 Exchanges.ticker!(ai::AssetInstance) = Exchanges.ticker!(raw(ai), exchange(ai))
-function lastprice(ai::AssetInstance, bs::BySide)
+function lastprice(ai::AssetInstance, bs::BySide; last_fallback=true)
     tk = Exchanges.ticker!(ai)
     eid = exchangeid(ai)
     side_str = _ccxtorderside(bs)
     price = resp_ticker_price(tk, eid, side_str)
     if pyisnone(price)
-        get_float(tk, @pyconst("last"))
+        if last_fallback
+            get_float(tk, @pyconst("last"))
+        end
     else
         pytofloat(price)
     end
+end
+
+function lastprice(s, ai::AssetInstance, bs::BySide, ::Val{:ob})
+    ob = fetch_l2ob(s, ai)
+    if isdict(ob)
+        @deassert get_string(ob, "symbol") == raw(ai)
+        side_list = get_py(ob, _ccxtobside(bs))
+        if islist(side_list)
+            return pytofloat(side_list[0][0])
+        end
+    end
+end
+
+function lastprice(s, ai::AssetInstance, bs::BySide)
+    @something lastprice(ai, bs, last_fallback=false) lastprice(s, ai, bs, Val(:ob))
 end

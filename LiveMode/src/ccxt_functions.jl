@@ -157,7 +157,9 @@ function ccxt_create_order_func!(a, exc)
 end
 
 function positions_func(exc::Exchange, ais, args...; kwargs...)
-    pyfetch(first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; kwargs...)
+    _execfunc(
+        first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; kwargs...
+    )
 end
 
 function ccxt_positions_func!(a, exc)
@@ -170,7 +172,7 @@ function ccxt_positions_func!(a, exc)
         f = exc.fetchPosition
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
             @sync for ai in ais
-                @async out.append(pyfetch(f, raw(ai); kwargs...))
+                @async out.append(_execfunc(f, raw(ai); kwargs...))
             end
             _filter_positions(out, eid, side)
         end
@@ -320,4 +322,9 @@ function ccxt_fetch_candles_func!(a, exc)
     fetch_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
     a[:live_fetch_candles_func] =
         (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
+end
+
+function ccxt_fetch_l2ob_func!(a, exc)
+    fetch_func = first(exc, :fetchOrderBookWs, :fetchOrderBook)
+    a[:live_fetch_l2ob_func] = (ai; kwargs...) -> _execfunc(fetch_func, raw(ai); kwargs...)
 end
