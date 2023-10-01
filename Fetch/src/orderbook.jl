@@ -48,6 +48,11 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
                 sym;
                 limit,
             )
+            if py_ob isa Exception
+                @error "update ob: " py_ob
+                ob.busy[] = false
+                return nothing
+            end
             ob.timestamp[] = dt(pyconvert(Int, pyint(py_ob["timestamp"])))
             let asks = ob.asks
                 empty!(asks)
