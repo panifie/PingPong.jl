@@ -55,8 +55,9 @@ function waitforbal(
     end
 
     prev_timestamp = @something bal.date[] DateTime(0)
+    prev_since = @something since typemin(DateTime)
     @debug "wait bal" prev_timestamp since
-    isnothing(since) || if prev_timestamp >= since
+    if prev_timestamp >= prev_since
         return true
     end
 
@@ -70,7 +71,7 @@ function waitforbal(
         if length(buf) > 0
             this_timestamp = last(buf).time
         end
-        if this_timestamp >= prev_timestamp >= since
+        if this_timestamp >= prev_timestamp >= prev_since
             @debug "wait bal: up to date " prev_timestamp this_timestamp
             return true
         else

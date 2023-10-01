@@ -329,7 +329,8 @@ function waitforpos(
     end
     prev_timestamp = pup.date
     @debug "wait for pos" prev_timestamp since resp_position_contracts(pup.resp, eid) f = @caller
-    isnothing(since) || if prev_timestamp >= since
+    prev_since = @something since typemin(DateTime)
+    if prev_timestamp >= prev_since
         return true
     end
     this_timestamp = prev_timestamp - Millisecond(1)
@@ -339,7 +340,8 @@ function waitforpos(
     while true
         slept += waitforcond(pup.notify, timeout - slept)
         this_timestamp = pup.date
-        if this_timestamp >= prev_timestamp >= since
+        if this_timestamp >= prev_timestamp >= prev_since
+            since
             @debug "wait for pos: up to date " prev_timestamp this_timestamp resp_position_contracts(
                 pup.resp, eid
             ) pup.closed[]
