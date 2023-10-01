@@ -73,8 +73,8 @@ _pystrsym(ai::AssetInstance) = @pystr(ai.bc)
 
 _ccxtordertype(::LimitOrder) = @pyconst "limit"
 _ccxtordertype(::MarketOrder) = @pyconst "market"
-_ccxtorderside(::Type{Buy}) = @pyconst "buy"
-_ccxtorderside(::Type{Sell}) = @pyconst "sell"
+_ccxtorderside(::BySide{Buy}) = @pyconst "buy"
+_ccxtorderside(::BySide{Sell}) = @pyconst "sell"
 _ccxtorderside(::Union{AnyBuyOrder,Type{<:AnyBuyOrder}}) = @pyconst "buy"
 _ccxtorderside(::Union{AnySellOrder,Type{<:AnySellOrder}}) = @pyconst "sell"
 _ccxtmarginmode(::IsolatedMargin) = @pyconst "isolated"
@@ -284,3 +284,4 @@ resp_position_timestamp(resp, ::EIDType)::DateTime = get_time(resp)
 resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
+resp_ticker_price(resp, ::EIDType, k) = get_py(resp, k)
