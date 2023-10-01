@@ -24,7 +24,7 @@ function live_send_order(
     t=GTCOrder{Buy},
     args...;
     amount,
-    price=lastprice(ai),
+    price=lastprice(s, ai, t),
     retries=0,
     post_only=false,
     reduce_only=false,
@@ -38,7 +38,7 @@ function live_send_order(
     skipchecks ||
         check_available_cash(s, ai, amount, t) ||
         begin
-            @warn "Refusing to send order since local state doesn't have enough cash. Maybe out of sync?" this_cash = cash(
+            @warn "send order: not enought cash. out of sync?" this_cash = cash(
                 ai, posside(t)
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
                 ai
@@ -55,7 +55,7 @@ function live_send_order(
     params = LittleDict{Py,Any}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
     get!(params, tif_k, tif_v)
     function supportmsg(feat)
-        @warn "$feat requested, but exchange $(nameof(exc)) doesn't support it"
+        @warn "send order: not supported" feat exc = nameof(exc)
     end
     get!(params, @pyconst("postOnly"), post_only) &&
         (has(exc, :createPostOnlyOrder) || supportmsg("Post Only"))
@@ -82,7 +82,7 @@ function live_send_order(
         resp = create_order(s, sym, args...; side, type, price, amount, params)
     end
     if resp isa PyException
-        @warn "Couldn't create order $(sym) on $(nameof(exchange(ai))) $(resp)"
+        @warn "send order: exception" sym ex = nameof(exchange(ai)) resp
         return nothing
     end
     resp isa Exception || (pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing)

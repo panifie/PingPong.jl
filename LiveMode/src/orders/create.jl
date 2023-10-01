@@ -17,7 +17,7 @@ function create_live_order(
     kwargs...,
 )
     isnothing(resp) && begin
-        @warn "trying to create order with empty response ($(raw(ai)))"
+        @warn "create order: empty response ($(raw(ai)))"
         return nothing
     end
     eid = exchangeid(ai)
@@ -28,7 +28,7 @@ function create_live_order(
         resp_order_filled(resp, eid) > ZERO ||
         !isempty(resp_order_id(resp, eid)) ||
         begin
-            @warn "Order is not open, and does not appear to be (partially) fillled, and id is empty, refusing construction."
+            @warn "create order: not open, not partially fillled, id is empty, refusing construction."
             return nothing
         end
     type = let ot = ordertype_fromtif(resp, eid)
@@ -51,7 +51,9 @@ function create_live_order(
         this_date
     end
     id = @something _orderid(resp, eid) begin
-        @warn "Missing order id for ($(nameof(s))@$(raw(ai))), defaulting to price-time hash"
+        @warn "create order: missing id (default to pricetime hash)" ai = raw(ai) s = nameof(
+            s
+        )
         string(hash((price, date)))
     end
     o = let f = construct_order_func(type)
@@ -60,18 +62,18 @@ function create_live_order(
         end
         o = create()
         if isnothing(o) && synced
-            @warn "Exchange order existing (id: $(resp_order_id(resp, eid))), but couldn't sync locally, (syncing) $(nameof(s)) $(raw(ai))"
+            @warn "create order: can't construct" id = resp_order_id(resp, eid) ai = raw(ai) s = nameof(s)
             @sync begin
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            @debug "Locking ai" ai = raw(ai) side = posside(t)
+            @debug "create order: locking ai" ai = raw(ai) side = posside(t)
             o = @lock ai create()
         end
         o
     end
     if isnothing(o)
-        @error "Failed to sync local order with remote order $(id) - $(raw(ai))@$(nameof(s))"
+        @error "create order: failed to sync" id ai = raw(ai) s = nameof(s)
         return nothing
     else
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
@@ -85,7 +87,7 @@ function create_live_order(
     args...;
     t,
     amount,
-    price=lastprice(ai),
+    price=lastprice(s, ai, t),
     exc_kwargs=(),
     kwargs...,
 )
