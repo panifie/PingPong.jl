@@ -98,6 +98,9 @@ _has(exc::Exchange, s::Symbol) =
     end
 _mockable_has(args...; kwargs...) = _has(args...; kwargs...)
 has(args...; kwargs...) = @mock _mockable_has(args...; kwargs...)
+function has(exc, what::Tuple{Vararg{Symbol}}; kwargs...)
+    all((@mock _mockable_has(exc, v; kwargs...)) for v in what)
+end
 
 function Base.first(exc::Exchange, args::Vararg{Symbol})
     for name in args

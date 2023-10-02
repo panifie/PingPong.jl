@@ -143,8 +143,6 @@ end
 @deforders true Limit
 
 const ordersdefault! = Returns(nothing)
-orderside(::Order{T}) where {T<:OrderType{S}} where {S} = S
-orderside(::Type{O}) where {O<:Order{T}} where {T<:OrderType{S}} where {S<:OrderSide} = S
 ==(v1::Type{<:OrderSide}, v2::Type{Both}) = true
 ==(v1::Type{Both}, v2::Type{<:OrderSide}) = true
 ordertype(::Order{T}) where {T} = T
@@ -190,7 +188,9 @@ include("errors.jl")
 include("print.jl")
 
 @doc "Dispatch by `OrderSide` or by an `Order` or `Trade` with the same side as parameter."
-const BySide{S<:OrderSide} = Union{S,Type{S},Order{<:OrderType{S}},Trade{<:OrderType{S}}}
+const BySide{S<:OrderSide} = Union{
+    S,Type{S},Order{<:OrderType{S}},Type{<:Order{<:OrderType{S}}},Trade{<:OrderType{S}}
+}
 const AnyOrderPos{P<:PositionSide} =
     Union{O,Type{O}} where {O<:Order{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
 const AnyTradePos{P<:PositionSide} =
@@ -198,6 +198,7 @@ const AnyTradePos{P<:PositionSide} =
 @doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
 const ByPos{P<:PositionSide} = Union{P,Type{P},AnyOrderPos{P},AnyTradePos{P}}
 
+orderside(::BySide{S}) where {S<:OrderSide} = S
 isside(what::ByPos{Long}, side::ByPos{Long}) = true
 isside(what::ByPos{Short}, side::ByPos{Short}) = true
 isside(args...) = false
