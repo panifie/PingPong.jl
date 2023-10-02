@@ -1,5 +1,6 @@
 using .Instances: AssetInstance
 using .Exchanges: is_pair_active
+import .Instances: lastprice
 import .Executors: priceat, ticker!
 isactive(ai::AssetInstance) = is_pair_active(raw(ai), exchange(ai))
 

@@ -6,7 +6,7 @@ function pong!(
     ai,
     t::Type{<:AnyLimitOrder};
     amount,
-    price=lastprice(ai),
+    price=lastprice(s, ai, t),
     waitfor=Second(1),
     synced=true,
     kwargs...,
