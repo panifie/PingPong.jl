@@ -64,7 +64,9 @@ end
 function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     eid = exchangeid(ai)
-    all_orders = _execfunc(orders_f, ai; (isnothing(side) ? () : (; side))...)
+    all_orders = _execfunc(
+        orders_f, ai; (isnothing(side) ? () : (; side))..., (isempty(ids) ? () : (; ids))...
+    )
     open_orders = (
         (
             o for o in all_orders if pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
@@ -136,7 +138,7 @@ function ccxt_orders_func!(a, exc)
         (ai; kwargs...) ->
             _fetch_orders(ai, first(exc, :fetchOrdersWs, :fetchOrders); kwargs...)
     elseif has(exc, :fetchOrder)
-        (ai; ids, kwargs...) -> let out = pylist()
+        (ai; ids, side=Both, kwargs...) -> let out = pylist()
             sym = raw(ai)
             @sync for id in ids
                 @async out.append(
