@@ -578,7 +578,7 @@ pnlpct(ai::MarginInstance, v::Number) = begin
 end
 
 function lastprice(ai::AssetInstance, args...; kwargs...)
-    lastprice(ai.asset.raw, ai.exchange, args...; kwargs...)
+    lastprice(raw(ai), ai.exchange, args...; kwargs...)
 end
 function lastprice(ai::AssetInstance, ::Val{:history})
     v = ai.history
