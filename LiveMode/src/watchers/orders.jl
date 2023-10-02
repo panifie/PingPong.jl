@@ -309,7 +309,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
                 state = get_order_state(orders_byid, id)
                 # wait for earlier events to be processed
                 while first(sem.queue) != n
-                    @debug "handle ord: waiting for queue" n
+                    @debug "handle ord: waiting for queue" n id
                     safewait(sem.cond)
                 end
                 if state isa LiveOrderState
