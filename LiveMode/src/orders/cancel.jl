@@ -1,9 +1,13 @@
 function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=nothing)
     eid = exchangeid(ai)
-    (func, kwargs) = if all
+    (func, kwargs) = if side === Both && all
         (cancel_all_orders, (;))
     else
-        (cancel_orders, (; ids, side))
+        (cancel_orders, (; ids=if isempty(ids)
+            fetch_open_orders(s, ai; side)
+        else
+            ids
+        end, side))
     end
     done = try
         resp = func(s, ai; kwargs...)
