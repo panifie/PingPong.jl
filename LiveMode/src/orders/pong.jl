@@ -29,9 +29,10 @@ function pong!(
     synced=true,
     kwargs...,
 )
+    @timeout_start
     trade = _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
-        live_sync_cash!(s, ai, posside(trade); since=trade.date, waitfor=@timeout_now)
+        live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
     trade
 end
