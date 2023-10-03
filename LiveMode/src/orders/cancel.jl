@@ -3,11 +3,17 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
     (func, kwargs) = if side === Both && all
         (cancel_all_orders, (;))
     else
-        (cancel_orders, (; ids=if isempty(ids)
-            fetch_open_orders(s, ai; side)
-        else
-            ids
-        end, side))
+        (
+            cancel_orders,
+            (;
+                ids=if isempty(ids)
+                    (resp_order_id(resp, eid) for resp in fetch_open_orders(s, ai; side))
+                else
+                    ids
+                end,
+                side,
+            ),
+        )
     end
     done = try
         resp = func(s, ai; kwargs...)
