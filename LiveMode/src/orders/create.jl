@@ -31,7 +31,7 @@ function create_live_order(
             @warn "create order: not open, not partially fillled, id is empty, refusing construction."
             return nothing
         end
-    type = let ot = ordertype_fromtif(resp, eid)
+    type = let ot = ordertype_fromccxt(resp, eid)
         if isnothing(ot)
             t
         else
