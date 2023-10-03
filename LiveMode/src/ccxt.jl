@@ -87,7 +87,7 @@ _ccxtmarginmode(v) = marginmode(v) |> _ccxtmarginmode
 ordertype_fromccxt(resp, eid::EIDType) =
     let v = resp_order_type(resp, eid)
         if pyeq(Bool, v, @pyconst "market")
-            MarketOrderType
+            ot.MarketOrderType
         elseif pyeq(Bool, v, @pyconst "limit")
             ordertype_fromtif(resp, eid)
         end

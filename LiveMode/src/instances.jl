@@ -1,7 +1,7 @@
 using .Instances: AssetInstance
 using .Exchanges: is_pair_active
 import .Instances: lastprice
-import .Executors: priceat, ticker!
+import .Executors: priceat
 isactive(ai::AssetInstance) = is_pair_active(raw(ai), exchange(ai))
 
 function priceat(s::Strategy, ai::AssetInstance, date::DateTime; step=:open, sym=raw(ai))
