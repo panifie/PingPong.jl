@@ -1,14 +1,17 @@
 function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
-    o = create_live_order(s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs)
+    o = create_live_order(
+        s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs
+    )
+    @deassert o isa MarketOrder{orderside(t)}
     isnothing(o) && return nothing
-    @debug "market order: created" id = o.id
+    @debug "market order: created" id = o.id hasorders(s, ai, o.id)
     order_trades = trades(o)
     @timeout_start
 
     if !isempty(order_trades) ||
         (waitfororder(s, ai, o; waitfor=@timeout_now) && !isempty(order_trades))
         last(order_trades)
-    elseif hasorders(s, ai, o)
+    else
         if waitfortrade(s, ai, o; waitfor=@timeout_now)
             last(order_trades)
         else
@@ -20,7 +23,5 @@ function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
                 last(order_trades)
             end
         end
-    else
-        @debug "market order: cancelled or failed"
     end
 end
