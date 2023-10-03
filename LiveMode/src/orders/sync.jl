@@ -41,7 +41,7 @@ function live_sync_active_orders!(
     end
     # Pre-delete local orders not open on exc to fix commit calculation
     let exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
-        for o in values(s, ai)
+        for o in values(s, ai, side)
             o.id ∉ exc_ids && delete!(s, ai, o)
         end
     end
@@ -84,7 +84,9 @@ function live_sync_active_orders!(
                 @debug "sync orders: setting active order" o.id ai = raw(ai) s = nameof(s)
                 push!(live_orders, o.id)
                 replay_order!(s, o, ai; resp, exec)
-                if filled_amount(o) > ZERO && o isa IncreaseOrder
+                if isfilled(ai, o)
+                    delete!(ao, o.id)
+                elseif filled_amount(o) > ZERO && o isa IncreaseOrder
                     @ifdebug if ai ∉ s.holdings
                         @debug "sync orders: asset not in holdings" ai = raw(ai)
                     end
@@ -93,7 +95,7 @@ function live_sync_active_orders!(
             end
         end
     end
-    for o in values(s, ai)
+    for o in values(s, ai, side)
         if o.id ∉ live_orders
             @debug "sync orders: local order non open on exchange." o.id ai = raw(ai) exc = nameof(
                 exchange(ai)
@@ -102,6 +104,7 @@ function live_sync_active_orders!(
         end
     end
     @sync for (id, state) in ao
+        orderside(state.order) == side || continue
         if id ∉ live_orders
             @debug "sync orders: tracked local order was not open on exchange" id ai = raw(
                 ai
@@ -134,8 +137,8 @@ function live_sync_active_orders!(
             end
         end
     end
-    @deassert orderscount(s, ai) == length(live_orders)
-    if orderscount(s, ai) > 0
+    @deassert orderscount(s, ai, side) == length(live_orders)
+    if orderscount(s, ai, side) > 0
         watch_trades!(s, ai) # ensure trade watcher is running
         watch_orders!(s, ai) # ensure orders watcher is running
     end
