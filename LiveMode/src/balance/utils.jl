@@ -99,7 +99,7 @@ function live_balance(
     isnothing(since) ||
         isnothing(bal) ||
         begin
-            if waitforbal(s, ai; force, waitfor, fallback_kwargs)
+            if waitforbal(s, ai; since, force, waitfor, fallback_kwargs)
             elseif force
                 @debug "live bal: last force fetch"
                 _force_fetchbal(s; fallback_kwargs)
