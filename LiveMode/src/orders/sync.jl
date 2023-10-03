@@ -62,7 +62,7 @@ function live_sync_active_orders!(
                 s,
                 resp,
                 ai;
-                t=_ccxtposside(resp, eid, Val(:order); def=default_pos),
+                t=_ccxtposside(s, resp, eid; def=default_pos),
                 price=missing,
                 amount=missing,
                 synced=false,

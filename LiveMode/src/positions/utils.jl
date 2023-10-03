@@ -218,7 +218,7 @@ _ccxtposside(v::Py, eid::EIDType) =
     else
         _ccxtpnlside(v, eid)
     end
-function _ccxtposside(v::Py, eid::EIDType, ::Val{:order}; def=Long())
+function _ccxtposside(::MarginStrategy{Live}, v::Py, eid::EIDType; def=Long())
     let side = resp_order_side(v, eid)
         if pyeq(Bool, side, @pyconst("sell"))
             Short()
@@ -230,6 +230,7 @@ function _ccxtposside(v::Py, eid::EIDType, ::Val{:order}; def=Long())
         end
     end
 end
+_ccxtposside(::NoMarginStrategy{Live}, args...; kwargs...) = Long()
 function _ccxtposprice(ai, update)
     eid = exchangeid(ai)
     lp = resp_position_lastprice(update, eid)
