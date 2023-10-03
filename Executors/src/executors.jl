@@ -7,6 +7,7 @@ include("context.jl")
 include("checks.jl")
 include("functions.jl")
 
+include("orders/iter.jl")
 include("orders/utils.jl")
 include("orders/state.jl")
 include("orders/limit.jl")

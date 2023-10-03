@@ -128,9 +128,25 @@ end
 
 @doc "Iterates over all the orders in a strategy."
 function orders(s::Strategy)
+    OrderIterator((orders(s, ai, side) for side in (Buy, Sell) for ai in s.holdings))
+end
+function orders(s::Strategy, ::Val{:orderless})
     (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
 end
 function orders(s::Strategy, ai::AssetInstance)
+    buys = orders(s, ai, Buy)
+    if length(buys) == 0
+        orders(s, ai, Sell)
+    else
+        sells = orders(s, ai, Sell)
+        if length(sells) == 0
+            buys
+        else
+            OrderIterator(buys, sells)
+        end
+    end
+end
+function orders(s::Strategy, ai::AssetInstance, ::Val{:orderless})
     (o for side in (Buy, Sell) for o in orders(s, ai, side))
 end
 orders(s, ai, ::Type{Both}) = orders(s, ai)
@@ -147,6 +163,28 @@ end
 Base.keys(s::Strategy, args...; kwargs...) = (k for (k, _) in orders(s, args...; kwargs...))
 function Base.values(s::Strategy, args...; kwargs...)
     (o for (_, o) in orders(s, args...; kwargs...))
+end
+function Base.first(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+    values(s, ai, bs) |> first
+end
+function Base.firstindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+    keys(s, ai, bs) |> first
+end
+function Base.last(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+    ans = missing
+    for v in values(s, ai, bs)
+        ans = v
+    end
+    ismissing(ans) && throw(BoundsError())
+    ans
+end
+function Base.lastindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+    ans = missing
+    for k in keys(s, ai, bs)
+        ans = k
+    end
+    ismissing(ans) && throw(BoundsError())
+    ans
 end
 function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0

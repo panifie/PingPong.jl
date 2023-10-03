@@ -85,6 +85,7 @@ Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.a
 function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
+Base.isless(o1::O1, o2::O2) where {O1, O2 <:Order} = isless(o1.date, o2.date)
 
 const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
 const SellOrder{A,E} = Order{<:OrderType{Sell},A,E,Long}
