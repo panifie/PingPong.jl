@@ -5,21 +5,11 @@ struct OrderIterator
     OrderIterator(gen) = OrderIterator([Iterators.Stateful(a) for a in gen])
 end
 
-
+# Find the iterator with the smallest value
 _findmin(non_empty_iters) = begin
-    # Find the iterator with the smallest value
-    min_iter = non_empty_iters[1]
-    min_val = peek(min_iter)
-
-    for iter in non_empty_iters[2:end]
-        val = peek(iter)
-        if val.first < min_val.first
-            min_val = val
-            min_iter = iter
-        end
-    end
-
-    (min_val, min_iter)
+    iters = @view non_empty_iters[2:end]
+    min_val, iter_idx = findmin(peek, iters)
+    min_val, iters[iter_idx]
 end
 
 _do_orders_iter(oi) = begin
@@ -27,15 +17,18 @@ _do_orders_iter(oi) = begin
     non_empty_iters = filter!(!isempty, oi.iters)
 
     # Check if all iterators are empty
-    if isempty(non_empty_iters)
-        return nothing
+    len = length(non_empty_iters)
+    if len == 0
+        nothing
+    elseif len == 1
+        popfirst!(non_empty_iters[1]), nothing
+    else
+        min_val, min_iter = _findmin(non_empty_iters)
+
+        # Remove the smallest value from the iterator and return it
+        popfirst!(min_iter)
+        min_val, nothing
     end
-
-    min_val, min_iter = _findmin(non_empty_iters)
-
-    # Remove the smallest value from the iterator and return it
-    popfirst!(min_iter)
-    return (min_val, nothing)
 end
 
 Base.iterate(oi::OrderIterator, _) = _do_orders_iter(oi)
@@ -47,3 +40,11 @@ function Base.collect(oi::OrderIterator)
         push!(out, (v for v in oi)...)
     end
 end
+Base.last(oi::OrderIterator) =
+    let out = first(oi)
+        for v in oi
+            out = v
+        end
+        out
+    end
+Base.count(oi::OrderIterator) = count((_) -> true, oi)

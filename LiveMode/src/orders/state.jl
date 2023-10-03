@@ -15,23 +15,27 @@ function fill!(::NoMarginStrategy{Live}, ai::NoMarginInstance, o::BuyOrder, t::B
     )
     # from pos to 0 (buy size is neg)
     attr(o, :committed)[] -= committment(ai, t)
-    @deassert gtxzero(ai, committed(o), Val(:price)) || o isa MarketOrder (
-        o, committment(ai, t)
+    @deassert gtxzero(ai, committed(o), Val(:price)) ||
+        o isa MarketOrder ||
+        gtxzero(ai, t.fees_base, Val(:amount)) (
+        o, committed(o), attr(o, :unfilled)[], committment(ai, t), t.fees_base, t.fees
     )
 end
 function fill!(::LiveStrategy, ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && _check_unfillment(o)
-    @deassert committed(o) == o.attrs.committed[] && committed(o) |> gtxzero
+    @deassert committed(o) == o.attrs.committed[] && gtxzero(ai, committed(o), Val(:amount))
     # from pos to 0 (sell amount is neg)
     amt = _deducted_amount(t)
     @ifdebug if o isa AnyMarketOrder
         @info "AMOUNT: " amt attr(o, :unfilled) attr(o, :committed) o.amount
     end
     attr(o, :unfilled)[] += amt
-    @deassert attr(o, :unfilled)[] |> gtxzero
+    @deassert gtxzero(ai, attr(o, :unfilled)[], Val(:amount))
     # from pos to 0 (sell amount is neg)
     attr(o, :committed)[] += amt
-    @deassert committed(o) |> gtxzero
+    @deassert gtxzero(ai, committed(o), Val(:cost)) (
+        committed(o), attr(o, :unfilled)[], t.fees, t.fees_base
+    )
 end
 function fill!(
     ::MarginStrategy{Live}, ai::AssetInstance, o::ShortBuyOrder, t::ShortBuyTrade

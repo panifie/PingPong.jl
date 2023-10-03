@@ -87,7 +87,7 @@ function waitfor_closed(
                     success = if isactive(s, ai; side=t)
                         @error "wait ord close: orders still active" side = t n = orderscount(
                             s, ai, t
-                        ) length(active_orders(s, ai))
+                        ) length(active_orders(s, ai)) isactive(s, ai; side=t)
                         false
                     else
                         true

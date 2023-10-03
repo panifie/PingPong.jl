@@ -54,17 +54,23 @@ function Base.display(io::IO, t::Trade)
 end
 Base.display(t::Trade) = display(stdout, t)
 
-_verb(o::AnyBuyOrder) = "Bought "
-_verb(o::AnySellOrder) = "Sold "
+_verb(o::AnyBuyOrder) = "Buy"
+_verb(o::AnySellOrder) = "Sell"
+_pside(o::LongOrder) = "(Long)"
+_pside(o::ShortOrder) = "(Short)"
 
-Base.show(io::IO, o::Order) = begin
+function Base.show(io::IO, o::Order)
+    write(io, replace(string(nameof(ordertype(o))), "OrderType" => ""))
+    write(io, " ")
     write(io, _verb(o))
+    write(io, _pside(o))
+    write(io, " ")
     write(io, cnum(o.amount))
     write(io, " ")
     write(io, o.asset.bc)
     write(io, " on ")
     write(io, string(o.exc))
-    write(io, " priced at ")
+    write(io, " at ")
     write(io, cnum(o.price))
     write(io, " ")
     write(io, o.asset.qc)

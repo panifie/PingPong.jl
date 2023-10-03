@@ -319,12 +319,11 @@ function handle_order!(s, ai, orders_byid, resp, sem)
                     @debug "handle ord: re-activating (open) order" id ai = raw(ai)
                     re_activate_order!(s, ai, id; eid, resp)
                 else
-                    @debug "handle ord: cancelling local order since non open remotely" id ai = raw(
-                        ai
-                    ) s = nameof(s)
                     for o in values(s, ai) # ensure order is not stored locally
                         if o.id == id
-                            @debug "handle ord: cancelling..."
+                            @debug "handle ord: cancelling local order since non open remotely" id ai = raw(
+                                ai
+                            ) s = nameof(s)
                             cancel!(
                                 s,
                                 o,
