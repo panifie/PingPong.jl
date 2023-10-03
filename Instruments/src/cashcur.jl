@@ -65,7 +65,7 @@ compactnum(val::N) where {N<:Number} = begin
         scaled_string(val, 1e-10, "n")
     elseif av < 1e-6
         scaled_string(val, 1e-7, "μ")
-    elseif av < 1e-2
+    elseif av < 1e-3
         scaled_string(val, 1e-4, "m")
     elseif av < 1e3
         "$(round(val, digits=3))"
