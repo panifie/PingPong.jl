@@ -11,8 +11,11 @@ function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synce
         else
             synced && _force_fetchtrades(s, ai, o)
             if isempty(order_trades)
-                @debug "pong limit order: immediate order failed"
-                missing
+                if haskey(s, ai, pricetime(o))
+                    missing
+                else
+                    @debug "pong limit order: immediate order failed"
+                end
             else
                 last(order_trades)
             end
