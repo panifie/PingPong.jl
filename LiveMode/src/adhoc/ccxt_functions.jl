@@ -5,12 +5,12 @@ function ccxt_orders_func!(a, exc::Exchange{ExchangeID{:bybit}})
         @assert has(exc, (:fetchOpenOrders, :fetchClosedOrders))
         fetch_open_func = first(exc, :fetchOpenOrdersWs, :fetchOpenOrders)
         fetch_closed_func = first(exc, :fetchClosedOrdersWs, :fetchClosedOrders)
-        (ai; ids=(), kwargs...) -> let out = pylist()
+        (ai; ids=(), side=Both, kwargs...) -> let out = pylist()
             sym = raw(ai)
             if isempty(ids)
                 @sync begin
-                    @async out.extend(_fetch_orders(ai, fetch_open_func; kwargs...))
-                    @async out.extend(_fetch_orders(ai, fetch_closed_func; kwargs...))
+                    @async out.extend(_fetch_orders(ai, fetch_open_func; side, kwargs...))
+                    @async out.extend(_fetch_orders(ai, fetch_closed_func; side, kwargs...))
                 end
             else
                 @sync for id in ids
