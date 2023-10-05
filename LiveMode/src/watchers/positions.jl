@@ -120,8 +120,6 @@ function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
     _lastfetched!(w, DateTime(0))
 end
 
-# TODO: Maybe call live_sync_position! directly here?
-
 function _posupdate(date, resp)
     PositionUpdate7((;
         date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp
