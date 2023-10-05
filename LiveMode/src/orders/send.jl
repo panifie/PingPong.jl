@@ -51,7 +51,7 @@ function live_send_order(
     type = _ccxtordertype(exc, t)
     tif = _ccxttif(exc, t)
     tif_k = @pystr(time_in_force_key(exc))
-    tif_v = @pystr(time_in_force_value(exc, tif))
+    tif_v = @pystr(time_in_force_value(exc, asset(ai), tif))
     params = LittleDict{Py,Any}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
     get!(params, tif_k, tif_v)
     function supportmsg(feat)

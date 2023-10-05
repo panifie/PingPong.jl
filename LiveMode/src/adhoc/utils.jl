@@ -1,9 +1,8 @@
+using .Executors.Instruments.Derivatives: Derivative
+
 eids(ids...) = Union{((ExchangeID{i}) for i in ids)...}
 
-time_in_force_key(::Exchange{<:(eids(:phemex, :bybit))}) = @pyconst "timeInForce"
-# FIXME: :bybit is different for spot/swap (on spot there is no conversion)
-time_in_force_value(::Exchange{<:(eids(:phemex, :bybit))}, v) =
-    @pystr if v == "PO"
+_tif_value(v) = @pystr if v == "PO"
         "PostOnly"
     elseif v == "FOK"
         "FillOrKill"
@@ -14,3 +13,11 @@ time_in_force_value(::Exchange{<:(eids(:phemex, :bybit))}, v) =
     else
         "GoodTillCancel"
     end
+
+time_in_force_key(::Exchange{<:(eids(:phemex, :bybit))}, ::AbstractAsset) = @pyconst "timeInForce"
+time_in_force_value(::Exchange{<:(eids(:phemex))}, ::Option{<:AbstractAsset}, v) = _tif_value(v)
+
+function time_in_force_value(::Exchange{<:(eids(:bybit))}, ::Derivative, v)
+    _tif_value(v)
+end
+time_in_force_value(::Exchange{<:(eids(:bybit))}, ::Option{<:AbstractAsset}, v) = v

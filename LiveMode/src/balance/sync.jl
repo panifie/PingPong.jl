@@ -55,7 +55,7 @@ function live_sync_cash!(
     s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), kwargs...
 )
     bal = live_balance(s, ai; since, waitfor, force=true)
-    if isnothing(bal)
+    @lock ai if isnothing(bal)
         @warn "Resetting asset cash (not found)" ai = raw(ai)
         cash!(ai, ZERO)
         cash!(committed(ai), ZERO)
