@@ -39,8 +39,8 @@ function _live_load()
     end
 end
 
-function live_strat(name)
-    s = backtest_strat(name; config_attrs=(; skip_watcher=true), mode=Live())
+function live_strat(name; kwargs...)
+    s = backtest_strat(name; config_attrs=(; skip_watcher=true), mode=Live(), kwargs...)
     lm.exc_live_funcs!(s)
     s
 end
