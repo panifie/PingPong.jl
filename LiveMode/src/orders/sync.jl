@@ -122,13 +122,13 @@ function live_sync_active_orders!(
                     catch
                         @debug_backtrace
                     end
-                    if isnothing(order_resp)
-                        @error "sync orders: local order not found on exchange" id ai = raw(
-                            ai
-                        ) exc = nameof(exchange(ai))
-                    else
+                    @lock ai if isdict(order_resp)
                         @deassert resp_order_id(order_resp, eid, String) == id
                         replay_order!(s, state.order, ai; resp=order_resp, exec)
+                    else
+                        @error "sync orders: local order not found on exchange" id ai = raw(
+                            ai
+                        ) exc = nameof(exchange(ai)) resp = order_resp
                     end
                     delete!(ao, id)
                 end
