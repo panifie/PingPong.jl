@@ -33,7 +33,7 @@ function live_pnl(
             end
             if synced || sync
                 @debug "live pnl: locking ai " ai = raw(ai) side = pside
-                @lock ai live_sync_position!(s, ai, pside, update; commits=false)
+                live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))
         else

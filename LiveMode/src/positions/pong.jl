@@ -21,7 +21,7 @@ function Executors.pong!(
         # First update on exchange
         if leverage!(exchange(ai), val, raw(ai))
             # then sync position
-            @lock ai live_sync_position!(s, ai, pos; force=false, since)
+            live_sync_position!(s, ai, pos; force=false, since)
         end
         @deassert isapprox(leverage(ai, pos), val, rtol=0.01) (leverage(ai, pos), lev)
         true
@@ -129,7 +129,6 @@ function pong!(
             ai
         )
     amount = ai |> cash |> abs
-    default_since = now()
     @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
     close_trade = pong!(
         s, ai, t; amount, reduce_only=true, waitfor=@timeout_now, this_kwargs...
@@ -138,45 +137,48 @@ function pong!(
         close_trade.date
     else
         @warn "pong pos close: missing trade" values(s, ai, orderside(t)) ai = raw(ai)
-        default_since
+        now()
     end
     if waitfor_closed(s, ai, @timeout_now)
-        waitposclose(s, ai, P; waitfor=@timeout_now)
-        @lock ai begin
-            live_sync_position!(s, ai, P(); since, force=true, waitfor=@timeout_now)
+        if waitposclose(s, ai, P; waitfor=@timeout_now)
+        else
+            @debug "pong pos close: timedout" pos = P ai = raw(ai)
+        end
+        live_sync_position!(
+            s, ai, P(); since, force=true, strict=true, waitfor=@timeout_now
+        )
+        if @lock ai isopen(ai, pos)
             @debug "pong pos close:" timestamp(ai, pos) >= since timestamp(ai, pos) ==
                 DateTime(0)
-            if isopen(ai, pos)
-                pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
-                @debug "pong pos close: still open (local) position" since position(ai, pos) data =
-                    try
-                        resp = fetch_positions(s, ai)[0]
-                        this_pup = live_position(
-                            s, ai, P(); since, force=true, waitfor=@timeout_now
-                        )
-                        eid = exchangeid(ai)
-                        (;
-                            prev_pup=if isnothing(pup)
-                                nothing
-                            else
-                                (; pup.date, pup.closed, pup.read)
-                            end,
-                            open_orders=fetch_open_orders(s, ai),
-                            live_pos=(;
-                                timestamp=resp_position_timestamp(this_pup.resp, eid),
-                                amount=resp_position_contracts(this_pup.resp, eid),
-                            ),
-                            fetch_pos=(;
-                                timestamp=resp_position_timestamp(resp, eid),
-                                amount=resp_position_contracts(resp, eid),
-                            ),
-                        )
-                    catch
-                    end
-                false
-            else
-                true
-            end
+            pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
+            @debug "pong pos close: still open (local) position" since position(ai, pos) data =
+                try
+                    resp = fetch_positions(s, ai)[0]
+                    this_pup = live_position(
+                        s, ai, P(); since, force=true, waitfor=@timeout_now
+                    )
+                    eid = exchangeid(ai)
+                    (;
+                        prev_pup=if isnothing(pup)
+                            nothing
+                        else
+                            (; pup.date, pup.closed, pup.read)
+                        end,
+                        open_orders=fetch_open_orders(s, ai),
+                        live_pos=(;
+                            timestamp=resp_position_timestamp(this_pup.resp, eid),
+                            amount=resp_position_contracts(this_pup.resp, eid),
+                        ),
+                        fetch_pos=(;
+                            timestamp=resp_position_timestamp(resp, eid),
+                            amount=resp_position_contracts(resp, eid),
+                        ),
+                    )
+                catch
+                end
+            false
+        else
+            true
         end
     else
         if @lock ai isopen(ai, P())

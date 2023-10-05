@@ -110,28 +110,26 @@ function live_sync_active_orders!(
                 ai
             ) exc = nameof(exchange(ai))
             @deassert id == state.order.id
-            if isopen(ai, state.order) # need to sync trades
-                @async begin
-                    order_resp = try
-                        resp = fetch_orders(s, ai; ids=(id,))
-                        if islist(resp) && !isempty(resp)
-                            resp[0]
-                        elseif isdict(resp)
-                            resp
-                        end
-                    catch
-                        @debug_backtrace
+            @async @lock ai if isopen(ai, state.order) # need to sync trades
+                order_resp = try
+                    resp = fetch_orders(s, ai; ids=(id,))
+                    if islist(resp) && !isempty(resp)
+                        resp[0]
+                    elseif isdict(resp)
+                        resp
                     end
-                    @lock ai if isdict(order_resp)
-                        @deassert resp_order_id(order_resp, eid, String) == id
-                        replay_order!(s, state.order, ai; resp=order_resp, exec)
-                    else
-                        @error "sync orders: local order not found on exchange" id ai = raw(
-                            ai
-                        ) exc = nameof(exchange(ai)) resp = order_resp
-                    end
-                    delete!(ao, id)
+                catch
+                    @debug_backtrace
                 end
+                if isdict(order_resp)
+                    @deassert resp_order_id(order_resp, eid, String) == id
+                    replay_order!(s, state.order, ai; resp=order_resp, exec)
+                else
+                    @error "sync orders: local order not found on exchange" id ai = raw(ai) exc = nameof(
+                        exchange(ai)
+                    ) resp = order_resp
+                end
+                delete!(ao, id)
             else
                 delete!(ao, id)
             end

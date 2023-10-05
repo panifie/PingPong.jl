@@ -248,6 +248,11 @@ function live_sync_position!(
     return pos
 end
 
+function live_sync_position!(s::LiveStrategy, ai::MarginInstance, args...; kwargs...)
+    @debug "sync pos: locking ai" ai = raw(ai)
+    @lock ai _live_sync_position!(s, ai, args...; kwargs...)
+end
+
 function live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
@@ -277,7 +282,7 @@ function live_sync_cash!(
 )
     side = posside(bp)
     pup = live_position(s, ai, side; since, force=true, waitfor)
-    if isnothing(pup)
+    @lock ai if isnothing(pup)
         @warn "sync cash: resetting (both) position cash (not found)" ai = raw(ai)
         reset!(ai, Long())
         reset!(ai, Short())
