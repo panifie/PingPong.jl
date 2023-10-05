@@ -162,8 +162,9 @@ order_update_hash(resp, eid) = begin
 end
 
 function update_order!(s, ai, eid; resp, state)
-    @debug "update ord: locking state" id = state.order.id
+    @debug "update ord: locking state" id = state.order.id islocked(ai) f = @caller 7
     @lock state.lock begin
+        @debug "update ord: locked" id = state.order.id islocked(ai)
         this_hash = order_update_hash(resp, eid)
         state.update_hash[] == this_hash && return nothing
         # always update hash on new data
@@ -245,29 +246,32 @@ function update_order!(s, ai, eid; resp, state)
 end
 
 function re_activate_order!(s, ai, id; eid, resp)
-    function docancel()
+    function docancel(o=nothing)
         @error "reactivate ord: could not re-create order, cancelling from exchange" id exc = nameof(
             exchange(ai)
         )
         live_cancel(s, ai; ids=(id,), confirm=false, all=false)
-    end
-
-    new_order = true
-    # This should practically never happen
-    for o in values(s, ai)
-        if o.id == id
-            state = set_active_order!(s, ai, o)
-            @warn "reactivate ord: re-activation done" id exc = nameof(exchange(ai))
-            if state isa LiveOrderState
-                update_order!(s, ai, eid; resp, state)
-            else
-                docancel()
-            end
-            new_order = false
-            break
+        if o isa Order && hasorders(s, ai, o.id)
+            cancel!(
+                s,
+                o,
+                ai;
+                err=OrderFailed("Dangling order $id found in local state ($(raw(ai)))."),
+            )
         end
     end
-    if new_order
+
+    o = findorder(s, ai; resp, id)
+    # This should practically never happen
+    if o isa Order && isopen(ai, o)
+        state = set_active_order!(s, ai, o)
+        @warn "reactivate ord: re-activation done" id exc = nameof(exchange(ai))
+        if state isa LiveOrderState
+            update_order!(s, ai, eid; resp, state)
+        else
+            docancel(o)
+        end
+    else
         o = create_live_order(
             s,
             resp,
@@ -282,7 +286,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             if state isa LiveOrderState
                 update_order!(s, ai, eid; resp, state)
             else
-                docancel()
+                docancel(o)
             end
         else
             docancel()
