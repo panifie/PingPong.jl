@@ -39,7 +39,12 @@ for sym in (openat, highat, lowat, closeat, volumeat)
 end
 
 @doc "The asset close price of the candle where the last trade was performed."
-lasttrade_price_func(ai) = closeat(ai, max(firstdate(ai), lasttrade_date(ai)))
+lasttrade_price_func(ai) =
+    if isempty(ohlcv(ai))
+        NaN
+    else
+        closeat(ai, max(firstdate(ai), lasttrade_date(ai)))
+    end
 
 current_total(s, price_func; kwargs...) = current_total(s; price_func, kwargs...)
 function current_total(s::NoMarginStrategy; price_func=lasttrade_price_func, kwargs...)
