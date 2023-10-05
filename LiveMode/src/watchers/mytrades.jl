@@ -361,7 +361,7 @@ function _force_fetchtrades(s, ai, o)
     ordersby_id = active_orders(s, ai)
     state = get_order_state(ordersby_id, o.id; waitfor=Millisecond(0))
     @debug "force fetch trades: " locked =
-        state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller 7
+        state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller 10
     function handler()
         @debug "force fetch trades: fetching" o.id
         trades_resp = fetch_order_trades(s, ai, o.id)
@@ -382,8 +382,9 @@ function _force_fetchtrades(s, ai, o)
     if state isa LiveOrderState
         prev_count = length(trades(o))
         waslocked = islocked(state.lock)
-        @debug "force fetch trades: locking state" id = o.id waslocked
+        @debug "force fetch trades: locking state" id = o.id waslocked f = @caller 7
         @lock state.lock if waslocked && length(trades(o)) != prev_count
+            @debug "force fetch trades: skipping after lock"
             return nothing
         end
         handler()
