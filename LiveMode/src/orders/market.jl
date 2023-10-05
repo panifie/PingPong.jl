@@ -2,8 +2,8 @@ function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     o = create_live_order(
         s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs
     )
-    @deassert o isa AnyMarketOrder{orderside(t)} o
     isnothing(o) && return nothing
+    @deassert o isa AnyMarketOrder{orderside(t)} o
     @debug "market order: created" id = o.id hasorders(s, ai, o.id)
     order_trades = trades(o)
     @timeout_start
