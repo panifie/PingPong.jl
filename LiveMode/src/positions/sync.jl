@@ -8,7 +8,7 @@ macro warn_unsynced(what, loc, rem, msg="unsynced")
     esc(ex)
 end
 
-function live_sync_position!(
+function _live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
     p::Option{ByPos},
@@ -17,7 +17,7 @@ function live_sync_position!(
     ep_in=resp_position_entryprice(update.resp, exchangeid(ai)),
     commits=true,
     skipchecks=false,
-    overwrite=false,
+    strict=false,
     waitfor=Second(5),
 )
     let queue = asset_queue(s, ai)
@@ -38,16 +38,16 @@ function live_sync_position!(
         marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai))
     end
     skipchecks || begin
-        if !ishedged(pos) && isopen(opposite(ai, pside))
+        if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
             let amount = resp_position_contracts(
                     get_positions(s, ai, opposite(pside)).resp, eid
                 ),
                 oppos = opposite(pside)
 
                 if amount > ZERO
-                    @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos raw(
-                        ai
-                    ) nameof(s) f = @caller
+                    @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos cash(
+                        ai, oppos
+                    ) raw(ai) nameof(s) f = @caller
                     pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
                     oppos_pos = position(ai, oppos)
                     if isopen(oppos_pos)
@@ -76,21 +76,21 @@ function live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" ai = raw(ai) pside overwrite f = @caller
-        overwrite || return pos
+        @debug "sync pos: update already read" ai = raw(ai) pside strict f = @caller
+        strict || return pos
     end
 
     this_timestamp = update.date
-    if this_timestamp <= timestamp(pos)
-        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp overwrite f = @caller
-        overwrite || return pos
+    if this_timestamp < timestamp(pos)
+        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp strict f = @caller
+        return pos
     end
 
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
         pyisnone(mm) ||
             pyeq(Bool, mm, _ccxtmarginmode(pos)) ||
-            @warn "sync pos: position margin mode mismatch local: $(marginmode(pos)), remote: $(mm)"
+            @warn "sync pos: position margin mode mismatch" loc = marginmode(pos) rem = mm
     end
 
     # resp cash, (always positive for longs, or always negative for shorts)
@@ -243,7 +243,7 @@ function live_sync_position!(
     timestamp!(pos, this_timestamp)
     @debug "sync pos: synced" date = this_timestamp amount = resp_position_contracts(
         update.resp, eid
-    ) ai = raw(ai) f = @caller
+    ) ai = raw(ai) posside(ai) cash(ai) isopen(ai, Long()) isopen(ai, Short()) f = @caller
     update.read[] = true
     return pos
 end
@@ -302,7 +302,7 @@ end
 @doc """ Asset balance is the position of the asset when margin is involved.
 
 """
-function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=true, kwargs...)
+function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, kwargs...)
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
@@ -311,7 +311,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=true, kwarg
             @debug "sync uni: resetting position (no update)" ai = raw(ai) side
             reset!(ai, side)
         else
-            live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
+            live_sync_position!(s, ai, side, pup; strict, kwargs...)
         end
     end
     @sync for ai in s.universe
