@@ -1,6 +1,6 @@
 using Lang: @lget!, @deassert, MatchString
-import Instances.ExchangeTypes: exchangeid, exchange
-import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash
+import Instances.ExchangeTypes: exchangeid, exchange, committed
+import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersdefault!
 
@@ -18,8 +18,10 @@ function exchangeid(
     E
 end
 Exchanges.issandbox(s::Strategy) = Exchanges.issandbox(exchange(s))
+cash(s::Strategy) = getfield(s, :cash)
+Instances.committed(s::Strategy) = getfield(s, :cash_committed)
 @doc "Cash that is not committed, and therefore free to use for new orders."
-freecash(s::Strategy) = s.cash - s.cash_committed
+freecash(s::Strategy) = cash(s) - s.cash_committed
 @doc "Get the strategy margin mode."
 Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M()
 

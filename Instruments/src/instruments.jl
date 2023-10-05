@@ -83,6 +83,7 @@ Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.string(a::AbstractAsset) = "Asset($(a.bc)/$(a.qc))"
 Base.show(buf::IO, a::AbstractAsset) = write(buf, string(a))
 Base.display(a::AbstractAsset) = show(stdout, a)
+raw(::Nothing) = ""
 raw(v::AbstractString) = v
 raw(a::AbstractAsset) = convert(String, a)
 qc(a::AbstractAsset) = a.qc
