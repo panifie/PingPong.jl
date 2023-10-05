@@ -73,7 +73,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
         )...,
     )
     if !isempty(open_orders)
-        if side ∈ (Buy, Sell)
+        if side === Buy || side === Sell
             side_str = _ccxtorderside(side)
             side_ids = (
                 (
