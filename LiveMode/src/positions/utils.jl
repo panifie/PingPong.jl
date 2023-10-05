@@ -81,7 +81,7 @@ end
 
 function _force_fetchpos(s, ai, side; fallback_kwargs)
     w = positions_watcher(s)
-    @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller
+    @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
     @lock w begin
         waslocked && return nothing
@@ -269,9 +269,12 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
             elseif pyeq(Bool, side_str, @pyconst("long"))
                 Long()
             else
-                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" side_str f = @caller
-                # @debug "Resp of invalid position flag" update
-                _ccxtpnlside(update, eid)
+                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" side_str resp_position_contracts(
+                    update, eid
+                ) f = @caller
+                side = _ccxtpnlside(update, eid)
+                @debug "ccxt posside: inferred" side
+                side
             end
         end
     end
@@ -389,6 +392,8 @@ function waitposclose(
         if update.closed[] ||
             iszero(resp_position_contracts(update.resp, eid)) ||
             isempty(resp_position_side(update.resp, eid))
+            update.read[] || live_sync_position!(s, ai, bp, update)
+            @deassert !isopen(ai, bp)
             return true
         elseif slept >= timeout
             if last_sync || !sync
