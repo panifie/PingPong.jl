@@ -1,3 +1,5 @@
+using .Executors.Instruments: AbstractCash
+
 function _handle_bal_resp(resp)
     if resp isa PyException
         @debug "force fetch bal: error" resp
@@ -87,14 +89,20 @@ function waitforbal(
 end
 
 function live_balance(
-    s::LiveStrategy, ai; fallback_kwargs=(), since=nothing, force=false, waitfor=Second(5)
+    s::LiveStrategy,
+    ai=nothing;
+    fallback_kwargs=(),
+    since=nothing,
+    force=false,
+    waitfor=Second(5),
+    type=nothing,
 )
-    bal = get_balance(s, ai)
+    bal = get_balance(s, ai, type)
     if force &&
         !islocked(balance_watcher(s)) &&
         (isnothing(bal) || (!isnothing(since)) && bal.date < since)
         _force_fetchbal(s; fallback_kwargs)
-        bal = get_balance(s, ai)
+        bal = get_balance(s, ai, type)
     end
     isnothing(since) ||
         isnothing(bal) ||
@@ -104,11 +112,9 @@ function live_balance(
                 @debug "live bal: last force fetch"
                 _force_fetchbal(s; fallback_kwargs)
             end
-            bal = get_balance(s, ai)
+            bal = get_balance(s, ai, type)
             if isnothing(bal) || bal.date < since
-                @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since ai = raw(
-                    ai
-                ) f = @caller
+                @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since f = @caller
             end
         end
     bal
@@ -126,3 +132,59 @@ end
 live_total(args...; kwargs...) = _live_kind(args...; kind=:total, kwargs...)
 live_used(args...; kwargs...) = _live_kind(args...; kind=:used, kwargs...)
 live_free(args...; kwargs...) = _live_kind(args...; kind=:free, kwargs...)
+
+_getbaldict(s) = get(something(get_balance(s), (;)), :balance, (;))
+_getval(_) = ZERO
+_getval(c::AbstractCash) = c.value
+_getval(ai::AssetInstance) = _getval(cash(ai))
+_getbal(bal, ai::AssetInstance) = get(bal, bc(ai), (;))
+_getbal(bal, c) = get(bal, nameof(c), (;))
+_gettotal(bal, obj) = @get(_getbal(bal, obj), :total, _getval(obj))
+function current_total(
+    s::LiveStrategy{N,E,M}; price_func=lastprice, local_bal=false
+) where {N,E<:ExchangeID,M<:WithMargin}
+    tot = Ref(zero(DFT))
+    get_amount, s_tot = if local_bal
+        ((ai) -> cash(ai)), s.cash.value
+    else
+        let bal = _getbaldict(s), s_tot = _gettotal(bal, cash(s))
+            ((ai) -> _gettotal(bal, something(cash(ai), ai))), s_tot
+        end
+    end
+    @sync for ai in s.universe
+        amount = @something get_amount(ai) zero(s_tot)
+        @async let v = @something(price_func(ai), zero(s_tot)) * amount
+            tot[] += v
+        end
+    end
+    tot[] + s_tot
+end
+
+function current_total(
+    s::LiveStrategy{N,E,NoMargin}; price_func=lastprice, local_bal=false
+) where {N,E<:ExchangeID}
+    get_amount, tot = if local_bal
+        ((ai) -> cash(ai)), cash(s).value
+    else
+        let bal = _getbaldict(s), tot = _gettotal(bal, cash(s))
+            ((ai) -> _gettotal(bal, something(cash(ai), ai))), tot
+        end
+    end
+    @sync for ai in s.universe
+        amount = @something get_amount(ai) zero(tot)
+        @async let v = @something(
+                try
+                    price_func(ai)
+                catch
+                end,
+                zero(tot)
+            ) * amount
+            # NOTE: `x += y` is rewritten as x = x + y
+            # Because `price_func` can be async, the value of `x` might be stale by
+            # the time `y` is fetched, and the assignment might clobber the most
+            # recent value of `x`
+            tot += v
+        end
+    end
+    tot
+end

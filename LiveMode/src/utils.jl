@@ -287,7 +287,9 @@ get_balance(s, sym, type)::Option{DFT} =
         isnothing(bal) && return zerobal_tuple()
         _balance_bytype(@lget!(bal.balance, sym, zerobal()), type)
     end
+get_balance(s, sym, ::Nothing) = get_balance(s, sym)
 get_balance(s, ai::AssetInstance, args...) = get_balance(s, bc(ai), args...)
+get_balance(s, ::Nothing, args...) = get_balance(s, nameof(s.cash), args...)
 
 function timestamp(s, ai::AssetInstance; side=posside(ai))
     order_date = if hasorders(s, ai)
