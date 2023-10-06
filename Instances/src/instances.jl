@@ -139,6 +139,11 @@ Base.lock(ai::AssetInstance) = lock(getfield(ai, :lock))
 Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
 Base.unlock(ai::AssetInstance) = unlock(getfield(ai, :lock))
 Base.islocked(ai::AssetInstance) = islocked(getfield(ai, :lock))
+Base.float(ai::NoMarginInstance) = cash(ai).value
+Base.float(ai::MarginInstance) =
+    let c = cash(ai)
+        @something c.value ZERO
+    end
 
 posside(::NoMarginInstance) = Long()
 posside(ai::MarginInstance) =

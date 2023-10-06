@@ -147,3 +147,4 @@ Base.lock(s::Strategy) = lock(getfield(s, :lock))
 Base.lock(f, s::Strategy) = lock(f, getfield(s, :lock))
 Base.unlock(s::Strategy) = unlock(getfield(s, :lock))
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
+Base.float(s::Strategy) = cash(s).value
