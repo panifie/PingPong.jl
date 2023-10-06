@@ -15,6 +15,7 @@ using .Lang: @deassert, @caller, @ifdebug, @debug_backtrace, withoutkws
 using Base: SimpleLogger, with_logger
 using .Executors.Instruments: cnum
 import .Executors: pong!
+import .Misc: start!, stop!
 
 include("utils.jl")
 include("ccxt.jl")
@@ -51,9 +52,3 @@ include("adhoc/balance.jl")
 include("adhoc/positions.jl")
 include("adhoc/ccxt.jl")
 include("adhoc/ccxt_functions.jl")
-
-function live!(s::Strategy{Live}; throttle=Second(5), foreground=false) end
-
-# pong!
-# PositionClose
-# UpdateLeverage

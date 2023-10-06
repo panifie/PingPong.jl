@@ -102,7 +102,7 @@ Base.string(::NoMargin) = "No Margin"
 
 function Base.show(out::IO, s::Strategy)
     write(out, "Name: $(nameof(s)) ($(typeof(execmode(s)))) ")
-    let t = attr(s, :paper_task, nothing)
+    let t = attr(s, :run_task, nothing)
         if !(isnothing(t)) && !istaskdone(t) && istaskstarted(t)
             write(out, "(Running)")
         end

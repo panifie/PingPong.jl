@@ -42,8 +42,7 @@ attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 `defaults`: if `true` reapply strategy config defaults."
 function reset!(s::Strategy, config=false)
     let attrs = attrs(s)
-        if (haskey(attrs, :paper_running) && attrs[:paper_running][]) ||
-            (haskey(attrs, :live_running) && attrs[:live_running][])
+        if haskey(attrs, :is_running) && attrs[:is_running][]
             @warn "Aborting reset because $(nameof(s)) is running in $(execmode(s)) mode!"
             return nothing
         end
@@ -142,7 +141,7 @@ end
 
 Base.getindex(s::Strategy, k::MatchString) = getindex(s.universe, k)
 Base.getindex(s::Strategy, k) = attr(s, k)
-Base.setindex!(s::Strategy, v, k) = setattr!(s, k, v)
+Base.setindex!(s::Strategy, v, k...) = setattr!(s, v, k...)
 Base.lock(s::Strategy) = lock(getfield(s, :lock))
 Base.lock(f, s::Strategy) = lock(f, getfield(s, :lock))
 Base.unlock(s::Strategy) = unlock(getfield(s, :lock))

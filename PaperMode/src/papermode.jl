@@ -9,7 +9,7 @@ using Executors.Misc
 using Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
-using .Misc.Lang: @lget!, @deassert, Option, @logerror
+using .Misc.Lang: @lget!, @deassert, Option, @logerror, @debug_backtrace
 using Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using Executors.Strategies
 using .Instances: MarginInstance
@@ -18,37 +18,42 @@ using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
 import Executors: pong!
 using Fetch: Fetch, pytofloat
+import .Misc: start!, stop!, isrunning
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
+_maintf(s) = string(s.timeframe)
+_opttf(s) = string(attr(s, :timeframe, nothing))
+_timeframes(s) = join(string.(s.config.timeframes), " ")
+_cash_total(s) = cnum(st.current_total(s, lastprice))
+_assets(s) =
+    let str = join(getproperty.(st.assets(s), :raw), ", ")
+        str[begin:min(length(str), displaysize()[2] - 1)]
+    end
 function header(s::Strategy, throttle)
-    "Starting strategy $(nameof(s)) in paper mode!
+    "Starting strategy $(nameof(s)) in $(execmode(s)) mode!
 
         throttle: $throttle
-        timeframes: $(string(s.timeframe)) (main), $(string(get(s.attrs, :timeframe, nothing))) (optional), $(join(string.(s.config.timeframes), " ")...) (extras)
-        cash: $(s.cash) [$(cnum(st.current_total(s, lastprice)))]
-        assets: $(let str = join(getproperty.(st.assets(s), :raw), ", "); str[begin:min(length(str), displaysize()[2] - 1)] end)
+        timeframes: $(_maintf(s)) (main), $(_maintf(s)) (optional), $(_timeframes(s)...) (extras)
+        cash: $(cash(s)) [$(_cash_total(s))]
+        assets: $(_assets(s))
         margin: $(marginmode(s))
         "
 end
 
-function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foreground=false)
-    if doreset
-        st.reset!(s)
-    elseif :paper_running ∉ keys(s.attrs) # only set defaults on first run
-        ordersdefault!(s)
-    end
-    startinfo = header(s, throttle)
-    function infofunc()
-        long, short, liq = st.trades_count(s, Val(:positions))
-        cv = cnum(s.cash.value)
-        comm = cnum(s.cash_committed.value)
-        inc = orderscount(s, Val(:increase))
-        red = orderscount(s, Val(:reduce))
-        tot = st.current_total(s, lastprice) |> cnum
-        @info "$(now())($(nameof(s))@$(s.exchange)) $comm/$cv[$tot]($(nameof(s.cash))), orders: $inc/$red(+/-) trades: $long/$short/$liq(L/S/Q)"
-    end
+function log(s::Strategy)
+    long, short, liq = st.trades_count(s, Val(:positions))
+    cv = s.cash
+    comm = s.cash_committed
+    inc = orderscount(s, Val(:increase))
+    red = orderscount(s, Val(:reduce))
+    tot = st.current_total(s, lastprice)
+    @info string(nameof(s), "@", nameof(exchange(s))) time = now() cash = cv committed =
+        comm balance = tot inc_orders = inc red_orders = red long_trades = long short_trades =
+        short liquidations = liq
+end
 
+function flushlog_func(s::Strategy)
     last_flush = Ref(DateTime(0))
     log_flush_interval = attr(s, :log_flush_interval, Second(1))
     log_lock = ReentrantLock()
@@ -61,22 +66,24 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
                 end
             end
         end
+    maybeflush, log_lock
+end
 
-    function doping(loghandle)
-        @info startinfo
-        name = nameof(s)
-        paper_running = attr(s, :paper_running)
-        @assert isassigned(paper_running)
-        setattr!(s, now(), :paper_start)
-        setattr!(s, nothing, :paper_stop)
-        @sync while paper_running[]
+function _doping(s; throttle, loghandle, flushlog, log_lock)
+    is_running = attr(s, :is_running)
+    @assert isassigned(is_running)
+    setattr!(s, now(), :is_start)
+    setattr!(s, missing, :is_stop)
+    try
+        @sync while is_running[]
             try
-                infofunc()
-                maybeflush(loghandle)
+                log(s)
+                flushlog(loghandle)
                 ping!(s, now(), nothing)
                 sleep(throttle)
             catch e
                 e isa InterruptException && rethrow(e)
+                @debug_backtrace
                 @async lock(log_lock) do
                     try
                         @logerror loghandle
@@ -85,23 +92,42 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
                     end
                 end
                 sleep(throttle)
-            finally
-                paper_running[] = false
-                setattr!(s, now(), :paper_stop)
             end
         end
+    catch e
+        e isa InterruptException && rethrow(e)
+        @error e
+    finally
+        is_running[] = false
+        setattr!(s, now(), :is_stop)
     end
-    s[:paper_running] = Ref(true)
+end
+
+function start!(
+    s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
+)
+    if doreset
+        reset!(s)
+    elseif !hasattr(s, :is_running) # only set defaults on first run
+        ordersdefault!(s)
+    end
+    startinfo = header(s, throttle)
+    flushlog, log_lock = flushlog_func(s)
+
+    s[:is_running] = Ref(true)
+    @deassert attr(s, :is_running)[]
     if foreground
-        s[:paper_task] = nothing
-        doping(stdout)
+        s[:run_task] = nothing
+        @info startinfo
+        _doping(s; throttle, loghandle=stdout, flushlog, log_lock)
     else
-        logfile = paperlog(s)
+        logfile = runlog(s)
         loghandle = open(logfile, "w")
         logger = SimpleLogger(open(logfile, "w"))
         try
-            s[:paper_task] = @async with_logger(logger) do
-                doping(loghandle)
+            s[:run_task] = @async with_logger(logger) do
+                @info startinfo
+                _doping(s; throttle, loghandle, flushlog, log_lock)
             end
         finally
             flush(loghandle)
@@ -110,23 +136,38 @@ function paper!(s::Strategy{Paper}; throttle=Second(5), doreset=false, foregroun
     end
 end
 
-function paperstop!(s::PaperStrategy)
-    running = attr(s, :paper_running, nothing)
-    task = attr(s, :paper_task, nothing)
+function elapsed(s::Strategy{<:Union{Paper,Live}})
+    attrs = s.attrs
+    max(Millisecond(0), @coalesce(attrs[:is_stop], now()) - attrs[:is_start])
+end
+
+function stop!(s::Strategy{<:Union{Paper,Live}})
+    running = attr(s, :is_running, nothing)
+    task = attr(s, :run_task, nothing)
     if isnothing(running)
         @assert isnothing(task) || istaskdone(task)
     else
         @assert running[] || istaskdone(task)
     end
     running[] = false
-    wait(task[])
+    @info "strategy: stopped" mode = execmode(s) elapsed(s)
+    wait(task)
 end
 
-function paperlog(s)
-    get!(s.attrs, :logfile, st.logpath(s; name="paper"))
+function runlog(s, name=lowercase(string(execmode(s))))
+    get!(s.attrs, :logfile, st.logpath(s; name))
 end
 
-export paper!, paperstop!
+function isrunning(s::Strategy{<:Union{Paper,Live}})
+    running = attr(s, :is_running, nothing)
+    if isnothing(running)
+        false
+    else
+        running[]
+    end
+end
+
+export start!, stop!
 
 include("utils.jl")
 include("orders/utils.jl")
