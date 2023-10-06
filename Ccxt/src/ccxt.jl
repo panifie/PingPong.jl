@@ -1,7 +1,7 @@
 using Python
 using Misc: DATA_PATH
 using Misc.ConcurrentCollections: ConcurrentDict
-using Misc.Lang: @lget!
+using Misc.Lang: @lget!, Option
 using Python: pynew, pyisnone
 using Python.PythonCall: pyisnull, pycopy!, pybuiltins
 
@@ -93,7 +93,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                     elseif pyisinstance(data, pybuiltins.dict)
                         Dict(i => data[i] for i in inputs)
                     else
-                        Dict(inputs => data)
+                        Dict(i => data for i in inputs)
                     end
                 end
             else
@@ -101,7 +101,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                     out = Dict{eltype(inputs),Union{Tuple{Py,Task},Py}}()
                     try
                         for i in inputs
-                            out[i] = pytask(f, Val(:fut), i; kwargs...)
+                            out[i] = pytask(f(i), Val(:fut); kwargs...)
                         end
                         for (i, (_, task)) in out
                             out[i] = fetch(task)
