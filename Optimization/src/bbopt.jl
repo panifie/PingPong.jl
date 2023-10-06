@@ -1,5 +1,5 @@
 using SimMode.TimeTicks: current!
-using SimMode: backtest!
+using SimMode: start!
 using Random
 using BlackBoxOptim
 import BlackBoxOptim: bboptimize

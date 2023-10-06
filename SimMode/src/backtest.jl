@@ -1,5 +1,6 @@
 using Executors: orderscount
 using Executors: isoutof_orders
+import .Misc: start!, stop!
 
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
 
@@ -21,7 +22,7 @@ julia> t - tf"1m".period
 ```
 To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, instead of apply.
 """
-function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
+function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
     # ensure that universe data start at the same time
     @ifdebug _resetglobals!()
     if trim_universe
@@ -46,8 +47,8 @@ function backtest!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."
-backtest!(s; kwargs...) = backtest!(s, Context(s); kwargs...)
-function backtest!(s, count::Integer; kwargs...)
+start!(s::Strategy{Sim}; kwargs...) = start!(s, Context(s); kwargs...)
+function start!(s::Strategy{Sim}, count::Integer; kwargs...)
     if count > 0
         from = ohlcv(first(universe(s).data.instance)).timestamp[begin]
         to = from + s.timeframe.period * count
@@ -56,5 +57,12 @@ function backtest!(s, count::Integer; kwargs...)
         from = to + s.timeframe.period * count
     end
     ctx = Context(Sim(), s.timeframe, from, to)
-    backtest!(s, ctx; kwargs...)
+    start!(s, ctx; kwargs...)
+end
+
+stop!(::Strategy{Sim}) = nothing
+
+backtest!(s::Strategy{Sim}, args...; kwargs...) = begin
+    @warn "DEPRECATED: use `start!`"
+    start!(s, args...; kwargs...)
 end

@@ -96,7 +96,7 @@ Backtest the strategy within the period available from the loaded data.
 
 ```julia
 using Engine.Executors.SimMode: SimMode as bt
-bt.backtest!(s)
+bt.start!(s)
 ```
 
 Plot the simulated trades.

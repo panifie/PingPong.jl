@@ -38,7 +38,7 @@ using Strategies
 using Engine.Executors.SimMode: SimMode as bt
 s = st.strategy(:Example)
 ai = s.universe[m"eth"].instance
-bt.backtest!(s)
+bt.start!(s)
 # Plot the first 100 trades for the first asset matching symbol "eth"
 fig = Plotting.tradesticks(s, m"eth", to=100)
 display(fig)

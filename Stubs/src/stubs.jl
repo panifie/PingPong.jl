@@ -50,7 +50,7 @@ function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
     for ai in s.universe
         da.stub!(ai, n)
     end
-    SimMode.backtest!(s)
+    SimMode.start!(s)
     if dosave
         for ai in s.universe
             save_stubtrades(ai)

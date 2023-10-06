@@ -19,7 +19,7 @@ eq4(a, b) = isapprox(a, b; atol=1e-4)
 test_nomargin_market(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:market)
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa egn.MarketOrder
     @test eq4(Cash(:USDT, 9.7334), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
@@ -35,7 +35,7 @@ end
 test_nomargin_gtc(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:gtc)
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa egn.GTCOrder
     @test eq4(Cash(:USDT, 9.4619), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
@@ -51,7 +51,7 @@ end
 test_nomargin_ioc(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:ioc)
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa egn.IOCOrder
     @test Cash(:USDT, 9.359) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
@@ -70,7 +70,7 @@ test_nomargin_fok(s) = begin
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa egn.FOKOrder
     @test Cash(:USDT, 917.976) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-7
@@ -101,7 +101,7 @@ end
 test_margin_market(s) = begin
     @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:market)
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa ect.AnyMarketOrder
     @test Cash(:USDT, 0.046) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
@@ -117,7 +117,7 @@ end
 test_margin_gtc(s) = begin
     @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:gtc)
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa ect.AnyGTCOrder
     @test Cash(:USDT, 0.705) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
@@ -137,7 +137,7 @@ test_margin_fok(s) = begin
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa ect.AnyFOKOrder
     @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed
@@ -157,7 +157,7 @@ test_margin_ioc(s) = begin
     # increase cash to trigger order kills
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
-    egn.backtest!(s)
+    egn.start!(s)
     @test first(trades(s)).order isa ect.AnyIOCOrder
     @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed

@@ -9,7 +9,7 @@ using Optimization:
     define_opt_func,
     ctxsteps,
     objectives
-using SimMode: backtest!, SimMode as sm, ping!
+using SimMode: start!, SimMode as sm, ping!
 using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using BayesianOptimization
 using BayesianOptimization.GaussianProcesses

@@ -1,4 +1,5 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
+import Misc: start!, stop!
 
 _timer(w) = getfield(w, :_timer)
 _exec(w) = getfield(w, :_exec)

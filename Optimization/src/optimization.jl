@@ -254,7 +254,7 @@ function define_backtest_func(sess, small_step, big_step)
                 end
                 # backtest and score
                 initial_cash = value(s.cash)
-                backtest!(s, ctx; doreset=false)
+                start!(s, ctx; doreset=false)
                 st.sizehint!(s) # avoid deallocations
                 metrics = metrics_func(s; initial_cash)
                 lock(sess.lock) do

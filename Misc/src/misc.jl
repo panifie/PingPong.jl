@@ -9,6 +9,7 @@ using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
 using ThreadPools: ThreadPools, @tspawnat
 using Mocking: Mocking
 
+include("defs.jl")
 include("lists.jl")
 include("sandbox.jl")
 include("types.jl")

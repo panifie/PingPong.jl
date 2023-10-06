@@ -6,7 +6,7 @@
 #     using Stubs
 #     @precomp let
 #         s = Stubs.stub_strategy()
-#         Engine.SimMode.backtest!(s)
+#         Engine.SimMode.start!(s)
 #         ai = first(s.universe)
 #     end
 # end

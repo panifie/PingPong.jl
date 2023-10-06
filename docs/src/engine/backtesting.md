@@ -1,6 +1,6 @@
 # Running a backtest
 
-To run a backtest you construct a strategy and then call `backtest!` on it.
+To run a backtest you construct a strategy and then call `start!` on it.
 
 - The strategy loads by default a config file located in `PingPong.jl/user/config.toml`
 - The config defines the strategy file under `include_file` key in the `[Example]` section
@@ -28,7 +28,7 @@ s = strategy(:Example)
 # Load data in the strategy universe (you need to already have it)
 fill!(s) # or stub!(s.universe, datadict)
 # backtest the strategy within the period available from the loaded data.
-bt.backtest!(s)
+bt.start!(s)
 # Lets see how we fared:
 display(s)
 ## output

@@ -35,4 +35,4 @@ include("positions/pong.jl")
 include("backtest.jl")
 @ifdebug include("debug.jl")
 
-export backtest!
+export start!

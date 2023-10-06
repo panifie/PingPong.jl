@@ -39,7 +39,7 @@ Running the strategy as a task
 paper!(s, foreground=false)
 ```
 
-Logs will be written either to the strategy `s[:logfile]` key if present or the output of `PaperMode.paperlog(s)`.
+Logs will be written either to the strategy `s[:logfile]` key if present or the output of `runlog(s)`.
 
 # How paper mode works.
 When you start paper mode asset prices are monitored in real time from the exchange. Orders execution is similar to SimMode, but the actual price and the amount trade and the orders execution sequence is dependent on the exchange data. 

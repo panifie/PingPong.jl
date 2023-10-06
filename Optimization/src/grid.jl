@@ -338,7 +338,7 @@ function slidesearch(s::Strategy; multiplier=1)
                 lock(l) do
                     st.reset!(s, true)
                     current!(ctx.range, ctx.range.start + wp + n * inc)
-                    backtest!(s, ctx; doreset=false)
+                    start!(s, ctx; doreset=false)
                 end
                 lock(rlock) do
                     push!(results, (; step=n, metrics_func(s; initial_cash)...))
