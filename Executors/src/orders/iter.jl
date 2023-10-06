@@ -2,7 +2,7 @@ using .Strategies: PriceTime
 struct OrderIterator
     iters::Vector{Iterators.Stateful}
     OrderIterator(args...) = new([Iterators.Stateful(a) for a in args])
-    OrderIterator(gen) = OrderIterator([Iterators.Stateful(a) for a in gen])
+    OrderIterator(gen) = new([Iterators.Stateful(a) for a in gen])
 end
 
 # Find the iterator with the smallest value
