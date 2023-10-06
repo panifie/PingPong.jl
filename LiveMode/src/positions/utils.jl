@@ -148,22 +148,36 @@ function live_position(
     return pup
 end
 
-function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
-    update = live_position(s, ai, args...; kwargs...)
-    @ifdebug if isnothing(update)
-        @debug "live contracts: " update
+function _pup(s, ai, args...; kwargs...)
+    pup = live_position(s, ai, args...; kwargs...)
+    if isnothing(pup)
+        @debug "live pup: " f = @caller
     else
-        @debug "live contracts: " update.read[] update.closed[]
+        @debug "live pup: " pup.read[] pup.closed[] f = @caller
     end
-    if isnothing(update) || update.closed[]
+    pup
+end
+
+function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
+    pup = _pup(s, ai, args...; kwargs...)
+    if isnothing(pup) || pup.closed[]
         ZERO
     else
-        amt = resp_position_contracts(update.resp, exchangeid(ai))
+        amt = resp_position_contracts(pup.resp, exchangeid(ai))
         if isshort(ai)
             -amt
         else
             amt
         end
+    end
+end
+
+function live_notional(s::LiveStrategy, ai, args...; kwargs...)
+    pup = _pup(s, ai, args...; kwargs...)
+    if isnothing(pup) || pup.closed[]
+        ZERO
+    else
+        abs(resp_position_notional(pup.resp, exchangeid(ai)))
     end
 end
 

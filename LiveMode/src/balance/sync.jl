@@ -1,11 +1,13 @@
 function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
-    tot = @something balance!(s; status=TotalBalance, this_kwargs...) (;)
-    used = @something balance!(s; status=UsedBalance, this_kwargs...) (;)
+    bal = live_balance(s)
+    tot_cash = bal.balance.total
+    used_cash = bal.balance.used
     bc = nameof(s.cash)
-    tot_cash = get(tot, bc, nothing)
-    function dowarn(what)
-        @warn "Couldn't sync strategy($(nameof(s))) $what, currency $bc not found in exchange $(nameof(exchange(s)))"
+    function dowarn(msg)
+        @warn "strategy cash: sync failed" msg s = nameof(s) cur = bc exc = nameof(
+            exchange(s)
+        )
     end
 
     c = if isnothing(tot_cash)
@@ -15,10 +17,9 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
         tot_cash
     end
     isapprox(s.cash.value, c; rtol=1e-4) ||
-        @warn "strategy cash unsynced, local ($(s.cash.value)), remote ($c)"
+        @warn "strategy cash: total unsynced" loc = cash(s).value rem = c
     cash!(s.cash, c)
 
-    used_cash = get(used, bc, nothing)
     cc = if isnothing(used_cash)
         dowarn("committed cash")
         ZERO
@@ -26,8 +27,9 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
         used_cash
     end
     isapprox(s.cash_committed.value, cc; rtol=1e-4) ||
-        @warn "strategy committment unsynced, local ($(s.cash_committed.value)), remote ($cc)"
+        @warn "strategy cash: committment unsynced" loc = committed(s), rem = cc
     cash!(s.cash_committed, cc)
+    nothing
 end
 
 @doc """ Asset balance is the true balance when no margin is invoved.

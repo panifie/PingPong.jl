@@ -273,6 +273,7 @@ zerobal() = (; total=ZERO, free=ZERO, used=ZERO)
 function zerobal_tuple()
     (; date=Ref(DateTime(0)), balance=zerobal())
 end
+_balance_bytype(_, ::Nothing) = nothing
 _balance_bytype(::Nothing, ::Symbol) = nothing
 _balance_bytype(v, sym) = getproperty(v, sym)
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
@@ -283,12 +284,17 @@ get_balance(s, sym) =
     end
 get_balance(s, sym, type)::Option{DFT} =
     let bal = get_balance(s)
-        @ifdebug @assert type ∈ (:used, :total, :free)
+        @deassert type ∈ (:used, :total, :free, nothing)
         isnothing(bal) && return zerobal_tuple()
-        _balance_bytype(@lget!(bal.balance, sym, zerobal()), type)
+        tup = @lget!(bal.balance, sym, zerobal()), type
+        if isnothing(type)
+            tup
+        else
+            _balance_bytype(tup, type)
+        end
     end
-get_balance(s, sym, ::Nothing) = get_balance(s, sym)
-get_balance(s, ai::AssetInstance, args...) = get_balance(s, bc(ai), args...)
+get_balance(s, ::Nothing, ::Nothing) = get_balance(s, nothing)
+get_balance(s, ai::AssetInstance, ::Nothing=nothing) = get_balance(s, bc(ai))
 get_balance(s, ::Nothing, args...) = get_balance(s, nameof(s.cash), args...)
 
 function timestamp(s, ai::AssetInstance; side=posside(ai))
