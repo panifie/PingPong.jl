@@ -74,7 +74,7 @@ function _params()
     (; buydiff=1.0001:0.0001:1.001, selldiff=1.0002:0.0001:1.0011)
 end
 
-function ping!(s::T, ts::DateTime, _) where {T<:S}
+function ping!(s::T, ts::DateTime, _) where {T<:SX}
     ats = available(tf"1m", ts)
     foreach(s.universe) do ai
         pos = nothing
@@ -95,7 +95,7 @@ function marketsid(::SX{ExchangeID{:bybit}})
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function longorshort(s::S, ai, ats)
+function longorshort(s::SX, ai, ats)
     closepair(s, ai, ats)
     if _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
         Long()
@@ -104,13 +104,13 @@ function longorshort(s::S, ai, ats)
     end
 end
 
-function isbuy(s::S, ai, ats, pos)
+function isbuy(s::SX, ai, ats, pos)
     closepair(s, ai, ats)
     isnothing(_thisclose(s)) && return false
     _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
 end
 
-function issell(s::S, ai, ats, pos)
+function issell(s::SX, ai, ats, pos)
     closepair(s, ai, ats)
     isnothing(_thisclose(s)) && return false
     _prevclose(s) / _thisclose(s) > s.attrs[:selldiff]
