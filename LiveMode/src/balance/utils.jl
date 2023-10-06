@@ -1,4 +1,5 @@
 using .Executors.Instruments: AbstractCash
+using .Lang: @get
 
 function _handle_bal_resp(resp)
     if resp isa PyException
@@ -97,7 +98,7 @@ function live_balance(
     waitfor=Second(5),
     type=nothing,
 )
-    bal = get_balance(s, ai, type)
+    bal = get_balance(s, ai)
     if force &&
         !islocked(balance_watcher(s)) &&
         (isnothing(bal) || (!isnothing(since)) && bal.date < since)
@@ -139,21 +140,30 @@ _getval(c::AbstractCash) = c.value
 _getval(ai::AssetInstance) = _getval(cash(ai))
 _getbal(bal, ai::AssetInstance) = get(bal, bc(ai), (;))
 _getbal(bal, c) = get(bal, nameof(c), (;))
-_gettotal(bal, obj) = @get(_getbal(bal, obj), :total, _getval(obj))
+_getfree(bal, obj) = @get(_getbal(bal, obj), :free, _getval(obj))
 function current_total(
     s::LiveStrategy{N,E,M}; price_func=lastprice, local_bal=false
 ) where {N,E<:ExchangeID,M<:WithMargin}
     tot = Ref(zero(DFT))
-    get_amount, s_tot = if local_bal
-        ((ai) -> cash(ai)), s.cash.value
+    s_tot = if local_bal
+        s.cash.value
     else
-        let bal = _getbaldict(s), s_tot = _gettotal(bal, cash(s))
-            ((ai) -> _gettotal(bal, something(cash(ai), ai))), s_tot
-        end
+        _getfree(_getbaldict(s), cash(s))
     end
     @sync for ai in s.universe
-        amount = @something get_amount(ai) zero(s_tot)
-        @async let v = @something(price_func(ai), zero(s_tot)) * amount
+        @async let v = if local_bal
+                amt = abs(_getval(cash(ai, Long()))) + abs(_getval(cash(ai, Short())))
+                something(
+                    try
+                        price_func(ai)
+                    catch
+                        zero(tot)
+                    end,
+                    zero(s_tot),
+                ) * amt
+            else
+                abs(live_notional(s, ai, Long())) + abs(live_notional(s, ai, Short()))
+            end
             tot[] += v
         end
     end
@@ -163,22 +173,24 @@ end
 function current_total(
     s::LiveStrategy{N,E,NoMargin}; price_func=lastprice, local_bal=false
 ) where {N,E<:ExchangeID}
-    get_amount, tot = if local_bal
-        ((ai) -> cash(ai)), cash(s).value
+    tot = if local_bal
+        cash(s).value
     else
-        let bal = _getbaldict(s), tot = _gettotal(bal, cash(s))
-            ((ai) -> _gettotal(bal, something(cash(ai), ai))), tot
-        end
+        _getfree(_getbaldict(s), cash(s))
     end
+    wprice_func(ai) =
+        try
+            price_func(ai)
+        catch
+            zero(tot)
+        end
     @sync for ai in s.universe
-        amount = @something get_amount(ai) zero(tot)
-        @async let v = @something(
-                try
-                    price_func(ai)
-                catch
-                end,
-                zero(tot)
-            ) * amount
+        @async let v = if local_bal
+                cash(ai).value
+            else
+               bal = _getbaldict(s)
+               _getfree(bal, ai)
+            end * wprice_func(ai)
             # NOTE: `x += y` is rewritten as x = x + y
             # Because `price_func` can be async, the value of `x` might be stale by
             # the time `y` is fetched, and the assignment might clobber the most
