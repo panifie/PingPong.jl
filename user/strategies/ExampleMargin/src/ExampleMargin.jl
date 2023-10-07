@@ -9,7 +9,7 @@ using Data: stub!
 const NAME = :ExampleMargin
 const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
-const SX{E, M} = Strategy{M,NAME,E,Isolated}
+const SX{E,M} = Strategy{M,NAME,E,Isolated}
 const TF = tf"1m"
 __revise_mode__ = :eval
 
@@ -49,8 +49,9 @@ end
 function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     config.margin = Isolated()
-    s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
-    @assert s isa IsolatedStrategy
+    sandbox = ifelse(config.mode == Paper(), false, config.sandbox)
+    s = Strategy(@__MODULE__, assets; config, sandbox)
+    @assert s isa IsolatedStrategy && execmode(s) == config.mode
 
     s.attrs[:verbose] = false
     _reset!(s)
