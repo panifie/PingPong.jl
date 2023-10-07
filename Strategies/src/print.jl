@@ -38,7 +38,12 @@ function minmax_holdings(s::Strategy)
     datef = lasttrade_func(s)
     for ai in s.holdings
         iszero(ai) && continue
-        price = closeat(ohlcv(ai), datef(ohlcv(ai).timestamp))
+        df = ohlcv(ai)
+        price = try
+            closeat(df, datef(df.timestamp))
+        catch
+            last(df.close)
+        end
         (n_holdings, min_hold, max_hold) = _assetval(
             ai, n_holdings, min_hold, max_hold; price
         )
