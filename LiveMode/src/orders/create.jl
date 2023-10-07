@@ -13,6 +13,7 @@ function create_live_order(
     price,
     amount,
     synced=true,
+    activate=true,
     skipcommit=false,
     kwargs...,
 )
@@ -75,7 +76,7 @@ function create_live_order(
     if isnothing(o)
         @error "create order: failed to sync" id ai = raw(ai) s = nameof(s)
         return nothing
-    else
+    elseif activate
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     end
     return o

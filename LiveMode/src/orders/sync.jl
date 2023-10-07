@@ -27,7 +27,7 @@ end
 
 _amount_from_trades(trades) = sum(t.amount for t in trades)
 
-function live_sync_active_orders!(
+function live_sync_open_orders!(
     s::LiveStrategy, ai; strict=true, exec=false, create_kwargs=(;), side=Both
 )
     ao = active_orders(s, ai)
@@ -171,15 +171,16 @@ function findorder(
     end
 end
 
-function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
+function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
         iszero(filled_amount(o)) || reset!(o, ai)
+        @debug "replay order: order unfilled (returning)"
         return o
     end
     if ismissing(state)
-        @error "Expected active order state to be present already."
+        @error "replay order: order state not found"
         return o
     end
     local_trades = trades(o)
@@ -201,7 +202,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
         resp_amt = resp_trade_amount(trade, eid)
         # When a mismatch happens we reset local state for the order
         if isapprox(ai, local_amt, resp_amt, Val(:amount))
-            @warn "sync active: mismatching amounts (resetting)" local_amt resp_amt o.id ai = raw(
+            @warn "replay order: mismatching amounts (resetting)" local_amt resp_amt o.id ai = raw(
                 ai
             ) exc = nameof(exchange(ai))
             local_count = 0
@@ -213,9 +214,11 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
     end
     new_trades = @view order_trades[(begin + local_count):end]
     if isempty(new_trades)
+        @debug "replay order: emulating trade"
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
-        exec || isnothing(trade) || apply_trade!(s, ai, o, trade)
+        exec || isnothing(trade) || apply_trade!(s, ai, o, trade; insert)
     else
+        @debug "replay order: replaying trades"
         for trade_resp in new_trades
             if exec
                 trade!(
@@ -231,7 +234,8 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false)
                 )
             else
                 trade = maketrade(s, o, ai; resp=trade_resp)
-                apply_trade!(s, ai, o, trade)
+                @debug "replay order: applying new trade" trade.order.id
+                apply_trade!(s, ai, o, trade; insert)
             end
         end
     end
@@ -252,17 +256,31 @@ aftertrade_nocommit!(_, _, o::AnyMarketOrder, args...) = nothing
 
 
 """
-function apply_trade!(s::LiveStrategy, ai, o, trade)
+function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
     isnothing(trade) && return nothing
     fill!(s, ai, o, trade)
-    push!(ai.history, trade)
+    if insert
+        history = trades(ai)
+        idx = searchsorted(history, trade; by=t -> t.date)
+        if length(idx) > 0
+            insert!(history, idx.first > 0 ? idx.first : idx.second, trade)
+        end
+    else
+        push!(ai.history, trade)
+    end
+    @deassert trade.order == o
+    @ifdebug let found = findorder(s, ai; id=o.id, side=orderside(o))
+        if found != o
+            @error "replay order: duplicate" found o
+        end
+    end
     push!(trades(o), trade)
     aftertrade_nocommit!(s, ai, o, trade)
 end
 
-function live_sync_active_orders!(s::LiveStrategy; kwargs...)
+function live_sync_open_orders!(s::LiveStrategy; kwargs...)
     @sync for ai in s.universe
-        @async live_sync_active_orders!(s, ai; kwargs...)
+        @async live_sync_open_orders!(s, ai; kwargs...)
     end
 end
 
@@ -296,5 +314,56 @@ function check_orders_sync(s::LiveStrategy)
         @info "Currently tracking $(length(tracked_ids)) orders"
     finally
         unlock.(s.universe)
+    end
+end
+
+function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both)
+    eid = exchangeid(ai)
+    closed_orders = fetch_closed_orders(s, ai; side)
+    if isnothing(closed_orders)
+        @error "sync orders: couldn't fetch closed orders, skipping sync" ai = raw(ai) s = nameof(
+            s
+        )
+        return nothing
+    end
+    @lock ai begin
+        default_pos = get_position_side(s, ai)
+        @sync for resp in closed_orders
+            @async begin
+                id = resp_order_id(resp, eid, String)
+                o = (@something findorder(s, ai; resp, id, side) create_live_order(
+                    s,
+                    resp,
+                    ai;
+                    t=_ccxtposside(s, resp, eid; def=default_pos),
+                    price=missing,
+                    amount=missing,
+                    synced=false,
+                    skipcommit=true,
+                    activate=false,
+                    withoutkws(:skipcommit; kwargs=create_kwargs)...,
+                ) missing)::Option{Order}
+                if ismissing(o)
+                else
+                    @deassert resp_order_status(resp, eid, String) ∈
+                        ("closed", "open", "cancelled")
+                    @ifdebug trades_count = length(ai.history)
+                    if isfilled(ai, o)
+                        @deassert !isempty(trades(o))
+                    else
+                        replay_order!(s, o, ai; resp, exec=false)
+                        @deassert length(ai.history) > trades_count
+                    end
+                    delete!(s, ai, o)
+                    @deassert !hasorders(s, ai, o.id)
+                end
+            end
+        end
+    end
+end
+
+function live_sync_closed_orders!(s::LiveStrategy; kwargs...)
+    @sync for ai in s.universe
+        @async live_sync_closed_orders!(s, ai; kwargs...)
     end
 end
