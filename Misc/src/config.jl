@@ -73,6 +73,7 @@ end
     path::String = ""
     mode::ExecMode = Sim()
     exchange::Symbol = Symbol()
+    sandbox::Bool = true
     margin::MarginMode = NoMargin()
     leverage::T = 0.0
     qc::Symbol = :USDT
