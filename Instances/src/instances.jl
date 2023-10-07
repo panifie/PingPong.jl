@@ -412,6 +412,13 @@ stub!(ai::AssetInstance, df::DataFrame) = begin
     tf = timeframe!(df)
     ai.data[tf] = df
 end
+function value(
+    ai::NoMarginInstance;
+    current_price=lastprice(ai, Val(:history)),
+    fees=current_price * cash(ai) * maxfees(ai),
+)
+    cash(ai) * current_price - fees
+end
 @doc "Taker fees for the asset instance (usually higher than maker fees.)"
 takerfees(ai::AssetInstance) = ai.fees.taker
 @doc "Maker fees for the asset instance (usually lower than taker fees.)"
@@ -557,11 +564,15 @@ end
 
 value(v::Real, args...; kwargs...) = v
 @doc "The value held by the position, margin with pnl minus fees."
-function value(ai, ::ByPos{P}; current_price=price(position(ai, P)), fees=nothing) where {P}
+function value(
+    ai,
+    ::ByPos{P}=posside(ai);
+    current_price=price(position(ai, P)),
+    fees=current_price * abs(cash(ai, P)) * maxfees(ai),
+) where {P}
     pos = position(ai, P)
     @deassert margin(pos) > 0.0 || !isopen(pos)
     @deassert additional(pos) >= 0.0
-    fees = @something fees current_price * abs(cash(pos)) * maxfees(ai)
     margin(pos) + additional(pos) + pnl(pos, current_price) - fees
 end
 
