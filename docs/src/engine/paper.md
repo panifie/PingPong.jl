@@ -15,7 +15,7 @@ Start the strategy:
 
 ``` julia
 using PaperMode
-paper!(s)
+start!(s)
 ```
 
 Expect logging output:
@@ -36,12 +36,12 @@ Expect logging output:
 Running the strategy as a task
 
 ``` julia
-paper!(s, foreground=false)
+start!(s, foreground=false)
 ```
 
 Logs will be written either to the strategy `s[:logfile]` key if present or the output of `runlog(s)`.
 
-# How paper mode works.
+# How paper mode works
 When you start paper mode asset prices are monitored in real time from the exchange. Orders execution is similar to SimMode, but the actual price and the amount trade and the orders execution sequence is dependent on the exchange data. 
 
 - *Market orders* are executed by looking at the orderbook, and sweeping the bids/asks available on it, the final price and amount is therefore the average of all the orderbook entries available on the orderbook.
