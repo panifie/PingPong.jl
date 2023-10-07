@@ -57,8 +57,10 @@ function live_sync_open_orders!(
         default_pos = get_position_side(s, ai)
         strict && maxout!(s, ai)
         for resp in open_orders
-            id = resp_order_id(resp, eid)
-            o = (@something get(ao, id, nothing) findorder(s, ai; resp) create_live_order(
+            id = resp_order_id(resp, eid, String)
+            o = (@something get(ao, id, nothing) findorder(
+                s, ai; id, side, resp
+            ) create_live_order(
                 s,
                 resp,
                 ai;
@@ -161,12 +163,16 @@ function findorder(
     if !isempty(id)
         for o in values(s, ai, side)
             if o.id == id
+                @deassert o isa Order
                 return o
             end
         end
-        o = findfirst(t -> t.order.id == id, trades(ai))
-        if o isa Order
-            return o
+        history = trades(ai)
+        t = findfirst((t -> t.order.id == id), history)
+        if t isa Integer
+            return history[t].order
+        else
+            # @debug "find order: not found" resp id t
         end
     end
 end
