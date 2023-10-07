@@ -12,10 +12,15 @@ function Strategies.Strategy(
     timeframe = @something self.TF config.min_timeframe first(config.timeframes)
     uni = AssetCollection(assets; load_data, timeframe=string(timeframe), exc, margin)
     s = Strategy(self, mode, margin, timeframe, exc, uni; config)
-    for funcs in values(Strategies.STRATEGY_LOAD_CALLBACKS)
-        for f in funcs
-            f(s)
-        end
+    mode_k = if mode == Sim()
+        :sim
+    elseif mode == Paper()
+        :paper
+    else
+        :live
+    end
+    for funcs in getproperty(Strategies.STRATEGY_LOAD_CALLBACKS, mode_k)
+        f(s)
     end
     s
 end
