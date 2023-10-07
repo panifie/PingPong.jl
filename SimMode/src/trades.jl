@@ -1,5 +1,5 @@
 using Base: negate
-using Executors: @amount!, @price!, aftertrade!
+using Executors: @amount!, @price!, aftertrade!, NewTrade
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
@@ -131,8 +131,11 @@ function trade!(
     cash!(s, ai, trade)
     # unqueue or decommit order if filled
     aftertrade!(s, ai, o, trade)
+    ping!(s, ai, trade, NewTrade())
     @ifdebug _aftertrade(s, ai, o)
     @ifdebug _check_committments(s, ai)
     @ifdebug _check_committments(s, ai, trade)
     return trade
 end
+
+ping!(::Strategy, ai, trade, ::NewTrade) = nothing
