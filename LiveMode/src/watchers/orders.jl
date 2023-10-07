@@ -58,7 +58,9 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                     while istaskrunning()
                         updates = f(flag, coro_running)
                         stop_delay[] = Second(60)
-                        if updates isa Exception
+                        if updates isa InterruptException
+                            throw(updates)
+                        elseif updates isa Exception
                             @ifdebug ispyminor_error(updates) ||
                                 @debug "Error fetching orders (using watch: $(iswatch))" updates
                             sleep(1)
@@ -74,7 +76,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                     end
                 catch e
                     if e isa InterruptException
-                        break
+                        rethrow(e)
                     else
                         @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
                         @debug_backtrace

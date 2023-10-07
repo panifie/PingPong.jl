@@ -82,7 +82,10 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                 ping!(s, now(), nothing)
                 sleep(throttle)
             catch e
-                e isa InterruptException && rethrow(e)
+                e isa InterruptException && begin
+                    is_running[] = false
+                    rethrow(e)
+                end
                 @debug_backtrace
                 @async lock(log_lock) do
                     try

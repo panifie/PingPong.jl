@@ -77,7 +77,9 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                 try
                     while istaskrunning()
                         updates = f(flag, coro_running)
-                        if updates isa Exception
+                        if updates isa InterruptException
+                            throw(updates)
+                        elseif updates isa Exception
                             @ifdebug ispyminor_error(trades) ||
                                 @debug "Error fetching trades (using watch: $(iswatch))" updates
                             sleep(1)
@@ -93,7 +95,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                     end
                 catch e
                     if e isa InterruptException
-                        break
+                        rethrow(e)
                     else
                         @debug_backtrace
                         @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
