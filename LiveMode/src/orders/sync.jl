@@ -323,9 +323,9 @@ function check_orders_sync(s::LiveStrategy)
     end
 end
 
-function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both)
+function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both, kwargs...)
     eid = exchangeid(ai)
-    closed_orders = fetch_closed_orders(s, ai; side)
+    closed_orders = fetch_closed_orders(s, ai; side, kwargs...)
     if isnothing(closed_orders)
         @error "sync orders: couldn't fetch closed orders, skipping sync" ai = raw(ai) s = nameof(
             s
