@@ -205,14 +205,18 @@ function fetch_l2ob(s, args...; kwargs...)
 end
 
 function OrderTypes.ordersdefault!(s::Strategy{Live})
-    let a = attrs(s)
-        _simmode_defaults!(s, a)
-        reset_logs(s)
-        get!(a, :throttle, Second(5))
-        asset_tasks(s)
-        strategy_tasks(s)
-    end
+    a = attrs(s)
+    _simmode_defaults!(s, a)
+    reset_logs(s)
+    get!(a, :throttle, Second(5))
+    asset_tasks(s)
+    strategy_tasks(s)
     exc_live_funcs!(s)
+    limit = get!(a, :sync_history_limit, 100)
+    if limit > 0
+        live_sync_closed_orders!(s; limit)
+    end
+    live_sync_strategy!(s)
 end
 
 function exc_live_funcs!(s::Strategy{Live})
