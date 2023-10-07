@@ -356,7 +356,7 @@ end
 # EXPERIMENTAL
 function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price), exec=true)
     isopen(ai, o) || begin
-        @error "Tried to execute a trade over a closed order ($(o.id))"
+        @error "emu trade: closed order ($(o.id))"
         return nothing
     end
     eid = exchangeid(ai)
@@ -369,7 +369,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     prev_filled = filled_amount(o)
     actual_amount = new_filled - prev_filled
     ltxzero(ai, actual_amount, Val(:amount)) && begin
-        @debug "Order fill status is not changed" o.id prev_filled new_filled actual_amount
+        @debug "emu trade: fill status unchanged" o.id prev_filled new_filled actual_amount
         return nothing
     end
     prev_cost = average_price[] * prev_filled
@@ -384,13 +384,15 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
         else
             this_cost = resp_order_cost(resp, eid)
             if iszero(this_cost)
-                @error "Cannot emulate trade $(raw(ai)) because exchange ($(nameof(exchange(ai)))) doesn't provide either `average` or `cost` order fields."
+                @error "emu trade: unavailable fields (average or cost)" ai = raw(ai) exc = nameof(
+                    exchange(ai)
+                )
                 (ZERO, ZERO)
             else
                 prev_cost = average_price[] * prev_filled
                 net_cost = this_cost - prev_cost
                 if net_cost < ai.limits.cost.min
-                    @error "Cannot emulate trade ($(raw(ai))) because cost of new trade ($(net_cost)) would be below minimum."
+                    @error "emu trade: net cost below min" ai = raw(ai) net_cost
                     (ZERO, ZERO)
                 else
                     average_price[] = (prev_cost + net_cost) / new_filled
@@ -404,7 +406,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     check_limits(net_cost, ai, :cost) || return nothing
     check_limits(actual_amount, ai, :amount) || return nothing
 
-    @debug "Emulating trade" id = o.id
+    @debug "emu trade: emulating" id = o.id
     _warn_cash(s, ai, o; actual_amount)
     date = @something pytodate(resp, eid) now()
     fees_quote, fees_base = _tradefees(
