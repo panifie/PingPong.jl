@@ -78,7 +78,7 @@ macro strategyenv!()
         using .Data: propagate_ohlcv!
         using .Data.DFUtils: lastdate, firstdate, daterange
         using .Misc: after, before, rangeafter, rangebefore
-        using .inst: ohlcv, raw
+        using .inst: ohlcv, raw, lastprice, posside
 
         const $(esc(:ect)) = PingPong.Engine.Executors
         const $(esc(:pro)) = PingPong.Engine.Processing
