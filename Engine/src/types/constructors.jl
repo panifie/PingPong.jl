@@ -19,7 +19,7 @@ function Strategies.Strategy(
     else
         :live
     end
-    for funcs in getproperty(Strategies.STRATEGY_LOAD_CALLBACKS, mode_k)
+    for f in getproperty(Strategies.STRATEGY_LOAD_CALLBACKS, mode_k)
         f(s)
     end
     s
