@@ -129,12 +129,18 @@ getexchange() = exc
 It uses a WS instance if available, otherwise an async instance.
 
 """
-function getexchange!(x::Symbol, args...; sandbox=true, markets=:yes, kwargs...)
+function getexchange!(
+    x::Symbol,
+    params=PyDict("newUpdates" => true);
+    sandbox=true,
+    markets=:yes,
+    kwargs...,
+)
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
         begin
-            py = ccxt_exchange(x, args...; kwargs...)
+            py = ccxt_exchange(x, params; kwargs...)
             e = Exchange(py)
             sandbox && sandbox!(e, true; remove_keys=false)
             setexchange!(e; markets)
@@ -252,7 +258,9 @@ macro tickers!(type=nothing, force=false)
                 tickers_cache[k] = let f = first($(exc), :watchTickers, :fetchTickers)
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
+                        let v = pyfetch(
+                                f; params=LittleDict(@pyconst("type") => @pystr(tp))
+                            )
                             if v isa PyException && Bool(f == $exc.watchTickers)
                                 pyfetch(
                                     $(exc).fetchTickers;
