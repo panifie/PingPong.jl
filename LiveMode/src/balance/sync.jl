@@ -27,7 +27,7 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
         used_cash
     end
     isapprox(s.cash_committed.value, cc; rtol=1e-4) ||
-        @warn "strategy cash: committment unsynced" loc = committed(s), rem = cc
+        @warn "strategy cash: committment unsynced" loc = committed(s) rem = cc
     cash!(s.cash_committed, cc)
     nothing
 end
