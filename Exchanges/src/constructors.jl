@@ -218,7 +218,7 @@ end
 
 @doc "Check if exchange has tickers list."
 @inline function hastickers(exc::Exchange)
-    has(exc, :watchTickers) || has(exc, :fetchTickers)
+    has(exc, :fetchTickers, :fetchTickersWs, :watchTickers)
 end
 
 MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery)
@@ -255,7 +255,7 @@ macro tickers!(type=nothing, force=false)
         let tp = @something($type, markettype($exc)), nm = $(exc).name, k = (nm, tp)
             if $force || k ∉ keys(tickers_cache)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                tickers_cache[k] = let f = first($(exc), :watchTickers, :fetchTickers)
+                tickers_cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
                         let v = pyfetch(
