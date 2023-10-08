@@ -10,7 +10,6 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
                 fill!(s.universe, s.timeframe, config.timeframes[(begin + 1):end]...)
             execmode(s) == Sim() && $stub && dostub!()
             st.ordersdefault!(s)
-            lm.exc_live_funcs!(s)
             eth = s[m"eth"]
             return s
         finally
