@@ -5,6 +5,7 @@
 !user/strategies/Example.jl
 !user/strategies/ExampleMargin.jl
 !user/strategies/ExampleMargin
+!user/strategies/RandomStratIso.jl
 !user/strategies/Template.jl
 !user/strategies/common.jl
 /src/__pycache__/
