@@ -21,3 +21,4 @@ These limitations mostly mean not implemented features:
 - Inverse contracts: logic doesn't take into account if an asset is a contract margined and settled in the _quote currency_. Strategies will throw an error if the assets universe contain inverse contracts.
 - Fixed fees: all fees are considered to be a percentage of trades, I haven't found markets that do trades with fixed fees, they are usually used only for withdrawals and the bot doesn't do that.
 - Funding fees: despite all the pieces being implemented to emulate funding fees, the backtester doesn't pay funding fees when time comes, and for liquidations it simply uses a 2x trading fee.
+- Leverage can only be updated when a position is closed and without any open orders
