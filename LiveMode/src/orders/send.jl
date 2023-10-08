@@ -10,11 +10,11 @@ function trigger_dict(exc, v)
     out
 end
 
-function check_available_cash(s, ai, amount, ::Type{<:IncreaseOrder})
-    abs(freecash(s)) >= abs(amount)
+function check_available_cash(s, _, amount, price, ::Type{<:IncreaseOrder})
+    abs(freecash(s)) >= abs(amount) * price
 end
 
-function check_available_cash(s, ai, amount, o::Type{<:ReduceOrder})
+function check_available_cash(_, ai, amount, _, o::Type{<:ReduceOrder})
     abs(freecash(ai, posside(o))) >= abs(amount)
 end
 
@@ -36,13 +36,13 @@ function live_send_order(
     kwargs...,
 )
     skipchecks ||
-        check_available_cash(s, ai, amount, t) ||
+        check_available_cash(s, ai, amount, price, t) ||
         begin
-            @warn "send order: not enought cash. out of sync?" this_cash = cash(
+            @warn "send order: not enough cash. out of sync?" this_cash = cash(
                 ai, posside(t)
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
-                ai
-            ) strat_comm = s.cash_committed order_cash = amount
+                s
+            ) strat_comm = committed(s) order_cash = amount t
             return nothing
         end
     sym = raw(ai)
@@ -82,7 +82,7 @@ function live_send_order(
         resp = create_order(s, sym, args...; side, type, price, amount, params)
     end
     if resp isa PyException
-        @warn "send order: exception" sym ex = nameof(exchange(ai)) resp
+        @warn "send order: exception" sym ex = nameof(exchange(ai)) resp args params
         return nothing
     end
     resp isa Exception || (pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing)
