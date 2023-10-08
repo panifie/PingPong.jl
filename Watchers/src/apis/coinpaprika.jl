@@ -1,5 +1,4 @@
 module CoinPaprika
-using Base: _check_bitset_bounds
 using Watchers
 using HTTP
 using URIs

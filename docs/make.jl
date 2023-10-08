@@ -46,7 +46,6 @@ get(ENV, "LOADED", "false") == "true" || begin
     use(:Analysis, "Analysis")
     use(:Engine, "Engine")
     use(:Watchers, "Watchers")
-    using Watchers.WatchersImpls
     use(:Pbar, "Pbar")
     use(:Stats, "Stats")
     use(:Optimization, "Optimization")
