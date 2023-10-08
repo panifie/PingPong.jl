@@ -40,7 +40,13 @@ function _w_fetch_positions_func(s, interval; kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
     @lget! params "settle" guess_settle(s)
-    if has(exc, :watchPositions)
+    # FIXME: see `_setposflags!`. We assume that if the update doesn't
+    # have the entry for an open position, it was closed. This is the case because
+    # currently only `fetchPositions` is used. In case of `watchPositions` with `newUpdates`
+    # only the updated positions would be present in an update. There is already the logic to handle
+    # every single position separately (see `_force_fetchpos`) so supporting `watchPositions` would be just
+    # a matter of setting 2 flags.
+    if false # has(exc, :watchPositions)
         f = exc.watchPositions
         (w) -> try
             v = _execfunc(f; params, rest...)
