@@ -91,7 +91,7 @@ end
 
 _syms(ais) = ((raw(ai) for ai in ais)...,)
 function _filter_positions(out, eid::EIDType, side=Hedged())
-    if (@something side Hedged()) isa Hedged
+    if out isa Exception || (@something side Hedged()) isa Hedged
         out
     elseif isshort(side) || islong(side)
         _pyfilter!(out, (p) -> !isside(posside_fromccxt(p, eid), side))

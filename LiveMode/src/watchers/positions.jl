@@ -57,7 +57,9 @@ function _w_fetch_positions_func(s, interval; kwargs)
         (w) -> try
             @lock w begin
                 v = fetch_positions(s, (); params, rest...)
-                _dopush!(w, v)
+                if islist(v)
+                    _dopush!(w, v)
+                end
             end
             sleep(interval)
         catch
