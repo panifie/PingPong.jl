@@ -77,6 +77,7 @@ makedocs(;
             "Backtesting" => "engine/backtesting.md",
             "Paper" => "engine/paper.md",
             "Live" => "engine/live.md",
+            "Features" => "engine/features.md",
         ],
         "Exchanges" => "exchanges.md",
         "Data" => "data.md",
