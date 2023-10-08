@@ -129,20 +129,25 @@ const mylock = Base.ReentrantLock()
 
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
-function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, kwargs...)
+function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, dothrow=false, kwargs...)
     val = value(c)
     if val > v
         c
     elseif isapprox(val, v; atol)
         cash!(c, v)
     else
-        @ifdebug -atol < value(c) < atol || begin
-            @debug value(c)
-            # st = stacktrace()
-            # throw(st[5])
-            # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
+        if dothrow
+            @ifdebug -atol < value(c) < atol || begin
+                @debug value(c)
+                # st = stacktrace()
+                # throw(st[5])
+                # Base.show_backtrace(stdout, st[1:min(lastindex(st), 10)])
+            end
+            throw("$(val) <  $(value(v)) + $atol")
+        else
+            @error "cash: outside margin of error" cash = val sub = value(v) atol
+            cash!(c, v)
         end
-        throw("$(val) <  $(value(v)) + $atol")
     end
 end
 @doc "Add v to cash, approximating to zero if cash is a small value."

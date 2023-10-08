@@ -205,7 +205,12 @@ function strategycash!(s::IsolatedStrategy, ai, t::IncreaseTrade)
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    subzero!(s.cash_committed, committment(ai, t); atol=ai.precision.price)
+    @ifdebug if committed(s) - committment(ai, t) / committed(s) < 0.0
+        @error "cash: trade committment can't be higher that total comm" trade = committment(
+            ai, t
+        ) total = committed(s)
+    end
+    subzero!(s.cash_committed, committment(ai, t); atol=ai.limits.cost.min, dothrow=false)
     @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
 end
 function _showliq(s, unrealized_pnl, gained, po, t)

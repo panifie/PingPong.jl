@@ -565,7 +565,7 @@ end
 value(v::Real, args...; kwargs...) = v
 @doc "The value held by the position, margin with pnl minus fees."
 function value(
-    ai,
+    ai::MarginInstance,
     ::ByPos{P}=posside(ai);
     current_price=price(position(ai, P)),
     fees=current_price * abs(cash(ai, P)) * maxfees(ai),
