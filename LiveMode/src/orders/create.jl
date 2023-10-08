@@ -93,6 +93,8 @@ function create_live_order(
     kwargs...,
 )
     @debug "create order: " ai = raw(ai) t price amount @caller
-    resp = live_send_order(s, ai, t, args...; amount, price, exc_kwargs...)
+    resp = live_send_order(
+        s, ai, t, args...; amount, price, withoutkws(:date; kwargs=exc_kwargs)...
+    )
     create_live_order(s, resp, ai; amount, price, t, kwargs...)
 end
