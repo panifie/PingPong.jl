@@ -170,38 +170,54 @@ function strategy_tasks(s::Strategy, account)
 end
 
 ## WRAPPERS
+# NOTE: ONLY use this macro on the lowest level wrapper functions
+macro retry(expr, count=3)
+    quote
+        att = 0
+        while true
+            resp = $(esc(expr))
+            if resp isa Exception
+                att += 1
+                att > $(esc(count)) && return resp
+            else
+                return resp
+            end
+            sleep(att)
+        end
+    end
+end
 
-fetch_orders(s, args...; kwargs...) = attr(s, :live_orders_func)(args...; kwargs...)
+fetch_orders(s, args...; kwargs...) = @retry attr(s, :live_orders_func)(args...; kwargs...)
 function fetch_open_orders(s, args...; kwargs...)
-    attr(s, :live_open_orders_func)(args...; kwargs...)
+    @retry attr(s, :live_open_orders_func)(args...; kwargs...)
 end
 function fetch_closed_orders(s, args...; kwargs...)
-    attr(s, :live_closed_orders_func)(args...; kwargs...)
+    @retry attr(s, :live_closed_orders_func)(args...; kwargs...)
 end
 function fetch_positions(s, ai::AssetInstance, args...; kwargs...)
     fetch_positions(s, (ai,), args...; kwargs...)
 end
 function fetch_positions(s, args...; kwargs...)
-    attr(s, :live_positions_func)(args...; kwargs...)
+    @retry attr(s, :live_positions_func)(args...; kwargs...)
 end
-cancel_orders(s, args...; kwargs...) = attr(s, :live_cancel_func)(args...; kwargs...)
+cancel_orders(s, args...; kwargs...) = @retry attr(s, :live_cancel_func)(args...; kwargs...)
 function cancel_all_orders(s, args...; kwargs...)
-    attr(s, :live_cancel_all_func)(args...; kwargs...)
+    @retry attr(s, :live_cancel_all_func)(args...; kwargs...)
 end
 function create_order(s, args...; kwargs...)
-    attr(s, :live_send_order_func)(args...; kwargs...)
+    @retry attr(s, :live_send_order_func)(args...; kwargs...)
 end
 function fetch_my_trades(s, args...; kwargs...)
-    attr(s, :live_my_trades_func)(args...; kwargs...)
+    @retry attr(s, :live_my_trades_func)(args...; kwargs...)
 end
 function fetch_order_trades(s, args...; kwargs...)
-    attr(s, :live_order_trades_func)(args...; kwargs...)
+    @retry attr(s, :live_order_trades_func)(args...; kwargs...)
 end
 function fetch_candles(s, args...; kwargs...)
-    attr(s, :live_fetch_candles_func)(args...; kwargs...)
+    @retry attr(s, :live_fetch_candles_func)(args...; kwargs...)
 end
 function fetch_l2ob(s, args...; kwargs...)
-    attr(s, :live_fetch_l2ob_func)(args...; kwargs...)
+    @retry attr(s, :live_fetch_l2ob_func)(args...; kwargs...)
 end
 
 function OrderTypes.ordersdefault!(s::Strategy{Live})
