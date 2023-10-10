@@ -123,7 +123,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     end
     if resp isa PyException
-        @error "Error when fetching orders for $(raw(ai)) $resp"
+        @debug "Error when fetching orders for $(raw(ai)) $resp"
         return nothing
     end
     _pyfilter!(resp, should_skip)
