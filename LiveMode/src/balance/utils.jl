@@ -1,5 +1,6 @@
 using .Executors.Instruments: AbstractCash
 using .Lang: @get
+import .st: current_total
 
 function _handle_bal_resp(resp)
     if resp isa PyException
@@ -141,7 +142,8 @@ _getval(ai::AssetInstance) = _getval(cash(ai))
 _getbal(bal, ai::AssetInstance) = get(bal, bc(ai), (;))
 _getbal(bal, c) = get(bal, nameof(c), (;))
 _getfree(bal, obj) = @get(_getbal(bal, obj), :free, _getval(obj))
-function current_total(
+
+function st.current_total(
     s::LiveStrategy{N,E,M}; price_func=lastprice, local_bal=false
 ) where {N,E<:ExchangeID,M<:WithMargin}
     tot = Ref(zero(DFT))
@@ -170,7 +172,7 @@ function current_total(
     tot[] + s_tot
 end
 
-function current_total(
+function st.current_total(
     s::LiveStrategy{N,E,NoMargin}; price_func=lastprice, local_bal=false
 ) where {N,E<:ExchangeID}
     tot = if local_bal
