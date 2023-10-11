@@ -1,0 +1,12 @@
+name = "BollingerBands"
+uuid = "10b1af8b-f1db-49c2-b9bb-56825b35e338"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+
+[strategy]
+# include_file = "src/ExampleMargin.jl"
+margin = "Isolated"
+mode = "Paper" # "Sim", "Live"

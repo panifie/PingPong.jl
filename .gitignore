@@ -8,6 +8,7 @@
 !user/strategies/RandomStratIso.jl
 !user/strategies/Template.jl
 !user/strategies/common.jl
+!user/strategies/BollingerBands
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
