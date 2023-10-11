@@ -35,6 +35,18 @@ function isdirempty(path::T where {T})
     length(allpaths) == 1 && isempty(allpaths[1][2]) && isempty(allpaths[1][3])
 end
 
+_def(::Vector{<:AbstractFloat}) = NaN
+_def(::Vector) = missing
+function shift!(arr::Vector{<:AbstractFloat}, n=1, def=_def(arr))
+    circshift!(arr, n)
+    if n >= 0
+        arr[begin:n] .= def
+    else
+        arr[(end + n):end] .= def
+    end
+    arr
+end
+
 @doc "Returns the range index of sorted vector `v` for all the values after `d`.
 when `strict` is false, the range will start after the first occurence of `d`."
 function rangeafter(v::AbstractVector, d; strict=true, kwargs...)
@@ -170,5 +182,6 @@ hasattr(d, keys...) =
         any(haskey(a, k) for k in keys)
     end
 
+export shift!
 export approxzero, gtxzero, ltxzero, negative, positive, inc!, dec!
 export attrs, attr, hasattr, attr!, setattr!, modifyattr!
