@@ -24,26 +24,41 @@ function find_path(file, cfg)
     realpath(file)
 end
 
-function _file(src, cfg)
-    file = get(attrs(cfg), "include_file", nothing)
+function _file(src, cfg, is_project)
+    file = if is_project
+        file = joinpath(dirname(realpath(cfg.path)), "src", string(src, ".jl"))
+        if ispath(file)
+            file
+        else
+        end
+    else
+        get(attrs(cfg), "include_file", nothing)
+    end
     if isnothing(file)
         file = get(cfg.sources, src, nothing)
         if isnothing(file)
-            throw(ArgumentError("Section `$src` does not declare an `include_file` and \
-                                section `sources` does not declare a `$src` key or \
-                                its value is not a valid file."))
+            msg = if is_project
+                "Strategy include file not found for project $src, \
+                declare `include_file` manually in strategy config \
+                or ensure `src/$src.jl is present."
+            else
+                "Section `$src` does not declare an `include_file` and \
+                section `sources` does not declare a `$src` key or \
+                its value is not a valid file."
+            end
+            throw(ArgumentError(msg))
         end
     end
     file
 end
 
 function strategy!(src::Symbol, cfg::Config)
-    file = _file(src, cfg)
+    file = _file(src, cfg, false)
     isproject = if splitext(file)[2] == ".toml"
         project_file = find_path(file, cfg)
         path = find_path(file, cfg)
-        Misc.config!(src; cfg, path)
-        file = _file(src, cfg)
+        Misc.config!(src; cfg, path, check=false)
+        file = _file(src, cfg, true)
         true
     else
         project_file = nothing
@@ -77,10 +92,23 @@ function strategy!(src::Symbol, cfg::Config)
 end
 _concrete(type, param) = isconcretetype(type) ? type : type{param}
 function strategy!(mod::Module, cfg::Config)
-    s_type = let s_type = mod.S{typeof(cfg.mode)}
-        s_type = _concrete(s_type, typeof(cfg.margin))
-        _concrete(s_type, typeof(cfg.qc))
-    end
+    s_type =
+        let s_type = try
+                mod.S
+            catch
+                if cfg.exchange == Symbol()
+                    error("Exchange not specified (neither in strategy nor in config)")
+                end
+                try
+                    mod.SC{ExchangeID{cfg.exchange}}
+                catch
+                    error("Strategy main type `S` or `SC` not defined in strategy module.")
+                end
+            end
+            mode_type = s_type{typeof(cfg.mode)}
+            margin_type = _concrete(mode_type, typeof(cfg.margin))
+            _concrete(margin_type, typeof(cfg.qc))
+        end
     strat_exc = nameof(exchangeid(s_type))
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
@@ -89,8 +117,8 @@ function strategy!(mod::Module, cfg::Config)
     if attr(cfg, :exchange_override, false)
         @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     end
-    @assert nameof(mod.S) isa Symbol "Source $src does not define a strategy name."
-    invokelatest(mod.ping!, mod.S, cfg, LoadStrategy())
+    @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
+    invokelatest(mod.ping!, s_type, cfg, LoadStrategy())
 end
 
 function strategy_cache_path()

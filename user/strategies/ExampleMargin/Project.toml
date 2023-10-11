@@ -6,7 +6,7 @@ version = "0.1.0"
 [deps]
 Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
 
-[ExampleMargin]
+[strategy]
 include_file = "src/ExampleMargin.jl"
 margin = "Isolated"
 mode = "Paper" # "Sim", "Live"

@@ -136,14 +136,14 @@ _namestring(name) = begin
     string(name)
 end
 
-function _toml!(cfg, name)
+function _toml!(cfg, name; check=true)
     cfg.toml = PersistentHashMap(
         collect(
             (k, v) for (k, v) in TOML.parsefile(cfg.path) if
-            k ∉ Set(("deps", "name", "uuid", "extras", "compat"))
+            k ∉ Set(("deps", "uuid", "extras", "compat"))
         ),
     )
-    if name ∉ keys(cfg.toml)
+    if check && name ∉ keys(cfg.toml)
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end
 end
@@ -158,7 +158,17 @@ end
 function _options!(cfg, name)
     options = fieldnames(Config)
     attrs = cfg.attrs
-    for (opt, val) in cfg.toml[name]
+    toml = cfg.toml
+    opts = @something get(toml, name, nothing) if get(toml, "name", "") != name
+        @warn "options: expected project toml file" name toml
+        ()
+    else
+        get(toml, "strategy", ())
+    end
+    if isempty(opts)
+        @warn "options: No options found for $name"
+    end
+    for (opt, val) in opts
         sym = Symbol(opt)
         if sym ∈ options
             setproperty!(cfg, sym, _parse(sym, val))
@@ -179,11 +189,14 @@ end
 
 @doc "Parses the toml file and populates the config `cfg` (defaults to global config)."
 function config!(
-    profile::Union{Symbol,String}; cfg::Config=config, path::String=config_path()
+    profile::Union{Symbol,String};
+    cfg::Config=config,
+    path::String=config_path(),
+    check=true,
 )
     _path!(cfg, path)
     name = _namestring(profile)
-    _toml!(cfg, name)
+    _toml!(cfg, name; check)
     _options!(cfg, name)
     _sources!(cfg, name)
     for (k, v) in @lget! cfg.attrs :config_overrides Dict()
