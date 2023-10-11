@@ -17,12 +17,6 @@ __revise_mode__ = :eval
 
 function ping!(s::S, ::ResetStrategy) end
 
-function ping!(::Type{<:SC}, config, ::LoadStrategy)
-    assets = marketsid(S)
-    s = Strategy(@__MODULE__, assets; config)
-    s
-end
-
 ping!(_::S, ::WarmupPeriod) = Day(1)
 
 function ordertp(
