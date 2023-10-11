@@ -7,10 +7,14 @@ function Strategies.Strategy(
     mode=config.mode,
     margin=config.margin,
     sandbox=true,
+    timeframe=config.min_timeframe,
 )
     exc = getexchange!(config.exchange; sandbox)
-    timeframe = @something self.TF config.min_timeframe first(config.timeframes)
-    uni = AssetCollection(assets; load_data, timeframe=string(timeframe), exc, margin)
+    uni = if isempty(assets)
+        AssetCollection()
+    else
+        AssetCollection(assets; load_data, timeframe=string(timeframe), exc, margin)
+    end
     s = Strategy(self, mode, margin, timeframe, exc, uni; config)
     mode_k = if mode == Sim()
         :sim
