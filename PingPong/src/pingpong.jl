@@ -51,6 +51,8 @@ macro environment!()
         using Data.Cache: save_cache, load_cache
         using Processing: Processing as pro
         using Remote: Remote as rmt
+        using Watchers
+        using Watchers: WatchersImpls as wi
     end
 end
 
@@ -61,6 +63,7 @@ macro strategyenv!()
         using .pp.Engine.Strategies
         using .pp.Engine: Strategies as st
         using .pp.Engine.Instances: Instances as inst
+        using .pp.Engine.LiveMode.Watchers: Watchers
         using .pp.Engine.Executors
         using .pp.Engine.OrderTypes
 
@@ -83,6 +86,7 @@ macro strategyenv!()
 
         const $(esc(:ect)) = PingPong.Engine.Executors
         const $(esc(:pro)) = PingPong.Engine.Processing
+        const $(esc(:wim)) = PingPong.Engine.LiveMode.Watchers.WatchersImpls
 
         $(@__MODULE__).Engine.Strategies.@interface
     end
