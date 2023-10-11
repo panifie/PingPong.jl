@@ -11,6 +11,10 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
             execmode(s) == Sim() && $stub && dostub!()
             st.ordersdefault!(s)
             eth = s[m"eth"]
+            ai = try
+                first(s.universe)
+            catch
+            end
             return s
         finally
             GC.enable(true)

@@ -19,7 +19,7 @@ end
 
 function loadbtc()
     @eval begin
-        betc = let s = st.strategy!(:Example, cfg)
+        btc = let s = st.strategy!(:Example, cfg)
             fill!(s.universe, config.timeframes[(begin + 1):end]...)
             s.universe[d"BTC/USDT:USDT"].instance[1]
         end
