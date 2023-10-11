@@ -1,0 +1,10 @@
+name = "Remote"
+uuid = "711acd30-27b5-475d-809f-796ffbe15f78"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LiveMode = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Telegram = "1da6f4ae-116c-4c38-8ee9-19974ff3601d"

@@ -105,7 +105,7 @@ Base.string(::Isolated) = "Isolated Margin"
 Base.string(::Cross) = "Cross Margin"
 Base.string(::NoMargin) = "No Margin"
 
-function Base.show(out::IO, s::Strategy)
+function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
     write(out, "Name: $(nameof(s)) ($(typeof(execmode(s)))) ")
     let t = attr(s, :run_task, nothing)
         if !(isnothing(t)) && !istaskdone(t) && istaskstarted(t)
@@ -140,7 +140,7 @@ function Base.show(out::IO, s::Strategy)
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    tot = current_total(s, lasttrade_price_func; local_bal=true)
+    tot = current_total(s; price_func, local_bal=true)
     t = nameof(s.cash)
     write(out, "$(t): $(tot) (Total)")
 end

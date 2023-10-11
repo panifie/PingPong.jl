@@ -50,6 +50,7 @@ macro environment!()
         using Data: Data as da, DFUtils as du
         using Data.Cache: save_cache, load_cache
         using Processing: Processing as pro
+        using Remote: Remote as rmt
     end
 end
 
