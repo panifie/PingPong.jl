@@ -14,9 +14,14 @@ __revise_mode__ = :eval
 
 function ping!(s::S, ::ResetStrategy) end
 
-function ping!(::Type{<:S}, config, ::LoadStrategy)
-    assets = marketsid(S)
-    s = Strategy(@__MODULE__, assets; config)
+function ping!(t::Type{<:SC}, config, ::LoadStrategy)
+    assets = marketsid(t)
+    config.margin = Isolated()
+    sandbox = config.mode == Paper() ? false : config.sandbox
+    s = Strategy(@__MODULE__, assets; config, sandbox)
+    @assert marginmode(s) == config.margin
+    @assert execmode(s) == config.mode
+    s[:verbose] = false
     s
 end
 
