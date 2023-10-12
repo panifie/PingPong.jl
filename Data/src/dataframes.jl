@@ -215,7 +215,7 @@ function before(df::DataFrame, dt::DateTime, cols=:)
     view(df, 1:idx, cols)
 end
 
-@doc "Append rows in df2 to df1, zeroing columns not present in df2."
+@doc "Inserts rows in `src` to `dst`, zeroing columns not present in `dst`."
 function addcols!(dst, src)
     src_cols = Set(colnames(src))
     dst_cols = colnames(dst)
@@ -227,6 +227,7 @@ function addcols!(dst, src)
     end
 end
 
-export firstdate, lastdate, getindex, dateindex, daterange, colnames, getdate, zerorow
+export firstdate, lastdate, dateindex, daterange
+export colnames, getdate, zerorow, addcols!
 
 end
