@@ -1,5 +1,5 @@
 using Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakecased
-using Data.DFUtils: firstdate, lastdate, copysubs!
+using Data.DFUtils: firstdate, lastdate, copysubs!, addcols!
 using Data.DataFramesMeta
 using Exchanges: Exchange
 using Exchanges.Ccxt: _multifunc
@@ -167,6 +167,7 @@ function _fastforward(w, sym=_sym(w))
         _lastdate(df)
     end
     if from != cur_timestamp
+        @debug "watchers fast forward: fetching " sym tf from to = cur_timestamp
         _sticky_fetchto!(w, w.view, sym, tf; to=cur_timestamp, from)
         _check_contig(w, df)
     end
@@ -224,18 +225,17 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         candles = _fetch_candles(w, from, to, sym; tf=isempty(df) ? tf : timeframe!(df))
         from_to_range = rangebetween(candles.timestamp, from, to)
         isempty(from_to_range) && _fetch_error(w, from, to, sym)
-        @debug begin
-            to,
-            _lastdate(candles), from, _firstdate(candles), length(from_to_range),
-            nrow(candles)
-        end
+        @debug "watchers fetchto!: " to _lastdate(candles) from _firstdate(candles) length(
+            from_to_range
+        ) nrow(candles)
         sliced = if length(from_to_range) == nrow(candles)
             candles
         else
             view(candles, from_to_range, :)
         end
-        @debug isempty(sliced) || sliced[begin, :timestamp]
         cleaned = cleanup_ohlcv_data(sliced, tf)
+        @debug "watchers fetchto!: " last_date =
+            isempty(sliced) ? nothing : lastdate(sliced)
 
         # # Cleaning can add missing rows, and expand the range outside our target dates
         cleaned = DataFrame(
@@ -244,6 +244,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         if isempty(cleaned)
             return false
         end
+        @debug "watchers fetchto!: " firstdate(cleaned) lastdate(cleaned)
         if !isempty(df) && firstdate(cleaned) != lastdate(df) + prd
             _fetch_error(w, from, to, sym, firstdate(cleaned))
         end
@@ -254,9 +255,12 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         function isapp()
             op == Val(:append) && (isrightadj() || (isrecent() && (_empty!!(df); true)))
         end
+        @debug "watchers fetchto!: " isprep() isapp() isleftadj() isrightadj()
         if isempty(df) || isprep() || isapp()
+            addcols!(cleaned, df)
             _op(op, df, cleaned, w.capacity.view)
         end
+        @debug "watchers fetchto!: returning " lastdate(cleaned) lastdate(df)
         @ifdebug @assert nrow(df) <= w.capacity.view
         true
     end

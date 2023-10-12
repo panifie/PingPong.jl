@@ -93,7 +93,7 @@ function _ob_to_df(ob)
 end
 
 function _fetch!(w::Watcher, ::CcxtOrderBookVal)
-    ob = @pyfetch _tfunc(w)(_sym(w))
+    ob = pyfetch(_tfunc(w), _sym(w))
     if length(ob) > 0
         result = _ob_to_df(ob)
         pushnew!(w, result, _obtimestamp(result))

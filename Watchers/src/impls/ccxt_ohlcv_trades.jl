@@ -103,23 +103,27 @@ _load!(w::Watcher, ::CcxtOHLCVVal) = _fastforward(w)
 _tradestask(w) = attr(w, :trades_task, nothing)
 _tradestask!(w) = begin
     task = _tradestask(w)
-    if isnothing(task) || istaskfailed(task)
+    if isnothing(task) || istaskfailed(task) || istaskdone(task)
         setattr!(w, @async(_fetch_trades_loop(w)), :trades_task)
     end
 end
 function _start!(w::Watcher, ::CcxtOHLCVVal)
     _pending!(w)
     empty!(_trades(w))
-    _fetchto!(w, w.view, _sym(w), _tfr(w); to=_curdate(_tfr(w)))
+    df = w.view
+    _fetchto!(w, df, _sym(w), _tfr(w); to=_curdate(_tfr(w)), from=if !isempty(df)
+        lastdate(df)
+    end)
     _check_contig(w, w.view)
 end
 
 function _fetch_trades_loop(w)
     backoff = ms(0)
     while !isnothing(w._timer) && isopen(w._timer)
-        pytrades = @logerror w @pyfetch _tfunc(w)(_sym(w))
+        pytrades = @logerror w pyfetch(_tfunc(w), _sym(w))
         if pytrades isa Exception
             backoff += ms(500)
+            @debug "ohlcv trades watcher: error" pytrades
             sleep(backoff)
             continue
         end
