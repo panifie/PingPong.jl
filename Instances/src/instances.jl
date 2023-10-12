@@ -323,6 +323,7 @@ function committed(ai::MarginInstance, ::ByPos{P}) where {P}
 end
 committed(ai::MarginInstance) = getfield((@something position(ai) ai), :cash_committed)
 ohlcv(ai::AssetInstance) = getfield(first(getfield(ai, :data)), :second)
+ohlcv_dict(ai::AssetInstance) = getfield(ai, :data)
 Instruments.add!(ai::NoMarginInstance, v, args...) = add!(cash(ai), v)
 Instruments.add!(ai::MarginInstance, v, p::PositionSide) = add!(cash(ai, p), v)
 Instruments.sub!(ai::NoMarginInstance, v, args...) = sub!(cash(ai), v)
@@ -608,7 +609,7 @@ end
 include("constructors.jl")
 
 export AssetInstance, instance, load!, @rprice, @ramount
-export asset, raw, ohlcv, bc, qc
+export asset, raw, ohlcv, ohlcv_dict, bc, qc
 export takerfees, makerfees, maxfees, minfees, ishedged, isdust, nondust
 export Long, Short, position, posside, cash, committed
 export liqprice, leverage, bankruptcy, entryprice, price
