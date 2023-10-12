@@ -111,6 +111,8 @@ Base.getindex(w::Watcher, i) = getindex(attr(w, :view), i)
 stop!(w::Watcher) = begin
     @assert isstarted(w) "Tried to stop an already stopped watcher."
     Base.close(w._timer)
+    safenotify(w.beacon.process)
+    safenotify(w.beacon.flush)
     _stop!(w, _val(w))
     nothing
 end
