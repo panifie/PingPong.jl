@@ -1,8 +1,5 @@
 using Watchers.WatchersImpls: ccxt_ohlcv_watcher, ccxt_ohlcv_tickers_watcher
-using .st: logpath
-
-@doc "Real time strategy."
-const RTStrategy = Strategy{<:Union{Paper,Live}}
+using .st: logpath, RTStrategy
 
 propagate_loop(::RTStrategy, ai, w::Watcher) = begin
     data = ai.data

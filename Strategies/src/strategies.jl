@@ -121,6 +121,8 @@ end
 const SimStrategy = Strategy{Sim}
 const PaperStrategy = Strategy{Paper}
 const LiveStrategy = Strategy{Live}
+@doc "Real time strategy."
+const RTStrategy = Strategy{<:Union{Paper,Live}}
 const IsolatedStrategy = Strategy{X,N,<:ExchangeID,Isolated,C} where {X<:ExecMode,N,C}
 const CrossStrategy = Strategy{X,N,<:ExchangeID,Cross,C} where {X<:ExecMode,N,C}
 const MarginStrategy =
@@ -138,6 +140,6 @@ include("print.jl")
 export Strategy, strategy, strategy!, reset!
 export @interface, assets, exchange, universe, throttle
 export LoadStrategy, ResetStrategy, WarmupPeriod
-export SimStrategy, PaperStrategy, LiveStrategy, IsolatedStrategy, CrossStrategy
+export SimStrategy, PaperStrategy, LiveStrategy, RTStrategy, IsolatedStrategy, CrossStrategy
 export attr, attrs, setattr!
 export issim, ispaper, islive
