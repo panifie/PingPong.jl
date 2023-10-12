@@ -6,6 +6,7 @@ using LiveMode.Instances: MarginInstance, NoMarginInstance, HedgedInstance
 using LiveMode.Instances: DataFrame, committed, cash
 using LiveMode.Instances.Data: Not
 using PrettyTables: pretty_table, tf_markdown
+import Base: get
 
 function _set_info(cl, s)
     name = nameof(s)
