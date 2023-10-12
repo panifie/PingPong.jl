@@ -1,9 +1,11 @@
 using Lang: @lget!, @deassert, MatchString
 import Instances.ExchangeTypes: exchangeid, exchange, committed
+import Instances.Exchanges: marketsid
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersdefault!
 
+marketsid(s::Strategy) = marketsid(typeof(s))
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
 assets(s::Strategy) = universe(s).data.asset

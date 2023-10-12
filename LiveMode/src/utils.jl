@@ -113,6 +113,7 @@ function stop_all_tasks(s::LiveStrategy; reset=true)
     @sync begin
         @async stop_all_asset_tasks(s; reset)
         @async stop_all_strategy_tasks(s; reset)
+        @async stop_watch_ohlcv!(s)
     end
     @debug "tasks: stopped all" s = nameof(s)
 end

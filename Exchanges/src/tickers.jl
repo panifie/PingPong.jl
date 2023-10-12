@@ -41,7 +41,7 @@ function hasvolume(sym, spot; tickers, min_vol)
     end
 end
 
-marketsid(args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+marketsid(args...; kwargs...) = error("not implemented")
 marketsid(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
 tickers(quot::Symbol, args...; kwargs...) = tickers(exc, quot, args...; kwargs...)
 

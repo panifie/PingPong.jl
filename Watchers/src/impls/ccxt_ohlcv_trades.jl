@@ -37,7 +37,13 @@ The data saved by the watcher on disk SHOULD NOT be relied upon to be contiguous
 doesn't ensure it, it only uses it to reduce the number of candles to fetch from the exchange at startup.
 """
 function ccxt_ohlcv_watcher(
-    exc::Exchange, sym; timeframe::TimeFrame, interval=Second(5), default_view=nothing
+    exc::Exchange,
+    sym;
+    timeframe::TimeFrame,
+    interval=Second(5),
+    default_view=nothing,
+    quiet=true,
+    start=false,
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
@@ -46,6 +52,7 @@ function ccxt_ohlcv_watcher(
     _tfunc!(attrs, "Trades")
     _tfr!(attrs, timeframe)
     attrs[:default_view] = default_view
+    attrs[:quiet] = quiet
     watcher_type = Vector{CcxtTrade}
     wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, sym)))
     w = watcher(
@@ -60,7 +67,7 @@ function ccxt_ohlcv_watcher(
         fetch_timeout=2interval,
         attrs,
     )
-    start!(w)
+    start && start!(w)
     w
 end
 
@@ -75,7 +82,7 @@ function _init!(w::Watcher, ::CcxtOHLCVVal)
         if isnothing(def_view)
             empty_ohlcv()
         else
-            delete!(w, :default_view)
+            delete!(w.attrs, :default_view)
             if def_view isa Function
                 def_view()
             else

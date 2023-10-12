@@ -88,6 +88,12 @@ macro strategyenv!()
         const $(esc(:pro)) = PingPong.Engine.Processing
         const $(esc(:wim)) = PingPong.Engine.LiveMode.Watchers.WatchersImpls
 
+        using .pp.Engine.Executors: OptSetup, OptRun, OptScore
+        using .pp.Engine.Executors: NewTrade
+        using .pp.Engine.Executors: WatchOHLCV
+        using .pp.Engine.Executors: UpdateOrders, CancelOrders
+        import .pp.Engine.Exchanges: marketsid
+
         $(@__MODULE__).Engine.Strategies.@interface
     end
 end
@@ -96,6 +102,7 @@ macro contractsenv!()
     quote
         using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
         using Engine.Instances: position, leverage, PositionSide
+        using Engine.Executors: UpdateLeverage, UpdateMargin, UpdatePositions
     end
 end
 

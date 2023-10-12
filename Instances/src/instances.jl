@@ -14,7 +14,7 @@ using Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!
 import Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision, ZERO
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
-import Misc: approxzero, gtxzero, ltxzero, marginmode
+import Misc: approxzero, gtxzero, ltxzero, marginmode, load!
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen

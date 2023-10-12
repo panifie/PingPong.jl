@@ -39,3 +39,28 @@ function dostub!(pairs=symnames())
         egn.stub!(s.universe, data)
     end
 end
+
+function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
+    @eval Main begin
+        GC.enable(false)
+        try
+            global s, ai
+            if isdefined(Main, :s) && s isa st.Strategy{<:Union{Paper,Live}}
+                @async lm.stop_all_tasks(s)
+            end
+            s = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
+            st.issim(s) &&
+                fill!(s.universe, s.timeframe, config.timeframes[(begin + 1):end]...)
+            execmode(s) == Sim() && $stub && dostub!()
+            st.ordersdefault!(s)
+            ai = try
+                first(s.universe)
+            catch
+            end
+            s
+        finally
+            GC.enable(true)
+            GC.gc()
+        end
+    end
+end

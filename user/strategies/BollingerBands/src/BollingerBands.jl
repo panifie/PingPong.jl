@@ -37,30 +37,6 @@ end
 
 ping!(_::SC, ::WarmupPeriod) = Day(1)
 
-function start_watcher(s)
-    @assert !issim(s)
-    exc = exchange(s)
-    @assert length(marketsid(s)) == 1
-    sym = first(marketsid(s))
-    s[:ohlcv_watcher] = w = wim.ccxt_ohlcv_watcher(exc, sym; s.timeframe)
-    load!(w, sym)
-    w[:process_func] = () -> while true
-        safewait(w.beacon.process)
-        isstopped(w) && break
-        for ai in s.universe
-            try
-                propagate_ohlcv!(ai.data)
-            catch
-            end
-        end
-    end
-    w[:process_task] = @async w[:process_func]()
-    start!(w)
-end
-
-_log(::SimStrategy, msg; kwargs...) = nothing
-_log(msg; kwargs...) = @info msg kwargs...
-
 function handler(s, ai, ats, ts)
     """
     1) Compute indicators from data
@@ -90,11 +66,11 @@ function handler(s, ai, ats, ts)
     4) Resolve buy or sell signals
     """
     if current_price < lower && !has_position
-        _log(s, "buy signal: creating market order"; sym=raw(ai), buy_value, current_price)
+        @linfo "buy signal: creating market order" sym = raw(ai) buy_value current_price
         amount = buy_value / current_price
         pong!(s, ai, MarketOrder{Buy}; date=ts, amount)
     elseif current_price > upper && has_position
-        _log(s, "sell signal: closing position"; exposure=value(ai), current_price)
+        @linfo "sell signal: closing position" exposure = value(ai) current_price
         pong!(s, ai, Long(), ts, PositionClose())
     end
     """
@@ -132,7 +108,7 @@ function ping!(t::Type{<:SC}, config, ::LoadStrategy)
         # have to add it manually to the strategy.
         # Recommended to just stub the data with a function defined in the REPL
     else
-        start_watcher(s)
+        pong!(s, WatchOHLCV())
     end
     s
 end

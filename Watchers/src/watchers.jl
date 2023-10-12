@@ -85,9 +85,11 @@ function _timer!(w)
 end
 
 function _check_flush_interval(flush_interval, fetch_interval, cap)
-    drop_time = cap * fetch_interval
-    if flush_interval > drop_time
-        @warn "Flush interval ($flush_interval) is too high, buffer element would be dropped in $drop_time."
+    if cap > 1
+        drop_time = cap * fetch_interval
+        if flush_interval > drop_time
+            @warn "Flush interval ($flush_interval) is too high, buffer element would be dropped in $drop_time."
+        end
     end
 end
 
