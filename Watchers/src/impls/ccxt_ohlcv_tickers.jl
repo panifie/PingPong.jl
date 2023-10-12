@@ -3,7 +3,7 @@ using Data.DFUtils: lastdate
 using Misc: between
 using Processing: iscomplete
 using Lang: fromstruct, ifproperty!, ifkey!
-using ..Watchers: @logerror, _val
+using ..Watchers: @logerror, _val, default_view
 
 const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
@@ -28,7 +28,12 @@ the view up to the watcher `view_capacity`.
     the volume column.
 """
 function ccxt_ohlcv_tickers_watcher(
-    exc::Exchange; price_source=:last, timeframe=tf"1m", logfile=nothing, kwargs...
+    exc::Exchange;
+    price_source=:last,
+    timeframe=tf"1m",
+    logfile=nothing,
+    default_view=nothing,
+    kwargs...,
 )
     w = ccxt_tickers_watcher(
         exc;
@@ -41,12 +46,13 @@ function ccxt_ohlcv_tickers_watcher(
     )
 
     a = attrs(w)
+    a[:default_view] = default_view
     a[:tickers_ohlcv] = true
     a[:timeframe] = timeframe
     @assert price_source ∈ PRICE_SOURCES "price_source $price_source is not one of: $PRICE_SOURCES"
     a[:price_source] = price_source
     a[:volume_divisor] = Day(1) / period(timeframe)
-    ids =  a[:ids]
+    ids = a[:ids]
     isnothing(logfile) || (a[:logfile] = logfile)
     _key!(w, "ccxt_$(exc.name)_ohlcv_tickers_$(join(ids, "_"))")
     _pending!(w)
@@ -73,7 +79,7 @@ _symlock(w, sym) = attr(w, :sym_locks)[sym]
 _loaded!(w, sym, v=true) = attr(w, :loaded)[sym] = v
 _isloaded(w, sym) = get(attr(w, :loaded), sym, false)
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
-    _view!(w, Dict{String,DataFrame}())
+    _view!(w, default_view(w, Dict{String,DataFrame}))
     a = attrs(w)
     a[:temp_ohlcv] = Dict{String,TempCandle}()
     a[:candle_ticks] = Dict{String,Int}()

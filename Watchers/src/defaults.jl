@@ -58,7 +58,20 @@ function default_process(w::Watcher, appendby::Function)
     end
     setattr!(w, w.buffer[end], :last_processed)
 end
-function default_init(w::Watcher, dataview=DataFrame(), serialized=true)
+function default_view(w::Watcher, def::Union{Type,Function}=Data.empty_ohlcv)
+    def_view = attr(w, :default_view, nothing)
+    if isnothing(def_view)
+        def()
+    else
+        delete!(w.attrs, :default_view)
+        if def_view isa Function
+            def_view()
+        else
+            def_view
+        end
+    end
+end
+function default_init(w::Watcher, dataview=default_view(w, empty_ohlcv), serialized=true)
     a = attrs(w)
     a[:view] = dataview
     a[:last_processed] = nothing

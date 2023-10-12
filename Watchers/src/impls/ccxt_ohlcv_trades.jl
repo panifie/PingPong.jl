@@ -36,13 +36,16 @@ If these constraints are not met that's a bug.
 The data saved by the watcher on disk SHOULD NOT be relied upon to be contiguous, since the watcher
 doesn't ensure it, it only uses it to reduce the number of candles to fetch from the exchange at startup.
 """
-function ccxt_ohlcv_watcher(exc::Exchange, sym; timeframe::TimeFrame, interval=Second(5))
+function ccxt_ohlcv_watcher(
+    exc::Exchange, sym; timeframe::TimeFrame, interval=Second(5), default_view=nothing
+)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
     _sym!(attrs, sym)
     _exc!(attrs, exc)
     _tfunc!(attrs, "Trades")
     _tfr!(attrs, timeframe)
+    attrs[:default_view] = default_view
     watcher_type = Vector{CcxtTrade}
     wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, sym)))
     w = watcher(
@@ -67,8 +70,20 @@ function ccxt_ohlcv_watcher(exc::Exchange, syms::Iterable; kwargs...)
 end
 ccxt_ohlcv_watcher(syms::Iterable; kwargs...) = ccxt_ohlcv_watcher.(exc, syms; kwargs...)
 
-_init!(w::Watcher, ::CcxtOHLCVVal) = begin
-    default_init(w, empty_ohlcv())
+function _init!(w::Watcher, ::CcxtOHLCVVal)
+    def_view = let def_view = attr(w, :default_view, nothing)
+        if isnothing(def_view)
+            empty_ohlcv()
+        else
+            delete!(w, :default_view)
+            if def_view isa Function
+                def_view()
+            else
+                def_view
+            end
+        end
+    end
+    default_init(w, def_view)
     _trades!(w)
     _key!(w, "ccxt_$(_exc(w).name)_ohlcv_$(_sym(w))")
     _pending!(w)
