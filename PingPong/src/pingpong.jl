@@ -7,6 +7,7 @@ using .Misc: Lang
 using Pkg: Pkg as Pkg
 
 include("repl.jl")
+include("logmacros.jl")
 
 function _doinit()
     @debug "Initializing python async..."
