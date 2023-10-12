@@ -7,6 +7,7 @@ _simmode_defaults!(s, attrs) = begin
     attrs[:sim_base_slippage] = Val(:spread)
     attrs[:sim_market_slippage] = Val(:skew)
     attrs[:sim_last_orders_update] = DateTime(0)
+    reset!(s)
 end
 
 function OrderTypes.ordersdefault!(s::Strategy{Sim})
