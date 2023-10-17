@@ -178,9 +178,9 @@ function _make_room(df, capacity, n)
 end
 
 @doc "Mutates `v` to `df` ensuring the dataframe never grows larger than `maxlen`."
-function _mutatemax!(df, v, maxlen, n, mut)
+function _mutatemax!(df, v, maxlen, n, mut; cols=:union)
     _make_room(df, maxlen, n)
-    mut(df, v)
+    mut(df, v; cols)
     @ifdebug @assert nrow(df) <= maxlen
 end
 
@@ -191,15 +191,15 @@ function _tomaxlen(v, maxlen)
 end
 
 @doc "See `_mutatemax!`"
-function appendmax!(df, v, maxlen)
-    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), append!)
+function appendmax!(df, v, maxlen; cols=:union)
+    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), append!; cols)
 end
 @doc "See `_mutatemax!`"
-function prependmax!(df, v, maxlen)
-    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), prepend!)
+function prependmax!(df, v, maxlen; cols=:union)
+    _mutatemax!(df, _tomaxlen(v, maxlen), maxlen, size(v, 1), prepend!; cols)
 end
 @doc "See `_mutatemax!`"
-pushmax!(df, v, maxlen) = _mutatemax!(df, v, maxlen, 1, push!)
+pushmax!(df, v, maxlen; cols=:union) = _mutatemax!(df, v, maxlen, 1, push!; cols)
 
 function contiguous_ts(df::DataFrame, args...; kwargs...)
     contiguous_ts(df.timestamp, string(timeframe!(df)), args...; kwargs...)

@@ -257,7 +257,6 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
         end
         @debug "watchers fetchto!: " isprep() isapp() isleftadj() isrightadj()
         if isempty(df) || isprep() || isapp()
-            addcols!(cleaned, df)
             _op(op, df, cleaned, w.capacity.view)
         end
         @debug "watchers fetchto!: returning " lastdate(cleaned) lastdate(df)
