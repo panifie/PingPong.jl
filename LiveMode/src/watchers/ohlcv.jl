@@ -1,5 +1,5 @@
 using Watchers.WatchersImpls: ccxt_ohlcv_watcher, ccxt_ohlcv_tickers_watcher
-using .st: logpath, RTStrategy
+using .st: logpath
 
 propagate_loop(::RTStrategy, ai, w::Watcher) = begin
     data = ai.data

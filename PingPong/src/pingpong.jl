@@ -6,8 +6,8 @@ using Engine.Misc
 using .Misc: Lang
 using Pkg: Pkg as Pkg
 
-include("repl.jl")
 include("logmacros.jl")
+include("repl.jl")
 
 function _doinit()
     @debug "Initializing python async..."
@@ -91,7 +91,7 @@ macro strategyenv!()
 
         using .pp.Engine.Executors: OptSetup, OptRun, OptScore
         using .pp.Engine.Executors: NewTrade
-        using .pp.Engine.Executors: WatchOHLCV
+        using .pp.Engine.Executors: WatchOHLCV, UpdateData
         using .pp.Engine.Executors: UpdateOrders, CancelOrders
         import .pp.Engine.Exchanges: marketsid
 

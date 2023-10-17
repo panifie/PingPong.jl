@@ -5,7 +5,7 @@ using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMargin
 using .Instances
 using .Exchanges
 using .Exchanges: Python
-using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!
+using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy
 using PaperMode.OrderTypes
 using PaperMode.Misc
 using .Misc: Lang, LittleDict

@@ -56,3 +56,12 @@ end
 function lastprice(s, ai::AssetInstance, bs::BySide)
     @something lastprice(ai, bs, last_fallback=false) lastprice(s, ai, bs, Val(:ob))
 end
+
+function update!(f::Function, s::RTStrategy, k)
+    updates = @lget! s.attrs :lastdate_updates Dict{Symbol,DateTime}()
+    try
+        f()
+    finally
+        updates[k] = now()
+    end
+end
