@@ -3,6 +3,7 @@ _pricebyside(::AnySellOrder, date, ai) = st.highat(ai, date)
 
 _simmode_defaults!(s, attrs) = begin
     attrs[:timeframe] = s.timeframe
+    attrs[:throttle] = Second(5)
     attrs[:sim_update_mode] = UpdateOrders()
     attrs[:sim_base_slippage] = Val(:spread)
     attrs[:sim_market_slippage] = Val(:skew)
@@ -10,7 +11,7 @@ _simmode_defaults!(s, attrs) = begin
     reset!(s)
 end
 
-function OrderTypes.ordersdefault!(s::Strategy{Sim})
+function st.default!(s::Strategy{Sim})
     _simmode_defaults!(s, s.attrs)
 end
 

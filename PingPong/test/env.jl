@@ -52,7 +52,7 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
             st.issim(s) &&
                 fill!(s.universe, s.timeframe, config.timeframes[(begin + 1):end]...)
             execmode(s) == Sim() && $stub && dostub!()
-            st.ordersdefault!(s)
+            st.default!(s)
             ai = try
                 first(s.universe)
             catch

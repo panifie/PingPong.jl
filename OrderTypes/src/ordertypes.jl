@@ -143,7 +143,6 @@ end
 @deforders false GTC PostOnly FOK IOC Market
 @deforders true Limit
 
-const ordersdefault! = Returns(nothing)
 ==(v1::Type{<:OrderSide}, v2::Type{Both}) = true
 ==(v1::Type{Both}, v2::Type{<:OrderSide}) = true
 ordertype(::Order{T}) where {T} = T
@@ -212,6 +211,5 @@ export IncreaseOrder,
     ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
-export ordersdefault!,
-    orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
+export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
 export liqside, sidetopos, opposite

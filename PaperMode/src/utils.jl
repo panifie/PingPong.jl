@@ -4,6 +4,7 @@ import Executors: priceat
 using .Misc.Lang: @lget!
 
 const OrderTaskTuple = NamedTuple{(:task, :alive),Tuple{Task,Ref{Bool}}}
+const AssetLiquidity = Tuple{Ref{DateTime},Ref{DFT},Ref{DFT}}
 
 function reset_logs(s::Strategy)
     mode = execmode(s) |> typeof |> string
@@ -11,20 +12,17 @@ function reset_logs(s::Strategy)
     write(logfile, "")
 end
 
-function OrderTypes.ordersdefault!(s::Strategy{Paper})
-    let attrs = s.attrs
-        attrs[:paper_liquidity] = Dict{
-            AssetInstance,Tuple{Ref{DateTime},Ref{DFT},Ref{DFT}}
-        }()
-        # ensure order tasks do not linger
-        tasks = @lget! attrs :paper_order_tasks Dict{Order,OrderTaskTuple}()
-        for (_, alive) in values(tasks)
-            alive[] = false
-        end
-        empty!(tasks)
-        _simmode_defaults!(s, attrs)
-        reset_logs(s)
+function st.default!(s::Strategy{Paper})
+    attrs = s.attrs
+    attrs[:paper_liquidity] = Dict{AssetInstance,AssetLiquidity}()
+    # ensure order tasks do not linger
+    tasks = @lget! attrs :paper_order_tasks Dict{Order,OrderTaskTuple}()
+    for (_, alive) in values(tasks)
+        alive[] = false
     end
+    empty!(tasks)
+    _simmode_defaults!(s, attrs)
+    reset_logs(s)
 end
 
 function priceat(::PaperStrategy, ::Type{<:Order}, ai, args...; kwargs...)

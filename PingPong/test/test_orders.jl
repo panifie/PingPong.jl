@@ -70,7 +70,7 @@ function test_orderscount(s)
     @test length(collect(ect.orders(s, ai, ect.Sell))) == 0
     @test ect.hasorders(s, ect.Buy)
     @test !ect.hasorders(s, ect.Sell)
-    bt.ordersdefault!(s)
+    bt.default!(s)
     ect.cash!(s.cash, 1e6)
     ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount=10.0, date=date(3))
     @test s.cash < 1e6

@@ -3,7 +3,7 @@ import Instances.ExchangeTypes: exchangeid, exchange, committed
 import Instances.Exchanges: marketsid
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!
-using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade, ordersdefault!
+using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 marketsid(s::Strategy) = marketsid(typeof(s))
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -59,12 +59,18 @@ function reset!(s::Strategy, config=false)
     for ai in universe(s)
         reset!(ai, Val(:full))
     end
-    config && reset!(s.config)
+    if config
+        reset!(s.config)
+    else
+        s.config.exchange = nameof(exchange(s))
+        s.config.mode = execmode(s)
+        s.config.margin = marginmode(s)
+        s.config.qc = nameof(cash(s))
+        s.config.min_timeframe = s.timeframe
+    end
     default!(s)
-    ordersdefault!(s)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
-    s.config.exchange = nameof(exchange(s))
     ping!(s, ResetStrategy())
 end
 @doc "Reloads ohlcv data for assets already present in the strategy universe."
@@ -76,9 +82,7 @@ reload!(s::Strategy) = begin
 end
 const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
-default!(s::Strategy) = begin
-    setattr!(s, :throttle, Second(5))
-end
+default!(s::Strategy) = nothing
 
 Base.fill!(s::Strategy; kwargs...) = begin
     tfs = Set{TimeFrame}()

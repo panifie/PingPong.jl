@@ -221,7 +221,7 @@ function fetch_l2ob(s, args...; kwargs...)
     @retry attr(s, :live_fetch_l2ob_func)(args...; kwargs...)
 end
 
-function OrderTypes.ordersdefault!(s::Strategy{Live})
+function st.default!(s::Strategy{Live})
     a = attrs(s)
     _simmode_defaults!(s, a)
     reset_logs(s)

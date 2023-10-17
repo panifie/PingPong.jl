@@ -109,10 +109,8 @@ end
 function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
-    if doreset
-        reset!(s)
-    elseif !hasattr(s, :is_running) # only set defaults on first run
-        ordersdefault!(s)
+    if doreset && !hasattr(s, :is_running) # only set defaults on first run
+        default!(s)
     end
     startinfo = header(s, throttle)
     flushlog, log_lock = flushlog_func(s)
