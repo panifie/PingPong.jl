@@ -33,7 +33,7 @@ function create_live_order(
             return nothing
         end
     type = let ot = ordertype_fromccxt(resp, eid)
-        if isnothing(ot)
+        if isnothing(ot) && t isa Type{<:Order}
             t
         else
             pos = posside(t)
