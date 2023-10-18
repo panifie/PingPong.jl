@@ -67,6 +67,20 @@ function dateindex(v::V, date::DateTime) where {V<:AbstractVector}
     searchsortedlast(v, date)
 end
 
+function dateindex(v::V, date::DateTime, ::Val{:nonzero}) where {V<:AbstractVector}
+    idx = dateindex(v, date)
+    if iszero(idx)
+        firstindex(date)
+    else
+        idx
+    end
+end
+
+function dateindex(df::AbstractDataFrame, date::DateTime, ::Val{:nonzero})
+    dateindex(df.timestamp, date, Val(:nonzero))
+end
+dateindex(v, date, sym::Symbol) = dateindex(v, date, Val(sym))
+
 valueorview(df::DataFrame, idx, col::String) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, col::Symbol) = getproperty(df, col)[idx]
 valueorview(df::DataFrame, idx, cols) = @view df[idx, cols]
