@@ -15,6 +15,7 @@ import Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision, ZERO
 using Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 import Misc: approxzero, gtxzero, ltxzero, marginmode, load!
+import TimeTicks: timeframe
 using .DataStructures: SortedDict
 using Lang: Option, @deassert
 import Base: position, isopen
@@ -603,6 +604,16 @@ function lastprice(ai::AssetInstance, ::Val{:history})
         last(v).price
     else
         lastprice(ai)
+    end
+end
+
+function timeframe(ai::AssetInstance)
+    data = getfield(ai, :data)
+    if length(data) > 0
+        first(keys(data))
+    else
+        @warn "asset: can't infer timeframe since there is not data"
+        tf"1m"
     end
 end
 
