@@ -1,4 +1,4 @@
-using Lang: @deassert, @ifdebug
+using Lang: @deassert, @ifdebug, @debug_backtrace
 using Misc: ATOL
 using Printf
 abstract type AbstractCash <: Number end
@@ -145,7 +145,7 @@ function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, dothrow=false,
             end
             throw("$(val) <  $(value(v)) + $atol")
         else
-            @error "cash: outside margin of error" cash = val sub = value(v) atol
+            @debug "cash: outside margin of error" cash = val sub = value(v) atol
             cash!(c, v)
         end
     end
