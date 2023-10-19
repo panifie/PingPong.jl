@@ -1,6 +1,6 @@
 using .Instances: AssetInstance
 using .Exchanges: is_pair_active
-using .Data.DFUtils: firstdate, lastdate, dateindex, colnames, nrow
+using .Data.DFUtils: firstdate, lastdate, dateindex, colnames, nrow, setcols!
 import .Instances: lastprice
 import .Executors: priceat
 isactive(ai::AssetInstance) = is_pair_active(raw(ai), exchange(ai))
@@ -58,21 +58,12 @@ function lastprice(s, ai::AssetInstance, bs::BySide)
     @something lastprice(ai, bs, last_fallback=false) lastprice(s, ai, bs, Val(:ob))
 end
 
-_get_updates(s) = @lget! s.attrs :lastdate_updates Dict{Tuple{Vararg{Symbol}},DateTime}()
+updates_dict(s) = @lget! s.attrs :updated_at Dict{Tuple{Vararg{Symbol}},DateTime}()
+updated_at!(s, k, date=now()) = updates_dict(s)[k] = date
 function update!(f::Function, s::RTStrategy, cols::Vararg{Symbol}; tf=s.timeframe)
-    updates = _get_updates(s)
+    updates = updates_dict(s)
     for ai in s.universe
         update!(f, s, ai, cols; updates, tf)
-    end
-end
-
-function setcols!(dst, src, cols, idx=firstindex(dst, 1):lastindex(dst, 1))
-    data_type = eltype(src)
-    for (n, col) in enumerate(cols)
-        if !hasproperty(dst, col)
-            dst[!, col] = Vector{data_type}(1:size(dst, 1))
-        end
-        dst[idx, col] = @view src[:, n]
     end
 end
 
@@ -96,7 +87,7 @@ function update!(
     s::RTStrategy,
     ai::AssetInstance,
     cols::Vararg{Symbol};
-    updates=_get_updates(s),
+    updates=updates_dict(s),
     tf=s.timeframe,
 )
     ohlcv = @lget! ohlcv_dict(ai) tf Data.empty_ohlcv()
@@ -147,3 +138,5 @@ function update!(
         end
     end
 end
+
+export updated_at!

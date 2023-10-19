@@ -30,6 +30,7 @@ struct NewTrade <: ExecAction end
 
 struct WatchOHLCV <: ExecAction end
 struct UpdateData <:ExecAction end
+struct InitData <:ExecAction end
 
 struct OptSetup <:ExecAction end
 struct OptRun <:ExecAction end
@@ -40,7 +41,7 @@ export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions
 export OptSetup, OptRun, OptScore
 export NewTrade
-export WatchOHLCV, UpdateData
+export WatchOHLCV, UpdateData, InitData
 export limitorder, marketorder
 export unfilled, committed, isfilled, islastfill, isfirstfill, trades, cost
 export queue!, cancel!, commit!

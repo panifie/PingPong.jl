@@ -241,7 +241,17 @@ function addcols!(dst, src)
     end
 end
 
+function setcols!(dst, src, cols, idx=firstindex(dst, 1):lastindex(dst, 1))
+    data_type = eltype(src)
+    for (n, col) in enumerate(cols)
+        if !hasproperty(dst, col)
+            dst[!, col] = Vector{data_type}(1:size(dst, 1))
+        end
+        dst[idx, col] = @view src[:, n]
+    end
+end
+
 export firstdate, lastdate, dateindex, daterange
-export colnames, getdate, zerorow, addcols!
+export colnames, getdate, zerorow, addcols!, setcols!
 
 end

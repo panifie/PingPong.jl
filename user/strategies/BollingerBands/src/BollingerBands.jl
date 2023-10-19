@@ -14,25 +14,15 @@ const SC{E,M,R} = Strategy{M,NAME,E,R}
 const TF = tf"1m"
 __revise_mode__ = :eval
 
-function reset_indicators!(s::SC{<:ExchangeID,Sim})
-    for ai in s.universe
-        ohlcv = @lget! ai.data s.timeframe Data.empty_ohlcv()
-        @assert timeframe(ohlcv) == s.timeframe
-        bb = bbands(ohlcv.close; n=20, sigma=2.0)
-        # shift by one to avoid lookahead
-        ohlcv[!, :bb_lower] = shift!(bb[:, 1], 1)
-        ohlcv[!, :bb_upper] = shift!(bb[:, 3], 1)
-        @assert bb[end, 1] <= bb[end, 2] <= bb[end, 3]
-    end
-end
-reset_indicators!(::SC) = nothing
-update_indicators!(::SC{<:ExchangeID,Sim}, ai) = nothing
-update_indicators!(::SC{<:ExchangeID,<:Union{Paper,Live}}, ai) = begin
-    # update indicators when new candles arrive
+bbands!(ohlcv, from_date) = begin
+    bb = bbands(ohlcv.close; n=20, sigma=2.0)
+    @assert bb[end, 1] <= bb[end, 2] <= bb[end, 3]
+    # shift by one to avoid lookahead # FIXME: this should not be needed
+    [shift!(bb[:, 1], 1) shift!(bb[:, 3], 1)]
 end
 
-function ping!(s::SC, ::ResetStrategy)
-    reset_indicators!(s)
+function ping!(s::SC{<:ExchangeID,Sim}, ::ResetStrategy)
+    pong!(bbands!, s, InitData(); cols=(:bb_lower, :bb_upper))
 end
 
 ping!(_::SC, ::WarmupPeriod) = Day(1)
@@ -41,7 +31,7 @@ function handler(s, ai, ats, ts)
     """
     1) Compute indicators from data
     """
-    update_indicators!(s, ai)
+    pong!(bbands!, s, ai, UpdateData(); cols=(:bb_lower, :bb_upper))
     ohlcv = ai.data[s.timeframe]
 
     lower = ohlcv[ats, :bb_lower]
@@ -97,7 +87,6 @@ function ping!(t::Type{<:SC}, config, ::LoadStrategy)
     @assert execmode(s) == config.mode
     s[:verbose] = false
 
-    # s[:timeframe] = s.timeframe
     if issim(s)
         ##  whatever method to load the data, e.g.
         # pair = first(marketsid(s))

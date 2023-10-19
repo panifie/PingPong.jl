@@ -84,6 +84,7 @@ macro strategyenv!()
         using .Data.DFUtils: lastdate, firstdate, daterange
         using .Misc: after, before, rangeafter, rangebefore
         using .inst: ohlcv, raw, lastprice, posside
+        using .pp.Engine.LiveMode: updated_at!
 
         const $(esc(:ect)) = PingPong.Engine.Executors
         const $(esc(:pro)) = PingPong.Engine.Processing
@@ -91,7 +92,7 @@ macro strategyenv!()
 
         using .pp.Engine.Executors: OptSetup, OptRun, OptScore
         using .pp.Engine.Executors: NewTrade
-        using .pp.Engine.Executors: WatchOHLCV, UpdateData
+        using .pp.Engine.Executors: WatchOHLCV, UpdateData, InitData
         using .pp.Engine.Executors: UpdateOrders, CancelOrders
         import .pp.Engine.Exchanges: marketsid
 
