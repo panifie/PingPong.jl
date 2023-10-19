@@ -62,11 +62,13 @@ function reset!(s::Strategy, config=false)
     if config
         reset!(s.config)
     else
-        s.config.exchange = nameof(exchange(s))
-        s.config.mode = execmode(s)
-        s.config.margin = marginmode(s)
-        s.config.qc = nameof(cash(s))
-        s.config.min_timeframe = s.timeframe
+        let cfg = s.config
+            cfg.exchange = nameof(exchange(s))
+            cfg.mode = execmode(s)
+            cfg.margin = marginmode(s)
+            cfg.qc = nameof(cash(s))
+            cfg.min_timeframe = s.timeframe
+        end
     end
     default!(s)
     cash!(s.cash, s.config.initial_cash)

@@ -1,3 +1,5 @@
 using Executors: WatchOHLCV
-pong!(s::Strategy{Sim}, ::WatchOHLCV) = nothing
-pong!(s::Strategy{Sim}, ::UpdateData) = nothing
+pong!(::Strategy{Sim}, ::WatchOHLCV) = nothing
+pong!(::Strategy{Sim}, ::UpdateData) = nothing
+pong!(::Function, s::Strategy{Sim}, k, ::UpdateData) = nothing
+pong!(::Function, s::Strategy{Sim}, ai, k, ::UpdateData) = nothing

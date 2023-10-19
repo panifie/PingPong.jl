@@ -70,7 +70,7 @@ end
 function dateindex(v::V, date::DateTime, ::Val{:nonzero}) where {V<:AbstractVector}
     idx = dateindex(v, date)
     if iszero(idx)
-        firstindex(date)
+        firstindex(v)
     else
         idx
     end
