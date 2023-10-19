@@ -9,6 +9,7 @@
 !user/strategies/Template.jl
 !user/strategies/common.jl
 !user/strategies/BollingerBands
+!user/strategies/BBWithOpt
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
