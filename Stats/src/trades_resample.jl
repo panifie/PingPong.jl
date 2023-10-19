@@ -7,9 +7,9 @@ using Engine.Lang: @ifdebug
 
 # Use a generic Order instead to avoid the dataframe creating a too concrete order vector
 TradesTuple2 = NamedTuple{
-    (:date, :amount, :price, :value, :fees, :size, :leverage, :entryprice, :order),
+    (:date, :amount, :price, :value, :fees, :fees_base, :size, :leverage, :entryprice, :order),
     Tuple{
-        collect(Vector{T} for T in (DateTime, DFT, DFT, DFT, DFT, DFT, DFT, DFT, Order))...
+        collect(Vector{T} for T in (DateTime, DFT, DFT, DFT, DFT, DFT, DFT, DFT, DFT, Order))...
     },
 }
 function _tradesdf(trades::AbstractVector)
