@@ -98,9 +98,24 @@ function bboptimize(
         @assert n_jobs <= Threads.nthreads() - 1 "Should not use more threads than logical cores $(Threads.nthreads())."
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
-    ctx, params, s_space, space = ctxfromstrat(s)
-    sess = OptSession(s; ctx, params, attrs=Dict{Symbol, Any}(pairs((; s_space))))
-    resume && resume!(sess; zi)
+    local ctx, params, s_space, space, sess
+    try
+        ctx, params, s_space, space = ctxfromstrat(s)
+        sess = OptSession(s; ctx, params, attrs=Dict{Symbol,Any}(pairs((; s_space))))
+        resume && resume!(sess; zi)
+    catch
+        if isinteractive()
+            let resp = Base.prompt(
+                    "Can't resume the session. Continue? [y/n] (pass resume=false to skip this)",
+                )
+                if startswith(resp, "n")
+                    return nothing
+                end
+            end
+        end
+        ctx, params, s_space, space = ctxfromstrat(s)
+        sess = OptSession(s; ctx, params, attrs=Dict{Symbol,Any}(pairs((; s_space))))
+    end
     from = Ref(nrow(sess.results) + 1)
     save_args = if !isnothing(save_freq)
         resume || save_session(sess; zi)
