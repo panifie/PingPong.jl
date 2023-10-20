@@ -1,9 +1,11 @@
 module OptimizationExt
 
+using Plotting
+using .Plotting: normalize, normalize!, scatter, surface, DataInspector
 using Optimization: OptSession
 using Stats: mean, egn
 using Makie
-using .egn.Data: Not, DataFrame
+using .egn.Data: Not, DataFrame, groupby, combine, nrow
 using .egn.Executors.Instruments: compactnum as cnum
 
 _allfinite(v) = all(isfinite.(v))
@@ -43,7 +45,7 @@ fig, res = Plotting.plot_results(
 )
 ```
 """
-function plot_results(
+function Plotting.plot_results(
     sess::OptSession;
     x_col=keys(sess.params)[1],
     y_col=keys(sess.params)[2],
@@ -231,7 +233,5 @@ function by_plot_coords(f, args...; kwargs...)
         (), base_indexer_func
     end
 end
-
-export plot_results
 
 end

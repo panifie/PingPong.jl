@@ -33,10 +33,12 @@ function module!(sym, bind)
         catch e
             Base.showerror(stdout, e)
             prev = Pkg.project().path
-            Pkg.activate(modpath)
-            Pkg.instantiate()
             Pkg.activate(prev)
-            @eval Main using $sym: $sym as $bind
+            try
+                @eval Main using $sym: $sym as $bind
+            finally
+                Pkg.activate(prev)
+            end
         end
     end
     @info "`$sym` module bound to `$bind`"
@@ -52,6 +54,7 @@ optplots!() =
         try
             Pkg.activate("Plotting")
             plots!()
+            module!(:Optimization, :opt)
         finally
             Pkg.activate(prev)
         end

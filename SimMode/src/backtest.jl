@@ -1,6 +1,5 @@
 using Executors: orderscount
 using Executors: isoutof_orders
-using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 
 import .Misc: start!, stop!
 
@@ -27,30 +26,25 @@ To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, in
 function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
     # ensure that universe data start at the same time
     @ifdebug _resetglobals!()
-    try
-        gc_disable()
-        if trim_universe
-            let data = flatten(universe(s))
-                !check_alignment(data) && trim!(data)
-            end
+    if trim_universe
+        let data = flatten(universe(s))
+            !check_alignment(data) && trim!(data)
         end
-        if doreset
-            tt.current!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
-            st.reset!(s)
-        end
-        update_mode = s.attrs[:sim_update_mode]::ExecAction
-        for date in ctx.range
-            isoutof_orders(s) && begin
-                @deassert all(iszero(ai) for ai in universe(s))
-                break
-            end
-            update!(s, date, update_mode)
-            ping!(s, date, ctx)
-        end
-        s
-    finally
-        gc_enable()
     end
+    if doreset
+        tt.current!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
+        st.reset!(s)
+    end
+    update_mode = s.attrs[:sim_update_mode]::ExecAction
+    for date in ctx.range
+        isoutof_orders(s) && begin
+            @deassert all(iszero(ai) for ai in universe(s))
+            break
+        end
+        update!(s, date, update_mode)
+        ping!(s, date, ctx)
+    end
+    s
 end
 
 @doc "Backtest with context of all data loaded in the strategy universe."

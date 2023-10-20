@@ -4,6 +4,7 @@ using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
 using .Instances.Data: zilmdb, za
 using .Instances.Data.Zarr: getattrs, writeattrs
+using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
@@ -275,9 +276,24 @@ function define_backtest_func(sess, small_step, big_step)
     end
 end
 
+@doc """ Disables pythoncall gc calls
+
+
+"""
+macro nogc(expr)
+    ex = quote
+        try
+            $(gc_disable)()
+            $expr
+        finally
+            $(gc_enable)()
+        end
+    end
+    esc(ex)
+end
 @doc "Multi(threaded) optimization function."
 function _multi_opt_func(repeats, backtest_func, median_func, obj_type)
-    (params) -> begin
+    (params) -> @nogc begin
         job(n) = backtest_func(params, n)
         scores = Vector{obj_type}(undef, repeats)
         Threads.@threads for n in 1:repeats
@@ -292,7 +308,7 @@ end
 
 @doc "Single(threaded) optimization function."
 function _single_opt_func(repeats, backtest_func, median_func, args...)
-    (params) -> begin
+    (params) -> @nogc begin
         mapreduce(permutedims, vcat, [(backtest_func(params, n) for n in 1:repeats)...]) |> median_func
     end
 end
