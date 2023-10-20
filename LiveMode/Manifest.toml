@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.3"
 manifest_format = "2.0"
 project_hash = "962c4270524e1985d1465dcfc5b2b4507913c85a"
 
@@ -339,7 +339,7 @@ uuid = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 version = "0.1.0"
 
 [[deps.Instruments]]
-deps = ["Lang", "Misc"]
+deps = ["Lang", "Misc", "Printf"]
 path = "../Instruments"
 uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 version = "0.1.0"

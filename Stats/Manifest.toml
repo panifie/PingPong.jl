@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.3"
 manifest_format = "2.0"
 project_hash = "457573843a2db956def73e389a7aea298adf7628"
 
@@ -282,7 +282,7 @@ uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
 version = "0.1.9"
 
 [[deps.ExchangeTypes]]
-deps = ["Ccxt", "FunctionalCollections", "Lang", "Python"]
+deps = ["Ccxt", "FunctionalCollections", "Lang", "Mocking", "OrderedCollections", "Python"]
 path = "../ExchangeTypes"
 uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
@@ -389,7 +389,7 @@ uuid = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
 version = "0.1.0"
 
 [[deps.Instruments]]
-deps = ["Lang", "Misc"]
+deps = ["Lang", "Misc", "Printf"]
 path = "../Instruments"
 uuid = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 version = "0.1.0"
@@ -474,6 +474,12 @@ version = "0.1.0"
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 
+[[deps.LazyJSON]]
+deps = ["JSON", "OrderedCollections", "PropertyDicts"]
+git-tree-sha1 = "ce08411caa70e0c9e780f142f59debd89a971738"
+uuid = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
+version = "0.2.2"
+
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
@@ -507,7 +513,7 @@ deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LiveMode]]
-deps = ["PaperMode", "Python"]
+deps = ["PaperMode", "Python", "Watchers"]
 path = "../LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 version = "0.1.0"
@@ -571,7 +577,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.13"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "OrderedCollections", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "ThreadPools", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Mocking", "OrderedCollections", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "ThreadPools", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -748,8 +754,13 @@ git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
 uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
 
+[[deps.PropertyDicts]]
+git-tree-sha1 = "8cf3b5cea994cfa9f238e19c3946a39cf051896c"
+uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
+version = "0.1.2"
+
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile", "ThreadPools"]
+deps = ["CondaPkg", "Dates", "Mocking", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile", "ThreadPools"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
@@ -807,6 +818,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "6ed52fdd3382cf21947b15e8870ac0ddbff736da"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.4.0+0"
+
+[[deps.Rocket]]
+deps = ["DataStructures", "Sockets", "Unrolled"]
+git-tree-sha1 = "e661bfe6b7de7e677e0f0e0b63289029c391eaa1"
+uuid = "df971d30-c9d6-4b37-b8ff-e965b2cb3a40"
+version = "1.7.2"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -1006,6 +1023,12 @@ path = "../TimeTicks"
 uuid = "1ce46816-3f51-4f52-9fcf-6d091670788d"
 version = "0.1.0"
 
+[[deps.TimeToLive]]
+deps = ["Dates"]
+git-tree-sha1 = "1f1389007d16385ec02e497bef6c2caffba99b65"
+uuid = "37f0c46e-897f-50ef-b453-b26c3eed3d6c"
+version = "0.3.0"
+
 [[deps.TranscodingStreams]]
 deps = ["Random", "Test"]
 git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
@@ -1035,10 +1058,22 @@ git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
 
+[[deps.Unrolled]]
+deps = ["MacroTools"]
+git-tree-sha1 = "6cc9d682755680e0f0be87c56392b7651efc2c7b"
+uuid = "9602ed7d-8fef-5bc8-8597-8f21381861e8"
+version = "0.1.5"
+
 [[deps.UnsafePointers]]
 git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"
 uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
 version = "1.0.0"
+
+[[deps.Watchers]]
+deps = ["Data", "DataStructures", "Exchanges", "Fetch", "HTTP", "Instruments", "Lang", "LazyJSON", "Misc", "Pbar", "Processing", "Python", "Rocket", "Tables", "TimeTicks", "TimeToLive", "URIs"]
+path = "../Watchers"
+uuid = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
+version = "0.1.0"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
