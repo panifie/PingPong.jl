@@ -56,7 +56,7 @@ function _cur(exc, sym)
     curs = @lget! currenciesCache1Hour exc.id let v = pyfetch(exc.fetchCurrencies)
         v isa PyException ? exc.currencies : v
     end
-    isempty(curs) ? nothing : get(curs, sym_str, nothing)
+    (pyisnone(curs) || isempty(curs)) ? nothing : get(curs, sym_str, nothing)
 end
 
 @doc "A `CurrencyCash` contextualizes a `Cash` instance w.r.t. an exchange.
