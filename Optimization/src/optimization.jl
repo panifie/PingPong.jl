@@ -5,6 +5,7 @@ using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobyt
 using .Instances.Data: zilmdb, za
 using .Instances.Data.Zarr: getattrs, writeattrs
 using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
+using .Instances.Exchanges: exc, sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
@@ -100,7 +101,20 @@ function zgroup_opt(zi)
     if za.is_zgroup(zi.store, "Opt")
         za.zopen(zi.store, "w"; path="Opt")
     else
-        za.zgroup(zi.store, "Opt")
+        try
+            za.zgroup(zi.store, "Opt")
+        catch e
+            if occursin("not empty", e.msg)
+                if startswith(Base.prompt("Store not empty, reset? y/[n]"), "y")
+                    delete!(zi.store, "Opt")
+                    za.zgroup(zi.store, "Opt")
+                else
+                    rethrow()
+                end
+            else
+                rethrow()
+            end
+        end
     end
 end
 
@@ -138,11 +152,6 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb
             writeattrs(z.storage, z.path, z.attrs)
         end
     end
-    # let z = load_data(zi, k; serialized=true, as_z=true)[1]
-    #     if !isempty(z)
-    #         @assert DateTime(from) > todata(z[end, 1]) (from, DateTime(from), todata(z[end, 1]))
-    #     end
-    # end
     save_data(
         zi,
         k,
@@ -154,6 +163,18 @@ end
 
 function rgx_key(name, startstop, params_k, code)
     Regex("$name/$startstop:$params_k$code")
+end
+
+function anyexc()
+    if nameof(exc) == Symbol()
+        if isempty(sb_exchanges)
+            :binance
+        else
+            first(keys(sb_exchanges))
+        end
+    else
+        nameof(exc)
+    end
 end
 
 _deserattrs(attrs, k) = convert(Vector{UInt8}, attrs[k]) |> todata
@@ -173,6 +194,7 @@ function load_session(
     zi=zilmdb(),
     as_z=false,
     results_only=false,
+    s=nothing,
 )
     load(k) = begin
         load_data(zi, k; serialized=true, as_z=true)[1]
@@ -189,7 +211,9 @@ function load_session(
         sess = let attrs = z.attrs
             @assert !isempty(attrs) "ZArray should contain session attributes."
             OptSession(
-                st.strategy(Symbol(attrs["name"]));
+                @something s st.strategy(
+                    Symbol(attrs["name"]); exchange=anyexc(), mode=Sim()
+                );
                 ctx=_deserattrs(attrs, "ctx"),
                 params=_deserattrs(attrs, "params"),
                 attrs=_deserattrs(attrs, "attrs"),
@@ -218,7 +242,11 @@ function load_session(
 end
 
 function load_session(sess::OptSession, args...; kwargs...)
-    load_session(values(session_key(sess)[2])..., args...; kwargs...)
+    load_session(values(session_key(sess)[2])..., args...; sess.s, kwargs...)
+end
+
+function load_session(s::Strategy)
+    load_session(string(nameof(s)), s)
 end
 
 function ctxsteps(ctx, repeats)
