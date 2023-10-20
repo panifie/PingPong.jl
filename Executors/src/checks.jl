@@ -4,6 +4,7 @@ using Misc: isstrictlysorted, toprecision, ltxzero
 using Instances
 using Strategies: NoMarginStrategy, IsolatedStrategy, Strategy
 using OrderTypes
+using .Instances.Instruments: value
 using Base: negate
 
 struct SanitizeOn end
@@ -41,7 +42,7 @@ Which means that their output values will always be lower than their input, **ex
 for the case in which their values would fall below the exchange minimums. In such case \
 the exchange minimum is returned.
 """
-function sanitize_amount(ai::AssetInstance, amount)
+function sanitize_amount(ai::AssetInstance, amount::N) where {N<:Real}
     if ai.limits.amount.min > 0.0 && amount < ai.limits.amount.min
         ai.limits.amount.min
     elseif ai.precision.amount < 0.0 # has to be a multiple of 10
@@ -50,6 +51,8 @@ function sanitize_amount(ai::AssetInstance, amount)
         toprecision(amount, ai.precision.amount)
     end
 end
+
+sanitize_amount(ai, amount) = sanitize_amount(ai, value(amount))
 
 @doc """ See `sanitize_amount`.
 """
