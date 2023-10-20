@@ -144,8 +144,8 @@ _getbal(bal, c) = get(bal, nameof(c), (;))
 _getfree(bal, obj) = @get(_getbal(bal, obj), :free, _getval(obj))
 
 function st.current_total(
-    s::LiveStrategy{N,E,M}; price_func=lastprice, local_bal=false
-) where {N,E<:ExchangeID,M<:WithMargin}
+    s::LiveStrategy{N,<:ExchangeID,<:WithMargin}; price_func=lastprice, local_bal=false
+) where {N}
     tot = Ref(zero(DFT))
     s_tot = if local_bal
         s.cash.value
@@ -173,8 +173,8 @@ function st.current_total(
 end
 
 function st.current_total(
-    s::LiveStrategy{N,E,NoMargin}; price_func=lastprice, local_bal=false
-) where {N,E<:ExchangeID}
+    s::LiveStrategy{N,<:ExchangeID,NoMargin}; price_func=lastprice, local_bal=false
+) where {N}
     tot = if local_bal
         cash(s).value
     else
@@ -190,8 +190,8 @@ function st.current_total(
         @async let v = if local_bal
                 cash(ai).value
             else
-               bal = _getbaldict(s)
-               _getfree(bal, ai)
+                bal = _getbaldict(s)
+                _getfree(bal, ai)
             end * wprice_func(ai)
             # NOTE: `x += y` is rewritten as x = x + y
             # Because `price_func` can be async, the value of `x` might be stale by
