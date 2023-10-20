@@ -10,3 +10,5 @@ include("utils.jl")
 include("ohlcv.jl")
 include("trades.jl")
 include("inds.jl")
+
+plot_results(args...; kwargs...) = error("not implemented")

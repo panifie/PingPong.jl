@@ -47,5 +47,14 @@ stats!() = module!(:Stats, :ss)
 engine!() = module!(:Engine, :egn)
 analysis!() = module!(:Analysis, :an)
 stubs!() = module!(:Stubs, :stubs)
+optplots!() =
+    let prev = Pkg.project().path
+        try
+            Pkg.activate("Plotting")
+            plots!()
+        finally
+            Pkg.activate(prev)
+        end
+    end
 
-export plots!, stats!, engine!, analysis!
+export plots!, optplots!, stats!, engine!, analysis!
