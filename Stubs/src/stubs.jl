@@ -50,7 +50,7 @@ function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
     for ai in s.universe
         da.stub!(ai, n)
     end
-    SimMode.start!(s)
+    SimMode.start!(s, doreset=true)
     if dosave
         for ai in s.universe
             save_stubtrades(ai)
@@ -58,7 +58,7 @@ function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
     end
 end
 
-function stub!(s::Strategy, n=10_000; trades=true)
+function do_stub!(s::Strategy, n=10_000; trades=true)
     for ai in s.universe
         sim.stub!(ai, n)
     end
@@ -69,6 +69,8 @@ function stub!(s::Strategy, n=10_000; trades=true)
     end
     s
 end
+
+stub!(s::Strategy, n=10_000; trades=true) = do_stub!(s, n; trades)
 
 include("../../PingPong/test/stubs/Example.jl")
 function stub_strategy(mod=nothing, args...; dostub=true, cfg=nothing, kwargs...)
@@ -86,7 +88,8 @@ function stub_strategy(mod=nothing, args...; dostub=true, cfg=nothing, kwargs...
         mod = Example
     end
     s = Strategies.strategy!(mod, cfg, args...; kwargs...)
-    dostub && stub!(s)
+    @assert s isa Strategy
+    dostub && Stubs.do_stub!(s)
     s
 end
 

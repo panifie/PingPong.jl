@@ -1,5 +1,5 @@
 using Lang: @lget!, @deassert, MatchString
-import Instances.ExchangeTypes: exchangeid, exchange, committed
+import Instances.ExchangeTypes: exchangeid, exchange
 import Instances.Exchanges: marketsid
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!

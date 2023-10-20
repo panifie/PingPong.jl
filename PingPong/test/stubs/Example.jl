@@ -14,6 +14,7 @@ using Engine.Instances: Instances as inst
 using Engine.Executors
 using Engine.Executors: Executors as ect
 using Engine.OrderTypes
+using Engine.OrderTypes: BySide, ByPos
 
 using Lang
 
@@ -30,7 +31,7 @@ const TF = tf"1m"
 
 # function __init__() end
 
-function ping!(::Type{S}, config, ::LoadStrategy)
+function ping!(::Type{<:S}, config, ::LoadStrategy)
     assets = marketsid(S)
     s = Strategy(Example, assets; load_data=false, config)
     s.attrs[:buydiff] = 1.01
@@ -42,25 +43,32 @@ ping!(_::S, ::WarmupPeriod) = begin
     Day(1)
 end
 
-function ping!(s::T, ts::DateTime, _) where {T<:S}
-    ats = available(tf"15m", ts)
-    makeorders(ai) = begin
-        if issell(s, ai, ats)
-            sell!(s, ai, ats, ts)
-        elseif isbuy(s, ai, ats)
-            buy!(s, ai, ats, ts)
+function ping!(s::T, ts::DateTime, ctx) where {T<:S}
+    date = ts
+    foreach(s.universe) do ai
+        if isopen(ai)
+            if rand(Bool)
+                pong!(s, ai, MarketOrder{Sell}; amount=cash(ai), date)
+            end
+        elseif cash(s) > ai.limits.cost.min && rand(Bool)
+            pong!(
+                s,
+                ai,
+                MarketOrder{Buy};
+                amount=max(ai.limits.amount.min, ai.limits.cost.min / closeat(ai, ts)),
+                date,
+            )
         end
     end
-    foreach(makeorders, s.universe.data.instance)
 end
 
-function marketsid(::Type{S})
+function marketsid(::Type{<:S})
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 marketsid(::S) = marketsid(S)
 
 function buy!(s::S, ai, ats, ts)
-    pong!(s, ai, ect.CancelOrders(), t=Sell)
+    pong!(s, ai, ect.CancelOrders(); t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
     amount = st.freecash(s) / 10.0 / price
@@ -70,47 +78,12 @@ function buy!(s::S, ai, ats, ts)
 end
 
 function sell!(s::S, ai, ats, ts)
-    pong!(s, ai, ect.CancelOrders(), t=Buy)
+    pong!(s, ai, ect.CancelOrders(); t=Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     price = closeat(ai.ohlcv, ats)
     if amount > 0.0
         t = pong!(s, ai, IOCOrder{Sell}; amount, date=ts)
     end
-end
-
-function isbuy(s::S, ai, ats)
-    if s.cash > s.config.min_size
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        this_close[] / prev_close[] > s.attrs[:buydiff]
-    else
-        false
-    end
-end
-
-function issell(s::S, ai, ats)
-    if ai.cash > 0.0
-        closepair(ai, ats)
-        isnothing(this_close[]) && return false
-        prev_close[] / this_close[] > s.attrs[:selldiff]
-    else
-        false
-    end
-end
-
-const this_close = Ref{Option{Float64}}(nothing)
-const prev_close = Ref{Option{Float64}}(nothing)
-
-function closepair(ai, ats, tf=tf"1m")
-    data = ai.data[tf]
-    prev_date = ats - tf
-    if data.timestamp[begin] > prev_date
-        this_close[] = nothing
-        return nothing
-    end
-    this_close[] = closeat(data, ats)
-    prev_close[] = closeat(data, prev_date)
-    nothing
 end
 
 end
