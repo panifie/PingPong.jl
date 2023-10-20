@@ -10,6 +10,7 @@ using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
 using Stats.Statistics: median, mean
+using REPL.TerminalMenus
 import .st: ping!
 
 const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
@@ -161,8 +162,8 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb
     )
 end
 
-function rgx_key(name, startstop, params_k, code)
-    Regex("$name/$startstop:$params_k$code")
+function rgx_key(startstop, params_k, code)
+    Regex("$startstop:$params_k$code")
 end
 
 function anyexc()
@@ -226,16 +227,23 @@ function load_session(
         k = "Opt/$name/$startstop:$params_k$code"
         z = load(k)
     else
-        rgx = rgx_key(name, startstop, params_k, code)
-        arrs = filter(k -> occursin(rgx, k), keys(zi.group.arrays))
+        rgx = rgx_key(startstop, params_k, code)
+        root = zgroup_opt(zi)
+        all_arrs = if haskey(root.groups, name)
+            root.groups[name].arrays
+        else
+            root.arrays
+        end
+        arrs = filter(pair -> occursin(rgx, pair.first), all_arrs)
         if length(arrs) == 0
             parts = ((k for k in (name, startstop, params_k, code) if k != ".*")...,)
             throw(KeyError(parts))
         elseif length(arrs) == 1
-            k = first(arrs)
-            load(first(arrs))
+            v = first(arrs)
+            v.second
         else
-            error("Choose a key more specific among $arrs")
+            picked = request(RadioMenu(keys(arrs), pagesize=4))
+            get(arrs, picked, nothing)
         end
     end
     return session(z)
@@ -246,7 +254,7 @@ function load_session(sess::OptSession, args...; kwargs...)
 end
 
 function load_session(s::Strategy)
-    load_session(string(nameof(s)), s)
+    load_session(string(nameof(s)); s)
 end
 
 function ctxsteps(ctx, repeats)
