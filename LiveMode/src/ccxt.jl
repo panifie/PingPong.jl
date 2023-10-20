@@ -244,7 +244,6 @@ resp_order_tif(resp, ::EIDType) = get_py(resp, "timeInForce")
 resp_order_lastupdate(resp, ::EIDType) = get_py(resp, "lastUpdateTimestamp")
 resp_order_timestamp(resp, ::EIDType) = pytodate(resp)
 resp_order_timestamp(resp, ::EIDType, ::Type{Py}) = get_py(resp, "timestamp")
-resp_order_side(resp, ::EIDType) = get_py(resp, "side")
 resp_order_id(resp, ::EIDType) = get_py(resp, "id")
 resp_order_id(resp, eid::EIDType, ::Type{String})::String =
     resp_order_id(resp, eid) |> pytostring
@@ -262,7 +261,6 @@ resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopP
 resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice")
 resp_order_info(resp, ::EIDType)::Option{DFT} = _option_float(resp, "info")
 
-resp_position_side(resp, ::EIDType) = get_py(resp, @pyconst(""), Pos.side)
 resp_position_symbol(resp, ::EIDType) = get_py(resp, Pos.symbol)
 function resp_position_symbol(resp, ::EIDType, ::Type{String})
     get_py(resp, Pos.symbol) |> pytostring

@@ -339,12 +339,6 @@ function timestamp(s, ai::AssetInstance; side=posside(ai))
     max(order_date, trade_date, pos_date)
 end
 
-function st.current_total(s::NoMarginStrategy{Live})
-    bal = balance(s)
-    price_func(ai) = bal[@pystr(raw(ai))] |> pytofloat
-    invoke(st.current_total, Tuple{NoMarginStrategy,Function}, s, price_func)
-end
-
 macro timeout_start(start=nothing)
     esc(:(timeout_date = @something($start, now()) + waitfor))
 end
