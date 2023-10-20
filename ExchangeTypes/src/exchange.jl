@@ -65,6 +65,14 @@ function Exchange(x::Py)
     isnone ? e : finalizer(close_exc, e)
 end
 
+decimal_to_size(v, p::ExcPrecisionMode) = begin
+    if p == excDecimalPlaces
+        convert(Int, v)
+    else
+        v
+    end
+end
+
 Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
 
 @doc "The hash of an exchange object is reduced to its symbol (the function used to instantiate the object from ccxt)."

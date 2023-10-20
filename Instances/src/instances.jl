@@ -24,9 +24,9 @@ import OrderTypes: trades
 
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
 
-const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),NTuple{4,MM{T}}}
-const Precision{T<:Real} = NamedTuple{(:amount, :price),Tuple{T,T}}
-const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),NTuple{4,T}}
+const Limits{T<:Real} = NamedTuple{(:leverage, :amount, :price, :cost),<:NTuple{4,MM{<:T}}}
+const Precision{T<:Real} = NamedTuple{(:amount, :price),<:Tuple{<:T,<:T}}
+const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),<:NTuple{4,<:T}}
 const CCash{E} = CurrencyCash{Cash{S,DFT},E} where {S}
 
 include("positions.jl")
@@ -41,7 +41,7 @@ include("positions.jl")
 - `limits`: minimum order size (from exchange)
 - `precision`: number of decimal points (from exchange)
 "
-struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
+struct AssetInstance17{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
        AbstractInstance{T,E}
     asset::T
     data::SortedDict{TimeFrame,DataFrame}
@@ -55,9 +55,9 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
     shortpos::Option{Position{Short,E,M}}
     lastpos::Vector{Option{Position{P,E,M} where {P<:PositionSide}}}
     limits::Limits{DFT}
-    precision::Precision{DFT}
+    precision::Precision{<:Union{Int,DFT}}
     fees::Fees{DFT}
-    function AssetInstance15(
+    function AssetInstance17(
         a::A, data, e::Exchange{E}, margin::M; limits, precision, fees
     ) where {A<:AbstractAsset,E<:ExchangeID,M<:MarginMode}
         @assert !ishedged(margin) "Hedged margin not yet supported."
@@ -91,7 +91,7 @@ struct AssetInstance15{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <:
         )
     end
 end
-AssetInstance = AssetInstance15
+AssetInstance = AssetInstance17
 
 const NoMarginInstance = AssetInstance{<:AbstractAsset,<:ExchangeID,NoMargin}
 const MarginInstance{M<:Union{Isolated,Cross}} = AssetInstance{

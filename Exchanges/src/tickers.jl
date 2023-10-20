@@ -3,6 +3,7 @@ using Misc: config, NoMargin, DFT
 using Misc.ConcurrentCollections: ConcurrentDict
 using Instruments: isfiatquote, spotpair
 using Python: @pystr, @pyconst, pyfetch_timeout
+using ExchangeTypes: decimal_to_size
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
 - `:yes` : Leveraged pairs will not be filtered.
@@ -146,8 +147,8 @@ end
 @doc "Precision of the (base, quote) currencies of the market."
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
-    p_amount = pyconvert(DFT, mkt["amount"])
-    p_price = pyconvert(DFT, mkt["price"])
+    p_amount = decimal_to_size(pyconvert(DFT, mkt["amount"]), exc.precision)
+    p_price = decimal_to_size(pyconvert(DFT, mkt["price"]), exc.precision)
     (; amount=p_amount, price=p_price)
 end
 market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
