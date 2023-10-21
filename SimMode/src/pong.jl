@@ -29,6 +29,7 @@ function _init_data(f, s, cols...; timeframe)
         if !isempty(ohlcv)
             new_data = f(ohlcv, firstdate(ohlcv))
             setcols!(ohlcv, new_data, cols)
+            @deassert all(hasproperty(ohlcv, col) for col in cols)
         end
     end
 end
