@@ -206,11 +206,29 @@ function load_session(
         end
         df
     end
-    function session(z)
+    function ensure_attrs(z, retry_f, remove_broken=nothing)
+        attrs = z.attrs
+        if isempty(attrs)
+            @error "ZArray should contain session attributes."
+            if isnothing(remove_broken) &&
+                Base.prompt("delete entry $(z.path)? [y]/n") == "n"
+                remove_broken = false
+            else
+                remove_broken = true
+                delete!(z)
+            end
+            if retry_f isa Function
+                z = ensure_attrs(retry_f(), retry_f, remove_broken)
+            end
+        end
+        z
+    end
+
+    function session(z, retry_f)
         as_z && return z
         results_only && return results!(DataFrame(), z)
-        sess = let attrs = z.attrs
-            @assert !isempty(attrs) "ZArray should contain session attributes."
+        sess = let z = ensure_attrs(z, retry_f)
+            attrs = z.attrs
             OptSession(
                 @something s st.strategy(
                     Symbol(attrs["name"]); exchange=anyexc(), mode=Sim()
@@ -223,6 +241,7 @@ function load_session(
         results!(sess.results, z)
         return sess
     end
+    retry_f = nothing
     z = if all((x -> x != ".*").((name, startstop, params_k, code)))
         k = "Opt/$name/$startstop:$params_k$code"
         z = load(k)
@@ -242,11 +261,19 @@ function load_session(
             v = first(arrs)
             v.second
         else
-            picked = request(RadioMenu(keys(arrs), pagesize=4))
-            get(arrs, picked, nothing)
+            picks = string.(keys(arrs))
+            pick_arr() = begin
+                display("Select the session key: ")
+                picked = request(RadioMenu(picks; pagesize=4))
+                k = picks[picked]
+                filter!(x -> x != k, picks)
+                get(arrs, k, nothing)
+            end
+            retry_f = pick_arr
+            pick_arr()
         end
     end
-    return session(z)
+    return session(z, retry_f)
 end
 
 function load_session(sess::OptSession, args...; kwargs...)
