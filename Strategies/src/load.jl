@@ -118,7 +118,11 @@ function strategy!(mod::Module, cfg::Config)
         @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
     end
     @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
-    invokelatest(mod.ping!, s_type, cfg, LoadStrategy())
+    s = invokelatest(mod.ping!, s_type, cfg, LoadStrategy())
+    if !(s isa Strategy)
+        error("not implemented (`ping!(::S, cfg, ::LoadStrategy)` $(s_type) ")
+    end
+    return s
 end
 
 function strategy_cache_path()
