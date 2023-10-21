@@ -7,12 +7,17 @@ using Stats: mean, egn
 using Makie
 using .egn.Data: Not, DataFrame, groupby, combine, nrow
 using .egn.Executors.Instruments: compactnum as cnum
+using .egn: DFT
 
 _allfinite(v) = all(isfinite.(v))
 _repetitions_grouping(sess) = Not([keys(sess.params)..., :repeat]) .=> mean
 base_indexer_func(i, p; results, cols, indexes) = results[i, :]
 maybereduce(v::AbstractVector, f::Function) = f(v)
 maybereduce(v, _) = v
+normfloat(arr) = normalize(arr)
+normfloat!(arr) = normalize!(arr)
+normfloat(arr::AbstractVector{<:Integer}) = normalize(convert(Vector{DFT}, arr))
+normfloat!(arr::AbstractVector{<:Integer}) = normalize!(convert(Vector{DFT}, arr))
 
 @doc """ Plot results from an optimization session.
 
@@ -23,7 +28,7 @@ maybereduce(v, _) = v
 `col_filter`: function to filter the results by, compatible with the `DataFrames` conventions, e.g. `[:columns...] => my_function`
 `group_repetition`: how to combine repeated parameters combinations, should also be compatible with `DataFrames` (defaults to `mean`)
 `plot_func`: what kind of plot to use. (`scatter`)
-`norm_func`: normalization function for axes (default `normalize`)
+`norm_func`: normalization function for axes (default `normfloat`)
 `tooltip_reduce_func`: (`k, v -> mean(v)`) the reduce function to use if a point in the plot references more than one results point (row). The function is called for each (relevant) column in the results dataframe.
 
 Additional kwargs are passed to the plotting function call.
@@ -55,7 +60,7 @@ function Plotting.plot_results(
     col_filter=nothing,
     group_repetitions=_repetitions_grouping(sess),
     plot_func=scatter,
-    norm_func=normalize,
+    norm_func=normfloat,
     tooltip_reduce_func=(k, v) -> mean(v),
     kwargs...,
 )
@@ -180,7 +185,7 @@ function surface_height(results, x_col, y_col, z_col, x, y; reduce_func=mean)
         z[x_i, y_i] = isempty(z_rows) ? zero(z_type) : reduce_func(z_rows)
         z_idx[x_i, y_i] = flt_idx
     end
-    normalize!(z), z_idx
+    normfloat!(z), z_idx
 end
 
 @doc """ Helper kwargs for surface plotting
@@ -193,7 +198,7 @@ function surface_coords(results::DataFrame, x_col, y_col, z_col)
     x = unique(view(x_results, x_idx)) |> sort!
     y = unique(view(y_results, y_idx)) |> sort!
     z, z_idx = surface_height(results, x_col, y_col, z_col, x, y)
-    (; x_col=normalize(x), y_col=normalize(y), z_col=z), (; x_idx, y_idx, z_idx)
+    (; x_col=normfloat(x), y_col=normfloat(y), z_col=z), (; x_idx, y_idx, z_idx)
 end
 
 function fromindexes(source, idx, reduce_func=mean)
