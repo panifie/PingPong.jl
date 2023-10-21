@@ -34,16 +34,6 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
     end
 end
 
-function ping!(t::Type{<:SC}, config, ::LoadStrategy)
-    assets = marketsid(t)
-    sandbox = config.mode == Paper() ? false : config.sandbox
-    s = Strategy(@__MODULE__, assets; config, sandbox)
-    @assert marginmode(s) == config.margin
-    @assert execmode(s) == config.mode
-    s[:verbose] = false
-    s
-end
-
 function marketsid(::Type{<:S})
     []
 end
