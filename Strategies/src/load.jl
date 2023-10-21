@@ -108,12 +108,23 @@ function strategy!(mod::Module, cfg::Config)
                 mod.S
             catch
                 if cfg.exchange == Symbol()
-                    error("Exchange not specified (neither in strategy nor in config)")
+                    if hasproperty(mod, :EXCID) && mod.EXCID != Symbol()
+                        cfg.exchange = mod.EXCID
+                    else
+                        error(
+                            "loading: exchange not specified (neither in strategy nor in config)",
+                        )
+                    end
                 end
                 try
+                    if hasproperty(mod, :EXCID) && mod.EXCID != cfg.exchange
+                        @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
+                    end
                     mod.SC{ExchangeID{cfg.exchange}}
                 catch
-                    error("Strategy main type `S` or `SC` not defined in strategy module.")
+                    error(
+                        "loading: strategy main type `S` or `SC` not defined in strategy module.",
+                    )
                 end
             end
             mode_type = s_type{typeof(cfg.mode)}
