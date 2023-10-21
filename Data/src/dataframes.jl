@@ -20,9 +20,11 @@ function zerorow(df::D; skip_cols=()) where {D<:AbstractDataFrame}
     end
 end
 
-@doc "Returns the timeframe of a dataframe according to its metadata.
+@doc """Returns the timeframe of a dataframe according to its metadata.
+
 If the value is not found in the metadata, infer it by `timestamp` column of the dataframe.
-If the timeframe can't be inferred, a `TimeFrame(0)` is returned. "
+If the timeframe can't be inferred, a `TimeFrame(0)` is returned.
+NOTE: slow func, for speed use `timeframe!`"""
 function timeframe(df::D)::TimeFrame where {D<:AbstractDataFrame}
     if hasproperty(df, :timestamp)
         md = @lget!(colmetadata(df), :timestamp, Dict{String,Any}())
