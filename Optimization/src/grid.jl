@@ -113,29 +113,33 @@ end
 @doc "Remove results that don't have all the `repeat`ed evalutaion."
 function remove_incomplete!(sess::OptSession)
     gd = groupby(sess.results, [keys(sess.params)...])
-    repeats = sess.opt_config.repeats
-    completed = DataFrame(filter(g -> nrow(g) == repeats, gd))
+    splits = sess.opt_config.splits
+    completed = DataFrame(filter(g -> nrow(g) == splits, gd))
     empty!(sess.results)
     append!(sess.results, completed)
 end
 
-function optsession(s::Strategy; seed=1, repeats=1, offset=0)
+function optsession(s::Strategy; seed=1, splits=1, offset=0)
     ctx, params, grid = ping!(s, OptSetup())
-    OptSession(s; ctx, params, offset, attrs=Dict(pairs((; seed, repeats))))
+    OptSession(s; ctx, params, offset, attrs=Dict(pairs((; seed, splits))))
 end
 
-@doc "Backtests the strategy across combination of parameters.
-`s`: The strategy.
-`seed`: random seed set before each backtest run.
-`repeats`: the amount of repetitions for each combination.
-`save_freq`: how frequently (`Period`) to save results, when `nothing` (default) saving is skipped.
-`logging`: enabled logging
-`doshuffle`: shuffle parameters combinations before iterations (random search)
-"
+@doc """Backtests the strategy across combination of parameters.
+
+- `seed`: random seed set before each backtest run.
+- `splits`: the number segments into which the context is split.
+- `save_freq`: how frequently (`Period`) to save results, when `nothing` (default) saving is skipped.
+- `logging`: enabled logging
+- `random_search`: shuffle parameters combinations before iterations
+
+One parameter combination runs `splits` times, where each run uses a period
+that is a segment of the full period of the given `Context` given.
+(The `Context` comes from the strategy `ping!(s, params, OptRun())`
+"""
 function gridsearch(
     s::Strategy{Sim};
     seed=1,
-    repeats=1,
+    splits=1,
     save_freq=nothing,
     resume=true,
     logging=true,
@@ -145,7 +149,7 @@ function gridsearch(
     offset=0,
 )
     running!()
-    sess = optsession(s; seed, repeats, offset)
+    sess = optsession(s; seed, splits, offset)
     ctx = sess.ctx
     grid = gridfromparams(sess.params)
     resume && resume!(sess)
@@ -163,7 +167,7 @@ function gridsearch(
         IOBuffer()
     end
     try
-        backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
+        backtest_func = define_backtest_func(sess, ctxsteps(ctx, splits)...)
         obj_type, n_obj = objectives(s)
         sess.best[] = if isone(n_obj)
             zero(eltype(obj_type))
@@ -172,7 +176,7 @@ function gridsearch(
         end
         ismulti = n_obj > 1
         opt_func = define_opt_func(
-            s; backtest_func, ismulti, repeats, obj_type, isthreaded=false
+            s; backtest_func, ismulti, splits, obj_type, isthreaded=false
         )
         current_params = gridpbar!(sess, first(grid))
         best = sess.best
@@ -199,10 +203,10 @@ function gridsearch(
         with_logger(logger) do
             @withpbar! grid begin
                 if !isempty(sess.results)
-                    @pbupdate! sum(divrem(nrow(sess.results), repeats))
+                    @pbupdate! sum(divrem(nrow(sess.results), splits))
                 end
-                function gridrun(cell)
-                    try
+                function runner(cell)
+                    @nogc try
                         lock(grid_lock) do
                             Random.seed!(seed)
                         end
@@ -234,7 +238,7 @@ function gridsearch(
                 end
                 Threads.@threads for cell in grid_itr
                     if isrunning()
-                        gridrun(cell)
+                        runner(cell)
                     end
                 end
                 save_session(sess; from=from[], zi)
@@ -292,7 +296,7 @@ function progsearch(
 )
     rcount = rounds == :auto ? round(Int, period(s.timeframe) / Minute(1)) : rounds
     @assert rcount isa Integer
-    _, fw_kwargs = splitkws(:offset, :repeats, :grid_itr; kwargs)
+    _, fw_kwargs = splitkws(:offset, :splits, :grid_itr; kwargs)
     init_offset = isnothing(sess) ? 0 : sess[].attrs[:offset] + 1
     sess[] =
         let offset = init_offset,
@@ -302,7 +306,7 @@ function progsearch(
                 gridfromresults(sess[], filter_results(s, sess[]; cut))
             end
 
-            gridsearch(s; offset, grid_itr, repeats=1, fw_kwargs...)
+            gridsearch(s; offset, grid_itr, splits=1, fw_kwargs...)
         end
     for offset in (init_offset + 1):rcount
         results = filter_results(s, sess[]; cut)
@@ -311,7 +315,7 @@ function progsearch(
             @info "Search stopped because no results were left to filter."
             break
         end
-        sess[] = gridsearch(s; offset, repeats=1, grid_itr, fw_kwargs...)
+        sess[] = gridsearch(s; offset, splits=1, grid_itr, fw_kwargs...)
     end
     sess[]
 end

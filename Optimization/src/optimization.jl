@@ -257,10 +257,10 @@ function load_session(s::Strategy)
     load_session(string(nameof(s)); s)
 end
 
-function ctxsteps(ctx, repeats)
+function ctxsteps(ctx, splits)
     small_step = Millisecond(ctx.range.step).value
     big_step = let timespan = Millisecond(ctx.range.stop - ctx.range.start).value
-        Millisecond(round(Int, timespan / max(1, repeats - 1)))
+        Millisecond(round(Int, timespan / max(1, splits - 1)))
     end
     (; small_step, big_step)
 end
@@ -328,11 +328,11 @@ macro nogc(expr)
     esc(ex)
 end
 @doc "Multi(threaded) optimization function."
-function _multi_opt_func(repeats, backtest_func, median_func, obj_type)
-    (params) -> @nogc begin
+function _multi_opt_func(splits, backtest_func, median_func, obj_type)
+    (params) -> begin
         job(n) = backtest_func(params, n)
-        scores = Vector{obj_type}(undef, repeats)
-        Threads.@threads for n in 1:repeats
+        scores = Vector{obj_type}(undef, splits)
+        Threads.@threads for n in 1:splits
             if isrunning()
                 scores[n] = job(n)
             end
@@ -343,9 +343,9 @@ function _multi_opt_func(repeats, backtest_func, median_func, obj_type)
 end
 
 @doc "Single(threaded) optimization function."
-function _single_opt_func(repeats, backtest_func, median_func, args...)
-    (params) -> @nogc begin
-        mapreduce(permutedims, vcat, [(backtest_func(params, n) for n in 1:repeats)...]) |> median_func
+function _single_opt_func(splits, backtest_func, median_func, args...)
+    (params) -> begin
+        mapreduce(permutedims, vcat, [(backtest_func(params, n) for n in 1:splits)...]) |> median_func
     end
 end
 
@@ -359,11 +359,11 @@ function define_median_func(ismulti)
 end
 
 function define_opt_func(
-    s::Strategy; backtest_func, ismulti, repeats, obj_type, isthreaded=isthreadsafe(s)
+    s::Strategy; backtest_func, ismulti, splits, obj_type, isthreaded=isthreadsafe(s)
 )
     median_func = define_median_func(ismulti)
     opt_func = isthreaded ? _multi_opt_func : _single_opt_func
-    opt_func(repeats, backtest_func, median_func, obj_type)
+    opt_func(splits, backtest_func, median_func, obj_type)
 end
 
 @doc "Returns the number of objectives and their type."
