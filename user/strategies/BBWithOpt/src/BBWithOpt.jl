@@ -31,7 +31,7 @@ function ping!(s::SC{<:ExchangeID,Sim}, ::ResetStrategy)
     )
 end
 
-ping!(_::SC, ::WarmupPeriod) = Day(1)
+ping!(_::SC, ::WarmupPeriod) = Day(7)
 
 function handler(s, ai, ats, ts)
     """
@@ -117,14 +117,18 @@ THREADSAFE = Ref(false)
 function ping!(s::SC, ::OptSetup)
     (;
         ctx=Context(Sim(), tf"1h", dt"2020-", now()),
-        params=(n=1:120, sigma=1.5:0.1:2.5),
+        params=(n=2:120, sigma=1.5:0.1:2.5),
         space=(kind=:MixedPrecisionRectSearchSpace, precision=Int[1, 1]),
     )
 end
 function ping!(s::SC, params, ::OptRun)
     attrs = s.attrs
-    attrs[:params_n] = params[1]
-    attrs[:params_sigma] = params[2]
+    attrs[:param_n] = params[1]
+    attrs[:param_sigma] = params[2]
+    # we have implemented the bbands func in the ResetStrategy func
+    # so we have to call that to update `bb_lower` and `bb_upper` according
+    # to the new parameters
+    ping!(s, ResetStrategy())
 end
 
 function ping!(s::SC, ::OptScore)::Vector
