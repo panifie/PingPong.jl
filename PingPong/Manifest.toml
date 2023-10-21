@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "9a0aebd020097bd6d3e09a255de1c4d9646070fc"
+project_hash = "abe1039310246c7a122ca2e07487252a341ed294"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -371,6 +371,12 @@ git-tree-sha1 = "0ec02c648befc2f94156eaef13b0f38106212f3f"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.17"
 
+[[deps.Indicators]]
+deps = ["Random", "Statistics", "Temporal", "Test"]
+git-tree-sha1 = "658f76c3a4e544ef38db91bb5402c1db669a7fc7"
+uuid = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+version = "0.8.2"
+
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
 uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
@@ -554,6 +560,12 @@ deps = ["Markdown", "Random"]
 git-tree-sha1 = "42324d08725e200c23d4dfb549e0d5d89dede2d2"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.10"
+
+[[deps.MarginStrat]]
+deps = ["Indicators"]
+path = "../user/strategies/MarginStrat"
+uuid = "a570de0d-dcd1-4193-9bfa-573a4c9cd494"
+version = "0.1.0"
 
 [[deps.Markdown]]
 deps = ["Base64"]

@@ -10,6 +10,7 @@
 !user/strategies/common.jl
 !user/strategies/BollingerBands
 !user/strategies/BBWithOpt
+!user/strategies/MarginStrat
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
