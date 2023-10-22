@@ -31,9 +31,13 @@ const TF = tf"1m"
 
 # function __init__() end
 
+function ping!(::Type{<:S}, ::StrategyMarkets)
+    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
+end
+
 function ping!(::Type{<:S}, config, ::LoadStrategy)
-    assets = marketsid(S)
-    s = Strategy(Example, assets; load_data=false, config)
+    syms = ping!(S, StrategyMarkets())
+    s = Strategy(Example, syms; load_data=false, config)
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
     s
@@ -43,7 +47,7 @@ ping!(_::S, ::WarmupPeriod) = begin
     Day(1)
 end
 
-function ping!(s::T, ts::DateTime, ctx) where {T<:S}
+function ping!(s::S, ts::DateTime, ctx)
     date = ts
     foreach(s.universe) do ai
         if isopen(ai)
@@ -60,10 +64,6 @@ function ping!(s::T, ts::DateTime, ctx) where {T<:S}
             )
         end
     end
-end
-
-function ping!(::Type{<:S}, ::StrategyMarkets)
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
 function buy!(s::S, ai, ats, ts)
