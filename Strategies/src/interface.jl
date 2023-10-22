@@ -8,7 +8,6 @@ Receives:
 $(TYPEDSIGNATURES)
 "
 ping!(::Strategy, current_time::DateTime, ctx) = error("Not implemented")
-const evaluate! = ping!
 struct LoadStrategy <: ExecAction end
 struct ResetStrategy <: ExecAction end
 struct StrategyMarkets <: ExecAction end

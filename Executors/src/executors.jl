@@ -18,7 +18,6 @@ include("positions/state.jl")
 include("positions/info.jl")
 
 pong!(args...; kwargs...) = error("Not implemented")
-const execute! = pong!
 
 struct UpdateOrders <: ExecAction end # not impl
 struct UpdateOrdersShuffled <: ExecAction end
@@ -37,7 +36,7 @@ struct OptRun <:ExecAction end
 struct OptScore <:ExecAction end
 struct OptGrid <:ExecAction end
 
-export pong!, execute!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
+export pong!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions
 export OptSetup, OptRun, OptScore
 export NewTrade
