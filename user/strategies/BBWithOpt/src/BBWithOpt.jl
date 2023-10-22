@@ -16,6 +16,7 @@ const TF = tf"1m"
 __revise_mode__ = :eval
 
 function bbands!(ohlcv, from_date; n=20, sigma=2.0)
+    ohlcv = viewfrom(ohlcv, from_date; offset=-n)
     bb = bbands(ohlcv.close; n, sigma)
     @assert bb[end, 1] <= bb[end, 2] <= bb[end, 3]
     # shift by one to avoid lookahead # FIXME: this should not be needed

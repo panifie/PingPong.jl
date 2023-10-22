@@ -243,6 +243,19 @@ function addcols!(dst, src)
     end
 end
 
+function viewfrom(ohlcv, from::Integer; offset=0, cols=Colon())
+    @view ohlcv[max(1, from + offset):end, cols]
+end
+
+function viewfrom(ohlcv, from::DateTime; kwargs...)
+    idx = dateindex(ohlcv, from)
+    viewfrom(ohlcv, idx; kwargs...)
+end
+
+function viewfrom(ohlcv, ::Nothing; kwargs...)
+    ohlcv
+end
+
 function setcols!(dst, src, cols, idx=firstindex(dst, 1):lastindex(dst, 1))
     data_type = eltype(src)
     for (n, col) in enumerate(cols)
@@ -253,7 +266,7 @@ function setcols!(dst, src, cols, idx=firstindex(dst, 1):lastindex(dst, 1))
     end
 end
 
-export firstdate, lastdate, dateindex, daterange
+export firstdate, lastdate, dateindex, daterange, viewfrom
 export colnames, getdate, zerorow, addcols!, setcols!
 
 end

@@ -81,7 +81,6 @@ macro strategyenv!()
         using .pp.Engine.Exchanges: getexchange!
         using .pp.Engine.Processing: resample, islast, iscomplete, isincomplete
         using .Data: propagate_ohlcv!
-        using .Data.DFUtils: lastdate, firstdate, daterange
         using .Misc: after, before, rangeafter, rangebefore
         using .inst: ohlcv, raw, lastprice, posside, collateral
         using .pp.Engine.LiveMode: updated_at!
