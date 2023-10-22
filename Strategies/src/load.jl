@@ -53,7 +53,7 @@ function _file(src, cfg, is_project)
 end
 
 function default_load(mod, t, config)
-    assets = mod.marketsid(t)
+    assets = mod.ping!(t, StrategyMarkets())
     config.margin = Isolated()
     sandbox = config.mode == Paper() ? false : config.sandbox
     s = Strategy(mod, assets; config, sandbox)

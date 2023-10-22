@@ -5,7 +5,8 @@ import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
-marketsid(s::Strategy) = marketsid(typeof(s))
+marketsid(t::Type{<:Strategy}) = ping!(t, StrategyMarkets())
+marketsid(s::Strategy) = ping!(typeof(s), StrategyMarkets())
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
 assets(s::Strategy) = universe(s).data.asset

@@ -88,11 +88,11 @@ function ping!(s::T, ts::DateTime, _) where {T<:SX}
     end
 end
 
-function marketsid(::Type{<:S})
+function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function marketsid(::SX{ExchangeID{:bybit}})
+function ping!(::SX{ExchangeID{:bybit}}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 

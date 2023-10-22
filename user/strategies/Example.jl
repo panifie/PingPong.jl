@@ -7,7 +7,7 @@ using PingPong
 const NAME = :Example
 const EXCID = ExchangeID(:phemex)
 const S{M} = Strategy{<:ExecMode,NAME,typeof(EXCID),NoMargin,:USDT}
-const S_X{E, M} = Strategy{M,NAME,E,NoMargin}
+const S_X{E,M} = Strategy{M,NAME,E,NoMargin}
 const TF = tf"1m"
 
 __revise_mode__ = :eval
@@ -52,11 +52,11 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
     foreach(makeorders, s.universe.data.instance)
 end
 
-function marketsid(::Type{<:S})
+function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
 end
 
-function marketsid(::S_X{ExchangeID{:bybit}})
+function ping!(::S_X{ExchangeID{:bybit}}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "ATOM/USDT"]
 end
 

@@ -62,10 +62,9 @@ function ping!(s::T, ts::DateTime, ctx) where {T<:S}
     end
 end
 
-function marketsid(::Type{<:S})
+function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
-marketsid(::S) = marketsid(S)
 
 function buy!(s::S, ai, ats, ts)
     pong!(s, ai, ect.CancelOrders(); t=Sell)

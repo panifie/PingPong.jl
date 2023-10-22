@@ -78,7 +78,7 @@ macro strategyenv!()
         using .pp.Engine.Lang
 
         using .st: freecash, setattr!, attr
-        using .pp.Engine.Exchanges: getexchange!
+        using .pp.Engine.Exchanges: getexchange!, marketsid
         using .pp.Engine.Processing: resample, islast, iscomplete, isincomplete
         using .Data: propagate_ohlcv!
         using .Misc: after, before, rangeafter, rangebefore
@@ -93,7 +93,6 @@ macro strategyenv!()
         using .pp.Engine.Executors: NewTrade
         using .pp.Engine.Executors: WatchOHLCV, UpdateData, InitData
         using .pp.Engine.Executors: UpdateOrders, CancelOrders
-        import .pp.Engine.Exchanges: marketsid
 
         $(@__MODULE__).Engine.Strategies.@interface
     end

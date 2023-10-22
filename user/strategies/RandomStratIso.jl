@@ -60,7 +60,7 @@ function ping!(t::Type{<:SC}, config, ::LoadStrategy)
     s
 end
 
-function marketsid(::Type{<:SC})
+function ping!(::Type{<:SC}, ::StrategyMarkets)
     ["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT"]
 end
 

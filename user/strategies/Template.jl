@@ -23,7 +23,7 @@ function ping!(s::SC, ts::DateTime, _)
     end
 end
 
-function marketsid(::Type{<:SC})
+function ping!(::Type{<:SC}, ::StrategyMarkets)
     []
 end
 
