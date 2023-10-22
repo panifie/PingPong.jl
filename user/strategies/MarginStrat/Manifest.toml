@@ -40,8 +40,6 @@ version = "0.9.17"
 [[deps.Indicators]]
 deps = ["Random", "Statistics", "Temporal", "Test"]
 git-tree-sha1 = "658f76c3a4e544ef38db91bb5402c1db669a7fc7"
-repo-rev = "master"
-repo-url = "https://github.com/dysonance/Indicators.jl.git"
 uuid = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
 version = "0.8.2"
 

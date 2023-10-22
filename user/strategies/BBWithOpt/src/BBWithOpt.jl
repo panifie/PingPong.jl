@@ -17,10 +17,9 @@ __revise_mode__ = :eval
 
 function bbands!(ohlcv, from_date; n=20, sigma=2.0)
     ohlcv = viewfrom(ohlcv, from_date; offset=-n)
-    bb = bbands(ohlcv.close; n, sigma)
+    bb = bbands(copy(ohlcv.close); n, sigma)
     @assert bb[end, 1] <= bb[end, 2] <= bb[end, 3]
-    # shift by one to avoid lookahead # FIXME: this should not be needed
-    [shift!(bb[:, 1], 1) shift!(bb[:, 3], 1)]
+    [bb[:, 1] bb[:, 3]]
 end
 
 function ping!(s::SC{<:ExchangeID,Sim}, ::ResetStrategy)
@@ -119,12 +118,12 @@ function ping!(s::SC, ::OptSetup)
     (;
         ctx=Context(Sim(), tf"1h", dt"2020-", now()),
         params=(n=2:120, sigma=1.5:0.1:2.5),
-        space=(kind=:MixedPrecisionRectSearchSpace, precision=Int[1, 1]),
+        space=(kind=:MixedPrecisionRectSearchSpace, precision=Int[0, 1]),
     )
 end
 function ping!(s::SC, params, ::OptRun)
     attrs = s.attrs
-    attrs[:param_n] = params[1]
+    attrs[:param_n] = convert(Int, params[1])
     attrs[:param_sigma] = params[2]
     # we have implemented the bbands func in the ResetStrategy func
     # so we have to call that to update `bb_lower` and `bb_upper` according

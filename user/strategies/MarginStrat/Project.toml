@@ -1,0 +1,11 @@
+name = "MarginStrat"
+uuid = "a570de0d-dcd1-4193-9bfa-573a4c9cd494"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+
+[strategy]
+margin = "Isolated"
+mode = "Paper"
