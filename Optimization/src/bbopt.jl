@@ -3,6 +3,7 @@ using SimMode: start!
 using Random
 using BlackBoxOptim
 import BlackBoxOptim: bboptimize
+using SimMode.Lang: @debug_backtrace
 
 ## kwargs: @doc Optimization.BlackBoxOptim.OptRunController
 ## all BBO methods: `BlackBoxOptim.SingleObjectiveMethods`
@@ -69,7 +70,7 @@ end
 
 @doc """ Optimize parameters using the BlackBoxOptim package.
 
-- `repeats`: how many times to run the backtest for each step
+- `splits`: how many times to run the backtest for each step
 - `seed`: random seed
 - `kwargs`: The arguments to pass to the underlying BBO function. See the docs for the BlackBoxOptim package. Here are some most common parameters:
   - `MaxTime`: max evaluation time for the optimization
@@ -84,7 +85,7 @@ From within your strategy define four `ping!` functions:
 function bboptimize(
     s::Strategy{Sim};
     seed=1,
-    repeats=1,
+    splits=1,
     resume=true,
     save_freq=nothing,
     zi=zilmdb(),
@@ -104,6 +105,7 @@ function bboptimize(
         sess = OptSession(s; ctx, params, attrs=Dict{Symbol,Any}(pairs((; s_space))))
         resume && resume!(sess; zi)
     catch
+        @debug_backtrace
         if isinteractive()
             let resp = Base.prompt(
                     "Can't resume the session. Continue? [y/n] (pass resume=false to skip this)",
@@ -129,7 +131,7 @@ function bboptimize(
     else
         ()
     end
-    backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
+    backtest_func = define_backtest_func(sess, ctxsteps(ctx, splits)...)
     obj_type, n_obj = objectives(s)
 
     filtered, rest = let (filtered, rest) = splitkws(:MaxStepsWithoutProgress; kwargs)
@@ -140,7 +142,7 @@ function bboptimize(
         @assert mt ∈ bbomethods(flag) "Optimization method incompatible."
         flag
     end
-    opt_func = define_opt_func(s; backtest_func, ismulti, repeats, obj_type)
+    opt_func = define_opt_func(s; backtest_func, ismulti, splits, obj_type)
     r = opt = nothing
     try
         rest[:MaxStepsWithoutProgress] = if isempty(filtered)
