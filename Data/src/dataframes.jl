@@ -243,8 +243,11 @@ function addcols!(dst, src)
     end
 end
 
+_fromidx(from::Integer, offset::Integer) = from + offset
+_fromidx(from::Integer, offset) = from + round(Int, offset, RoundUp)
+
 function viewfrom(ohlcv, from::Integer; offset=0, cols=Colon())
-    @view ohlcv[max(1, from + offset):end, cols]
+    @view ohlcv[max(1, _fromidx(from, offset)):end, cols]
 end
 
 function viewfrom(ohlcv, from::DateTime; kwargs...)
