@@ -169,7 +169,7 @@ function bboptimize(
             )
         end
         runner(args...; kwargs...) = @nogc opt_func(args...; kwargs...)
-        opt = bbsetup(runner, save_args..., rest...)
+        opt = bbsetup(runner; SearchSpace=space, save_args..., rest...)
         r = bboptimize(opt, initials...)
         sess.best[] = best_candidate(r)
     catch e
