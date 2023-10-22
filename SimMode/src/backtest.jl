@@ -1,5 +1,6 @@
 using Executors: orderscount
 using Executors: isoutof_orders
+using .Instances.Data.DFUtils: lastdate
 
 import .Misc: start!, stop!
 
@@ -51,12 +52,28 @@ end
 start!(s::Strategy{Sim}; kwargs...) = start!(s, Context(s); kwargs...)
 function start!(s::Strategy{Sim}, count::Integer; kwargs...)
     if count > 0
-        from = ohlcv(first(universe(s).data.instance)).timestamp[begin]
+        from = ohlcv(first(s.universe)).timestamp[begin]
         to = from + s.timeframe.period * count
     else
-        to = ohlcv(last(universe(s).data.instance)).timestamp[end]
+        to = ohlcv(last(s.universe)).timestamp[end]
         from = to + s.timeframe.period * count
     end
+    ctx = Context(Sim(), s.timeframe, from, to)
+    start!(s, ctx; kwargs...)
+end
+
+_todate(s) = begin
+    to = typemin(DateTime)
+    for ai in s.universe
+        this_date = lastdate(ai)
+        if this_date > to
+            to = this_date
+        end
+    end
+    return to
+end
+
+function start!(s::Strategy{Sim}, from::DateTime, to::DateTime=_todate(s); kwargs...)
     ctx = Context(Sim(), s.timeframe, from, to)
     start!(s, ctx; kwargs...)
 end
