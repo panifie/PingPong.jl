@@ -64,3 +64,18 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
         end
     end
 end
+
+if isdefined(Main, :Revise)
+    Revise.revise(s::st.Strategy) =
+        if endswith(s.path, "toml")
+            prev = Base.active_project()
+            try
+                Pkg.activate(s.path)
+                Revise.revise(s.self)
+            finally
+                Pkg.activate(prev)
+            end
+        else
+            Revise.revise(s.self)
+        end
+end
