@@ -58,7 +58,7 @@ The exchange and the quote cash should be specified from the config, or the stra
 - `logs`: logs exchange events like positions updates.
 
 Conventions for strategy defined attributes:
-- `NAME`: the name of the strategy could be different from module name
+- `DESCRIPTION`: Name or short description for the strategy could be different from module name
 - `S`: the strategy type.
 - `TF`: the smallest `timeframe` that the strategy uses
 """

@@ -24,9 +24,9 @@ const CACHE = Dict{Symbol,Any}()
 # # NOTE: do not export anything
 @interface
 
-const NAME = :Example
+const DESCRIPTION = "Example"
 const EXCID = ExchangeID(:binance)
-const S{M} = Strategy{M,NAME,typeof(EXCID)}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}
 const TF = tf"1m"
 
 # function __init__() end

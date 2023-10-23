@@ -8,10 +8,10 @@ using Statistics: mean
 # @contractsenv!
 # @optenv!
 
-const NAME = :RandomStratIso
+const DESCRIPTION = "RandomStratIso"
 const EXCID = ExchangeID(:bybit)
-const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
-const SC{E,M} = Strategy{M,NAME,E}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
+const SC{E,M} = Strategy{M,nameof(@__MODULE__),E}
 const TF = tf"1m"
 __revise_mode__ = :eval
 

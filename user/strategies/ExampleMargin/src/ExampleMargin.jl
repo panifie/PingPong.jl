@@ -6,10 +6,10 @@ using PingPong
 @optenv!
 using Data: stub!
 
-const NAME = :ExampleMargin
+const DESCRIPTION = "ExampleMargin"
 const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
-const SX{E,M} = Strategy{M,NAME,E,Isolated}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
+const SX{E,M} = Strategy{M,nameof(@__MODULE__),E,Isolated}
 const TF = tf"1m"
 __revise_mode__ = :eval
 

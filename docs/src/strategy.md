@@ -36,9 +36,9 @@ module Example
 using PingPong
 @strategyenv!
 
-const NAME = :Example
+const DESCRIPTION = "Example"
 const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin,:USDT}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin,:USDT}
 const TF = tf"1m"
 
 function ping!(::Type{S}, ::LoadStrategy, config)

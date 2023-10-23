@@ -5,10 +5,10 @@ using PingPong
 # @contractsenv!
 # @optenv!
 
-# const NAME = :Template
-# const EXCID = ExchangeID(:exchage_sym)
-const S{M} = Strategy{M,NAME,typeof(EXCID),NoMargin}
-const SC{E,M,R} = Strategy{M,NAME,E,R}
+const DESCRIPTION = "Template"
+const EXCID = ExchangeID(Symbol())
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin}
+const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
 const TF = tf"1m"
 __revise_mode__ = :eval
 

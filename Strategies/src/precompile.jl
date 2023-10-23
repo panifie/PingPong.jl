@@ -8,9 +8,9 @@ using ..TimeTicks
 using ..Strategies: AssetCollection
 import .Strategies: ping!
 using Misc: Sim, NoMargin
-const NAME = :BaseStrat
+const DESCRIPTION = "BaseStrat"
 const EXCID = ExchangeTypes.ExchangeID(:bybit)
-const S{M} = Strategy{M,NAME,typeof(EXCID)}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}
 const TF = tf"1m"
 ping!(::S, args...; kwargs...) = nothing
 function ping!(::Type{<:S}, config, ::LoadStrategy)

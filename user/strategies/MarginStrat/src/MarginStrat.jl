@@ -4,10 +4,10 @@ using PingPong
 @strategyenv!
 @contractsenv!
 
-const NAME = :MarginStrat
+const DESCRIPTION = "MarginStrat"
 const EXCID = ExchangeID(:binance)
-const S{M} = Strategy{M,NAME,typeof(EXCID),Isolated}
-const SC{E,M,R} = Strategy{M,NAME,E,R}
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
+const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
 const TF = tf"1d"
 
 # Load required indicators
