@@ -1,5 +1,5 @@
 # Running in paper mode
-To construct a strategy in paper mode you can specify the default mode in the `user/config.toml` file, or in the `Project.toml` file of your strategy project, or by passing the mode as a keyword argument:
+To construct a strategy in paper mode you can specify the default mode in the `user/pingpong.toml` file, or in the `Project.toml` file of your strategy project, or by passing the mode as a keyword argument:
 
 ``` toml
 [Example]

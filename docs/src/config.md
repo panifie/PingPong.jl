@@ -1,4 +1,4 @@
-The bot uses a configuration file, located at `user/config.toml` by default. Currently it only stores:
+The bot uses a configuration file, located at `user/pingpong.toml` by default. Currently it only stores:
 - Minor exchange configurations. The `ExchangeID` symbol is the key that references the exchange config section.
 - Strategies. The strategy module name is the section key.
   - `include_file`: The entry file of the strategy

@@ -1,5 +1,5 @@
 using Data.Cache: save_cache, load_cache
-using Misc: _config_dir
+using Misc: user_dir
 
 macro notfound(path)
     quote
@@ -146,7 +146,7 @@ function strategy!(mod::Module, cfg::Config)
 end
 
 function strategy_cache_path()
-    cache_path = _config_dir()
+    cache_path = user_dir()
     @assert ispath(cache_path) "Can't load strategy state, no directory at $cache_path"
     cache_path = joinpath(cache_path, "cache")
     mkpath(cache_path)

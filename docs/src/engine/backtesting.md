@@ -2,7 +2,7 @@
 
 To run a backtest you construct a strategy and then call `start!` on it.
 
-- The strategy loads by default a config file located in `PingPong.jl/user/config.toml`
+- The strategy loads by default a config file located in `PingPong.jl/user/pingpong.toml`
 - The config defines the strategy file under `include_file` key in the `[Example]` section
 
 ```toml

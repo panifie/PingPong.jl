@@ -5,8 +5,18 @@ using TimeTicks
 using FunctionalCollections: PersistentHashMap
 using .Lang: @lget!
 # TODO: move config to own pkg
+#
+function find_config(cur_path=splitpath(pwd()))
+    length(cur_path) == 1 && return nothing
+    this_file = joinpath(cur_path..., "pingpong.toml")
+    isfile(this_file) && return this_file
+    this_file = joinpath(cur_path..., "user", "pingpong.toml")
+    isfile(this_file) && return this_file
+    pop!(cur_path)
+    return find_config(cur_path)
+end
 
-_config_dir() = begin
+function default_dir()
     ppath = Base.active_project()
     ppath = if isempty(ppath)
         get(ENV, "JULIA_PROJECT", "")
@@ -21,20 +31,31 @@ _config_dir() = begin
     joinpath(dirname(ppath), "user")
 end
 
+user_dir() = begin
+    cfg = find_config()
+    if isnothing(cfg)
+        default_dir()
+    else
+        dirname(cfg)
+    end
+end
+
 @doc "The config path (TOML), relative to the current project directory."
 function config_path()
-    cfg_dir = _config_dir()
-    path = joinpath(cfg_dir, "config.toml")
-    if !ispath(path)
-        ppath = Base.active_project()
-        @warn "Config file not found at $path, fallback to $ppath"
-        path = ppath
+    path = find_config()
+    if isnothing(path)
+        path = joinpath(default_dir(), "pingpong.toml")
+        if !ispath(path)
+            ppath = Base.active_project()
+            @warn "Config file not found at $path, fallback to $ppath"
+            path = ppath
+        end
     end
-    path
+    return path
 end
 
 function keys_path(exc_name::AbstractString)
-    cfg_dir = _config_dir()
+    cfg_dir = user_dir()
     file = lowercase((replace(exc_name, ".json" => "") * ".json"))
     joinpath(cfg_dir, file)
 end
