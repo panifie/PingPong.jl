@@ -1,6 +1,6 @@
 /user/*
 /user/strategies/*
-!user/config.toml
+!user/pingpong.toml
 !user/strategies
 !user/strategies/Example.jl
 !user/strategies/ExampleMargin.jl

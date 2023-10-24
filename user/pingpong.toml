@@ -1,0 +1,20 @@
+[Example]
+include_file = "strategies/Example.jl"
+
+[binance]
+leveraged = "from"
+
+[bybit]
+
+[kucoin]
+futures = false
+
+[kucoinfutures]
+futures = true
+
+[sources]
+MarginStrat = "strategies/MarginStrat/Project.toml"
+BBWithOpt = "strategies/BBWithOpt/Project.toml"
+BollingerBands = "strategies/BollingerBands/Project.toml"
+TwoIntervals = "strategies/TwoIntervals/Project.toml"
+ExampleMargin = "strategies/ExampleMargin/Project.toml"

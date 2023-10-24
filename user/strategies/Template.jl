@@ -14,7 +14,9 @@ __revise_mode__ = :eval
 
 function ping!(s::SC, ::ResetStrategy) end
 
-ping!(_::SC, ::WarmupPeriod) = Day(1)
+function ping!(_::SC, ::WarmupPeriod)
+    Day(1)
+end
 
 function ping!(s::SC, ts::DateTime, _)
     ats = available(s.timeframe, ts)
@@ -24,7 +26,7 @@ function ping!(s::SC, ts::DateTime, _)
 end
 
 function ping!(::Type{<:SC}, ::StrategyMarkets)
-    []
+    String[]
 end
 
 # function ping!(t::Type{<:SC}, config, ::LoadStrategy)

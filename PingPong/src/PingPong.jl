@@ -7,9 +7,9 @@ if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     end
 else
     occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
-    include("pingpong.jl")
+    include(joinpath(@__DIR__, "pingpong.jl"))
     __init__() = _doinit()
-    include("precompile.jl")
+    include(joinpath(@__DIR__, "precompile.jl"))
 end
 
 end # module

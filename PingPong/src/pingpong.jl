@@ -8,6 +8,7 @@ using Pkg: Pkg as Pkg
 
 include("logmacros.jl")
 include("repl.jl")
+include("strat.jl")
 
 function _doinit()
     @debug "Initializing python async..."

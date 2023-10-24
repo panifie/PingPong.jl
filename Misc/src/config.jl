@@ -164,13 +164,13 @@ function _toml!(cfg, name; check=true)
             k ∉ Set(("deps", "uuid", "extras", "compat"))
         ),
     )
-    if check && name ∉ keys(cfg.toml)
+    if check && name ∉ keys(cfg.toml) && name ∉ keys(get(cfg.toml, "sources", (;)))
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end
 end
 function _parse(k, v)
     if k == :mode || k == :margin
-        mode = Symbol(titlecase(string(v)))
+        mode = Symbol(uppercasefirst(string(v)))
         @eval Misc.$mode()
     else
         v
@@ -181,12 +181,11 @@ function _options!(cfg, name)
     attrs = cfg.attrs
     toml = cfg.toml
     opts = @something get(toml, name, nothing) if get(toml, "name", "") != name
-        @warn "options: expected project toml file" name toml
         ()
     else
         get(toml, "strategy", ())
     end
-    if isempty(opts)
+    if isempty(opts) && name ∉ keys(get(toml, "sources", (;)))
         @warn "options: No options found for $name"
     end
     for (opt, val) in opts

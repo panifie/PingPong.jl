@@ -27,10 +27,11 @@ function loadbtc()
 end
 
 function symnames(s=s)
-    lowercase.(string.(getproperty.(st.assets(s), :bc)))
+    String[lowercase(v) for v in (string.(getproperty.(st.assets(s), :bc)))]
 end
 
 function dostub!(pairs=symnames())
+    isempty(pairs) && return nothing
     @eval using Scrapers: Scrapers as scr
     @eval let
         GC.gc()

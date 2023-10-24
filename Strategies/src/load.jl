@@ -14,6 +14,8 @@ function find_path(file, cfg)
         else
             from_pwd = joinpath(pwd(), file)
             ispath(from_pwd) && return from_pwd
+            from_user = joinpath(user_dir(), file)
+            ispath(from_user) && return from_user
             from_cfg = joinpath(dirname(cfg.path), file)
             ispath(from_cfg) && return from_cfg
             from_proj = joinpath(dirname(Pkg.project().path), file)
