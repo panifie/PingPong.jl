@@ -105,7 +105,9 @@ macro strategyenv!()
         using .Data: propagate_ohlcv!, stub!
         using .Data.DataStructures: CircularBuffer
         using .Misc: after, before, rangeafter, rangebefore, LittleDict
-        using .inst: ohlcv, raw, lastprice, posside, collateral
+        using .inst: asset, ohlcv, ohlcv_dict, raw, lastprice, bc, qc
+        using .inst: takerfees, makerfees, maxfees, minfees
+        using .inst: ishedged, cash, committed, instance, isdust, nondust
         using .pp.Engine.LiveMode: updated_at!
         using .Instruments: compactnum
 
@@ -128,9 +130,12 @@ end
 
 macro contractsenv!()
     quote
-        using Engine.Instances: PositionOpen, PositionUpdate, PositionClose
-        using Engine.Instances: position, leverage, PositionSide
-        using Engine.Executors: UpdateLeverage, UpdateMargin, UpdatePositions
+        using .inst: PositionOpen, PositionUpdate, PositionClose
+        using .inst: position, leverage, PositionSide
+        using .ect: UpdateLeverage, UpdateMargin, UpdatePositions
+
+        using .inst: ishedged, margin, additional, leverage, mmr, maintenance
+        using .inst: price, entryprice, liqprice, posside, collateral
     end
 end
 
