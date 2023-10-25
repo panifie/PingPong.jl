@@ -94,7 +94,7 @@ function _generate_strategy(
         Pkg.activate(strat_dir; io=devnull)
     end
     if ask
-        deps_list = Base.prompt("\nAdd project dependencies: (comma separated)")
+        deps_list = Base.prompt("\nAdd project dependencies (comma separated)")
         append!(deps, split(deps_list, ","; keepempty=false))
     end
     if !isempty(deps)
@@ -231,6 +231,7 @@ end
 
 function remove_strategy(subj=nothing)
     where = @something subj Base.prompt("Strategy name (or project path): ")
+    strat_name = ""
     if ispath(where)
         rp = if endswith(where, ".toml")
             dirname(where)
@@ -239,6 +240,11 @@ function remove_strategy(subj=nothing)
         end |> realpath
         if _confirm_del(rp)
             rm(rp; recursive=true)
+            strat_name = if endswith(where, ".toml")
+                basename(dirname(rp))
+            else
+                splitext(basename(where))[1]
+            end
             @info "Strategy removed"
         else
             @info "Removal cancelled"
@@ -249,6 +255,7 @@ function remove_strategy(subj=nothing)
         if isfile(file_strat)
             if _confirm_del(file_strat)
                 rm(file_strat)
+                strat_name = where
                 @info "Strategy removed"
             else
                 @info "Removal cancelled"
@@ -258,12 +265,31 @@ function remove_strategy(subj=nothing)
             if isdir(proj_strat)
                 if _confirm_del(proj_strat)
                     rm(proj_strat; recursive=true)
+                    strat_name = where
                     @info "Strategy removed"
                 else
                     @info "Removal cancelled"
                 end
             else
                 @error "Input is neither a project path nor a strategy name" input = where
+            end
+        end
+    end
+    _delete_strat_entry(strat_name)
+end
+
+function _delete_strat_entry(name)
+    if !isempty(name)
+        if Base.prompt("Remove user config entry $name? [n]/y") == "y"
+            cp = config_path()
+            user_config = TOML.parsefile(cp)
+            delete!(user_config, name)
+            sources = get(user_config, "sources", (;))
+            if sources isa AbstractDict
+                delete!(sources, name)
+            end
+            open(cp, "w") do f
+                TOML.print(f, SortedDict(user_config))
             end
         end
     end
