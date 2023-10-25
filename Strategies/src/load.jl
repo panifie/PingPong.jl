@@ -54,9 +54,21 @@ function _file(src, cfg, is_project)
     file
 end
 
+function _defined_marginmode(mod)
+    try
+        marginmode(mod.S)
+    catch
+        marginmode(mod.SC)
+    end
+end
+
 function default_load(mod, t, config)
     assets = invokelatest(mod.ping!, t, StrategyMarkets())
-    config.margin = Isolated()
+    def_mm = _defined_marginmode(mod)
+    if config.margin != def_mm
+        @warn "Mismatching margin mode" config = config.margin strategy_module = def_mm
+        config.marigin = def_mm
+    end
     sandbox = config.mode == Paper() ? false : config.sandbox
     s = Strategy(mod, assets; config, sandbox)
     @assert marginmode(s) == config.margin
