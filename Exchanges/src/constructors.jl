@@ -130,11 +130,7 @@ It uses a WS instance if available, otherwise an async instance.
 
 """
 function getexchange!(
-    x::Symbol,
-    params=PyDict("newUpdates" => true);
-    sandbox=true,
-    markets=:yes,
-    kwargs...,
+    x::Symbol, params=PyDict("newUpdates" => true); sandbox=true, markets=:yes, kwargs...
 )
     @lget!(
         sandbox ? sb_exchanges : exchanges,
@@ -360,8 +356,18 @@ end
 
 @doc "Enable sandbox mode for exchange. Should only be called on exchange construction."
 function sandbox!(exc::Exchange=exc, flag=!issandbox(exc); remove_keys=true)
-    exc.py.setSandboxMode(flag)
-    if flag
+    success = try
+        exc.py.setSandboxMode(flag)
+        true
+    catch e
+        if e isa PyException && occursin("sandbox", string(e.v))
+            @warn e
+            false
+        else
+            rethrow(e)
+        end
+    end
+    if flag && success
         @assert issandbox(exc) "Exchange sandbox mode couldn't be enabled. (disable sandbox mode with `sandbox=false`)"
         remove_keys && exckeys!(exc, "", "", "")
     elseif isempty(exc.py.secret)

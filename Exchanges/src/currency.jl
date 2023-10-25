@@ -5,7 +5,7 @@ using Instruments: AbstractCash, atleast!
 import Instruments: value, addzero!
 Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
-import Misc: gtxzero, ltxzero, approxzero
+import Misc: gtxzero, ltxzero, approxzero, ZERO
 
 const currenciesCache1Hour = safettl(ExchangeID, Py, Hour(1))
 const currency_lock = ReentrantLock()
@@ -15,7 +15,9 @@ function to_float(py::Py, T::Type{<:AbstractFloat}=DFT)
 end
 
 function to_num(py::Py)
-    v = if pyisinstance(py, pybuiltins.int)
+    @something if pyisnone(py)
+        ZERO
+    elseif pyisinstance(py, pybuiltins.int)
         pyconvert(Option{Int}, py)
     elseif pyisinstance(py, pybuiltins.float)
         pyconvert(Option{DFT}, py)
@@ -25,8 +27,7 @@ function to_num(py::Py)
         isempty(py) ? 0 : pyconvert(DFT, pyfloat(py))
     else
         pyconvert(Option{DFT}, pyfloat(py))
-    end
-    @something v 0
+    end ZERO
 end
 
 function _lpf(exc, cur)
@@ -37,7 +38,7 @@ function _lpf(exc, cur)
         fees = zero(DFT)
     else
         limits = let l = get(cur, "limits", nothing)
-            if isnothing(l)
+            if isnothing(l) || pyisnone(l)
                 (min=1e-8, max=1e8)
             elseif haskey(l, "amount")
                 MM{DFT}((to_float(l["amount"]["min"]), to_float(l["amount"]["max"])))
@@ -45,7 +46,13 @@ function _lpf(exc, cur)
                 (min=1e-8, max=1e8)
             end
         end
-        precision = to_num(get(cur, "precision", nothing))
+        precision = let p = get(cur, "precision", nothing)
+            if isnothing(p) || pyisnone(p)
+                8
+            else
+                to_num(p)
+            end
+        end
         fees = to_float(get(cur, "fee", nothing))
     end
     (; limits, precision, fees)
