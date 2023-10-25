@@ -172,8 +172,8 @@ isshort(ai::MarginInstance) =
     end
 
 @doc "True if the position value of the asset is below minimum quantity."
-function isdust(ai::MarginInstance, price, p::PositionSide)
-    abs(cash(ai, p).value * price) < ai.limits.cost.min
+function isdust(ai::AssetInstance, price, p::PositionSide)
+    abs(value(cash(ai, p)) * price) < ai.limits.cost.min
 end
 @doc "True if the asset value is below minimum quantity."
 function isdust(ai::AssetInstance, price)
