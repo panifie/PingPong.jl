@@ -59,6 +59,7 @@ function _generate_strategy(
     user_config_path=config_path(),
     ask=true,
     load=true,
+    deps=String[],
     kwargs...,
 )
     user_path = realpath(user_config_path) |> dirname
@@ -91,6 +92,21 @@ function _generate_strategy(
     Pkg.generate(strat_dir; io=devnull)
     if ask && Base.prompt("\nActivate strategy project at $(strat_dir)? [y]/n") != "n"
         Pkg.activate(strat_dir; io=devnull)
+    end
+    if ask
+        deps_list = Base.prompt("\nAdd project dependencies: (comma separated)")
+        append!(deps, split(deps_list, ","; keepempty=false))
+    end
+    if !isempty(deps)
+        prev = Base.active_project()
+        try
+            Pkg.activate(strat_dir; io=devnull)
+            Pkg.add(deps)
+        catch e
+            @error e
+        end
+        Pkg.activate(prev)
+        println()
     end
     strat_file = copy_template!(strat_name, strat_dir, strategies_path; cfg)
     user_config = TOML.parsefile(user_config_path)
