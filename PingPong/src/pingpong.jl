@@ -21,6 +21,15 @@ function _doinit()
     # default to using lmdb store for data
     @debug "Initializing LMDB zarr instance..."
     Data.zi[] = Data.zilmdb()
+    if isinteractive()
+        @info "Loading interactive utilities"
+        @eval Main begin
+            $(@__MODULE__).@environment!
+            (isdefined(Main, :Revise) ? Revise.includet : include)(
+                $(joinpath(@__DIR__, "dev.jl"))
+            )
+        end
+    end
 end
 
 macro environment!()
@@ -30,15 +39,16 @@ macro environment!()
         using PingPong.Exchanges
         using PingPong.Exchanges: Exchanges as exs
         using PingPong.Engine:
-            Engine as egn,
-            Strategies as st,
+            OrderTypes as ot,
+            Instances as inst,
+            Collections as co,
             Simulations as sim,
+            Strategies as st,
+            Executors as ect,
             SimMode as sm,
             PaperMode as pm,
             LiveMode as lm,
-            Instances as inst,
-            Collections as co,
-            Executors as ect
+            Engine as egn
 
         using Lang: @m_str
         using TimeTicks
@@ -55,6 +65,11 @@ macro environment!()
         using Remote: Remote as rmt
         using Watchers
         using Watchers: WatchersImpls as wi
+
+        using Random
+        using Stubs
+        using .inst
+        using .ot
     end
 end
 
