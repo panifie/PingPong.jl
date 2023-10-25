@@ -4,6 +4,7 @@ using .Exchanges.ExchangeTypes.Python
 using Engine.Data
 using Engine.Misc
 using .Misc: Lang
+using .Misc.TimeTicks: @tf_str
 using Pkg: Pkg as Pkg
 
 include("logmacros.jl")
@@ -74,17 +75,22 @@ macro environment!()
 end
 
 macro strategyenv!()
-    quote
+    expr = quote
+        __revise_mode__ = :eval
         using PingPong: PingPong as pp
         using .pp.Engine
-        using .pp.Engine.Strategies
         using .pp.Engine: Strategies as st
         using .pp.Engine.Instances: Instances as inst
-        using .pp.Engine.LiveMode.Watchers: Watchers
-        using .pp.Engine.Executors
-        using .pp.Engine.OrderTypes
+        using .pp.Engine.OrderTypes: OrderTypes as ot
+        using .pp.Engine.Executors: Executors as ect
+        using .pp.Engine.LiveMode.Watchers: Watchers as wa
+        using .pp.Engine.Processing: Processing as pc
+        using .wa.WatchersImpls: WatchersImpls as wim
+        using .st
+        using .ect
+        using .ot
 
-        using .pp.Engine.OrderTypes.ExchangeTypes
+        using .ot.ExchangeTypes
         using .pp.Engine.Data
         using .pp.Engine.Data.DFUtils
         using .pp.Engine.Data.DataFrames
@@ -95,23 +101,29 @@ macro strategyenv!()
 
         using .st: freecash, setattr!, attr
         using .pp.Engine.Exchanges: getexchange!, marketsid
-        using .pp.Engine.Processing: resample, islast, iscomplete, isincomplete
-        using .Data: propagate_ohlcv!
-        using .Misc: after, before, rangeafter, rangebefore
+        using .pc: resample, islast, iscomplete, isincomplete
+        using .Data: propagate_ohlcv!, stub!
+        using .Data.DataStructures: CircularBuffer
+        using .Misc: after, before, rangeafter, rangebefore, LittleDict
         using .inst: ohlcv, raw, lastprice, posside, collateral
         using .pp.Engine.LiveMode: updated_at!
+        using .Instruments: compactnum
 
-        const $(esc(:ect)) = PingPong.Engine.Executors
-        const $(esc(:pro)) = PingPong.Engine.Processing
-        const $(esc(:wim)) = PingPong.Engine.LiveMode.Watchers.WatchersImpls
+        using .ect: OptSetup, OptRun, OptScore
+        using .ect: NewTrade
+        using .ect: WatchOHLCV, UpdateData, InitData
+        using .ect: UpdateOrders, CancelOrders
 
-        using .pp.Engine.Executors: OptSetup, OptRun, OptScore
-        using .pp.Engine.Executors: NewTrade
-        using .pp.Engine.Executors: WatchOHLCV, UpdateData, InitData
-        using .pp.Engine.Executors: UpdateOrders, CancelOrders
+        $(Engine.Strategies).@interface
 
-        $(@__MODULE__).Engine.Strategies.@interface
+        const EXCID = ExchangeID(isdefined(@__MODULE__, :EXC) ? EXC : Symbol())
+        if !isdefined(@__MODULE__, :MARGIN)
+            const MARGIN = NoMargin
+        end
+        const S{M} = Strategy{M,nameof(@__MODULE__()),typeof(EXCID),MARGIN}
+        const SC{E,M,R} = Strategy{M,nameof(@__MODULE__()),E,R}
     end
+    esc(expr)
 end
 
 macro contractsenv!()
@@ -129,4 +141,5 @@ macro optenv!()
     end
 end
 
-export @environment!, @strategyenv!, @contractsenv!, @optenv!
+export ExchangeID, @tf_str, @strategyenv!, @contractsenv!, @optenv!
+export Isolated, NoMargin

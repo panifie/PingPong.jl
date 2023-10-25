@@ -177,22 +177,18 @@ function copy_template!(strat_name, strat_dir, strat_path; cfg)
     tpl_expr = postwalk(
         x -> @capture(x, DESCRIPTION = v_) ? :(DESCRIPTION = $(strat_name)) : x, tpl_expr
     )
+    tpl_expr = postwalk(x -> if @capture(x, EXC = v_)
+        :(EXC = $(QuoteNode(cfg.exchange)))
+    else
+        x
+    end, tpl_expr)
     tpl_expr = postwalk(
-        x -> if @capture(x, EXCID = ExchangeID(v_))
-            :(EXCID = ExchangeID($(QuoteNode(cfg.exchange))))
-        else
-            x
-        end, tpl_expr
+        x -> @capture(x, MARGIN = v_) ? :(MARGIN = $(typeof(cfg.margin))) : x, tpl_expr
     )
     tpl_expr = postwalk(
         x -> @capture(x, TF = v_) ? :(TF = @tf_str($(string(cfg.min_timeframe)))) : x,
         tpl_expr,
     )
-    tpl_expr = postwalk(x -> if @capture(x, :(typeof(EXCID), mm_))
-        :(typeof(EXCID), $(typeof(cfg.margin)))
-    else
-        x
-    end, tpl_expr)
 
     rmlinums!(tpl_expr)
     strat_file = joinpath(strat_dir, "src", string(strat_name, ".jl"))
