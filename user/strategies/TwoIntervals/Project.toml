@@ -1,0 +1,12 @@
+name = "TwoIntervals"
+uuid = "017d483d-4748-4427-8b19-7df4e53f5725"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+
+[strategy]
+mode = "Sim"
+include_file = "src/TwoIntervals.jl"
+margin = "NoMargin"

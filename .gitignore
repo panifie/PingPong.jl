@@ -11,6 +11,7 @@
 !user/strategies/BollingerBands
 !user/strategies/BBWithOpt
 !user/strategies/MarginStrat
+!user/strategies/TwoIntervals
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
