@@ -1,17 +1,17 @@
 module BBWithOpt
-
 using PingPong
+
+const DESCRIPTION = "BBWithOpt"
+const EXC = :phemex
+const MARGIN = Isolated
+const TF = tf"1m"
+
 @strategyenv!
 @contractsenv!
 @optenv!
 using Indicators
 # @contractsenv!
 # @optenv!
-
-const DESCRIPTION = "BBWithOpt"
-const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
-const TF = tf"1m"
-__revise_mode__ = :eval
 
 function bbands!(ohlcv, from_date; n=20, sigma=2.0)
     ohlcv = viewfrom(ohlcv, from_date; offset=-n)

@@ -34,14 +34,15 @@ See here how the `load` method is defined.
 ```julia
 module Example
 using PingPong
-@strategyenv!
 
 const DESCRIPTION = "Example"
-const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin,:USDT}
+const EXC = :phemex
+const MARGIN = NoMargin
 const TF = tf"1m"
 
-function ping!(::Type{S}, ::LoadStrategy, config)
+@strategyenv!
+
+function ping!(::Type{<:SC}, ::LoadStrategy, config)
     assets = marketsid(S)
     s = Strategy(Example, assets; config)
     s

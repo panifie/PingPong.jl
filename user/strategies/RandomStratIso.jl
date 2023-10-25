@@ -1,19 +1,14 @@
 module RandomStratIso
-
 using PingPong
-@strategyenv!
-@contractsenv!
-using Data.DataStructures: CircularBuffer
-using Statistics: mean
-# @contractsenv!
-# @optenv!
 
 const DESCRIPTION = "RandomStratIso"
-const EXCID = ExchangeID(:bybit)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
-const SC{E,M} = Strategy{M,nameof(@__MODULE__),E}
+const EXC = :bybit
 const TF = tf"1m"
-__revise_mode__ = :eval
+
+@strategyenv!
+@contractsenv!
+# @optenv!
+using Statistics: mean
 
 function ping!(s::S, ::ResetStrategy) end
 

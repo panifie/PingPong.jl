@@ -1,17 +1,14 @@
 module ExampleMargin
-
 using PingPong
+
+const DESCRIPTION = "ExampleMargin"
+const MARGIN = Isolated
+const EXC = :phemex
+const TF = tf"1m"
+
 @strategyenv!
 @contractsenv!
 @optenv!
-using Data: stub!
-
-const DESCRIPTION = "ExampleMargin"
-const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
-const SX{E,M} = Strategy{M,nameof(@__MODULE__),E,Isolated}
-const TF = tf"1m"
-__revise_mode__ = :eval
 
 include("common.jl")
 
@@ -46,14 +43,8 @@ ping!(s::S, ::ResetStrategy) = begin
     _initparams!(s)
     skip_watcher || _tickers_watcher(s)
 end
-function ping!(::Type{<:S}, config, ::LoadStrategy)
-    assets = marketsid(S)
-    config.margin = Isolated()
-    sandbox = ifelse(config.mode == Paper(), false, config.sandbox)
-    s = Strategy(@__MODULE__, assets; config, sandbox)
-    @assert s isa IsolatedStrategy && execmode(s) == config.mode
-
-    s.attrs[:verbose] = false
+function ping!(t::Type{<:SC}, config, ::LoadStrategy)
+    s = st.default_load(@__MODULE__, t, config)
     _reset!(s)
     _reset_pos!(s)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
@@ -75,7 +66,7 @@ function _params()
     (; buydiff=1.0001:0.0001:1.001, selldiff=1.0002:0.0001:1.0011)
 end
 
-function ping!(s::T, ts::DateTime, _) where {T<:SX}
+function ping!(s::T, ts::DateTime, _) where {T<:SC}
     ats = available(tf"1m", ts)
     foreach(s.universe) do ai
         pos = nothing
@@ -92,11 +83,11 @@ function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function ping!(::SX{ExchangeID{:bybit}}, ::StrategyMarkets)
+function ping!(::SC{ExchangeID{:bybit}}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function longorshort(s::SX, ai, ats)
+function longorshort(s::SC, ai, ats)
     closepair(s, ai, ats)
     if _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
         Long()
@@ -105,13 +96,13 @@ function longorshort(s::SX, ai, ats)
     end
 end
 
-function isbuy(s::SX, ai, ats, pos)
+function isbuy(s, ai, ats, pos)
     closepair(s, ai, ats)
     isnothing(_thisclose(s)) && return false
     _thisclose(s) / _prevclose(s) > s.attrs[:buydiff]
 end
 
-function issell(s::SX, ai, ats, pos)
+function issell(s, ai, ats, pos)
     closepair(s, ai, ats)
     isnothing(_thisclose(s)) && return false
     _prevclose(s) / _thisclose(s) > s.attrs[:selldiff]
@@ -128,7 +119,7 @@ function update_leverage!(s, ai, pos, ats)
     pong!(s, ai, lev, UpdateLeverage(); pos)
 end
 
-function buy!(s::S, ai, ats, ts; lev)
+function buy!(s, ai, ats, ts; lev)
     pong!(s, ai, CancelOrders(); t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     p = @something inst.position(ai) inst.position(ai, Long())
@@ -162,7 +153,7 @@ function buy!(s::S, ai, ats, ts; lev)
     end
 end
 
-function sell!(s::S, ai, ats, ts; lev)
+function sell!(s, ai, ats, ts; lev)
     pong!(s, ai, CancelOrders(); t=Buy)
     p = @something inst.position(ai) inst.position(ai, Short())
     price = closeat(ai.ohlcv, ats)

@@ -1,25 +1,20 @@
 module BollingerBands
-
 using PingPong
+
+const DESCRIPTION = "BollingerBands"
+const EXC = :phemex
+const MARGIN = Isolated
+const TF = tf"1m"
+
 @strategyenv!
 @contractsenv!
 using Indicators
-# @contractsenv!
-# @optenv!
-
-const DESCRIPTION = "BollingerBands"
-# const EXCID = ExchangeID(:phemex)
-# const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin}
-const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
-const TF = tf"1m"
-__revise_mode__ = :eval
 
 function bbands!(ohlcv, from_date)
-    ohlcv = viewfrom(ohlcv, from_date, offset=-20)
+    ohlcv = viewfrom(ohlcv, from_date; offset=-20)
     bb = bbands(ohlcv.close; n=20, sigma=2.0)
     @assert bb[end, 1] <= bb[end, 2] <= bb[end, 3]
-    # shift by one to avoid lookahead # FIXME: this should not be needed
-    [shift!(bb[:, 1], 1) shift!(bb[:, 3], 1)]
+    [bb[:, 1] bb[:, 3]]
 end
 
 function ping!(s::SC{<:ExchangeID,Sim}, ::ResetStrategy)

@@ -1,14 +1,13 @@
 module MarginStrat
-
 using PingPong
-@strategyenv!
-@contractsenv!
 
 const DESCRIPTION = "MarginStrat"
-const EXCID = ExchangeID(:binance)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
-const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
+const EXC = :binance
+const MARGIN = Isolated
 const TF = tf"1d"
+
+@strategyenv!
+@contractsenv!
 
 # Load required indicators
 # using .Indicators

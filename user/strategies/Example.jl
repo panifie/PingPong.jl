@@ -1,16 +1,13 @@
 module Example
-
 using PingPong
+
+const DESCRIPTION = "Example"
+const EXC = :phemex
+const TF = tf"1m"
+
 @strategyenv!
 @optenv!
 
-const DESCRIPTION = "Example"
-const EXCID = ExchangeID(:phemex)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin,:USDT}
-const S_X{E,M} = Strategy{M,nameof(@__MODULE__),E,NoMargin}
-const TF = tf"1m"
-
-__revise_mode__ = :eval
 include("common.jl")
 
 ping!(s::S, ::ResetStrategy) = begin
@@ -20,10 +17,8 @@ ping!(s::S, ::ResetStrategy) = begin
     _overrides!(s)
     skip_watcher || _tickers_watcher(s)
 end
-function ping!(::Type{<:S}, config, ::LoadStrategy)
-    assets = marketsid(S)
-    s = Strategy(@__MODULE__, assets; config, sandbox=(config.mode != Paper()))
-    _reset!(s)
+function ping!(t::Type{<:S}, config, ::LoadStrategy)
+    s = st.default_load(@__MODULE__, t, config)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
         _tickers_watcher(s)
     end
@@ -56,7 +51,7 @@ function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
 end
 
-function ping!(::S_X{ExchangeID{:bybit}}, ::StrategyMarkets)
+function ping!(::SC{ExchangeID{:bybit}}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "ATOM/USDT"]
 end
 
@@ -127,5 +122,9 @@ function ping!(s::S, ::OptScore)
     # [values(stats.multi(s, :sortino, :sharpe; normalize=true))...]
 end
 weightsfunc(weights) = weights[1] * 0.8 + weights[2] * 0.2
+
+function ping!(::Type{<:SC}, ::StrategyMarkets)
+    ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+end
 
 end

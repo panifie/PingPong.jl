@@ -1,16 +1,14 @@
 module Template
-
 using PingPong
+
+const DESCRIPTION = "Template"
+const EXC = Symbol()
+const MARGIN = NoMargin
+const TF = tf"1m"
+
 @strategyenv!
 # @contractsenv!
 # @optenv!
-
-const DESCRIPTION = "Template"
-const EXCID = ExchangeID(Symbol())
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin}
-const SC{E,M,R} = Strategy{M,nameof(@__MODULE__),E,R}
-const TF = tf"1m"
-__revise_mode__ = :eval
 
 function ping!(s::SC, ::ResetStrategy) end
 

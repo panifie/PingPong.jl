@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
 
 [strategy]
 margin = "Isolated"

@@ -124,8 +124,6 @@ function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats)
     end
 end
 
-marketsid(::S) = marketsid(S)
-
 function closepair(s, ai, ats, tf=_timeframe(s))
     data = ai.data[tf]
     prev_date = ats - tf

@@ -1,6 +1,9 @@
 [Example]
 include_file = "strategies/Example.jl"
 
+[RandomStratIso]
+include_file = "strategies/RandomStratIso.jl"
+
 [binance]
 leveraged = "from"
 
