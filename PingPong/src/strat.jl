@@ -1,7 +1,7 @@
 using Core: LineInfoNode
 # using .Misc: config_path
 using Engine.Strategies: strategy!, SortedDict
-using Engine.Misc: config_path, TOML
+using Engine.Misc: config_path, TOML, user_dir
 using Engine.Misc.Lang: @lget!
 using MacroTools
 using MacroTools: postwalk
@@ -12,12 +12,12 @@ ask_name(name=nothing) = begin
     string(name) |> uppercasefirst
 end
 
-relative_path(to, path, offset=2) = begin
+function relative_path(to, path, offset=2)
     to_dir = dirname(to) |> basename
     splits = splitpath(path)
     for (n, c) in enumerate(Iterators.reverse(splits))
         if c == to_dir
-            return joinpath(splits[end-n+offset:end]...)
+            return joinpath(splits[(end - n + offset):end]...)
         end
     end
     path
@@ -49,12 +49,23 @@ function _askconfig(; kwargs...)
     Config(; min_timeframe, exchange, qc, margin, kwargs...)
 end
 
-isvalidname(name) = occursin(r"^([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*)$", string(name))
+function isvalidname(name)
+    occursin(r"^([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*)$", string(name))
+end
 @doc "Generates a new strategy project"
-function _generate_strategy(name=nothing, cfg=nothing; user_config_path=config_path(), ask=true, load=true, kwargs...)
+function _generate_strategy(
+    name=nothing,
+    cfg=nothing;
+    user_config_path=config_path(),
+    ask=true,
+    load=true,
+    kwargs...,
+)
     user_path = realpath(user_config_path) |> dirname
     if !isfile(user_config_path)
-        if Base.prompt("User config file at $user_config_path not found, create new one? [y]/n") != "n"
+        if Base.prompt(
+            "User config file at $user_config_path not found, create new one? [y]/n"
+        ) != "n"
             mkpath(user_path)
             touch(user_config_path)
         end
@@ -77,9 +88,9 @@ function _generate_strategy(name=nothing, cfg=nothing; user_config_path=config_p
     end
     cfg = @something cfg ask ? _askconfig(; kwargs...) : Config(; kwargs...)
     strat_sym = Symbol(strat_name)
-    Pkg.generate(strat_dir, io=devnull)
+    Pkg.generate(strat_dir; io=devnull)
     if ask && Base.prompt("\nActivate strategy project at $(strat_dir)? [y]/n") != "n"
-        Pkg.activate(strat_dir, io=devnull)
+        Pkg.activate(strat_dir; io=devnull)
     end
     strat_file = copy_template!(strat_name, strat_dir, strategies_path; cfg)
     user_config = TOML.parsefile(user_config_path)
@@ -88,8 +99,11 @@ function _generate_strategy(name=nothing, cfg=nothing; user_config_path=config_p
         delete!(user_config, strat_name)
     end
     let sources = @lget! user_config "sources" Dict{String,Any}()
-        strat_cfg = Dict("include_file" => relative_path(strat_dir, strat_file, 3),
-            "margin" => repr(typeof(cfg.margin)), "mode" => "Sim")
+        strat_cfg = Dict(
+            "include_file" => relative_path(strat_dir, strat_file, 3),
+            "margin" => repr(typeof(cfg.margin)),
+            "mode" => "Sim",
+        )
         strat_project_file = joinpath(strat_dir, "Project.toml")
         strat_project_toml = TOML.parsefile(strat_project_file)
         strat_project_toml["strategy"] = strat_cfg
@@ -134,16 +148,35 @@ function copy_template!(strat_name, strat_dir, strat_path; cfg)
     @assert isfile(tpl_file) "Template file not found at $strat_path"
 
     tpl_expr = Meta.parse(read(tpl_file, String))
-    @info "New Strategy" name = strat_name exchange = cfg.exchange timeframe = string(cfg.min_timeframe)
-    tpl_expr = postwalk(x -> @capture(x, module name_
+    @info "New Strategy" name = strat_name exchange = cfg.exchange timeframe = string(
+        cfg.min_timeframe
+    )
+    tpl_expr = postwalk(
+        x -> @capture(x, module name_
         body__
         end) ? :(module $(Symbol(strat_name))
         $(body...)
-        end) : x, tpl_expr)
-    tpl_expr = postwalk(x -> @capture(x, DESCRIPTION = v_) ? :(DESCRIPTION = $(strat_name)) : x, tpl_expr)
-    tpl_expr = postwalk(x -> @capture(x, EXCID = ExchangeID(v_)) ? :(EXCID = ExchangeID($(QuoteNode(cfg.exchange)))) : x, tpl_expr)
-    tpl_expr = postwalk(x -> @capture(x, TF = v_) ? :(TF = @tf_str($(string(cfg.min_timeframe)))) : x, tpl_expr)
-    tpl_expr = postwalk(x -> @capture(x, :(typeof(EXCID), mm_)) ? :(typeof(EXCID), $(typeof(cfg.margin))) : x, tpl_expr)
+        end) : x, tpl_expr
+    )
+    tpl_expr = postwalk(
+        x -> @capture(x, DESCRIPTION = v_) ? :(DESCRIPTION = $(strat_name)) : x, tpl_expr
+    )
+    tpl_expr = postwalk(
+        x -> if @capture(x, EXCID = ExchangeID(v_))
+            :(EXCID = ExchangeID($(QuoteNode(cfg.exchange))))
+        else
+            x
+        end, tpl_expr
+    )
+    tpl_expr = postwalk(
+        x -> @capture(x, TF = v_) ? :(TF = @tf_str($(string(cfg.min_timeframe)))) : x,
+        tpl_expr,
+    )
+    tpl_expr = postwalk(x -> if @capture(x, :(typeof(EXCID), mm_))
+        :(typeof(EXCID), $(typeof(cfg.margin)))
+    else
+        x
+    end, tpl_expr)
 
     rmlinums!(tpl_expr)
     strat_file = joinpath(strat_dir, "src", string(strat_name, ".jl"))
@@ -174,4 +207,48 @@ function rmlinums!(expr)
         end
     end
     expr
+end
+
+function _confirm_del(where)
+    Base.prompt("Really delete strategy located at $(where)? [n]/y") == "y"
+end
+
+function remove_strategy(subj=nothing)
+    where = @something subj Base.prompt("Strategy name (or project path): ")
+    if ispath(where)
+        rp = if endswith(where, ".toml")
+            dirname(where)
+        else
+            where
+        end |> realpath
+        if _confirm_del(rp)
+            rm(rp; recursive=true)
+            @info "Strategy removed"
+        else
+            @info "Removal cancelled"
+        end
+    else
+        udir = user_dir()
+        file_strat = joinpath(udir, string(where, ".jl"))
+        if isfile(file_strat)
+            if _confirm_del(file_strat)
+                rm(file_strat)
+                @info "Strategy removed"
+            else
+                @info "Removal cancelled"
+            end
+        else
+            proj_strat = joinpath(udir, "strategies", string(where))
+            if isdir(proj_strat)
+                if _confirm_del(proj_strat)
+                    rm(proj_strat; recursive=true)
+                    @info "Strategy removed"
+                else
+                    @info "Removal cancelled"
+                end
+            else
+                @error "Input is neither a project path nor a strategy name" input = where
+            end
+        end
+    end
 end
