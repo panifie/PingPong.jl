@@ -64,11 +64,6 @@ end
 
 function default_load(mod, t, config)
     assets = invokelatest(mod.ping!, t, StrategyMarkets())
-    def_mm = _defined_marginmode(mod)
-    if config.margin != def_mm
-        @warn "Mismatching margin mode" config = config.margin strategy_module = def_mm
-        config.marigin = def_mm
-    end
     sandbox = config.mode == Paper() ? false : config.sandbox
     s = Strategy(mod, assets; config, sandbox)
     @assert marginmode(s) == config.margin
@@ -152,6 +147,11 @@ function strategy!(mod::Module, cfg::Config)
     end
     if attr(cfg, :exchange_override, false)
         @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
+    end
+    def_mm = _defined_marginmode(mod)
+    if cfg.margin != def_mm
+        @warn "Mismatching margin mode" config = cfg.margin strategy_module = def_mm
+        cfg.margin = def_mm
     end
     @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
     @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) default_load(

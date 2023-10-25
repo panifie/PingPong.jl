@@ -3,6 +3,7 @@ import Instances.ExchangeTypes: exchangeid, exchange
 import Instances.Exchanges: marketsid
 import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
 using Misc: attr, setattr!
+import Misc: marginmode
 using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 marketsid(t::Type{<:Strategy}) = invokelatest(ping!, t, StrategyMarkets())
@@ -26,7 +27,11 @@ Instances.committed(s::Strategy) = getfield(s, :cash_committed)
 @doc "Cash that is not committed, and therefore free to use for new orders."
 freecash(s::Strategy) = cash(s) - s.cash_committed
 @doc "Get the strategy margin mode."
-Misc.marginmode(::Strategy{X,N,E,M}) where {X,N,E,M<:MarginMode} = M()
+function marginmode(
+    ::Union{<:T,<:Type{<:T}}
+) where {T<:Strategy{X,N,E,M} where {X,N,E}} where {M<:MarginMode}
+    M()
+end
 
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
