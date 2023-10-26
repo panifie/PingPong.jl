@@ -45,7 +45,7 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
             end
             s = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
             st.issim(s) &&
-                fill!(s.universe, s.timeframe, config.timeframes[(begin + 1):end]...)
+                fill!(s.universe, s.timeframe, s.config.timeframes[(begin + 1):end]...)
             execmode(s) == Sim() && $stub && dostub!()
             st.default!(s)
             ai = try
