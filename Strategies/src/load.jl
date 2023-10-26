@@ -111,35 +111,41 @@ function strategy!(src::Symbol, cfg::Config)
     strategy!(mod, cfg)
 end
 _concrete(type, param) = isconcretetype(type) ? type : type{param}
-function strategy!(mod::Module, cfg::Config)
-    s_type =
-        let s_type = try
-                mod.S
-            catch
-                if cfg.exchange == Symbol()
-                    if hasproperty(mod, :EXCID) && mod.EXCID != Symbol()
-                        cfg.exchange = mod.EXCID
-                    else
-                        error(
-                            "loading: exchange not specified (neither in strategy nor in config)",
-                        )
-                    end
-                end
-                try
-                    if hasproperty(mod, :EXCID) && mod.EXCID != cfg.exchange
-                        @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
-                    end
-                    mod.SC{ExchangeID{cfg.exchange}}
-                catch
-                    error(
-                        "loading: strategy main type `S` or `SC` not defined in strategy module.",
-                    )
-                end
+function _strategy_type(mod, cfg)
+    s_type = try
+        mod.S
+    catch
+        if cfg.exchange == Symbol()
+            if hasproperty(mod, :EXCID) && mod.EXCID != Symbol()
+                cfg.exchange = mod.EXCID
+            else
+                error("loading: exchange not specified (neither in strategy nor in config)")
             end
-            mode_type = s_type{typeof(cfg.mode)}
-            margin_type = _concrete(mode_type, typeof(cfg.margin))
-            _concrete(margin_type, typeof(cfg.qc))
         end
+        try
+            if hasproperty(mod, :EXCID) && mod.EXCID != cfg.exchange
+                @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
+            end
+            mod.SC{ExchangeID{cfg.exchange}}
+        catch
+            error("loading: strategy main type `S` or `SC` not defined in strategy module.")
+        end
+    end
+    mode_type = s_type{typeof(cfg.mode)}
+    margin_type = _concrete(mode_type, typeof(cfg.margin))
+    _concrete(margin_type, typeof(cfg.qc))
+end
+function strategy!(mod::Module, cfg::Config)
+    if isnothing(cfg.mode)
+        cfg.mode = Sim()
+    end
+    def_mm = _defined_marginmode(mod)
+    if isnothing(cfg.margin)
+        cfg.margin = def_mm
+    elseif def_mm != cfg.margin
+        @warn "Mismatching margin mode" config = cfg.margin strategy = def_mm
+    end
+    s_type = _strategy_type(mod, cfg)
     strat_exc = nameof(exchangeid(s_type))
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
@@ -147,12 +153,6 @@ function strategy!(mod::Module, cfg::Config)
         if strat_exc == Symbol()
             @warn "Strategy exchange unset"
         end
-    end
-    def_mm = _defined_marginmode(mod)
-    if isnothing(cfg.margin)
-        cfg.margin = def_mm
-    elseif def_mm != cfg.margin
-        @warn "Mismatching margin mode" config = cfg.margin strategy = def_mm
     end
     if cfg.min_timeframe == tf"0s" # any zero tf should match
         cfg.min_timeframe = tf"1m" # default to 1 minute timeframe

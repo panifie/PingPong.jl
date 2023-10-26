@@ -110,6 +110,7 @@ macro strategyenv!()
         using .inst: ishedged, cash, committed, instance, isdust, nondust
         using .pp.Engine.LiveMode: updated_at!
         using .Instruments: compactnum
+        using .Lang: @m_str
 
         using .ect: OptSetup, OptRun, OptScore
         using .ect: NewTrade
