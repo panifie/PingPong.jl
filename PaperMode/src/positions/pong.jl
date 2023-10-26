@@ -1,6 +1,6 @@
 using .st: IsolatedStrategy
 
-using Executors: AnyMarketOrder
+using .Executors: AnyMarketOrder
 using SimMode: position!
 
 @doc """"Creates a paper market order, updating a levarged position.

@@ -1,6 +1,6 @@
 using .Lang: @preset, @precomp
 @preset let
-    using Stubs
+    using Stats.Stubs
     s = Stubs.stub_strategy()
     ai = first(s.universe)
     ohlcv_1d = resample(ai.ohlcv, tf"1d")

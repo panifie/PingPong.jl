@@ -1,9 +1,9 @@
-using Data: Candle, empty_ohlcv
-using Exchanges
-using Misc: Iterable
-using Processing.TradesOHLCV
-using Processing: trail!
-using Python
+using ..Data: Candle, empty_ohlcv
+using ..Fetch.Exchanges
+using ..Misc: Iterable
+using ..Fetch.Processing.TradesOHLCV
+using ..Fetch.Processing: trail!
+using ..Fetch.Python
 
 const CcxtOHLCVVal = Val{:ccxt_ohlcv}
 

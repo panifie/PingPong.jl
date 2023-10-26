@@ -1,22 +1,22 @@
 using SimMode
-using Executors
+using SimMode.Executors
 using Base: SimpleLogger, with_logger
-using Executors: orders, orderscount
-using Executors.OrderTypes
-using Executors.TimeTicks
-using Executors.Instances
-using Executors.Misc
-using Executors.Instruments: compactnum as cnum
+using .Executors: orders, orderscount
+using .Executors.OrderTypes
+using .Executors.TimeTicks
+using .Executors.Instances
+using .Executors.Misc
+using .Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
 using .Misc.Lang: @lget!, @deassert, Option, @logerror, @debug_backtrace
-using Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
-using Executors.Strategies
+using .Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
+using .Executors.Strategies
 using .Instances: MarginInstance
 using .Instances.Exchanges: CcxtTrade
 using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
-import Executors: pong!
+import .Executors: pong!
 using Fetch: Fetch, pytofloat
 import .Misc: start!, stop!, isrunning
 

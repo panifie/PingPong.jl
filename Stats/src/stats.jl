@@ -1,19 +1,20 @@
-using Engine: Engine as egn
-using Engine.Strategies: Strategies as st, Strategy
-using .egn.Processing: normalize!, resample
-using .egn.Instances
-using .egn.OrderTypes
-using .egn.Simulations
+using Executors: Executors as ect
+using Executors.Strategies: Strategies as st, Strategy
+using .ect.Instances
+using .ect.OrderTypes
+using Simulations
+using Simulations.Processing: normalize!, resample
+using Simulations: Statistics
 
-using .egn.Data
+using .st.Data
 using .Data.DFUtils
 using .Data.DataFramesMeta
 using .Data.DataFrames
 
-using .egn.TimeTicks
-using .egn.Lang
-using Statistics
-using Statistics: median
+using .ect.TimeTicks
+using .ect.Lang
+using .Statistics
+using .Statistics: median
 
 __revise_mode__ = :eval
 include("trades_resample.jl")

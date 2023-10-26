@@ -1,22 +1,22 @@
 module Example
 
-using Engine.Misc
-using Engine.TimeTicks
-using Engine.Instances.Instruments
-using Engine.Exchanges.ExchangeTypes
-using Data
-using Data.DFUtils
-using Data.DataFrames
+using ..Stubs.Misc
+using ..Stubs.TimeTicks
+using ..Data
+using ..Data.DFUtils
+using ..Data.DataFrames
 
-using Engine.Strategies
-using Engine: Strategies as st
-using Engine.Instances: Instances as inst
-using Engine.Executors
-using Engine.Executors: Executors as ect
-using Engine.OrderTypes
-using Engine.OrderTypes: BySide, ByPos
+using ..Strategies
+using .Strategies.Instances.Instruments
+using .Strategies: Strategies as st
+using .Strategies.Exchanges.ExchangeTypes
+using .Strategies: Instances as inst
+using ..SimMode.Executors
+using .Executors: Executors as ect
+using .Strategies.OrderTypes
+using .OrderTypes: BySide, ByPos
 
-using Lang
+using ..Lang
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
@@ -35,9 +35,11 @@ function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function ping!(::Type{<:S}, config, ::LoadStrategy)
+function ping!(t::Type{<:S}, config, ::LoadStrategy)
     syms = ping!(S, StrategyMarkets())
-    s = Strategy(Example, syms; load_data=false, config)
+    exc = st.Exchanges.getexchange!(config.exchange; sandbox=true)
+    uni = st.AssetCollection(syms; load_data=false, timeframe=TF, exc, config.margin)
+    s = Strategy(Example, config.mode, config.margin, TF, exc, uni; config)
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
     s

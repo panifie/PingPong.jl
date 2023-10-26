@@ -15,16 +15,17 @@ using ..Scrapers:
     cleanup_ohlcv_data,
     mergechunks,
     @fromassets
-using Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
-using Data.DataFrames
-using Pbar
-using EzXML: EzXML as ez
+using ..Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
+using ..Data.DataFrames
+using ..Pbar
 using Instruments
+using ..Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
+using ..TimeTicks
+
+using EzXML: EzXML as ez
 using URIs
 using HTTP
 using CodecZlib: CodecZlib as zlib
-using Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
-using TimeTicks
 
 const BASE_URL = URI("https://data.binance.vision")
 

@@ -1,4 +1,4 @@
-import Executors: aftertrade!
+import .Executors: aftertrade!
 
 @doc "Cancel an order in PaperMode with given error."
 function Executors.cancel!(s::Strategy{Paper}, o::Order, ai::T; err::OrderError) where {T}

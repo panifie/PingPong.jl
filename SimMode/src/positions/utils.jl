@@ -1,13 +1,13 @@
-using OrderTypes.ExchangeTypes: ExchangeID
-using OrderTypes: PositionSide, PositionTrade, LiquidationType, ForcedOrder
-using Strategies.Instruments.Derivatives: Derivative
+using .OrderTypes.ExchangeTypes: ExchangeID
+using .OrderTypes: PositionSide, PositionTrade, LiquidationType, ForcedOrder
+using .Strategies.Instruments.Derivatives: Derivative
 using Executors.Instances: leverage_tiers, tier, position
 import Executors.Instances: Position, MarginInstance
 using Executors: withtrade!, maintenance!, orders, isliquidatable
-using Strategies: IsolatedStrategy, MarginStrategy, exchangeid
+using .Strategies: IsolatedStrategy, MarginStrategy, exchangeid
 using .Instances: PositionOpen, PositionUpdate, PositionClose
 using .Instances: margin, maintenance, status, posside
-using Misc: DFT
+using .Misc: DFT
 import Executors: position!
 
 function open_position!(

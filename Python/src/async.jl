@@ -1,7 +1,6 @@
 using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert, pyisTrue
 using Dates: Period, Second
-using ThreadPools: @tspawnat
 using Mocking: @mock, Mocking
 
 """

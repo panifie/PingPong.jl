@@ -1,6 +1,6 @@
-using OrderTypes: MarketOrderType, ExchangeID, PositionSide, PositionTrade
+using .OrderTypes: MarketOrderType, ExchangeID, PositionSide, PositionTrade
 using Base: negate
-import Instruments: cash!
+import .Instruments: cash!
 
 function marketorder(
     s::Strategy,

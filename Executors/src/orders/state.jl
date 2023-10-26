@@ -1,16 +1,16 @@
-using Lang: @deassert, @lget!, Option, @ifdebug
-using OrderTypes: ExchangeID
-import OrderTypes: commit!, positionside, LiquidationType, trades
+using .Lang: @deassert, @lget!, Option, @ifdebug
+using .OrderTypes: ExchangeID
+import .OrderTypes: commit!, positionside, LiquidationType, trades
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
-using Instances: notional, pnl, Instances
-import Instances: committed
-using Misc: Short, DFT, toprecision
-using Instruments
-using Instruments: @importcash!, AbstractAsset
+using .Instances: notional, pnl, Instances
+import .Instances: committed
+using .Misc: Short, DFT, toprecision
+using .Instruments
+using .Instruments: @importcash!, AbstractAsset
 import .Checks: cost
 @importcash!
 import Base: fill!
-import Misc: reset!, attr
+import .Misc: reset!, attr
 
 ##  committed::DFT # committed is `cost + fees` for buying or `amount` for selling
 const _BasicOrderState{T} = NamedTuple{

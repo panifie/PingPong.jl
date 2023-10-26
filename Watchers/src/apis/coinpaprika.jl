@@ -3,10 +3,10 @@ using Watchers
 using HTTP
 using URIs
 using LazyJSON
-using Data: Candle
-using Misc: Config, config, queryfromstruct
-using Lang: Option, @kget!
-using TimeTicks
+using ..Data: Candle
+using ..Misc: Config, config, queryfromstruct
+using ..Lang: Option, @kget!
+using ..TimeTicks
 
 API_URL = "https://api.coinpaprika.com/"
 API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]

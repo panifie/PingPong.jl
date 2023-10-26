@@ -1,5 +1,5 @@
 module TradesOHLCV
-using Misc.TimeTicks
+using ..Misc.TimeTicks
 using Data.DataFrames
 using ..Processing: isincomplete
 

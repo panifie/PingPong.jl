@@ -112,7 +112,7 @@ from_to_dt(tf::TimeFrame, args...) = from_to_dt(tf.period, args...)
 
 Base.Broadcast.broadcastable(tf::TimeFrame) = Ref(tf)
 # dateformat with millis at the end "sss"
-function convert(::Type{DateTime}, s::T where {T<:AbstractString})
+function convert(::Type{DateTime}, s::AbstractString)
     DateTime(s, dateformat"yyyy-mm-dd\THH:MM:SS.sss")
 end
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
@@ -145,7 +145,7 @@ function Base.nameof(tf::TimeFrame)
 end
 
 const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
-convert(::Type{String}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
+convert(::Type{<:AbstractString}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
 Base.string(tf::TimeFrame) = convert(String, tf)
 ms(tf::TimeFrame) = Millisecond(period(tf))
 ms(prd::Period) = Millisecond(prd)

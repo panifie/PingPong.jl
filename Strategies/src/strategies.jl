@@ -1,24 +1,24 @@
-using Collections: AssetCollection, Collections as coll
+using Collections: AssetCollection, Collections as coll, Instances, Data
 
-using Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged, Instances
-using Instances: CurrencyCash, CCash
-using Instances.Exchanges
-using OrderTypes:
-    OrderTypes, Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
-using OrderTypes: OrderError, StrategyEvent
-using TimeTicks
-using Instruments
-using Instruments: AbstractAsset, Cash, cash!, Derivatives.Derivative
+using .Instances: AssetInstance, Position, MarginMode, PositionSide, ishedged, Instances
+using .Instances: CurrencyCash, CCash
+using .Instances.Exchanges
+using .Instances: OrderTypes
+using .OrderTypes: Order, OrderType, AnyBuyOrder, AnySellOrder, Buy, Sell, OrderSide
+using .OrderTypes: OrderError, StrategyEvent, Instruments
+using .Instruments: AbstractAsset, Cash, cash!, Derivatives.Derivative
 
-import Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
-using Data.DataFrames: nrow
-using Data.DataStructures: SortedDict, Ordering
-import Data.DataStructures: lt
-using Data: closelast
-using Misc
-using Misc: DFT, IsolatedMargin
-import Misc: reset!, Long, Short, attrs
-using Lang: @lget!
+import .Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
+using .Data: Misc
+using .Data.DataFrames: nrow
+using .Data.DataStructures: SortedDict, Ordering
+import .Data.DataStructures: lt
+using .Data: closelast
+using .Misc
+using .Misc: DFT, IsolatedMargin, TimeTicks, Lang
+import .Misc: reset!, Long, Short, attrs
+using .TimeTicks
+using .Lang: @lget!
 using Pkg: Pkg
 
 abstract type AbstractStrategy end
@@ -81,7 +81,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         timeframe::TimeFrame,
         exc::Exchange,
         uni::AssetCollection;
-        config::Config,
+        config::Config
     )
         @assert !ishedged(margin) "Hedged margin not yet supported."
         ca = CurrencyCash(exc, config.qc, config.initial_cash)

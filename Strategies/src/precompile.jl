@@ -1,4 +1,4 @@
-using Lang: @preset, @precomp
+using .Lang: @preset, @precomp
 
 module BareStrat
 using ..Strategies
@@ -7,7 +7,8 @@ using ..ExchangeTypes.Ccxt: ccxt_exchange
 using ..TimeTicks
 using ..Strategies: AssetCollection
 import .Strategies: ping!
-using Misc: Sim, NoMargin
+using ..Misc: Sim, NoMargin
+
 const DESCRIPTION = "BaseStrat"
 const EXCID = ExchangeTypes.ExchangeID(:bybit)
 const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}

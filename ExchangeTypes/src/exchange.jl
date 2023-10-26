@@ -1,5 +1,5 @@
-using Python: pyschedule, pywait_fut, Python, pyisinstance, pygetattr, @pystr
-using Lang: @lget!
+using .Python: pyschedule, pywait_fut, Python, pyisinstance, pygetattr, @pystr
+using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
 using Mocking: @mock, Mocking
 using OrderedCollections: OrderedSet

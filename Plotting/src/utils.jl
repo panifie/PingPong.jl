@@ -1,4 +1,4 @@
-using .egn.Instruments: compactnum as cn
+using .ect.Instruments: compactnum as cn
 
 makefig() = begin
     Figure(; resolution=(1900, 900))

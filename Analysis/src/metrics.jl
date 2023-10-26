@@ -1,9 +1,9 @@
 using Indicators: Indicators;
 const ind = Indicators;
 using Data.DataFramesMeta
-using Misc: config
+using .Misc: config
 using Data: @to_mat, PairData
-using Lang
+using .Misc.Lang
 
 function maxmin(df; order=1, threshold=0.0, window=100)
     df[!, :maxima] .= NaN

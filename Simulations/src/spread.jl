@@ -1,9 +1,10 @@
 using .Lang
-using Misc.TimeTicks
 using Instances
 using Statistics: cov, mean
 using Data.DFUtils
-using Instruments
+using Instances.Instruments
+using .Instruments.Misc
+using .Misc.TimeTicks
 
 function skewed_spread(high, low, close, volume, wnd, ofs)
     spread = spread(high, low, close)

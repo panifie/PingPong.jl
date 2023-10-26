@@ -1,5 +1,5 @@
-using Instances: ispos
-using OrderTypes: ByPos
+using .Instances: ispos
+using .OrderTypes: ByPos
 
 function orders(s::Strategy, ai, pos::PositionSide, os::Type{<:OrderSide})
     ((k, v) for (k, v) in orders(s, ai, os) if ispos(pos, v))

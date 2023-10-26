@@ -1,12 +1,13 @@
-using Python
-using TimeTicks
-using DataStructures
-using DataStructures: CircularBuffer
-using Misc
-using Data
-using Data: rangeafter
-using Lang: Option, safewait, safenotify, @lget!
-using Processing.DataFrames: DataFrame
+using Fetch: Fetch
+using Fetch.Data
+using Fetch.Python
+using Fetch.Misc
+using .Data: rangeafter
+using .Data.DataStructures: CircularBuffer
+using .Data.DataFrames: DataFrame
+using .Misc
+using .Misc.TimeTicks
+using .Misc.Lang: Option, safewait, safenotify, @lget!, Lang
 using Base.Threads: @spawn
 
 function _tryfetch(w)::Bool

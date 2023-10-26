@@ -6,7 +6,6 @@ using TimeTicks: Lang
 using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
 using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
-using ThreadPools: ThreadPools, @tspawnat
 using Mocking: Mocking
 
 include("defs.jl")
@@ -26,4 +25,4 @@ _doinit() = begin
     isdefined(Misc, :config) && reset!(config)
 end
 
-export results, @tspawnat, @bsync
+export results

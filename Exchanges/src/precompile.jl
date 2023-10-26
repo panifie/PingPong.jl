@@ -1,8 +1,7 @@
-using Lang: wait, @preset, @precomp
+using .Misc.Lang: wait, @preset, @precomp
 
 @preset let
     id = :okx
-    using Python: Python
     @assert Python.isinitialized_async(Python.gpa)
     @precomp let
         getexchange!(id; markets=:force).py

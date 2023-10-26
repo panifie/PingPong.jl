@@ -6,7 +6,6 @@ version = "0.2.0"
 [deps]
 Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
-MarginStrat = "a570de0d-dcd1-4193-9bfa-573a4c9cd494"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"

@@ -1,20 +1,23 @@
 using Instances
+using Instances.Exchanges.ExchangeTypes
+using Instances: OrderTypes, Data, Instruments
 using Instances: NoMarginInstance, MarginInstance
 
-using Data.DataFrames
-using Data.DataFramesMeta
-using Data: load, zi, empty_ohlcv
-using Data.DFUtils
-using Data.DataStructures: SortedDict
+using .Data.DataFrames
+using .Data.DataFramesMeta
+using .Data: load, zi, empty_ohlcv
+using .Data.DFUtils
+using .Data.DataStructures: SortedDict
 
-using ExchangeTypes
-using Instruments: fiatnames, AbstractAsset, Asset, AbstractCash, compactnum as cnum
-using Instruments.Derivatives
-using TimeTicks
-using Misc: Iterable, swapkeys, MarginMode
-using Lang: @lget!, MatchString
+using .Instruments: fiatnames, AbstractAsset, Asset, AbstractCash, compactnum as cnum
+using .Instruments.Derivatives
+using .Instruments: Misc
+using .Misc: TimeTicks, Lang
+using .TimeTicks
+using .Misc: Iterable, swapkeys, MarginMode
+using .Lang: @lget!, MatchString
 using Base.Enums: namemap
-using Misc: OrderedDict, OrderedCollections
+using .Misc: OrderedDict, OrderedCollections
 
 # TYPENUM
 @doc "A collection of assets instances, indexed by asset and exchange identifiers."
@@ -76,7 +79,7 @@ if !isdefined(@__MODULE__, :AssetCollectionRow)
     }
 end
 
-using Instruments: isbase, isquote
+using .Instruments: isbase, isquote
 function Base.getindex(ac::AssetCollection, i::ExchangeID, col=Colon())
     @view ac.data[ac.data.exchange .== i, col]
 end

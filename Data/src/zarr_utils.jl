@@ -1,9 +1,9 @@
 using Reexport
 @reexport using Zarr
 using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub, ZArray
-using TimeTicks
+using .TimeTicks
 using Misc: DATA_PATH, isdirempty
-using Lang: @lget!, Option
+using .Lang: @lget!, Option
 import Base: delete!, isempty, empty!
 
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)

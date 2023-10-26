@@ -1,4 +1,4 @@
-using OrderTypes: OrderError
+using .OrderTypes: OrderError
 
 ## Strategy interface
 @doc "Called on each timestep iteration, possible multiple times.

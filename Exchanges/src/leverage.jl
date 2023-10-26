@@ -1,8 +1,8 @@
-using Python: PyException, pyisTrue, pygetitem, pyeq, @py, pyfetch_timeout
+using .Python: PyException, pyisTrue, pygetitem, pyeq, @py, pyfetch_timeout
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
-using Misc: IsolatedMargin, CrossMargin
+using .Misc: IsolatedMargin, CrossMargin
 
 # TODO: export to livemode
 resp_code(resp, ::Type{ExchangeID}) = pygetitem(resp, @pyconst("code"), @pyconst(""))

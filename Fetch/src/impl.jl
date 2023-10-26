@@ -9,10 +9,10 @@ using Exchanges:
     save_ohlcv,
     to_float
 using Exchanges.Ccxt
-using Pbar
-using Python
-using Python: pylist_to_matrix, py_except_name, pytofloat
-using Processing: cleanup_ohlcv_data, islast, resample
+using Exchanges.Python
+using Processing: cleanup_ohlcv_data, islast, resample, Processing
+using Processing.Pbar
+using .Python: pylist_to_matrix, py_except_name, pytofloat
 using Exchanges.Data:
     Data,
     load,

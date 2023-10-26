@@ -1,10 +1,10 @@
-using Lang: @lget!, @deassert, MatchString
-import Instances.ExchangeTypes: exchangeid, exchange
-import Instances.Exchanges: marketsid
-import Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
-using Misc: attr, setattr!
-import Misc: marginmode
-using OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
+using .Lang: @lget!, @deassert, MatchString
+import .Instances.ExchangeTypes: exchangeid, exchange
+import .Instances.Exchanges: marketsid
+import .Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
+using .Misc: attr, setattr!
+import .Misc: marginmode
+using .OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
 marketsid(t::Type{<:Strategy}) = invokelatest(ping!, t, StrategyMarkets())
 marketsid(s::Strategy) = ping!(typeof(s), StrategyMarkets())

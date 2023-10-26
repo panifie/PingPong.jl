@@ -1,4 +1,4 @@
-using Instruments.Derivatives
+using ..Fetch.Instruments.Derivatives
 
 CgSymDerivative = @NamedTuple begin
     symbol::Symbol

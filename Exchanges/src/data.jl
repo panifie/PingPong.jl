@@ -1,6 +1,6 @@
 import Data: load_ohlcv, save_ohlcv
 using Data: zi, PairData, ZarrInstance
-using Misc: config, Iterable
+using .Misc: config, Iterable
 
 @doc "Loads all pairs for given exc/timeframe matching global `config` and `zi` (`ZarrInstance`)."
 function load_ohlcv(exc::Exchange, timeframe::AbstractString; kwargs...)

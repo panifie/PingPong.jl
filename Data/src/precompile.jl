@@ -1,7 +1,7 @@
-using Lang: @preset, @precomp
+using .Lang: @preset, @precomp
 
 @preset begin
-    using Lang: Logging
+    using .Lang: Logging
     @precomp begin
         ZarrInstance()
         zilmdb()

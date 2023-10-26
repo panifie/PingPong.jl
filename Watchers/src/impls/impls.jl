@@ -1,8 +1,8 @@
 module WatchersImpls
 using LazyJSON
-using Lang: @lget!, @kget!, fromdict, Option
-using TimeTicks
-using Misc
+using ..Lang: @lget!, @kget!, fromdict, Option
+using ..TimeTicks
+using ..Misc
 using ..Watchers
 import ..Watchers:
     _fetch!,
@@ -16,10 +16,10 @@ import ..Watchers:
     _start!,
     _stop!,
     _delete!
-using Data
-using Data.DFUtils: appendmax!, prependmax!, pushmax!
-using Data.DataFrames
-using Processing
+using ..Data
+using ..Data.DFUtils: appendmax!, prependmax!, pushmax!
+using ..Data.DataFrames
+using ..Fetch.Processing
 using Base: Semaphore
 
 using ..CoinGecko: CoinGecko

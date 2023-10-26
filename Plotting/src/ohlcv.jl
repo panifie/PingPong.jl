@@ -1,9 +1,10 @@
-using .egn.TimeTicks
-using .egn.Data.DataFrames
-using .egn.Data.DFUtils
-using .egn.Data: AbstractDataFrame
-using .egn.Data.DataFramesMeta
-using .egn.Processing: resample
+using .ect.TimeTicks
+using .ect.Strategies.Data
+using .Data.DataFrames
+using .Data.DFUtils
+using .Data: AbstractDataFrame
+using .Data.DataFramesMeta
+using Processing: resample
 
 maybe_asset(a) = isnothing(a) ? "" : "Asset: $(a)\n"
 function candle_str(row, asset=nothing)

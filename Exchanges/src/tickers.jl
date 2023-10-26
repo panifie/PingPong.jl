@@ -1,8 +1,8 @@
-using Lang: @get, @multiget, @lget!, Option
-using Misc: config, NoMargin, DFT
-using Misc.ConcurrentCollections: ConcurrentDict
+using .Misc.Lang: @get, @multiget, @lget!, Option
+using .Misc: config, NoMargin, DFT
+using .Misc.ConcurrentCollections: ConcurrentDict
 using Instruments: isfiatquote, spotpair
-using Python: @pystr, @pyconst, pyfetch_timeout
+using .Python: @pystr, @pyconst, pyfetch_timeout
 using ExchangeTypes: decimal_to_size
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.

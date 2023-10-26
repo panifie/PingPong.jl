@@ -5,7 +5,4 @@ version = "0.1.0"
 
 [deps]
 Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
-Pbar = "7aed521b-3ea6-427a-8031-5ecc7305f19e"
 Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
-Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
-Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"

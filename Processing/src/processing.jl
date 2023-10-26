@@ -1,4 +1,5 @@
-using Misc: Lang, TimeTicks
+using Data: Misc, Data
+using .Misc: Lang, TimeTicks
 using .TimeTicks
 using .Lang: @preset, @precomp
 

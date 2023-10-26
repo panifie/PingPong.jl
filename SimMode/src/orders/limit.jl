@@ -1,11 +1,11 @@
 using .Lang: @deassert, @posassert, Lang, @ifdebug
-using OrderTypes
+using .OrderTypes
 using Executors.Checks: cost, withfees
 using Executors: AnyFOKOrder, AnyIOCOrder, AnyGTCOrder
 import Executors: priceat, unfilled, isqueued
-import OrderTypes: order!, FOKOrderType, IOCOrderType
+import .OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sim
-using Strategies: Strategies as st
+using .Strategies: Strategies as st
 
 function create_sim_limit_order(s, t, ai; amount, skipcommit=false, kwargs...)
     o = limitorder(s, ai, amount; type=t, skipcommit, kwargs...)

@@ -1,6 +1,6 @@
 using Zarr: Zarr as za;
 using LMDB: LMDB as lm;
-using Lang: @lget!
+using .Lang: @lget!
 
 const MB = 1024 * 1024
 struct LMDBDictStore <: za.AbstractDictStore

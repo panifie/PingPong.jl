@@ -5,11 +5,4 @@ version = "0.1.0"
 
 [deps]
 Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
-Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-Instances = "36291b3f-06ca-4570-b5b6-65fb8ed80b61"
-Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
-Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-OrderTypes = "fba5cb4a-2089-4510-9d41-52be7ff19328"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"

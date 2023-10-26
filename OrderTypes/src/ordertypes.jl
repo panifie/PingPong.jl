@@ -1,13 +1,12 @@
 using ExchangeTypes
 import ExchangeTypes: exchangeid
 using Instruments
-using Data: Candle
+using Instruments: Misc
 import Base: ==
 
-using Misc: config, PositionSide, Long, Short
-import Misc: opposite
-using TimeTicks
-using Lang: Lang
+using .Misc: config, PositionSide, Long, Short, TimeTicks, Lang
+import .Misc: opposite
+using .TimeTicks
 
 abstract type ExchangeEvent{E} end
 abstract type AssetEvent{E} <: ExchangeEvent{E} end

@@ -4,11 +4,11 @@ using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
 using Executors.Instances: NoMarginInstance, Instances as inst, price
-using Strategies: lowat, highat, closeat, openat, volumeat
-using Strategies: IsolatedStrategy, NoMarginStrategy
-using OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
-using OrderTypes: OrderTypes as ot, PositionSide
-import Strategies: ping!
+using .Strategies: lowat, highat, closeat, openat, volumeat
+using .Strategies: IsolatedStrategy, NoMarginStrategy
+using .OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
+using .OrderTypes: OrderTypes as ot, PositionSide
+import .Strategies: ping!
 
 include("orders/slippage.jl")
 

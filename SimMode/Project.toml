@@ -5,10 +5,4 @@ version = "0.1.0"
 
 [deps]
 Executors = "8d044263-b64b-4593-bc6a-15d2ec3d7aea"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
-Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-OrderTypes = "fba5cb4a-2089-4510-9d41-52be7ff19328"
-Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
 Simulations = "a69aad36-f532-4133-ba48-77171b778e6d"
-Strategies = "7a1c9c3a-7759-4314-aa2e-fd1262f248b0"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"

@@ -3,8 +3,8 @@ using Watchers
 using HTTP
 using URIs
 using LazyJSON
-using Misc: Config, config, queryfromstruct
-using Lang: Option
+using ..Misc: Config, config, queryfromstruct
+using ..Lang: Option
 
 const API_HEADER = "X-CMC_PRO_API_KEY"
 const API_URL = "https://pro-api.coinmarketcap.com"

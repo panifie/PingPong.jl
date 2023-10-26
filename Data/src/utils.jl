@@ -1,5 +1,5 @@
 using Serialization
-using Lang
+using .Lang
 
 # Required by external modules
 using DataStructures: DataStructures

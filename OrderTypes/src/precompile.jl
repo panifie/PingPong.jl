@@ -1,4 +1,4 @@
-using Lang: @preset, @precomp
+using .Lang: @preset, @precomp
 
 @preset let
     a = Instruments.parse(Asset, "BTC/USDT")

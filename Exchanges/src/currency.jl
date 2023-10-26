@@ -1,11 +1,10 @@
-using Misc: MM, toprecision, DFT
-using Python: pybuiltins, pyisinstance
-using Python.PythonCall: pyfloat, pyint
-using Instruments: AbstractCash, atleast!
+using .Misc: MM, toprecision, DFT
+using .Python: pybuiltins, pyisinstance, pyfloat, pyint
+using .Instruments: AbstractCash, atleast!
 import Instruments: value, addzero!
 Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
-import Misc: gtxzero, ltxzero, approxzero, ZERO
+import .Misc: gtxzero, ltxzero, approxzero, ZERO
 
 const currenciesCache1Hour = safettl(ExchangeID, Py, Hour(1))
 const currency_lock = ReentrantLock()

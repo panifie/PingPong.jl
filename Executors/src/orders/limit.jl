@@ -1,11 +1,11 @@
-using Instances
-import Instances: committed, PositionOpen, PositionClose
-using OrderTypes:
+using .Instances
+import .Instances: committed, PositionOpen, PositionClose
+using .OrderTypes:
     LimitOrderType, PositionSide, ExchangeID, ShortSellOrder, FOKOrderType, IOCOrderType
 using Strategies: NoMarginStrategy
 using Base: negate
-using Misc: Long, Short
-using Lang: @ifdebug
+using .Misc: Long, Short
+using .Lang: @ifdebug
 import Base: fill!
 
 const IncreaseLimitOrder{A,E} = Union{LimitOrder{Buy,A,E},ShortLimitOrder{Sell,A,E}}

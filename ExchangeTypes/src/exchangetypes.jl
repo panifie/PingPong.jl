@@ -1,8 +1,8 @@
 using Ccxt
-using Python: Py, pybuiltins, pyconvert, Python, pyhasattr, pygetattr
-using Python.PythonCall: pyisnone, pyisnull
+using Ccxt: Python
+using .Python: Py, pybuiltins, pyconvert, pyhasattr, pygetattr, pyisnone, pyisnull
 using FunctionalCollections
-using Lang: Option, waitfunc
+using Ccxt.Misc.Lang: Option, waitfunc
 
 include("exchangeid.jl")
 include("exchange.jl")

@@ -1,4 +1,4 @@
-using OrderTypes: LimitOrderType, ordertype
+using .OrderTypes: LimitOrderType, ordertype
 
 const CTR = Ref(0)
 const CTO = Ref(0)

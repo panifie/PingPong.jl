@@ -1,4 +1,3 @@
-
 # TYPENUM
 mutable struct Stoploss3{T}
     const minloss::T
@@ -19,7 +18,7 @@ mutable struct Stoploss3{T}
 end
 Stoploss = Stoploss3
 
-stop!(stop::Stoploss, loss) = begin
+stoploss!(stop::Stoploss, loss) = begin
     loss = clamp(loss, stop.minloss, stop.maxloss)
     stop.loss = loss
     stop.loss_target = 1 - loss

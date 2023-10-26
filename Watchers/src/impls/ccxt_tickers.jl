@@ -1,7 +1,7 @@
-using Exchanges
-using Exchanges.Ccxt: choosefunc
-using Python
-using Python.PythonCall: pyisnone
+using ..Fetch.Exchanges
+using .Exchanges.Ccxt: choosefunc
+using ..Python
+using .Python: pyisnone
 
 const CcxtTickerVal = Val{:ccxt_ticker}
 const CcxtTicker = @NamedTuple begin

@@ -2,7 +2,7 @@
 module Cache
 using ..Data: tobytes, todata
 using CodecZlib
-using TimeTicks
+using ..TimeTicks
 using Misc: local_dir
 const CACHE_PATH = Ref(local_dir("cache"))
 

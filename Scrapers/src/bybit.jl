@@ -1,15 +1,15 @@
 @doc "Downloads bybit trading data archives converts it to ohlcv and stores it locally."
 module BybitData
 
-using Data.DataFrames
-using Pbar
+using ..Data.DataFrames
+using ..Pbar
 using EzXML
 using URIs
 using HTTP
-using Data: DataFrame, zi
-using Data: save_ohlcv, Cache as ca, load_ohlcv
-using TimeTicks
-using Lang
+using ..Data: DataFrame, zi
+using ..Data: save_ohlcv, Cache as ca, load_ohlcv
+using ..TimeTicks
+using ..Lang
 using ..Scrapers:
     selectsyms,
     timeframe!,

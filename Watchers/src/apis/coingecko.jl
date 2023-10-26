@@ -1,16 +1,15 @@
 module CoinGecko
-using Base: unconstrain_vararg_length
 using HTTP
 using URIs
 using Watchers
 using LazyJSON
-using Lang: @kget!, Option
-using Misc
-using Misc.TimeToLive
-using TimeTicks
-using TimeTicks: timestamp
-using Instruments
-using Instruments.Derivatives
+using ..Lang: @kget!, Option
+using ..Misc
+using ..Misc.TimeToLive
+using ..TimeTicks
+using ..TimeTicks: timestamp
+using ..Fetch.Instruments
+using .Instruments.Derivatives
 
 const API_URL = "https://api.coingecko.com"
 const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]

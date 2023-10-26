@@ -1,9 +1,9 @@
-using Engine: DFT
-using Engine.OrderTypes: Order
-using Engine.Instances: pnl
-using Engine.Strategies: NoMarginStrategy, MarginStrategy
-using Engine.Misc: MarginMode, NoMargin, WithMargin, marginmode
-using Engine.Lang: @ifdebug
+using .ect: DFT
+using .ect.OrderTypes: Order
+using .ect.Instances: pnl
+using .ect.Strategies: NoMarginStrategy, MarginStrategy
+using .ect.Misc: MarginMode, NoMargin, WithMargin, marginmode
+using .ect.Lang: @ifdebug
 
 # Use a generic Order instead to avoid the dataframe creating a too concrete order vector
 TradesTuple2 = NamedTuple{

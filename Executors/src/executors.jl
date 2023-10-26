@@ -1,7 +1,10 @@
-using TimeTicks
-using Misc
-using OrderTypes
+
 using Strategies: Strategies
+using Strategies.OrderTypes
+using Strategies: Instances, Instruments
+using Strategies.Misc
+using .Misc.TimeTicks
+using .Misc: Lang
 
 include("context.jl")
 include("checks.jl")
@@ -28,13 +31,13 @@ struct UpdateMargin <: ExecAction end # not impl
 struct NewTrade <: ExecAction end
 
 struct WatchOHLCV <: ExecAction end
-struct UpdateData <:ExecAction end
-struct InitData <:ExecAction end
+struct UpdateData <: ExecAction end
+struct InitData <: ExecAction end
 
-struct OptSetup <:ExecAction end
-struct OptRun <:ExecAction end
-struct OptScore <:ExecAction end
-struct OptGrid <:ExecAction end
+struct OptSetup <: ExecAction end
+struct OptRun <: ExecAction end
+struct OptScore <: ExecAction end
+struct OptGrid <: ExecAction end
 
 export pong!, UpdateOrders, UpdateOrdersShuffled, CancelOrders
 export UpdateLeverage, UpdateMargin, UpdatePositions

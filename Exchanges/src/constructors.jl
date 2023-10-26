@@ -4,19 +4,20 @@ using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
 @reexport using ExchangeTypes
-using ExchangeTypes: OptionsDict, exc, CcxtExchange
-using Ccxt: Ccxt, ccxt_exchange, choosefunc
-using Python: Py, pyconvert, pyfetch, PyDict, PyList, pydict, pyimport, @pystr, @pyconst
-using Python.PythonCall: pyisnone
+using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
+using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
+using .Python: pyfetch, @pystr
+using .Python: Py, pyconvert, PyDict, PyList, pydict, pyimport, pyisnone, @pyconst
 using Data: Data, DataFrame
 using Pbar.Term: RGB, tprint
 using JSON
-using TimeTicks
 using Instruments
-using Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict
-using Misc.OrderedCollections: OrderedSet
-using Misc.TimeToLive
-using Lang: @lget!
+using Instruments: Misc
+using .Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict
+using .Misc.OrderedCollections: OrderedSet
+using .Misc.TimeToLive
+using .Misc.TimeTicks
+using .Misc.Lang: @lget!
 
 const exclock = ReentrantLock()
 const tickers_cache = safettl(Tuple{String,Symbol}, Dict, Minute(100))

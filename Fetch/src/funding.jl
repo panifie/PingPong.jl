@@ -5,7 +5,7 @@ using .Misc.TimeToLive
 using .Misc.Lang: @lget!
 using .Instruments.Derivatives
 using Exchanges: exc
-using Python: PyDict
+using .Python: PyDict
 using Processing: _fill_missing_candles
 
 @doc """Retrieves all funding data return by exchange for symbol, or a subset.

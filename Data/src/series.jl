@@ -1,5 +1,5 @@
 using .Data: @to_mat
-using Lang: @ifdebug
+using .Lang: @ifdebug
 
 function _check_size(data, arr::ZArray)
     if arr.storage isa LMDBDictStore

@@ -1,16 +1,15 @@
-using Engine: SimMode
-using Engine.TimeTicks
-using Engine.Misc
-using Engine.Simulations: Simulations as sim
-using Engine.Strategies
-using Exchanges: Exchanges as exs, Instruments as im
-using Data: Data as da
-using Data.DataFrames: DataFrame
-using Data: Cache as ca
-import Data: stub!
+using SimMode
+using SimMode: Misc, Strategies, sim
+using .Strategies
+using .Strategies.Exchanges: Exchanges as exs, Instruments as im, Data
+using .Misc
+using .Misc.TimeTicks
+using .Misc.Lang
+using .Data: Data as da, Cache as ca
+using .Data.DataFrames: DataFrame
+import .Data: stub!
 using CSV: CSV as CSV
 using Pkg: Pkg
-using Lang
 
 const PROJECT_PATH = dirname(@something Base.ACTIVE_PROJECT[] Pkg.project().path)
 const OHLCV_FILE_PATH = joinpath(PROJECT_PATH, "test", "stubs", "ohlcv.csv")
@@ -50,7 +49,7 @@ function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
     for ai in s.universe
         da.stub!(ai, n)
     end
-    SimMode.start!(s, doreset=true)
+    SimMode.start!(s; doreset=true)
     if dosave
         for ai in s.universe
             save_stubtrades(ai)

@@ -1,10 +1,10 @@
 using Makie
 using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
 using Stats
-using Stats: egn
-using .egn.Misc
-using .egn.TimeTicks
-using .egn.Lang
+using Stats: ect
+using .ect.Misc
+using .Misc.TimeTicks
+using .Misc.Lang
 
 include("utils.jl")
 include("ohlcv.jl")

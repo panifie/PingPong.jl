@@ -1,4 +1,4 @@
-using Statistics: std
+using .Statistics: std
 using Base: negate
 using .st: trades_count
 

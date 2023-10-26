@@ -1,6 +1,5 @@
-using Python: @pymodule
+using .Python: pyimport, PyDict, @py, @pymodule
 using Exchanges: tickers
-using Python.PythonCall: pyimport, @py, PyDict
 
 function cf_getfeed(; timeout=3)
     # handler = cryptofeed[].FeedHandler()

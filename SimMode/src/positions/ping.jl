@@ -1,4 +1,4 @@
-import Strategies: ping!
+import .Strategies: ping!
 
 @doc "After a position was updated from a trade. $(TYPEDSIGNATURES)"
 function ping!(::MarginStrategy, ai, trade::Trade, ::Position, ::PositionChange)

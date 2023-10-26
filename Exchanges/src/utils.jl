@@ -1,5 +1,5 @@
-using Python: pyCached, Python
-import Python: pytofloat
+using .Python: pyCached
+import .Python: pytofloat
 
 @doc "Clear all python dependent caches."
 function emptycaches!()

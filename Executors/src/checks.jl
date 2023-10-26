@@ -1,9 +1,9 @@
 module Checks
-using Lang: Option, @ifdebug, @deassert
-using Misc: isstrictlysorted, toprecision, ltxzero
-using Instances
-using Strategies: NoMarginStrategy, IsolatedStrategy, Strategy
-using OrderTypes
+using ..Lang: Option, @ifdebug, @deassert
+using ..Misc: isstrictlysorted, toprecision, ltxzero
+using ..Instances
+using ..Strategies: NoMarginStrategy, IsolatedStrategy, Strategy
+using ..OrderTypes
 using .Instances.Instruments: value
 using Base: negate
 

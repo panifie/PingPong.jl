@@ -1,7 +1,7 @@
-using Misc
-using TimeTicks
+using .Misc
+using .TimeTicks
 using Strategies: Strategy
-import Misc: execmode
+import .Misc: execmode
 
 # TYPENUM
 @doc """The configuration against which a strategy is tested.

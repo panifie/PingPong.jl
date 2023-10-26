@@ -1,5 +1,5 @@
-using Data.Cache: save_cache, load_cache
-using Misc: user_dir
+using .Data.Cache: save_cache, load_cache
+using .Misc: user_dir
 
 macro notfound(path)
     quote

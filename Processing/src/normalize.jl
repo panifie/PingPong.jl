@@ -1,4 +1,4 @@
-using Misc: timefloat, @as_td, Lang
+using .Misc: timefloat, @as_td, Lang
 using StatsBase: StatsBase as sb
 using StatsBase: fit, ZScoreTransform, UnitRangeTransform
 

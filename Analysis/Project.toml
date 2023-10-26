@@ -4,16 +4,16 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
-CausalityTools = "5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7"
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
-EffectSizes = "e248de7e-9197-5860-972e-353a2af44d75"
 ExchangeTypes = "16e96388-e60e-4b60-892f-986722d15ae4"
 Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
-Misc = "ff97321b-aa60-4104-8cd6-2e42973349ab"
-Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+
+[weakdeps]
+CausalityTools = "01837fd2-c099-442f-ae89-75fa208aad36"
+EffectSizes = "e248de7e-9197-5860-972e-353a2af44d75"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
-Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
-TimeTicks = "1ce46816-3f51-4f52-9fcf-6d091670788d"
+
+[extensions]
+CorrExt = ["CausalityTools", "StatsBase", "StatsModels", "EffectSizes"]

@@ -6,7 +6,5 @@ version = "0.1.0"
 [deps]
 Ccxt = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 FunctionalCollections = "de31a74c-ac4f-5751-b3fd-e18cd04993ca"
-Lang = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 Mocking = "78c3b35d-d492-501b-9361-3d52fe80e533"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-Python = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"

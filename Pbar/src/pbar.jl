@@ -1,7 +1,7 @@
 using Term.Progress
 using Term: Term
-using TimeTicks: now, Millisecond, Second, DateTime
-using Lang: toggle!, @preset, @precomp
+using TimeTicks: now, Millisecond, Second, DateTime, Lang
+using .Lang: toggle!, @preset, @precomp
 
 const last_render = Ref(DateTime(0))
 const min_delta = Ref(Millisecond(0))

@@ -1,6 +1,6 @@
-using Lang: @preset, @precomp
+using Ccxt.Misc.Lang: @preset, @precomp
 @preset let
-    using Python: pyfetch
+    using .Python: pyfetch
     e = :bybit
     @precomp begin
         __init__()

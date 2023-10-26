@@ -2,8 +2,8 @@ using Data.DataStructures: SortedDict
 using Data: contiguous_ts
 using Data.DFUtils: addcols!
 using .Lang: @deassert
-using Misc.DocStringExtensions
-using Misc: rangeafter
+using .Misc.DocStringExtensions
+using .Misc: rangeafter
 import Data: propagate_ohlcv!
 
 @doc """

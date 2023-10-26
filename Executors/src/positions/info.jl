@@ -1,4 +1,4 @@
-using OrderTypes: LiquidationTrade
+using .OrderTypes: LiquidationTrade
 
 @doc "The number of liquidations that have happened for an asset instance."
 function liquidations(ai::MarginInstance)

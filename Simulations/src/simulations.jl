@@ -1,8 +1,9 @@
 include("mootils.jl")
 using .Mootils: Mootils as mt
-using Data: Candle
-using Misc: Lang, TimeTicks
+using Data: Candle, Misc
+using .Misc: Lang, TimeTicks
 using Random: Random
+using Statistics: Statistics
 
 include("types.jl")
 include("rois.jl")

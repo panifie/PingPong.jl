@@ -2,10 +2,10 @@
 module DFUtils
 using DataFrames
 using DataFrames: index
-using TimeTicks
-import TimeTicks: timeframe, timeframe!
+using ..TimeTicks
+import ..TimeTicks: TimeTicks, timeframe, timeframe!
 import Misc: after, before
-using Lang
+using ..Lang
 import Base: getindex
 import ..Data: contiguous_ts
 
