@@ -1,0 +1,13 @@
+name = "TwoParameters"
+uuid = "c1ae5a22-cd03-426d-8e7b-ac28392c777f"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+
+[strategy]
+mode = "Sim"
+include_file = "src/TwoParameters.jl"
+margin = "NoMargin"
+min_timeframe = "1h"

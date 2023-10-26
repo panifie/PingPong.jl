@@ -12,6 +12,7 @@
 !user/strategies/BBWithOpt
 !user/strategies/MarginStrat
 !user/strategies/TwoIntervals
+!user/strategies/TwoParameters
 /src/__pycache__/
 /render.html
 /**/__pycache__/*
