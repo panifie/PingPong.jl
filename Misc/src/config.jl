@@ -3,7 +3,7 @@ using TOML
 using JSON
 using TimeTicks
 using FunctionalCollections: PersistentHashMap
-using .Lang: @lget!
+using .Lang: @lget!, Option
 # TODO: move config to own pkg
 #
 function find_config(cur_path=splitpath(pwd()))
@@ -92,10 +92,10 @@ end
 """
 @kwdef mutable struct Config{T<:Real}
     path::String = ""
-    mode::ExecMode = Sim()
+    mode::Option{ExecMode} = nothing
     exchange::Symbol = Symbol()
     sandbox::Bool = true
-    margin::MarginMode = NoMargin()
+    margin::Option{MarginMode} = nothing
     leverage::T = 0.0
     qc::Symbol = :USDT
     initial_cash::T = 100.0

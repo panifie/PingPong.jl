@@ -144,14 +144,24 @@ function strategy!(mod::Module, cfg::Config)
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc
-    end
-    if attr(cfg, :exchange_override, false)
-        @assert cfg.exchange == strat_exc "Config exchange $(cfg.exchange) doesn't match strategy exchange! $(strat_exc)"
+        if strat_exc == Symbol()
+            @warn "Strategy exchange unset"
+        end
     end
     def_mm = _defined_marginmode(mod)
-    if cfg.margin != def_mm
-        @warn "Mismatching margin mode" config = cfg.margin strategy_module = def_mm
+    if isnothing(cfg.margin)
         cfg.margin = def_mm
+    elseif def_mm != cfg.margin
+        @warn "Mismatching margin mode" config = cfg.margin strategy = def_mm
+    end
+    if cfg.min_timeframe == tf"0s" # any zero tf should match
+        cfg.min_timeframe = tf"1m" # default to 1 minute timeframe
+        tfs = cfg.min_timeframes
+        sort!(tfs)
+        idx = searchsortedfirst(tfs, tf"1m")
+        if length(tfs) < idx || tfs[idx] != tf"1m"
+            insert!(tfs, idx, tf"1m")
+        end
     end
     @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
     @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) default_load(
