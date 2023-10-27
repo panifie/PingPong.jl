@@ -1,24 +1,25 @@
-using SimMode
-using PaperMode
 using LiveMode
-using OrderTypes
-using SimMode.Executors
-using SimMode.sim: Simulations
-using Misc
-using Misc.TimeTicks
-using Exchanges: Exchanges, market_fees, market_limits, market_precision, getexchange!
-using Instances
-using Strategies
-using Collections
-import Data: stub!
-using Misc: swapkeys
-using Misc.Lang: Lang
-using ExchangeTypes: exc
-using Data: Data, load, zi, empty_ohlcv
-using Data.DataFramesMeta
-using Data.DFUtils
-using Processing: resample, Processing
-using Instruments: AbstractAsset, Asset, fiatnames, Instruments
+using .LiveMode.PaperMode
+using .PaperMode.SimMode
+using .SimMode.OrderTypes
+using .SimMode.sim: Simulations
+using .SimMode: Executors, Executors as ect
+using .ect.Strategies
+using .Strategies.coll
+using .Strategies.Instances
+using .Instances.Exchanges: Exchanges, market_fees, market_limits, market_precision
+using .Exchanges: getexchange!, exc
+using .Exchanges.Data
+import .Data: stub!
+using .Data: load, zi, empty_ohlcv
+using .Data.DataFramesMeta
+using .Data.DFUtils
+using .Simulations.Processing: resample, Processing
+using .Instances.Instruments: AbstractAsset, Asset, fiatnames, Instruments
+using .ect.Misc
+using .Misc.TimeTicks
+using .Misc.Lang: Lang
+using .Misc: swapkeys
 
 # include("consts.jl")
 # include("funcs.jl")

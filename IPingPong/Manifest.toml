@@ -1876,7 +1876,7 @@ uuid = "1da6f4ae-116c-4c38-8ee9-19974ff3601d"
 version = "1.1.5"
 
 [[deps.Temporal]]
-deps = ["Dates", "HTTP", "JSON", "Pkg", "Printf", "Random", "RecipesBase", "Statistics", "Test", "Zarr"]
+deps = ["Dates", "HTTP", "JSON", "Pkg", "Printf", "Random", "RecipesBase", "Statistics", "Test"]
 path = "../vendor/Temporal"
 uuid = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
 version = "0.8.2"
