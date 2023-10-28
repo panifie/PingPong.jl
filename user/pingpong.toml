@@ -1,6 +1,9 @@
 [Example]
 include_file = "strategies/Example.jl"
 
+[BareStrat]
+include_file = "strategies/BareStrat.jl"
+
 [RandomStratIso]
 include_file = "strategies/RandomStratIso.jl"
 

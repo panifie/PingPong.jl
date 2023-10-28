@@ -72,7 +72,7 @@ uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.2"
 
 [[deps.Ccxt]]
-deps = ["Misc", "Python", "SnoopPrecompile"]
+deps = ["Misc", "PrecompileTools", "Python"]
 path = "../Ccxt"
 uuid = "a58c4053-12c5-4e22-b66a-82c3bd74bf8a"
 version = "0.1.0"
@@ -366,7 +366,7 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.0"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "Preferences", "SnoopPrecompile"]
+deps = ["Distributed", "Logging", "PrecompileTools", "Preferences"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
@@ -466,7 +466,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.14"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Mocking", "OrderedCollections", "Pkg", "Reexport", "SnoopPrecompile", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Mocking", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -603,7 +603,7 @@ uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "Mocking", "Pkg", "PythonCall", "Reexport", "SnoopPrecompile"]
+deps = ["CondaPkg", "Dates", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
@@ -679,12 +679,6 @@ deps = ["Serialization"]
 git-tree-sha1 = "3f6ff675f3735ab1904f10f637d2844fa20ed65d"
 uuid = "e2b509da-e806-4183-be48-004708413034"
 version = "2.10.0"
-
-[[deps.SnoopPrecompile]]
-deps = ["Preferences"]
-git-tree-sha1 = "e760a70afdcd461cf01a575947738d359234665c"
-uuid = "66db9d55-30c0-4569-8b51-7e840670fc0c"
-version = "1.0.3"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
