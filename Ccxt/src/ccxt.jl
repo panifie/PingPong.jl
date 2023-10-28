@@ -16,15 +16,23 @@ end
 function _init()
     clearpypath!()
     if isnothing(ccxt[]) || pyisnull(ccxt[])
-        pyimport("ccxt")
-        ccxt[] = pyimport("ccxt.async_support")
-        ccxt_ws[] = pyimport("ccxt.pro")
-        (errors -> union(ccxt_errors, errors))(
-            Set(string.(pydir(pyimport("ccxt.base.errors"))))
-        )
-        mkpath(joinpath(DATA_PATH, "markets"))
+        try
+            pyimport("ccxt")
+            ccxt[] = pyimport("ccxt.async_support")
+            ccxt_ws[] = pyimport("ccxt.pro")
+            (errors -> union(ccxt_errors, errors))(
+                Set(string.(pydir(pyimport("ccxt.base.errors"))))
+            )
+            mkpath(joinpath(DATA_PATH, "markets"))
+            Python._async_init(Python.PythonAsync())
+            if ccall(:jl_generating_output, Cint, ()) != 0
+                Python.py_stop_loop()
+            end
+        catch e
+            @error e Python.PY_V ENV["PYTHONPATH"] syspath = pyimport("sys").path vinfo =
+                pyimport("sys").version_info
+        end
     end
-    Python._async_init(Python.PythonAsync())
 end
 
 function _doinit()
@@ -141,7 +149,7 @@ function upgrade()
             CondaPkg.add_pip("ccxt"; version=">=$version")
         end
     end
+    Python.pyimport("ccxt").__version__
 end
-Python.pyimport("ccxt").__version__
 
 export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
