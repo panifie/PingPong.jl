@@ -30,15 +30,22 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
 end
 
 function close_exc(exc::CcxtExchange)
-    (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) &&
-        return nothing
-    e = exc.py
-    if !pyisnull(e) && pyhasattr(e, "close")
-        co = e.close()
-        if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
-            fut = pyschedule(co)
-            @async pywait_fut(fut)
+    try
+        (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) &&
+            return nothing
+        e = exc.py
+        if !pyisnull(e) && pyhasattr(e, "close")
+            co = e.close()
+            if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
+                fut = pyschedule(co)
+                @async try
+                    pywait_fut(fut)
+                catch
+                end
+            end
         end
+    catch e
+        @error e
     end
 end
 
