@@ -1,12 +1,6 @@
-## Precompilations
+## Precompilation
 
 Functions that should be precompiled
-
-- Python: `clearpath!`
-- Data: `ZarrInstance`, `ZGroup`, `zopen`, `get_zgroup`
-- Misc: `empty!(::Config)`
-- CPython `__init__`(?)
-
 Precompilation can be skipped for some modules, by setting `JULIA_NOPRECOMP` env var:
 
 ```julia
@@ -21,6 +15,18 @@ When switching between `all`, and custom lists remember to purge the compile cac
 include("resolve.jl")
 purge_compilecache() # If you pass a local package name it will only purge that package comp cache
 ```
+
+The packages `Exchanges` and `Fetch` have a `compile.jl` file that can be used to generate precompile statements through [CompileBot.jl](https://github.com/aminya/CompileBot.jl). This is useful when the precompilation workload does many web requests. However this method is currently disabled because it does not seem to compile as many method as `PrecompileTools`.
+
+!!! warning "Custom precompilation"
+    When precompiling your own custom methods ensure to fence the code with `py_start_loop` and `py_stop_loop` from the python package. This is necessary to avoid Pkg stalling (Pkg can stall if there are threads lingering).
+    ```julia
+    using PrecompileTools
+    Python.py_stop_loop() # if the python loop is already running stop it
+    Python.py_start_loop()
+    @precompile_workload $(myworkload...)
+    Python.py_stop_loop()
+    ```
 
 ## Methods invalidations
 
