@@ -1,6 +1,6 @@
-using SnoopPrecompile
+using PrecompileTools
 
-@precompile_setup @precompile_all_calls begin
+@setup_workload @compile_workload begin
     Config()
     Dict{String,Any}()
     __init__()

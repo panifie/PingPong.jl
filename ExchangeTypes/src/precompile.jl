@@ -3,6 +3,7 @@ using Ccxt.Misc.Lang: @preset, @precomp
     using .Python: pyfetch
     e = :bybit
     @precomp begin
+        Python.py_start_loop()
         __init__()
         ExchangeID(e)
     end
@@ -25,4 +26,6 @@ using Ccxt.Misc.Lang: @preset, @precomp
         e.has
     end
     pyfetch(e.close)
+    _closeall()
+    Python.py_stop_loop()
 end

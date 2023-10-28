@@ -28,6 +28,7 @@ end
 end
 
 @preset let
+    ExchangeTypes.Python.py_start_loop()
     using ..ExchangeTypes.Ccxt: ccxt_exchange
     @precomp Config()
     cfg = Config()
@@ -53,4 +54,6 @@ end
         orders(s, Sell)
         show(devnull, s)
     end
+    ExchangeTypes._closeall()
+    ExchangeTypes.Python.py_stop_loop()
 end

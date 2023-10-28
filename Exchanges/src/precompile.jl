@@ -3,6 +3,7 @@ using .Misc.Lang: wait, @preset, @precomp
 @preset let
     id = :okx
     @assert Python.isinitialized_async(Python.gpa)
+    Python.py_start_loop()
     @precomp let
         getexchange!(id; markets=:force).py
         getexchange!(id; markets=:yes, sandbox=false).py
@@ -30,4 +31,5 @@ using .Misc.Lang: wait, @preset, @precomp
     end
     ExchangeTypes._closeall()
     emptycaches!()
+    Python.py_stop_loop()
 end

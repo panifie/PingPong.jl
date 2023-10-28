@@ -1,4 +1,4 @@
-@precompile_all_calls begin
+@compile_workload begin
     _ensure_env!()
     _setup!()
     __init__()

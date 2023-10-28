@@ -1,14 +1,14 @@
 using Distributed: Distributed, @distributed
 using Logging: Logging, with_logger, NullLogger
-using SnoopPrecompile
+using PrecompileTools
 
 const Option{T} = Union{Nothing,T} where {T}
 
 macro preset(code)
-    :(@precompile_setup $(esc(code)))
+    :(@setup_workload $(esc(code)))
 end
 macro precomp(code)
-    :(@precompile_all_calls $(esc(code)))
+    :(@compile_workload $(esc(code)))
 end
 
 macro parallel(flag, body)

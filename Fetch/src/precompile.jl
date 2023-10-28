@@ -1,6 +1,7 @@
-using .Misc.Lang: SnoopPrecompile, @preset, @precomp
+using .Misc.Lang: PrecompileTools, @preset, @precomp
 
 @preset let
+    Python.py_start_loop()
     pair = "BTC/USDT"
     using .Data: zilmdb
     using Exchanges.ExchangeTypes: _closeall
@@ -17,4 +18,5 @@ using .Misc.Lang: SnoopPrecompile, @preset, @precomp
     finally
         rm(tmp_zi.store.a)
     end
+    Python.py_stop_loop()
 end

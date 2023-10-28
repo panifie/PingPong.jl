@@ -2,6 +2,7 @@ using .Lang: @precomp, @preset
 @preset let
     pairs = ["eth", "btc"]
     qc = "USDT"
+    HTTP_PARAMS[:headers] = [("Connection", "Close")]
     @precomp begin
         _doinit()
         try
@@ -15,5 +16,7 @@ using .Lang: @precomp, @preset
             display(e)
         end
     end
+    Pbar.@pbstop!
     empty!(Data.zcache)
+    HTTP.Connections.closeall() # This should work but doesn't
 end
