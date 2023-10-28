@@ -1,7 +1,13 @@
 using Pkg: Pkg
 
 function recurse_projects(
-    f, path="."; io=stdout, top=true, exclude=("test", "docs", "deps", "user"), kwargs...
+    f,
+    path=".";
+    io=stdout,
+    top=true,
+    exclude=("test", "docs", "deps", "user"),
+    top_proj=Base.active_project(),
+    kwargs...,
 )
     path = realpath(path)
     @sync for subpath in readdir(path)
@@ -10,11 +16,11 @@ function recurse_projects(
             @async f(path, fullpath; io, kwargs...)
         elseif isdir(fullpath)
             if !startswith(fullpath, ".") && all((!endswith(fullpath, e) for e in exclude))
-                recurse_projects(f, fullpath; io, top=false, kwargs...)
+                recurse_projects(f, fullpath; io, top=false, top_proj, kwargs...)
             end
         end
     end
-    top && Pkg.activate(pwd())
+    top && Pkg.activate(top_proj)
 end
 
 function _update_project(path, fullpath; precomp, inst, doupdate, io=stdout)
