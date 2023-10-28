@@ -17,6 +17,7 @@ using ..Scrapers:
     WORKERS,
     TF,
     SEM,
+    HTTP_PARAMS,
     fetchfile,
     zlib,
     csvtodf,
@@ -48,7 +49,7 @@ end
 function bybitallsyms(path=PATHS.trading)
     if isempty(TRADING_SYMS)
         url = joinpath(BASE_URL, path)
-        all_syms = let resp = HTTP.get(url)
+        all_syms = let resp = HTTP.get(url; HTTP_PARAMS...)
             doc = parsehtml(resp.body)
             els = links_list(doc)
             map(x -> rstrip(x.content, '/'), els)
