@@ -102,7 +102,7 @@ function _fetch_ohlcv_from_to(
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
 end
 
-function __ordered_timeframes(exc)
+function __ordered_timeframes(exc::Exchange)
     tfs = collect(exc.timeframes)
     periods = period.(convert.(TimeFrame, tfs))
     order = sortperm(periods; rev=true)
