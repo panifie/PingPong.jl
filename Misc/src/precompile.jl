@@ -5,4 +5,5 @@ using PrecompileTools
     Config()
     Dict{String,Any}()
     __init__()
+    OFFLINE[] = false
 end

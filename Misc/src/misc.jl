@@ -20,6 +20,7 @@ include("ttl.jl")
 _doinit() = begin
     ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
     isdefined(Misc, :config) && reset!(config)
+    setoffline!()
 end
 
 # export results

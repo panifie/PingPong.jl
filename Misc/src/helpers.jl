@@ -1,6 +1,70 @@
 # countdecimals(num::Float64) = abs(Base.Ryu.reduce_shortest(num)[2])
 # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
 
+setoffline!() = begin
+    opt = get(ENV, "PINGPONG_OFFLINE", "")
+    OFFLINE[] = if opt == ""
+        false
+    else
+        @something tryparse(Bool, opt) false
+    end
+end
+
+isoffline() = OFFLINE[]
+
+macro skipoffline(
+    expr,
+    this_file=string(__source__.file),
+    this_line=__source__.line,
+    this_module=__module__,
+)
+    ex = if expr.head == :let
+        let_vars = expr.args[1]
+        Main.e = let_vars
+        quote
+            let $(if let_vars.head == :(=)
+                    (let_vars,)
+                elseif isempty(let_vars.args)
+                    ()
+                else
+                    let_vars.args
+                end...)
+                @skipoffline $(expr.args[2]) $this_file $this_line $this_module
+            end
+        end
+    elseif expr.head == :block
+        this_expr = :(
+            begin end
+        )
+        args = this_expr.args
+        n = 0
+        for line in expr.args
+            line isa LineNumberNode && continue
+            push!(
+                args,
+                :($(@__MODULE__).@skipoffline(
+                    $line, $this_file, $(this_line + n), $this_module
+                )),
+            )
+            n += 1
+        end
+        this_expr
+    else
+        quote
+            try
+                $expr
+            catch
+                if $(isoffline)()
+                    @warn "skipping error since offline" maxlog = 1 _module = $this_module _file = $this_file _line = $this_line
+                else
+                    rethrow()
+                end
+            end
+        end
+    end
+    esc(ex)
+end
+
 function _find_module(sym)
     hasproperty(@__MODULE__, sym) && return getproperty(@__MODULE__, sym)
     hasproperty(Main, sym) && return getproperty(Main, sym)
@@ -185,3 +249,4 @@ hasattr(d, keys...) =
 export shift!
 export approxzero, gtxzero, ltxzero, negative, positive, inc!, dec!
 export attrs, attr, hasattr, attr!, setattr!, modifyattr!
+export isoffline, @skipoffline
