@@ -204,7 +204,7 @@ end
 @doc ""
 function is_pair_active(pair::AbstractString, exc::Exchange=exc)
     @lget! activeCache1Min pair begin
-        pyconvert(Bool, market!(pair)["active"])
+        pyconvert(Bool, market!(pair, exc)["active"])
     end
 end
 is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
