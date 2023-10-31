@@ -1,4 +1,4 @@
-using PythonCall: pynew, PyNULL
+using PythonCall: pynew, PyNULL, pyisbool
 const _INITIALIZED = Ref(false)
 const CALLBACKS = Function[]
 const PYMODPATHS = String[]
