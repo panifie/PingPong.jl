@@ -11,7 +11,6 @@ else
     include("misc.jl")
     __init__() = _doinit()
     include("precompile.jl")
-    include("consts.jl")
 end
 
 

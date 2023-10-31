@@ -17,12 +17,9 @@ include("helpers.jl")
 include("parallel.jl")
 include("ttl.jl")
 
-@doc "Holds recently evaluated statements."
-const results = Dict{String,Any}()
-
 _doinit() = begin
     ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS
     isdefined(Misc, :config) && reset!(config)
 end
 
-export results
+# export results

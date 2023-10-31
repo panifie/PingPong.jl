@@ -3,7 +3,7 @@ using TOML
 using JSON
 using TimeTicks
 using FunctionalCollections: PersistentHashMap
-using .Lang: @lget!, Option
+using .Lang: @lget!, Option, splitkws
 # TODO: move config to own pkg
 #
 function find_config(cur_path=splitpath(pwd()))
@@ -120,11 +120,16 @@ function Config(args...; kwargs...)
 end
 
 function Config(profile::Union{Symbol,String}, path::String=config_path(); kwargs...)
-    cfg = Config(; kwargs...)
+    config_kwargs, attrs_kwargs = splitkws(fieldnames(Config)...; kwargs)
+    cfg = Config(; config_kwargs...)
     config!(profile; cfg, path)
     cfg = Config(; defaults=_defaults(cfg))
-    cfg[:config_overrides] = kwargs
+    cfg[:config_overrides] = config_kwargs
     config!(profile; cfg, path)
+    attrs = cfg.attrs
+    for (k, v) in attrs_kwargs
+        attrs[k] = v
+    end
     cfg
 end
 
