@@ -1,4 +1,5 @@
 @compile_workload begin
+    include("consts.jl")
     _ensure_env!()
     _setup!()
     __init__()

@@ -1,14 +1,6 @@
-using SnoopPrecompile
+using PrecompileTools
 using PythonCall: PyList, pynew, Py
 using PythonCall.C.CondaPkg: envdir
-const _INITIALIZED = Ref(false)
-const CALLBACKS = Function[]
-const PYMODPATHS = String[]
-const PYTHONPATH = Ref("")
-const PY_V = Ref("")
-const pynull = pynew()
-const pytryfloat = pynew()
-const pyisvalue_func = pynew()
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
@@ -28,14 +20,17 @@ function _setup!()
     @eval begin
         using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
+        # PY_V[] = chomp(
+        #     String(
+        #         read(
+        #             `$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`,
+        #         ),
+        #     ),
+        # )
+        PY_V[] = let vinfo = pyimport("sys").version_info
+            string(vinfo.major, ".", vinfo.minor)
+        end
         # NOTE: Make sure conda libs precede system libs
-        PY_V[] = chomp(
-            String(
-                read(
-                    `$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`,
-                ),
-            ),
-        )
         PYTHONPATH[] = ".:$(joinpath(envdir(), "lib"))/python$(PY_V[])"
         setpypath!()
         using PythonCall:
@@ -47,14 +42,14 @@ end
 
 @doc "Remove wrong python version libraries dirs from python loading path."
 function clearpypath!()
-    if isempty(PYMODPATHS)
-        append!(PYMODPATHS, pyconvert.(String, pyimport("sys").path))
-    end
+    sys_path_list = PyList(pyimport("sys").path)
     ENV["PYTHONPATH"] = ".:$(envdir())/python$(PY_V[])"
-
-    sys_path_list = PyList(pyimport("sys")."path")
-    empty!(sys_path_list)
-    append!(sys_path_list, pystr.(PYMODPATHS))
+    if isempty(PYMODPATHS)
+        append!(PYMODPATHS, (pyconvert(String, p) for p in sys_path_list))
+    else
+        empty!(sys_path_list)
+        append!(sys_path_list, (pystr(p) for p in PYMODPATHS))
+    end
 end
 
 function isinitialized()
@@ -66,12 +61,12 @@ function _doinit()
     isinitialized() && return nothing
     try
         clearpypath!()
+        _pytryfloat_func!()
+        _pyisvalue_func!()
         for f in CALLBACKS
             f()
         end
         empty!(CALLBACKS)
-        _pytryfloat_func!()
-        _pyisvalue_func!()
     catch e
         @debug e
     end
@@ -137,8 +132,7 @@ macro pymodule(name, modname=nothing)
 end
 
 include("functions.jl")
-
-# NOTE: This must be done after all the global code in this module has been execute
 using Reexport
+# NOTE: This must be done after all the global code in this module has been execute
 @reexport using PythonCall
 export @pymodule, clearpypath!, pytryfloat

@@ -5,7 +5,6 @@ function pylist_to_matrix(data::Py)
     permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
 end
 
-const pyCached = Dict{Any,Py}()
 macro pystr(k, v=nothing)
     s = esc(k)
     ev = if v isa Expr

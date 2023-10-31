@@ -18,9 +18,6 @@ A structure that holds references to the Python asynchronous objects and state.
     task::Ref{Task} = Ref{Task}()
     task_running::Ref{Bool} = Ref(false)
 end
-const PYREF = Ref{Any}()
-
-isdefined(@__MODULE__, :gpa) || @eval const gpa = PythonAsync()
 
 """
     isinitialized_async(pa::PythonAsync)
@@ -71,23 +68,8 @@ function _async_init(pa::PythonAsync)
         pycopy!(pa.pythreads, pyimport("threading"))
         async_start_runner_func!(pa)
         py_start_loop(pa)
-        if pyisnull(gpa.pyaio)
-            for f in fieldnames(PythonAsync)
-                let v = getfield(gpa, f)
-                    if v isa Py
-                        pycopy!(v, getfield(pa, f))
-                    elseif f == :task
-                        isassigned(pa.task) && (v[] = pa.task[])
-                    elseif f == :task_running
-                        continue
-                    else
-                        error()
-                    end
-                end
-            end
-        end
+        copyto!(gpa, pa)
     end
-    copyto!(gpa, pa)
     @assert !pyisnull(gpa.pyaio)
 end
 
@@ -398,32 +380,31 @@ _get_ref() =
 
 function async_start_runner_func!(pa)
     code = """
-    global asyncio, inf, juliacall, Main, jlyield, uvloop, Python
+    global asyncio, juliacall, uvloop, Main
     import asyncio
     import juliacall
     import uvloop
-    from math import inf
     from juliacall import Main
-    jlyield = getattr(Main, "yield")
     jlsleep = getattr(Main, "sleep")
     pysleep = asyncio.sleep
     async def main(Python):
         running = Python._pyisrunning
         pa = Python._get_ref()
-        set_loop = Python._set_loop
-        set_loop(pa, asyncio.get_running_loop())
+        Python._set_loop(pa, asyncio.get_running_loop())
         try:
             while running():
                 await pysleep(1e-3)
                 jlsleep(1e-1)
         finally:
-            asyncio.get_running_loop().stop()
+            loop = asyncio.get_running_loop()
+            loop.close()
+            loop.stop()
     """
     # main_func = pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
     globs = pydict()
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, globs)
     code = """
-    global asyncio, inf, juliacall, Main, jlyield, uvloop, Python
+    global asyncio, uvloop
     import asyncio, uvloop
     def start(Python):
         with asyncio.Runner(loop_factory=uvloop.new_event_loop) as runner:
