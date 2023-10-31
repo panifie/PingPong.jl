@@ -38,14 +38,19 @@ function close_exc(exc::CcxtExchange)
             co = e.close()
             if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
                 fut = pyschedule(co)
-                @async try
+                # block during precomp
+                if ccall(:jl_generating_output, Cint, ()) == 1
                     pywait_fut(fut)
-                catch
+                else
+                    @async try
+                        pywait_fut(fut)
+                    catch
+                    end
                 end
             end
         end
     catch e
-        @error e
+        @debug e
     end
 end
 
@@ -142,12 +147,15 @@ const sb_exchanges = Dict{Symbol,Exchange}()
 
 _closeall() = begin
     @sync begin
+        excs = []
         while !isempty(exchanges)
             _, e = pop!(exchanges)
+            push!(excs, e)
             @async finalize(e)
         end
         while !isempty(sb_exchanges)
             _, e = pop!(sb_exchanges)
+            push!(excs, e)
             @async finalize(e)
         end
     end
