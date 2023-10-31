@@ -37,7 +37,8 @@ function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
     end
     TimeFrame("$n$t")
 end
-const tf_parse_map = Dict{String,TimeFrame}()
+
+# const tf_parse_map = Dict{String,TimeFrame}()
 convert(t::Type{TimeFrame}, s::AbstractString) = @lget! tf_parse_map s Base.parse(t, s)
 period(t::TimeFrame) = t.period
 
@@ -65,7 +66,6 @@ macro dt_str(s)
     end
 end
 
-const tf_map = Dict{String,Tuple{TimeFrame,Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
 @doc "Binds period `prd` and time delta `td` variables from a string `timeframe` variable."
 macro as_td()
     timeframe = esc(:timeframe)
@@ -144,7 +144,6 @@ function Base.nameof(tf::TimeFrame)
     )
 end
 
-const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
 convert(::Type{<:AbstractString}, tf::TimeFrame) = @lget! tf_name_map tf.period Base.nameof(tf)
 Base.string(tf::TimeFrame) = convert(String, tf)
 ms(tf::TimeFrame) = Millisecond(period(tf))
@@ -214,7 +213,6 @@ function TimeFrames.apply(period::N, time::N) where {N<:Number}
     round(time * inv_prec) / inv_prec
 end
 
-const tf_conv_map = Dict{Period,TimeFrame}()
 function convert(::Type{TimeFrames.Minute}, v::TimePeriodFrame{Millisecond})
     @lget! tf_conv_map v.period begin
         TimeFrame(Minute(v.period.value ÷ 60 ÷ 1000))

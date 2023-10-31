@@ -1,6 +1,5 @@
 import Base: length, iterate, collect
-const OptDate = Union{Nothing,DateTime}
-const DateTuple = NamedTuple{(:start, :stop),NTuple{2,DateTime}}
+
 struct DateRange
     current_date::Vector{OptDate}
     start::OptDate

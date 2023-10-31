@@ -1,6 +1,6 @@
 using Dates: AbstractDateTime
 const DateType = Union{AbstractString,AbstractDateTime,AbstractFloat,Integer}
-const TimeFrameOrStr = Union{TimeFrame, AbstractString}
+const TimeFrameOrStr = Union{TimeFrame,AbstractString}
 export DateType
 
 @doc "Mapping of timeframes to default window sizes."
@@ -30,3 +30,11 @@ const td_tf = IdDict(
     43200000 => "12h",
     86400000 => "1d",
 )
+
+const tf_parse_map = Dict{String,TimeFrame}()
+const tf_name_map = Dict{Period,String}() # FIXME: this should be benchmarked to check if caching is worth it
+const tf_conv_map = Dict{Period,TimeFrame}()
+const tf_map = Dict{String,Tuple{TimeFrame,Float64}}() # FIXME: this should be benchmarked to check if caching is worth it
+# DateRange
+const OptDate = Union{Nothing,DateTime}
+const DateTuple = NamedTuple{(:start, :stop),NTuple{2,DateTime}}
