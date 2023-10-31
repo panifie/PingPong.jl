@@ -12,7 +12,7 @@ using Exchanges.Ccxt
 using Exchanges.Python
 using Processing: cleanup_ohlcv_data, islast, resample, Processing
 using Processing.Pbar
-using .Python: pylist_to_matrix, py_except_name, pytofloat
+using .Python: pylist_to_matrix, pytofloat
 using Exchanges.Data:
     Data,
     load,
@@ -233,7 +233,7 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
                 converter,
                 usetimeframe=limit > 500,
             )
-        elseif py_except_name(e) ∈ ccxt_errors
+        elseif isccxterror(e)
             @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
             @return_empty()
         else

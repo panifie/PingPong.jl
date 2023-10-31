@@ -1,10 +1,9 @@
-using PythonCall: pynew
+using PythonCall: pynew, PyNULL
 const _INITIALIZED = Ref(false)
 const CALLBACKS = Function[]
 const PYMODPATHS = String[]
 const PYTHONPATH = Ref("")
 const PY_V = Ref("")
-const pynull = pynew()
 const pytryfloat = pynew()
 const pyisvalue_func = pynew()
 # functions

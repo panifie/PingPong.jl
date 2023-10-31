@@ -19,6 +19,4 @@ export Exchange,
     has
 
 function _doinit()
-    waitfunc(Ccxt.isinitialized)
-    @assert !pyisnull(ccxt[])
 end

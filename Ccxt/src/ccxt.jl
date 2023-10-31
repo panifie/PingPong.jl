@@ -4,27 +4,37 @@ using Misc.ConcurrentCollections: ConcurrentDict
 using Misc.Lang: @lget!, Option
 using Python: pynew, pyisnone
 using Python.PythonCall: pyisnull, pycopy!, pybuiltins
+using Python: py_except_name
 
-const ccxt = Ref{Union{Nothing,Py}}(nothing)
-const ccxt_ws = Ref{Union{Nothing,Py}}(nothing)
+const ccxt = Ref{Py}()
+const ccxt_ws = Ref{Py}()
 const ccxt_errors = Set{String}()
 
 function isinitialized()
-    !isnothing(ccxt[]) && !pyisnull(ccxt[])
+    isassigned(ccxt) && !pyisnull(ccxt[])
 end
 
+_ccxt_errors!() =
+    if isempty(ccxt_errors)
+        for err in pyimport("ccxt.base.errors") |> pydir
+            name = string(err)
+            if isuppercase(first(name))
+                push!(ccxt_errors, name)
+            end
+        end
+    end
+
+isccxterror(err::PyException) = begin
+    _ccxt_errors!()
+    py_except_name(err) ∈ ccxt_errors
+end
+const MARKETS_PATH = joinpath(DATA_PATH, "markets")
 function _init()
     clearpypath!()
-    if isnothing(ccxt[]) || pyisnull(ccxt[])
+    if !isassigned(ccxt) || pyisnull(ccxt[])
         try
-            pyimport("ccxt")
-            ccxt[] = pyimport("ccxt.async_support")
-            ccxt_ws[] = pyimport("ccxt.pro")
-            (errors -> union(ccxt_errors, errors))(
-                Set(string.(pydir(pyimport("ccxt.base.errors"))))
-            )
-            mkpath(joinpath(DATA_PATH, "markets"))
             Python._async_init(Python.PythonAsync())
+            mkpath(MARKETS_PATH)
             if ccall(:jl_generating_output, Cint, ()) != 0
                 Python.py_stop_loop()
             end
@@ -152,4 +162,4 @@ function upgrade()
     Python.pyimport("ccxt").__version__
 end
 
-export ccxt, ccxt_ws, ccxt_errors, ccxt_exchange, choosefunc
+export ccxt, ccxt_ws, isccxterror, ccxt_exchange, choosefunc
