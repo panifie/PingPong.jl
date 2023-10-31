@@ -1,4 +1,5 @@
 using .Misc.Lang: wait, @preset, @precomp
+using .Misc: @skipoffline
 
 @preset let
     id = :okx
@@ -13,7 +14,7 @@ using .Misc.Lang: wait, @preset, @precomp
     qc = "USDT"
     pair = "BTC/USDT"
     e = getexchange!(id; markets=:yes)
-    @precomp let
+    @precomp @skipoffline let
         futures(e)
         timestamp(e)
         check_timeout(e)

@@ -7,13 +7,15 @@ using Reexport
 using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
 using .Python: pyfetch, @pystr
-using .Python: Py, pyconvert, PyDict, PyList, pydict, pyimport, pyisnone, @pyconst
+using .Python: Py, pyconvert, PyDict, PyList, pydict, pyimport, @pyconst
+using .Python: pyisnone, pyisnull, pyisbool, pyisTrue, pyisstr
 using Data: Data, DataFrame
 using Pbar.Term: RGB, tprint
 using JSON
 using Instruments
 using Instruments: Misc
-using .Misc: DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict
+using .Misc:
+    DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict, isoffline
 using .Misc.OrderedCollections: OrderedSet
 using .Misc.TimeToLive
 using .Misc.TimeTicks
@@ -68,6 +70,7 @@ function _elconvert(v)
 end
 
 function jlpyconvert(py)
+    (pyisnull(py) || pyisnone(py)) && return nothing
     d = pyconvert(Dict{Any,Any}, py)
     for (k, v) in d
         d[k] = _elconvert(v)
@@ -84,6 +87,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     empty!(exc.markets)
     pyjson = pyimport("json")
     function force_load()
+        isoffline() && return nothing
         try
             @debug "Loading markets from exchange and caching at $mkt."
             pyfetch(exc.loadMarkets, true)
@@ -94,12 +98,15 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
             cache[:currencies] = string(pyjson.dumps(exc.py.currencies))
             cache[:symbols] = string(pyjson.dumps(exc.py.symbols))
             write(mkt, json(cache))
-            merge!(exc.markets, jlpyconvert(exc.py.markets))
+            conv = jlpyconvert(exc.py.markets)
+            if conv isa AbstractDict
+                merge!(exc.markets, conv)
+            end
         catch e
             @warn e
         end
     end
-    if isfileyounger(mkt, agemax) && cache
+    if (isfileyounger(mkt, agemax) && cache) || isoffline()
         try
             @debug "Loading markets from cache."
             cache = JSON.parse(read(mkt, String)) # this should be a PyDict
@@ -109,8 +116,7 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
             exc.py.symbols = pyjson.loads(cache["symbols"])
             exc.py.currencies = pyjson.loads(cache["currencies"])
         catch error
-            @warn error
-            Base.show_backtrace(stderr, catch_backtrace())
+            @debug error bt = Base.show_backtrace(stderr, catch_backtrace())
             force_load()
         end
     else
@@ -172,22 +178,34 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     precision = getfield(exc, :precision)
     precision[] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
     fees = getfield(exc, :fees)
-    for (k, v) in exc.py.fees["trading"].items()
-        fees[Symbol(k)] = let c = pyconvert(Any, v)
-            if c isa String
-                Symbol(c)
-            elseif c isa AbstractFloat
-                convert(DFT, c)
-            elseif c isa AbstractDict # tiers
-                LittleDict{Symbol,Vector{Vector{DFT}}}(Symbol(k) => v for (k, v) in c)
-            else
-                c
-            end
-        end
+    for (k, v) in exc.py.fees["trading"]
+        _setfees!(fees, k, v)
     end
-
     exckeys!(exc)
     exc
+end
+
+function _setfees!(fees, k, v)
+    fees[Symbol(k)] = if pyisbool(v)
+        pyisTrue(v)
+    elseif pyisstr(v)
+        Symbol(v)
+    elseif pyisfloat(v)
+        pyconvert(DFT, v)
+    elseif pyisdict(v) # tiers
+        LittleDict{Symbol,Vector{Vector{DFT}}}(Symbol(k) => v for (k, v) in v)
+    else
+        # c = pyconvert(Any, v)
+        # fees[Symbol(k)] = if c isa String
+        #     Symbol(c)
+        # elseif c isa AbstractFloat
+        #     pyconvert(DFT, c)
+        # elseif c isa AbstractDict # tiers
+
+        # else
+        #     c
+        # end
+    end
 end
 
 function setexchange!(x::Symbol, args...; kwargs...)
@@ -220,6 +238,16 @@ end
 
 MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery)
 
+_lasttype(types) = begin
+    len = length(types)
+    if len == 0
+        nothing
+    elseif len == 1
+        first(types)
+    else
+        first(Iterators.drop(types, len - 1))
+    end
+end
 @doc "Any of $MARKET_TYPES"
 function markettype(exc)
     types = exc.types
@@ -227,7 +255,7 @@ function markettype(exc)
         if :spot ∈ types
             :spot
         else
-            last(types)
+            _lasttype(types)
         end
     else
         if :linear ∈ types
@@ -237,7 +265,7 @@ function markettype(exc)
         elseif :future ∈ types
             :future
         else
-            last(types)
+            _lasttype(types)
         end
     end
 end
@@ -249,31 +277,33 @@ macro tickers!(type=nothing, force=false)
     type = type ∈ MARKET_TYPES ? QuoteNode(type) : esc(type)
     quote
         local $tickers
-        let tp = @something($type, markettype($exc)), nm = $(exc).name, k = (nm, tp)
-            if $force || k ∉ keys(tickers_cache)
-                @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                tickers_cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
-                    $tickers = pyconvert(
-                        Dict{String,Dict{String,Any}},
-                        let v = pyfetch(
-                                f; params=LittleDict(@pyconst("type") => @pystr(tp))
+        tp = @something($type, markettype($exc), missing)
+        nm = $(exc).name
+        k = (nm, tp)
+        if ismissing(tp)
+            @warn "tickers: no market type found (offline?)" type = tp $exc.id
+            $tickers = Dict{String,Dict{String,Any}}()
+        elseif $force || k ∉ keys(tickers_cache)
+            @assert hastickers($exc) "Exchange doesn't provide tickers list."
+            tickers_cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
+                $tickers = pyconvert(
+                    Dict{String,Dict{String,Any}},
+                    let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
+                        if v isa PyException && Bool(f == $exc.watchTickers)
+                            pyfetch(
+                                $(exc).fetchTickers;
+                                params=LittleDict(@pyconst("type") => @pystr(tp)),
                             )
-                            if v isa PyException && Bool(f == $exc.watchTickers)
-                                pyfetch(
-                                    $(exc).fetchTickers;
-                                    params=LittleDict(@pyconst("type") => @pystr(tp)),
-                                )
-                            elseif v isa Exception
-                                throw(v)
-                            else
-                                v
-                            end
-                        end,
-                    )
-                end
-            else
-                $tickers = tickers_cache[k]
+                        elseif v isa Exception
+                            throw(v)
+                        else
+                            v
+                        end
+                    end,
+                )
             end
+        else
+            $tickers = tickers_cache[k]
         end
     end
 end
@@ -393,8 +423,16 @@ function check_timeout(exc::Exchange=exc, interval=Second(5))
     @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
 
-timestamp(exc::Exchange) = pyconvert(Int64, pyfetch(exc.py.fetchTime))
-Base.time(exc::Exchange) = dt(pyconvert(Float64, pyfetch(exc.py.fetchTime)))
+_fetchnoerr(f, t) =
+    let v = pyfetch(f)
+        if v isa Exception
+        else
+            pyconvert(t, v)
+        end
+    end
+
+timestamp(exc::Exchange) = _fetchnoerr(exc.py.fetchTime, Int64)
+Base.time(exc::Exchange) = dt(_fetchnoerr(exc.py.fetchTime, Float64))
 
 @doc "Returns the matching *futures* exchange instance, if it exists, or the input exchange otherwise."
 function futures(exc::Exchange)

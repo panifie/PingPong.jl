@@ -2,7 +2,7 @@ using .Misc.Lang: @get, @multiget, @lget!, Option
 using .Misc: config, NoMargin, DFT
 using .Misc.ConcurrentCollections: ConcurrentDict
 using Instruments: isfiatquote, spotpair
-using .Python: @pystr, @pyconst, pyfetch_timeout
+using .Python: @pystr, @pyconst, pyfetch_timeout, pylist
 using ExchangeTypes: decimal_to_size
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
@@ -130,7 +130,9 @@ function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
             while true
                 v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
                 if v isa PyException
-                    @error "Fetch ticker error: $v"
+                    @error "Fetch ticker error: $v" offline = isoffline()
+                    v = pylist()
+                    isoffline() && break
                 else
                     break
                 end

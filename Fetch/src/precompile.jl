@@ -1,4 +1,5 @@
 using .Misc.Lang: PrecompileTools, @preset, @precomp
+using .Misc: @skipoffline
 
 @preset let
     Python.py_start_loop()
@@ -9,7 +10,7 @@ using .Misc.Lang: PrecompileTools, @preset, @precomp
     @warn "Precompilation of the `Fetch` module does api calls!"
     try
         let e = getexchange!(:cryptocom)
-            @precomp begin
+            @precomp @skipoffline begin
                 fetch_ohlcv(e, "1d", [pair]; zi=tmp_zi, from=-100, to=-10)
                 fetch_candles(e, "1d", [pair]; from=-100, to=-10)
             end

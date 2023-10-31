@@ -29,7 +29,7 @@ macro skipoffline(
                 else
                     let_vars.args
                 end...)
-                @skipoffline $(expr.args[2]) $this_file $this_line $this_module
+                $(@__MODULE__).@skipoffline $(expr.args[2]) $this_file $this_line $this_module
             end
         end
     elseif expr.head == :block
@@ -55,7 +55,7 @@ macro skipoffline(
                 $expr
             catch
                 if $(isoffline)()
-                    @warn "skipping error since offline" maxlog = 1 _module = $this_module _file = $this_file _line = $this_line
+                    @error "skipping error since offline" maxlog = 1 _module = $this_module _file = $this_file _line = $this_line exception = (first(Base.catch_stack())...,)
                 else
                     rethrow()
                 end
