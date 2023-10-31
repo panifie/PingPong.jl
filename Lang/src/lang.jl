@@ -302,21 +302,18 @@ macro writeerror(filehandle)
     end
 end
 
-macro debug_backtrace()
+macro debug_backtrace(msg="")
+    mod = __module__
+    file = string(__source__.file)
+    line = __source__.line
     quote
-        let buf = IOBuffer()
-            try
-                error, trace = first(Base.catch_stack())
-                Base.show_backtrace(buf, trace)
-                @debug String(take!(buf)) error = error
-            finally
-                close(buf)
-            end
-        end
+        @debug $msg _module = $mod _file = $file _line = $line exception = (
+            first(Base.catch_stack())...,
+        )
     end
 end
 
-_dedup_funcs(st::Vector{Base.StackFrame}) = begin
+function _dedup_funcs(st::Vector{Base.StackFrame})
     fnames = NTuple{2,String}[]
     for frame in st
         name = string(frame.func)
