@@ -6,12 +6,14 @@ struct ExchangeID{I}
     function ExchangeID(sym::Symbol=Symbol())
         sym == Symbol() && return new{sym}()
         if isempty(exchangeIds)
-            append!(
-                exchangeIds,
-                (x -> PersistentSet{Symbol}(x))(
-                    pyconvert(Vector{Symbol}, ccxt[].exchanges)
-                ),
-            )
+            prev = Set{Symbol}()
+            for name in ccxt_exchange_names()
+                id = Symbol(name)
+                if id ∉ prev
+                    push!(exchangeIds, id)
+                    push!(prev, id)
+                end
+            end
             @assert sym ∈ exchangeIds
         else
             @assert sym ∈ exchangeIds
