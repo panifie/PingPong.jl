@@ -21,12 +21,12 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const py::Py
     const id::I
     const name::String
-    const precision::Vector{ExcPrecisionMode}
     const timeframes::OrderedSet{String}
     const markets::OptionsDict
     const types::Set{Symbol}
     const fees::Dict{Symbol,Union{Symbol,<:Number,<:AbstractDict}}
     const has::Dict{Symbol,Bool}
+    const precision::Ref{ExcPrecisionMode}
 end
 
 function close_exc(exc::CcxtExchange)
@@ -58,12 +58,12 @@ function Exchange(x::Py)
         x,
         id,
         name,
-        [excDecimalPlaces],
         OrderedSet{String}(),
         OptionsDict(),
         Set{Symbol}(),
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
+        excDecimalPlaces,
     )
     funcs = get(HOOKS, nameof(id), ())::Union{Tuple{},Vector{Function}}
     for f in funcs
@@ -89,7 +89,7 @@ Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
 function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
     if hasfield(E, k)
         if k == :precision
-            getfield(e, k)[1]
+            getfield(e, :precision)[]
         else
             getfield(e, k)
         end

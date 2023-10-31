@@ -170,7 +170,7 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     @debug "Loaded $(length(exc.markets))."
     setflags!(exc)
     precision = getfield(exc, :precision)
-    precision[1] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
+    precision[] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
     fees = getfield(exc, :fees)
     for (k, v) in exc.py.fees["trading"].items()
         fees[Symbol(k)] = let c = pyconvert(Any, v)
