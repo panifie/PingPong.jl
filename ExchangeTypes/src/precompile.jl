@@ -19,13 +19,14 @@ using Ccxt.Misc.Lang: @preset, @precomp
     @precomp let
         e = Exchange(ccxt[].bybit())
         pyfetch(e.close)
+        finalize(e)
     end
     e = Exchange(ccxt[].bybit())
     @precomp begin
         hash(e)
         e.has
     end
-    pyfetch(e.close)
+    finalize(e)
     _closeall()
     Python.py_stop_loop()
 end
