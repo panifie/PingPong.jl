@@ -1,3 +1,4 @@
+using Fetch: Fetch, pytofloat
 using SimMode
 using SimMode.Executors
 using Base: SimpleLogger, with_logger
@@ -17,7 +18,6 @@ using .Instances.Exchanges: CcxtTrade
 using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
 import .Executors: pong!
-using Fetch: Fetch, pytofloat
 import .Misc: start!, stop!, isrunning
 
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
@@ -31,7 +31,7 @@ _assets(s) =
         str[begin:min(length(str), displaysize()[2] - 1)]
     end
 function header(s::Strategy, throttle)
-    "Starting strategy $(nameof(s)) in $(execmode(s)) mode!
+    "Starting strategy $(nameof(s)) in $(nameof(typeof(execmode(s)))) mode!
 
         throttle: $throttle
         timeframes: $(_maintf(s)) (main), $(_maintf(s)) (optional), $(_timeframes(s)...) (extras)
@@ -109,14 +109,25 @@ end
 function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
-    if doreset && !hasattr(s, :is_running) # only set defaults on first run
-        default!(s)
-    end
-    startinfo = header(s, throttle)
-    flushlog, log_lock = flushlog_func(s)
+    local startinfo, flushlog, log_lock
+    @lock s begin
+        attrs = s.attrs
+        first_start = !haskey(attrs, :is_running)
+        if doreset && first_start # only set defaults on first run
+            default!(s)
+            reset!(s)
+        end
 
-    s[:is_running] = Ref(true)
-    @deassert attr(s, :is_running)[]
+        if first_start
+            s[:is_running] = Ref(true)
+        elseif s[:is_running][]
+            @error "start: strategy already running" s = nameof(s)
+        end
+        @deassert attr(s, :is_running)[]
+
+        startinfo = header(s, throttle)
+        flushlog, log_lock = flushlog_func(s)
+    end
     if foreground
         s[:run_task] = nothing
         @info startinfo
@@ -139,20 +150,30 @@ end
 
 function elapsed(s::Strategy{<:Union{Paper,Live}})
     attrs = s.attrs
-    max(Millisecond(0), @coalesce(attrs[:is_stop], now()) - attrs[:is_start])
+    max(
+        Millisecond(0),
+        @coalesce(get(attrs, :is_stop, missing), now()) -
+        @coalesce(get(attrs, :is_start, missing), now()),
+    )
 end
 
 function stop!(s::Strategy{<:Union{Paper,Live}})
-    running = attr(s, :is_running, nothing)
-    task = attr(s, :run_task, nothing)
-    if isnothing(running)
-        @assert isnothing(task) || istaskdone(task)
-    else
-        @assert running[] || istaskdone(task)
+    task = @lock s begin
+        running = attr(s, :is_running, nothing)
+        task = attr(s, :run_task, nothing)
+        if isnothing(running)
+            @assert isnothing(task) || istaskdone(task)
+            return nothing
+        else
+            @assert running[] || istaskdone(task)
+        end
+        running[] = false
+        task
     end
-    running[] = false
     @info "strategy: stopped" mode = execmode(s) elapsed(s)
-    wait(task)
+    if task isa Task
+        wait(task)
+    end
 end
 
 function runlog(s, name=lowercase(string(execmode(s))))
