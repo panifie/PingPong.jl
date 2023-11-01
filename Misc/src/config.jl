@@ -6,11 +6,11 @@ using FunctionalCollections: PersistentHashMap
 using .Lang: @lget!, Option, splitkws
 # TODO: move config to own pkg
 #
-function find_config(cur_path=splitpath(pwd()))
+function find_config(cur_path=splitpath(pwd()); name="pingpong.toml", dir="user")
     length(cur_path) == 1 && return nothing
-    this_file = joinpath(cur_path..., "pingpong.toml")
+    this_file = joinpath(cur_path..., name)
     isfile(this_file) && return this_file
-    this_file = joinpath(cur_path..., "user", "pingpong.toml")
+    this_file = joinpath(cur_path..., dir, name)
     isfile(this_file) && return this_file
     pop!(cur_path)
     return find_config(cur_path)
@@ -213,12 +213,7 @@ _sources!(cfg, name) = begin
 end
 
 @doc "Parses the toml file and populates the config `cfg` (defaults to global config)."
-function config!(
-    name::String;
-    cfg::Config=config,
-    path::String=config_path(),
-    check=true,
-)
+function config!(name::String; cfg::Config=config, path::String=config_path(), check=true)
     _path!(cfg, path)
     _toml!(cfg, name; check)
     _options!(cfg, name)
