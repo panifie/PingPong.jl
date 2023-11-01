@@ -119,13 +119,14 @@ function Config(args...; kwargs...)
     Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
 end
 
-function Config(profile::Union{Symbol,String}, path::String=config_path(); kwargs...)
+function Config(profile::Union{Symbol,Module,String}, path::String=config_path(); kwargs...)
     config_kwargs, attrs_kwargs = splitkws(fieldnames(Config)...; kwargs)
     cfg = Config(; config_kwargs...)
-    config!(profile; cfg, path)
+    name = _namestring(profile)
+    config!(name; cfg, path)
     cfg = Config(; defaults=_defaults(cfg))
     cfg[:config_overrides] = config_kwargs
-    config!(profile; cfg, path)
+    config!(name; cfg, path)
     attrs = cfg.attrs
     for (k, v) in attrs_kwargs
         attrs[k] = v
@@ -157,10 +158,9 @@ _path!(cfg, path) = begin
     end
 end
 
-_namestring(name) = begin
-    name = convert(Symbol, name)
-    string(name)
-end
+_namestring(profile::String) = profile
+_namestring(profile::Symbol) = string(profile)
+_namestring(profile::Module) = profile |> nameof |> string
 
 function _toml!(cfg, name; check=true)
     cfg.toml = PersistentHashMap(
@@ -214,13 +214,12 @@ end
 
 @doc "Parses the toml file and populates the config `cfg` (defaults to global config)."
 function config!(
-    profile::Union{Symbol,String};
+    name::String;
     cfg::Config=config,
     path::String=config_path(),
     check=true,
 )
     _path!(cfg, path)
-    name = _namestring(profile)
     _toml!(cfg, name; check)
     _options!(cfg, name)
     _sources!(cfg, name)
