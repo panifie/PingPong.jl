@@ -1,5 +1,5 @@
 using .Data.Cache: save_cache, load_cache
-using .Misc: user_dir
+using .Misc: user_dir, config_path
 
 macro notfound(path)
     quote
@@ -42,11 +42,11 @@ function _file(src, cfg, is_project)
             msg = if is_project
                 "Strategy include file not found for project $src, \
                 declare `include_file` manually in strategy config \
-                or ensure `src/$src.jl is present."
+                or ensure `src/$src.jl is present. cfg: $(cfg.path) file: ($file)"
             else
                 "Section `$src` does not declare an `include_file` and \
                 section `sources` does not declare a `$src` key or \
-                its value is not a valid file."
+                its value is not a valid file. cfg: $(cfg.path) file: $(file)"
             end
             throw(ArgumentError(msg))
         end
@@ -62,14 +62,26 @@ function _defined_marginmode(mod)
     end
 end
 
-function default_load(mod, t, config)
-    assets = invokelatest(mod.ping!, t, StrategyMarkets())
-    sandbox = config.mode == Paper() ? false : config.sandbox
-    s = Strategy(mod, assets; config, sandbox)
+_strat_load_checks(s::Strategy, config::Config) = begin
     @assert marginmode(s) == config.margin
     @assert execmode(s) == config.mode
     s[:verbose] = false
     s
+end
+
+function default_load(mod::Module, t::Type, config::Config)
+    assets = invokelatest(mod.ping!, t, StrategyMarkets())
+    sandbox = config.mode == Paper() ? false : config.sandbox
+    s = Strategy(mod, assets; config, sandbox)
+    _strat_load_checks(s, config)
+end
+
+function bare_load(mod::Module, t::Type, config::Config)
+    syms = invokelatest(mod.ping!, t, StrategyMarkets())
+    exc = Exchanges.getexchange!(config.exchange; sandbox=true)
+    uni = AssetCollection(syms; load_data=false, timeframe=mod.TF, exc, config.margin)
+    s = Strategy(mod, config.mode, config.margin, mod.TF, exc, uni; config)
+    _strat_load_checks(s, config)
 end
 
 function strategy!(src::Symbol, cfg::Config)
@@ -77,7 +89,8 @@ function strategy!(src::Symbol, cfg::Config)
     isproject = if splitext(file)[2] == ".toml"
         project_file = find_path(file, cfg)
         path = find_path(file, cfg)
-        Misc.config!(src; cfg, path, check=false)
+        name = string(src)
+        Misc.config!(name; cfg, path, check=false)
         file = _file(src, cfg, true)
         true
     else
@@ -86,27 +99,31 @@ function strategy!(src::Symbol, cfg::Config)
     end
     prev_proj = Base.active_project()
     path = find_path(file, cfg)
-    mod = if !isdefined(Main, src)
-        @eval Main begin
+    parent = get(cfg.attrs, :parent_module, Strategies)
+    @assert parent isa Module "loading: $parent is not symbol (module)"
+    mod = if !isdefined(parent, src)
+        @eval parent begin
             try
-                using Pkg: Pkg
-                $isproject && begin
-                    Pkg.activate($project_file; io=Base.devnull)
-                    Pkg.instantiate(; io=Base.devnull)
+                let
+                    using Pkg: Pkg
+                    $isproject && begin
+                        Pkg.activate($project_file; io=Base.devnull)
+                        Pkg.instantiate(; io=Base.devnull)
+                    end
+                    if isinteractive() && isdefined(Main, :Revise)
+                        Main.Revise.includet($path)
+                    else
+                        include($path)
+                    end
+                    using .$src
+                    $src
                 end
-                if isdefined(Main, :Revise)
-                    Main.Revise.includet($path)
-                else
-                    include($path)
-                end
-                using Main.$src
-                Main.$src
             finally
                 $isproject && Pkg.activate($prev_proj; io=Base.devnull)
             end
         end
     else
-        @eval Main $src
+        @eval parent $src
     end
     strategy!(mod, cfg)
 end
@@ -164,9 +181,11 @@ function strategy!(mod::Module, cfg::Config)
         end
     end
     @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
-    @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) default_load(
-        mod, s_type, cfg
-    )
+    @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) try
+        default_load(mod, s_type, cfg)
+    catch
+        nothing
+    end bare_load(mod, s_type, cfg)
 end
 
 function strategy_cache_path()
@@ -177,18 +196,20 @@ function strategy_cache_path()
     cache_path
 end
 
-function strategy(src::Union{Symbol,Module,String}; load=false, config_args...)
+function strategy(
+    src::Union{Symbol,Module,String}, path=config_path(); load=false, config_args...
+)
     cfg = if load
         cache_path = strategy_cache_path()
         cfg = load_cache(string(src); raise=false, cache_path)
         if !(cfg isa Config)
             @warn "Strategy state ($src) not found at $cache_path"
-            Config(src; config_args...)
+            Config(src, path; config_args...)
         else
             cfg
         end
     else
-        Config(src; config_args...)
+        Config(src, path; config_args...)
     end
     s = strategy!(src, cfg)
     load && save_strategy(s)

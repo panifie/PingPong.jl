@@ -1,40 +1,11 @@
 using .Lang: @preset, @precomp
 
-module BareStrat
-using ..Strategies
-using ..ExchangeTypes
-using ..ExchangeTypes.Ccxt: ccxt_exchange
-using ..TimeTicks
-using ..Strategies: AssetCollection
-import .Strategies: ping!
-using ..Misc: Sim, NoMargin
-
-const DESCRIPTION = "BaseStrat"
-const EXCID = ExchangeTypes.ExchangeID(:bybit)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}
-const TF = tf"1m"
-ping!(::S, args...; kwargs...) = nothing
-function ping!(::Type{<:S}, config, ::LoadStrategy)
-    Strategy(
-        BareStrat,
-        Sim(),
-        NoMargin(),
-        tf"1m",
-        config[:exc],
-        AssetCollection();
-        config,
-    )
-end
-end
-
 @preset let
     ExchangeTypes.Python.py_start_loop()
-    using ..ExchangeTypes.Ccxt: ccxt_exchange
-    @precomp Config()
-    cfg = Config()
-    cfg[:exc] = ExchangeTypes.Exchange(ccxt_exchange(:phemex))
-    @precomp strategy!(BareStrat, cfg)
-    s = strategy!(BareStrat, cfg)
+    @precomp let
+        strategy(:BareStrat, parent_module=Strategies)
+    end
+    s = strategy(:BareStrat, parent_module=Strategies)
     @precomp begin
         assets(s)
         instances(s)
