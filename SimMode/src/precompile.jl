@@ -1,5 +1,7 @@
 using .Lang: @preset, @precomp, @m_str, @ignore
 
+include("precompile_pong.jl")
+
 @preset let
     st.Instances.Exchanges.Python.py_start_loop()
     s = st.strategy(st.BareStrat)
@@ -21,5 +23,6 @@ using .Lang: @preset, @precomp, @m_str, @ignore
         start!(s, ect.Context(now() - Year(1), tf"1d", Year(1)))
         start!(s; doreset=false)
     end
+    @compile_pong
     st.Instances.Exchanges.Python.py_stop_loop()
 end
