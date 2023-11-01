@@ -337,6 +337,57 @@ macro caller(n=4)
     end
 end
 
+macro ignore(expr)
+    ex = if expr.head == :for
+        body = expr.args[2]
+        expr.args[2] = :(
+            try
+                $body
+            catch
+            end
+        )
+        quote
+            try
+                $expr
+            catch
+            end
+        end
+    elseif expr.head == :let
+        let_vars = expr.args[1]
+        quote
+            try
+                $(if let_vars.head == :(=)
+                    (let_vars,)
+                elseif isempty(let_vars.args)
+                    ()
+                else
+                    let_vars.args
+                end...)
+                $(@__MODULE__).@ignore $(expr.args[2])
+            catch
+            end
+        end
+    elseif expr.head == :block
+        this_expr = :(
+            begin end
+        )
+        args = this_expr.args
+        for line in expr.args
+            line isa LineNumberNode && continue
+            push!(args, :($(@__MODULE__).@ignore($line)))
+        end
+        this_expr
+    else
+        quote
+            try
+                $expr
+            catch
+            end
+        end
+    end
+    esc(ex)
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
