@@ -3,14 +3,15 @@ import Serialization: deserialize, serialize
 using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
+using Pbar.Term: RGB, tprint
+using ExchangeTypes
+using Data: Data, DataFrame
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
 using .Python: pyfetch, @pystr
 using .Python: Py, pyconvert, PyDict, PyList, pydict, pyimport, @pyconst
 using .Python: pyisnone, pyisnull, pyisbool, pyisTrue, pyisstr
-using Data: Data, DataFrame
-using Pbar.Term: RGB, tprint
 using JSON
 using Instruments
 using Instruments: Misc
