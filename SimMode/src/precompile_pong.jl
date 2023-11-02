@@ -1,10 +1,10 @@
 macro compile_pong()
     expr = quote
         @eval begin
-            using .OrderTypes: OrderTypes as ot
+            isdefined(@__MODULE__, :OrderTypes) || using .OrderTypes: OrderTypes as ot
             using .OrderTypes: Buy, Sell
             using .Lang: @ignore, @precomp
-            using .Executors: pong!, Executors as ect
+            isdefined(@__MODULE__, :Executors) || using .Executors: pong!, Executors as ect
         end
 
         ai = first(s.universe)

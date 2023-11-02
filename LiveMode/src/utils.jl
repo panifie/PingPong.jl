@@ -345,3 +345,11 @@ end
 macro timeout_now()
     esc(:(max(Millisecond(0), timeout_date - now())))
 end
+
+function stop!(s::LiveStrategy; kwargs...)
+    try
+        stop_all_tasks(s)
+    finally
+        invoke(stop!, Tuple{PaperStrategy}, s; kwargs...)
+    end
+end

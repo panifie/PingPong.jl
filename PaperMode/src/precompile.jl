@@ -1,15 +1,9 @@
 using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
-using .Lang: PrecompileTools
-PrecompileTools.verbose[] = true
 
 @preset let
     st.Instances.Exchanges.Python.py_start_loop()
     s = st.strategy(st.BareStrat; mode=Paper())
     sim = SimMode.sim
-    @precomp begin
-        ohlcv_dict(s[m"btc"])[s.timeframe]
-        SimMode.sim.Processing.Data.empty_ohlcv()
-    end
     for ai in s.universe
         append!(
             ohlcv_dict(ai)[s.timeframe],
