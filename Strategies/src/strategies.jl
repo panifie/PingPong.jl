@@ -136,6 +136,7 @@ include("interface.jl")
 include("load.jl")
 include("utils.jl")
 include("print.jl")
+include("forward.jl")
 
 export Strategy, strategy, strategy!, reset!, default!
 export @interface, assets, exchange, universe, throttle, marketsid
