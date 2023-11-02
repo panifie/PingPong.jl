@@ -2,6 +2,7 @@
 /user/strategies/*
 !user/pingpong.toml
 !user/strategies
+!user/strategies/BareStrat.jl
 !user/strategies/Example.jl
 !user/strategies/ExampleMargin.jl
 !user/strategies/ExampleMargin
