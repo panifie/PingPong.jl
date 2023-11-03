@@ -8,7 +8,7 @@ using PrecompileTools
     _lazypy(ccxt, "ccxt.async_support")
     _lazypy(ccxt_ws, "ccxt.pro")
     # Important to not leave dangling pointers in the cache
-    ccxt[] = Python.PyNULL
-    ccxt_ws[] = Python.PyNULL
+    ccxt[] = nothing
+    ccxt_ws[] = nothing
     Python.py_stop_loop()
 end

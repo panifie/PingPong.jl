@@ -6,12 +6,13 @@ using Python: pynew, pyisnone
 using Python.PythonCall: pyisnull, pycopy!, pybuiltins
 using Python: py_except_name
 
-const ccxt = Ref{Py}()
-const ccxt_ws = Ref{Py}()
+const ccxt = Ref{Option{Py}}(nothing)
+const ccxt_ws = Ref{Option{Py}}(nothing)
 const ccxt_errors = Set{String}()
 
 function isinitialized()
-    isassigned(ccxt) && !pyisnull(ccxt[])
+    val = ccxt[]
+    !isnothing(val) && !pyisnull(val)
 end
 
 _ccxt_errors!() =
@@ -31,7 +32,7 @@ end
 const MARKETS_PATH = joinpath(DATA_PATH, "markets")
 function _init()
     clearpypath!()
-    if !isassigned(ccxt) || pyisnull(ccxt[])
+    if !isinitialized()
         try
             Python._async_init(Python.PythonAsync())
             mkpath(MARKETS_PATH)

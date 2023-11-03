@@ -4,10 +4,15 @@ issupported(exc, k) = _issupported(exc.py.has, k)
 _lazypy(ref, mod) = begin
     if isassigned(ref)
         r = ref[]
-        if pyisnull(r)
-            pycopy!(r, pyimport(mod))
+        pymod = pyimport(mod)
+        if isnothing(r)
+            ref[] = pymod
+        elseif pyisnull(r)
+            pycopy!(r, pymod)
+            r
+        else
+            r
         end
-        r
     else
         ref[] = pyimport(mod)
     end
