@@ -34,7 +34,9 @@ function _file(src, cfg, is_project)
         else
         end
     else
-        get(attrs(cfg), "include_file", nothing)
+        @something get(attrs(cfg), "include_file", nothing) joinpath(
+            user_dir(), "strategies", string(src, ".jl")
+        )
     end
     if isnothing(file)
         file = get(cfg.sources, src, nothing)
@@ -196,10 +198,8 @@ function strategy_cache_path()
     cache_path
 end
 
-function strategy(
-    src::Union{Symbol,Module,String}, path=config_path(); load=false, config_args...
-)
-    cfg = if load
+function _strategy_config(src, path; config_args...)
+    if load
         cache_path = strategy_cache_path()
         cfg = load_cache(string(src); raise=false, cache_path)
         if !(cfg isa Config)
@@ -211,8 +211,18 @@ function strategy(
     else
         Config(src, path; config_args...)
     end
+end
+
+function strategy(
+    src::Union{Symbol,Module,String}, path::String=config_path(); load=false, config_args...
+)
+    cfg = _strategy_config(src, path; config_args)
+    strategy(src, cfg; save=load)
+end
+
+function strategy(src::Union{Symbol,Module,String}, cfg::Config; save=false)
     s = strategy!(src, cfg)
-    load && save_strategy(s)
+    save && save_strategy(s)
     s
 end
 

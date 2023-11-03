@@ -4,6 +4,7 @@ using JSON
 using TimeTicks
 using FunctionalCollections: PersistentHashMap
 using .Lang: @lget!, Option, splitkws
+
 # TODO: move config to own pkg
 #
 function find_config(cur_path=splitpath(pwd()); name="pingpong.toml", dir="user")
@@ -119,14 +120,14 @@ function Config(args...; kwargs...)
     Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
 end
 
-function Config(profile::Union{Symbol,Module,String}, path::String=config_path(); kwargs...)
+function Config(profile::Union{Symbol,Module,String}, path::String=config_path(); hasentry=true, kwargs...)
     config_kwargs, attrs_kwargs = splitkws(fieldnames(Config)...; kwargs)
     cfg = Config(; config_kwargs...)
     name = _namestring(profile)
-    config!(name; cfg, path)
+    config!(name; cfg, path, check=hasentry)
     cfg = Config(; defaults=_defaults(cfg))
     cfg[:config_overrides] = config_kwargs
-    config!(name; cfg, path)
+    config!(name; cfg, path, check=hasentry)
     attrs = cfg.attrs
     for (k, v) in attrs_kwargs
         attrs[k] = v
