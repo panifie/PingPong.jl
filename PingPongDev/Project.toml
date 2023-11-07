@@ -1,0 +1,8 @@
+name = "PingPongDev"
+uuid = "df15b565-ff7f-4c64-9bc8-38e9343ea891"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+PingPong = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+Stubs = "19a5ee1f-efca-4178-b297-263c7ceb508d"

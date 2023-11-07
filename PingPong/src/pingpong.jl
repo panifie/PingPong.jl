@@ -12,25 +12,9 @@ include("repl.jl")
 include("strat.jl")
 
 function _doinit()
-    @debug "Initializing python async..."
-    if "JULIA_BACKTEST_REPL" ∈ keys(ENV)
-        exc = Symbol(get!(ENV, "JULIA_BACKTEST_EXC", :kucoin))
-        Config(exc)
-        wait(t)
-        setexchange!(exc)
-    end
     # default to using lmdb store for data
     @debug "Initializing LMDB zarr instance..."
     Data.zi[] = Data.zilmdb()
-    if isinteractive()
-        @info "Loading interactive utilities"
-        @eval Main begin
-            $(@__MODULE__).@environment!
-            (isdefined(Main, :Revise) ? Revise.includet : include)(
-                $(joinpath(@__DIR__, "dev.jl"))
-            )
-        end
-    end
 end
 
 macro environment!()
