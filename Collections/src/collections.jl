@@ -61,7 +61,7 @@ struct AssetCollection
             data = SortedDict(tf => load_func(aa))
             AssetInstance(aa; data, exc, margin, min_amount)
         end
-        instances = [getInstance(ast) for ast in assets]
+        instances = AssetInstance[getInstance(ast) for ast in assets]
         AssetCollection(instances)
     end
 end
