@@ -56,8 +56,10 @@ end
 function purge_compilecache(path="."; io=stdout)
     names = projects_name(path; io)
     compiled = joinpath(
-        homedir(), ".julia", "compiled", "v$(VERSION.major).$(VERSION.minor)"
+        homedir(), ".julia", "compiled", "v$(Int(VERSION.major)).$(Int(VERSION.minor))"
     )
+    @info "Purging compiled cache" dir = compiled n = length(names)
+    sleep(0)
     for name in names
         pkg_path = joinpath(compiled, name)
         if isdir(pkg_path)
