@@ -85,7 +85,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     )
         @assert !ishedged(margin) "Hedged margin not yet supported."
         ca = CurrencyCash(exc, config.qc, config.initial_cash)
-        if !coll.iscashable(ca, uni)
+        if !isempty(uni) && !coll.iscashable(ca, uni)
             @warn "Assets within the strategy universe don't match the strategy cash! ($(nameof(ca)))"
         end
         _no_inv_contracts(exc, uni)
@@ -136,7 +136,6 @@ include("interface.jl")
 include("load.jl")
 include("utils.jl")
 include("print.jl")
-include("forward.jl")
 
 export Strategy, strategy, strategy!, reset!, default!
 export @interface, assets, exchange, universe, throttle, marketsid
