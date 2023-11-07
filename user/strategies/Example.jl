@@ -10,14 +10,14 @@ const TF = tf"1m"
 
 include("common.jl")
 
-ping!(s::S, ::ResetStrategy) = begin
+ping!(s::SC, ::ResetStrategy) = begin
     skip_watcher = attr(s, :skip_watcher, false)
     _reset!(s)
     _initparams!(s)
     _overrides!(s)
     skip_watcher || _tickers_watcher(s)
 end
-function ping!(t::Type{<:S}, config, ::LoadStrategy)
+function ping!(t::Type{<:SC}, config, ::LoadStrategy)
     s = st.default_load(@__MODULE__, t, config)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
         _tickers_watcher(s)
@@ -25,7 +25,7 @@ function ping!(t::Type{<:S}, config, ::LoadStrategy)
     s
 end
 
-ping!(_::S, ::WarmupPeriod) = Day(1)
+ping!(_::SC, ::WarmupPeriod) = Day(1)
 
 _initparams!(s) = begin
     params_index = st.attr(s, :params_index)
@@ -35,7 +35,7 @@ _initparams!(s) = begin
     params_index[:leverage] = 3
 end
 
-function ping!(s::T, ts::DateTime, _) where {T<:S}
+function ping!(s::T, ts::DateTime, _) where {T<:SC}
     ats = available(_timeframe(s), ts)
     makeorders(ai) = begin
         if issell(s, ai, ats)
@@ -47,7 +47,7 @@ function ping!(s::T, ts::DateTime, _) where {T<:S}
     foreach(makeorders, s.universe.data.instance)
 end
 
-function ping!(::Type{<:S}, ::StrategyMarkets)
+function ping!(::Type{<:SC}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "SOL/USDT"]
 end
 
@@ -55,7 +55,7 @@ function ping!(::SC{ExchangeID{:bybit}}, ::StrategyMarkets)
     ["ETH/USDT", "BTC/USDT", "ATOM/USDT"]
 end
 
-function buy!(s::S, ai, ats, ts)
+function buy!(s, ai, ats, ts)
     pong!(s, ai, CancelOrders(); t=Sell)
     @deassert ai.asset.qc == nameof(s.cash)
     price = closeat(ai.ohlcv, ats)
@@ -67,7 +67,7 @@ function buy!(s::S, ai, ats, ts)
     end
 end
 
-function sell!(s::S, ai, ats, ts)
+function sell!(s, ai, ats, ts)
     pong!(s, ai, CancelOrders(); t=Buy)
     amount = max(inv(closeat(ai, ats)), inst.freecash(ai))
     if amount > 0.0
@@ -77,7 +77,7 @@ function sell!(s::S, ai, ats, ts)
     end
 end
 
-function isbuy(s::S, ai, ats)
+function isbuy(s, ai, ats)
     if s.cash > s.config.min_size
         closepair(s, ai, ats)
         isnothing(_thisclose(s)) && return false
@@ -87,7 +87,7 @@ function isbuy(s::S, ai, ats)
     end
 end
 
-function issell(s::S, ai, ats)
+function issell(s, ai, ats)
     if ai.cash > 0.0
         closepair(s, ai, ats)
         isnothing(_thisclose(s)) && return false
@@ -98,7 +98,7 @@ function issell(s::S, ai, ats)
 end
 
 ## Optimization
-function ping!(s::S, ::OptSetup)
+function ping!(s::SC, ::OptSetup)
     # s.attrs[:opt_weighted_fitness] = weightsfunc
     (;
         ctx=Context(Sim(), tf"1h", dt"2020-", dt"2023-"),
@@ -106,7 +106,7 @@ function ping!(s::S, ::OptSetup)
         space=(kind=:MixedPrecisionRectSearchSpace, precision=[3, 3]),
     )
 end
-function ping!(s::S, params, ::OptRun)
+function ping!(s::SC, params, ::OptRun)
     s.attrs[:overrides] = (;
         timeframe=tf"1h",
         ordertype=:market,
@@ -117,7 +117,7 @@ function ping!(s::S, params, ::OptRun)
     _overrides!(s)
 end
 
-function ping!(s::S, ::OptScore)
+function ping!(s::SC, ::OptScore)
     [values(stats.multi(s, :sortino; normalize=true))...]
     # [values(stats.multi(s, :sortino, :sharpe; normalize=true))...]
 end
