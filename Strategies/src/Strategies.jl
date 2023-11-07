@@ -2,7 +2,11 @@ module Strategies
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
-        include(joinpath(@__DIR__, "strategies.jl"))
+        entrypath = joinpath(@__DIR__, "strategies.jl")
+        include(entrypath)
+        if isdefined(Main, :Revise)
+            Main.Revise.track(Strategies, @__FILE__)
+        end
     end
 else
     occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)

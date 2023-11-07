@@ -101,7 +101,7 @@ function strategy!(src::Symbol, cfg::Config)
     end
     prev_proj = Base.active_project()
     path = find_path(file, cfg)
-    parent = get(cfg.attrs, :parent_module, Strategies)
+    parent = get(cfg.attrs, :parent_module, Main)
     @assert parent isa Module "loading: $parent is not symbol (module)"
     mod = if !isdefined(parent, src)
         @eval parent begin
@@ -112,12 +112,11 @@ function strategy!(src::Symbol, cfg::Config)
                         Pkg.activate($project_file; io=Base.devnull)
                         Pkg.instantiate(; io=Base.devnull)
                     end
-                    if isinteractive() && isdefined(Main, :Revise)
-                        Main.Revise.includet($path)
-                    else
-                        include($path)
-                    end
+                    include($path)
                     using .$src
+                    if isinteractive() && isdefined(Main, :Revise)
+                        Main.Revise.track($src, $path)
+                    end
                     $src
                 end
             finally
@@ -198,7 +197,7 @@ function strategy_cache_path()
     cache_path
 end
 
-function _strategy_config(src, path; config_args...)
+function _strategy_config(src, path; load, config_args...)
     if load
         cache_path = strategy_cache_path()
         cfg = load_cache(string(src); raise=false, cache_path)
@@ -216,7 +215,7 @@ end
 function strategy(
     src::Union{Symbol,Module,String}, path::String=config_path(); load=false, config_args...
 )
-    cfg = _strategy_config(src, path; config_args)
+    cfg = _strategy_config(src, path; load, config_args...)
     strategy(src, cfg; save=load)
 end
 
