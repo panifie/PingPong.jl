@@ -1,6 +1,6 @@
 module Forward
 using MacroTools
-# using ..Strategies: ping!
+using ..Strategies: ping!
 using ..Strategies
 using ..Strategies: ExecMode, ExchangeID, MarginMode
 
@@ -14,17 +14,17 @@ strategy_param_type(v) =
     elseif v == :R
         MarginMode
     else
-        Symbol
+        Any
     end
 @doc """Takes as input a strategy type and replaces the type parameters with the ones `kwargs...`
 `M`,`N`,`E`,`R`,`C` for respectively execmode, name, exchangeid, marginmode, cash."""
-function strategytype(stp; kwargs...)
+function strategytype(stp; mod=Strategies, ex=Expr(:a), wh=Any[], kwargs...)
     if hasproperty(stp, :body)
-        strategytype(stp.body; kwargs...)
+        strategytype(stp.body; mod, ex, kwargs...)
     else
         params = [typeparameters(stp)...]
         tp = Strategy
-        tp_params = :()
+        tp_params = []
         for (n, p) in enumerate((:M, :N, :E, :R, :C))
             par = get(params, n, nothing)
             newp = if haskey(kwargs, p)
@@ -34,15 +34,21 @@ function strategytype(stp; kwargs...)
                     :($(kwargs[p]))
                 end
             elseif isnothing(par) || par isa TypeVar
-                :($p where {$p<:$(strategy_param_type(p))})
+                push!(wh, :($p <: $(strategy_param_type(p))))
+                :($p)
             elseif p == :N
                 :($(QuoteNode(par)))
             else
-                :($p where {$p<:$par})
+                super = Meta.parse("$(mod).$(par)")
+                push!(wh, :($p <: $super))
+                :($p)
             end
-            push!(tp_params.args, newp)
+            push!(tp_params, newp)
         end
-        :($(tp){$(tp_params)...})
+        ex.head = :where
+        push!(ex.args, Expr(:curly, tp, tp_params...))
+        push!(ex.args, wh...)
+        ex
     end
 end
 
@@ -51,7 +57,7 @@ function topmodule(expr)
     if P isa Symbol
         P, C
     else
-        topmodule(P), C
+        topmodule(P)[1], C
     end
 end
 
@@ -76,56 +82,48 @@ function getname(expr)
     end
 end
 
-function replacestrat!(func, params, supertp=missing)
+function replacestrat!(func, params, supertp=missing; out=Any[])
     for (n, p) in enumerate(params)
         name = getname(p)
         if name == :Strategy
             if ismissing(supertp)
-                params[n] = func(p)
+                # params[n] = func(p)
+                push!(out, func(p))
             else
                 return n, func(p)
             end
         elseif name in (:Type, :Union)
             type_params = Any[typeparameters(p)...]
-            n_tp, newtp = replacestrat!(func, type_params, p)
+            n_tp, newtp = replacestrat!(func, type_params, p; out)
             if !isnothing(newtp)
-                type_params[n_tp] = newtp
-                params[n] = eval(name){type_params...}
+                type_params_exprs = Any[Meta.parse(string(tp)) for tp in type_params]
+                type_params_exprs[n_tp] = newtp
+                if type_params[n_tp] isa TypeVar
+                    insert!(type_params_exprs, n_tp, :(<:))
+                end
+                push!(out, "$name{$(type_params_exprs...)}")
             end
+        else
+            push!(out, p)
         end
     end
     nothing, nothing
 end
 
 function function_args_expr(pnames, params)
-    out = []
-    vars = []
-    for (n, p) in zip(pnames, params)
-        for tp in typeparameters(p)
-            if tp isa TypeVar
-                push!(vars, typename(tp))
-            end
+    arg_sig = []
+    arg_names = Symbol[]
+    for (n, tp) in zip(pnames, params)
+        tp = replace(string(tp), r"var\"\#.*\"" => "") |> Meta.parse
+        name = if n != ""
+            Symbol(replace(n, "..." => ""))
+        else
+            gensym()
         end
-        tp = Meta.parse(string(p))
-        push!(
-            out,
-            if n != ""
-                if isempty(vars)
-                    :($(Symbol(n))::$tp)
-                else
-                    :($(Symbol(n))::$tp where {$(vars...)})
-                end
-            else
-                if isempty(vars)
-                    :(::$tp)
-                else
-                    :(::$tp where {$(vars...)})
-                end
-            end,
-        )
-        empty!(vars)
+        push!(arg_names, name)
+        push!(arg_sig, :($name::$(tp)))
     end
-    out
+    arg_sig, arg_names
 end
 
 function typename(tp)
@@ -136,50 +134,75 @@ function typename(tp)
     end
 end
 
+_mod_syms(expr, syms=[]) = begin
+    if expr isa Symbol
+        pushfirst!(syms, expr)
+    elseif expr.head == :.
+        pushfirst!(syms, expr.args[2].value)
+        _mod_syms(expr.args[1], syms)
+    end
+    syms
+end
+
 @doc """ Defines `ping!` functions in the strategy module `to_strat` (calling the macro) forwarding to
 the `ping!` functions defined in the strategy module `from_strat`.
 """
-macro forwardstrategy(from_strat, to_strat=__module__, exc=nothing, margin=nothing)
-    ping_func = @__MODULE__().ping!
-    if from_strat isa Symbol
-        from_mod = top_mod = from_s_name = from_strat
-    elseif from_strat isa Expr
-        top_mod, from_s_name = topmodule(from_strat)
-        from_mod = deepcopy(from_strat)
-        @assert from_strat.head == :(.) "argument is not a valid module"
-        pushfirst!(from_strat.args, :(.))
-        from_strat.args[end] = from_strat.args[end].value
+macro forwardstrategy(from_mod, to_mod=__module__, exc=nothing, margin=nothing)
+    if from_mod isa Symbol
+        top_mod = tail_mod = from_mod
+    elseif from_mod isa Expr
+        top_mod, tail_mod = topmodule(from_mod)
     end
-    to_s_name = to_strat isa Module ? nameof(to_strat) : Symbol(to_strat)
-    to_s_mod = to_strat isa Module ? to_strat : @eval __module__ $to_strat
+    use_expr = Expr(:using, Expr(:., :., _mod_syms(from_mod)...))
+    @info "" from_mod top_mod tail_mod
     quote
-        isdefined($(__module__), $(QuoteNode(top_mod))) || using .$top_mod
-        $(Expr(:using, from_strat))
+        if isdefined($__module__, $(QuoteNode(top_mod)))
+            $use_expr
+        else
+            using $top_mod
+            $use_expr
+        end
         let
-            to_s_mod = $to_s_mod
+            to_s_mod = @eval $__module__ $to_mod
             to_params = typeparameters(
-                getproperty(to_s_mod, hasproperty($to_s_mod, :S) ? :S : :SC)
+                getproperty(to_s_mod, hasproperty(to_s_mod, :S) ? :S : :SC)
             )
             to_kwargs = NamedTuple(
                 p => to_params[n] for
                 (n, p) in enumerate((:M, :N, :E, :R, :C)) if typename(to_params[n]) != p
             )
-            from_mod = getproperty($__module__, $(QuoteNode(from_s_name)))
-            for met in methods($ping_func, from_mod)
+            from_mod = getproperty($__module__, $(QuoteNode(tail_mod)))
+            for met in methods(ping!, from_mod)
                 pnames = String[x[1] for x in Base.arg_decl_parts(met)[2][2:end]]
                 params = [typeparameters(met.sig)[2:end]...]
-                replacestrat!(params) do tp
-                    expr = strategytype(tp; to_kwargs...)
-                    Core.eval($__module__, expr)
+                params_exprs = Any[]
+                replacestrat!(params; out=params_exprs) do tp
+                    expr = strategytype(tp; mod=$(QuoteNode(from_mod)), to_kwargs...)
+                    str = string(expr)
+                    Meta.parse(str)
                 end
-                args = function_args_expr(pnames, params)
-                fdef = :(function ping!($(args...); kwargs...)
-                    # invoke(ping!, $(met.sig), $(pnames)...; kwargs...)
-                end)
-                @info fdef
+                args, argnames = function_args_expr(pnames, params_exprs)
+                tuple_types = Tuple{met.sig.parameters[2:end]...}
+                @assert length(tuple_types.parameters) == length(args) == length(argnames)
+                fdef = :(
+                    function ping!($(args...); kwargs...)
+                        @info "params types" $(Tuple{met.sig.parameters[2:end]...})
+                        @info "params names" $(argnames)
+                        @info "params args" $(args)
+                        invoke(
+                            ping!,
+                            $(tuple_types),
+                            $(argnames)...;
+                            kwargs...,
+                        )
+                    end
+                )
                 Core.eval($__module__, fdef)
             end
         end
     end
 end
+
+export @forwardstrategy
+
 end
