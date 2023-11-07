@@ -143,7 +143,9 @@ function getexchange!(
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
-        begin
+        if x == Symbol() || x == Symbol("")
+            Exchange(pybuiltins.None)
+        else
             py = ccxt_exchange(x, params; kwargs...)
             e = Exchange(py)
             sandbox && sandbox!(e, true; remove_keys=false)
