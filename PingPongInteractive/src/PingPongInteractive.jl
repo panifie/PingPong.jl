@@ -1,4 +1,4 @@
-module IPingPong
+module PingPongInteractive
 
 using PingPong
 using WGLMakie

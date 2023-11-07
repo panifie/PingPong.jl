@@ -14,6 +14,8 @@
 !user/strategies/MarginStrat
 !user/strategies/TwoIntervals
 !user/strategies/TwoParameters
+!PingPongInteractive/
+!PingPongDev/
 /src/__pycache__/
 /render.html
 /**/__pycache__/*

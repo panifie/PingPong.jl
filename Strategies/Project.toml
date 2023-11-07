@@ -5,4 +5,5 @@ version = "0.1.0"
 
 [deps]
 Collections = "199ae5f6-b1b4-42af-853d-fd50a04203c4"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"

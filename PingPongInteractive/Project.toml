@@ -1,4 +1,4 @@
-name = "IPingPong"
+name = "PingPongInteractive"
 uuid = "482fd972-58d7-43f2-aa46-1266790cbdd8"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
