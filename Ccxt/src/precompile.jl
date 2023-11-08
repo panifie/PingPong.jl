@@ -4,9 +4,9 @@ using PrecompileTools
 @setup_workload begin
     @compile_workload begin
         __init__()
+        _lazypy(ccxt, "ccxt.async_support")
+        _lazypy(ccxt_ws, "ccxt.pro")
     end
-    _lazypy(ccxt, "ccxt.async_support")
-    _lazypy(ccxt_ws, "ccxt.pro")
     # Important to not leave dangling pointers in the cache
     ccxt[] = nothing
     ccxt_ws[] = nothing
