@@ -3,21 +3,6 @@ using PythonCall:
 using Dates: Period, Second
 using Mocking: @mock, Mocking
 
-"""
-    PythonAsync(;pyaio::Py = pynew(), pyuv::Py = pynew(), pythreads::Py = pynew(), pyrunner::Py = pynew(), pyloop::Py = pynew(), pycoro_type::Py = pynew(), task::Ref{Task} = Ref{Task}())
-
-A structure that holds references to the Python asynchronous objects and state.
-"""
-@kwdef struct PythonAsync
-    pyaio::Py = pynew()
-    pythreads::Py = pynew()
-    pyloop::Py = pynew()
-    pycoro_type::Py = pynew()
-    globs::Py = pynew()
-    start_func::Py = pynew()
-    task::Ref{Task} = Ref{Task}()
-    task_running::Ref{Bool} = Ref(false)
-end
 
 """
     isinitialized_async(pa::PythonAsync)

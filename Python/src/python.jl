@@ -1,6 +1,5 @@
-using PrecompileTools
 using PythonCall: PyList, pynew, Py
-using PythonCall.C.CondaPkg: envdir
+# using PythonCall.C.CondaPkg: envdir
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
@@ -20,6 +19,7 @@ function _ensure_env!()
 end
 
 function _setup!()
+    isprecomp = ccall(:jl_generating_output, Cint, ()) != 0
     @eval begin
         using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
@@ -30,17 +30,26 @@ function _setup!()
         #         ),
         #     ),
         # )
-        PY_V[] = let vinfo = pyimport("sys").version_info
-            string(vinfo.major, ".", vinfo.minor)
+        if $isprecomp
+            PY_V[] = "3.11"
+        else
+            PY_V[] = let vinfo = pyimport("sys").version_info
+                string(vinfo.major, ".", vinfo.minor)
+            end
+        end
+        ed = if $isprecomp
+            @something get(ENV, "JULIA_CONDAPKG_ENV", nothing) joinpath(pwd(), ".conda")
+        else
+            envdir()
         end
         # NOTE: Make sure conda libs precede system libs
-        PYTHONPATH[] = ".:$(joinpath(envdir(), "lib"))/python$(PY_V[])"
+        PYTHONPATH[] = string(".:", joinpath(ed, "lib"), "/python", PY_V[])
         setpypath!()
         using PythonCall:
             Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
         _ensure_env!()
+        _INITIALIZED[] = false
     end
-    _INITIALIZED[] = false
 end
 
 @doc "Remove wrong python version libraries dirs from python loading path."
@@ -125,8 +134,8 @@ macro pymodule(name, modname=nothing)
             try
                 pycopy!($var_name, pyimport($str_mod))
             catch
-                add_pip($str_mod)
-                resolve()
+                $add_pip($str_mod)
+                $resolve()
                 pycopy!($var_name, pyimport($str_mod))
             end
         end
