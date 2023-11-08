@@ -7,7 +7,7 @@
     cl = tgclient(s)
     text = "abc"
     chat_id = 123
-    @precmop @ignore begin
+    @precomp @ignore begin
         start(cl, s; text, chat_id)
         stop(cl, s; text, chat_id)
         status(cl, s; text, chat_id)
