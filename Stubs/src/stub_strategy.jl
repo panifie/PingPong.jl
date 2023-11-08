@@ -1,4 +1,4 @@
-module Example
+module StubStrategy
 
 using ..Stubs.Misc
 using ..Stubs.TimeTicks
@@ -12,7 +12,7 @@ using .Strategies: Strategies as st
 using .Strategies.Exchanges.ExchangeTypes
 using .Strategies: Instances as inst
 using ..SimMode.Executors
-using .Executors: Executors as ect
+using .Executors: Executors, Executors as ect
 using .Strategies.OrderTypes
 using .OrderTypes: BySide, ByPos
 
@@ -22,9 +22,9 @@ __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
 
 # # NOTE: do not export anything
-@interface
+Strategies.@interface
 
-const DESCRIPTION = "Example"
+const DESCRIPTION = "Strutegy to generate stub data"
 const EXCID = ExchangeID(:binance)
 const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}
 const TF = tf"1m"
@@ -39,7 +39,7 @@ function ping!(t::Type{<:S}, config, ::LoadStrategy)
     syms = ping!(S, StrategyMarkets())
     exc = st.Exchanges.getexchange!(config.exchange; sandbox=true)
     uni = st.AssetCollection(syms; load_data=false, timeframe=TF, exc, config.margin)
-    s = Strategy(Example, config.mode, config.margin, TF, exc, uni; config)
+    s = Strategy(@__MODULE__, config.mode, config.margin, TF, exc, uni; config)
     s.attrs[:buydiff] = 1.01
     s.attrs[:selldiff] = 1.005
     s

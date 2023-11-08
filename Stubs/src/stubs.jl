@@ -1,7 +1,7 @@
 using SimMode
 using SimMode: Misc, Strategies, sim
 using .Strategies
-using .Strategies.Exchanges: Exchanges as exs, Instruments as im, Data
+using .Strategies.Exchanges: Exchanges as exs, Instruments as im, Data, Python
 using .Misc
 using .Misc.TimeTicks
 using .Misc.Lang
@@ -13,6 +13,8 @@ using Pkg: Pkg
 
 const PROJECT_PATH = dirname(@something Base.ACTIVE_PROJECT[] Pkg.project().path)
 const OHLCV_FILE_PATH = joinpath(PROJECT_PATH, "test", "stubs", "ohlcv.csv")
+
+include("stub_strategy.jl")
 
 read_ohlcv() = CSV.read(OHLCV_FILE_PATH, DataFrame)
 
@@ -45,7 +47,7 @@ function load_stubtrades!(ai)
 end
 
 @doc "Generates trades and saves them to the stubs shed."
-function gensave_trades(n=10_000; s=Strategies.strategy(:Example), dosave=true)
+function gensave_trades(n=10_000; s=Strategies.strategy(StubStrategy), dosave=true)
     for ai in s.universe
         da.stub!(ai, n)
     end
@@ -71,28 +73,15 @@ end
 
 stub!(s::Strategy, n=10_000; trades=true) = do_stub!(s, n; trades)
 
-include("../../PingPong/test/stubs/Example.jl")
-function stub_strategy(mod=nothing, args...; dostub=true, cfg=nothing, kwargs...)
-    isnothing(cfg) && (cfg = Misc.Config())
-    if isnothing(mod)
-        p = get(ENV, "PINGPONG_PATH", "/pingpong/PingPong")
-        ppath = if isdir(p)
-            p
-        elseif basename(realpath(".")) == "PingPong"
-            realpath(".")
-        elseif isdir("./PingPong")
-            realpath("./PingPong")
-        end
-        cfg.attrs["include_file"] = realpath(joinpath(ppath, "test/stubs/Example.jl"))
-        mod = Example
-    end
-    s = Strategies.strategy!(mod, cfg, args...; kwargs...)
+function stub_strategy(mod=StubStrategy, args...; dostub=true, cfg=Config(), kwargs...)
+    s = Strategies.strategy(mod; parent_module=Stubs, hasentry=false, kwargs...)
     @assert s isa Strategy
     dostub && Stubs.do_stub!(s)
     s
 end
 
 @preset let
+    Python.py_start_loop()
     @precomp let
         try
             s = stub_strategy()
@@ -108,4 +97,5 @@ end
             stub_strategy(; dostub=true)
         end
     end
+    Python.py_stop_loop()
 end
