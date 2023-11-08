@@ -3,9 +3,9 @@ using .Lang: @preset, @precomp
 @preset let
     ExchangeTypes.Python.py_start_loop()
     @precomp let
-        strategy(:BareStrat, parent_module=Strategies)
+        strategy()
     end
-    s = strategy(:BareStrat, parent_module=Strategies)
+    s = strategy()
     @precomp begin
         assets(s)
         instances(s)

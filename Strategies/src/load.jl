@@ -234,6 +234,8 @@ function strategy(src::Union{Symbol,Module,String}, cfg::Config; save=false)
     s
 end
 
+strategy() = strategy(:BareStrat, parent_module=Strategies)
+
 function save_strategy(s)
     cache_path = @lget! attrs(s) :config_cache_path strategy_cache_path()
     save_cache(string(nameof(s)); raise=false, cache_path)
