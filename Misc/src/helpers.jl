@@ -20,7 +20,7 @@ macro skipoffline(
 )
     ex = if expr.head == :let
         let_vars = expr.args[1]
-        Main.e = let_vars
+        # Main.e = let_vars
         quote
             let $(if let_vars.head == :(=)
                     (let_vars,)

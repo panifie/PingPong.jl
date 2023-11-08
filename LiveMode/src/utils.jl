@@ -114,6 +114,8 @@ function stop_all_tasks(s::LiveStrategy; reset=true)
         @async stop_all_asset_tasks(s; reset)
         @async stop_all_strategy_tasks(s; reset)
         @async stop_watch_ohlcv!(s)
+        @async stop_watch_positions!(s)
+        @async stop_watch_balance!(s)
     end
     @debug "tasks: stopped all" s = nameof(s)
 end
@@ -350,6 +352,6 @@ function stop!(s::LiveStrategy; kwargs...)
     try
         stop_all_tasks(s)
     finally
-        invoke(stop!, Tuple{PaperStrategy}, s; kwargs...)
+        invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
     end
 end

@@ -158,6 +158,7 @@ function elapsed(s::Strategy{<:Union{Paper,Live}})
 end
 
 function stop!(s::Strategy{<:Union{Paper,Live}})
+    @info "strategy: stopping"
     task = @lock s begin
         running = attr(s, :is_running, nothing)
         task = attr(s, :run_task, nothing)

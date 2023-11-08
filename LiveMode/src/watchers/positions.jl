@@ -106,6 +106,13 @@ function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
     w
 end
 
+function stop_watch_positions!(s::LiveStrategy)
+    w = get(s.attrs, :live_positions_watcher, nothing)
+    if w isa Watcher && isstarted(w)
+        stop!(w)
+    end
+end
+
 _position_task!(w) = begin
     f = _tfunc(w)
     @async while isstarted(w)

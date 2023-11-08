@@ -57,15 +57,14 @@ function ccxt_balance_watcher(
     else
         @pystr("spot")
     end
-    func_kwargs = (;
-        params,
-        (if :params ∈ keys(kwargs)
+    func_kwargs = (; params, (
+        if :params ∈ keys(kwargs)
             merge!(params, kwargs[:params])
             withoutkws(:params; kwargs)
         else
             kwargs
-        end)...,
-    )
+        end
+    )...)
     _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs=func_kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
@@ -134,6 +133,13 @@ end
 
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
     @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
+end
+
+function stop_watch_balance!(s::LiveStrategy)
+    w = get(s.attrs, :live_balance_watcher, nothing)
+    if w isa Watcher && isstarted(w)
+        stop!(w)
+    end
 end
 
 balance_watcher(s) = s[:live_balance_watcher]
