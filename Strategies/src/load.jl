@@ -26,6 +26,15 @@ function find_path(file, cfg)
     realpath(file)
 end
 
+_default_projectless(src) = joinpath(user_dir(), "strategies", string(src, ".jl"))
+_include_projectless(src, attrs) =
+    let sources = get(attrs, "sources", nothing)
+        if !isnothing(sources)
+            get(sources, string(src), nothing)
+        end
+    end
+_include_project(attrs) = get(attrs, "include_file", nothing)
+
 function _file(src, cfg, is_project)
     file = if is_project
         file = joinpath(dirname(realpath(cfg.path)), "src", string(src, ".jl"))
@@ -34,8 +43,8 @@ function _file(src, cfg, is_project)
         else
         end
     else
-        @something get(attrs(cfg), "include_file", nothing) joinpath(
-            user_dir(), "strategies", string(src, ".jl")
+        @something _include_project(cfg.attrs) _include_projectless(src, cfg.toml) _default_projectless(
+            src
         )
     end
     if isnothing(file)
