@@ -1,3 +1,8 @@
+using Reexport
+@reexport using PingPong
+using PingPong.Engine: Strategies as st
+using PingPong: @environment!
+
 global s, ai, e
 
 function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
@@ -11,18 +16,20 @@ function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
     s
 end
 
-function symnames(s=s)
+function symnames(s=Main.s)
     String[lowercase(v) for v in (string.(getproperty.(st.assets(s), :bc)))]
 end
 
 function default_loader()
-    @eval using Scrapers: Scrapers as scr
-    (pairs, qc) -> scr.BinanceData.binanceload(pairs; quote_currency=qc)
+    @eval Main begin
+        using Scrapers: Scrapers as scr
+        (pairs, qc) -> scr.BinanceData.binanceload(pairs; quote_currency=qc)
+    end
 end
 
 function dostub!(pairs=symnames(); loader=default_loader())
     isempty(pairs) && return nothing
-    @eval let
+    @eval Main let
         GC.gc()
         qc = string(nameof(s.cash))
         data = $loader($pairs, qc)
@@ -61,16 +68,19 @@ function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
 end
 
 if isdefined(Main, :Revise)
-    Revise.revise(s::st.Strategy) =
+    using Pkg: Pkg
+    Main.Revise.revise(s::st.Strategy) =
         if endswith(s.path, "toml")
             prev = Base.active_project()
             try
                 Pkg.activate(s.path)
-                Revise.revise(s.self)
+                Main.Revise.revise(s.self)
             finally
                 Pkg.activate(prev)
             end
         else
-            Revise.revise(s.self)
+            Main.Revise.revise(s.self)
         end
 end
+
+export backtest_strat, loadstrat!, symnames, default_loader, dostub!, @environment!
