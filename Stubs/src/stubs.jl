@@ -47,7 +47,7 @@ function load_stubtrades!(ai)
 end
 
 @doc "Generates trades and saves them to the stubs shed."
-function gensave_trades(n=10_000; s=Strategies.strategy(StubStrategy), dosave=true)
+function gensave_trades(n=10_000; s, dosave=true)
     for ai in s.universe
         da.stub!(ai, n)
     end
@@ -74,7 +74,7 @@ end
 stub!(s::Strategy, n=10_000; trades=true) = do_stub!(s, n; trades)
 
 function stub_strategy(mod=StubStrategy, args...; dostub=true, cfg=Config(), kwargs...)
-    s = Strategies.strategy(mod; parent_module=Stubs, hasentry=false, kwargs...)
+    s = Strategies.strategy(mod, cfg; kwargs...)
     @assert s isa Strategy
     dostub && Stubs.do_stub!(s)
     s
@@ -94,7 +94,17 @@ end
             for ai in s.universe
                 save_stubtrades(ai)
             end
-            stub_strategy(; dostub=true)
+            # FIXME: on julia 1.10 an UndefVarError
+            # happen during deserialization of trades
+            try
+                stub_strategy(; dostub=true)
+            catch e
+                if e isa UndefVarError
+                    @error "stubs: " exception = (first(Base.catch_stack())...,)
+                else
+                    rethrow(e)
+                end
+            end
         end
     end
     Python.py_stop_loop()

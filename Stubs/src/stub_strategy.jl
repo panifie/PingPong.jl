@@ -18,15 +18,16 @@ using .OrderTypes: BySide, ByPos
 
 using ..Lang
 
-__revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
 
 # # NOTE: do not export anything
 Strategies.@interface
 
-const DESCRIPTION = "Strutegy to generate stub data"
-const EXCID = ExchangeID(:binance)
-const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID)}
+const DESCRIPTION = "Strategy to generate stub data"
+const EXC = :binance
+const EXCID = ExchangeID(EXC)
+const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),NoMargin}
+const SC{E,M,R} = Strategy{M,nameof(@__MODULE__()),E,R}
 const TF = tf"1m"
 
 # function __init__() end
