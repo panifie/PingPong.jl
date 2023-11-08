@@ -1,6 +1,7 @@
 module BinanceData
 using ..Scrapers:
     selectsyms,
+    HTTP_PARAMS,
     WORKERS,
     SEM,
     TF,
@@ -49,7 +50,7 @@ isklines(s) = s ∈ (:index, :klines, :mark, :premium)
 
 function cdn!()
     if CDN_URL[] === URI()
-        html = HTTP.get(BASE_URL).body |> ez.parsehtml
+        html = HTTP.get(BASE_URL; HTTP_PARAMS...).body |> ez.parsehtml
         m = match(r"BUCKET_URL\s+=\s+'(.*)'", html.node.content)
         @assert !isnothing(m) "Could not find cdn url, script might be broken, or endpoint is down"
         CDN_URL[] = URI(m[1])
@@ -94,7 +95,7 @@ function binancesyms(; kwargs...)
         cached = ca.load_cache(key; raise=false, agemax=Week(1))
         if isnothing(cached)
             url = make_url(; kwargs...)
-            body = HTTP.get(url).body
+            body = HTTP.get(url; HTTP_PARAMS...).body
             html = ez.parsexml(body)
             els = ez.elements(ez.elements(html.node)[1])
             symname(el) = begin
