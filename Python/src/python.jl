@@ -19,8 +19,8 @@ function _ensure_env!()
 end
 
 function _setup!()
-    isprecomp = ccall(:jl_generating_output, Cint, ()) != 0
-    @eval begin
+    # isprecomp = ccall(:jl_generating_output, Cint, ()) != 0
+    @eval let
         using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
         # PY_V[] = chomp(
@@ -30,20 +30,11 @@ function _setup!()
         #         ),
         #     ),
         # )
-        if $isprecomp
-            PY_V[] = "3.11"
-        else
-            PY_V[] = let vinfo = pyimport("sys").version_info
-                string(vinfo.major, ".", vinfo.minor)
-            end
-        end
-        ed = if $isprecomp
-            @something get(ENV, "JULIA_CONDAPKG_ENV", nothing) joinpath(pwd(), ".conda")
-        else
-            envdir()
+        PY_V[] = let vinfo = pyimport("sys").version_info
+            string(vinfo.major, ".", vinfo.minor)
         end
         # NOTE: Make sure conda libs precede system libs
-        PYTHONPATH[] = string(".:", joinpath(ed, "lib"), "/python", PY_V[])
+        PYTHONPATH[] = string(".:", joinpath(envdir(), "lib"), "/python", PY_V[])
         setpypath!()
         using PythonCall:
             Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
