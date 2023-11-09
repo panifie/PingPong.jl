@@ -100,6 +100,7 @@ end
                 stub_strategy(; dostub=true)
             catch e
                 if e isa UndefVarError
+                    stub_strategy(; dostub=false)
                     @error "stubs: " exception = (first(Base.catch_stack())...,)
                 else
                     rethrow(e)
