@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 
 set -e
-tmppath="/tmp/pingpong-docker"
+tmppath=${BUILD_TMP_PATH:-/tmp/pingpnog-build}
 # repo="https://github.com/panifie/PingPong.jl"
-repo="$HOME/dev/PingPong.jl"
+repo=${BUILD_REPO:-./PingPong.jl}
 
 if [ ! -e "$tmppath" ]; then
     git clone --depth=1 "$repo" "$tmppath"
@@ -15,4 +15,4 @@ fi
 cp $tmppath/Dockerfile $repo/
 cd $tmppath
 
-sudo docker buildx build $@ -t pingpong .
+${BUILD_RUNTIME:-docker} buildx build $@ -t pingpong .
