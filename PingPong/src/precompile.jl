@@ -10,7 +10,3 @@ using .Lang: @preset, @precomp, @ignore
 #         ai = first(s.universe)
 #     end
 # end
-
-if occursin("Remote", get(ENV, "JULIA_PRECOMP", ""))
-    include("precompile_remote.jl")
-end

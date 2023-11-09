@@ -3,6 +3,8 @@ using Reexport
 using PingPong.Engine: Strategies as st
 using PingPong: @environment!
 
+using PingPong.Misc
+
 global s, ai, e
 
 function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
