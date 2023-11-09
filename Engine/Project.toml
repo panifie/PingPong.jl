@@ -4,6 +4,4 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
-Exchanges = "ab04e009-1d60-4d36-ac2f-58b9338a89b5"
 LiveMode = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
