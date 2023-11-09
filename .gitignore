@@ -1,6 +1,7 @@
 /user/*
 /user/strategies/*
 !user/pingpong.toml
+!user/.envrc
 !user/strategies
 !user/strategies/BareStrat.jl
 !user/strategies/Example.jl
