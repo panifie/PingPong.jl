@@ -128,9 +128,14 @@ function Base.getproperty(s::Strategy, sym::Symbol)
 end
 
 function logpath(s::Strategy; name="events", path_nodes...)
-    dirpath = joinpath(realpath(dirname(s.path)), "logs", path_nodes...)
-    isdir(dirpath) || mkpath(dirpath)
-    joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
+    dir = dirname(s.path)
+    if dir == ""
+        stdout
+    else
+        dirpath = joinpath(realpath(dirname(s.path)), "logs", path_nodes...)
+        isdir(dirpath) || mkpath(dirpath)
+        joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
+    end
 end
 
 function logs(s::Strategy)
