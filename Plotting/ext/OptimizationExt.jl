@@ -3,11 +3,11 @@ module OptimizationExt
 using Plotting
 using .Plotting: normalize, normalize!, scatter, surface, DataInspector
 using Optimization: OptSession
-using Stats: mean, egn
+using Stats: mean
 using Makie
-using .egn.Data: Not, DataFrame, groupby, combine, nrow
-using .egn.Executors.Instruments: compactnum as cnum
-using .egn: DFT
+using Stats.Data: Not, DataFrame, groupby, combine, nrow
+using Stats.ect.Instruments: compactnum as cnum
+using Stats: DFT
 
 _allfinite(v) = all(isfinite.(v))
 _repetitions_grouping(sess) = Not([keys(sess.params)..., :repeat]) .=> mean
