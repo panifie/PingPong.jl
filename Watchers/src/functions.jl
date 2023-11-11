@@ -71,7 +71,8 @@ function isstale(w::Watcher)
 end
 Base.last(w::Watcher) = last(w.buffer)
 Base.length(w::Watcher) = length(w.buffer)
-function Base.close(w::Watcher; doflush=true) # @lock w._exec.fetch_lock begin
+function Base.close(w::Watcher; doflush=true)
+    # @lock w begin
     l = w._exec.fetch_lock
     if trylock(l)
         try
@@ -114,6 +115,7 @@ stop!(w::Watcher) = begin
     safenotify(w.beacon.process)
     safenotify(w.beacon.flush)
     _stop!(w, _val(w))
+    w._stop = true
     nothing
 end
 @doc "Resets the watcher timer."
