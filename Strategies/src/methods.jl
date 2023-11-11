@@ -129,13 +129,14 @@ end
 
 function logpath(s::Strategy; name="events", path_nodes...)
     dir = dirname(s.path)
-    if dir == ""
-        stdout
+    dirpath = if dir == ""
+        pwd()
     else
         dirpath = joinpath(realpath(dirname(s.path)), "logs", path_nodes...)
         isdir(dirpath) || mkpath(dirpath)
-        joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
+        dirpath
     end
+    joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
 end
 
 function logs(s::Strategy)
