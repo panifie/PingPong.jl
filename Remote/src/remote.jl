@@ -12,6 +12,7 @@ using .ect: cnum
 const TaskState = NamedTuple{(:task, :offset, :running),Tuple{Task,Ref{Int},Ref{Bool}}}
 const CLIENTS = LittleDict{UInt64,Any}()
 const TASK_STATE = IdDict{Strategy,TaskState}()
+const TIMEOUT = Ref(20)
 
 include("emojis.jl")
 include("commands.jl")
@@ -176,7 +177,7 @@ end
 
 function tgstop!(s::Strategy)
     state = _get_state(s)
-    if state isa TaskState && istaskstarted(state.task) && !istaskdone(state.task)
+    if state isa TaskState && !istaskdone(state.task)
         state.running[] = false
         try
             @async Base.throwto(state.task, InterruptException())
@@ -193,7 +194,7 @@ update_offset!(offset, msg) =
 
 @doc "Same as `Telegram.run_bot` but rethrows interrupts in the inner loop"
 function tgrun(
-    f, tg::TelegramClient=Telegram.DEFAULT_OPTS.client; timeout=20, offset=Ref(-1)
+    f, tg::TelegramClient=Telegram.DEFAULT_OPTS.client; timeout=TIMEOUT[], offset=Ref(-1)
 )
     while true
         try
@@ -203,7 +204,7 @@ function tgrun(
             else
                 (ignore_errors = false; getUpdates(tg; timeout=timeout, offset=offset[]))
             end
-            @ifdebug Main.e[] = res
+            # @ifdebug Main.e = res
             for msg in res
                 try
                     f(msg)
