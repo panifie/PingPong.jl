@@ -1,3 +1,4 @@
+using SimMode: SimMode
 using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using SimMode.TimeTicks
 using .Instances: value
@@ -11,6 +12,7 @@ using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
 using Stats.Statistics: median, mean
 using REPL.TerminalMenus
+using Pkg: Pkg
 import .st: ping!
 
 const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
@@ -211,6 +213,7 @@ function load_session(
         if isempty(attrs)
             @error "ZArray should contain session attributes."
             if isnothing(remove_broken) &&
+                isinteractive() &&
                 Base.prompt("delete entry $(z.path)? [y]/n") == "n"
                 remove_broken = false
             else
@@ -435,8 +438,13 @@ end
 maybereduce(v::AbstractVector, f::Function) = f(v)
 maybereduce(v, _) = v
 function agg(f, sess::OptSession)
-    gd = groupby(sess.results, [keys(sess.params)...])
-    combine(gd, f; renamecols=false)
+    res = sess.results
+    if isempty(res)
+        res
+    else
+        gd = groupby(res, [keys(sess.params)...])
+        combine(gd, f; renamecols=false)
+    end
 end
 function agg(sess::OptSession; reduce_func=mean, agg_func=median)
     agg(
@@ -500,8 +508,31 @@ end
 
 delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
 boptimize!(args...; kwargs...) = error("not loaded")
+@doc "Loads the BayesianOptimization extension"
+function extbayes!()
+    let prev = Pkg.project().path
+        try
+            Pkg.activate("Optimization", io=devnull)
+            if isnothing(@eval Main Base.find_package("BayesianOptimization"))
+                if Base.prompt(
+                    "BayesianOptimization package not found, add it to the main env? y/[n]"
+                ) == "y"
+                    try
+                        Pkg.activate(io=devnull)
+                        Pkg.add("BayesianOptimization")
+                    finally
+                        Pkg.activate("Optimization", io=devnull)
+                    end
+                end
+            end
+            @eval Main using BayesianOptimization
+        finally
+            Pkg.activate(prev, io=devnull)
+        end
+    end
+end
 
-export OptSession
+export OptSession, extbayes!
 
 include("bbopt.jl")
 include("grid.jl")

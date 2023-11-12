@@ -28,20 +28,3 @@ function Strategies.Strategy(
     end
     s
 end
-
-function Base.similar(
-    s::Strategy;
-    mode=s.mode,
-    timeframe=s.timeframe,
-    exc=getexchange!(s.exchange; sandbox=mode == Sim()),
-)
-    s = Strategy(
-        s.self,
-        mode,
-        marginmode(s),
-        timeframe,
-        exc,
-        similar(universe(s));
-        config=copy(s.config),
-    )
-end

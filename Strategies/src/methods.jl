@@ -167,3 +167,20 @@ Base.lock(f, s::Strategy) = lock(f, getfield(s, :lock))
 Base.unlock(s::Strategy) = unlock(getfield(s, :lock))
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value
+
+function Base.similar(
+    s::Strategy;
+    mode=s.mode,
+    timeframe=s.timeframe,
+    exc=Exchanges.getexchange!(s.exchange; sandbox=mode == Sim()),
+)
+    s = Strategy(
+        s.self,
+        mode,
+        marginmode(s),
+        timeframe,
+        exc,
+        similar(universe(s));
+        config=copy(s.config),
+    )
+end

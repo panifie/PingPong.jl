@@ -161,7 +161,8 @@ function gridsearch(
     end
     logger = if logging
         io = open(log_path(s)[1], "w+")
-        SimpleLogger(io)
+        # SimpleLogger(io)
+        current_logger()
     else
         io = NullLogger()
         IOBuffer()
@@ -225,14 +226,11 @@ function gridsearch(
                                 saved_last[] = now()
                             end
                         end
-                    catch e
+                    catch
+                    @error "" exception=(first(Base.catch_stack())...,)
                         stopping!()
                         logging && lock(grid_lock) do
-                            let io = current_logger().stream
-                                println(io, "")
-                                Base.showerror(io, e)
-                                Base.show_backtrace(io, catch_backtrace())
-                            end
+                            @debug_backtrace
                         end
                     end
                 end
@@ -298,16 +296,20 @@ function progsearch(
     @assert rcount isa Integer
     _, fw_kwargs = splitkws(:offset, :splits, :grid_itr; kwargs)
     init_offset = isnothing(sess) ? 0 : sess[].attrs[:offset] + 1
-    sess[] =
-        let offset = init_offset,
-            grid_itr = if isnothing(sess)
-                nothing
-            else
-                gridfromresults(sess[], filter_results(s, sess[]; cut))
-            end
-
-            gridsearch(s; offset, grid_itr, splits=1, fw_kwargs...)
+    let offset = init_offset,
+        grid_itr = if isnothing(sess)
+            nothing
+        else
+            gridfromresults(sess[], filter_results(s, sess[]; cut))
         end
+
+        this_sess = gridsearch(s; offset, grid_itr, splits=1, fw_kwargs...)
+        if isnothing(sess)
+            sess = Ref(this_sess)
+        else
+            sess[] = this_sess
+        end
+    end
     for offset in (init_offset + 1):rcount
         results = filter_results(s, sess[]; cut)
         grid_itr = gridfromresults(sess[], results)

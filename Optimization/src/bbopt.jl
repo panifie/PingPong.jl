@@ -29,7 +29,12 @@ end
 
 _tsaferesolve(v::Ref{Bool}) = v[]
 _tsaferesolve(v::Bool) = v
-isthreadsafe(s::Strategy) = _tsaferesolve(s.self.THREADSAFE)
+isthreadsafe(s::Strategy) =
+    if isdefined(s.self, :THREADSAFE)
+        _tsaferesolve(s.self.THREADSAFE)
+    else
+        false
+    end
 
 function ctxfromstrat(s)
     ctx, params, s_space = ping!(s, OptSetup())
@@ -96,7 +101,7 @@ function bboptimize(
     let n_jobs = get(kwargs, :NThreads, 1)
         @assert n_jobs == 1 "Multithreaded mode not supported."
         # @assert isthreadsafe(s) || n_jobs == 1 "Optimization is multi-threaded. Ensure the strategy $(nameof(s)) is thread safe and set the global constant `THREADSAFE` to `Ref(true)` in the strategy module or set `n_jobs` to 1"
-        @assert n_jobs <= Threads.nthreads() - 1 "Should not use more threads than logical cores $(Threads.nthreads())."
+        @assert n_jobs <= max(1, Threads.nthreads() - 1) "Should not use more threads than logical cores $(Threads.nthreads())."
         @assert :Workers ∉ keys(kwargs) "Multiprocess evaluation using `Distributed` not supported because of python."
     end
     local ctx, params, s_space, space, sess

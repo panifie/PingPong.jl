@@ -8,9 +8,12 @@ using Optimization:
     define_backtest_func,
     define_opt_func,
     ctxsteps,
-    objectives
-using SimMode: start!, SimMode as sm, ping!
-using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
+    objectives,
+    SimMode
+using .SimMode: start!, SimMode as sm, ping!
+using .SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
+using .SimMode.Misc.Lang: @preset, @precomp
+using .SimMode.TimeTicks
 using BayesianOptimization
 using BayesianOptimization.GaussianProcesses
 using .GaussianProcesses.Distributions
@@ -40,25 +43,25 @@ end
 define custom `gpmodel`,`modelopt`,`acquisition` functions.
 "
 function Optimization.boptimize!(
-    s; seed=1, repeats=1, maxiterations=1e4, maxduration=60.0, kwargs...
+    s; seed=1, splits=1, maxiterations=1e4, maxduration=60.0, kwargs...
 )
     Random.seed!(seed)
     running!()
     ctx, params, space = ping!(s, OptSetup())
-    sess = OptSession(s; ctx, params, attrs=Dict(pairs((; seed, repeats, space))))
+    sess = OptSession(s; ctx, params, attrs=Dict(pairs((; seed, splits, space))))
 
     ndims = max(1, length(params))
     model = gpmodel(s, ndims)
     # Optimize the hyperparameters of the GP using maximum a posteriori (MAP) estimates every 20 steps
     modeloptimizer = modelopt(s)
 
-    backtest_func = define_backtest_func(sess, ctxsteps(ctx, repeats)...)
+    backtest_func = define_backtest_func(sess, ctxsteps(ctx, splits)...)
     obj_type, n_obj = objectives(s)
     @assert isone(n_obj) "Found $n_obj scores, expected one (check stratety `OptScore`)."
     sess.best[] = zero(eltype(obj_type))
     ismulti = n_obj > 1
     opt_func = define_opt_func(
-        s; backtest_func, ismulti, repeats, obj_type, isthreaded=false
+        s; backtest_func, ismulti, obj_type, splits, isthreaded=false
     )
     res = opt = nothing
     lower, upper = lowerupper(params)
@@ -70,7 +73,7 @@ function Optimization.boptimize!(
             modeloptimizer,
             Vector{Float64}(lower),
             Vector{Float64}(upper);
-            repetitions=repeats,
+            repetitions=splits,
             sense=Max,
             maxiterations,
             maxduration,
@@ -88,4 +91,14 @@ function Optimization.boptimize!(
 end
 
 export boptimize!
+
+if occursin("Optimization", get(ENV, "JULIA_PRECOMP", ""))
+    @preset begin
+        st.Instances.Exchanges.Python.py_start_loop()
+        s = Optimization._precomp_strat(BayesExt)
+
+        @precomp Optimization.boptimize!(s, maxiterations=10)
+        st.Instances.Exchanges.Python.py_stop_loop()
+    end
+end
 end
