@@ -106,7 +106,7 @@ Base.string(::Cross) = "Cross Margin"
 Base.string(::NoMargin) = "No Margin"
 
 function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
-    write(out, "Name: $(nameof(s)) ($(typeof(execmode(s)))) ")
+    write(out, "Name: $(nameof(s)) ($(s |> execmode |> typeof |> nameof)) ")
     let t = attr(s, :run_task, nothing)
         if !(isnothing(t)) && !istaskdone(t) && istaskstarted(t)
             write(out, "(Running)")
