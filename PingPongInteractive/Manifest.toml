@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0-rc1"
 manifest_format = "2.0"
-project_hash = "2c75419ccbf920b12436e1a85af293dbe14e3353"
+project_hash = "80310f483f96b0dcc682e4ef9591579b4b0f5b4f"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -426,7 +426,7 @@ uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.4+0"
 
 [[deps.Engine]]
-deps = ["Exchanges", "LiveMode", "Pkg"]
+deps = ["LiveMode"]
 path = "../Engine"
 uuid = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 version = "0.1.0"
@@ -1267,7 +1267,7 @@ uuid = "429524aa-4258-5aef-a3af-852621145aeb"
 version = "1.7.8"
 
 [[deps.Optimization]]
-deps = ["BlackBoxOptim", "Pbar", "Printf", "REPL", "Random", "SimMode", "Stats"]
+deps = ["BlackBoxOptim", "Pbar", "Pkg", "Printf", "REPL", "Random", "SimMode", "Stats"]
 path = "../Optimization"
 uuid = "01837fd2-c099-442f-ae89-75fa208aad36"
 version = "0.1.0"

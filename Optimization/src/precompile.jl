@@ -3,8 +3,8 @@ using Stats: sharpe
 
 function _precomp_strat(mod=Optimization)
     @eval mod begin
-        using SimMode: Executors as ect, sml
-        using SimMode.Misc: ZERO
+        using .SimMode: Executors as ect, sml
+        using .SimMode.Misc: ZERO
 
         s = st.strategy(st.BareStrat)
         for ai in s.universe
@@ -37,13 +37,13 @@ end
         attrs = s.attrs
         x = attrs[:param_x]
         y = attrs[:param_y]
-        side = ifelse(rand(1:x) < 5, st.Buy, st.Sell)
+        side = ifelse(rand(1:x) < 2, st.Buy, st.Sell)
         for ai in s.universe
             amount = if side == st.Buy
                 st.cash(s)
             else
                 @something st.cash(ai) ZERO
-            end / 3
+            end / st.closeat(ai, ts) / 3
             ect.pong!(s, ai, st.OrderTypes.MarketOrder{side}; amount, date=ts)
         end
     end

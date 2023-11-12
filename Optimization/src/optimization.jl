@@ -507,7 +507,6 @@ lowerupper(params) = begin
 end
 
 delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
-boptimize!(args...; kwargs...) = error("not loaded")
 @doc "Loads the BayesianOptimization extension"
 function extbayes!()
     let prev = Pkg.project().path

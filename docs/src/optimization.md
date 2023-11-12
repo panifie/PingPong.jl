@@ -53,5 +53,18 @@ const THREADSAFE = Ref(true)
 ## Plotting results
 After completing an optimization, the results can be plotted using the function `Plotting.plot_results`. The function accepts many arguments in order to customize which axes to plot (up to 3), how to customize coloring of plot elements (e.g. default cash column in a scatter plot go from red to green) and how to group results elements. It by default plot a scatter. Surfaces and contourf also work fine.
 
-!!! info "Loading order of modules"
-    To load the `plot_results` function first activate the `Plotting` module, then load it and then load the `Optimization` module. Alternatively, there is a convenience function in `PingPong` such that you can do `using PingPong; optplots!()`.
+!!! info "Loading order of packages"
+    The `plot_results` function is defined in the `Plotting` package as an extension. To load it run:
+    ```julia
+    # If PingPong is already imported, you should restart the repl
+    using Pkg: Pkg
+    Pkg.activate("PingPongInteractive")
+    using PingPongInteractive
+    # Plotting.plot_results(...)
+    ```
+    Alteranatively first activate the `Plotting` package, then load it and then load the `Optimization` package. There are convenience functions in `PingPong` to save you a few lines:
+    ```julia
+    using PingPong
+    plots!() # loads Plotting
+    using Optimization
+    ```

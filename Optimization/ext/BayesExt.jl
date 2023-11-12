@@ -18,6 +18,7 @@ using BayesianOptimization
 using BayesianOptimization.GaussianProcesses
 using .GaussianProcesses.Distributions
 using Random
+import BayesianOptimization: boptimize!
 
 function gpmodel(_, ndims)
     model = ElasticGPE(
@@ -42,7 +43,7 @@ end
 @doc "Optimize strategy `s` using bayesian optimization. For customizatoin see the `BayesianOptimization` pkg and
 define custom `gpmodel`,`modelopt`,`acquisition` functions.
 "
-function Optimization.boptimize!(
+function boptimize!(
     s; seed=1, splits=1, maxiterations=1e4, maxduration=60.0, kwargs...
 )
     Random.seed!(seed)
@@ -97,7 +98,7 @@ if occursin("Optimization", get(ENV, "JULIA_PRECOMP", ""))
         st.Instances.Exchanges.Python.py_start_loop()
         s = Optimization._precomp_strat(BayesExt)
 
-        @precomp Optimization.boptimize!(s, maxiterations=10)
+        @precomp boptimize!(s, maxiterations=10)
         st.Instances.Exchanges.Python.py_stop_loop()
     end
 end

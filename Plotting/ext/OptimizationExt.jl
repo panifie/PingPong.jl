@@ -66,12 +66,14 @@ function Plotting.plot_results(
 )
     results = let results = sess.results
         results = @view results[_allfinite.(sess.results.obj), :]
-        if !isnothing(col_filter)
-            results = filter(col_filter, results)
-        end
-        if !isnothing(group_repetitions)
-            gd = groupby(results, [keys(sess.params)...])
-            results = combine(gd, group_repetitions; renamecols=false)
+        if !isempty(results)
+            if !isnothing(col_filter)
+                results = filter(col_filter, results)
+            end
+            if !isnothing(group_repetitions)
+                gd = groupby(results, [keys(sess.params)...])
+                results = combine(gd, group_repetitions; renamecols=false)
+            end
         end
         results
     end
@@ -239,4 +241,15 @@ function by_plot_coords(f, args...; kwargs...)
     end
 end
 
+if occursin("Plotting", get(ENV, "JULIA_PRECOMP", ""))
+    using .Plotting.Misc.Lang: @preset, @precomp
+    using Optimization: Optimization as opt, SimMode, st
+    @eval @preset begin
+        opt.st.Instances.Exchanges.Python.py_start_loop()
+        s = opt._precomp_strat(OptimizationExt)
+        sess = opt.gridsearch(s)
+        @precomp Plotting.plot_results(sess)
+        opt.st.Instances.Exchanges.Python.py_stop_loop()
+    end
+end
 end

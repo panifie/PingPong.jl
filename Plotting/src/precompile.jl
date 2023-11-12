@@ -1,7 +1,10 @@
 using .Lang: @preset, @precomp
 @preset let
     using Stats.Stubs
-    s = Stubs.stub_strategy()
+
+    st.Instances.Exchanges.Python.py_start_loop()
+    s = Stubs.stub_strategy(; dostub=false)
+    Stubs.gensave_trades(; s, dosave=false)
     ai = first(s.universe)
     ohlcv_1d = resample(ai.ohlcv, tf"1d")
     r_len = size(ohlcv_1d, 1)
@@ -15,4 +18,5 @@ using .Lang: @preset, @precomp
         balloons(s, ai; tf=tf"1d")
         balloons(s; tf=tf"1d")
     end
+    st.Instances.Exchanges.Python.py_stop_loop()
 end
