@@ -2,7 +2,7 @@ using LiveMode
 using .LiveMode.PaperMode
 using .PaperMode.SimMode
 using .SimMode.OrderTypes
-using .SimMode.sim: Simulations
+using .SimMode.sml: Simulations
 using .SimMode: Executors, Executors as ect
 using .ect.Strategies
 using .Strategies.coll

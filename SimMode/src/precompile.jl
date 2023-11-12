@@ -12,11 +12,11 @@ include("precompile_pong.jl")
     for ai in s.universe
         append!(
             ohlcv_dict(ai)[s.timeframe],
-            sim.Processing.Data.to_ohlcv(sim.synthohlcv());
+            sml.Processing.Data.to_ohlcv(sml.synthohlcv());
             cols=:union,
         )
     end
-    sim.Random.seed!(1)
+    sml.Random.seed!(1)
     mod = s.self
     @precomp @ignore begin
         start!(s)

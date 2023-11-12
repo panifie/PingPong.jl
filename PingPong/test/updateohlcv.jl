@@ -13,7 +13,7 @@ function test_update_ohlcv_1(s)
     end
     @test !hasproperty(ohlcv, :a)
     @test !hasproperty(ohlcv, :b)
-    append!(ohlcv_dict(ai)[tf], da.to_ohlcv(sim.synthohlcv()); cols=:union)
+    append!(ohlcv_dict(ai)[tf], da.to_ohlcv(sml.synthohlcv()); cols=:union)
     first_date = lm.firstdate(ohlcv)
     rows = da.nrow(ohlcv)
     this_update = Ref{Any}()
@@ -34,7 +34,7 @@ function test_update_ohlcv_1(s)
     @test ohlcv.b == this_update[][:, 2]
     append!(
         ohlcv,
-        da.to_ohlcv(sim.synthohlcv(; start_date=lm.lastdate(ohlcv) + s.timeframe));
+        da.to_ohlcv(sml.synthohlcv(; start_date=lm.lastdate(ohlcv) + s.timeframe));
         cols=:union,
     )
     @test da.nrow(ohlcv) == 2002

@@ -3,7 +3,7 @@ using .Strategies: MarginStrategy
 using Executors: AnyBuyOrder, AnyMarketOrder, AnyLimitOrder
 using .Misc: toprecision
 
-spreadopt(::Val{:spread}, date, ai) = sim.spreadat(ai, date, Val(:opcl))
+spreadopt(::Val{:spread}, date, ai) = sml.spreadat(ai, date, Val(:opcl))
 spreadopt(n::T, args...) where {T<:Real} = n
 spreadopt(v, args...) = error("`base_slippage` option value not supported ($v)")
 

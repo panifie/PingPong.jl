@@ -3,15 +3,15 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
 @preset let
     st.Instances.Exchanges.Python.py_start_loop()
     s = st.strategy(st.BareStrat; mode=Paper())
-    sim = SimMode.sim
+    sml = SimMode.sml
     for ai in s.universe
         append!(
             ohlcv_dict(ai)[s.timeframe],
-            sim.Processing.Data.to_ohlcv(sim.synthohlcv());
+            sml.Processing.Data.to_ohlcv(sml.synthohlcv());
             cols=:union,
         )
     end
-    sim.Random.seed!(1)
+    sml.Random.seed!(1)
     ai = first(s.universe)
     amount = ai.limits.amount.min
     date = now()

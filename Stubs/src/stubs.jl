@@ -1,5 +1,5 @@
 using SimMode
-using SimMode: Misc, Strategies, sim
+using SimMode: Misc, Strategies, sml
 using .Strategies
 using .Strategies.Exchanges: Exchanges as exs, Instruments as im, Data, Python
 using .Misc
@@ -61,7 +61,7 @@ end
 
 function do_stub!(s::Strategy, n=10_000; trades=true)
     for ai in s.universe
-        sim.stub!(ai, n)
+        sml.stub!(ai, n)
     end
     if trades
         for ai in s.universe

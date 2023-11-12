@@ -1,7 +1,7 @@
 using Executors
 using Executors: Misc
 using Executors: Strategies, Strategies as st
-using Simulations: Simulations as sim
+using Simulations: Simulations as sml
 using Simulations.Processing.Alignments
 
 using .Strategies: Strategy, ping!, WarmupPeriod, OrderTypes

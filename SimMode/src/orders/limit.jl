@@ -4,7 +4,7 @@ using Executors.Checks: cost, withfees
 using Executors: AnyFOKOrder, AnyIOCOrder, AnyGTCOrder
 import Executors: priceat, unfilled, isqueued
 import .OrderTypes: order!, FOKOrderType, IOCOrderType
-using Simulations: Simulations as sim
+using Simulations: Simulations as sml
 using .Strategies: Strategies as st
 
 function create_sim_limit_order(s, t, ai; amount, skipcommit=false, kwargs...)

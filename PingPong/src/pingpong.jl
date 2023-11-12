@@ -28,7 +28,7 @@ macro environment!()
             OrderTypes as ot,
             Instances as inst,
             Collections as co,
-            Simulations as sim,
+            Simulations as sml,
             Strategies as st,
             Executors as ect,
             SimMode as sm,
