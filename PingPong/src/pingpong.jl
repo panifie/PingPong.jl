@@ -132,5 +132,5 @@ macro optenv!()
     end
 end
 
-export ExchangeID, @tf_str, @strategyenv!, @contractsenv!, @optenv!
+export ExchangeID, @tf_str, @strategyenv!, @contractsenv!, @optenv!, @environment!
 export Isolated, NoMargin
