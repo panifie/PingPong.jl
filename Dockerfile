@@ -1,4 +1,4 @@
-FROM julia:latest as base
+FROM julia:rc as base
 RUN mkdir /pingpong \
     && apt-get update \
     && apt-get -y install sudo direnv git xvfb \
@@ -8,13 +8,13 @@ RUN mkdir /pingpong \
     && echo "ppuser ALL=(ALL) NOPASSWD: /bin/chown" >> /etc/sudoers
 WORKDIR /pingpong
 USER ppuser
-ARG CPU_TARGET=znver2
+ARG CPU_TARGET=generic
 ARG JULIA_CMD="julia -C $CPU_TARGET"
+ENV JULIA_CMD=$JULIA_CMD
 ENV JULIA_CPU_TARGET ${CPU_TARGET}
 CMD julia -C $JULIA_CPU_TARGET
 
 FROM base as python1
-ENV JULIA_CPU_TARGET=$CPU_TARGET
 ENV JULIA_LOAD_PATH=:/pingpong
 ENV JULIA_CONDAPKG_ENV=/pingpong/.conda
 # avoids progressbar spam
@@ -30,12 +30,13 @@ FROM python1 as precompile1
 COPY --chown=ppuser:ppuser ./PingPong/*.toml /pingpong/PingPong/
 ENV JULIA_PROJECT=/pingpong/PingPong
 ENV JULIA_NOPRECOMP=""
+ENV JULIA_PRECOMP=Remote,PaperMode,LiveMode,Fetch,Optimization,Plotting
 ENV PINGPONG_LIQUIDATION_BUFFER=0.02
 ARG CACHE=1
 RUN $JULIA_CMD --project=/pingpong/PingPong -e "import Pkg; Pkg.instantiate()"
 
 FROM precompile1 as precompile2
-RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Rocket\", \"Makie\", \"WGLMakie\", \"ZipFile\"])"
+RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Makie\", \"WGLMakie\", \"ZipFile\"])"
 
 FROM precompile2 as precompile3
 COPY --chown=ppuser:ppuser . /pingpong/
@@ -45,23 +46,25 @@ FROM precompile3 as precomp-base
 USER ppuser
 WORKDIR /pingpong
 ENV JULIA_NUM_THREADS=1
-CMD [ "julia", "-C", $JULIA_CPU_TARGET ]
+CMD julia -C $JULIA_CPU_TARGET
 
 FROM precomp-base as pingpong-precomp
 ENV JULIA_PROJECT=/pingpong/PingPong
 RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using PingPong; using Stats"
 
-FROM precomp-base as pingpong-precomp-interactive
-ENV JULIA_PROJECT=/pingpong/IPingPong
-RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using IPingPong"
+FROM pingpong-precomp as pingpong-precomp-interactive
+ENV JULIA_PROJECT=/pingpong/PingPongInteractive
+RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate(); using PingPongInteractive"
 
-# FROM precompile3 as sysimg
-# USER root
-# RUN apt-get install -y gcc g++
-# ENV JULIA_PRECOMP_PROJ="PingPong"
-# RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
-# ENV JULIA_PRECOMP_PROJ="IPingPong"
-# RUN su ppuser -c "unset JULIA_PROJECT; xvfb-run $JULIA_CMD compile.jl"
+FROM pingpong-precomp as pingpong-sysimg
+USER root
+RUN apt-get install -y gcc g++
+ENV JULIA_PROJECT=/pingpong/user/Load
+RUN su ppuser -c "$JULIA_CMD --load compile.jl -e compile(\"user/Load\")"
+
+FROM pingpong-precomp as pingpong-sysimg
+ENV JULIA_PROJECT=/pingpong/PingPongInteractive
+RUN su ppuser -c "$JULIA_CMD --load compile.jl -e compile(\"PingPongInteractive\")"
 
 # FROM precomp-base as sysimg-base
 # ENV JULIA_NUM_THREADS=auto

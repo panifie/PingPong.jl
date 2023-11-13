@@ -1,9 +1,13 @@
 #!/usr/bin/env sh
 
 set -e
-tmppath=${BUILD_TMP_PATH:-/tmp/pingpnog-build}
+tmppath=${BUILD_TMP_PATH:-/tmp/pingpong-build}
 # repo="https://github.com/panifie/PingPong.jl"
-repo=${BUILD_REPO:-./PingPong.jl}
+repo=${BUILD_REPO:-.}
+image=${1:-${BUILD_IMAGE:-pingpong}}
+if [ -n "$2" ]; then
+    shift
+fi
 
 if [ ! -e "$tmppath" ]; then
     git clone --depth=1 "$repo" "$tmppath"
@@ -12,7 +16,7 @@ if [ ! -e "$tmppath" ]; then
     direnv allow
 fi
 
-cp $tmppath/Dockerfile $repo/
+cp $tmppath/Dockerfile $repo/ || true
 cd $tmppath
 
-${BUILD_RUNTIME:-docker} buildx build $@ -t pingpong .
+${BUILD_RUNTIME:-docker} buildx build $@ -t $image .

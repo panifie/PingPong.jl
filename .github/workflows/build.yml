@@ -57,36 +57,36 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp
-      # - name: Sysimg
-      #   uses: docker/build-push-action@v2
-      #   id: sysimg
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: panifie/pingpong-sysimg:latest
-      #     cache-from: type=local,src=/tmp/.buildx-cache
-      #     cache-to: type=local,dest=/tmp/.buildx-cache-new
-      #     target: pingpong-sysimg
+      - name: Sysimg
+        uses: docker/build-push-action@v2
+        id: sysimg
+        with:
+          context: .
+          push: true
+          tags: panifie/pingpong-sysimg:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          target: pingpong-sysimg
       - name: Precomp Interactive
         uses: docker/build-push-action@v2
         id: iprecomp
         with:
           context: .
           push: true
-          tags: panifie/ipingpong-precomp:latest
+          tags: panifie/pingpong-precomp-interactive:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp-interactive
-      # - name: Sysimg Interactive
-      #   uses: docker/build-push-action@v2
-      #   id: isysimg
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: panifie/ipingpong-sysimg:latest
-      #     cache-from: type=local,src=/tmp/.buildx-cache
-      #     cache-to: type=local,dest=/tmp/.buildx-cache-new
-      #     target: pingpong-sysimg-interactive
+      - name: Sysimg Interactive
+        uses: docker/build-push-action@v2
+        id: isysimg
+        with:
+          context: .
+          push: true
+          tags: panifie/pingpong-sysimg-interactive:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          target: pingpong-sysimg-interactive
         # This ugly bit is necessary if you don't want your cache to grow forever
         # until it hits GitHub's limit of 5GB.
         # Temp fix
