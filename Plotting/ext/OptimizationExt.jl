@@ -2,7 +2,7 @@ module OptimizationExt
 
 using Plotting
 using .Plotting: normalize, normalize!, scatter, surface, DataInspector
-using Optimization: OptSession
+using Optimization: OptSession, Optimization
 using Stats: mean
 using Makie
 using Stats.Data: Not, DataFrame, groupby, combine, nrow
@@ -241,15 +241,20 @@ function by_plot_coords(f, args...; kwargs...)
     end
 end
 
+using .Plotting.Misc.Lang: @preset, @precomp
+using Optimization: Optimization as opt, SimMode, st
 if occursin("Plotting", get(ENV, "JULIA_PRECOMP", ""))
-    using .Plotting.Misc.Lang: @preset, @precomp
-    using Optimization: Optimization as opt, SimMode, st
-    @eval @preset begin
-        opt.st.Instances.Exchanges.Python.py_start_loop()
+    @preset begin
+        py = opt.st.Instances.Exchanges.Python
+        if py.pyisnull(py.gpa.pyaio)
+            py._async_init(py.PythonAsync())
+        else
+            py.py_start_loop()
+        end
         s = opt._precomp_strat(OptimizationExt)
         sess = opt.gridsearch(s)
         @precomp Plotting.plot_results(sess)
-        opt.st.Instances.Exchanges.Python.py_stop_loop()
+        py.py_stop_loop()
     end
 end
 end
