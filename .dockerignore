@@ -1,5 +1,5 @@
 Dockerfile
-scripts/docker.sh
+scripts/
 .github/
 *.el
 docs/

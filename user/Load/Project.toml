@@ -1,0 +1,11 @@
+name = "Load"
+uuid = "530aee93-9b5d-4423-8dbe-9bf7490b02fc"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[deps]
+PingPong = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+Scrapers = "38b379f7-ca41-4278-b0dc-774ced1e32bb"
+Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+Stubs = "19a5ee1f-efca-4178-b297-263c7ceb508d"

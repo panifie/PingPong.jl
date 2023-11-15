@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -e
 tmppath=${BUILD_TMP_PATH:-/tmp/pingpong-build}
@@ -19,4 +19,7 @@ fi
 cp $tmppath/Dockerfile $repo/ || true
 cd $tmppath
 
-${BUILD_RUNTIME:-docker} buildx build $@ -t $image .
+# COMPILE_SCRIPT=$'$(<compile.jl)\n'
+COMPILE_SCRIPT="$(sed "s/$/\\\\n/" "$repo/scripts/compile.jl")"
+
+${BUILD_RUNTIME:-docker} buildx build "$@" --build-arg=COMPILE_SCRIPT="'$COMPILE_SCRIPT'" -t "$image" .

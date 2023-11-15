@@ -39,7 +39,7 @@ FROM precompile1 as precompile2
 RUN JULIA_PROJECT= $JULIA_CMD -e "import Pkg; Pkg.add([\"DataFrames\", \"CSV\", \"Makie\", \"WGLMakie\", \"ZipFile\"])"
 
 FROM precompile2 as precompile3
-COPY --chown=ppuser:ppuser . /pingpong/
+COPY --chown=ppuser:ppuser ./ /pingpong/
 RUN git submodule update --init
 
 FROM precompile3 as precomp-base
@@ -60,11 +60,32 @@ FROM pingpong-precomp as pingpong-sysimg
 USER root
 RUN apt-get install -y gcc g++
 ENV JULIA_PROJECT=/pingpong/user/Load
-RUN su ppuser -c "$JULIA_CMD --load compile.jl -e compile(\"user/Load\")"
+ARG COMPILE_SCRIPT
+RUN /usr/bin/echo -e "$COMPILE_SCRIPT" > /tmp/compile.jl; \
+    su ppuser -c "cd /pingpong; \
+    . .envrc; \
+    $JULIA_CMD -e \
+    'include(\"/tmp/compile.jl\"); compile(\"user/Load\"; cpu_target=\"$JULIA_CPU_TARGET\")'"; \
+    rm /tmp/compile.jl
+USER ppuser
+ENV JULIA_PROJECT=/pingpong/PingPong
+# Resets condapkg env
+RUN $JULIA_CMD --sysimage "/pingpong/PingPong.so" -e "using PingPong"
+CMD $JULIA_CMD --sysimage "/pingpong/PingPong.so"
 
-FROM pingpong-precomp as pingpong-sysimg
+FROM pingpong-precomp-interactive as pingpong-sysimg-interactive
+USER root
 ENV JULIA_PROJECT=/pingpong/PingPongInteractive
-RUN su ppuser -c "$JULIA_CMD --load compile.jl -e compile(\"PingPongInteractive\")"
+RUN apt-get install -y gcc g++
+ARG COMPILE_SCRIPT
+RUN /usr/bin/echo -e "$COMPILE_SCRIPT" > /tmp/compile.jl; \
+    su ppuser -c ". .envrc; \
+    $JULIA_CMD -e 'include(\"/tmp/compile.jl\"); compile(\"PingPongInteractive\"; cpu_target=\"$JULIA_CPU_TARGET\")'"; \
+    rm /tmp/compile.jl
+USER ppuser
+# Resets condapkg env
+RUN $JULIA_CMD --sysimage "/pingpong/PingPong.so" -e "using PingPongInteractive"
+CMD $JULIA_CMD --sysimage PingPong.so
 
 # FROM precomp-base as sysimg-base
 # ENV JULIA_NUM_THREADS=auto

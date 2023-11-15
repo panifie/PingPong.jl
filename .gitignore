@@ -3,6 +3,7 @@
 !user/pingpong.toml
 !user/.envrc
 !user/strategies
+!user/Load
 !user/strategies/BareStrat.jl
 !user/strategies/Example.jl
 !user/strategies/ExampleMargin.jl
