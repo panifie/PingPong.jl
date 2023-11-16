@@ -13,7 +13,7 @@ using .st: Buy, Sell
 using .st.OrderTypes: MarketOrder, ShortMarketOrder
 
 const DESCRIPTION = "BaseStrat"
-const EXC = :bybit
+const EXC = :binance
 const EXCID = ExchangeTypes.ExchangeID(EXC)
 const S{M} = Strategy{M,nameof(@__MODULE__),typeof(EXCID),Isolated}
 const SC{E,M,R} = Strategy{M,nameof(@__MODULE__()),E,R}
