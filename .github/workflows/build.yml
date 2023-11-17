@@ -14,14 +14,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.9
+      JULIA_VERSION: 1.10
     permissions: write-all
     timeout-minutes: 300
 
     steps:
       # Check out code
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v2
+      - name: compile
+        run: echo "COMPILE_SCRIPT=scripts/compile.jl" >> $GITHUB_ENV
       # This is a separate action that sets up buildx runner
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -57,19 +60,20 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp
-      - name: Sysimg
+      - name: Sysimage
         uses: docker/build-push-action@v2
-        id: sysimg
+        id: sysimage
         with:
           context: .
+          build-args: "COMPILE_SCRIPT=${{ env.COMPILE_SCRIPT }}"
           push: true
-          tags: panifie/pingpong-sysimg:latest
+          tags: panifie/pingpong-sysimage:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: pingpong-sysimg
+          target: pingpong-sysimage
       - name: Precomp Interactive
         uses: docker/build-push-action@v2
-        id: iprecomp
+        id: precomp-interactive
         with:
           context: .
           push: true
@@ -77,16 +81,17 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp-interactive
-      - name: Sysimg Interactive
+      - name: Sysimage Interactive
         uses: docker/build-push-action@v2
-        id: isysimg
+        id: sysimage-interactive
         with:
           context: .
+          build-args: "COMPILE_SCRIPT=${{ env.COMPILE_SCRIPT }}"
           push: true
-          tags: panifie/pingpong-sysimg-interactive:latest
+          tags: panifie/pingpong-sysimage-interactive:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          target: pingpong-sysimg-interactive
+          target: pingpong-sysimage-interactive
         # This ugly bit is necessary if you don't want your cache to grow forever
         # until it hits GitHub's limit of 5GB.
         # Temp fix

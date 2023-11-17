@@ -19,7 +19,6 @@ fi
 cp $tmppath/Dockerfile $repo/ || true
 cd $tmppath
 
-# COMPILE_SCRIPT=$'$(<compile.jl)\n'
 COMPILE_SCRIPT="$(sed "s/$/\\\\n/" "$repo/scripts/compile.jl")"
 
 ${BUILD_RUNTIME:-docker} buildx build "$@" --build-arg=COMPILE_SCRIPT="'$COMPILE_SCRIPT'" -t "$image" .
