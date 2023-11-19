@@ -2,20 +2,36 @@ using Python
 using Misc: DATA_PATH, Misc
 using Misc.ConcurrentCollections: ConcurrentDict
 using Misc.Lang: @lget!, Option
+using Misc.DocStringExtensions
 using Python: pynew, pyisnone
 using Python.PythonCall: pyisnull, pycopy!, pybuiltins
 using Python: py_except_name
 
+@doc "The ccxt python module reference"
 const ccxt = Ref{Option{Py}}(nothing)
+@doc "The ccxt.pro (websockets) python module reference"
 const ccxt_ws = Ref{Option{Py}}(nothing)
+@doc "Ccxt exception names"
 const ccxt_errors = Set{String}()
 
+@doc """ Checks if the ccxt object is initialized.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the global variable `ccxt` is initialized by checking if it's not `nothing` and not `null` in the Python context.
+"""
 function isinitialized()
     val = ccxt[]
     !isnothing(val) && !pyisnull(val)
 end
 
-_ccxt_errors!() =
+@doc """ Populates the `ccxt_errors` array with error names from the ccxt library.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the `ccxt_errors` array is empty. If it is, it imports the `ccxt.base.errors` module from the ccxt library, retrieves the directory of the module, and iterates over each error. It then checks if the first character of the error name is uppercase. If it is, the error name is added to the `ccxt_errors` array.
+"""
+function _ccxt_errors!()
     if isempty(ccxt_errors)
         for err in pyimport("ccxt.base.errors") |> pydir
             name = string(err)
@@ -24,12 +40,23 @@ _ccxt_errors!() =
             end
         end
     end
+end
 
-isccxterror(err::PyException) = begin
+@doc """ Determines if a Python exception is a ccxt error.
+
+$(TYPEDSIGNATURES)
+"""
+function isccxterror(err::PyException)
     _ccxt_errors!()
     py_except_name(err) ∈ ccxt_errors
 end
+@doc " The path to the markets data directory."
 const MARKETS_PATH = joinpath(DATA_PATH, "markets")
+
+@doc """ Initializes the Python environment and creates the markets data directory.
+
+$(TYPEDSIGNATURES)
+"""
 function _init()
     clearpypath!()
     if !isinitialized()
@@ -87,10 +114,19 @@ function _multifunc(exc, suffix, hasinputs=false)
     end
 end
 
+@doc"""
+A dictionary for storing function wrappers with their unique identifiers.
+"""
 const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
 
 # NOTE: watch_tickers([...]) returns empty sometimes...
 # so call without args, and select the input
+@doc """ Chooses a function based on the provided parameters and executes it.
+
+$(TYPEDSIGNATURES)
+
+This function selects a function based on the provided exception, suffix, and inputs. It then executes the chosen function with the provided inputs and keyword arguments. The function can handle multiple types of inputs and can execute multiple functions concurrently if necessary.
+"""
 function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs...)
     @lget! FUNCTION_WRAPPERS hash((
         exc.id, pyisnone(exc.urls.get("apiBackup")), suffix, elkey, inputs, kwargs...
@@ -147,7 +183,12 @@ function choosefunc(exc, suffix, inputs...; kwargs...)
     choosefunc(exc, suffix, [inputs...]; kwargs...)
 end
 
-@doc "Upgrades the ccxt package."
+@doc """ Upgrades the ccxt library to the latest version.
+
+$(TYPEDSIGNATURES)
+
+This function upgrades the ccxt library to the latest version available. It checks the current version of the ccxt library, and if a newer version is available, it upgrades the library using pip.
+"""
 function upgrade()
     @eval begin
         version = pyimport("ccxt").__version__
