@@ -1,19 +1,35 @@
 using PythonCall: pynew, PyNULL, pyisbool, Py
+
+@doc "This constant indicates whether the Python runtime has been initialized. It is used to delay initialization until the first Python call."
 const _INITIALIZED = Ref(false)
+
+@doc "An array of callback functions."
 const CALLBACKS = Function[]
+
+@doc "An array of Python module paths."
 const PYMODPATHS = String[]
+
+@doc "The Python module search path."
 const PYTHONPATH = Ref("")
+
+@doc "The Python version."
 const PY_V = Ref("")
+
+@doc "A Python object used for converting values to float."
 const pytryfloat = pynew()
+
+@doc "A Python object used for checking if a value is a Python object."
 const pyisvalue_func = pynew()
-# functions
+
+@doc "A dictionary for caching Python objects."
 const pyCached = Dict{Any,Py}()
 
 # async
-"""
-    PythonAsync(;pyaio::Py = pynew(), pyuv::Py = pynew(), pythreads::Py = pynew(), pyrunner::Py = pynew(), pyloop::Py = pynew(), pycoro_type::Py = pynew(), task::Ref{Task} = Ref{Task}())
+@doc """A structure for handling Python's asynchronous operations.
 
-A structure that holds references to the Python asynchronous objects and state.
+$(FIELDS)
+
+This structure is used to manage Python's asynchronous operations. It contains fields for Python's asyncio, threads, event loop, coroutine type, global variables, start function, and task status.
 """
 @kwdef struct PythonAsync
     pyaio::Py = pynew()

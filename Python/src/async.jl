@@ -3,20 +3,17 @@ using PythonCall:
 using Dates: Period, Second
 using Mocking: @mock, Mocking
 
+@doc """ Checks if python async state (event loop) is initialized.
 
-"""
-    isinitialized_async(pa::PythonAsync)
-
-Checks if python async state (event loop) is initialized.
+$(TYPEDSIGNATURES)
 """
 function isinitialized_async(pa::PythonAsync)
     !pyisnull(pa.pyaio)
 end
 
-"""
-    copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
+@doc """ Copies a python async structures.
 
-Copies a python async structures.
+$(TYPEDSIGNATURES)
 """
 function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
     if pyisnull(pa_to.pyaio) && !pyisnull(pa_from.pyaio)
@@ -39,10 +36,9 @@ function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
     end
 end
 
-"""
-    _async_init(pa::PythonAsync)
+@doc """ Initialized a PythonAsync structure (which holds a reference to the event loop.)
 
-Initialized a =PythonAsync= structure (which holds a reference to the event loop.)
+$(TYPEDSIGNATURES)
 """
 function _async_init(pa::PythonAsync)
     isinitialized_async(pa) && return nothing
@@ -58,10 +54,9 @@ function _async_init(pa::PythonAsync)
     @assert !pyisnull(gpa.pyaio)
 end
 
-"""
-    py_start_loop(pa::PythonAsync)
+@doc """ Starts a python event loop, updating `pa`.
 
-Starts a python event loop, updating =pa=.
+$(TYPEDSIGNATURES)
 """
 function py_start_loop(pa::PythonAsync=gpa)
     if pa === gpa
@@ -119,10 +114,9 @@ function py_stop_loop(pa::PythonAsync=gpa)
     end
 end
 
-"""
-    pyloop_stop_fn(pa)
+@doc """ Generates a function that terminates the python even loop.
 
-Generates a function that terminates the python even loop.
+$(TYPEDSIGNATURES)
 """
 function pyloop_stop_fn()
     fn() = begin
@@ -145,31 +139,27 @@ macro pyfetch(code)
     Expr(:call, :pyfetch, esc(code.args[1]), :(Val(:fut)), esc.(code.args[2:end])...)
 end
 
-"""
-    pyschedule(coro::Py)
+@doc """ Schedules a Python coroutine to run on the event loop.
 
-Schedules a Python coroutine to run on the event loop.
+$(TYPEDSIGNATURES)
 """
 function pyschedule(coro::Py)
     if pyisinstance(coro, Python.gpa.pycoro_type)
-        # gpa.pyaio.run_coroutine_threadsafe(coro, gpa.pyloop)
         gpa.pyloop.create_task(coro)
     end
 end
 
-"""
-    _isfutdone(fut::Py)
+@doc """ Checks if a Python future is done.
 
-Checks if a Python future is done.
+$(TYPEDSIGNATURES)
 """
 _isfutdone(fut::Py) = pyisnull(fut) || let v = fut.done()
     pyisTrue(v)
 end
 
-"""
-    pywait_fut(fut::Py)
+@doc """ Waits for a Python future to be done.
 
-Waits for a Python future to be done.
+$(TYPEDSIGNATURES)
 """
 pywait_fut(fut::Py) = begin
     while !_isfutdone(fut)
@@ -190,10 +180,9 @@ pywait_fut(fut::Py, running) = begin
     end
 end
 
-"""
-    pytask(coro::Py, ::Val{:coro})
+@doc """ Creates a Julia task from a Python coroutine and runs it asynchronously.
 
-Creates a Julia task from a Python coroutine and runs it asynchronously.
+$(TYPEDSIGNATURES)
 """
 function pytask(coro::Py, ::Val{:coro}; coro_running=())
     let fut = pyschedule(coro)
@@ -204,12 +193,11 @@ function pytask(coro::Py, ::Val{:coro}; coro_running=())
     end
 end
 
-"""
-    pytask(coro::Py, ::Val{:fut})::Tuple{Py,Union{Py,Task}}
+@doc """ Creates a Julia task from a Python coroutine and returns the Python future and the Julia task.
 
-Creates a Julia task from a Python coroutine and returns the Python future and the Julia task.
+$(TYPEDSIGNATURES)
 """
-pytask(coro::Py, ::Val{:fut}; coro_running=())::Tuple{Py,Union{Py,Task}} = begin
+function pytask(coro::Py, ::Val{:fut}; coro_running=())::Tuple{Py,Union{Py,Task}}
     fut = pyschedule(coro)
     (fut, @async if _isfutdone(fut)
         fut.result()
@@ -218,35 +206,33 @@ pytask(coro::Py, ::Val{:fut}; coro_running=())::Tuple{Py,Union{Py,Task}} = begin
     end)
 end
 
-"""
-    pytask(f::Py, args...; kwargs...)
+@doc """ Creates a Julia task from a Python function call and runs it asynchronously.
 
-Creates a Julia task from a Python function call and runs it asynchronously.
+$(TYPEDSIGNATURES)
 """
 function pytask(f::Py, args...; coro_running=(), kwargs...)
     pytask(f(args...; kwargs...), Val(:coro); coro_running)
 end
 
-"""
-    pytask(f::Py, ::Val{:fut}, args...; kwargs...)
+@doc """ Creates a Julia task from a Python function call and returns the Python future and the Julia task.
 
-Creates a Julia task from a Python function call and returns the Python future and the Julia task.
+$(TYPEDSIGNATURES)
 """
 function pytask(f::Py, ::Val{:sched}, args...; coro_running=(), kwargs...)
     pytask(f(args...; kwargs...), Val(:fut); coro_running)
 end
 
-"""
-    pycancel(fut::Py)
+@doc """ Cancels a Python future.
 
-Cancels a Python future.
+$(TYPEDSIGNATURES)
 """
-pycancel(fut::Py) = pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(fut.cancel))
+function pycancel(fut::Py)
+    pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(fut.cancel))
+end
 
-"""
-    pyfetch(f::Py, args...; kwargs...)
+@doc """ Fetches the result of a Python function call synchronously.
 
-Fetches the result of a Python function call synchronously.
+$(TYPEDSIGNATURES)
 """
 function _pyfetch(f::Py, args...; coro_running=(), kwargs...)
     let (fut, task) = pytask(f(args...; kwargs...), Val(:fut); coro_running)
@@ -263,10 +249,9 @@ function _pyfetch(f::Py, args...; coro_running=(), kwargs...)
     end
 end
 
-"""
-    pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
+@doc """ Fetches the result of a Python function call synchronously and returns an exception if any.
 
-Fetches the result of a Python function call synchronously and returns an exception if any.
+$(TYPEDSIGNATURES)
 """
 function _pyfetch(f::Py, ::Val{:try}, args...; coro_running=(), kwargs...)
     try
@@ -286,10 +271,9 @@ function _pyfetch(f::Py, ::Val{:try}, args...; coro_running=(), kwargs...)
     end
 end
 
-"""
-    pyfetch(f::Function, args...; kwargs...)
+@doc """ Fetches the result of a Julia function call synchronously.
 
-Fetches the result of a Julia function call synchronously.
+$(TYPEDSIGNATURES)
 """
 function _pyfetch(f::Function, args...; coro_running=(), kwargs...)
     fetch(@async(f(args...; kwargs...)))
@@ -297,13 +281,9 @@ end
 _mockable_pyfetch(args...; kwargs...) = _pyfetch(args...; kwargs...)
 pyfetch(args...; kwargs...) = @mock _mockable_pyfetch(args...; kwargs...)
 
-"""
-    pyfetch_timeout(
-        f1::Py, f2::Union{Function,Py}, timeout::Period, args...; kwargs...
-)
+@doc """ Fetches the result of a Python function call synchronously with a timeout. If the timeout is reached, it calls another function and returns its result.
 
-Fetches the result of a Python function call synchronously with a timeout. If the timeout is reached,
-it calls another function and returns its result.
+$(TYPEDSIGNATURES)
 """
 function _pyfetch_timeout(
     f1::Py, f2::Union{Function,Py}, timeout::Period, args...; coro_running=(), kwargs...
@@ -363,6 +343,10 @@ _get_ref() =
         PYREF[]
     end
 
+@doc """Main async loop function, sleeps indefinitely and closes loop on exception.
+
+$(TYPEDSIGNATURES)
+"""
 function async_start_runner_func!(pa)
     code = """
     global asyncio, juliacall, uvloop, Main

@@ -1,10 +1,20 @@
 using PythonCall: pystr, Py, PyException, pyisstr, pyisnone, pyfloat
 import PythonCall: PyDict
 
+@doc """
+    pylist_to_matrix(data::Py)
+
+    Convert a Python list to a Julia matrix.
+"""
 function pylist_to_matrix(data::Py)
     permutedims(reduce(hcat, pyconvert(Vector{<:Vector}, data)))
 end
 
+@doc """
+    @pystr(k, v=nothing)
+
+    Convert a Julia value to a Python string representation.
+"""
 macro pystr(k, v=nothing)
     s = esc(k)
     ev = if v isa Expr
@@ -17,10 +27,20 @@ macro pystr(k, v=nothing)
     end
 end
 
+@doc """
+    py_except_name(e::PyException)
+
+    Get the name of a Python exception.
+"""
 function py_except_name(e::PyException)
     string(pygetattr(pytype(e), "__name__"))
 end
 
+@doc """
+    pytofloat(v::Py, def::T)::T where {T<:Number}
+
+    Convert a Python value to a Julia float, with a default value.
+"""
 function pytofloat(v::Py, def::T)::T where {T<:Number}
     if pyisinstance(v, pybuiltins.float)
         pyconvert(T, v)
@@ -31,6 +51,11 @@ function pytofloat(v::Py, def::T)::T where {T<:Number}
     end
 end
 
+@doc """
+    pyisnonzero(v::Py)::Bool
+
+    Check if a Python value is nonzero.
+"""
 function pyisnonzero(v::Py)::Bool
     if pyisnone(v)
         false
@@ -41,8 +66,18 @@ function pyisnonzero(v::Py)::Bool
     end
 end
 
+@doc """
+    PyDict(p::Pair)
+
+    Create a Python dictionary from a pair.
+"""
 PyDict(p::Pair) = PyDict((p,))
 
+@doc """
+     pydicthash(d)
+
+     Calculate the hash of a Python dictionary.
+ """
 pydicthash(d) =
     let h = zero(hash(0))
         try
@@ -56,4 +91,4 @@ pydicthash(d) =
         return h
     end
 
-export @pystr, @pystr, pytofloat, pyisnonzero, pydicthash
+export @pystr, pytofloat, pyisnonzero, pydicthash
