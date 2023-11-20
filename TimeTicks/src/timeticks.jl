@@ -2,6 +2,7 @@ using Reexport
 @reexport using Dates
 using TimeFrames: TimeFrames, TimeFrame, apply, TimePeriodFrame
 using Lang: @lget!, Lang
+using Lang.DocStringExtensions
 using Serialization
 using Base: AbstractCmd
 import Base: convert, isless, ==
@@ -118,6 +119,24 @@ end
 # needed to convert an ohlcv dataframe with DateTime timestamps to a Float Matrix
 convert(::Type{T}, x::DateTime) where {T<:AbstractFloat} = timefloat(x)
 
+@doc """Return a string representation of the unit of time for the given TimeFrame tf.
+
+$(TYPEDSIGNATURES)
+
+The unit of time can be one of the following:
+
+"ns" for nanoseconds
+"ms" for milliseconds
+"s" for seconds
+"m" for minutes
+...
+
+Example:
+```julia
+tf = TimeFrame(Millisecond(500))
+name = nameof(tf)  # returns "ms"
+```
+"""
 function Base.nameof(tf::TimeFrame)
     tostring(unit::String) = "$(tf.period.value)$(unit)"
     prd = tf.period
@@ -155,13 +174,47 @@ timeframe!(args...; kwargs...) = error("Not implemented")
 
 dt(::Nothing) = :nothing
 dt(d::DateTime) = d
+@doc """Convert a numeric value num representing the number of milliseconds since the Unix epoch to a DateTime object.
+
+$(TYPEDSIGNATURES)
+
+num should be a real number.
+Example:
+```julia
+num = 1640995200000
+d = dt(num)  # returns a DateTime object representing the date and time corresponding to the number of milliseconds
+```
+"""
 dt(num::R) where {R<:Real} = unix2datetime(num / 1e3)
+@doc """Convert a DateTime object d to a floating-point number representing the number of milliseconds since the Unix epoch.
+
+$(TYPEDSIGNATURES)
+
+Example:
+
+```julia
+d = DateTime(2022, 1, 1, 0, 0, 0)
+tf = dtfloat(d)  # returns the number of milliseconds since the Unix epoch as a floating-point number
+```
+"""
 dtfloat(d::DateTime)::Float64 = datetime2unix(d) * 1e3
 dtstamp(d::I) where {I<:Integer} = d
 dtstamp(d::F) where {F<:AbstractFloat} = dt(d) |> dtstamp
+@doc """Generate a timestamp string in the format "YYYY-MM-DD HH:MM:SS" from a DateTime object d.
+
+$(TYPEDSIGNATURES)
+
+Example:
+
+```julia
+d = DateTime(2022, 1, 1, 0, 0, 0)
+timestamp = dtstamp(d)  # returns "2022-01-01 00:00:00"
+```
+"""
 dtstamp(d::DateTime)::Int64 = datetime2unix(d) * 1_000
 dtstamp(d::DateTime, ::Val{:round})::Int64 = round(Int, timefloat(d))
 
+@doc "Returns `time` (which should represent a date) as a float"
 timefloat(time::Float64) = time
 timefloat(time::Int64) = timefloat(Float64(time))
 @doc "ccxt always uses milliseconds in timestamps."
@@ -190,8 +243,19 @@ timestamp(s::AbstractString) = timestamp(DateTime(s))
 timestamp(d::DateTime) = round(Int64, datetime2unix(d))
 timestamp(d::DateTime, ::Val{:trunc}) = Int(trunc(datetime2unix(d)))
 
-@doc "Given a container, infer the timeframe by looking at the first two \
- and the last two elements timestamp."
+@doc """Given a container data, infer the timeframe by looking at the first two and the last two elements of the timestamp field.
+
+$(TYPEDSIGNATURES)
+
+This macro assumes that the timestamp field is available in the data container.
+
+Example:
+
+```julia
+data = [1,2,3,4,5]
+@infertf(data)  # infers the timeframe based on the timestamps in the data
+```
+"""
 macro infertf(data, field=:timestamp)
     quote
         begin
@@ -208,6 +272,20 @@ macro infertf(data, field=:timestamp)
     end
 end
 
+@doc """Apply the TimeFrames object period to the time value and return the result.
+
+$(TYPEDSIGNATURES)
+
+The period should be a TimeFrames object and time should be a value of the same type as the TimeFrames object.
+
+Example:
+
+```julia
+period = TimeFrame(Minute(1))
+time = 30
+result = TimeFrames.apply(period, time)  # returns the result of applying the period to the time value
+```
+"""
 function TimeFrames.apply(period::N, time::N) where {N<:Number}
     inv_prec = 1.0 / period
     round(time * inv_prec) / inv_prec
@@ -222,12 +300,37 @@ convert(::Type{TimeFrames.Minute}, v::TimeFrames.Day) = tf"1440m"
 convert(::Type{TimeFrames.Minute}, v::TimeFrames.Hour) = tf"60m"
 convert(::Type{TimeFrames.Second}, v::TimeFrames.Hour) = tf"3600s"
 
-@doc "Returns the correct timeframe normalized timestamp that the strategy should access from the input date."
+@doc """Returns the correct timestamp that the strategy should access from the input date for a given TimeFrame object frame.
+
+$(TYPEDSIGNATURES)
+
+frame should be a subtype of TimeFrame and date should be a DateTime object.
+
+Example:
+
+```julia
+frame = TimeFrame(Minute(1))
+date = DateTime(2022, 1, 1, 0, 2, 30)
+timestamp = available(frame, date)  # returns the timestamp representing the start of the minute containing the input date
+```
+"""
 function available(frame::T, date::DateTime)::DateTime where {T<:TimeFrame}
     apply(frame, date) - frame.period
 end
 
-@doc "Converts period in the most readable format up to days."
+@doc """Compact a Period object s to a smaller unit of time if possible.
+
+$(TYPEDSIGNATURES)
+
+The function checks the value of s in milliseconds and rounds it to the nearest smaller unit of time.
+
+Example:
+
+```
+s = Second(90)
+result = compact(s)  # returns Minute(1) since 90 seconds can be compacted to 1 minute
+```
+"""
 function compact(s::Period)
     millis = Millisecond(s)
     ms = millis.value
@@ -244,6 +347,20 @@ function compact(s::Period)
     end
 end
 
+@doc """Compute the number of tf1 timeframes that are contained within tf2 timeframes.
+
+$(TYPEDSIGNATURES)
+
+tf1 and tf2 should be TimeFrame objects of different types.
+
+Example:
+
+```julia
+tf1 = TimeFrame(Second(1))
+tf2 = TimeFrame(Minute(1))
+count = Base.count(tf1, tf2)  # returns the number of seconds in a minute
+```
+"""
 function Base.count(tf1::T1, tf2::T2) where {T1,T2<:TimeFrame}
     trunc(Int, timefloat(tf2) / timefloat(tf1))
 end

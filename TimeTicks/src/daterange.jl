@@ -1,5 +1,12 @@
 import Base: length, iterate, collect
 
+@doc """A type representing a date range.
+
+$(FIELDS)
+
+This type is used to store information about a range of dates, including the current date within the range, the start and stop dates, and the step size between dates.
+
+"""
 struct DateRange
     current_date::Vector{OptDate}
     start::OptDate
@@ -13,6 +20,17 @@ struct DateRange
     end
 end
 
+@doc """Convert a DateRange object d to a DateTuple object.
+
+$(TYPEDSIGNATURES)
+
+Example:
+
+```julia
+d = DateRange(Date(2022, 1, 1), Date(2022, 12, 31))
+date_tuple = convert(DateTuple, d)  # returns a DateTuple with the start and stop dates of the DateRange
+```
+"""
 function Base.convert(::Type{DateTuple}, d::DateRange)
     DateTuple((
         @something(d.start, typemin(DateTime)), @something(d.stop, typemax(DateTime))
