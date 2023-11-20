@@ -1,16 +1,20 @@
 using Distributed: Distributed, @distributed
 using Logging: Logging, with_logger, NullLogger
 using PrecompileTools
+using DocStringExtensions
 
 const Option{T} = Union{Nothing,T} where {T}
 
+@doc "Calls PrecompileTools.@setup_workload"
 macro preset(code)
     :(@setup_workload $(esc(code)))
 end
+@doc "Calls PrecompileTools.@compile_workload"
 macro precomp(code)
     :(@compile_workload $(esc(code)))
 end
 
+@doc "Run `body` in parallel if `flag` is `true`, otherwise run sequentially."
 macro parallel(flag, body)
     b = esc(body)
     db = esc(:(@distributed $body))
@@ -175,11 +179,23 @@ function _isdebug(name)
     @something _asbool((@something get(ENV, "JULIA_DEBUG", nothing) false), name) false
 end
 
+@doc """A macro to conditionally execute code in debug mode.
+
+$(TYPEDSIGNATURES)
+
+If the current module is in debug mode, execute `a`, otherwise execute `b`.
+"""
 macro ifdebug(a, b=nothing)
     name = string(__module__)
     esc(_isdebug(name) ? a : b)
 end
 
+@doc """A macro to conditionally assert a condition in debug mode.
+
+$(TYPEDSIGNATURES)
+
+If the current module is in debug mode, it asserts the given condition. Optionally, it can include a custom error message msg. 
+"""
 macro deassert(condition, msg=nothing)
     name = string(__module__)
     if _isdebug(name)
@@ -237,6 +253,10 @@ macro acquire(cond, code)
     end
 end
 
+@doc """Create an IOBuffer with the given initial value `v` and execute the code in `code` block.
+
+$(TYPEDSIGNATURES)
+"""
 macro buffer!(v, code)
     quote
         buf = IOBuffer($(esc(v)))
@@ -248,6 +268,10 @@ macro buffer!(v, code)
     end
 end
 
+@doc """Create a function `fname` that accepts `args` of type `type` and keyword arguments `kwargs` and applies the function `[fname]([args...]; kwargs...)`.
+
+$(TYPEDSIGNATURES)
+"""
 macro argstovec(fname, type, outf=identity)
     fname = esc(fname)
     type = esc(type)
@@ -284,6 +308,10 @@ macro posassert(args...)
     end
 end
 
+@doc """Log an error message `msg` using the logging system.
+
+$(TYPEDSIGNATURES)
+"""
 macro logerror(fileexpr)
     quote
         open($(esc(fileexpr)), "a") do f
@@ -292,6 +320,10 @@ macro logerror(fileexpr)
     end
 end
 
+@doc """Write an error message `e` to the given file handle `filehandle` using the logging system.
+
+$(TYPEDSIGNATURES)
+"""
 macro writeerror(filehandle)
     quote
         f = $(esc(filehandle))
@@ -302,6 +334,10 @@ macro writeerror(filehandle)
     end
 end
 
+@doc """Get the backtrace of the current execution context as an array of `StackTraceFrame` objects.
+
+$(TYPEDSIGNATURES)
+"""
 macro debug_backtrace(msg="")
     mod = __module__
     file = string(__source__.file)
@@ -325,6 +361,10 @@ function _dedup_funcs(st::Vector{Base.StackFrame})
     unique!(x -> x[1], fnames) .|> join
 end
 
+@doc """Get a formatted string representing the call stack leading up to the current execution context.
+
+$(TYPEDSIGNATURES)
+"""
 macro caller(n=4)
     quote
         let funcs = stacktrace() |> $_dedup_funcs
@@ -337,6 +377,11 @@ macro caller(n=4)
     end
 end
 
+@doc """Create a macro that ignores any exceptions that occur during the execution of the provided expression `expr`.
+
+$(TYPEDSIGNATURES)
+
+"""
 macro ignore(expr)
     ex = if expr.head == :for
         body = expr.args[2]
