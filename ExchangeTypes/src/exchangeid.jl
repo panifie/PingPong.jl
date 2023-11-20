@@ -1,7 +1,12 @@
 @doc "All possible exchanges that can be instantiated by ccxt."
 const exchangeIds = Symbol[]
 
-@doc "An ExchangeID is a symbol checked to match a ccxt exchange class."
+@doc """A structure for handling Exchange IDs in CCXT.
+
+$(FIELDS)
+
+This structure is used to manage Exchange IDs in the CCXT library. It contains methods for creating an Exchange ID from a symbol, a Python object, or directly from a symbol type. It ensures that the symbol is in the list of valid exchange IDs.
+"""
 struct ExchangeID{I}
     function ExchangeID(sym::Symbol=Symbol())
         sym == Symbol() && return new{sym}()
@@ -32,6 +37,7 @@ struct ExchangeID{I}
         ExchangeID(sym)
     end
 end
+
 const EIDType = Type{<:ExchangeID}
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
 Base.nameof(::Union{T,Type{T}}) where {T<:ExchangeID} = T.parameters[1]
@@ -56,5 +62,7 @@ Base.Broadcast.broadcastable(q::ExchangeID) = Ref(q)
 import Base.==
 ==(id::ExchangeID, s::Symbol) = Base.isequal(nameof(id), s)
 
+@doc "Create an ExchangeID instance from a symbol."
 exchangeid(sym::Symbol) = ExchangeID(sym)
+@doc "Return the given ExchangeID instance."
 exchangeid(id::ExchangeID) = id

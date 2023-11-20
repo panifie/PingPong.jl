@@ -10,9 +10,13 @@ using OrderedCollections: OrderedSet
 @doc "Functions `f(::Exchange)` to call when an exchange is loaded"
 const HOOKS = Dict{Symbol,Vector{Function}}()
 
+@doc """Abstract exchange type.
+
+Defines the interface for interacting with crypto exchanges. Implemented for CCXT in CcxtExchange.
+"""
 abstract type Exchange{I} end
 const OptionsDict = Dict{String,Dict{String,Any}}
-@doc """The exchange type wraps a ccxt exchange instance. Some attributes frequently accessed
+@doc """The `CcxtExchange` type wraps a ccxt exchange instance. Some attributes frequently accessed
 are copied over to avoid round tripping python. More attributes might be added in the future.
 To instantiate an exchange call `getexchange!` or `setexchange!`.
 
@@ -29,6 +33,12 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const precision::Ref{ExcPrecisionMode}
 end
 
+@doc """ Closes the given exchange.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to close the given exchange if it exists. It checks if the exchange has a 'close' attribute and if so, it schedules the 'close' coroutine for execution.
+"""
 function close_exc(exc::CcxtExchange)
     try
         (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) &&
@@ -55,6 +65,17 @@ function close_exc(exc::CcxtExchange)
 end
 
 Exchange() = Exchange(pybuiltins.None)
+@doc""" Instantiates a new `Exchange` wrapper for the provided `x` Python object.
+
+$(TYPEDSIGNATURES)
+
+This constructs a `CcxtExchange` struct with the provided Python object.
+It extracts the exchange ID, name, and other metadata. 
+It runs any registered hook functions for that exchange.
+It sets a finalizer to close the exchange when garbage collected.
+
+Returns the new `Exchange` instance, or an empty one if `x` is None.
+"""
 function Exchange(x::Py)
     id = ExchangeID(x)
     isnone = pyisnone(x)
@@ -77,6 +98,11 @@ function Exchange(x::Py)
     isnone ? e : finalizer(close_exc, e)
 end
 
+@doc """ Converts value v to integer size with precision p.
+ $(TYPEDSIGNATURES)
+
+Used when converting exchange API responses to integer sizes for orders.
+"""
 decimal_to_size(v, p::ExcPrecisionMode) = begin
     if p == excDecimalPlaces
         convert(Int, v)
@@ -122,6 +148,11 @@ function has(exc, what::Tuple{Vararg{Symbol}}; kwargs...)
     all((@mock _mockable_has(exc, v; kwargs...)) for v in what)
 end
 
+@doc """Return the first available property from a variable number of Symbol arguments in the given Exchange.
+
+$(TYPEDSIGNATURES)
+
+This function iterates through the provided Symbols and returns the value of the first property that exists in the Exchange object."""
 function Base.first(exc::Exchange, args::Vararg{Symbol})
     for name in args
         has(exc, name) && return getproperty(getfield(exc, :py), name)
