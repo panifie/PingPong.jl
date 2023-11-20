@@ -66,7 +66,7 @@ uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "PrecompileTools", "Preferences"]
+deps = ["Distributed", "DocStringExtensions", "Logging", "PrecompileTools", "Preferences"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"

@@ -356,7 +356,7 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.1"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "PrecompileTools", "Preferences"]
+deps = ["Distributed", "DocStringExtensions", "Logging", "PrecompileTools", "Preferences"]
 path = "../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
@@ -598,7 +598,7 @@ uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["CondaPkg", "Dates", "DocStringExtensions", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
