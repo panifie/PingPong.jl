@@ -1,9 +1,18 @@
 using Lang: @deassert, @ifdebug, @debug_backtrace
 using Misc: ATOL
 using Printf
+using Lang.DocStringExtensions
+
+@doc """Abstract base type for representing a variable quantity of some currency.
+
+This type defines the interface and common functionality for all cash types.
+"""
 abstract type AbstractCash <: Number end
 
 @doc """A variable quantity of some currency.
+
+$(FIELDS)
+
 ```julia
 > ca = c"USDT"
 > typeof(ca)
@@ -55,6 +64,19 @@ function scaled_string(val, scale=1e0, unit="")
     q, r = divrem(val, scale)
     "$(round(q+r * 1/scale, digits=3, RoundDown))($(unit))"
 end
+@doc """Compact a numeric value num to a smaller unit if possible.
+
+$(TYPEDSIGNATURES)
+
+The function converts the numeric value to a smaller unit of time if the value is greater than or equal to 1000, and returns the compacted value.
+
+Example:
+
+```julia
+num = 5000
+result = compactnum(num)  # returns 5 since 5000 can be compacted to 5
+```
+"""
 compactnum(val::N) where {N<:Number} = begin
     av = abs(val)
     if iszero(av)
@@ -150,19 +172,45 @@ function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, dothrow=false,
         end
     end
 end
-@doc "Add v to cash, approximating to zero if cash is a small value."
+@doc "Add v to cash, approximating to zero if cash is a small value.
+
+$(TYPEDSIGNATURES)
+"
 addzero!(c::Cash, v, args...; kwargs...) = begin
     add!(c, v)
     atleast!(c; kwargs...)
     @deassert c >= 0.0 v
     c
 end
-@doc "Sub v to cash, approximating to zero if cash is a small value."
+@doc "Sub v to cash, approximating to zero if cash is a small value.
+
+$(TYPEDSIGNATURES)
+"
 subzero!(c::AbstractCash, v, args...; kwargs...) = addzero!(c, -v; kwargs...)
+@doc """Inplace multiplication for Cash objects.
+
+$(TYPEDSIGNATURES)
+"""
 mul!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] *= v; c)
+@doc """Inplace remaineder division for Cash objects.
+
+$(TYPEDSIGNATURES)
+"""
 rdiv!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] /= v; c)
+@doc """Inplace division for Cash objects.
+
+$(TYPEDSIGNATURES)
+"""
 div!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] ÷= v; c)
+@doc """Inplace modulo for Cash objects.
+
+$(TYPEDSIGNATURES)
+"""
 mod!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] %= v; c)
+@doc """Sets the cash object to v.
+
+$(TYPEDSIGNATURES)
+"""
 cash!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] = v; c)
 
 export value, cash, cnum

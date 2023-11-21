@@ -1,6 +1,7 @@
 module Derivatives
 using ..Instruments
 using ..Instruments: FULL_SYMBOL_GROUPS_REGEX
+using ..Instruments.Misc.DocStringExtensions
 
 @doc "A symbol parsed as settlement currency."
 const SettlementCurrency = Symbol
@@ -16,13 +17,9 @@ end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
 
-@doc """Derivative parsed accordingly to [`regex`](@ref Instruments.FULL_SYMBOL_GROUPS_REGEX).
+@doc """`Derivative` parsed accordingly to [`regex`](@ref Instruments.FULL_SYMBOL_GROUPS_REGEX).
 
-- `asset`: The underlying asset.
-- `sc`: settlement currency.
-- `id`: identifier of the contract (the date).
-- `strike`: strike price.
-- `kind`: [`Instruments.Derivatives.DerivativeKind`](@ref)
+$(FIELDS)
 """
 struct Derivative8 <: AbstractAsset
     asset::Asset
@@ -45,6 +42,10 @@ struct Derivative8 <: AbstractAsset
 end
 Derivative = Derivative8
 
+@doc """Create a `Derivative` from a raw string representation raw, base currency bc, and quote currency qc.
+
+$(TYPEDSIGNATURES)
+"""
 function perpetual(raw::AbstractString, bc, qc)
     Derivative(Asset(SubString(raw), bc, qc), Symbol(qc), SubString(""), 0.0, Unkn)
 end
@@ -71,6 +72,10 @@ function getproperty(d::Derivative, s::Symbol)
     getfield(d, s)
 end
 
+@doc """Short-circuit the execution of a derivative calculation if the derivative d is zero.
+
+$(TYPEDSIGNATURES)
+"""
 function sc(d::Derivative; orqc=true)
     s = getfield(d, :sc)
     isequal(s, Symbol("")) && orqc ? getfield(d, :asset).qc : s
