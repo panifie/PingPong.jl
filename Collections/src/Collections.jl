@@ -1,3 +1,5 @@
+@doc """ =Collections= module
+"""
 module Collections
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"

@@ -18,9 +18,17 @@ using .Misc: Iterable, swapkeys, MarginMode
 using .Lang: @lget!, MatchString
 using Base.Enums: namemap
 using .Misc: OrderedDict, OrderedCollections
+using .Misc.DocStringExtensions
 
-# TYPENUM
-@doc "A collection of assets instances, indexed by asset and exchange identifiers."
+@doc """A type representing a collection of asset instances.
+
+$(FIELDS)
+
+This type is used to store and manage a collection of asset instances. Each instance is linked to an asset and an exchange identifier.
+Elements from `AssetCollection` can be accessed using `getindex` and `setindex!` which accepts different types including `ExchangeID`, `AbstractAsset`, `AbstractString`, `MatchString`, or a combination of base, quote currency, and exchange.
+Iterating over the collection only iterates over the instances within.
+
+"""
 struct AssetCollection
     data::DataFrame
     function AssetCollection(
@@ -138,6 +146,16 @@ _cashstr(ai::NoMarginInstance) = (; cash=cash(ai).value)
 function _cashstr(ai::MarginInstance)
     (; cash_long=cash(ai, Long()).value, cash_short=cash(ai, Short()).value)
 end
+
+@doc """Pretty prints the AssetCollection DataFrame.
+
+$(TYPEDSIGNATURES)
+
+The `prettydf` function takes the following parameters:
+
+- `ac`: an AssetCollection object which encapsulates a collection of assets.
+- `full` (optional, default is false): a boolean that indicates whether to print the full DataFrame. If true, the function prints the full DataFrame. If false, it prints a truncated version.
+"""
 function prettydf(ac::AssetCollection; full=false)
     limit = full ? size(ac.data)[1] : displaysize(stdout)[1] - 1
     limit = min(size(ac.data)[1], limit)
@@ -151,9 +169,19 @@ end
 
 Base.show(io::IO, ac::AssetCollection) = write(io, string(prettydf(ac)))
 
-@doc "Returns a Dict{TimeFrame, DataFrame} of all the OHLCV dataframes present in the asset collection."
+@doc """Returns a dictionary of all the OHLCV dataframes present in the asset collection.
+
+$(TYPEDSIGNATURES)
+
+The `flatten` function takes the following parameter:
+
+- `ac`: an AssetCollection object which encapsulates a collection of assets.
+
+The function returns a SortedDict where the keys are TimeFrame objects and the values are vectors of DataFrames that represent OHLCV (Open, High, Low, Close, Volume) data. The dictionary is sorted by the TimeFrame keys.
+
+"""
 function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
-    out = Dict()
+    out = SortedDict{TimeFrame,Vector{DataFrame}}
     @eachrow ac.data for (tf, df) in :instance.data
         push!(@lget!(out, tf, DataFrame[]), df)
     end
@@ -163,7 +191,16 @@ end
 Base.first(ac::AssetCollection, a::AbstractAsset)::DataFrame =
     first(first(ac[a].instance).data)[2]
 
-@doc "Makes a daterange that spans the common min and max dates of the collection."
+@doc """Makes a date range that spans the common minimum and maximum dates of the collection.
+
+$(TYPEDSIGNATURES)
+
+The `DateRange` function takes the following parameters:
+
+- `ac`: an AssetCollection object which encapsulates a collection of assets.
+- `tf` (optional): a TimeFrame object that represents a specific time frame. If not provided, the function will calculate the date range based on all time frames in the AssetCollection.
+
+"""
 function TimeTicks.DateRange(ac::AssetCollection, tf=nothing)
     m = typemin(DateTime)
     M = typemax(DateTime)
@@ -187,7 +224,15 @@ Base.similar(ac::AssetCollection) = begin
     AssetCollection(similar.(ac.data.instance))
 end
 
-@doc "Checks that all assets in the universe match the cash."
+@doc """Checks that all assets in the universe match the cash currency.
+
+$(TYPEDSIGNATURES)
+
+The `iscashable` function takes the following parameters:
+
+- `c`: an AbstractCash object which encapsulates a representation of cash.
+- `ac`: an AssetCollection object which encapsulates a collection of assets.
+"""
 iscashable(c::AbstractCash, ac::AssetCollection) = begin
     for ai in ac
         if ai.asset.qc != nameof(c)
