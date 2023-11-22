@@ -1,4 +1,7 @@
-@doc "Redefines given variable to a Matrix with type of the underlying container type."
+@doc "Redefines given variable to a Matrix with type of the underlying container type.
+
+$(TYPEDSIGNATURES)
+"
 macro as_mat(data)
     tp = esc(:type)
     d = esc(data)
@@ -11,7 +14,10 @@ macro as_mat(data)
     end
 end
 
-@doc "Same as `as_mat` but returns the new matrix."
+@doc "Same as `as_mat` but returns the new matrix.
+
+$(TYPEDSIGNATURES)
+"
 macro to_mat(data, tp=nothing)
     if tp === nothing
         tp = esc(:type)

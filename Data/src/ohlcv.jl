@@ -1,10 +1,15 @@
+@doc "Columns for OHLCV data: timestamp, open, high, low, close, volume"
 const OHLCV_COLUMNS = [:timestamp, :open, :high, :low, :close, :volume]
+@doc "Count of [`OHLCV_COLUMNS`](@ref)"
 const OHLCV_COLUMNS_COUNT = length(OHLCV_COLUMNS)
+@doc "The timestamp column of [`OHLCV_COLUMNS`](@ref)"
 const OHLCV_COLUMNS_TS = setdiff(OHLCV_COLUMNS, [:timestamp])
+@doc "Only the OHLC columns of [`OHLCV_COLUMNS`](@ref)"
 const OHLCV_COLUMNS_NOV = setdiff(OHLCV_COLUMNS, [:timestamp, :volume])
 
 @doc "Similar to a StructArray (and should probably be replaced by it), used for fast conversion."
 const OHLCVTuple = Tuple{Vector{DateTime},(Vector{Float64} for _ in 1:5)...}
+@doc "Default `OHLCVTuple` value."
 function ohlcvtuple()
     (DateTime[], (Float64[] for _ in 2:(length(OHLCV_COLUMNS)))...)
 end
@@ -18,5 +23,6 @@ Base.push!(o::OHLCVTuple, tup::Tuple) = begin
     end
 end
 
+@doc "Construct an OHLCV dataframe backed by an `OHLCVTuple`."
 to_ohlcv(v::OHLCVTuple) = DataFrame([v...], OHLCV_COLUMNS)
 propagate_ohlcv!(args...; kwargs...) = error("not implemented")

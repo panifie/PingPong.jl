@@ -1,4 +1,12 @@
 
+@doc """Check the time delta between two rows in a DataFrame.
+
+$(TYPEDSIGNATURES)
+
+This macro is used to check the time delta between two DataFrame to ensure they are of the same time delta.
+It throws a `TimeFrameError` if the time delta does not match the specified time delta value.
+If no `args` are provided, the macro uses the `za` value as the default data to check.
+"""
 macro check_td(args...)
     local check_data
     if !isempty(args)

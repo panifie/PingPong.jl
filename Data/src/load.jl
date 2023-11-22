@@ -17,7 +17,10 @@ function nearestl2(n)
     round(Int, 2^log2)
 end
 
-@doc "Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2."
+@doc """Choose chunk size depending on size of data with a predefined split (e.g. 1/100), padding to the nearest power of 2.
+
+$(TYPEDSIGNATURES)
+"""
 function chunksize(data; parts=100, def=DEFAULT_CHUNK_SIZE[1])
     sz_rest = size(data)[2:end]
     n_rest = isempty(sz_rest) ? 1.0 : reduce(*, sz_rest)
@@ -27,6 +30,10 @@ function chunksize(data; parts=100, def=DEFAULT_CHUNK_SIZE[1])
     (max(def, round(Int, len)), sz_rest...)
 end
 
+@doc """A custom exception representing a time frame error.
+
+$(FIELDS)
+"""
 mutable struct TimeFrameError <: Exception
     first::Any
     last::Any
@@ -40,16 +47,22 @@ function __handle_save_ohlcv_error(e::SaveOHLCVError, zi, key, pair, td, data; k
 end
 __handle_save_ohlcv_error(e, args...; kwargs...) = rethrow(e)
 
-@doc """
-`data_col`: the timestamp column of the new data (1)
-`saved_col`: the timestamp column of the existing data (1)
-`pair`: the trading pair (BASE/QUOTE string)
-`timeframe`: exchange timeframe (from exc.timeframes)
-`type`: Primitive type used for storing the data (Float64)
-`check`:
+@doc """Save OHLCV data to a ZArray.
+
+$(TYPEDSIGNATURES)
+
+- `data_col`: The column index of the timestamp data in the input `data`. Default is 1.
+- `saved_col`: The column index of the timestamp data in the existing data. Default is equal to `data_col`.
+- `type`: The primitive type used for storing the data. Default is `Float64`.
+- `existing`: A flag indicating whether existing data should be considered during the save operation. Default is `true`.
+- `overwrite`: A flag indicating whether existing data should be overwritten during the save operation. Default is `true`.
+- `reset`: A flag indicating whether the ZArray should be reset before saving the data. Default is `false`.
+- `check`:
   - `:bounds` (default) only checks that new data is adjacent to previous data.
   - `:all` checks full contiguity of previous and new data.
   - `:none` or anything else, no checks are done.
+
+The _save_ohlcv function saves OHLCV data to a ZArray. It performs checks on the input data and existing data (if applicable) to ensure contiguity and validity. If the checks pass, it calculates the offset based on the time difference between the first timestamps of the new and existing data. Then, it updates the ZArray with the new data starting at the calculated offset. The function provides various optional parameters to customize the save operation, such as handling existing data, overwriting, resetting, and performing checks.
 """
 function save_ohlcv(zi::ZarrInstance, exc_name, pair, timeframe, data; kwargs...)
     @as_td
@@ -65,6 +78,7 @@ function save_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
     save_ohlcv(zi[], args...; kwargs...)
 end
 
+@doc "Default `ZArray` chunk size."
 const OHLCV_CHUNK_SIZE = (2730, OHLCV_COLUMNS_COUNT)
 const check_bounds_flag = :bounds
 const check_all_flag = :all
@@ -185,10 +199,16 @@ function _save_ohlcv(
     _save_ohlcv(za, td, data; overwrite, existing, reset, type, kwargs...)
 end
 
-@doc "Normalizes or special characthers separators to `_`."
+@doc "Normalizes or special characthers separators to `_`.
+
+$(TYPEDSIGNATURES)
+"
 @inline snakecased(pair::AbstractString) = replace(pair, r"\.|\/|\-" => "_")
 
-@doc "The full key of the data stored for the (exchange, pair, timeframe) combination."
+@doc "The full key of the data stored for the (exchange, pair, timeframe) combination.
+
+$(TYPEDSIGNATURES)
+"
 @inline function key_path(exc_name, pair, timeframe)
     # ensure no key path constructed starts with `/`
     # otherwise ZGroup creation does not halt
@@ -214,7 +234,19 @@ function _load_zarr(out::Dict, k, zi, exc_name, timeframe; kwargs...)
     (out[k], _) = load(zi, exc_name, k, timeframe; as_z=true, kwargs...)
 end
 
-@doc "Load data from given zarr instance, exchange, pairs list and timeframe."
+@doc """Load OHLCV data from a ZarrInstance.
+
+$(TYPEDSIGNATURES)
+
+- `raw`: A flag indicating whether to return the raw data or process it into an OHLCV format. Default is `false`.
+- `from`: The starting timestamp (inclusive) for loading data. Default is an empty string, indicating loading from the beginning of the ZArray.
+- `to`: The ending timestamp (exclusive) for loading data. Default is an empty string, indicating loading until the end of the ZArray.
+- `saved_col`: The column index of the timestamp data in the ZArray. Default is 1.
+- `as_z`: A flag indicating whether to return the loaded data as a ZArray. Default is `false`.
+- `with_z`: A flag indicating whether to return the loaded data along with the ZArray object. Default is `false`.
+
+This function is used to load OHLCV data from a ZarrInstance. It takes in the ZarrInstance `zi`, the exchange name `exc_name`, the currency pairs `pairs`, and the timeframe. Optional parameters `raw` and `kwargs` can be specified to customize the loading process.
+"""
 function load_ohlcv(
     zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false, kwargs...
 )
@@ -375,7 +407,15 @@ function _load_ohlcv(zi::Ref{Option{ZarrInstance}}, args...; kwargs...)
     _load_ohlcv(zi[], args...; kwargs...)
 end
 
-@doc "Checks if a timeseries has any intervals not conforming to the given timeframe."
+@doc """Check if a time series is contiguous based on a specified timeframe.
+
+$(TYPEDSIGNATURES)
+
+This function is used to check if a time series is contiguous based on a specified timeframe. It takes in the `series` as the input time series and the `timeframe` as a string representing the timeframe (e.g., "1h", "1d"). Optional parameters `raise` and `return_date` can be specified to customize the behavior of the function.
+
+- `raise`: A flag indicating whether to raise a `TimeFrameError` if the time series is not contiguous. Default is `true`.
+- `return_date`: A flag indicating whether to return the first non-contiguous date found in the time series. Default is `false`.
+"""
 function contiguous_ts(series, timeframe::AbstractString; raise=true, return_date=false)
     @as_td
     _contiguous_ts(series, td; raise, return_date)
@@ -400,6 +440,13 @@ function _contiguous_ts(
     return ifelse(return_date, (true, lastindex(series), pv), true)
 end
 
+@doc """Check the contiguity of timestamps between data and saved data.
+
+$(TYPEDSIGNATURES)
+
+Used to check the contiguity of timestamps between the data and saved data. It takes in the first and last timestamps of the data (`data_first_ts` and `data_last_ts`) and the first and last timestamps of the saved data (`saved_first_ts` and `saved_last_ts`).
+Typically used as a helper function within the context of saving or loading OHLCV data to ensure the contiguity of timestamps.
+"""
 function _check_contiguity(
     data_first_ts::AbstractFloat,
     data_last_ts::AbstractFloat,

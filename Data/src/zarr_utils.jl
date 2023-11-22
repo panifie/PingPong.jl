@@ -6,15 +6,28 @@ using Misc: DATA_PATH, isdirempty
 using .Lang: @lget!, Option
 import Base: delete!, isempty, empty!
 
+@doc "Default zarr compressor used in the module (zstd, clevel=2)."
 const compressor = Zarr.BloscCompressor(; cname="zstd", clevel=2, shuffle=true)
 
+@doc """Resizes a ZArray to zero.
+
+$(TYPEDSIGNATURES)
+"""
 empty!(z::ZArray) = begin
     resize!(z, 0, size(z)[2:end]...)
     z
 end
 
+@doc """A ZArray is empty if its size is 0.
+
+$(TYPEDSIGNATURES)
+"""
 isempty(z::ZArray) = size(z, 1) == 0
 
+@doc """Removes all arrays and groups from a ZGroup.
+
+$(TYPEDSIGNATURES)
+"""
 function empty!(g::ZGroup)
     for a in keys(g.arrays)
         delete!(g, a)
@@ -24,6 +37,7 @@ function empty!(g::ZGroup)
     end
 end
 
+@doc "Delete an element from a `ZGroup`. If the element is a group, it will be recursively deleted."
 function delete!(g::ZGroup, key::AbstractString; force=true)
     delete!(g.storage, g.path, key)
     if key ∈ keys(g.groups)
@@ -33,6 +47,10 @@ function delete!(g::ZGroup, key::AbstractString; force=true)
     end
 end
 
+@doc """Delete an element from a `DirectoryStore`. Also removes the directory.
+
+$(TYPEDSIGNATURES)
+"""
 function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
     rm(joinpath(store.folder, paths...); force=true, recursive)
 end
@@ -41,6 +59,10 @@ function delete!(store::AbstractStore, paths...; recursive=true)
     delete!(store, paths...; recursive)
 end
 
+@doc """Delete the `ZArray` from the underlying storage.
+
+$(TYPEDSIGNATURES)
+"""
 function delete!(z::ZArray; ok=true)
     ok && begin
         delete!(z.storage, z.path; recursive=true)
@@ -61,10 +83,17 @@ _setup_buffer(serialized, buffer) = begin
     end
 end
 
-@doc "Delete elements from a `ZArray` within the range of dates `from_dt:to_dt`.
+@doc """Delete elements from a `ZArray` `z` within a specified date range.
 
-Use the `select` function to customize the dates vector where to index th range. Defaults
-to the first column of a 2D Zarray."
+$(TYPEDSIGNATURES)
+
+This function deletes elements from a `ZArray` `z` that fall within the specified date range. The range is defined by `from_dt` (inclusive) and `to_dt` (exclusive). The deletion is performed in place.
+
+The `by` argument is optional and defaults to the `identity` function. It specifies the function used to extract the date value from each element of the `ZArray`.
+The `select` argument is optional and defaults to a function that selects the first column of each element in the `ZArray`. It specifies the function used to select the relevant portion of each element for deletion.
+The `serialized` argument is optional and defaults to `false`. If set to `true`, the `ZArray` is assumed to be serialized, and the deletion is performed on the serialized representation.
+The `buffer` argument is optional and can be used to provide an `IOBuffer` for intermediate storage during deletion.
+"""
 function zdelete!(
     z::ZArray,
     from_dt::Option{DateTime},
@@ -134,6 +163,12 @@ end
 
 istypeorval(t::Type, v) = v isa t
 istypeorval(t::Type, v::Type) = v <: t
+@doc """Get the default value of a given type t.
+
+$(TYPEDSIGNATURES)
+
+This function returns the default value of the specified type t.
+"""
 default(t::Type) = begin
     if applicable(zero, t)
         zero(t)
@@ -158,7 +193,10 @@ default(t::Type) = begin
     end
 end
 
-@doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray."
+@doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray.
+
+$(FIELDS)
+"
 mutable struct ZarrInstance{S<:AbstractStore}
     path::AbstractString
     store::S
@@ -182,6 +220,17 @@ function _addkey!(zi::ZarrInstance, z::ZArray)
     z.path ∉ keys(zi.group.arrays) && (zi.group.arrays[z.path] = z)
 end
 
+@doc """Create a ZArray using the zcreate macro.
+
+$(TYPEDSIGNATURES)
+
+This macro is used to create a ZArray object. It provides a convenient syntax for creating and initializing a ZArray with the specified elements.
+It's a dirty macro. Uses existing variables:
+- `type`: eltype of the array.
+- `key`: path of the array.
+- `sz`: size of the array.
+- `zi`: ZarrInstance object.
+"""
 macro zcreate()
     type = esc(:type)
     key = esc(:key)
@@ -207,6 +256,12 @@ end
 _wrongdims(za, sz) = ndims(za) != length(sz)
 _wrongcols(za, sz) = ndims(za) > 1 && size(za, 2) != sz[2]
 
+@doc """Get a ZArray object from a ZarrInstance.
+
+$(TYPEDSIGNATURES)
+
+This function is used to retrieve a ZArray object from a ZarrInstance. It takes in the ZarrInstance, key, size, and other optional parameters and returns the ZArray object.
+"""
 function _get_zarray(
     zi::ZarrInstance, key::AbstractString, sz::Tuple; type, overwrite, reset
 )

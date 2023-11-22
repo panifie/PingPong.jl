@@ -3,6 +3,21 @@ using LMDB: LMDB as lm;
 using .Lang: @lget!
 
 const MB = 1024 * 1024
+@doc """LMDBDictStore is a concrete implementation of the AbstractDictStore interface.
+
+LMDBDictStore represents a dictionary-like data store that uses LMDB as its backend. It is a subtype of AbstractDictStore defined in the Zarr package.
+
+LMDBDictStore has the following fields:
+- `a`: An instance of LMDBDict that represents the LMDB database.
+- `lock`: A ReentrantLock used for thread-safety.
+
+LMDBDictStore can be created using the LMDBDictStore constructor function. It takes the following arguments:
+- `path::AbstractString`: The path to the LMDB database.
+- `reset::Bool=false`: If `true`, the LMDB database at the given path will be deleted and recreated.
+- `mapsize::Int=64MB`: The maximum size of the LMDB database.
+
+LMDBDictStore implements the AbstractDictStore interface, which provides methods for reading and writing data to the store.
+"""
 struct LMDBDictStore <: za.AbstractDictStore
     a::lm.LMDBDict
     lock::ReentrantLock
@@ -55,6 +70,10 @@ _withsuffix(p, sf='/') = (isempty(p) || endswith(p, sf)) ? p : p * sf
 za._pkeys(d::LMDBDictStore, p) = keys(d.a; prefix=_withsuffix(p))
 za._pdict(d::LMDBDictStore, p) = dictview(d.a, keys(d.a; prefix=_withsuffix(p)))
 
+@doc """Get the root group of a store.
+
+$(TYPEDSIGNATURES)
+"""
 get_zgroup(store::za.AbstractStore) = begin
     if !Zarr.is_zgroup(store, "")
         zgroup(store, "")
@@ -63,9 +82,12 @@ get_zgroup(store::za.AbstractStore) = begin
     zopen(store, "w")
 end
 
-@doc "Create a `ZarrInstance` at specified `path` using `lmdb` as backend.
+@doc """Create a ZarrInstance at specified path using lmdb as backend.
 
-`force`: resets the underlying store."
+$(TYPEDSIGNATURES)
+
+This function creates a ZarrInstance object at the specified path using lmdb as the backend. It has an optional parameter 'force' to reset the underlying store.
+"""
 function zilmdb(path::AbstractString=joinpath(DATA_PATH, "lmdb"); force=false)
     @lget! zcache path begin
         get(force::Bool) = begin
@@ -85,6 +107,12 @@ function zilmdb(path::AbstractString=joinpath(DATA_PATH, "lmdb"); force=false)
     end
 end
 
+@doc """Delete paths from an LMDBDictStore.
+
+$(TYPEDSIGNATURES)
+
+This function deletes the specified paths from an LMDBDictStore. It supports deleting paths recursively if the `recursive` parameter is set to true.
+"""
 function delete!(store::LMDBDictStore, paths::Vararg{AbstractString}; recursive=true)
     try
         if recursive
@@ -100,6 +128,12 @@ function delete!(store::LMDBDictStore, paths::Vararg{AbstractString}; recursive=
     end
 end
 
+@doc """Empty an LMDBDict object.
+
+$(TYPEDSIGNATURES)
+
+This function empties an LMDBDict object by dropping the lmdb database and syncing the environment.
+"""
 function Base.empty!(d::lm.LMDBDict)
     lm.txn_dbi_do(d; readonly=false) do txn, dbi
         lm.drop(txn, dbi; delete=true)
@@ -107,6 +141,12 @@ function Base.empty!(d::lm.LMDBDict)
     lm.sync(d.env, true)
 end
 
+@doc """Remove all lmdb files associated with an LMDBDict object.
+
+$(TYPEDSIGNATURES)
+
+This function removes all lmdb files associated with the given LMDBDict object. It deletes the lmdb database and all associated files.
+"""
 function Base.rm(d::lm.LMDBDict)
     path = d.env.path
     empty!(d)

@@ -2,6 +2,7 @@
 using Reexport
 @reexport using Zarr
 using Misc: Misc, DATA_PATH, isdirempty, Lang, TimeTicks
+using Misc.DocStringExtensions
 using DataFramesMeta
 
 include("utils.jl")

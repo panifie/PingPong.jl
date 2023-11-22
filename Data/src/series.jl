@@ -1,6 +1,13 @@
 using .Data: @to_mat
 using .Lang: @ifdebug
 
+@doc """Check the size of data against a ZArray.
+
+$(TYPEDSIGNATURES)
+
+Used to check the size of data against a ZArray `arr`. It takes in the data and the ZArray `arr` as input.
+Compares the size of the data with the size of the ZArray. If the sizes do not match, it raises a `SizeMismatchError`.
+"""
 function _check_size(data, arr::ZArray)
     if arr.storage isa LMDBDictStore
         # HACK: for this check to be 100% secure, it would have to read data from disk
@@ -24,12 +31,20 @@ function _check_size(data, arr::ZArray)
     end
 end
 
-@doc """
-`data`: A type with a `size`.
-`data_col`: the timestamp column of the new data (1)
-`z_col`: the timestamp column of the existing data (1)
-`key`: the full key of the zarr group to use
-`type`: Primitive type used for storing the data (Float64)
+@doc """Save data to a ZarrInstance with additional options.
+
+$(TYPEDSIGNATURES)
+
+- `type`: The type of the data to be saved. Default is `Float64`.
+- `data_col`: The column of the data to be saved. Default is `1`.
+- `z_col`: The column in the Zarr array to save the data. Default is the same as `data_col`.
+- `overwrite`: A flag indicating whether to overwrite existing data at the specified key. Default is `true`.
+- `reset`: A flag indicating whether to reset the Zarr array before saving the data. Default is `false`.
+- `chunk_size`: The size of the chunks to use when saving the data. Default is `nothing`, indicating auto-chunking.
+
+Only dates seriality is ensured, not contiguity (unlike [`save_ohlcv`](@ref))
+It creates a new array if needed, sets the chunk size if specified.
+
 """
 function save_data(zi::ZarrInstance, key, data; serialize=false, data_col=1, kwargs...)
     _wrap_save_data(zi::ZarrInstance, key, data; serialize, data_col, kwargs...)
@@ -95,9 +110,6 @@ function _partial_checks(data, za, data_view, data_offset, data_col, z_col)
     @assert timefloat(data[data_offset, data_col]) >= timefloat(za[end, z_col])
 end
 
-@doc """ Saves data to a zarr array ensuring only dates seriality, not contiguity (as opposed to `_save_ohlcv`).
-
-"""
 function _save_data(
     zi::ZarrInstance,
     key,
@@ -187,12 +199,21 @@ end
 
 const DEFAULT_CHUNK_SIZE = (100, 2)
 @doc """ Load data from zarr instance.
-`zi`: The zarr instance to use
-`key`: the name of the array to load from the zarr instance (full key path).
-`type`: Set to the type that zarr should use to store the data (only bits types). [Float64].
-`serialized`: If set, data will be deserialized before returned (`type` is ignored).
-`from`, `to`: date range
-`sz`: The chunks tuple which should match the shape of the already saved data.
+
+$(TYPEDSIGNATURES)
+
+- `zi`: The zarr instance to use
+- `key`: the name of the array to load from the zarr instance (full key path).
+- `type`: Set to the type that zarr should use to store the data (only bits types). [Float64].
+
+- `sz`: The chunks tuple which should match the shape of the already saved data.
+- `from`: The starting index to load the data from. Default is an empty string, indicating no specific starting index.
+- `to`: The ending index to load the data up to. Default is an empty string, indicating no specific ending index.
+- `z_col`: The column in the Zarr array to load the data from. Default is `1`.
+- `type`: The type of the data to be loaded. Default is `Float64`.
+- `serialized`: A flag indicating whether the data is serialized. Default is `false`. If `true`, `type` is ignored.
+- `as_z`: A flag indicating whether to return the loaded data as a ZArray. Default is `false`.
+- `with_z`: A flag indicating whether to return the loaded data along with the Zarr array (as tuple). Default is `false`.
 
 !!! warning "Mismatching chunks"
     Loading data with from key with wrong dimensions (`ndims(sz)`) or shape (columns)
