@@ -1,22 +1,26 @@
 module Query
+using ..Misc.DocStringExtensions
 include("slope.jl")
 
-@doc "Given a (non-prefixed) exchange name, do the following:
- - load its CCXT instance (if not loaded)
- - load its pairslist and relative data based on configuration
- - apply filtering based on slopeangle
- - save output in the key exchange.name of `results` dict.
- - output is of the form (trg, price, data) where:
-   - trg: pairs sorted by slope
-   - flt: filtered pairs data
-   - data: full data
-"
+@doc """Filters exchange data based on slope angle and saves the output.
+
+The `excfilter` macro takes a non-prefixed exchange name `exc_name`. It performs several operations:
+
+- If the CCXT instance for the exchange is not already loaded, it loads it.
+- It loads the pairs list and relative data for the exchange based on the current configuration settings.
+- It applies a filter to the data based on the slope angle.
+- It saves the output in the `results` dictionary under the key corresponding to the exchange name.
+- The output is a tuple of the form (trg, flt, data), where:
+  - trg: The pairs, sorted by slope
+  - flt: The filtered pairs data
+  - data: The full data for the exchange
+
+This macro is useful for filtering and sorting pairs data for individual exchanges based on the slope angle.
+
+"""
 macro excfilter(exc_name)
     @eval begin
         include("slope.jl")
-        # using .Exchanges
-        # using .Misc
-        # explore!()
     end
     quote
         local trg
@@ -43,7 +47,10 @@ macro excfilter(exc_name)
     end
 end
 
-@doc "Filter pairs in `hs` that are bottomed longs."
+@doc "Filter pairs in `hs` that are bottomed longs.
+
+$(TYPEDSIGNATURES)
+"
 function cbot(
     hs::AbstractDataFrame,
     mrkts;
@@ -62,7 +69,11 @@ function cbot(
     sort(@view(hs[mask, :]), sort_col)
 end
 
-@doc "Filter pairs in `hs` that are peaked shorts."
+
+@doc "Filter pairs in `hs` that are peaked long.
+
+$(TYPEDSIGNATURES)
+"
 function cpek(
     hs::AbstractDataFrame,
     mrkts;
@@ -80,15 +91,14 @@ function cpek(
     sort(@view(hs[mask, :]), sort_col)
 end
 
-@doc "Sorted MVP."
-function smvp(mrkts)
-    mrkts = an.resample(mrkts, "1d"; save=false)
-    mvp = DataFrame(an.MVP.discrete_mvp(mrkts)[1])
-    mvp[!, :score_sum] = mvp.m .+ mvp.v .+ mvp.p
-    sort!(mvp, :score_sum)
-end
+@doc """Calculates the average Rate of Change (ROC) for a set of markets.
 
-@doc "The average rate of change for a universe of markets."
+$(TYPEDSIGNATURES)
+
+This function `average_roc` takes a set of markets `mrkts` as input. It calculates the average Rate of Change (ROC) for these markets over a certain period. The ROC is a momentum oscillator that measures the percentage change in price between the current price and the price a certain number of periods ago.
+The function returns the average ROC for the set of markets.
+
+"""
 function average_roc(mrkts)
     positive = Float64[]
     negative = Float64[]
@@ -105,7 +115,11 @@ function average_roc(mrkts)
     DataFrame(:positive => mpos, :negative => mneg, :ratio => mpos / abs(mneg))
 end
 
-@doc "The last day price change."
+@doc """Calculates the last day's Rate of Change (ROC) for a set of markets.
+
+$(TYPEDSIGNATURES)
+
+"""
 function last_day_roc(r, mrkts)
     roc = []
     for pair in r.pair
@@ -116,10 +130,11 @@ function last_day_roc(r, mrkts)
     sort!(df, :x1)
 end
 
-@doc "Bollinger bands.
-- Load data from the `mrkts` variable.
-- Resample to given timeframe (8h)
-- Return as dataframe."
+@doc """Calculates Bollinger Bands for a given market pair over a specified timeframe.
+
+$(TYPEDSIGNATURES)
+
+"""
 macro bbranges(pair, timeframe="8h")
     mrkts = esc(:mrkts)
     !isdefined(an, :bbands!) && an.explore!()

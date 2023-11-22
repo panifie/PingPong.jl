@@ -1,7 +1,7 @@
 # Analysis
-This module is pretty much a playground of functions that I am using/used, most likely of very little interest.
+Library for common strategy signals generation.
 
 ```@autodocs
-Modules = [Analysis]
+Modules = [Analysis, Analysis.Query]
 ```
 

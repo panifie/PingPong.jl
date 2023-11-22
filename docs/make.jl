@@ -11,18 +11,8 @@ using Documenter, DocStringExtensions, Suppressor
 # Modules
 using PingPong
 project_path = dirname(dirname(Pkg.project().path))
-function use(name, args...)
-    path = joinpath(project_path, args...)
-    @suppress try
-        if endswith(args[end], ".jl")
-            include(path)
-            @eval using .$name
-        else
-            path ∉ LOAD_PATH && push!(LOAD_PATH, path)
-            Pkg.instantiate()
-            @eval using $name
-        end
-    catch
+function use(name, args...; activate=false)
+    activate_and_import() = begin
         prev = Pkg.project().path
         try
             Pkg.activate(path)
@@ -32,6 +22,24 @@ function use(name, args...)
         end
         Pkg.activate(prev)
     end
+
+    path = joinpath(project_path, args...)
+    @suppress if activate
+        activate_and_import()
+    else
+        try
+            if endswith(args[end], ".jl")
+                include(path)
+                @eval using .$name
+            else
+                path ∉ LOAD_PATH && push!(LOAD_PATH, path)
+                Pkg.instantiate()
+                @eval using $name
+            end
+        catch
+            activate_and_import()
+        end
+    end
 end
 get(ENV, "LOADED", "false") == "true" || begin
     use(:Prices, "Data", "src", "prices.jl")
@@ -40,12 +48,14 @@ get(ENV, "LOADED", "false") == "true" || begin
     use(:Instruments, "Instruments")
     use(:Exchanges, "Exchanges")
     use(:Plotting, "Plotting")
-    use(:Analysis, "Analysis")
+    use(:Analysis, "Analysis", activate=true)
     use(:Engine, "Engine")
     use(:Watchers, "Watchers")
     use(:Pbar, "Pbar")
     use(:Stats, "Stats")
     use(:Optimization, "Optimization")
+    use(:Ccxt, "Ccxt")
+    use(:Python, "Python")
     using PingPong.Data.DataStructures
     @eval using Base: Timer
     ENV["LOADED"] = "true"
@@ -105,6 +115,7 @@ makedocs(;
         "API" => [
             "API/collections.md",
             "API/data.md",
+            "API/ccxt.md",
             "API/dfutils.md",
             "API/executors.md",
             "API/instances.md",
@@ -115,11 +126,10 @@ makedocs(;
             "API/plotting.md",
             "API/prices.md",
             "API/processing.md",
+            "API/python.md",
             "API/stats.md",
             "API/strategies.md",
-            "Analysis" => [
-                "API/analysis/analysis.md",
-            ],
+            "Analysis" => ["API/analysis/analysis.md"],
         ],
     ],
     format=Documenter.HTML(; sidebar_sitename=false),
