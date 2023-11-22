@@ -2,7 +2,13 @@ using Distributed: @everywhere, workers, addprocs, rmprocs, RemoteChannel
 
 const workers_setup = Ref(0)
 
-@doc "Instantiate new workers if the current number mismatches the requested one."
+@doc """Instantiates worker processes for a given module.
+
+$(TYPEDSIGNATURES)
+
+This function takes a module `mod` and optionally a boolean `force` and an integer `num`. It spawns `num` worker processes for `mod`. If `force` is true, it first kills any existing worker processes for `mod`.
+
+"""
 function _instantiate_workers(mod; force=false, num=4)
     if workers_setup[] !== num || force
         length(workers()) > 1 && rmprocs(workers())

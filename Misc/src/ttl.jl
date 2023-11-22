@@ -1,3 +1,6 @@
+@doc """ Module for managing time-to-live cache.
+
+"""
 module TimeToLive
 using ConcurrentCollections: modify!, Delete, ConcurrentDict
 
@@ -5,6 +8,7 @@ export TTL, safettl
 
 using Base.Iterators: peel
 using Dates: DateTime, Period, now
+using ..DocStringExtensions
 
 struct Node{T}
     value::T
@@ -14,9 +18,11 @@ end
 isexpired(v::Node) = now() > v.expiry
 isexpired(time::DateTime) = v::Node -> time > v.expiry
 
-"""
+@doc"""
     TTL(ttl::Period; refresh_on_access::Bool=false)
     TTL{K, V}(ttl::Period; refresh_on_access::Bool=false)
+
+$(TYPEDFIELDS)
 
 An associative [TTL](https://en.wikipedia.org/wiki/Time_to_live) cache.
 If `refresh_on_access` is set, expiries are reset whenever they are accessed.
@@ -36,6 +42,12 @@ struct TTL{K,V,D<:AbstractDict,P<:Period} <: AbstractDict{K,V}
     end
 end
 
+@doc """ Safely instantiate a TTL dictionary.
+
+$(TYPEDSIGNATURES)
+
+This function safely creates a Time-to-Live (TTL) dictionary with specified key and value types, along with an optional ttl parameter.
+"""
 function safettl(K::Type, V::Type, ttl; kwargs...)
     TTL{K,V}(ttl; dict_type=ConcurrentDict, kwargs...)
 end

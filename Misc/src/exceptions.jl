@@ -1,8 +1,10 @@
 import Base.display
 using Dates: AbstractDateTime
 
+@doc "An exception that is thrown when the data stored ends before the new data starts (or vice versa)."
 abstract type ContiguityException <: Exception end
 
+@doc "An exception that is thrown when the data stored ends before the new data starts."
 struct RightContiguityException <: ContiguityException
     stored_date::AbstractDateTime
     new_date::AbstractDateTime
@@ -12,6 +14,7 @@ function show(io::IO, e::RightContiguityException)
     write(io, "Data stored ends at $(e.stored_date) while new data starts at $(e.new_date).")
 end
 
+@doc "An exception that is thrown when the data stored starts before the new data ends."
 struct LeftContiguityException <: Exception
     stored_date::AbstractDateTime
     new_date::AbstractDateTime
