@@ -1,3 +1,6 @@
+@doc """ Module for data resampling, cleaning, aligning, etc.
+
+"""
 module Processing
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"

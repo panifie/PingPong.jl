@@ -6,15 +6,15 @@ using .Misc.DocStringExtensions
 using .Misc: rangeafter
 import Data: propagate_ohlcv!
 
-@doc """
-    propagate_ohlcv!(data, update_func)
+@doc """Updates OHLCV data across multiple time frames.
 
-Update the OHLCV data from the base to the higher time frames in =data=.
+$(TYPEDSIGNATURES)
 
-=update_func= is a function that aggregates the OHLCV values from the base to the target time frame.
-The function modifies =data= in place and returns it.
-If the base data frame is empty, the function empties all the higher time frames data frames.
-Otherwise, the function updates each higher time frame data frame asynchronously and checks the timestamps.
+This function takes a dictionary `data` and an aggregation function `update_func`. It updates the OHLCV data from the base time frame to the higher time frames in `data`, using `update_func` to aggregate the OHLCV values from the base to the target time frame. 
+The function modifies `data` in place and returns it. 
+If the base time frame data frame in `data` is empty, the function clears all the higher time frames data frames. 
+Otherwise, it asynchronously updates each higher time frame data frame and ensures that the timestamps are synchronized across all time frames.
+
 """
 function propagate_ohlcv!(
     data::SortedDict{TimeFrame,DataFrame}, update_func::Function=propagate_ohlcv!
@@ -54,14 +54,13 @@ function propagate_ohlcv!(
     end
 end
 
-@doc """
-    $(TYPEDSIGNATURES)
+@doc """Resamples OHLCV data between different time frames.
 
-Resample the OHLCV data from a source DataFrame to a destination DataFrame with different timeframes.
-If the last date of the destination DataFrame is before the first date of the resampled source DataFrame,
-append the resampled data to the destination DataFrame. Otherwise, return the destination DataFrame as is.
-The source and destination DataFrames must have columns named timestamp, open, high, low, close, and volume.
-The source and destination timeframes must be compatible with the resample function.
+$(TYPEDSIGNATURES)
+
+This function resamples the OHLCV data from a source DataFrame to a destination DataFrame with different timeframes. If the latest timestamp in the destination DataFrame is earlier than the earliest timestamp in the resampled source DataFrame, the function appends the resampled data to the destination DataFrame. If not, the function returns the destination DataFrame as is.
+Both the source and destination DataFrames must have columns named 'timestamp', 'open', 'high', 'low', 'close', and 'volume'. 
+The source and destination timeframes must be suitable for the resampling operation. 
 """
 function propagate_ohlcv!(
     src::DataFrame,

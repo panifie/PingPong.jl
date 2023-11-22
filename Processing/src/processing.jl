@@ -1,5 +1,6 @@
 using Data: Misc, Data
 using .Misc: Lang, TimeTicks
+using .Misc.DocStringExtensions
 using .TimeTicks
 using .Lang: @preset, @precomp
 

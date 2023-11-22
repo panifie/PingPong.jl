@@ -2,8 +2,12 @@ using .Misc: timefloat, @as_td, Lang
 using StatsBase: StatsBase as sb
 using StatsBase: fit, ZScoreTransform, UnitRangeTransform
 
-@doc "Applies either a unitrange transform or a zscore tranform over the data in place."
+@doc "Applies either a unitrange transform or a zscore tranform over the data in place.
+
+$(TYPEDSIGNATURES)
+"
 normalize!(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=true)
+@doc "See [`normalize!`](@ref). Copies."
 normalize(arr; unit=false, dims=ndims(arr)) = _normalize(arr; unit, dims, copy=false)
 
 function _normalize(arr::AbstractArray; unit=false, dims=ndims(arr), copy=false)
@@ -11,9 +15,13 @@ function _normalize(arr::AbstractArray; unit=false, dims=ndims(arr), copy=false)
     (x -> t(x, arr))(fit(unit ? UnitRangeTransform : ZScoreTransform, arr; dims))
 end
 
-@doc "Apply a function over data, resampling data to each timeframe in `tfs`.
+@doc """Apply a function over data, resampling data to each timeframe in `tfs`.
+
+$(TYPEDSIGNATURES)
+
 - `f`: signature is (data; kwargs...)::DataFrame
-- `tfsum`: sum the scores across multiple timeframes for every pair."
+- `tfsum`: sum the scores across multiple timeframes for every pair.
+"""
 function maptf(
     tfs::AbstractVector{T} where {T<:String}, data, f::Function; tfsum=true, kwargs...
 )

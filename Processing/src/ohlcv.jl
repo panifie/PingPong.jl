@@ -5,17 +5,30 @@ using Data: Candle, to_ohlcv, empty_ohlcv, DFUtils, ZArray, _load_ohlcv, _save_o
 using Base: _cleanup_locked
 using .DFUtils: appendmax!, lastdate
 
-@doc """Assuming timestamps are sorted, returns a new dataframe with a contiguous rows based on timeframe.
-Rows are filled either by previous close, or NaN. """
+@doc """Fills missing candles in a DataFrame.
+
+$(TYPEDSIGNATURES)
+
+This function takes a DataFrame `df`, a string `timeframe`, and optionally a filling strategy `strategy`. It identifies the missing candles in `df` based on the `timeframe`, and fills them using the specified `strategy`.
+
+filling strategies:
+
+- `:close`: fill with the close price of the previous candle.
+- `:open`: fill with the open price of the next candle.
+- `:linear`: linearly interpolate between the close price of the previous candle and the open price of the next candle.
+
+"""
 function fill_missing_candles(df, timeframe::AbstractString; strategy=:close)
     @as_td
     _fill_missing_candles(df, prd; strategy, inplace=false)
 end
 
+@doc """$(TYPEDSIGNATURES) See [`fill_missing_candles`](@ref)."""
 function fill_missing_candles!(df, prd::Period; strategy=:close)
     _fill_missing_candles(df, prd; strategy, inplace=true)
 end
 
+@doc """$(TYPEDSIGNATURES) See [`fill_missing_candles`](@ref)."""
 function _fill_missing_candles!(df, timeframe::AbstractString; strategy=:close)
     @as_td
     _fill_missing_candles(df, prd; strategy, inplace=true)
@@ -35,9 +48,13 @@ end
 _append_cap!(::Val{:uncapped}, _, args...) = append!(args...)
 _append_cap!(::Val{:capped}, cap, args...) = appendmax!(args..., cap)
 
-@doc "Appends empty candles to df up to `to` datetime (excluded).
-`cap`: max capacity of `df`
-"
+@doc """Applies trailing operation on a DataFrame based on a time frame.
+
+$(TYPEDSIGNATURES)
+
+This function takes a DataFrame `df`, a TimeFrame `tf`, and optionally a timestamp `to`, a timestamp `from`, and a cap `cap`. It applies a trailing window operation on `df` for the specified `tf`. The operation starts from the timestamp specified by `from` (default is the last timestamp in the DataFrame) and ends at the timestamp specified by `to`. The `cap` argument determines the maximum number of rows to keep in the dataframe.
+
+"""
 function trail!(df, tf::TimeFrame; to, from=df[end, :timestamp], cap=0)
     prd = period(tf)
     n_to_append = (to - from) ÷ prd - 1
@@ -109,6 +126,14 @@ function _fill_missing_candles(
     return df
 end
 
+@doc """Removes incomplete candles from a DataFrame.
+
+$(TYPEDSIGNATURES)
+
+This function takes a DataFrame `in_df` and a TimeFrame `tf`. It identifies any incomplete candles in `in_df` based on `tf` and removes them.
+
+See [`isincomplete`](@ref) for more information.
+"""
 function _remove_incomplete_candle(in_df, tf)
     df = in_df isa SubDataFrame ? copy(in_df) : in_df
     if isincomplete(df[end, :timestamp], tf)
@@ -118,8 +143,12 @@ function _remove_incomplete_candle(in_df, tf)
     end
     df
 end
-@doc """Similar to the freqtrade homonymous function.
-- `fill_missing`: `:close` fills non present candles with previous close and 0 volume, else with `NaN`.
+@doc """Cleans up OHLCV data in a DataFrame.
+
+$(TYPEDSIGNATURES)
+
+This function takes a DataFrame `data`, a TimeFrame `tf`, and optionally a column index `col` and a filling strategy `fill_missing`. It cleans up the OHLCV data in `data` by removing any incomplete candles based on `tf`, filling any missing candles using the specified filling strategy, and sorting the data by the specified column.
+
 """
 function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     @debug "Cleaning dataframe of size: $(size(data, 1))."
@@ -153,10 +182,18 @@ function cleanup_ohlcv_data(data, tf::TimeFrame; col=1, fill_missing=:close)
     end
     df
 end
+@doc """$(TYPEDSIGNATURES) See [`cleanup_ohlcv_data`](@ref)."""
 function cleanup_ohlcv_data(data, tf::AbstractString; kwargs...)
     cleanup_ohlcv_data(data, convert(TimeFrame, tf); kwargs...)
 end
 
+@doc """Cleans up OHLCV data in a ZArray.
+
+$(TYPEDSIGNATURES)
+
+This function takes a ZArray `z` and a string `timeframe`. It cleans up the OHLCV data in `z` by removing any incomplete candles based on `timeframe` and filling any missing candles using the specified filling strategy.
+
+"""
 function cleanup_ohlcv!(z::ZArray, timeframe::AbstractString)
     tf = convert(TimeFrame, timeframe)
     ohlcv = _load_ohlcv(z, timeframe)
@@ -165,12 +202,25 @@ function cleanup_ohlcv!(z::ZArray, timeframe::AbstractString)
 end
 
 isincomplete(d::DateTime, tf::TimeFrame, ::Val{:raw}) = d + tf > now()
+@doc """Checks if a DateTime is incomplete based on a TimeFrame.
+
+$(TYPEDSIGNATURES)
+"""
 isincomplete(d::DateTime, tf::TimeFrame) = isincomplete(apply(tf, d), tf, Val(:raw))
-@doc "Checks if a candle is too new."
+@doc "Checks if a candle is too new.
+
+$(TYPEDSIGNATURES)
+"
 isincomplete(candle::Candle, tf::TimeFrame) = isincomplete(candle.timestamp, tf)
-@doc "Checks if a candle is old enough to be complete."
+@doc "Checks if a candle is old enough to be complete.
+
+$(TYPEDSIGNATURES)
+"
 iscomplete(v, tf) = !isincomplete(v, tf)
-@doc "Checks if a candle is exactly the latest candle."
+@doc "Checks if a candle is exactly the latest candle.
+
+$(TYPEDSIGNATURES)
+"
 islast(d::DateTime, tf, ::Val{:raw}) = begin
     n = now()
     next = d + tf
@@ -182,15 +232,27 @@ islast(v, tf::AbstractString) = islast(v, timeframe(tf))
 islast(v::AbstractString, tf) = islast(something(tryparse(DateTime, v), DateTime(0)), tf)
 islast(v::S, tf::S) where {S<:AbstractString} = islast(v, timeframe(tf))
 _equalapply(date1, tf, date2) = apply(tf, date1) - period(tf) == date2
+@doc """Checks if the last row of a smaller DataFrame is also the last row of a larger DataFrame.
+
+$(TYPEDSIGNATURES)
+
+"""
 function islast(larger::DataFrame, smaller::DataFrame)
     let tf = timeframe!(larger), date = lastdate(smaller)
         _equalapply(date, tf, lastdate(larger))
     end
 end
-@doc "`a` is left adjacent to `b` if in order `..ab..`"
+@doc "`a` is left adjacent to `b` if in order `..ab..`
+
+$(TYPEDSIGNATURES)
+"
 isleftadj(a, b, tf::TimeFrame) = a + tf == b
-@doc "`a` is right adjacent to `b` if in order `..ba..`"
+@doc "`a` is right adjacent to `b` if in order `..ba..`
+
+$(TYPEDSIGNATURES)
+"
 isrightadj(a, b, tf::TimeFrame) = isleftadj(b, a, tf)
+@doc "`a` is adjacent to `b` if either [`isleftadj`](@ref) or [`isrightadj`](@ref)."
 isadjacent(a, b, tf::TimeFrame) = isleftadj(a, b, tf) || isrightadj(a, b, tf)
 
 export cleanup_ohlcv_data,

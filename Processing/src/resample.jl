@@ -7,7 +7,13 @@ using Data.DFUtils
 using Data.DataFrames
 using Pbar
 
-# remove incomplete candles at timeseries edges, a full resample requires candles with range 1:frame_size
+@doc """Returns the left and right indices for a given frame.
+
+$(TYPEDSIGNATURES)
+
+This function takes a data vector, frame size, source time delta, and target time delta, and computes the left and right indices for the frame based on these parameters.
+
+"""
 function _left_and_right(data, frame_size, src_td, td)
     left = 1
     while (timefloat(data.timestamp[left])) % td != 0.0
@@ -22,6 +28,13 @@ function _left_and_right(data, frame_size, src_td, td)
     left, right
 end
 
+@doc """Computes the deltas for a given transformation.
+
+$(TYPEDSIGNATURES)
+
+This function takes a data vector and a target transformation function, and computes the deltas (changes) in the data that would result from applying the transformation.
+
+"""
 function _deltas(data, to_tf)
     # NOTE: need at least 2 points
     result(f=NaN, s=NaN, t=NaN; abort=nothing) = (f, s, t, abort)
@@ -39,6 +52,13 @@ function _deltas(data, to_tf)
     result(frame_size, src_td, td)
 end
 
+@doc """Resamples a style based on a transformation function.
+
+$(TYPEDSIGNATURES)
+
+This function takes a style and a transformation function `tf`, and resamples the style based on the transformation.
+
+"""
 function resample_style(style, tf)
     if style == :ohlcv
         (
@@ -54,10 +74,12 @@ function resample_style(style, tf)
     end
 end
 
-@doc "Resamples ohlcv data from a smaller to a higher timeframe.
-- `style`: how to modify the data, (arguments to the grouped dataframe) [`:ohlcv`]
-- `chop`: remove head/tail rows of the first/last resampled date [true]
-"
+@doc """Resamples data based on transformation functions.
+
+$(TYPEDSIGNATURES)
+
+This function takes a data vector, a source transformation function `from_tf`, a target transformation function `to_tf`, and optionally a boolean `cleanup` and a style `style`. It resamples the data from the source time frame to the target time frame. If `cleanup` is true, it removes any invalid data points after resampling. The resampling style is determined by `style`. If `chop` is true, it removes the leftovers at the end of the data that can't fill a complete frame.
+"""
 function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv, chop=true)
     @deassert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
 
@@ -86,6 +108,8 @@ function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv, chop=true)
 end
 @doc """Resamples data, and saves to storage.
 
+$(TYPEDSIGNATURES)
+
 !!! warning "Usually not worth it"
     Resampling is quite fast, so it is simpler to keep only the smaller timeframe
     on storage, and resample the longer ones on demand.
@@ -99,12 +123,14 @@ function resample(args...; exc_name, name, dosave=false)
     df
 end
 
+@doc "$(TYPEDSIGNATURES). See [`resample`](@ref)."
 function resample(pair::PairData, to_tf)
     from_tf = convert(TimeFrame, pair.tf)
     to_tf = convert(TimeFrame, to_tf)
     resample(pair.data, from_tf, to_tf)
 end
 
+@doc "$(TYPEDSIGNATURES). See [`resample`](@ref)."
 function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false)
     rs = Dict{String,PairData}()
     progress && @pbar! mkts "Instruments"
@@ -121,12 +147,12 @@ function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false
     rs
 end
 
+@doc "$(TYPEDSIGNATURES). See [`resample`](@ref)."
 function resample(df::AbstractDataFrame, tf::TimeFrame, b::Bool=false, args...; kwargs...)
     resample(df, timeframe!(df), tf, b, args...; kwargs...)
 end
 
-# resample(pair::PairData, timeframe; kwargs...) = resample(exc, pair, timeframe; kwargs...)
-# macro resample(mkts::AbstractDict{String,PairData}, timeframe::String, args...)
+@doc "$(TYPEDSIGNATURES). See [`resample`](@ref)."
 macro resample(params, mkts, timeframe, args...)
     e = esc(:Exchanges)
     kwargs = passkwargs(args...)

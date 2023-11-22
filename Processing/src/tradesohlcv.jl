@@ -1,9 +1,12 @@
 module TradesOHLCV
 using ..Misc.TimeTicks
+using ..Misc.DocStringExtensions
 using Data.DataFrames
 using ..Processing: isincomplete
 
 @doc "Returns the index where the data is *assumed* to end being contiguous.
+
+$(TYPEDSIGNATURES)
 
 That is we don't know if the last entries (trades) of the array, normalized to the last candle timestamp, was *all*
 the trades for that particular candle.
@@ -19,6 +22,8 @@ end
 
 @doc "Returns the first index where the data is *assumed* to start being contiguous.
 
+$(TYPEDSIGNATURES)
+
 That is we don't know if the first entries (trades) of the array, normalized to the respective candle timestamp, was *all*
 the trades for that particular candle.
 "
@@ -28,7 +33,15 @@ function startdateidx(v::AbstractVector, tf::TimeFrame)
     isnothing(i) ? lastindex(v) : i + 1
 end
 
+@doc "A constant array defining the column names for trade data, including timestamp, price, and amount."
 const TRADES_COLS = [:timestamp, :price, :amount]
+@doc """Converts a DataFrame to OHLCV format.
+
+$(TYPEDSIGNATURES)
+
+This function takes a DataFrame `df` and converts it to Open, High, Low, Close, Volume (OHLCV) format.
+
+"""
 function to_ohlcv(df)
     gd = groupby(df, :timestamp; sort=true)
     combine(
@@ -41,14 +54,14 @@ function to_ohlcv(df)
     )
 end
 
-@doc "Converts a vector of values with (timestamp, price, amount) fields to OHLCV.
+@doc """Transforms a vector of trade data (with 'timestamp', 'price', and 'amount' fields) into the OHLCV format.
 
-`tf`: the timeframe to build OHLCV for. [`1m`]
-`trim_left`: skip starting candle. [`true`]
-`trim_right`: skip end candle, if `false` candle will still be skipped if it is too recent wrt. the timeframe. [`true`]
+$(TYPEDSIGNATURES)
 
-Returns (;ohlcv, start, stop) where `start` and `stop` refer to the range of the input vector used to build the candles or `nothing` if no candles could be built.
-"
+tf: The desired timeframe for the OHLCV data. Default is 1m (one minute). trim_left: If true, skips the first candle in the data. Default is true. trim_right: If true, skips the most recent candle if it is too close to the current time relative to the timeframe. Default is true.
+
+The function returns a tuple (;ohlcv, start, stop). 'ohlcv' is the transformed data, 'start' and 'stop' denote the range of the input vector used. If no candles could be built, the function returns nothing.
+"""
 function trades_to_ohlcv(
     v::AbstractVector, tf::TimeFrame=tf"1m"; trim_left=true, trim_right=true
 )

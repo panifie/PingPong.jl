@@ -1,7 +1,12 @@
+@doc """ Module for aligning data frames.
+
+This module provides functionality for aligning data frames in time, useful for synchronizing time-series data across different sources.
+"""
 module Alignments
 using ..Misc
 using ..Misc.TimeTicks
 using ..Misc.Lang
+using ..Misc.DocStringExtensions
 using Data.DataStructures
 using Data.DataFrames
 using Data: PairData, @with
@@ -56,8 +61,12 @@ function _trim_1(data::AbstractDict{K,V}, tail::Bool) where {K,V}
     end
 end
 
-@doc "Ensures all the ohlcv frames start from the same timestamp.
-tail: also trims the end."
+@doc """ Trims the data to start from the same timestamp.
+
+$(TYPEDSIGNATURES)
+
+This function ensures that all the data frames in the given AbstractDict start from the same timestamp, with an option to also trim the end.
+"""
 function trim!(data::AbstractDict; tail=false)
     @ifdebug @assert begin
         (bigger_tf, bigger_ohlcv) = last(data)
@@ -72,6 +81,13 @@ function trim!(data::AbstractDict; tail=false)
     nothing
 end
 
+@doc """Checks the alignment of data in a dictionary.
+
+$(TYPEDSIGNATURES)
+
+This function takes a dictionary `data` and optionally a boolean `raise`. It checks if all the data arrays in `data` are aligned (i.e., have the same length). If `raise` is true, it throws an error if the data arrays are not aligned.
+
+"""
 function check_alignment(data::AbstractDict; raise=false)
     first_ts = first(data)[2][1][begin, :timestamp]
     last_ts = first(data)[2][1][end, :timestamp]
@@ -88,6 +104,13 @@ function check_alignment(data::AbstractDict; raise=false)
     return true
 end
 
+@doc """Trims pairs data in a dictionary from a specified index.
+
+$(TYPEDSIGNATURES)
+
+This function takes a dictionary `data` of PairData and an integer `from`. It trims the pairs data in `data` from the specified index `from`.
+
+"""
 function trim_pairs_data(data::AbstractDict{String,PairData}, from::Int)
     for (_, p) in data
         tmp = copy(p.data)
