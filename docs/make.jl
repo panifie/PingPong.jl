@@ -36,9 +36,6 @@ end
 get(ENV, "LOADED", "false") == "true" || begin
     use(:Prices, "Data", "src", "prices.jl")
     use(:Fetch, "Fetch")
-    use(:MShort, "Analysis", "Mark", "MShort")
-    use(:MLong, "Analysis", "Mark", "MLong")
-    use(:MVP, "Analysis", "Mark", "MVP")
     use(:Processing, "Processing")
     use(:Instruments, "Instruments")
     use(:Exchanges, "Exchanges")
@@ -108,6 +105,7 @@ makedocs(;
         "API" => [
             "API/collections.md",
             "API/data.md",
+            "API/dfutils.md",
             "API/executors.md",
             "API/instances.md",
             "API/instruments.md",
@@ -121,9 +119,6 @@ makedocs(;
             "API/strategies.md",
             "Analysis" => [
                 "API/analysis/analysis.md",
-                "API/analysis/mlong.md",
-                "API/analysis/mshort.md",
-                "API/analysis/mvp.md",
             ],
         ],
     ],
