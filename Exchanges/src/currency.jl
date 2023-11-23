@@ -6,13 +6,17 @@ Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
 import .Misc: gtxzero, ltxzero, approxzero, ZERO
 
+@doc "The cache for currencies which lasts for 1 hour by exchange."
 const currenciesCache1Hour = safettl(ExchangeID, Py, Hour(1))
+@doc "This lock is only used during currency construction."
 const currency_lock = ReentrantLock()
 
+@doc "Convert a Python object to a float number."
 function to_float(py::Py, T::Type{<:AbstractFloat}=DFT)
     something(pyconvert(Option{T}, py), zero(T))
 end
 
+@doc "Convert a Python object to a number."
 function to_num(py::Py)
     @something if pyisnone(py)
         ZERO
@@ -29,6 +33,12 @@ function to_num(py::Py)
     end ZERO
 end
 
+@doc "Returns the limits, precision, and fees for a currency as a named tuple.
+
+$(TYPEDSIGNATURES)
+
+The tuple fields can be nothing if the currency property is not provided.
+"
 function _lpf(exc, cur)
     local limits, precision, fees
     if isnothing(cur) || pyisnone(cur)
@@ -57,6 +67,7 @@ function _lpf(exc, cur)
     (; limits, precision, fees)
 end
 
+@doc "Returns the currency from the exchange if found."
 function _cur(exc, sym)
     sym_str = uppercase(string(sym))
     curs = @lget! currenciesCache1Hour exc.id let v = pyfetch(exc.fetchCurrencies)
@@ -66,12 +77,19 @@ function _cur(exc, sym)
 end
 
 @doc "A `CurrencyCash` contextualizes a `Cash` instance w.r.t. an exchange.
-Operations are rounded to the currency precision."
+Operations are rounded to the currency precision.
+
+$(FIELDS)
+"
 struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
     cash::C
     limits::MM{DFT}
     precision::T where {T<:Real}
     fees::DFT
+    @doc """Create a CurrencyCash object.
+
+    $(TYPEDSIGNATURES)
+    """
     function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v)
         lock(currency_lock) do
             exc = getexchange!(nameof(id))
@@ -102,6 +120,7 @@ function CurrencyCash(::CurrencyCash{C,E}, v) where {C<:Cash,E<:ExchangeID}
     CurrencyCash(E, C, v)
 end
 
+@doc "The currency cash as a number."
 value(cc::CurrencyCash) = value(cc.cash)
 Base.getproperty(c::CurrencyCash, s::Symbol) =
     if s == :value

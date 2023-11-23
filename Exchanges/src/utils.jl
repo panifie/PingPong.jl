@@ -1,7 +1,7 @@
 using .Python: pyCached
 import .Python: pytofloat
 
-@doc "Clear all python dependent caches."
+@doc "Clears all Python-dependent caches."
 function emptycaches!()
     empty!(tickers_cache)
     empty!(tickersCache10Sec)

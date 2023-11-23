@@ -15,7 +15,14 @@ function _handle_leverage(e::Exchange, resp)
     end
 end
 
-@doc "Update leverage for a specific symbol. Returns `true` on success, `false` otherwise."
+@doc "Update the leverage for a specific symbol. 
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to update the leverage on.
+- `v`: a Real number representing the new leverage value.
+- `sym`: a string representing the symbol to update the leverage for.
+"
 function leverage!(exc::Exchange, v::Real, sym::AbstractString)
     resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), v, sym)
     if isnothing(resp)
@@ -26,6 +33,12 @@ function leverage!(exc::Exchange, v::Real, sym::AbstractString)
     end
 end
 
+@doc """A type representing a tier of leverage.
+
+$(FIELDS)
+
+This type is used to store and manage information about a specific leverage tier. Each tier is defined by its minimum and maximum notional values, maximum leverage, tier number, and maintenance margin requirement.
+"""
 @kwdef struct LeverageTier{T<:Real}
     min_notional::T
     max_notional::T
@@ -35,8 +48,16 @@ end
     bc::Symbol
 end
 LeverageTier(args...; kwargs...) = LeverageTier{Float64}(args...; kwargs...)
+@doc "Every asset has a list of leverage tiers, that are stored in a SortedDict, if the exchange supports them."
 const LeverageTiersDict = SortedDict{Int,LeverageTier}
+@doc "Leverage tiers are cached both in RAM and storage."
 const leverageTiersCache = Dict{String,LeverageTiersDict}()
+@doc """Returns a default leverage tier for a specific symbol.
+
+$(TYPEDSIGNATURES)
+
+The default leverage tier has generous limits.
+"""
 function default_leverage_tier(sym)
     SortedDict(
         1 => LeverageTier(;
@@ -51,6 +72,13 @@ function default_leverage_tier(sym)
 end
 
 _tierskey(exc, sym) = "$(exc.name)/$(sym)"
+@doc """Fetch the leverage tiers for a specific symbol from an exchange.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to fetch the leverage tiers from.
+- `sym`: a string representing the symbol to fetch the leverage tiers for.
+"""
 function leverage_tiers(exc::Exchange, sym::AbstractString)
     k = _tierskey(exc, sym)
     @lget! leverageTiersCache k begin
@@ -82,11 +110,28 @@ function leverage_tiers(exc::Exchange, sym::AbstractString)
     end
 end
 
+@doc """Get the leverage tier for a specific size from a sorted dictionary of tiers.
+
+$(TYPEDSIGNATURES)
+
+- `tiers`: a SortedDict where the keys are integers representing the size thresholds and the values are LeverageTier objects.
+- `size`: a Real number representing the size to fetch the tier for.
+
+"""
 function tier(tiers::SortedDict{Int,LeverageTier}, size::Real)
     idx = findfirst(t -> t.max_notional > abs(size), tiers)
     idx, tiers[@something idx lastindex(tiers)]
 end
 
+@doc """Get the maximum leverage for a specific size and symbol from an exchange.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to fetch the maximum leverage from.
+- `sym`: a string representing the symbol to fetch the maximum leverage for.
+- `size`: a Real number representing the size to fetch the maximum leverage for.
+
+"""
 function maxleverage(exc::Exchange, sym::AbstractString, size::Real)
     tiers = leverage_tiers(exc, sym)
     _, t = tier(tiers, size)
@@ -102,6 +147,10 @@ function dosetmargin(exc::Exchange, mode_str, symbol)
     pyfetch(exc.setMarginMode, mode_str, symbol)
 end
 
+@doc "Update margin mode for a specific symbol on the exchange.
+
+$(TYPEDSIGNATURES)
+"
 function marginmode!(exc::Exchange, mode, symbol)
     mode_str = string(mode)
     if mode_str in ("isolated", "cross")

@@ -1,5 +1,12 @@
+@doc "Buy or Sell"
 @enum TradeSide buy sell
+@doc "Taker Or Maker"
 @enum TradeRole taker maker
+@doc """A named tuple representing a trade in the CCXT (CryptoCurrency eXchange Trading) library.
+
+$(FIELDS)
+
+"""
 const CcxtTrade = @NamedTuple begin
     timestamp::DateTime
     symbol::String

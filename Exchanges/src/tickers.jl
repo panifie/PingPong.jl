@@ -12,13 +12,18 @@ using ExchangeTypes: decimal_to_size
 """
 const LEVERAGED_PAIR_OPTIONS = (:yes, :only, :from)
 
+@doc """Quote id of the market."""
 quoteid(mkt) = @multiget mkt "quoteId" "quote" "n/a"
+@doc "True if `id` is a quote id."
 isquote(id, qc) = lowercase(id) == qc
+@doc "True if `mkt` is a leveraged market."
 ismargin(mkt) = Bool(@get mkt "margin" false)
 
+@doc "True if `pair` is a leveraged pair."
 function has_leverage(pair, pairs_with_leverage)
     !isleveragedpair(pair) && pair ∈ pairs_with_leverage
 end
+@doc "Constructor that returns a function that checks if a pair is leveraged."
 function leverage_func(exc, with_leveraged, verbose=true)
     # Leveraged `:from` filters the pairlist taking non leveraged pairs, IF
     # they have a leveraged counterpart
@@ -34,6 +39,7 @@ function leverage_func(exc, with_leveraged, verbose=true)
         Returns(true)
     end
 end
+@doc "True if symbol `sym` has a quote volume less than `min_vol`."
 function hasvolume(sym, spot; tickers, min_vol)
     if spot ∈ keys(tickers)
         quotevol(tickers[spot]) <= min_vol
@@ -43,7 +49,9 @@ function hasvolume(sym, spot; tickers, min_vol)
 end
 
 marketsid(args...; kwargs...) = error("not implemented")
+@doc "Get the exchange market ids."
 marketsid(exc::Exchange, args...; kwargs...) = keys(tickers(exc, args...; kwargs...))
+@doc "Get the tickers matching quote currency `quot`."
 tickers(quot::Symbol, args...; kwargs...) = tickers(exc, quot, args...; kwargs...)
 
 aspair(k, v) = k => v
@@ -51,12 +59,19 @@ askey(k, _) = k
 asvalue(_, v) = v
 
 @doc """Get the exchange tickers.
-- `quot`: Only choose pairs where the quot currency equals `quot`.
-- `min_vol`: The minimum volume of each pair.
-- `skip_fiat`: Ignore fiat/fiat pairs.
-- `margin`: Only choose pairs enabled for margin trading.
-- `leveraged`: If `:no` skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
-- `as_vec`: Returns the pairlist as a Vector instead of as a Dict.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to fetch the tickers from.
+- `quot`: only choose pairs where the quote currency equals `quot`.
+- `min_vol`: the minimum volume of each pair.
+- `skip_fiat` (optional, default is true): ignore fiat/fiat pairs.
+- `with_margin` (optional, default is the result of `config.margin != NoMargin()`): only choose pairs enabled for margin trading.
+- `with_leverage` (optional, default is `:no`): if `:no`, skip all pairs where the base currency matches the `leverage_pair_rgx` regex.
+- `as_vec` (optional, default is false): return the pair list as a Vector instead of as a Dict.
+- `verbose` (optional, default is true): print detailed output about the operation.
+- `type` (optional, default is the result of `markettype(exc)`): the type of markets to fetch tickers for.
+
 """
 function tickers(
     exc::Exchange,
@@ -113,17 +128,35 @@ function tickers(
     result(pairlist, as_vec)
 end
 
+@doc "Caches markets (1minute)."
 const marketsCache1Min = safettl(String, Py, Minute(1))
+@doc "Caches tickers (10seconds)."
 const tickersCache10Sec = safettl(String, Py, Second(10))
+@doc "Caches active states (1minute)."
 const activeCache1Min = safettl(String, Bool, Minute(1))
+@doc "Lock held when fetching tickers (per ticker)."
 const tickersLockDict = ConcurrentDict(Dict{String,ReentrantLock}())
-@doc "Retrieves a cached market (1minute) or fetches it from exchange."
+@doc "Retrieves a cached market (1minute) or fetches it from exchange.
+
+$(TYPEDSIGNATURES)
+"
 function market!(pair, exc::Exchange=exc)
     @lget! marketsCache1Min pair exc.py.market(pair)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
 _tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker)
+@doc """Fetch the ticker for a specific pair from an exchange.
+
+$(TYPEDSIGNATURES)
+
+The `ticker!` function takes the following parameters:
+
+- `pair`: a string representing the currency pair to fetch the ticker for.
+- `exc`: an Exchange object to fetch the ticker from.
+- `timeout` (optional, default is 3 seconds): the maximum time to wait for the ticker fetch operation.
+- `func` (optional, default is the result of `_tickerfunc(exc)`): the function to use to fetch the ticker.
+"""
 function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
     lock(@lget!(tickersLockDict, pair, ReentrantLock())) do
         @lget! tickersCache10Sec pair let v = nothing::Option{Py}
@@ -142,11 +175,22 @@ function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
     end
 end
 ticker!(a::AbstractAsset, args...) = ticker!(a.raw, args...)
+@doc """Fetch the latest price for a specific pair from an exchange.
+
+$(TYPEDSIGNATURES)
+
+- `pair`: a string representing the currency pair to fetch the latest price for.
+- `exc`: an Exchange object to fetch the latest price from.
+- `kwargs` (optional): any additional keyword arguments are passed on to the underlying fetch operation.
+"""
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
     ticker!(pair, exc; kwargs...)["last"] |> pytofloat
 end
 
-@doc "Precision of the (base, quote) currencies of the market."
+@doc "Precision of the (base, quote) currencies of the market.
+
+$(TYPEDSIGNATURES)
+"
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
     p_amount = decimal_to_size(pyconvert(DFT, mkt["amount"]), exc.precision)
@@ -179,7 +223,18 @@ function _minmax_pair(mkt, l, prec, default)
     )
 end
 
-@doc "Minimum order size of the of the market."
+@doc """Fetch the market limits for a specific pair from an exchange.
+
+$(TYPEDSIGNATURES)
+
+- `pair`: a string representing the currency pair to fetch the market limits for.
+- `exc`: an Exchange object to fetch the market limits from.
+- `precision` (optional, default is `price=nothing, amount=nothing`): a named tuple specifying the precision for price and amount.
+- `default_leverage` (optional, default is `DEFAULT_LEVERAGE`): the default leverage to use if not specified in the market data.
+- `default_amount` (optional, default is `DEFAULT_AMOUNT`): the default amount to use if not specified in the market data.
+- `default_price` (optional, default is `DEFAULT_PRICE`): the default price to use if not specified in the market data.
+- `default_cost` (optional, default is `DEFAULT_COST` for non-fiat quote pairs and `DEFAULT_FIAT_COST` for fiat quote pairs): the default cost to use if not specified in the market data.
+"""
 function market_limits(
     pair::AbstractString,
     exc::Exchange;
@@ -203,7 +258,10 @@ function market_limits(a::AbstractAsset, args...; kwargs...)
     market_limits(a.raw, args...; kwargs...)
 end
 
-@doc ""
+@doc """Check if a currency pair is active on an exchange.
+
+$(TYPEDSIGNATURES)
+"""
 function is_pair_active(pair::AbstractString, exc::Exchange=exc)
     @lget! activeCache1Min pair begin
         pyconvert(Bool, market!(pair, exc)["active"])
@@ -215,7 +273,15 @@ _default_fees(exc, side) = @something get(exc.fees, side, nothing) 0.001
 function _fees_byside(exc, mkt, side)
     @something get(mkt, string(side), nothing) _default_fees(exc, Symbol(side))
 end
-@doc "Taker fees for market."
+@doc """Fetch the market fees for a specific pair from an exchange.
+
+$(TYPEDSIGNATURES)
+
+- `pair`: a string representing the currency pair to fetch the market fees for.
+- `exc` (optional, default is the current exchange): an Exchange object to fetch the market fees from.
+- `only_taker` (optional, default is `nothing`): a boolean indicating whether to fetch only the taker fee. If `nothing`, both maker and taker fees are fetched.
+
+"""
 function market_fees(
     pair::AbstractString, exc::Exchange=exc; only_taker::Union{Bool,Nothing}=nothing
 )

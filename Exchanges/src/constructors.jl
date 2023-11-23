@@ -21,11 +21,16 @@ using .Misc.OrderedCollections: OrderedSet
 using .Misc.TimeToLive
 using .Misc.TimeTicks
 using .Misc.Lang: @lget!
+using .Misc.DocStringExtensions
+import ExchangeTypes: issupported
 
-const exclock = ReentrantLock()
+@doc "The cache for tickers which lasts for 100 minutes by exchange pair."
 const tickers_cache = safettl(Tuple{String,Symbol}, Dict, Minute(100))
 
-@doc "Define an exchange variable set to its matching exchange instance."
+@doc "Define an exchange variable set to its matching exchange instance.
+
+$(TYPEDSIGNATURES)
+"
 macro exchange!(name)
     exc_var = esc(name)
     exc_str = lowercase(string(name))
@@ -46,11 +51,20 @@ macro exchange!(name)
     end
 end
 
+@doc """Checks if a file is younger than a specified period.
+
+$(TYPEDSIGNATURES)
+
+- `f`: a string that represents the path to the file.
+- `p`: a Period object that represents the time period.
+
+"""
 function isfileyounger(f::AbstractString, p::Period)
     isfile(f) && dt(stat(f).mtime) < now() - p
 end
 
 function _elconvert(v)
+    # If input is a Python dict or list, convert to Julia and recursively handle inner elements
     if v isa PyDict
         ans = pyconvert(Dict{Any,Any}, v)
         for (k, v) in ans
@@ -63,13 +77,19 @@ function _elconvert(v)
             ans[i] = _elconvert(ans[i])
         end
         ans
+    # If input is a generic Python object, convert it to Julia object
     elseif v isa Py
         pyconvert(Any, v)
+    # If input is not a Python object, return it as is
     else
         v
     end
 end
 
+@doc """Convert a Python object into a Julia object.
+
+$(TYPEDSIGNATURES)
+"""
 function jlpyconvert(py)
     (pyisnull(py) || pyisnone(py)) && return nothing
     d = pyconvert(Dict{Any,Any}, py)
@@ -79,9 +99,15 @@ function jlpyconvert(py)
     d
 end
 
-@doc "Load exchange markets:
-- `cache`: rely on storage cache
-- `agemax`: max cache valid period [1 day]."
+@doc """Load exchange markets.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object that represents the exchange to load markets from.
+- `cache` (optional, default is true): a boolean that indicates whether to rely on storage cache.
+- `agemax` (optional, default is Day(1)): a Period object that represents the maximum cache valid period.
+
+"""
 function loadmarkets!(exc; cache=true, agemax=Day(1))
     sbox = issandbox(exc) ? "_sandbox" : ""
     mkt = joinpath(DATA_PATH, exc.name, "markets$(sbox).jlz")
@@ -131,11 +157,13 @@ function loadmarkets!(exc; cache=true, agemax=Day(1))
     nothing
 end
 
+@doc "Get the global exchange."
 getexchange() = exc
 
 @doc """getexchage!: ccxt exchange by symbol either from cache or anew.
-It uses a WS instance if available, otherwise an async instance.
 
+$(TYPEDSIGNATURES)
+It uses a WS instance if available, otherwise an async instance.
 """
 function getexchange!(
     x::Symbol, params=PyDict("newUpdates" => true); sandbox=true, markets=:yes, kwargs...
@@ -157,12 +185,18 @@ function getexchange!(x::ExchangeID, args...; kwargs...)
     getexchange!(nameof(x), args...; kwargs...)
 end
 
-@doc "Instantiate an exchange struct. it sets:
-- The matching ccxt class.
-- Pre-emptively loads the markets.
-- Sets the exchange timeframes.
-- Sets exchange api keys.
-"
+@doc """Initializes an exchange struct.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to be set.
+- `args...`: a variable number of arguments to pass to the exchange setup.
+- `markets` (optional, default is `:yes`): a symbol that indicates whether to load markets during setup.
+- `kwargs...`: a variable number of keyword arguments to pass to the exchange setup.
+
+Configures the matching ccxt class, optionally loads the markets, sets the exchange timeframes, and sets the exchange API keys.
+
+"""
 function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     empty!(exc.timeframes)
     tfkeys = if pyisnone(exc.py.timeframes)
@@ -188,6 +222,7 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     exc
 end
 
+@doc """Ccxt fees can have different forms."""
 function _setfees!(fees, k, v)
     fees[Symbol(k)] = if pyisbool(v)
         pyisTrue(v)
@@ -217,6 +252,7 @@ function setexchange!(x::Symbol, args...; kwargs...)
     globalexchange!(exc)
 end
 
+@doc "Set the ccxt exchange `has` flags."
 function setflags!(exc::CcxtExchange)
     has = exc.has
     for (k, v) in exc.py.has.items()
@@ -225,20 +261,26 @@ function setflags!(exc::CcxtExchange)
 end
 setflags!(args...; kwargs...) = nothing
 
+@doc "When serializing an exchange, serialize only its id."
 function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
     serialize_type(s, E, false)
     serialize(s, exc.id)
 end
 
+@doc "When deserializing an exchange, use the deserialized id to construct the exchange."
 deserialize(s::AbstractSerializer, ::Type{<:Exchange}) = begin
     deserialize(s) |> getexchange!
 end
 
-@doc "Check if exchange has tickers list."
+@doc "Check if exchange has tickers list.
+
+$(TYPEDSIGNATURES)
+"
 @inline function hastickers(exc::Exchange)
     has(exc, :fetchTickers, :fetchTickersWs, :watchTickers)
 end
 
+@doc "Ccxt market types."
 MARKET_TYPES = (:spot, :future, :swap, :option, :margin, :delivery)
 
 _lasttype(types) = begin
@@ -273,7 +315,16 @@ function markettype(exc)
     end
 end
 
-@doc "Fetch and cache tickers data."
+@doc """Fetch and cache tickers data.
+
+$(TYPEDSIGNATURES)
+
+The `@tickers!` macro takes the following parameters:
+
+- `type` (optional, default is nothing): the type of tickers to fetch and cache.
+- `force` (optional, default is false): a boolean that indicates whether to force the data fetch, even if the data is already present.
+
+"""
 macro tickers!(type=nothing, force=false)
     exc = esc(:exc)
     tickers = esc(:tickers)
@@ -311,8 +362,18 @@ macro tickers!(type=nothing, force=false)
     end
 end
 
-@doc "Get the the markets of the `ccxt` instance, according to `min_volume` and `quot`e currency.
-"
+@doc """Get the markets of the `ccxt` instance, according to `min_volume` and `quote` currency.
+
+$(TYPEDSIGNATURES)
+
+The `filter_markets` function takes the following parameters:
+
+- `exc`: an Exchange object to get the markets from.
+- `min_volume` (optional, default is 10e4): the minimum volume that a market should have.
+- `quot` (optional, default is "USDT"): the quote currency to filter the markets by.
+- `sep` (optional, default is '/'): the separator used in market strings.
+
+"""
 function filter_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     markets = exc.markets
     @tickers!
@@ -327,19 +388,39 @@ function filter_markets(exc; min_volume=10e4, quot="USDT", sep='/')
     f_markets
 end
 
-@doc "Get price from ticker."
+@doc """Get price from ticker.
+
+$(TYPEDSIGNATURES)
+
+The `tickerprice` function takes the following parameters:
+
+- `tkr`: a Ticker object.
+"""
 function tickerprice(tkr)
     @something tkr["average"] tkr["last"] tkr["bid"]
 end
 
-@doc "Get price ranges using tickers data from exchange."
+@doc """Get price ranges using tickers data from exchange.
+
+$(TYPEDSIGNATURES)
+
+The `price_ranges` function takes the following parameters:
+
+- `pair`: a string representing the currency pair.
+- `args...`: a variable number of arguments to pass to the price ranges calculation.
+- `exc` (optional, default is global `exc`): an Exchange object to get the tickers data from.
+- `kwargs...`: a variable number of keyword arguments to pass to the price ranges calculation.
+"""
 function price_ranges(pair::AbstractString, args...; exc=exc, kwargs...)
     type = markettype(exc)
     tkrs = @tickers! type true
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
 end
 
-@doc "Get quote volume from ticker."
+@doc """Get quote volume from ticker.
+
+$(TYPEDSIGNATURES)
+"""
 function quotevol(tkr::AbstractDict)
     v1 = get(tkr, "quoteVolume", nothing)
     isnothing(v1) || return v1
@@ -350,7 +431,10 @@ function quotevol(tkr::AbstractDict)
     0
 end
 
-@doc "Trims the settlement currency in futures. (`mkt` is a ccxt market.)"
+@doc "Trims the settlement currency in futures. (`mkt` is a ccxt market.)
+
+$(TYPEDSIGNATURES)
+"
 @inline function spotsymbol(sym, mkt)
     if "quote" ∈ keys(mkt)
         "$(mkt["base"])/$(mkt["quote"])"
@@ -360,9 +444,12 @@ end
 end
 
 issupported(tf::AbstractString, exc) = tf ∈ exc.timeframes
+@doc """Check if a timeframe is supported by an exchange.
+
+$(TYPEDSIGNATURES)
+"""
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
-@doc "Set exchange api keys."
 function exckeys!(exc, key, secret, pass)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
     if nameof(exc.id) ∈ (:kucoin, :kucoinfutures)
@@ -374,6 +461,10 @@ function exckeys!(exc, key, secret, pass)
     nothing
 end
 
+@doc "Set exchange api keys.
+
+$(TYPEDSIGNATURES)
+"
 function exckeys!(exc; sandbox=issandbox(exc))
     exc_keys = exchange_keys(nameof(exc.id); sandbox)
     # Check the exchange->futures mapping to re-use keys
@@ -388,7 +479,15 @@ function exckeys!(exc; sandbox=issandbox(exc))
     end
 end
 
-@doc "Enable sandbox mode for exchange. Should only be called on exchange construction."
+@doc """Enable sandbox mode for exchange. Should only be called on exchange construction.
+
+$(TYPEDSIGNATURES)
+
+- `exc` (optional, default is global `exc`): an Exchange object to set the sandbox mode for.
+- `flag` (optional, default is the inverse of the current sandbox mode status): a boolean indicating whether to enable or disable sandbox mode.
+- `remove_keys` (optional, default is true): a boolean indicating whether to remove the API keys while enabling sandbox mode.
+
+"""
 function sandbox!(exc::Exchange=exc, flag=!issandbox(exc); remove_keys=true)
     success = try
         exc.py.setSandboxMode(flag)
@@ -418,10 +517,15 @@ function ispercentage(mkt)
     something(get(mkt, "percentage", true), true)
 end
 
-@doc "Enable or disable rate limit."
+@doc "Enable or disable rate limit.
+
+$(TYPEDSIGNATURES)"
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
-@doc "Set exchange timouet"
+@doc "Set exchange timeout. (milliseconds)
+
+$(TYPEDSIGNATURES)"
 timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
+@doc "Check that the exchange timeout is not too low wrt the interval."
 function check_timeout(exc::Exchange=exc, interval=Second(5))
     @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
@@ -434,6 +538,7 @@ _fetchnoerr(f, t) =
         end
     end
 
+@doc "The current timestamp from the exchange."
 timestamp(exc::Exchange) = _fetchnoerr(exc.py.fetchTime, Int64)
 Base.time(exc::Exchange) = dt(_fetchnoerr(exc.py.fetchTime, Float64))
 
@@ -530,7 +635,13 @@ end
 
 const CCXT_REQUIRED_LIVE2 = ((:setMarginMode,), (:setPositionMode,))
 
-@doc "Checks if the python exchange instance supports all the calls required by PingPong."
+@doc """Checks if the python exchange instance supports all the calls required by PingPong.
+
+$(TYPEDSIGNATURES)
+
+- `exc`: an Exchange object to perform the check on.
+- `type` (optional, default is `:basic`): a symbol representing the type of check to perform.
+"""
 function check(exc::Exchange, type=:basic)
     missing_funcs = Set()
     blockers = Set()
