@@ -118,6 +118,8 @@ $(FIELDS)
     mode::Option{ExecMode} = nothing
     "A symbol to instantiate an exchange (a raw ExchangeID symbol)"
     exchange::Symbol = Symbol()
+    "Exchange sandbox mode flag"
+    sandbox::Bool = true
     "The quote currency for the strategy cash."
     qc::Symbol = :USDT
     "Configures the margin mode of the strategy (`NoMargin`, `Isolated` or `Cross`)"
