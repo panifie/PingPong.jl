@@ -1,4 +1,22 @@
 # NOTE: this constructor can't be revised, requires a restart
+@doc """Initializes a Strategy object in the Strategies module.
+
+$(TYPEDSIGNATURES)
+
+The `Strategy` function takes the following parameters:
+
+- `self`: a Module object representing the current module.
+- `assets`: a Union of a dictionary or iterable of strings representing the assets to be included in the strategy.
+- `load_data` (optional, default is true): a boolean indicating whether to load data for the assets.
+- `config`: a Config object representing the configuration settings for the strategy.
+- `mode` (optional, default is config.mode): a mode setting for the strategy.
+- `margin` (optional, default is config.margin): a margin setting for the strategy.
+- `sandbox` (optional, default is true): a boolean indicating whether to run the strategy in a sandbox environment.
+- `timeframe` (optional, default is config.min_timeframe): a timeframe setting for the strategy.
+
+The function initializes a Strategy object with the specified settings and assets.
+
+"""
 function Strategies.Strategy(
     self::Module,
     assets::Union{Dict,Iterable{String}};

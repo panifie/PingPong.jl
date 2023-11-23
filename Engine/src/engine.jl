@@ -20,6 +20,7 @@ using .ect.Misc
 using .Misc.TimeTicks
 using .Misc.Lang: Lang
 using .Misc: swapkeys
+using .Misc.DocStringExtensions
 
 # include("consts.jl")
 # include("funcs.jl")

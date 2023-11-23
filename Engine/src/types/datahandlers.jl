@@ -1,14 +1,25 @@
 import .Data: propagate_ohlcv!
 using .Data.DFUtils: copysubs!
 
-@doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data..."""
+@doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data...
+
+$(TYPEDSIGNATURES)
+"""
 function Base.fill!(ac::AssetCollection, tfs...; kwargs...)
     @eachrow ac.data fill!(:instance, tfs...; kwargs...)
 end
 
-@doc "Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
+@doc """Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
 
-`src`: The mapping, should be a pair `TimeFrame => Dict{String, PairData}`.
+$(TYPEDSIGNATURES)
+
+The `stub!` function takes the following parameters:
+
+- `ac`: an AssetCollection object which encapsulates a collection of assets.
+- `src`: The mapping, should be a pair `TimeFrame => Dict{String, PairData}`.
+- `fromfiat` (optional, default is true): a boolean that indicates whether the assets are priced in fiat currency. If true, the assets are priced in fiat currency.
+
+The function replaces the OHLCV data of the assets in the `ac` collection with the data from the `src` mapping. This is useful for backtesting trading strategies.
 
 Example:
 ```julia
@@ -21,7 +32,7 @@ strat = strategy!(:Example, cfg)
 data = bn.binanceload()
 stub!(strat.universe, data)
 ```
-"
+"""
 function stub!(ac::AssetCollection, src; fromfiat=true)
     parse_args = fromfiat ? (fiatnames,) : ()
     src_dict = swapkeys(
@@ -107,7 +118,21 @@ function _load_rest!(
     end
 end
 
-@doc "Pulls data from storage, or resample from the shortest timeframe available."
+@doc """Pulls data from storage, or resamples from the shortest timeframe available.
+
+$(TYPEDSIGNATURES)
+
+This `fill!` function takes the following parameters:
+
+- `ai`: an AssetInstance object which represents an instance of an asset.
+- `tfs...`: one or more TimeFrame objects that represent the desired timeframes to fill the data for.
+- `exc` (optional, default is `ai.exchange`): an Exchange object that represents the exchange to pull data from.
+- `force` (optional, default is false): a boolean that indicates whether to force the data filling, even if the data is already present.
+- `from` (optional, default is nothing): a DateTime object that represents the starting date from which to fill the data.
+
+Fills the data for the specified timeframes. If the data is already present and `force` is false, the function does nothing.
+
+"""
 function Base.fill!(ai::AssetInstance, tfs...; exc=ai.exchange, force=false, from=nothing)
     # asset timeframes dict is sorted
     (from_tf, from_data) = first(ai.data)
