@@ -1,6 +1,12 @@
 using .OrderTypes: LiquidationTrade
 
-@doc "The number of liquidations that have happened for an asset instance."
+@doc """ The number of liquidations that have happened for an asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function counts the number of liquidations that have occurred in the history of a margin asset instance.
+
+"""
 function liquidations(ai::MarginInstance)
     short_liq = Trade[]
     short_loss = 0.0

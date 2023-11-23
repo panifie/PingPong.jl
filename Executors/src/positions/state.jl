@@ -4,12 +4,24 @@ import .Instances: leverage!, maintenance!, notional!, entryprice!, tier, liqpri
 using Executors.Instances: MarginInstance, liqprice!
 using Strategies: lowat, highat
 
-@doc "Update the entry price from notional, amount diff and cash."
+@doc """ Update the entry price from notional, amount diff and cash.
+
+$(TYPEDSIGNATURES)
+
+This function calculates the new entry price of a position using the notional amount, the difference in amount, and the cash in the position.
+
+"""
 function update_price!(po::Position; ntl, prev_ntl, size)
     @deassert notional(po) >= 0.0 && ntl >= 0.0
     po.entryprice[] = abs((prev_ntl + size) / cash(po))
 end
-@doc "Updates notional value."
+@doc """ Updates notional value.
+
+$(TYPEDSIGNATURES)
+
+This function updates the notional value of a position using the provided notional amount and size.
+
+"""
 function update_notional!(po::Position; ntl, size)
     # NOTE: Order is important
     ntl = abs(ntl)
@@ -23,6 +35,13 @@ end
 _inv(::Long, leverage, mmr) = 1.0 - 1.0 / leverage + mmr
 _inv(::Short, leverage, mmr) = 1.0 + 1.0 / leverage - mmr
 
+@doc """ Calculates the liquidation price of a position
+
+$(TYPEDSIGNATURES)
+
+This function calculates the price at which a position would be liquidated, given the entry price, leverage, maintenance margin ratio, additional margin, and notional value.
+
+"""
 function liqprice(p::PositionSide, entryprice, leverage, mmr; additional=0.0, notional=1.0)
     inv = _inv(p, leverage, mmr)
     add = additional / notional # == amount * entryprice
@@ -50,14 +69,26 @@ function update_leverage!(po::Position{P}; lev, price=price(po), mmr=mmr(po)) wh
     update_maintenance!(po; mmr)
 end
 
-@doc "Updates maintenance margin."
+@doc """ Updates leverage based on position state.
+
+$(TYPEDSIGNATURES)
+
+This function updates the leverage of a position based on its current state, using the provided leverage, price, and maintenance margin ratio.
+
+"""
 function update_maintenance!(po::Position; ntl=notional(po), mmr=mmr(po))
     @deassert mmr == tier(po, ntl)[2].mmr
     mm = ntl * mmr
     maintenance!(po, mm)
 end
 
-@doc "Update position price, notional and leverage from a new trade."
+@doc """ Update position price, notional and leverage from a new trade.
+
+$(TYPEDSIGNATURES)
+
+This function adjusts the price, notional value, and leverage of a position based on a new trade at the given settlement price.
+
+"""
 function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) where {P}
     # the position cash should already be updated at trade creation
     # so this not-equation should be true since the position is in a stale state
@@ -91,7 +122,13 @@ _checkbuffered(buffered, price, ::Short) = buffered >= price
 _iscrossed(ai, price, ::Long) = price <= Instances.liqprice(ai, Long())
 _iscrossed(ai, price, ::Short) = price >= Instances.liqprice(ai, Short())
 
-@doc "Tests if a position should be liquidated at a particular date."
+@doc """ Checks if a position is liquidatable at a given date
+
+$(TYPEDSIGNATURES)
+
+This function determines whether a position in a margin strategy is eligible for liquidation at the specified date.
+
+"""
 function isliquidatable(
     ::Strategy{Sim}, ai::MarginInstance, p::PositionSide, date::DateTime
 )
@@ -102,7 +139,13 @@ function isliquidatable(
     end
 end
 
-@doc "Tests if a position should be liquidated at a particular price."
+@doc """ Tests if a position should be liquidated at a particular price.
+
+$(TYPEDSIGNATURES)
+
+This function checks whether a position in a Paper or Live strategy should be liquidated at the current price at the specified date.
+
+"""
 function isliquidatable(
     ::Strategy{<:Union{Paper,Live}}, ai::MarginInstance, p::PositionSide, date::DateTime
 )
