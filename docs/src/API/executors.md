@@ -1,4 +1,5 @@
-# Engine
+# Executors
+
 ```@autodocs
-Modules = [PingPong.Engine]
+Modules = [PingPong.Engine.Executors]
 ```
