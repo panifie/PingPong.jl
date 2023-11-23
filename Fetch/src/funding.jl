@@ -8,11 +8,11 @@ using Exchanges: exc
 using .Python: PyDict
 using Processing: _fill_missing_candles
 
-@doc """Retrieves all funding data return by exchange for symbol, or a subset.
-```julia
-funding_data(exc, "BTC/USDT:USDT")
-funding_data(exc, "BTC/USDT:USDT", :fundingRate, :markPrice)
-```
+@doc """Retrieves all or a subset of funding data for a symbol from an exchange.
+
+$(TYPEDSIGNATURES)
+
+The `funding_data` function retrieves all funding data returned by an exchange `exc` for a symbol `s`, or a subset of the funding data if specific `syms` are provided. For example, you could retrieve all funding data for the "BTC/USDT:USDT" pair, or only the funding rate and mark price data.
 """
 function funding_data(exc::Exchange, s::AbstractString, syms...)
     fr = pyfetch(exc.fetchFundingRate, s)
@@ -23,6 +23,12 @@ funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
 funding_data(v, args...) = funding_data(exc, v, args...)
 
 
+@doc """Retrieves the funding rate for a symbol from an exchange.
+
+$(TYPEDSIGNATURES)
+
+The `funding_rate` function retrieves the funding rate for a symbol `s` from an exchange `exc`.
+"""
 function funding_rate(exc::Exchange, s::AbstractString)
     id = exc.id
     @lget! FUNDING_RATE_CACHE (s, id) begin
@@ -41,9 +47,21 @@ funding_rate(ai) = funding_rate(ai.exchange, ai.asset)
 
 const FUNDING_RATE_COLUMNS = (:timestamp, :pair, :rate)
 const FUNDING_RATE_COLS = [FUNDING_RATE_COLUMNS...]
+@doc """Parses a row of funding data from a Python object.
+
+$(TYPEDSIGNATURES)
+
+The `parse_funding_row` function takes a row of funding data `r` from a Python object and parses it into a format suitable for further processing or analysis.
+"""
 function parse_funding_row(r::Py)
     pyconvert(Tuple{Int64,String,Float64}, (r["timestamp"], r["symbol"], r["fundingRate"]))
 end
+@doc """Extracts futures data from a Python object.
+
+$(TYPEDSIGNATURES)
+
+The `extract_futures_data` function takes futures data `data` from a Python object and extracts it into a format suitable for further processing or analysis.
+"""
 function extract_futures_data(data::Py)
     ts, sym, rate = DateTime[], String[], Float64[]
     for r in data
@@ -54,11 +72,15 @@ function extract_futures_data(data::Py)
     DataFrame([ts, sym, rate], FUNDING_RATE_COLS)
 end
 
+@doc "Defines limit values for fetching futures data from exchanges."
 const futures_limits = IdDict(:binance => 1000)
 
-@doc "Fetch funding rate history from exchange for a list of `Derivative` pairs.
+@doc """Fetches funding rate history from an exchange for a list of `Derivative` pairs.
 
-- `from`, `to`: specify date period to fetch candles for."
+$(TYPEDSIGNATURES)
+
+The `funding_history` function fetches funding rate history from a given exchange `exc` for a list of `assets`. The `from` and `to` parameters define the date range for which to fetch the funding rate history. Additional parameters can be specified through the `params` dictionary. The function will wait for `sleep_t` seconds between each request to the exchange. The `limit` parameter can be used to limit the amount of data fetched. If `cleanup` is set to true, the function will perform a cleanup on the fetched data before returning it.
+"""
 function funding_history(
     exc::Exchange,
     assets::Vector;
@@ -114,6 +136,12 @@ function funding_history(
     return ans
 end
 
+@doc """Cleans up fetched funding history data.
+
+$(TYPEDSIGNATURES)
+
+The `_cleanup_funding_history` function takes a DataFrame `df` of fetched funding history data for a `name` and performs cleanup operations on it. The `half_tf` and `f_tf` parameters are used in the cleanup process.
+"""
 function _cleanup_funding_history(df, name, half_tf, f_tf)
     # normalize timestamps
     df.timestamp[:] = apply.(half_tf, df.timestamp)
@@ -137,8 +165,11 @@ function _cleanup_funding_history(df, name, half_tf, f_tf)
     select!(df, Not(:close))
 end
 
+@doc "Defines the time-to-live (TTL) for a funding rate as 5 seconds."
 const FUNDING_RATE_TTL = Ref(Second(5))
+@doc "Initializes a safe TTL cache for storing funding rates with a specified TTL."
 const FUNDING_RATE_CACHE = safettl(Tuple{String,Symbol}, DFT, FUNDING_RATE_TTL[])
+@doc "Initializes a safe TTL cache for storing multiple funding rates with a specified TTL."
 const FUNDING_RATES_CACHE = safettl(Symbol, Py, FUNDING_RATE_TTL[])
 assetkey(ai) = (ai.raw, ai.exchange.id)
 

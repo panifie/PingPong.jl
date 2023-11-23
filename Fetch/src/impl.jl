@@ -33,6 +33,7 @@ using .Data.DataStructures: SortedDict
 using .Data.Misc
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using .Misc.TimeTicks
+using .Misc.DocStringExtensions
 using .TimeTicks: TimeFrameOrStr, timestamp, dtstamp
 using .Misc.Lang: @distributed, @parallel, Option, filterkws, @ifdebug, @deassert
 @ifdebug using .TimeTicks: dt
@@ -48,9 +49,16 @@ Base.convert(::Type{Candle}, py::Py) = _to_candle(py, 0, 1:5)
 _pytoval(::Type{DateTime}, v) = dt(to_float(v))
 _pytoval(t::Type, v) = @something pyconvert(t, v) Data.default(t)
 _pytoval(t::Type, v, def) = @something pyconvert(t, v) def
+@doc "Defines the tuple type for OHLCV data, where each element represents a specific metric (Open, High, Low, Close, Volume)."
 const OHLCVTupleTypes = (DateTime, fill(Float64, 4)..., Option{Float64})
 # const OHLCVTupleTypes = (DateTime, (Float64 for _ in 1:4)..., Option{Float64})
-@doc "This is the fastest (afaik) way to convert ccxt lists to dataframe friendly format."
+@doc """ This is the fastest (afaik) way to convert ccxt lists to dataframe friendly format.
+
+$(TYPEDSIGNATURES)
+
+This function converts the provided Python object to a tuple format suitable for dataframes, specifically tailored for OHLCV data.
+
+"""
 function Base.convert(::Type{OHLCVTuple}, py::Py)
     vecs = ohlcvtuple()
     loopcols((c, v)) = push!(vecs[c], _pytoval(OHLCVTupleTypes[c], v))
@@ -59,6 +67,11 @@ function Base.convert(::Type{OHLCVTuple}, py::Py)
     vecs
 end
 _to_ohlcv_vecs(v)::OHLCVTuple = convert(OHLCVTuple, v)
+@doc """ Converts a Python object to a DataFrame with OHLCV columns
+
+$(TYPEDSIGNATURES)
+
+"""
 Data.to_ohlcv(py::Py) = DataFrame(_to_ohlcv_vecs(py), OHLCV_COLUMNS)
 
 function _check_from_to(from::F, to::T) where {F,T<:DateType}
@@ -73,7 +86,13 @@ function _check_from_to(from::F, to::T) where {F,T<:DateType}
     (from, to)
 end
 
-@doc "Ensure a `to` date is set, before fetching."
+@doc """ Ensure a `to` date is set, before fetching.
+
+$(TYPEDSIGNATURES)
+
+This function verifies that a 'to' date is set before attempting to fetch OHLCV data.
+
+"""
 function _fetch_ohlcv_from_to(
     exc::Exchange,
     pair,
@@ -102,6 +121,13 @@ function _fetch_ohlcv_from_to(
     cleanup ? cleanup_ohlcv_data(data, timeframe) : data
 end
 
+@doc """ Returns an ordered list of timeframes for a given exchange
+
+$(TYPEDSIGNATURES)
+
+This function collects the timeframes from the exchange, converts them into periods, and sorts them in descending order. It then returns these sorted timeframes and periods.
+
+"""
 function __ordered_timeframes(exc::Exchange)
     tfs = collect(exc.timeframes)
     periods = period.(convert.(TimeFrame, tfs))
@@ -111,12 +137,25 @@ function __ordered_timeframes(exc::Exchange)
     tfs, periods
 end
 
+@doc """ Determines the start time for fetching data
+
+$(TYPEDSIGNATURES)
+
+This function calculates the timestamp from which to start fetching data. It ensures that the start time is not more than 20 years in the past or less than the given period.
+
+"""
 function _since_timestamp(actual::DateTime, p::Period)
     date = max(actual - Year(20), actual - 1000 * Millisecond(p))
     dtstamp(date, Val(:round))
 end
 
-@doc "Should return the oldest possible timestamp for a pair, or something close to it."
+@doc """ Returns the oldest possible timestamp for a pair.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over the timeframes and periods of the exchange to find the oldest available timestamp for a given pair. If no data is found in any timeframe, it defaults to 1 day in the past.
+
+"""
 function find_since(exc::Exchange, pair)
     data = ()
     actual = now()
@@ -137,12 +176,25 @@ function find_since(exc::Exchange, pair)
     dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1], Val(:round))
 end
 
+@doc """ Defines the fetch limit for an exchange.
+
+$(TYPEDSIGNATURES)
+
+This function fetches the limit for an exchange. If no limit is specified, it retrieves the default limit for the exchange.
+
+"""
 function fetch_limit(exc::Exchange, limit::Option{Int})
     if isnothing(limit)
         get(fetch_limits, Symbol(lowercase(string(exc.name))), 1000)
     end
 end
 
+@doc """Determines the 'since' parameter for fetching data from an exchange.
+
+$(TYPEDSIGNATURES)
+
+This function calculates the 'since' parameter based on the specified 'from' timestamp, or finds the appropriate 'since' value if 'from' is 0.0.
+"""
 function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
     if from == 0.0
         find_since(exc, pair)
@@ -166,8 +218,12 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
     end
 end
 
-@doc "Calls the fetc_func iteratively until the full dates range has been downloaded.
-NOTE: The returned data won't be exactly the number of candles expected by e.g. `length(DateRange(from, to))`"
+@doc """Iteratively fetches data over a specified date range.
+
+$(TYPEDSIGNATURES)
+
+This function calls the `fetch_func` function repeatedly until it has fetched data for the entire date range specified by `from` and `to`. Note: The total data points fetched may not match the expected number based on the date range.
+"""
 function _fetch_loop(
     fetch_func::Function,
     exc::Exchange,
@@ -212,6 +268,12 @@ macro return_empty()
     :(return $(esc(:df)) ? empty_ohlcv() : [])
 end
 
+@doc """Handles errors during fetch operations.
+
+$(TYPEDSIGNATURES)
+
+This function takes an error `e` occurred during data fetching, and decides whether to retry the `fetch_func` based on the `retry` flag. If `retry` is true, it calls the `fetch_func` again with the same parameters.
+"""
 function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter, retry)
     !retry && @return_empty()
     if e isa TaskFailedException
@@ -246,6 +308,12 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
     end
 end
 
+@doc """Handles fetch operations for specified exchange and pair.
+
+$(TYPEDSIGNATURES)
+
+This function calls the `fetch_func` for a given `pair`, starting from the `since` timestamp with a maximum limit of `limit` data points. It employs a delay `sleep_t` between fetches. The function also applies a given `converter` to the fetched data. If the `retry` flag is true, the function will try to fetch data again in case of an empty response. The `usetimeframe` flag indicates whether to use timeframe for fetching.
+"""
 function __handle_fetch(
     fetch_func, pair, since, limit, sleep_t, df, converter, retry, usetimeframe
 )
@@ -285,11 +353,11 @@ function __handle_fetch(
     (false, data)
 end
 
-@doc """
-Wraps a fetching function around error handling and backoff delay.
-`fetch_func` signature:
-(pair::String, since::Option{Float}, limit::Float) -> PyList
-The `converter` function has to tabulate the data such that the first column is the timestamp
+@doc """Wraps fetching function with error handling and backoff delay.
+
+$(TYPEDSIGNATURES)
+
+This function wraps a fetching function `fetch_func` with error handling and a backoff delay `sleep_t`. The `fetch_func` takes three parameters: `pair`, `since`, and `limit`, and returns a PyList. The `converter` function is used to tabulate the data such that the first column is the timestamp. The function will retry fetching in case of an error if `retry` is set to true.
 """
 function _fetch_with_delay(
     fetch_func::Function,
@@ -319,6 +387,12 @@ function _fetch_with_delay(
     end
 end
 
+@doc """Returns the appropriate OHLCV fetching function based on the specified kind.
+
+$(TYPEDSIGNATURES)
+
+The `ohlcv_func_bykind` function determines and returns the appropriate OHLCV fetching function for the given exchange `exc` and `kind`.
+"""
 function ohlcv_func_bykind(exc, kind)
     args = if kind == :mark
         (:fetchMarkOHLCVWs, :fetchMarkOHLCV)
@@ -332,6 +406,12 @@ function ohlcv_func_bykind(exc, kind)
     first(exc, args...)
 end
 
+@doc """Fetches OHLCV data with delay for a given exchange and arguments.
+
+$(TYPEDSIGNATURES)
+
+This function fetches OHLCV data for a specified exchange `exc` and additional `args`. The type of OHLCV data to fetch is determined by `ohlcv_kind`. It applies a delay between fetches as specified in `kwargs`.
+"""
 function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kwargs...)
     limit = get(kwargs, :limit, nothing)
     limit = fetch_limit(exc, limit)
@@ -359,6 +439,12 @@ function fetch_ohlcv(exc, timeframe; qc=config.qc, kwargs...)
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
 
+@doc """Prompts user for confirmation before fetching OHLCV data.
+
+$(TYPEDSIGNATURES)
+
+This function prompts the user for confirmation before fetching OHLCV data for the specified arguments `args` and keyword arguments `kwargs`. If the user inputs 'Y', 'y', or simply presses Enter, it proceeds with the `fetch_ohlcv` function. If any other input is given, the function returns `nothing`.
+"""
 function fetch_ohlcv(::Val{:ask}, args...; kwargs...)
     Base.display("fetch? Y/n")
     ans = String(read(stdin, 1))
@@ -366,12 +452,17 @@ function fetch_ohlcv(::Val{:ask}, args...; kwargs...)
     fetch_ohlcv(args...; qc=config.qc, zi, kwargs...)
 end
 
-@doc """ Fetch ohlcv data for multiple exchanges on the same timeframe.
+@doc """Fetches OHLCV data for multiple exchanges on the same timeframe.
 
-It accepts:
-- a mapping of exchange instances to pairlists.
-- a vector of symbols for which an exchange instance will be instantiated for each element,
-    and pairlist will be composed according to quote currency and min_volume from `PingPong.config`.
+$(TYPEDSIGNATURES)
+
+This function fetches OHLCV data for multiple exchanges over the same timeframe. It accepts:
+- A vector of exchange instances `excs`.
+- The desired timeframe `timeframe`.
+
+The function can run in parallel if `parallel` is set to true. If `wait_task` is set to true, the function will wait for all tasks to complete before returning.
+
+You can provide additional parameters using `kwargs`.
 """
 function fetch_ohlcv(
     excs::Vector{Exchange}, timeframe; parallel=false, wait_task=false, kwargs...
@@ -396,6 +487,12 @@ function fetch_ohlcv(
     t
 end
 
+@doc """Ensures dates are within valid range for the exchange and timeframe.
+
+$(TYPEDSIGNATURES)
+
+The `__ensure_dates` function checks if the dates `from` and `to` are within the valid range for the given exchange `exc` and timeframe `tf`. If the dates are not within the valid range, the function adjusts them accordingly.
+"""
 function __ensure_dates(exc, tf, from, to)
     if !issupported(string(tf), exc)
         error("Timeframe $tf not supported by exchange $(exc.name).")
@@ -403,6 +500,12 @@ function __ensure_dates(exc, tf, from, to)
     from_to_dt(tf, from, to)
 end
 
+@doc """Determines the starting date for fetching data.
+
+$(TYPEDSIGNATURES)
+
+The `__from_date_func` function determines the starting date `from` for fetching data based on various parameters. If `update` is true, it will fetch data from the latest date available. If `reset` is true, it will fetch data from the earliest date possible. The function also considers the `timeframe`, `to` date, timezone `zi`, and exchange name `exc_name` in its calculations.
+"""
 function __from_date_func(update, timeframe, from, to, zi, exc_name, reset)
     if update
         if !isempty(string(from)) || !isempty(string(to))
@@ -424,6 +527,13 @@ __print_progress_1(pairs) = begin
     @pbar! pairs "Pairlist download progress" "pair"
     pb_job
 end
+
+@doc """Fetches OHLCV data for a specified exchange within a date range.
+
+$(TYPEDSIGNATURES)
+
+This function fetches OHLCV data for a given exchange `exc`, with the specified `name` and `timeframe`, within the date range specified by `from_date` and `to`. The fetched data is appended to the `out` data structure. The `cleanup` parameter determines if any post-processing should be done on the data before returning. The `ohlcv_kind` parameter determines the type of OHLCV data to fetch.
+"""
 function __get_ohlcv(
     exc,
     name,
@@ -467,6 +577,13 @@ function __save_ohlcv(zi, ohlcv, name, timeframe, exc_name, reset)
         __handle_save_ohlcv_error(e, exc_name, name, timeframe, ohlcv)
     end
 end
+
+@doc """Processes OHLCV data for a pair.
+
+$(TYPEDSIGNATURES)
+
+The `__pairdata!` function processes the OHLCV data `ohlcv` for a pair `name` over a `timeframe`. It takes into account the timezone `zi`, data `data`, timezone offset `z`, exchange name `exc_name`, and a `reset` flag. If `reset` is true, it will reset the data for the pair before processing.
+"""
 function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
     z = if size(ohlcv, 1) > 0
         __save_ohlcv(zi, ohlcv, name, timeframe, exc_name, reset)
@@ -481,11 +598,11 @@ function __pairdata!(zi, data, ohlcv, name, timeframe, z, exc_name, reset)
 end
 
 using .Data: ZarrInstance, ZArray
-@doc """Fetch ohlcv data from exchange for a list of pairs.
-- `from`, `to`: Can represent a date. A negative `from` number implies fetching the last N=`from` candles.
-- `update`: If true, will check for cached data, and fetch only missing candles. (`false`)
-- `progress`: if true, show a progress bar. (`true`)
-- `reset`: if true, will remove cached data before fetching. (`false`)
+@doc """Fetches OHLCV data from an exchange for a list of pairs.
+
+$(TYPEDSIGNATURES)
+
+This function fetches OHLCV data from a given exchange `exc` for a list of `pairs` over a specified `timeframe`. The `from` and `to` parameters can represent dates or, if `from` is a negative number, the function fetches the last N=`from` candles. If `update` is true, the function checks for cached data and only fetches missing candles. If `reset` is true, the function removes cached data before fetching. The `progress` parameter determines whether a progress bar is shown. The type of OHLCV data to fetch is defined by the `ohlcv_kind` parameter.
 """
 function fetch_ohlcv(
     exc::Exchange,
@@ -519,7 +636,12 @@ function fetch_ohlcv(
     data
 end
 
-@doc "Updates the tail of an ohlcv dataframe with the most recent candles."
+@doc """Updates the tail of an OHLCV DataFrame with the most recent candles.
+
+$(TYPEDSIGNATURES)
+
+The `update_ohlcv!` function updates the tail of an OHLCV DataFrame `df` with the most recent candles for a given `pair` from an exchange `exc` over a timeframe `tf`. The type of OHLCV data to update is determined by the `ohlcv_kind` parameter.
+"""
 function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
     from = if isempty(df)
         DateTime(0)
@@ -544,6 +666,12 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
     df
 end
 
+@doc """Propagates OHLCV data to all timeframes in a data structure.
+
+$(TYPEDSIGNATURES)
+
+The `propagate_ohlcv!` function propagates OHLCV data for a given `pair` from an exchange `exc` to all timeframes in the `data` SortedDict data structure.
+"""
 function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)
     function doupdate!(base_tf, base_data, tf, tf_data)
         let res = resample(base_data, base_tf, tf)
@@ -584,6 +712,12 @@ function _fetch_candles(
     )[1]
 end
 
+@doc """Fetches candlestick data for a list of pairs from an exchange.
+
+$(TYPEDSIGNATURES)
+
+The `fetch_candles` function fetches candlestick data from a given exchange `exc` for a list of `pairs` over a specified `timeframe`. The `from` and `to` parameters define the date range for the fetched data. If `from` is not provided, it defaults to an empty string, which implies fetching data from the earliest available date. The type of candlestick data to fetch is determined by the `ohlcv_kind` parameter.
+"""
 function fetch_candles(
     exc::Exchange,
     timeframe::AbstractString,
