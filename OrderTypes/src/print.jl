@@ -1,5 +1,6 @@
 using Instruments: compactnum as cnum
 
+@doc "Prints the number of trades in the order."
 function _printtrades(io, o)
     hasproperty(o.attrs, :trades) && begin
         write(io, "Trades: ")
@@ -9,12 +10,14 @@ end
 
 # vector or value
 _vv(v) = v isa Vector ? v[] : v
+@doc "Prints the number of committed order amount."
 function _printcommitted(io, o)
     hasproperty(o.attrs, :committed) && begin
         write(io, "\nCommitted: ")
         write(io, string(cnum(_vv(o.attrs.committed[]))))
     end
 end
+@doc "Prints the number of unfilled order amount."
 function _printunfilled(io, o)
     hasproperty(o.attrs, :unfilled) && begin
         write(io, "\nUnfilled: ")

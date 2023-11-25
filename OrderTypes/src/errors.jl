@@ -1,3 +1,4 @@
+@doc "Abstract type for order errors."
 abstract type OrderError end
 @doc "There wasn't enough cash to setup the order."
 @kwdef struct NotEnoughCash{T<:Real} <: OrderError

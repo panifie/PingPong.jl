@@ -8,28 +8,47 @@ using .Misc: config, PositionSide, Long, Short, TimeTicks, Lang
 import .Misc: opposite
 using .TimeTicks
 
+@doc """ Abstract type representing an event in an exchange """
 abstract type ExchangeEvent{E} end
+@doc """ Abstract type representing an event tied to an asset in an exchange """
 abstract type AssetEvent{E} <: ExchangeEvent{E} end
+@doc """ Abstract type representing a strategy-specific event in an exchange """
 abstract type StrategyEvent{E} <: ExchangeEvent{E} end
 
+@doc """ Abstract type representing the side of an order """
 abstract type OrderSide end
+@doc """ Abstract type representing the buy side of an order """
 abstract type Buy <: OrderSide end
+@doc """ Abstract type representing the sell side of an order """
 abstract type Sell <: OrderSide end
+@doc """ Abstract type representing both sides of an order """
 abstract type Both <: OrderSide end
 
+@doc """ Abstract type representing the type of an order """
 abstract type OrderType{S<:OrderSide} end
+@doc """ Abstract type representing any limit order """
 abstract type LimitOrderType{S} <: OrderType{S} end
+@doc """ Abstract type representing any immediate order """
 abstract type ImmediateOrderType{S} <: LimitOrderType{S} end
+@doc """ Abstract type representing GTC (good till cancel) orders """
 abstract type GTCOrderType{S} <: LimitOrderType{S} end
+@doc """ Abstract type representing post only orders"""
 abstract type PostOnlyOrderType{S} <: GTCOrderType{S} end
+@doc """ Abstract type representing FOK (fill or kill) orders """
 abstract type FOKOrderType{S} <: ImmediateOrderType{S} end
+@doc """ Abstract type representing IOC (immediate or cancel) orders """
 abstract type IOCOrderType{S} <: ImmediateOrderType{S} end
+@doc """ Abstract type representing market orders """
 abstract type MarketOrderType{S} <: OrderType{S} end
+@doc """ Abstract type representing liquidation orders """
 abstract type LiquidationType{S} <: MarketOrderType{S} end
+@doc """ Abstract type representing forced orders """
 abstract type ForcedType{S} <: MarketOrderType{S} end
 
 @doc """An Order is a container for trades, tied to an asset and an exchange.
 Its execution depends on the order implementation.
+
+$(FIELDS)
 
 `date`: the time at which the strategy requested the order.
     The strategy is assumed to have *knowledge* of the ohlcv data \
@@ -61,6 +80,16 @@ struct Order{
     attrs::NamedTuple
 end
 
+@doc """ Creates an Order object.
+
+$(TYPEDSIGNATURES)
+
+This function constructs an Order object with the given parameters. 
+The Order object represents a trade order tied to an asset and an exchange. 
+The execution of the order depends on the order implementation. 
+The function takes in parameters for the asset, exchange, order type, position side, price, date, amount, attributes, and an optional id. 
+
+"""
 function Order(
     a::A,
     e::E,
@@ -84,16 +113,32 @@ Base.hash(o::Order{T}) where {T} = hash((T, o.asset, o.exc, o.date, o.price, o.a
 function Base.hash(o::Order{T}, h::UInt) where {T}
     hash((T, o.asset, o.exc, o.date, o.price, o.amount), h)
 end
+@doc """ Compares two Order objects based on their date.
+
+$(TYPEDSIGNATURES)
+
+This function compares the date of two Order objects and returns `true` if the date of the first Order is less than the date of the second Order. It is used to sort or compare Orders based on their date.
+
+"""
 Base.isless(o1::O1, o2::O2) where {O1,O2<:Order} = isless(o1.date, o2.date)
 
+@doc "An order that increases the size of a position."
 const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
+@doc "An order that decreases the size of a position."
 const SellOrder{A,E} = Order{<:OrderType{Sell},A,E,Long}
+@doc "A type representing any order that involves buying, regardless of the specific order type or position side"
 const AnyBuyOrder{P,A,E} = Order{<:OrderType{Buy},A,E,P}
+@doc "A type representing any order that involves selling, regardless of the specific order type or position side"
 const AnySellOrder{P,A,E} = Order{<:OrderType{Sell},A,E,P}
+@doc "A type representing an order that opens or adds to a 'long' position in a specific asset"
 const LongOrder{O,A,E} = Order{O,A,E,Long}
+@doc "A type representing an order that opens or adds to a 'short' position in a specific asset"
 const ShortOrder{O,A,E} = Order{O,A,E,Short}
+@doc "A type representing a buy order that opens or adds to a 'short' position in a specific asset"
 const ShortBuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Short}
+@doc "A type representing a sell order that opens or adds to a 'short' position in a specific asset"
 const ShortSellOrder{A,E} = Order{<:OrderType{Sell},A,E,Short}
+@doc "A type representing any immediate order, regardless of the specific asset, exchange, or position side"
 const AnyImmediateOrder{A,E,P} = Order{<:ImmediateOrderType,A,E,P}
 
 @doc "An order that increases the size of a position."
@@ -106,6 +151,13 @@ const LiquidationOrder{S,P} =
 @doc "A Market Order type called when manually closing a position (to sell the holdings)."
 const ForcedOrder{S,P} = Order{ForcedType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
 
+@doc """ Defines various order types in the trading system
+
+$(TYPEDSIGNATURES)
+
+This macro is used to define various order types in the trading system. It takes a boolean value to determine if the order type is a super type, and a list of types to be defined.
+
+"""
 macro deforders(issuper, types...)
     @assert issuper isa Bool
     out = quote end
@@ -144,30 +196,40 @@ end
 
 ==(v1::Type{<:OrderSide}, v2::Type{Both}) = true
 ==(v1::Type{Both}, v2::Type{<:OrderSide}) = true
+@doc """Get the `OrderType` of an order """
 ordertype(::Order{T}) where {T<:OrderType} = T
 ordertype(::Type{<:Order{T}}) where {T<:OrderType} = T
+@doc """Get the `PositionSide` of an order """
 function positionside(
     ::Union{Type{O},O}
 ) where {O<:Order{T,<:AbstractAsset,<:ExchangeID,P}} where {T,P}
     P
 end
 positionside(::Union{P,Type{P}}) where {P<:PositionSide} = P
+@doc """Get the price and time of an order """
 pricetime(o::Order) = (price=o.price, time=o.date)
+@doc """Get the `ExchangeID` of an order """
 exchangeid(::Order{<:OrderType,<:AbstractAsset,E}) where {E<:ExchangeID} = E
 commit!(args...; kwargs...) = error("not implemented")
+@doc """Get the opposite side of an order """
 opposite(::Type{Buy}) = Sell
 opposite(::Type{Sell}) = Buy
 function opposite(::Type{T}) where {S,T<:OrderType{S}}
     getfield(T.name.module, T.name.name){opposite(S)}
 end
+@doc """`Buy` as `Long` and `Sell` as `Short`"""
 sidetopos(::Type{Buy}) = Long
 sidetopos(::Type{Sell}) = Short
+@doc """Get the liquidation side of an order """
 liqside(::Union{Long,Type{Long}}) = Sell
 liqside(::Union{Short,Type{Short}}) = Buy
+@doc """Is the order a liquidation order"""
 isliquidation(::Order{O}) where {O<:OrderType} = O == LiquidationType
 sidetopos(::Order{<:OrderType{Buy}}) = Long
 sidetopos(::Order{<:OrderType{Sell}}) = Short
+@doc """Test if an order is a long order"""
 islong(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Long()
+@doc """Test if an order is a short order"""
 isshort(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Short()
 islong(o::LongOrder) = true
 islong(o::ShortOrder) = false
@@ -175,10 +237,13 @@ islong(_) = false
 isshort(o::LongOrder) = false
 isshort(o::ShortOrder) = true
 isshort(_) = false
+@doc """Test if an order is an immediate order"""
 isimmediate(::Order{<:Union{ImmediateOrderType,MarketOrderType}}) = true
 isimmediate(::Order) = false
+@doc """Test if the order position side matches the given position side"""
 ispos(pos::PositionSide, o::Order) = positionside(o)() == pos
 order!(args...; kwargs...) = error("not implemented")
+@doc """Get the trades history of an order """
 trades(args...; kwargs...) = error("not implemented")
 
 include("trades.jl")
@@ -190,8 +255,10 @@ include("print.jl")
 const BySide{S<:OrderSide} = Union{
     S,Type{S},Order{<:OrderType{S}},Type{<:Order{<:OrderType{S}}},Trade{<:OrderType{S}}
 }
+@doc "A type representing any order with a specific position side"
 const AnyOrderPos{P<:PositionSide} =
     Union{O,Type{O}} where {O<:Order{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
+@doc "A type representing any trade with a specific position side"
 const AnyTradePos{P<:PositionSide} =
     Union{T,Type{T}} where {T<:Trade{<:OrderType,<:AbstractAsset,<:ExchangeID,P}}
 @doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
@@ -200,6 +267,7 @@ const ByPos{P<:PositionSide} = Union{P,Type{P},AnyOrderPos{P},AnyTradePos{P}}
 orderside(::BySide{S}) where {S<:OrderSide} = S
 isside(what::ByPos{Long}, side::ByPos{Long}) = true
 isside(what::ByPos{Short}, side::ByPos{Short}) = true
+@doc "Test if the order side matches the given side"
 isside(args...) = false
 
 export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
