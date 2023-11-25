@@ -4,6 +4,7 @@ using ..Python
 using .Python: pyisnone
 
 const CcxtTickerVal = Val{:ccxt_ticker}
+@doc "The ccxt ticker object as a NamedTuple."
 const CcxtTicker = @NamedTuple begin
     symbol::String
     timestamp::Option{DateTime}
@@ -28,7 +29,13 @@ end
 _ids!(attrs, ids) = attrs[:ids] = ids
 _ids(w) = attr(w, :ids)
 
-@doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt).
+@doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt)
+
+$(TYPEDSIGNATURES)
+
+This function creates a `Watcher` instance that tracks all markets for an exchange (ccxt).
+It sets the symbol, exchange, and time frame for the watcher, and prepares the trades buffer.
+It also sets the watcher's status to pending and initializes the last fetched and last flushed timestamps.
 
 """
 function ccxt_tickers_watcher(
@@ -91,6 +98,14 @@ wpyconvert(::Type{Union{Nothing,DateTime}}, py::Py) =
     end
 wpyconvert(::Type{T}, v::Symbol) where {T} = T(v)
 
+@doc """ Fetches trades and updates the watcher's trades buffer
+
+$(TYPEDSIGNATURES)
+
+This function fetches trades for the watcher's symbol and time frame, and updates the watcher's trades buffer.
+If new trades are fetched, they are appended to the trades buffer and the last fetched timestamp is updated.
+
+"""
 function _fetch!(w::Watcher, ::CcxtTickerVal)
     data = attr(w, :tfunc)() |> PyDict
     if length(data) > 0

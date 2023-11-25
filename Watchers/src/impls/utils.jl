@@ -9,11 +9,22 @@ using ..Misc: rangeafter, rangebetween
 using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
 
+@doc """ 
+Removes trailing 'Z' from a string and parses it into a DateTime object.
+
+"""
 _parsedatez(s::AbstractString) = begin
     s = rstrip(s, 'Z')
     Base.parse(DateTime, s)
 end
 
+@doc """ 
+Converts market data into a NamedTuple.
+
+$(TYPEDSIGNATURES)
+
+This macro takes a tick type, a collection of market data, and an optional key (defaulting to "symbol"). It then converts each market data item into the specified tick type and constructs a NamedTuple where each entry corresponds to a market, with the key being the market's symbol and the value being the converted data.
+"""
 macro parsedata(tick_type, mkts, key="symbol")
     key = esc(key)
     mkts = esc(mkts)
@@ -24,6 +35,17 @@ macro parsedata(tick_type, mkts, key="symbol")
     end
 end
 
+@doc """ Collects data from a buffer and stores it in a dictionary
+
+$(TYPEDSIGNATURES)
+
+The `collect_buffer_data` macro takes a buffer variable, key type, value type, and an optional push function. 
+It escapses the provided parameters and initializes a dictionary with the key type and vector of the value type.
+The push function is used to populate the dictionary with data from the buffer.
+If no push function is provided, a default one is used which pushes the ticker data into the dictionary.
+The dictionary is then returned after collecting all data from the buffer.
+
+"""
 macro collect_buffer_data(buf_var, key_type, val_type, push=nothing)
     key_type = esc(key_type)
     val_type = esc(val_type)
@@ -38,7 +60,15 @@ macro collect_buffer_data(buf_var, key_type, val_type, push=nothing)
     end
 end
 
-@doc "Defines a closure that appends new data on each symbol dataframe."
+@doc """ Defines a closure that appends new data on each symbol dataframe
+
+$(TYPEDSIGNATURES)
+
+The `append_dict_data` macro takes a dictionary, data, and a maximum length variable.
+It defines a closure `doappend` that appends new data to each symbol dataframe in the dictionary.
+The macro ensures that the length of the dataframe does not exceed the provided maximum length.
+
+"""
 macro append_dict_data(dict, data, maxlen_var)
     maxlen = esc(maxlen_var)
     quote
@@ -116,6 +146,7 @@ _warmed!(w, ::Pending) = setattr!(w, Warmed(), :status)
 _pending!(attrs) = attrs[:status] = Pending()
 _pending!(w::Watcher) = _pending!(attrs(w))
 _status(w::Watcher) = attr(w, :status)
+@doc "`_chill!` sets the warmup target attribute of the window to the current time applied with the time frame rate."
 _chill!(w) = setattr!(w, apply(_tfr(w), now()), :warmup_target)
 _warmup!(_, ::Warmed) = nothing
 @doc "Checks if we can start processing data, after we are past the initial incomplete timeframe."
@@ -132,6 +163,18 @@ _key(w::Watcher) = attr(w, :key)
 _view!(w, v) = setattr!(w, v, :view)
 _view(w) = attr(w, :view)
 
+@doc """ Returns the available data within the given window
+
+$(TYPEDSIGNATURES)
+
+The `_get_available` function checks if data is available within a given window.
+It calculates the maximum lookback period and checks if the data in the window is empty.
+If it is, the function returns nothing.
+If data is available, it creates a view of the data and checks if the data is too old.
+If it is, it returns nothing and schedules a background task to update the data.
+Otherwise, it converts the available data to OHLCV format and returns it.
+
+"""
 function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
@@ -146,11 +189,31 @@ function _get_available(w, z, to)
     end
 end
 
+@doc """ Deletes OHLCV data of a given symbol from the window
+
+$(TYPEDSIGNATURES)
+
+The `_delete_ohlcv!` function removes OHLCV data of a specified symbol from the window. 
+If no symbol is provided, it defaults to the symbol of the window. 
+It fetches the data associated with the symbol and the current time frame rate, and deletes it.
+
+"""
 function _delete_ohlcv!(w, sym=_sym(w))
     z = load(zi, _exc(w).name, snakecased(sym), string(_tfr(w)); raw=true)[1]
     delete!(z)
 end
 
+@doc """ Fast forwards the window to the current timestamp
+
+$(TYPEDSIGNATURES)
+
+The `_fastforward` function ensures the window is up-to-date by fast-forwarding to the current timestamp.
+It checks whether the stored data is empty or corrupted and retrieves available data within the window.
+If no data is available, it calculates the starting point for fetching new data.
+Otherwise, it appends the available data to the dataframe, checks the continuity of the data, and updates the starting point.
+If the starting point is not equal to the current timestamp, it fetches new data up to the current timestamp and checks the data continuity again.
+
+"""
 function _fastforward(w, sym=_sym(w))
     tf = _tfr(w)
     df = w.view
@@ -177,6 +240,14 @@ function _fetch_candles(w, from, to="", sym=_sym(w); tf=_tfr(w))
     fetch_candles(_exc(w), tf, sym; from, to)
 end
 
+@doc """ Generates an error message when data fetching fails
+
+$(TYPEDSIGNATURES)
+
+The `_fetch_error` function is used when data fetching for a given symbol fails. 
+It generates an error message detailing the symbol, exchange name, and the time frame for which data fetching failed, unless the `quiet` attribute of the window is set to `true`.
+
+"""
 function _fetch_error(w, from, to, sym=_sym(w), args...)
     get(w.attrs, :quiet, false) || error(
         "Trades/ohlcv fetching failed for $sym @ $(_exc(w).name) from: $from to: $to ($(args...))",
@@ -185,13 +256,34 @@ end
 
 _op(::Val{:append}, args...; kwargs...) = appendmax!(args...; kwargs...)
 _op(::Val{:prepend}, args...; kwargs...) = prependmax!(args...; kwargs...)
+@doc "`_fromto` calculates a starting timestamp given a target timestamp, period, capacity and data kept."
 _fromto(to, prd, cap, kept) = to - prd * (cap - kept) - 2prd
+@doc """ Calculates the starting date for appending data to a dataframe
+
+$(TYPEDSIGNATURES)
+
+The `_from` function determines the starting date for appending data to a dataframe. 
+It takes into account a target date, time frame rate, capacity, and the `:append` flag.
+The function ensures that the target date is not earlier than the last date in the dataframe.
+It then calculates the earliest date that can be included in the dataframe based on the capacity and the time frame rate.
+If the dataframe is empty, this earliest date is returned. 
+Otherwise, the minimum between this date and the last date in the dataframe is returned.
+
+"""
 function _from(df, to, tf, cap, ::Val{:append})
     @ifdebug @assert to >= _lastdate(df)
     date_cap = (to - tf * cap) - tf # add one more period to ensure from inclusion
     (isempty(df) ? date_cap : min(date_cap, _lastdate(df)))
 end
 _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
+@doc """ Empties a dataframe
+
+$(TYPEDSIGNATURES)
+
+The `_empty!!` function tries to empty a dataframe. 
+If calling the `empty!` function on the dataframe throws an error, it uses the `copysubs!` function with the `empty` argument to empty the dataframe.
+
+"""
 _empty!!(df::DataFrame) =
     try
         empty!(df)
@@ -199,8 +291,21 @@ _empty!!(df::DataFrame) =
         copysubs!(df, empty)
     end
 
-@doc "`op`: `appendmax!` or `prependmax!`
-If the watcher has attribute `resync_noncontig` set to true, preloaded data will be discarded if non contiguous."
+@doc """ Fetches and appends or prepends data to a dataframe
+
+$(TYPEDSIGNATURES)
+
+This function fetches data for a given symbol and time frame, and appends or prepends it to a provided dataframe.
+The operation (append or prepend) is determined by the `op` parameter.
+If the dataframe is not empty, it checks for data continuity.
+If the data is not contiguous and the `resync_noncontig` attribute of the watcher is set to `true`, it empties the dataframe and resets the rows count.
+The function calculates the starting date for fetching new data based on the dataframe, target date, time frame, and operation.
+It then fetches the data, cleans it, and checks if it can be appended or prepended to the dataframe.
+If the operation is possible, it performs it and returns `true`.
+If the fetched data is empty, it returns `false`.
+If the difference between the target date and the starting date is less than or equal to the period of the time frame, it also returns `true`.
+
+"""
 function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     rows = nrow(df)
     prd = period(tf)
@@ -266,6 +371,15 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     true
 end
 
+@doc """ Continuously attempts to fetch and append or prepend data to a dataframe until successful
+
+$(TYPEDSIGNATURES)
+
+This function continuously calls the `_fetchto!` function until it successfully fetches and appends or prepends data to a dataframe.
+If the `_fetchto!` function fails, the function waits for a certain period before trying again.
+The waiting period increases with each failed attempt.
+
+"""
 function _sticky_fetchto!(args...; kwargs...)
     backoff = 0.5
     while true
@@ -281,7 +395,17 @@ function _resolve(w, ohlcv_dst, ohlcv_src::DataFrame, sym=_sym(w))
         w, ohlcv_dst, ohlcv_src, _lastdate(ohlcv_dst), _nextdate(ohlcv_dst, _tfr(w))
     )
 end
-@doc "This function checks that the date candidate is the correct next date to append to `ohclv_dst`."
+@doc """ Ensures the dataframe is up-to-date by fetching and appending data
+
+$(TYPEDSIGNATURES)
+
+This function ensures the dataframe is up-to-date by fetching and appending data for a given symbol and time frame.
+It checks whether the stored data is empty or corrupted and retrieves available data within the window.
+If no data is available, it calculates the starting point for fetching new data.
+Otherwise, it appends the available data to the dataframe, checks the continuity of the data, and updates the starting point.
+If the starting point is not equal to the current timestamp, it fetches new data up to the current timestamp and checks the data continuity again.
+
+"""
 function _resolve(w, ohlcv_dst, date_candidate::DateTime, sym=_sym(w))
     tf = _tfr(w)
     left = _lastdate(ohlcv_dst)
@@ -294,6 +418,15 @@ function _resolve(w, ohlcv_dst, date_candidate::DateTime, sym=_sym(w))
     end
 end
 
+@doc """ Appends data to a dataframe if it is contiguous
+
+$(TYPEDSIGNATURES)
+
+This function appends data from a source dataframe to a destination dataframe if the data is contiguous.
+It checks if the first date in the source dataframe is the next expected date in the destination dataframe.
+If it is, the function appends the data from the source dataframe to the destination dataframe and checks the continuity of the data.
+
+"""
 function _append_ohlcv!(w, ohlcv_dst, ohlcv_src, left, next)
     # at initialization it can happen that processing is too slow
     # and fetched ohlcv overlap with processed ohlcv
@@ -307,6 +440,15 @@ function _append_ohlcv!(w, ohlcv_dst, ohlcv_src, left, next)
     end
 end
 
+@doc """ Ensures the dataframe is up-to-date by flushing data
+
+$(TYPEDSIGNATURES)
+
+This function ensures the dataframe is up-to-date by flushing data.
+If the dataframe is not empty, it checks the last flushed date and the last date in the dataframe.
+If these dates are not the same, it saves the data in the dataframe from the last flushed date to the last date in the dataframe and updates the last flushed date.
+
+"""
 function _flushfrom!(w)
     isempty(w.view) && return nothing
     # we assume that _load! and process already clean the data

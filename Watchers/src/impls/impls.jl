@@ -22,10 +22,8 @@ using ..Data.DataFrames
 using ..Fetch.Processing
 using Base: Semaphore
 
-using ..CoinGecko: CoinGecko
-cg = CoinGecko
-using ..CoinPaprika: CoinPaprika
-cp = CoinPaprika
+using ..CoinGecko: CoinGecko as cg
+using ..CoinPaprika: CoinPaprika as cp
 
 include("utils.jl")
 include("cg_ticker.jl")

@@ -77,6 +77,15 @@ function ccxt_ohlcv_watcher(exc::Exchange, syms::Iterable; kwargs...)
 end
 ccxt_ohlcv_watcher(syms::Iterable; kwargs...) = ccxt_ohlcv_watcher.(exc, syms; kwargs...)
 
+@doc """ Initializes the watcher
+
+$(TYPEDSIGNATURES)
+
+This function initializes the watcher by setting up its attributes and preparing it for data fetching and processing.
+It sets the symbol, exchange, and time frame for the watcher, and prepares the trades buffer.
+It also sets the watcher's status to pending and initializes the last fetched and last flushed timestamps.
+
+"""
 function _init!(w::Watcher, ::CcxtOHLCVVal)
     def_view = let def_view = attr(w, :default_view, nothing)
         if isnothing(def_view)
@@ -107,6 +116,15 @@ _tradestask!(w) = begin
         setattr!(w, @async(_fetch_trades_loop(w)), :trades_task)
     end
 end
+@doc """ Starts the watcher and fetches data
+
+$(TYPEDSIGNATURES)
+
+This function starts the watcher and fetches data for the watcher's symbol and time frame.
+If the dataframe is not empty, it fetches data from the last date in the dataframe to the current date.
+It then checks the continuity of the data in the dataframe.
+
+"""
 function _start!(w::Watcher, ::CcxtOHLCVVal)
     _pending!(w)
     empty!(_trades(w))
@@ -117,6 +135,14 @@ function _start!(w::Watcher, ::CcxtOHLCVVal)
     _check_contig(w, w.view)
 end
 
+@doc """ Continuously fetches trades and updates the watcher's trades buffer
+
+$(TYPEDSIGNATURES)
+
+This function continuously fetches trades for the watcher's symbol and time frame, and updates the watcher's trades buffer.
+If new trades are fetched, they are appended to the trades buffer. If fetching fails, the function waits for a certain period before trying again. The waiting period increases with each failed attempt.
+
+"""
 function _fetch_trades_loop(w)
     backoff = ms(0)
     while !isnothing(w._timer) && isopen(w._timer)
@@ -136,6 +162,14 @@ function _fetch_trades_loop(w)
     end
 end
 
+@doc """ Fetches trades and updates the watcher's trades buffer
+
+$(TYPEDSIGNATURES)
+
+This function fetches trades for the watcher's symbol and time frame, and updates the watcher's trades buffer.
+If new trades are fetched, they are appended to the trades buffer and the last fetched timestamp is updated.
+
+"""
 function _fetch!(w::Watcher, ::CcxtOHLCVVal)
     _tradestask!(w)
     isempty(_trades(w)) && return true
@@ -154,6 +188,13 @@ _empty_candles(_, ::Pending) = nothing
 # Ensure that when no trades happen, candles are still updated
 # NOTE: this assumes all trades were witnesses from the watcher side
 # otherwise we couldn't tell if a candle truly had 0 volume.
+@doc """ Returns nothing if the watcher status is pending
+
+$(TYPEDSIGNATURES)
+
+This function checks the status of the watcher. If the status is pending, it returns nothing.
+
+"""
 function _empty_candles(w, ::Warmed)
     tf = _tfr(w)
     right = length(_trades(w)) == 0 ? _curdate(tf) : apply(tf, _firsttrade(w).timestamp)
@@ -161,6 +202,17 @@ function _empty_candles(w, ::Warmed)
     trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
 end
 
+@doc """ Processes the watcher data and updates the dataframe
+
+$(TYPEDSIGNATURES)
+
+This function processes the watcher data and updates the dataframe.
+It first ensures that when no trades happen, candles are still updated.
+Then, it converts trades to OHLCV format and appends the resulting data to the dataframe.
+If the dataframe is not empty, it resolves any discrepancies between the dataframe and the new data.
+Finally, it removes processed trades from the trades buffer.
+
+"""
 function _process!(w::Watcher, ::CcxtOHLCVVal)
     _empty_candles(w, _status(w))
     # On startup, the first trades that we receive are likely incomplete

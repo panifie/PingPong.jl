@@ -10,6 +10,12 @@ using .Misc.TimeTicks
 using .Misc.Lang: Option, safewait, safenotify, @lget!, Lang
 using Base.Threads: @spawn
 
+@doc """ Attempts to fetch data for a watcher
+
+$(TYPEDSIGNATURES)
+
+This function tries to fetch data for a given watcher. It locks the watcher, updates the last fetch time, and attempts to fetch data. If the fetch is successful, it returns `true`, otherwise it logs the error and returns `false`. It also handles stopping the watcher if needed.
+"""
 function _tryfetch(w)::Bool
     result = lock(w) do
         w.last_fetch = now()
@@ -40,6 +46,12 @@ const Enabled = Val{true}
 const Disabled = Val{false}
 _fetch_task(w, ::Enabled; kwargs...) = @spawn _tryfetch(w; kwargs...)
 _fetch_task(w, ::Disabled; kwargs...) = @async _tryfetch(w; kwargs...)
+@doc """ Schedules a fetch operation for a watcher
+
+$(TYPEDSIGNATURES)
+
+This function schedules a fetch operation for a given watcher. It checks if the watcher is locked and if not, it creates a task to fetch data. It also handles timeouts and increments the attempt counter in case of failure. The function ensures that the fetch operation is thread-safe and handles any exceptions that might occur during the fetch operation.
+"""
 function _schedule_fetch(w, timeout, threads; kwargs...)
     # skip fetching if already locked to avoid building up the queue
     islocked(w) && begin
@@ -73,6 +85,7 @@ function _schedule_fetch(w, timeout, threads; kwargs...)
     end
 end
 
+@doc "`_timer` is an optional Timer object used to schedule fetch operations for a watcher."
 function _timer!(w)
     let t = w._timer
         isnothing(t) || close(t)
@@ -85,6 +98,12 @@ function _timer!(w)
     )
 end
 
+@doc """ Checks the appropriateness of the flush interval
+
+$(TYPEDSIGNATURES)
+
+This function checks if the flush interval is greater than the time it would take to drop an element from the buffer (calculated as the product of the fetch interval and the buffer capacity). If the flush interval is too high, a warning is issued.
+"""
 function _check_flush_interval(flush_interval, fetch_interval, cap)
     if cap > 1
         drop_time = cap * fetch_interval
@@ -94,56 +113,68 @@ function _check_flush_interval(flush_interval, fetch_interval, cap)
     end
 end
 
+@doc "The single entry in the buffer"
 BufferEntry(T) = NamedTuple{(:time, :value),Tuple{DateTime,T}}
+@doc "The flags that control which operations are performed by the watcher"
 const HasFunction = NamedTuple{(:load, :process, :flush),NTuple{3,Bool}}
+@doc "The interval parameters for the watcher"
 const Interval = NamedTuple{(:timeout, :fetch, :flush),NTuple{3,Millisecond}}
+@doc "The execution variables for the watcher"
 const Exec = NamedTuple{
     (:threads, :fetch_lock, :buffer_lock, :errors),
     Tuple{Bool,ReentrantLock,ReentrantLock,CircularBuffer{Tuple{Any,Vector}}},
 }
+@doc "The capacity parameters for the watcher"
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
+@doc "The flags that control which operations are notified by the watcher"
 const Beacon = NamedTuple{(:fetch, :process, :flush),NTuple{3,Threads.Condition}}
 
-@kwdef mutable struct Watcher22{T}
-    const buffer::CircularBuffer{BufferEntry(T)}
-    const name::String
-    const has::HasFunction
-    const interval::Interval
-    const capacity::Capacity
-    const beacon::Beacon
-    const _exec::Exec
-    const _val::Val
-    _stop = false
-    _timer::Option{Timer} = nothing
-    attempts::Int = 0
-    last_fetch::DateTime = DateTime(0)
-    last_flush::DateTime = DateTime(0)
-    attrs::Dict{Symbol,Any} = Dict()
-end
 @doc """ Watchers manage data, they pull from somewhere, keep a cache in memory, and optionally flush periodically to persistent storage.
 
- - `buffer`: A [CircularBuffer](https://juliacollections.github.io/DataStructures.jl/latest/circ_buffer/) of default length `1000` of the watcher type parameter.
- - `name`: The name is used for dispatching.
- - `has`: flags that show which callbacks are enabled between `load`, `process` and `flush`.
- - `fetch_timeout`: How much time to wait for the fetcher function.
- - `fetch_interval`: the `Period` with which `_fetch!` function will be called.
- - `flush_interval`: the `Period` with which `_flush!` function will be called.
- - `capacity`: controls the size of the buffer and the processed container.
- - `beacon`: Conditions notified on successful fetch, process and flush events.
- - `threads`: flag to enable to execute fetching in a separate thread.
- - `attempts`: In cause of fetching failure, tracks how many consecutive fails have occurred. It resets after a successful fetch operation.
- - `last_fetch`: the most recent time a fetch operation failed.
- - `last_flush`: the most recent time the flush function was called.
- - `_timer`: A [Timer](https://docs.julialang.org/en/v1/base/base/#Base.Timer), handles calling the function that fetches the data.
- """
-Watcher = Watcher22
+$(FIELDS)
+
+A `Watcher` is a mutable struct that manages data. It pulls data from a source, keeps a cache in memory, and optionally flushes the data to persistent storage periodically. The struct contains fields for managing the buffer, scheduling fetch operations, and handling fetch failures.
+"""
+mutable struct Watcher{T}
+    "A CircularBuffer of the watcher type parameter"
+    const buffer::CircularBuffer{BufferEntry(T)}
+    "The name is used for dispatching"
+    const name::String
+    "Flags that show which callbacks are enabled between `load`, `process` and `flush`"
+    const has::HasFunction
+    "The interval parameters for the watcher"
+    const interval::Interval
+    "Controls the size of the buffer and the processed container"
+    const capacity::Capacity
+    "Conditions notified on successful fetch, process and flush events"
+    const beacon::Beacon
+    "The execution variables for the watcher"
+    const _exec::Exec
+    "The watcher type parameter"
+    const _val::Val
+    "Flag to stop the watcher"
+    _stop = false
+    "A Timer object used to schedule fetch operations for a watcher"
+    _timer::Option{Timer} = nothing
+    "Tracks how many consecutive fails have occurred in case of fetching failure"
+    attempts::Int = 0
+    "The most recent time a fetch operation failed"
+    last_fetch::DateTime = DateTime(0)
+    "The most recent time the flush function was called"
+    last_flush::DateTime = DateTime(0)
+    "Additional attributes for the watcher"
+    attrs::Dict{Symbol,Any} = Dict()
+end
 const WATCHERS = Misc.ConcurrentCollections.ConcurrentDict{String,Watcher}()
 
 @doc """ Instantiate a watcher.
 
-- `T`: The type of the underlying `CircularBuffer`
-- `len`: length of the circular buffer.
-- `start`: If `true`(default), the watcher will start fetching asap.
+$(TYPEDSIGNATURES)
+
+This function creates a new watcher with the specified parameters. 
+It checks the flush interval, initializes the watcher, loads data if necessary, and sets a timer for the watcher if the `start` parameter is `true`. 
+It also ensures that the `_fetch!` function is applicable for the watcher.
+
 
 !!! warning "asyncio vs threads"
     Both `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
@@ -167,7 +198,7 @@ function _watcher(
 )
     flush && _check_flush_interval(flush_interval, fetch_interval, buffer_capacity)
     @debug "new watcher: $name"
-    w = Watcher22{T}(;
+    w = Watcher{T}(;
         buffer=CircularBuffer{BufferEntry(T)}(buffer_capacity),
         name=String(name),
         has=HasFunction((load, process, flush)),
@@ -198,6 +229,12 @@ function _watcher(
     w
 end
 
+@doc """ Instantiate a watcher and add it to the global watchers list.
+
+$(TYPEDSIGNATURES)
+
+This function creates a new watcher with the specified parameters and adds it to the global `WATCHERS` list. If a watcher with the same name already exists in the list, it replaces the old watcher with the new one.
+"""
 function watcher(T::Type, name::String, args...; kwargs...)
     if haskey(WATCHERS, name)
         @warn "Replacing watcher $name with new instance."
@@ -206,6 +243,7 @@ function watcher(T::Type, name::String, args...; kwargs...)
     WATCHERS[name] = _watcher(T, name, args...; kwargs...)
 end
 
+@doc "Close all watchers."
 _closeall() = asyncmap(close, values(WATCHERS))
 atexit(_closeall)
 

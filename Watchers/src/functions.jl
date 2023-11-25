@@ -8,7 +8,9 @@ _buffer_lock(w) = getfield(_exec(w), :buffer_lock)
 _errors(w) = getfield(_exec(w), :errors)
 _val(w) = getfield(w, :_val)
 
+@doc "Get the exchange associated with the watcher."
 exchange(w::Watcher) = attr(w, :exc, nothing)
+@doc "Get the name of the exchange associated with the watcher."
 exchangeid(w::Watcher) =
     let e = exchange(w)
         isnothing(e) ? nothing : nameof(e)
@@ -19,7 +21,12 @@ function Base.deleteat!(w::Watcher, range::DateTuple)
     _deleteat!(w, _val(w); from=range.start, to=range.stop)
 end
 
-@doc "Flush the watcher. If wait is `true`, block until flush completes."
+@doc """ Executes the flush function of the watcher (defaults to [`default_flush!`](@ref)).
+
+$(TYPEDSIGNATURES)
+
+The function takes a watcher as an argument, along with optional force and sync arguments. If force is true or the time since the last flush is greater than the flush interval, it schedules a flush operation. If sync is true, it waits for the flush operation to complete.
+"""
 function flush!(w::Watcher; force=true, sync=false)
     time_now = now()
     if force || time_now - w.last_flush > w.interval.flush
@@ -35,8 +42,12 @@ function flush!(w::Watcher; force=true, sync=false)
     sync && wait(t)
     nothing
 end
-@doc "Fetches a new value from the watcher ignoring the timer. If `reset` is `true` the timer is reset and
-polling will resume after the watcher `interval`."
+@doc """ Fetches a new value from the watcher ignoring the timer.
+
+$(TYPEDSIGNATURES)
+
+The function takes a watcher as an argument, along with optional reset and kwargs arguments. It schedules a fetch operation, and if reset is true, it resets the timer. The function returns the last value in the watcher buffer or nothing if the buffer is empty.
+"""
 function fetch!(w::Watcher; reset=false, kwargs...)
     try
         _schedule_fetch(w, w.interval.timeout, w._exec.threads; kwargs...)
@@ -48,13 +59,16 @@ function fetch!(w::Watcher; reset=false, kwargs...)
     end
 end
 
+@doc "Executes the watcher `_process!` function (defaults to [`default_process!`](@ref))."
 function process!(w::Watcher, args...; kwargs...)
     @logerror w begin
         _process!(w, _val(w), args...; kwargs...)
         safenotify(w.beacon.process)
     end
 end
+@doc "Executes the watcher `_load!` function (defaults to [`default_load!`](@ref))."
 load!(w::Watcher, args...; kwargs...) = _load!(w, _val(w), args...; kwargs...)
+@doc "Executes the watcher `_init!` function (defaults to [`default_init!`](@ref))."
 init!(w::Watcher, args...; kwargs...) = _init!(w, _val(w), args...; kwargs...)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
@@ -69,8 +83,16 @@ end
 function isstale(w::Watcher)
     w.attempts > 0 || w.last_fetch < now() - w.interval.fetch - w.interval.timeout
 end
+@doc "The last available data entry."
 Base.last(w::Watcher) = last(w.buffer)
+@doc "The length of the watcher buffer."
 Base.length(w::Watcher) = length(w.buffer)
+@doc """ Stops the watcher and optionally flushes the data.
+
+$(TYPEDSIGNATURES)
+
+The function takes a watcher and an optional doflush argument. If the watcher is not stopped, it stops the watcher. If doflush is true, it flushes the watcher data.
+"""
 function Base.close(w::Watcher; doflush=true)
     # @lock w begin
     l = w._exec.fetch_lock
@@ -90,6 +112,7 @@ function Base.close(w::Watcher; doflush=true)
         w._stop = true
     end
 end
+@doc "Empty the watcher buffer."
 Base.empty!(w::Watcher) = empty!(buffer(w))
 Base.getproperty(w::Watcher, p::Symbol) = begin
     if p == :view
@@ -138,13 +161,21 @@ isstarted(w::Watcher) =
     let t = _timer(w)
         !isnothing(t) && isopen(t)
     end
+@doc "True if watcher if the fetch lock locked."
 Base.islocked(w::Watcher) = islocked(_fetch_lock(w))
+@doc "True if the buffer lock is locked."
 Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(_buffer_lock(w))
+@doc "Lock the fetch lock and execute `f`."
 Base.lock(f, w::Watcher) = lock(f, _fetch_lock(w))
+@doc "Lock the buffer lock and execute `f`."
 Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, _buffer_lock(w))
+@doc "Lock the fetch lock."
 Base.lock(w::Watcher) = lock(_fetch_lock(w))
+@doc "Lock the buffer lock."
 Base.lock(w::Watcher, ::Val{:buffer}) = lock(_buffer_lock(w))
+@doc "Unlock the fetch lock."
 Base.unlock(w::Watcher) = unlock(_fetch_lock(w))
+@doc "Unlock the buffer lock."
 Base.unlock(w::Watcher, ::Val{:buffer}) = unlock(_buffer_lock(w))
 
 function Base.show(out::IO, w::Watcher)

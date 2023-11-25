@@ -63,6 +63,13 @@ function _fetch!(w::Watcher, ::CcxtOHLCVTickerVal; sym=nothing)
     _fetch!(w, CcxtTickerVal())
 end
 
+@doc """ A mutable struct representing a temporary candlestick chart.
+
+$(FIELDS)
+
+The `TempCandle` struct holds the timestamp, open, high, low, close, and volume values for a temporary candlestick chart.
+
+"""
 @kwdef mutable struct TempCandle{T}
     timestamp::DateTime = DateTime(0)
     open::T = NaN
@@ -78,6 +85,14 @@ end
 _symlock(w, sym) = attr(w, :sym_locks)[sym]
 _loaded!(w, sym, v=true) = attr(w, :loaded)[sym] = v
 _isloaded(w, sym) = get(attr(w, :loaded), sym, false)
+@doc """ Initializes the watcher for the OHLCV ticker.
+
+$(TYPEDSIGNATURES)
+
+This function initializes the watcher with default view, temporary OHLCV, candle ticks, loaded symbols, and symbol locks.
+It also initializes the symbols and checks for the watcher.
+
+"""
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     _view!(w, default_view(w, Dict{String,DataFrame}))
     a = attrs(w)
@@ -89,6 +104,13 @@ function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     _checkson!(w)
 end
 
+@doc """ Initializes the symbols for the watcher.
+
+$(TYPEDSIGNATURES)
+
+This function initializes the symbols for the watcher and sets up the loaded symbols and symbol locks.
+
+"""
 function _initsyms!(w::Watcher)
     loaded = attr(w, :loaded)
     locks = attr(w, :sym_locks)
@@ -98,6 +120,14 @@ function _initsyms!(w::Watcher)
     end
 end
 
+@doc """ Resets the temporary candlestick chart with a new timestamp and price.
+
+$(TYPEDSIGNATURES)
+
+This function resets the temporary candlestick chart with a new timestamp and price.
+It also resets the high and low prices to their extreme values and the volume to zero if the price source is not `vwap`.
+
+"""
 _resetcandle!(w, cdl, ts, price) = begin
     cdl.timestamp = ts
     cdl.open = price
@@ -111,10 +141,24 @@ _ohlcv(w) = attr(w, :temp_ohlcv)
 _ticks(w) = attr(w, :candle_ticks)
 _tick!(w, sym) = _ticks(w)[sym] += 1
 _zeroticks!(w, sym) = _ticks(w)[sym] = 0
+@doc """ Adjusts the volume of the temporary candlestick chart.
+
+$(TYPEDSIGNATURES)
+
+This function adjusts the volume of the temporary candlestick chart by dividing it by the number of ticks and the volume divisor.
+
+"""
 function _meanvolume!(w, sym, temp_candle)
     temp_candle.volume = temp_candle.volume / _ticks(w)[sym] / attr(w, :volume_divisor)
 end
-# Appends temp_candle ensuring contiguity
+@doc """ Appends temp_candle ensuring contiguity.
+
+$(TYPEDSIGNATURES)
+
+This function appends the temporary candle to the DataFrame ensuring contiguity.
+If the temporary candle is not right adjacent to the last date in the DataFrame, it resolves the gap and then appends the candle.
+
+"""
 function _ensure_contig!(w, df, temp_candle, tf, sym)
     if !isempty(df)
         left = _lastdate(df)
@@ -126,6 +170,14 @@ function _ensure_contig!(w, df, temp_candle, tf, sym)
     ## append complete candle
     pushmax!(df, fromstruct(temp_candle), w.capacity.view)
 end
+@doc """ Updates the OHLCV for a specific symbol.
+
+$(TYPEDSIGNATURES)
+
+This function updates the OHLCV for a specific symbol based on the latest timestamp and price from the ticker.
+It resets the temporary candlestick chart if the timestamp is newer than the current one and ensures contiguity when appending the candle to the DataFrame.
+
+"""
 function _update_sym_ohlcv(w, ticker, last_time)
     sym = ticker.symbol
     df = @lget! w.view sym empty_ohlcv()
@@ -158,6 +210,14 @@ function _update_sym_ohlcv(w, ticker, last_time)
     _tick!(w, sym)
 end
 
+@doc """ Processes the watcher data.
+
+$(TYPEDSIGNATURES)
+
+This function processes the watcher data by updating the OHLCV for each symbol in the last fetch.
+It does this in a synchronous manner, ensuring that all updates are completed before proceeding.
+
+"""
 function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     @warmup! w
     @ispending(w) && return nothing
@@ -175,6 +235,14 @@ function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
     _chill!(w)
 end
 
+@doc """ Loads the OHLCV data for a specific symbol.
+
+$(TYPEDSIGNATURES)
+
+This function loads the OHLCV data for a specific symbol.
+If the symbol is not being tracked by the watcher or if the data for the symbol has already been loaded, the function returns nothing.
+
+"""
 function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
     sym ∉ _ids(w) && error("Trying to load $sym, but watcher is not tracking it.")
     _isloaded(w, sym) && return nothing
@@ -205,6 +273,14 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
     end
 end
 
+@doc """ Loads the OHLCV data for all symbols.
+
+$(TYPEDSIGNATURES)
+
+This function loads the OHLCV data for all symbols.
+If the buffer or view of the watcher is empty, the function returns nothing.
+
+"""
 function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
     (isempty(w.buffer) || isempty(w.view)) && return nothing
     syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
