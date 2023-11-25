@@ -3,6 +3,12 @@ using .Instances: pnl, MarginInstance, NoMarginInstance, value, ohlcv
 using .OrderTypes:
     LiquidationTrade, LongLiquidationTrade, ShortLiquidationTrade, LongTrade, ShortTrade
 
+@doc """ Updates the minimum and maximum holdings based on the provided value.
+
+$(TYPEDSIGNATURES)
+
+Given an asset instance, a value, and the current minimum and maximum holdings, this function updates the minimum and maximum holdings if the provided value is less than the current minimum or greater than the current maximum. It returns the updated minimum and maximum holdings.
+"""
 _mmh(ai, val, min_hold, max_hold) = begin
     if val > max_hold[2]
         max_hold = (ai.asset.bc, val)
@@ -13,6 +19,12 @@ _mmh(ai, val, min_hold, max_hold) = begin
     (min_hold, max_hold)
 end
 
+@doc """ Calculates the asset value for both long and short positions.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over both long and short positions. If the asset instance for a position is not zero, it increments the number of holdings and calculates the value of the asset for the position at the current price. It then updates the minimum and maximum holdings using the `_mmh` function. The function returns the updated number of holdings, minimum holdings, and maximum holdings.
+"""
 function _assetval(ai::MarginInstance, n_holdings, min_hold, max_hold; price)
     for p in (Long(), Short())
         iszero(ai, p) && continue
@@ -22,6 +34,12 @@ function _assetval(ai::MarginInstance, n_holdings, min_hold, max_hold; price)
     end
     (n_holdings, min_hold, max_hold)
 end
+@doc """ Calculates the asset value for a NoMarginInstance.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the cash of the NoMarginInstance is not zero. If it's not, it increments the number of holdings and calculates the value of the asset at the current price. It then updates the minimum and maximum holdings using the `_mmh` function. The function returns the updated number of holdings, minimum holdings, and maximum holdings.
+"""
 function _assetval(ai::NoMarginInstance, n_holdings, min_hold, max_hold; price)
     iszero(cash(ai)) || begin
         n_holdings += 1
@@ -31,6 +49,12 @@ function _assetval(ai::NoMarginInstance, n_holdings, min_hold, max_hold; price)
     (n_holdings, min_hold, max_hold)
 end
 
+@doc """ Calculates the minimum and maximum holdings for a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over the holdings of a strategy. For each holding, it calculates the current price and updates the number of holdings, minimum holdings, and maximum holdings using the `_assetval` function. The function returns the minimum holdings, maximum holdings, and the count of holdings.
+"""
 function minmax_holdings(s::Strategy)
     n_holdings = 0
     max_hold = (nameof(s.cash), 0.0)
@@ -60,7 +84,12 @@ trades_count(s::Strategy) = begin
     n_trades
 end
 
-@doc "All trades in the strategy universe excluding liquidations, returns the tuple `(trades, liquidations)`."
+@doc """ Counts all trades recorded in the strategy universe.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over the universe of a strategy. For each asset instance in the universe, it increments a counter by the length of the asset instance's history. The function returns the total count of trades.
+"""
 function trades_count(s::Strategy, ::Val{:liquidations})
     trades = 0
     liquidations = 0
@@ -72,6 +101,12 @@ function trades_count(s::Strategy, ::Val{:liquidations})
     (; trades, liquidations)
 end
 
+@doc """ Counts the number of long, short, and liquidation trades in the strategy universe.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over the universe of a strategy. For each asset instance in the universe, it counts the number of long trades, short trades, and liquidation trades. The function returns the total count of long trades, short trades, and liquidation trades.
+"""
 function trades_count(s::Strategy, ::Val{:positions})
     long = 0
     short = 0
@@ -91,6 +126,12 @@ end
 orders(s::Strategy, ::Type{Buy}) = s.buyorders
 orders(s::Strategy, ::Type{Sell}) = s.sellorders
 
+@doc """ Counts the number of orders for a given order side in a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over the orders of a given side (Buy or Sell) in a strategy. It increments a counter by the length of the orders. The function returns the total count of orders.
+"""
 function Base.count(s::Strategy, side::Type{<:OrderSide})
     n = 0
     for ords in values(orders(s, side))

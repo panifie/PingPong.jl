@@ -6,6 +6,13 @@ using .Misc: attr, setattr!
 import .Misc: marginmode
 using .OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
+@doc """ Retrieves the market identifiers for a given strategy type.
+
+$(TYPEDSIGNATURES)
+
+The `marketsid` function invokes the `ping!` function with the strategy type and `StrategyMarkets()` as arguments.
+This function is used to fetch the market identifiers associated with a specific strategy type.
+"""
 marketsid(t::Type{<:Strategy}) = invokelatest(ping!, t, StrategyMarkets())
 marketsid(s::Strategy) = ping!(typeof(s), StrategyMarkets())
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -36,18 +43,36 @@ end
 @doc "Returns the strategy execution mode."
 Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
 
+@doc """ Checks if the strategy's cash matches its universe.
+
+$(TYPEDSIGNATURES)
+
+The `iscashable` function checks if the cash of the strategy is cashable within the universe of the strategy.
+It returns `true` if the cash is cashable, and `false` otherwise.
+"""
 coll.iscashable(s::Strategy) = coll.iscashable(s.cash, universe(s))
 issim(::Strategy{M}) where {M<:ExecMode} = M == Sim
 ispaper(::Strategy{M}) where {M<:ExecMode} = M == Paper
 islive(::Strategy{M}) where {M<:ExecMode} = M == Live
+@doc "The name of the strategy module."
 Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
+@doc "The name of the strategy module."
 Base.nameof(s::Strategy) = nameof(typeof(s))
+@doc "The strategy `AssetCollection`."
 universe(s::Strategy) = getfield(s, :universe)
+@doc "The `throttle` attribute determines the strategy polling interval."
 throttle(s::Strategy) = attr(s, :throttle, Second(5))
+@doc "The strategy `Config` attributes."
 attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 
-@doc "Resets strategy state.
-`defaults`: if `true` reapply strategy config defaults."
+@doc """ Resets the state of a strategy.
+
+$(TYPEDSIGNATURES)
+
+The `reset!` function is used to reset the state of a given strategy.
+It empties the buy and sell orders, resets the holdings and assets, and optionally re-applies the strategy configuration defaults.
+If the strategy is currently running, the reset operation is aborted with a warning.
+"""
 function reset!(s::Strategy, config=false)
     let attrs = attrs(s)
         if haskey(attrs, :is_running) && attrs[:is_running][]
@@ -81,7 +106,13 @@ function reset!(s::Strategy, config=false)
     cash!(s.cash_committed, 0.0)
     ping!(s, ResetStrategy())
 end
-@doc "Reloads ohlcv data for assets already present in the strategy universe."
+@doc """ Reloads OHLCV data for assets in the strategy universe.
+
+$(TYPEDSIGNATURES)
+
+The `reload!` function empties the data for each asset instance in the strategy's universe and then loads new data.
+This is useful for refreshing the strategy's knowledge of the market state.
+"""
 reload!(s::Strategy) = begin
     for inst in universe(s).data.instance
         empty!(inst.data)
@@ -101,6 +132,13 @@ Base.fill!(s::Strategy; kwargs...) = begin
 end
 
 _config_attr(s, k) = getfield(getfield(s, :config), k)
+@doc """ Fills the strategy with data.
+
+$(TYPEDSIGNATURES)
+
+The `fill!` function populates the strategy's universe with data for a set of timeframes.
+The timeframes include the strategy's timeframe, the timeframes in the strategy's configuration, and the timeframe attribute of the strategy.
+"""
 function Base.getproperty(s::Strategy, sym::Symbol)
     if sym == :attrs
         _config_attr(s, :attrs)
@@ -127,6 +165,15 @@ function Base.getproperty(s::Strategy, sym::Symbol)
     end
 end
 
+@doc """ Generates the path for strategy logs.
+
+$(TYPEDSIGNATURES)
+
+The `logpath` function generates a path for storing strategy logs.
+It takes the strategy and optional parameters for the name of the log file and additional path nodes.
+The function checks if the directory for the logs exists and creates it if necessary.
+It then returns the full path to the log file.
+"""
 function logpath(s::Strategy; name="events", path_nodes...)
     dir = dirname(s.path)
     dirpath = if dir == ""
@@ -139,6 +186,13 @@ function logpath(s::Strategy; name="events", path_nodes...)
     joinpath(dirpath, string(replace(name, r".log$" => ""), ".log"))
 end
 
+@doc """ Retrieves the logs for a strategy.
+
+$(TYPEDSIGNATURES)
+
+The `logs` function collects and returns all the logs associated with a given strategy.
+It fetches the logs from the directory specified in the strategy's path.
+"""
 function logs(s::Strategy)
     dirpath = joinpath(realpath(dirname(s.path)), "logs")
     collect(Iterators.flatten(walkdir(dirpath)))
@@ -168,6 +222,14 @@ Base.unlock(s::Strategy) = unlock(getfield(s, :lock))
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value
 
+@doc """ Creates a similar strategy with optional changes.
+
+$(TYPEDSIGNATURES)
+
+The `similar` function creates a new strategy that is similar to the given one.
+It allows for optional changes to the mode, timeframe, and exchange.
+The new strategy is created with the same self, margin mode, and universe as the original, but with a copy of the original's configuration.
+"""
 function Base.similar(
     s::Strategy;
     mode=s.mode,

@@ -1,12 +1,21 @@
 using .Data.Cache: save_cache, load_cache
 using .Misc: user_dir, config_path
 
+@doc """ Raises an error when a strategy is not found at a given path.  """
 macro notfound(path)
     quote
         error("Strategy not found at $($(esc(path)))")
     end
 end
 
+@doc """ Finds the path of a given file.
+
+$(TYPEDSIGNATURES)
+
+The `find_path` function checks various locations to find the path of a given file.
+It checks the current working directory, user directory, configuration directory, and project directory.
+If the file is not found, it raises an error.
+"""
 function find_path(file, cfg)
     if !ispath(file)
         if isabspath(file)
@@ -27,6 +36,11 @@ function find_path(file, cfg)
 end
 
 _default_projectless(src) = joinpath(user_dir(), "strategies", string(src, ".jl"))
+@doc """ Retrieves the source file for a strategy without a project.
+
+The `_include_projectless` function retrieves the source file for a strategy that does not have a project.
+It checks the `sources` attribute of the strategy's configuration.
+"""
 _include_projectless(src, attrs) =
     let sources = get(attrs, "sources", nothing)
         if !isnothing(sources)
@@ -35,6 +49,15 @@ _include_projectless(src, attrs) =
     end
 _include_project(attrs) = get(attrs, "include_file", nothing)
 
+@doc """ Determines the file path for a strategy source.
+
+$(TYPEDSIGNATURES)
+
+This function determines the file path for a strategy source based on whether it is a project or not. 
+If it is a project, it constructs the file path relative to the configuration path. 
+If it is not a project, it retrieves the source file from the strategy's configuration or defaults to a predefined path. 
+In case the file path is not found, it throws an `ArgumentError` with a detailed message.
+"""
 function _file(src, cfg, is_project)
     file = if is_project
         file = joinpath(dirname(realpath(cfg.path)), "src", string(src, ".jl"))
@@ -65,6 +88,14 @@ function _file(src, cfg, is_project)
     file
 end
 
+@doc """ Determines the margin mode of a module.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to determine the margin mode of a given module. 
+It first tries to access the `S` property of the module to get the margin mode. 
+If this fails, it then tries to access the `SC` property of the module.
+"""
 function _defined_marginmode(mod)
     try
         marginmode(mod.S)
@@ -73,6 +104,14 @@ function _defined_marginmode(mod)
     end
 end
 
+@doc """ Performs checks on a loaded strategy.
+
+$(TYPEDSIGNATURES)
+
+This function performs checks on a loaded strategy. 
+It asserts that the margin mode and execution mode of the strategy match the configuration. 
+It also sets the `verbose` property of the strategy to `false`.
+"""
 _strat_load_checks(s::Strategy, config::Config) = begin
     @assert marginmode(s) == config.margin
     @assert execmode(s) == config.mode
@@ -80,6 +119,16 @@ _strat_load_checks(s::Strategy, config::Config) = begin
     s
 end
 
+@doc """ Loads a strategy with default settings.
+
+$(TYPEDSIGNATURES)
+
+This function loads a strategy with default settings. 
+It invokes the `ping!` function of the module with the strategy type and `StrategyMarkets()`. 
+It then creates a new `Strategy` instance with the module, assets, and configuration. 
+The `sandbox` property is set based on the mode of the configuration. 
+Finally, it performs checks on the loaded strategy.
+"""
 function default_load(mod::Module, t::Type, config::Config)
     assets = invokelatest(mod.ping!, t, StrategyMarkets())
     sandbox = config.mode == Paper() ? false : config.sandbox
@@ -87,6 +136,16 @@ function default_load(mod::Module, t::Type, config::Config)
     _strat_load_checks(s, config)
 end
 
+@doc """ Loads a strategy without default settings.
+
+$(TYPEDSIGNATURES)
+
+This function loads a strategy without default settings. 
+It invokes the `ping!` function of the module with the strategy type and `StrategyMarkets()`. 
+It then creates a new `Strategy` instance with the module, assets, and configuration. 
+The `sandbox` property is set based on the mode of the configuration. 
+Finally, it performs checks on the loaded strategy.
+"""
 function bare_load(mod::Module, t::Type, config::Config)
     syms = invokelatest(mod.ping!, t, StrategyMarkets())
     exc = Exchanges.getexchange!(config.exchange; sandbox=true)
@@ -95,6 +154,17 @@ function bare_load(mod::Module, t::Type, config::Config)
     _strat_load_checks(s, config)
 end
 
+@doc """ Loads a strategy from a symbol source.
+
+$(TYPEDSIGNATURES)
+
+This function loads a strategy from a given symbol source. 
+It first determines the file path for the strategy source and checks if it is a project. 
+If it is a project, it activates and instantiates the project. 
+The function then includes the source file and uses it. 
+If the source file is not defined in the parent module, it is evaluated and tracked for changes. 
+Finally, the function returns the loaded strategy.
+"""
 function strategy!(src::Symbol, cfg::Config)
     file = _file(src, cfg, false)
     isproject = if splitext(file)[2] == ".toml"
@@ -138,6 +208,15 @@ function strategy!(src::Symbol, cfg::Config)
     strategy!(mod, cfg)
 end
 _concrete(type, param) = isconcretetype(type) ? type : type{param}
+@doc """ Determines the strategy type of a module.
+
+$(TYPEDSIGNATURES)
+
+This function determines the strategy type of a given module. 
+It first tries to access the `S` property of the module to get the strategy type. 
+If this fails, it then tries to access the `SC` property of the module. 
+The function also checks if the exchange is specified in the strategy or in the configuration.
+"""
 function _strategy_type(mod, cfg)
     s_type = try
         mod.S
@@ -162,6 +241,15 @@ function _strategy_type(mod, cfg)
     margin_type = _concrete(mode_type, typeof(cfg.margin))
     _concrete(margin_type, typeof(cfg.qc))
 end
+@doc """ Loads a strategy from a module.
+
+$(TYPEDSIGNATURES)
+
+This function loads a strategy from a given module. 
+It first checks and sets the mode and margin of the configuration if they are not set. 
+It then determines the strategy type of the module and checks if the exchange is specified in the strategy or in the configuration. 
+Finally, it tries to load the strategy with default settings, if it fails, it loads the strategy without default settings.
+"""
 function strategy!(mod::Module, cfg::Config)
     if isnothing(cfg.mode)
         cfg.mode = Sim()
@@ -198,6 +286,13 @@ function strategy!(mod::Module, cfg::Config)
     end bare_load(mod, s_type, cfg)
 end
 
+@doc """ Returns the path to the strategy cache.
+
+$(TYPEDSIGNATURES)
+
+This function returns the path to the strategy cache. 
+It checks if the path exists and creates it if it doesn't.
+"""
 function strategy_cache_path()
     cache_path = user_dir()
     @assert ispath(cache_path) "Can't load strategy state, no directory at $cache_path"
@@ -206,6 +301,14 @@ function strategy_cache_path()
     cache_path
 end
 
+@doc """ Determines the configuration for a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function determines the configuration for a strategy based on the source and path. 
+If the strategy is to be loaded, it attempts to load the strategy cache. 
+If the cache does not exist or is not a valid configuration, it creates a new configuration.
+"""
 function _strategy_config(src, path; load, config_args...)
     if load
         cache_path = strategy_cache_path()
@@ -221,6 +324,15 @@ function _strategy_config(src, path; load, config_args...)
     end
 end
 
+@doc """ Loads a strategy from a source, module, or string.
+
+$(TYPEDSIGNATURES)
+
+This function loads a strategy from a given source, module, or string. 
+It first determines the configuration for the strategy based on the source and path. 
+If the strategy is to be loaded, it attempts to load the strategy cache. 
+Finally, it returns the loaded strategy.
+"""
 function strategy(
     src::Union{Symbol,Module,String}, path::String=config_path(); load=false, config_args...
 )
@@ -234,13 +346,28 @@ function strategy(src::Union{Symbol,Module,String}, cfg::Config; save=false)
     s
 end
 
+@doc """ Returns the default strategy (`BareStrat`). """
 strategy() = strategy(:BareStrat, parent_module=Strategies)
 
+@doc """ Saves the state of a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function saves the state of a given strategy. 
+It determines the cache path and saves the strategy state to this path.
+"""
 function save_strategy(s)
     cache_path = @lget! attrs(s) :config_cache_path strategy_cache_path()
     save_cache(string(nameof(s)); raise=false, cache_path)
 end
 
+@doc """ Checks for inverse contracts in an exchange.
+
+$(TYPEDSIGNATURES)
+
+This function checks for the presence of inverse contracts in a given exchange. 
+If any inverse contracts are found, it asserts an error.
+"""
 function _no_inv_contracts(exc::Exchange, uni)
     for ai in uni
         @assert something(get(exc.markets[ai.asset.raw], "linear", true), true) "Inverse contracts are not supported by SimMode."

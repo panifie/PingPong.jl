@@ -8,9 +8,13 @@ Receives:
 $(TYPEDSIGNATURES)
 "
 ping!(::Strategy, current_time::DateTime, ctx) = error("Not implemented")
+@doc "[`ping!(s::Strategy, ::LoadStrategy)`](@ref)"
 struct LoadStrategy <: ExecAction end
+@doc "[`ping!(s::Strategy, ::ResetStrategy)`](@ref)"
 struct ResetStrategy <: ExecAction end
+@doc "[`ping!(s::Strategy, ::StrategyMarkets)`](@ref)"
 struct StrategyMarkets <: ExecAction end
+@doc "[`ping!(s::Strategy, ::WarmupPeriod)`](@ref)"
 struct WarmupPeriod <: ExecAction end
 # TODO: maybe methods that dispatch on strategy types should be named `ping` (without excl mark)
 @doc """Called to construct the strategy, should return the strategy instance.
@@ -26,6 +30,11 @@ ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = err
 @doc "Market symbols that populate the strategy universe"
 ping!(::Type{<:Strategy}, ::StrategyMarkets)::Vector{String} = String[]
 
+@doc """ Provides a common interface for strategy execution.
+
+The `interface` macro imports the `ping!` function from the Strategies module, the `assets` and `exchange` functions, and the `pong!` function from the Executors module.
+This macro is used to provide a common interface for strategy execution.
+"""
 macro interface()
     ex = quote
         import .Strategies: ping!
