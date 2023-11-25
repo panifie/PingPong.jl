@@ -6,6 +6,7 @@ _logmsg(::Strategy{<:Union{Paper,Live}}, ::Val{:info}, msg; kwargs...) = @info m
 _logmsg(::Strategy{<:Union{Paper,Live}}, ::Val{:warn}, msg; kwargs...) = @warn msg kwargs...
 _logmsg(::Strategy{<:Union{Paper,Live}}, ::Val{:error}, msg; kwargs...) = @error msg kwargs...
 
+@doc "Log macro for logging debug messages only in `Paper` and `Live` mode."
 macro ldebug(msg, args...)
     ex = quote
         $(_logmsg)(s, Val(:debug), $msg; $(args...))
@@ -13,6 +14,7 @@ macro ldebug(msg, args...)
     esc(ex)
 end
 
+@doc "Log macro for logging info messages only in `Paper` and `Live` mode."
 macro linfo(msg, args...)
     ex = quote
         $(_logmsg)(s, Val(:info), $msg; $(args...))
@@ -20,6 +22,7 @@ macro linfo(msg, args...)
     esc(ex)
 end
 
+@doc "Log macro for logging warning messages only in `Paper` and `Live` mode."
 macro lwarn(msg, args...)
     ex = quote
         $(_logmsg)(s, Val(:warn), $msg; $(args...))
@@ -27,6 +30,7 @@ macro lwarn(msg, args...)
     esc(ex)
 end
 
+@doc "Log macro for logging error messages only in `Paper` and `Live` mode."
 macro lerror(msg, args...)
     ex = quote
         $(_logmsg)(s, Val(:error), $msg; $(args...))

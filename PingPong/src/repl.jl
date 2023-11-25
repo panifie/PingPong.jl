@@ -24,6 +24,13 @@ function user!()
     nothing
 end
 
+@doc """ Binds a module to a symbol in the Main namespace.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to bind a module to a symbol in the Main namespace.
+If the module is not already defined, it tries to activate the module's project and import it.
+"""
 function module!(sym, bind)
     if !isdefined(Main, bind)
         projpath = dirname(dirname(pathof(PingPong)))
@@ -45,6 +52,14 @@ function module!(sym, bind)
 end
 
 # NOTE: required to register extensions hooks
+@doc """ Activates and imports a given module.
+
+$(TYPEDSIGNATURES)
+
+This function activates the project of a given module and imports it.
+It binds the module to a symbol in the Main namespace.
+If the module is not already defined, it tries to activate the module's project and import it.
+"""
 function _activate_and_import(name, bind)
     proj_name = string(name)
     @assert isfile(joinpath(proj_name, "Project.toml"))
@@ -57,12 +72,19 @@ function _activate_and_import(name, bind)
     end
 end
 
+@doc """ Activates and imports the `Plotting` module. """
 plots!() = _activate_and_import(:Plotting, :plo)
+@doc """ Imports the `Stats` module. """
 stats!() = module!(:Stats, :ss)
+@doc """ Imports the `Engine` module. """
 engine!() = module!(:Engine, :egn)
+@doc """ Imports the `Analysis` module. """
 analysis!() = module!(:Analysis, :an)
+@doc """ Imports the `Stubs` module. """
 stubs!() = module!(:Stubs, :stubs)
+@doc """ Activates and Imports the `Optimization` module. """
 optim!() = _activate_and_import(:Optimization, :opt)
+@doc """ Activates and Imports the `PingPongInteractive` module. """
 interactive!() = _activate_and_import(:PingPongInteractive, :ppi)
 
 export plots!, optim!, stats!, engine!, analysis!, interactive!

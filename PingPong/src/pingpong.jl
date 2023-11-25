@@ -18,6 +18,13 @@ function _doinit()
     Data.zi[] = Data.zilmdb()
 end
 
+@doc """ Sets up the environment for the PingPong module.
+
+$(TYPEDSIGNATURES)
+
+This macro imports necessary modules and aliases for the PingPong module.
+It sets up the environment for working with exchanges, order types, instances, collections, simulations, strategies, executors, modes, and other utilities.
+"""
 macro environment!()
     quote
         using PingPong
@@ -59,6 +66,13 @@ macro environment!()
     end
 end
 
+@doc """ Sets up the environment for strategy execution in the PingPong module.
+
+$(TYPEDSIGNATURES)
+
+This macro imports necessary modules and aliases for executing strategies in the PingPong module.
+It prepares the environment for working with strategies, instances, order types, executors, watchers, processing, and other utilities.
+"""
 macro strategyenv!()
     expr = quote
         __revise_mode__ = :eval
@@ -114,6 +128,13 @@ macro strategyenv!()
     esc(expr)
 end
 
+@doc """ Sets up the environment for contract management in the PingPong module.
+
+$(TYPEDSIGNATURES)
+
+This macro imports necessary modules and aliases for managing contracts in the PingPong module.
+It prepares the environment for working with positions, leverage, and updates to leverage, margin, and positions.
+"""
 macro contractsenv!()
     quote
         using .inst: PositionOpen, PositionUpdate, PositionClose
@@ -125,6 +146,13 @@ macro contractsenv!()
     end
 end
 
+@doc """ Sets up the environment for optimization in the PingPong module.
+
+$(TYPEDSIGNATURES)
+
+This macro imports necessary modules and aliases for optimization in the PingPong module.
+It prepares the environment for working with simulation modes and statistics.
+"""
 macro optenv!()
     quote
         using Engine.SimMode: SimMode as sm

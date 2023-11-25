@@ -7,11 +7,13 @@ using MacroTools
 using MacroTools: postwalk
 using REPL.TerminalMenus
 
+@doc "Ask for a strategy name."
 ask_name(name=nothing) = begin
     name = @something name Base.prompt("Strategy name: ")
     string(name) |> uppercasefirst
 end
 
+@doc """ Path of `to` relative to `path`. """
 function relative_path(to, path, offset=2)
     to_dir = dirname(to) |> basename
     splits = splitpath(path)
@@ -27,6 +29,13 @@ _menu(arr) =
     let idx = request(RadioMenu(arr; pagesize=5))
         arr[idx]
     end
+@doc """ Interactively asks the user to configure a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function prompts the user to select options for the timeframe, exchange, quote currency, and margin mode.
+It then creates and returns a configuration object based on the user's selections.
+"""
 function _askconfig(; kwargs...)
     println("\nTimeframe:")
     min_timeframe = _menu(["1m", "5m", "15m", "1h", "1d"])
@@ -49,10 +58,18 @@ function _askconfig(; kwargs...)
     Config(; min_timeframe, exchange, qc, margin, kwargs...)
 end
 
+@doc """ Checks if `name` is a valid strategy name. """
 function isvalidname(name)
     occursin(r"^([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*)$", string(name))
 end
-@doc "Generates a new strategy project"
+@doc """ Generates a new strategy with a given name and configuration.
+
+$(TYPEDSIGNATURES)
+
+This function creates a new strategy with a given name and configuration.
+It prompts the user for necessary information, creates a new project, and sets up the environment for the strategy.
+It also updates the user's configuration file with the new strategy's information.
+"""
 function _generate_strategy(
     name=nothing,
     cfg=nothing;
@@ -159,6 +176,16 @@ function generate_strategy(args...; kwargs...)
     end
 end
 
+@doc """ Copies a template to create a new strategy file
+
+$(TYPEDSIGNATURES)
+
+This function takes a strategy name, directory, and path along with a configuration object.
+It reads a template file and modifies it according to the provided configuration.
+The modified template is then written to a new strategy file in the specified directory.
+The function returns the path to the newly created strategy file.
+
+"""
 function copy_template!(strat_name, strat_dir, strat_path; cfg)
     tpl_file = joinpath(strat_path, "Template.jl")
     @assert isfile(tpl_file) "Template file not found at $strat_path"
@@ -200,6 +227,15 @@ function copy_template!(strat_name, strat_dir, strat_path; cfg)
     return strat_file
 end
 
+@doc """ Removes line numbers from an expression
+
+$(TYPEDSIGNATURES)
+
+This function traverses an expression and removes any `LineNumberNode` or `LineInfoNode` instances it encounters.
+It also skips any macro calls to prevent unwanted side effects.
+The function modifies the expression in-place and returns the modified expression.
+
+"""
 function rmlinums!(expr)
     if expr isa LineNumberNode || expr isa LineInfoNode
         return missing
@@ -225,6 +261,16 @@ function _confirm_del(where)
     Base.prompt("Really delete strategy located at $(where)? [n]/y") == "y"
 end
 
+@doc """ Removes a strategy based on the provided name or path
+
+$(TYPEDSIGNATURES)
+
+This function takes a strategy name or path as input.
+If the input is a valid path, it deletes the strategy located at that path.
+If the input is a valid strategy name, it deletes the strategy with that name.
+The function also prompts the user for confirmation before deleting a strategy.
+
+"""
 function remove_strategy(subj=nothing)
     where = @something subj Base.prompt("Strategy name (or project path): ")
     strat_name = ""
@@ -274,6 +320,16 @@ function remove_strategy(subj=nothing)
     _delete_strat_entry(strat_name)
 end
 
+@doc """ Deletes a strategy entry from the user configuration
+
+$(TYPEDSIGNATURES)
+
+This function takes a strategy name as input.
+If the name is not empty, it prompts the user for confirmation to remove the corresponding entry from the user configuration.
+If confirmed, it deletes the strategy entry from the user configuration and the sources dictionary, if it exists.
+The updated configuration is then written back to the configuration file.
+
+"""
 function _delete_strat_entry(name)
     if !isempty(name)
         if Base.prompt("Remove user config entry $name? [n]/y") == "y"
