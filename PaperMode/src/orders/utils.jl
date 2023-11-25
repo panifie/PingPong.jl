@@ -4,10 +4,14 @@ using .Instances.Exchanges: ticker!, pyconvert
 using .OrderTypes: ordertype, positionside, NotEnoughLiquidity, isimmediate
 using .Executors: isfilled
 
+@doc "A buy limit order is triggered when the price is lower than the limit."
 _istriggered(o::AnyLimitOrder{Buy}, price) = price <= o.price
+@doc "A sell limit order is triggered when the price is higher than the limit."
 _istriggered(o::AnyLimitOrder{Sell}, price) = price >= o.price
+@doc "Market orders are always triggered."
 _istriggered(::AnyMarketOrder, args...) = true
 
+@doc "Use the base currency volume from the ticker."
 _basevol(ai) =
     let tkr = ticker!(ai.asset.raw, ai.exchange)
         pyconvert(DFT, tkr["baseVolume"])
@@ -16,7 +20,16 @@ function _ticker_volume(ai)
     (Ref(apply(tf"1d", now())), Ref(0.0), Ref(_basevol(ai)))
 end
 
-@doc "Limit volume capacity of order execution to the daily limit of the asset."
+@doc """ Limits the volume of order execution to the daily limit of the asset.
+
+$(TYPEDSIGNATURES)
+
+The function checks the liquidity and updates the daily volume, total volume, and taken volume accordingly.
+It fails the market order if the daily volume for the current pair is exceeded.
+The function uses the `@lget!` macro to get the values of `day_vol`, `taken_vol`, and `total_vol` from the `:paper_liquidity` attribute of the simulation `s`.
+The function also uses the `_basevol` and `_ticker_volume` functions to get the base volume and ticker volume respectively.
+
+"""
 function volumecap!(s, ai; amount)
     # Check there is enough liquidity
     day_vol, taken_vol, total_vol = @lget! attr(s, :paper_liquidity) ai _ticker_volume(ai)
@@ -37,12 +50,30 @@ function orderbook_side(ai, t::Type{<:Order})
 end
 _obsidebypos(::Long) = :asks
 _obsidebypos(::Short) = :bids
+@doc """ Returns the appropriate side of the orderbook based on the order type.
+
+$(TYPEDSIGNATURES)
+
+The function fetches the orderbook for the given asset and exchange.
+It then returns the asks or bids from the orderbook depending on whether the order type is a BuyOrder or not.
+
+"""
 function orderbook_side(ai, ::OrderTypes.ByPos{P}) where {P}
     ob = orderbook(ai.exchange, ai.asset.raw; limit=100)
     getproperty(ob, _obsidebypos(P()))
 end
 
-@doc "Simulate price and volume for an order from the live orderbook."
+@doc """ Simulates price and volume for an order from the live orderbook.
+
+$(TYPEDSIGNATURES)
+
+The function fetches the orderbook for the given asset and exchange.
+It then calculates the volume-weighted average price (VWAP) based on how much of the orderbook the order sweeps.
+If the order is a limit order and the average price exceeds the limit order price, the function terminates.
+If the order is a Fill or Kill (FOK) order and the volume is less than the order amount, the function cancels the order.
+The function updates the taken volume after each order.
+
+"""
 function from_orderbook(obside, s, ai, o::Order; amount, date)
     _, taken_vol, total_vol = attr(s, :paper_liquidity)[ai]
     n_prices = length(obside)

@@ -20,6 +20,7 @@ using SimMode: AnyMarketOrder, AnyLimitOrder
 import .Executors: pong!
 import .Misc: start!, stop!, isrunning
 
+@doc "A constant `TradesCache` that is a dictionary mapping `AssetInstance` to a circular buffer of `CcxtTrade`."
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 
 _maintf(s) = string(s.timeframe)
@@ -30,6 +31,14 @@ _assets(s) =
     let str = join(getproperty.(st.assets(s), :raw), ", ")
         str[begin:min(length(str), displaysize()[2] - 1)]
     end
+
+@doc """ 
+Generates a formatted string representing the configuration of a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy and a throttle as input and returns a string detailing the strategy's configuration including its name, mode, throttle, timeframes, cash, assets, and margin mode.
+"""
 function header(s::Strategy, throttle)
     "Starting strategy $(nameof(s)) in $(nameof(typeof(execmode(s)))) mode!
 
@@ -40,7 +49,13 @@ function header(s::Strategy, throttle)
         margin: $(marginmode(s))
         "
 end
+@doc """ 
+Logs the current state of a given strategy.
 
+$(TYPEDSIGNATURES)
+
+The function takes a strategy as input and logs the current state of the strategy including the number of long, short, and liquidation trades, the cash committed, the total balance, and the number of increase and reduce orders.
+"""
 function log(s::Strategy)
     long, short, liq = st.trades_count(s, Val(:positions))
     cv = s.cash
@@ -53,6 +68,13 @@ function log(s::Strategy)
         short liquidations = liq
 end
 
+@doc """ 
+Creates a function to flush the log and a lock for thread safety.
+
+$(TYPEDSIGNATURES)
+
+This function creates a `maybeflush` function that flushes the log if the time since the last flush exceeds the `log_flush_interval`. It also creates a `ReentrantLock` to ensure thread safety when flushing the log.
+"""
 function flushlog_func(s::Strategy)
     last_flush = Ref(DateTime(0))
     log_flush_interval = attr(s, :log_flush_interval, Second(1))
@@ -69,6 +91,13 @@ function flushlog_func(s::Strategy)
     maybeflush, log_lock
 end
 
+@doc """ 
+Executes the main loop of the strategy.
+
+$(TYPEDSIGNATURES)
+
+This function executes the main loop of the strategy, logging the state, flushing the log, pinging the strategy, and sleeping for the throttle duration. It handles exceptions and ensures the strategy stops running when an interrupt exception is thrown.
+"""
 function _doping(s; throttle, loghandle, flushlog, log_lock)
     is_running = attr(s, :is_running)
     @assert isassigned(is_running)
@@ -106,6 +135,13 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     end
 end
 
+@doc """ 
+Starts the execution of a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function starts the execution of a strategy in either foreground or background mode. It sets up the necessary attributes, logs, and tasks for the strategy execution. If the strategy is already running, it throws an error.
+"""
 function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
@@ -148,6 +184,13 @@ function start!(
     end
 end
 
+@doc """ 
+Calculates the elapsed time since the strategy started running.
+
+$(TYPEDSIGNATURES)
+
+This function calculates the time elapsed since the strategy started running. If the strategy has not started yet, it returns 0 milliseconds.
+"""
 function elapsed(s::Strategy{<:Union{Paper,Live}})
     attrs = s.attrs
     max(
@@ -157,6 +200,13 @@ function elapsed(s::Strategy{<:Union{Paper,Live}})
     )
 end
 
+@doc """ 
+Stops the execution of a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function stops the execution of a strategy and logs the mode and elapsed time since the strategy started. If the strategy is running in the background, it waits for the task to finish.
+"""
 function stop!(s::Strategy{<:Union{Paper,Live}})
     @info "strategy: stopping"
     task = @lock s begin
@@ -177,10 +227,24 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
     end
 end
 
+@doc """ 
+Returns the log file path for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function returns the log file path for a given strategy. If the log file path is not set, it creates a new one based on the execution mode of the strategy.
+"""
 function runlog(s, name=lowercase(string(execmode(s))))
     get!(s.attrs, :logfile, st.logpath(s; name))
 end
 
+@doc """ 
+Checks if a given strategy is running.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a given strategy is currently running. It returns `true` if the strategy is running, and `false` otherwise.
+"""
 function isrunning(s::Strategy{<:Union{Paper,Live}})
     running = attr(s, :is_running, nothing)
     if isnothing(running)

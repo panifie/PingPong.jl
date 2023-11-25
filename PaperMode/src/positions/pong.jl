@@ -3,7 +3,14 @@ using .st: IsolatedStrategy
 using .Executors: AnyMarketOrder
 using SimMode: position!
 
-@doc """"Creates a paper market order, updating a levarged position.
+@doc """Creates a paper market order, updating a leveraged position.
+
+$(TYPEDSIGNATURES)
+
+The function creates a paper market order for a given strategy, asset, and order type. 
+It specifies the amount and date of the order. 
+Additional keyword arguments can be passed.
+
 """
 function pong!(
     s::IsolatedStrategy{Paper},
@@ -22,7 +29,15 @@ function pong!(
     trade
 end
 
-@doc "Creates a simulated limit order."
+@doc """Creates a simulated limit order.
+
+$(TYPEDSIGNATURES)
+
+The function creates a simulated limit order for a given strategy, asset, and order type.
+It specifies the amount and date of the order. 
+Additional keyword arguments can be passed.
+
+"""
 function pong!(
     s::IsolatedStrategy{Paper},
     ai,

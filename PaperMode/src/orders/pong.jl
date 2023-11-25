@@ -2,7 +2,15 @@ using SimMode: create_sim_limit_order, limitorder_ifprice!, hold!
 using .st: NoMarginStrategy
 using .OrderTypes: LimitOrderType, ImmediateOrderType
 
-@doc "Creates a paper market order."
+
+@doc """Creates a paper market order.
+
+$(TYPEDSIGNATURES)
+
+The function creates a paper market order for a given strategy and asset. 
+It specifies the amount of the order and the type of order (e.g., limit order, immediate order).
+
+"""
 function pong!(
     s::NoMarginStrategy{Paper},
     ai,
@@ -17,7 +25,15 @@ function pong!(
     marketorder!(s, o, ai; date, obside)
 end
 
-@doc "Creates a simulated limit order."
+@doc """Creates a simulated limit order.
+
+$(TYPEDSIGNATURES)
+
+The function creates a simulated limit order for a given strategy and asset.
+It specifies the amount of the order and the date. 
+Additional keyword arguments can be passed.
+
+"""
 function pong!(
     s::NoMarginStrategy{Paper},
     ai,

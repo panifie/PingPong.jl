@@ -7,6 +7,17 @@ using .OrderTypes: ImmediateOrderType, OrderCancelled
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
+@doc """ Executes a limit order in PaperMode.
+
+$(TYPEDSIGNATURES)
+
+The function checks if the order is filled.
+If not, it fetches the trades for the given asset and exchange.
+It then checks each trade to see if the order is triggered.
+If the order is triggered, it executes a trade for the minimum of the trade amount and the unfilled order amount.
+If the order is filled, it stops tracking the order.
+
+"""
 function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
     isfilled(ai, o) && return nothing
     throttle = attr(s, :throttle)
@@ -74,6 +85,16 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
     attr(s, :paper_order_tasks)[o] = (; task, alive)
 end
 
+@doc """ Executes a limit order in PaperMode.
+
+$(TYPEDSIGNATURES)
+
+The function first checks if the order volume exceeds the daily limit using the `volumecap!` function.
+If the volume is within the limit, it creates a simulated limit order using the `create_sim_limit_order` function.
+If the order is not filled and is of type ImmediateOrderType, it cancels the order.
+For Good Till Cancelled (GTC) orders, it queues them for execution using the `paper_limitorder!` function.
+
+"""
 function limitorder!(s, ai, t; amount, date, kwargs...)
     volumecap!(s, ai; amount) || return nothing
     o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
