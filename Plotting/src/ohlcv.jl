@@ -6,7 +6,9 @@ using .Data: AbstractDataFrame
 using .Data.DataFramesMeta
 using Processing: resample
 
+@doc """ Returns a formatted asset string or an empty string if the asset is `nothing` """
 maybe_asset(a) = isnothing(a) ? "" : "Asset: $(a)\n"
+@doc """ Returns a formatted candle string """
 function candle_str(row, asset=nothing)
     """$(maybe_asset(asset))O: $(cn(row.open))
     H: $(cn(row.high))
@@ -16,6 +18,13 @@ function candle_str(row, asset=nothing)
     T: $(row.timestamp)"""
 end
 
+@doc """ Returns a function for generating candle tooltips
+
+$(TYPEDSIGNATURES)
+
+The function returns a function that, when called with an inspector, plot, and index, generates a tooltip for a candlestick chart.
+The tooltip includes information about the open, high, low, close, volume, and timestamp of the candle at the given index.
+"""
 function candle_tooltip_func(df)
     function f(inspector, plot, idx, _)
         try
@@ -27,17 +36,33 @@ function candle_tooltip_func(df)
     end
 end
 
+@doc """ Returns a set of points representing a volume bar in a plot
+
+$(TYPEDSIGNATURES)
+
+The function takes a `width`, `x` (position), and `y` (height) as parameters and returns a set of points that represent a volume bar in a plot.
+"""
 function vol_point(width, x, y)
     Point2f[(x - width, 0.0), (x + width, 0.0), (x + width, y), (x - width, y)]
 end
+@doc """ Returns a set of points representing a candlestick in a plot
+
+$(TYPEDSIGNATURES)
+
+The function takes a `width`, `x` (position), `y1` (open/close price), and `y2` (high/low price) as parameters and returns a set of points that represent a candlestick in a plot.
+If `y1` equals `y2`, `y1` is slightly increased to ensure visibility.
+"""
 function ohlcv_point(width, x, y1, y2)
     y1 == y2 && (y1 += y1 * 0.01)
     Point2f[(x - width, y1), (x + width, y1), (x + width, y2), (x - width, y2)]
 end
 
-@doc """
+@doc """ Plots ohlcv data from dataframe `df`, resampling to `tf`
+
 $(TYPEDSIGNATURES)
-Plots ohlcv data from dataframe `df`, resampling to `tf`.
+
+The function takes a dataframe `df` and a time frame `tf` as parameters.
+If `tf` is not `nothing`, the dataframe is resampled according to the time frame.
 """
 ohlcv(df::AbstractDataFrame, tf=tf"1d"; kwargs...) = ohlcv!(makefig(), df, tf; kwargs...)
 
@@ -48,9 +73,13 @@ ohlcv(df::AbstractDataFrame, tf=tf"1d"; kwargs...) = ohlcv!(makefig(), df, tf; k
 #     end
 # end
 
-@doc """
+@doc """ Plots ohlcv data from dataframe `df`, resampling to `tf` on an existing figure
+
 $(TYPEDSIGNATURES)
-Same as `ohlcv` but over input `Figure`
+
+The function takes a figure `fig`, a dataframe `df`, and a time frame `tf` as parameters.
+If `tf` is not `nothing`, the dataframe is resampled according to the time frame.
+The function then plots the ohlcv data on the provided figure.
 """
 function ohlcv!(fig::Figure, df::AbstractDataFrame, tf=tf"1d")
     isnothing(tf) || (df = resample(df, timeframe!(df), tf))

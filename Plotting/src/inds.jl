@@ -17,6 +17,15 @@ _ncandles(fig) = length(plots(fig.content[1])[1][1][])
 _candle_str(::Nothing, n) = ""
 _candle_str(df, n) = candle_str(df[n, :])
 
+@doc """ Adds line indicators to a given figure.
+
+$(TYPEDSIGNATURES)
+
+The function `line_indicator!` takes a `Figure` object and one or more line data arrays as arguments.
+It first checks if the size of each line matches the number of candles in the figure.
+Then, it creates a new axis in the figure and links it with the price axis.
+For each line, it generates a random color and adds a line plot to the axis with a tooltip showing the value of the line at each point.
+"""
 function line_indicator!(fig::Figure, lines...; df=nothing)
     for l in lines
         _check_size(size(l, 1), _ncandles(fig))
@@ -38,12 +47,31 @@ function line_indicator!(fig::Figure, lines...; df=nothing)
     end
 end
 
+@doc """ Creates a figure with line indicators from a DataFrame.
+
+$(TYPEDSIGNATURES)
+
+The function `line_indicator` takes an `AbstractDataFrame` and one or more line data arrays as arguments.
+It first creates a figure using the `ohlcv` function with the DataFrame.
+Then, it calls the `line_indicator!` function to add line indicators to the figure.
+The function returns the figure with the added line indicators.
+"""
 function line_indicator(df::AbstractDataFrame, lines...)
     fig = ohlcv(df)
     line_indicator!(fig, lines...; df)
     fig
 end
 
+@doc """ Adds channel indicators to a given figure.
+
+$(TYPEDSIGNATURES)
+
+The function `channel_indicator!` takes a `Figure` object and one or more line data arrays as arguments.
+It first checks if the size of each line matches the number of candles in the figure.
+Then, it creates a new axis in the figure and links it with the price axis.
+For each pair of lines, it generates a random color and adds a band plot to the axis with a tooltip showing the values of the upper and lower bounds at each point.
+The opacity of the band can be adjusted with the `opacity` keyword argument.
+"""
 function channel_indicator!(fig::Figure, lines...; df=nothing, opacity=0.25)
     for l in lines
         _check_size(size(l, 1), _ncandles(fig))
@@ -80,6 +108,16 @@ function channel_indicator!(fig::Figure, lines...; df=nothing, opacity=0.25)
     end
 end
 
+@doc """ Adds channel indicators to a given figure.
+
+$(TYPEDSIGNATURES)
+
+The function `channel_indicator!` takes a `Figure` object and one or more line data arrays as arguments.
+It first checks if the size of each line matches the number of candles in the figure.
+Then, it creates a new axis in the figure and links it with the price axis.
+For each pair of lines, it generates a random color and adds a band plot to the axis with a tooltip showing the values of the upper and lower bounds at each point.
+The opacity of the band can be adjusted with the `opacity` keyword argument.
+"""
 function channel_indicator(df::AbstractDataFrame, lines...; opacity=0.25)
     fig = ohlcv(df)
     channel_indicator!(fig, lines...; opacity, df)
