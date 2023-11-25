@@ -16,11 +16,27 @@ function _tostring(_, s::String)
     s[begin:min(displaysize()[2], length(s))]
 end
 
+@doc """ Converts the provided parameters into a string representation.
+
+$(TYPEDSIGNATURES)
+
+The function takes a prefix and a set of parameters as input.
+It joins the prefix and the parameters into a single string, with each parameter converted to a compact number representation.
+The resulting string is then truncated to fit the display size.
+"""
 function _tostring(prefix, params)
     s = join(("[", prefix, (cnum(p) for p in params)..., "]"), " ")
     s[begin:min(displaysize()[2], length(s))]
 end
 
+@doc """ A column in the progress bar representing parameters.
+
+$(FIELDS)
+
+This struct represents a column in the progress bar that displays the parameters of the optimization job.
+It contains a `ProgressJob`, a vector of `Segment` objects, a `Measure` object, and a reference to the parameters.
+The constructor creates a `Segment` with a string representation of the parameters and sets the width of the measure to 15.
+"""
 struct ParamsColumn <: AbstractColumn
     job::ProgressJob
     segments::Vector{Segment}
@@ -39,6 +55,14 @@ function Progress.update!(col::ParamsColumn, args...)::String
     return seg.text
 end
 
+@doc """ A column in the progress bar representing the best optimization result.
+
+$(FIELDS)
+
+This struct represents a column in the progress bar that displays the best result of the optimization job.
+It contains a `ProgressJob`, a vector of `Segment` objects, a `Measure` object, and a reference to the best result.
+The constructor creates a `Segment` with a string representation of the best result and sets the width of the measure to 15.
+"""
 struct BestColumn <: AbstractColumn
     job::ProgressJob
     segments::Vector{Segment}
@@ -58,6 +82,14 @@ function Progress.update!(col::BestColumn, args...)::String
     return seg.text
 end
 
+@doc """ Initializes a progress bar for grid optimization.
+
+$(TYPEDSIGNATURES)
+
+This function sets up a progress bar for the grid optimization process.
+It creates a `ParamsColumn` and a `BestColumn` and adds them to the default columns.
+The function returns a reference to the current parameters.
+"""
 function gridpbar!(sess, first_params)
     columns = get_columns(:default)
     push!(columns, ParamsColumn)
@@ -73,16 +105,38 @@ function gridpbar!(sess, first_params)
     current_params
 end
 
+@doc """ Generates a grid from the provided parameters.
+
+$(TYPEDSIGNATURES)
+
+The function takes a set of parameters as input.
+It generates a grid by taking the product of the parameters and reshaping it to the length of the parameters.
+"""
 function gridfromparams(params)
     mat = Iterators.product(params...) |> collect
     reshape(mat, length(mat))
 end
 
+@doc """ Generates a grid from the optimization results.
+
+$(TYPEDSIGNATURES)
+
+The function takes an optimization session and results as input.
+It generates a grid by extracting the parameters from each row of the results.
+"""
 function gridfromresults(sess::OptSession, results; kwargs...)
     params = keys(sess.params)
     [((getproperty(row, p) for p in params)...,) for row in eachrow(results)]
 end
 
+@doc """ Resumes the optimization session from saved state.
+
+$(TYPEDSIGNATURES)
+
+The function attempts to load a saved session and resumes it.
+If the saved session does not match the current session in terms of strategy, context, parameters, or attributes, an error is thrown.
+If the session is successfully resumed, the results from the saved session are appended to the current session's results.
+"""
 function resume!(sess; zi=zilmdb())
     saved_sess = try
         load_session(sess; zi)
@@ -119,12 +173,20 @@ function remove_incomplete!(sess::OptSession)
     append!(sess.results, completed)
 end
 
+@doc """ Removes results that don't have all the `repeat`ed evaluation.
+
+$(TYPEDSIGNATURES)
+
+The function groups the results by session parameters and removes those groups that don't have a complete set of evaluations, as defined by the `splits` attribute of the session.
+"""
 function optsession(s::Strategy; seed=1, splits=1, offset=0)
     ctx, params, grid = ping!(s, OptSetup())
     OptSession(s; ctx, params, offset, attrs=Dict(pairs((; seed, splits))))
 end
 
 @doc """Backtests the strategy across combination of parameters.
+
+$(TYPEDSIGNATURES)
 
 - `seed`: random seed set before each backtest run.
 - `splits`: the number segments into which the context is split.
@@ -258,6 +320,13 @@ function gridsearch(
     sess
 end
 
+@doc """ Filters the optimization results based on certain criteria.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy and a session as input, along with optional parameters for cut and minimum results.
+It filters the results based on the cut value and the minimum number of results.
+"""
 function filter_results(::Strategy, sess; cut=0.8, min_results=100)
     df = agg(sess)
     if nrow(df) > 1
@@ -281,6 +350,9 @@ function filter_results(::Strategy, sess; cut=0.8, min_results=100)
 end
 
 @doc "A progressive search performs multiple grid searches with only 1 repetition per parameters combination.
+
+$(TYPEDSIGNATURES)
+
 After each search is completed, the results are filtered according to custom rules. The parameters from the results
 that match the filtering will be backtested again with a different `offset` which modifies the backtesting period.
 `rounds`: how many iterations (of grid searches) to perform
@@ -322,9 +394,13 @@ function progsearch(
     sess[]
 end
 
-@doc "Backtests by sliding over the backtesting period, by the smallest timeframe (the strategy timeframe). Until
-a full range of timeframes is reached between the strategy timeframe and backtesting context timeframe.
-`multiplier`: the steps count (total stepps will be `multiplier * context_timeframe / s.timeframe` )
+@doc "Backtests by sliding over the backtesting period, by the smallest timeframe (the strategy timeframe).
+
+$(TYPEDSIGNATURES)
+
+Until a full range of timeframes is reached between the strategy timeframe and backtesting context timeframe.
+
+- `multiplier`: the steps count (total stepps will be `multiplier * context_timeframe / s.timeframe` )
 "
 function slidesearch(s::Strategy; multiplier=1)
     ctx, _, _ = ping!(s, OptSetup())

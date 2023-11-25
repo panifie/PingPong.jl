@@ -8,14 +8,20 @@ using SimMode.Lang: @debug_backtrace
 ## kwargs: @doc Optimization.BlackBoxOptim.OptRunController
 ## all BBO methods: `BlackBoxOptim.SingleObjectiveMethods`
 ## compare different optimizers  `BlackBoxOptim.compare_optimizers(...)`
-#
+@doc "A set of optimization methods that are disabled and not used with the `BlackBoxOptim` package."
 const disabled_methods = Set((
     :simultaneous_perturbation_stochastic_approximation,
     :resampling_memetic_search,
     :resampling_inheritance_memetic_search,
 ))
 
-@doc "Get a filtered list of methods supported by BBO (single or multi)."
+@doc """ Returns a set of optimization methods supported by BlackBoxOptim.
+
+$(TYPEDSIGNATURES)
+
+This function filters the methods based on the `multi` parameter and excludes the methods listed in `disabled_methods`.
+If `multi` is `true`, it returns multi-objective methods, otherwise it returns single-objective methods.
+"""
 function bbomethods(multi=false)
     Set(
         k for k in keys(
@@ -29,6 +35,7 @@ end
 
 _tsaferesolve(v::Ref{Bool}) = v[]
 _tsaferesolve(v::Bool) = v
+@doc """ Tests if if the strategy is thread safe by looking up the `THREADSAFE` global. """
 isthreadsafe(s::Strategy) =
     if isdefined(s.self, :THREADSAFE)
         _tsaferesolve(s.self.THREADSAFE)
@@ -36,6 +43,13 @@ isthreadsafe(s::Strategy) =
         false
     end
 
+@doc """ Extracts the context, parameters, and search space from a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function takes a strategy as input and returns the context, parameters, and search space associated with that strategy.
+The search space can be a `SearchSpace` instance, a function, or a tuple where the first element is the BBO space type and the rest are arguments for the space constructor.
+"""
 function ctxfromstrat(s)
     ctx, params, s_space = ping!(s, OptSetup())
     ctx,
@@ -56,6 +70,12 @@ function ctxfromstrat(s)
     end
 end
 
+@doc """ Returns the dimension of the search space.
+
+$(TYPEDSIGNATURES)
+
+This function takes the parameters as input, which should include lower and upper bounds arrays as the second and third elements. It asserts that the lengths of these arrays are equal and returns their common length, which represents the dimension of the search space.
+"""
 function _spacedims(params)
     @assert length(params) > 2 "Params second and third element should be lower and upper bounds arrays."
     lower = params[2]
@@ -64,6 +84,12 @@ function _spacedims(params)
     length(lower)
 end
 
+@doc """ Determines the fitness scheme for a given strategy and number of objectives.
+
+$(TYPEDSIGNATURES)
+
+This function takes a strategy and a number of objectives as input. It checks if the strategy has a custom weights function defined in its attributes. If it does, this function is used as the aggregator in the ParetoFitnessScheme. If not, a default ParetoFitnessScheme is returned.
+"""
 function fitness_scheme(s::Strategy, n_obj)
     let weightsfunc = get(s.attrs, :opt_weighted_fitness, missing)
         ParetoFitnessScheme{n_obj}(;
@@ -75,17 +101,19 @@ end
 
 @doc """ Optimize parameters using the BlackBoxOptim package.
 
+$(TYPEDSIGNATURES)
+
 - `splits`: how many times to run the backtest for each step
 - `seed`: random seed
 - `kwargs`: The arguments to pass to the underlying BBO function. See the docs for the BlackBoxOptim package. Here are some most common parameters:
   - `MaxTime`: max evaluation time for the optimization
-  - `MaxFuncEvals`: max number of function (backtest) evaluation
+  - `MaxFuncEvals`: max number of function (backtest) evaluations
   - `TraceMode`: (:silent, :compact, :verbose) controls the logging
   - `MaxSteps`, `MaxStepsWithoutProgress`
 
-From within your strategy define four `ping!` functions:
-- `ping!(::Strategy, ::OptSetup)`: for the period of time to evaluate and the parameters space for the optimization..
-- `ping!(::Strategy, params, ::OptRun)`: called before running the backtest, should apply the parameters to the strategy
+From within your strategy, define four `ping!` functions:
+- `ping!(::Strategy, ::OptSetup)`: for the period of time to evaluate and the parameters space for the optimization.
+- `ping!(::Strategy, params, ::OptRun)`: called before running the backtest, should apply the parameters to the strategy.
 """
 function bboptimize(
     s::Strategy{Sim};

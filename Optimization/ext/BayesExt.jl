@@ -20,6 +20,15 @@ using .GaussianProcesses.Distributions
 using Random
 import BayesianOptimization: boptimize!
 
+@doc """ Constructs a Gaussian Process model with ElasticGPE.
+
+$(TYPEDSIGNATURES)
+
+The function `gpmodel` constructs a Gaussian Process model using the ElasticGPE function from the BayesianOptimization.GaussianProcesses module. 
+It sets the mean, kernel, logNoise, and capacity of the model. 
+The function also sets priors for the mean of the model. 
+The number of dimensions (`ndims`) is passed as an argument to the function.
+"""
 function gpmodel(_, ndims)
     model = ElasticGPE(
         ndims;
@@ -32,17 +41,36 @@ function gpmodel(_, ndims)
     model
 end
 
+@doc """ Returns a MAPGPOptimizer.
+
+$(TYPEDSIGNATURES)
+
+The `modelopt` function returns a Maximum a Posteriori Gaussian Process Optimizer (MAPGPOptimizer) with a specified frequency of optimization (`every`) and maximum number of evaluations (`maxeval`).
+"""
 function modelopt(_)
     MAPGPOptimizer(; every=2, maxeval=10)
 end
 
+@doc """ Configures the acquisition function for Bayesian optimization.
+
+$(TYPEDSIGNATURES)
+
+The `acquisition` function configures the acquisition function for Bayesian optimization. It sets the optimization method, the number of restarts, the maximum time, and the maximum number of evaluations.
+"""
 function acquisition(_)
     (; method=:LD_LBFGS, restarts=2, maxtime=0.1, maxeval=1000)
 end
 
-@doc "Optimize strategy `s` using bayesian optimization. For customizatoin see the `BayesianOptimization` pkg and
-define custom `gpmodel`,`modelopt`,`acquisition` functions.
-"
+@doc """Optimize strategy `s` using Bayesian optimization.
+
+$(TYPEDSIGNATURES)
+
+The `boptimize!` function optimizes a given strategy `s` using Bayesian optimization. 
+It allows for customization of the Gaussian Process model, the model optimizer, and the acquisition function through the `BayesianOptimization` package. 
+The function also supports specification of a random seed, the number of splits in the optimization process, the maximum number of iterations, and the maximum duration of the optimization process. 
+The function initializes an optimization session, defines a backtest function and an optimization function, and finally carries out the optimization, returning the optimization session and results.
+
+"""
 function boptimize!(
     s; seed=1, splits=1, maxiterations=1e4, maxduration=60.0, kwargs...
 )

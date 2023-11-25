@@ -15,26 +15,65 @@ using REPL.TerminalMenus
 using Pkg: Pkg
 import .st: ping!
 
+@doc "A named tuple representing the context and space in the optimization process."
 const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
+@doc """ A mutable structure representing the running state of an optimization process.
+
+$(FIELDS)
+
+This structure contains a single field `value` which is an atomic boolean. 
+It is used to indicate whether the optimization process is currently running or not.
+"""
 mutable struct OptRunning
     @atomic value::Bool
 end
+@doc "A constant instance of `OptRunning` initialized with `false`."
 const RUNNING = OptRunning(false)
+@doc """ Sets the running state of the optimization process to `true`.
+
+$(TYPEDSIGNATURES)
+
+This function changes the `value` field of the `RUNNING` instance to `true`, indicating that the optimization process is currently running.
+"""
 running!() = @atomic RUNNING.value = true
+@doc """ Sets the running state of the optimization process to `false`.
+
+$(TYPEDSIGNATURES)
+
+This function changes the `value` field of the `RUNNING` instance to `false`, indicating that the optimization process is not currently running.
+"""
 stopping!() = @atomic RUNNING.value = false
+@doc """ Checks if the optimization process is currently running.
+
+$(TYPEDSIGNATURES)
+
+This function returns the `value` field of the `RUNNING` instance, indicating whether the optimization process is currently running.
+"""
 isrunning() = @atomic RUNNING.value
 
-@doc "Has to return a `Optimizations.ContextSpace` named tuple where `ctx` (`Executors.Context`) is the time period to backtest and the `space` is
-either an already constructed subtype of `BlackBoxOptim.SearchSpace` or a tuple (`Symbol`, args...) for a search space pre-defined within the BBO package.
-"
-ping!(::Strategy, ::OptSetup) = error("not implemented")
+@doc """ Returns `Optimizations.ContextSpace` for backtesting
 
-@doc "This ping function should apply the parameters to the strategy, called before the backtest is performed. "
+$(TYPEDSIGNATURES)
+
+The `ctx` field (`Executors.Context`) specifies the backtest time period, while `space` is either an already built `BlackBoxOptim.SearchSpace` subtype or a tuple (`Symbol`, args...) for a pre-defined BBO package search space.
+"""
+ping!(::Strategy, ::OptSetup)::ContextSpace = error("not implemented")
+
+@doc """ Applies parameters to strategy before backtest
+
+$(TYPEDSIGNATURES)
+"""
 ping!(::Strategy, params, ::OptRun) = error("not implemented")
 
-#TYPENUM
-@doc "An optimization session stores all the evaluated parameters combinations."
-struct OptSession18{S<:SimStrategy,N}
+@doc """ A structure representing an optimization session.
+
+$(FIELDS)
+
+This structure stores all the evaluated parameters combinations during an optimization session.
+It contains fields for the strategy, context, parameters, attributes, results, best result, lock, and clones of the strategy and context for each thread.
+The constructor for `OptSession` also takes an offset and number of threads as optional parameters, with default values of 0 and the number of available threads, respectively.
+"""
+struct OptSession{S<:SimStrategy,N}
     s::S
     ctx::Context{Sim}
     params::T where {T<:NamedTuple}
@@ -44,7 +83,7 @@ struct OptSession18{S<:SimStrategy,N}
     lock::ReentrantLock
     s_clones::NTuple{N,Tuple{ReentrantLock,S}}
     ctx_clones::NTuple{N,Context{Sim}}
-    function OptSession18(
+    function OptSession(
         s::Strategy; ctx, params, offset=0, attrs=Dict(), n_threads=Threads.nthreads()
     )
         s_clones = tuple(
@@ -65,8 +104,6 @@ struct OptSession18{S<:SimStrategy,N}
         )
     end
 end
-
-OptSession = OptSession18
 
 function Base.show(io::IO, sess::OptSession)
     w(args...) = write(io, string(args...))
@@ -89,6 +126,13 @@ function Base.show(io::IO, sess::OptSession)
 end
 
 _shortdate(date) = Dates.format(date, dateformat"yymmdd")
+@doc """ Generates a unique key for an optimization session.
+
+$(TYPEDSIGNATURES)
+
+This function generates a unique key for an optimization session by combining various parts of the session's properties.
+The key is a combination of the session's strategy name, context range, parameters, and a hash of the parameters and attributes.
+"""
 function session_key(sess::OptSession)
     params_part = join(first.(string.(keys(sess.params))))
     ctx_part =
@@ -100,6 +144,7 @@ function session_key(sess::OptSession)
     (; s_part, ctx_part, params_part, config_part)
 end
 
+@doc "Get the `Opt` group from the provided zarr instance."
 function zgroup_opt(zi)
     if za.is_zgroup(zi.store, "Opt")
         za.zopen(zi.store, "w"; path="Opt")
@@ -120,7 +165,13 @@ function zgroup_opt(zi)
         end
     end
 end
+@doc """ Returns the zarr group for a given strategy.
 
+$(TYPEDSIGNATURES)
+
+This function checks if a zarr group exists for the given strategy name in the optimization group of the zarr instance. 
+If it exists, the function returns the group; otherwise, it creates a new zarr group for the strategy.
+"""
 function zgroup_strategy(zi, s_name::String)
     opt_group = zgroup_opt(zi)
     s_group = if za.is_zgroup(zi.store, "Opt/$s_name")
@@ -133,12 +184,14 @@ end
 
 zgroup_strategy(zi, s::Strategy) = zgroup_strategy(zi, string(nameof(s)))
 
-@doc "Save the optimization session over the provided zarr instance.
+@doc """ Save the optimization session over the provided zarr instance
 
-`sess`: the `OptSession`
-`from`: save the optimization results starting from the specified index (when saving progressively)
-`to`: save the optimization results up to the specified index (when saving progressively)
-"
+$(TYPEDSIGNATURES)
+
+`sess` is the `OptSession` to be saved. The `from` parameter specifies the starting index for saving optimization results progressively, while `to` specifies the ending index. The function uses the provided zarr instance `zi` for storage.
+The function first ensures that the zgroup for the strategy exists. Then, it writes various session attributes to zarr if we're starting from the beginning (`from == 0`). Finally, it saves the result data for the specified range (`from` to `to`).
+
+"""
 function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb())
     k, parts = session_key(sess)
     # ensure zgroup
@@ -164,11 +217,19 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb
     )
 end
 
+@doc """ Generates a regular expression for matching optimization session keys.
+
+$(TYPEDSIGNATURES)
+
+The function takes three arguments: `startstop`, `params_k`, and `code`. 
+These represent the start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters, respectively. 
+The function returns a `Regex` object that matches the string representation of an optimization session key.
+"""
 function rgx_key(startstop, params_k, code)
     Regex("$startstop:$params_k$code")
 end
 
-function anyexc()
+function _anyexc()
     if nameof(exc) == Symbol()
         if isempty(sb_exchanges)
             :binance
@@ -181,14 +242,15 @@ function anyexc()
 end
 
 _deserattrs(attrs, k) = convert(Vector{UInt8}, attrs[k]) |> todata
-@doc "Load an optimization session from storage, name:
-- `name`: strategy name
-- `start/stop`: start and stop date of the backtesting context
-- `params_k`: the first letter of every param (`first.(string.(keys(sess.params)))`)
-- `code`: hash of `params` and `attrs` truncated to 4 chars.
+@doc """ Loads an optimization session from storage.
 
-Only the strategy name is required, rest is optional.
-"
+$(TYPEDSIGNATURES)
+
+This function loads an optimization session from the provided zarr instance `zi` based on the given parameters. 
+The parameters include the strategy name, start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters. 
+The function returns the loaded session, either as a zarr array if `as_z` is `true`, or as an `OptSession` object otherwise. 
+If `results_only` is `true`, only the results DataFrame of the session is returned.
+"""
 function load_session(
     name,
     startstop=".*",
@@ -234,7 +296,7 @@ function load_session(
             attrs = z.attrs
             OptSession(
                 @something s st.strategy(
-                    Symbol(attrs["name"]); exchange=anyexc(), mode=Sim()
+                    Symbol(attrs["name"]); exchange=_anyexc(), mode=Sim()
                 );
                 ctx=_deserattrs(attrs, "ctx"),
                 params=_deserattrs(attrs, "params"),
@@ -287,6 +349,14 @@ function load_session(s::Strategy)
     load_session(string(nameof(s)); s)
 end
 
+@doc """ Calculates the small and big steps for the optimization context.
+
+$(TYPEDSIGNATURES)
+
+The function takes two arguments: `ctx` and `splits`. 
+`ctx` is the optimization context and `splits` is the number of splits for the optimization process. 
+The function returns a named tuple with `small_step` and `big_step` which represent the step size for the optimization process.
+"""
 function ctxsteps(ctx, splits)
     small_step = Millisecond(ctx.range.step).value
     big_step = let timespan = Millisecond(ctx.range.stop - ctx.range.start).value
@@ -295,6 +365,14 @@ function ctxsteps(ctx, splits)
     (; small_step, big_step)
 end
 
+@doc """ Calculates the metrics for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` and an initial cash amount as arguments. 
+It calculates the objective score, the current total cash, the profit and loss ratio, and the number of trades. 
+The function returns these metrics as a named tuple.
+"""
 metrics_func(s; initial_cash) = begin
     obj = ping!(s, OptScore())
     # record run
@@ -304,6 +382,14 @@ metrics_func(s; initial_cash) = begin
     (; obj, cash, pnl, trades)
 end
 
+@doc """ Defines the backtest function for an optimization session.
+
+$(TYPEDSIGNATURES)
+
+The function takes three arguments: `sess`, `small_step`, and `big_step`. 
+`sess` is the optimization session, `small_step` is the small step size for the optimization process, and `big_step` is the big step size for the optimization process. 
+The function returns a function that performs a backtest for a given set of parameters and a given iteration number.
+"""
 function define_backtest_func(sess, small_step, big_step)
     (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
         lock(slot[1]) do
@@ -342,9 +428,12 @@ function define_backtest_func(sess, small_step, big_step)
     end
 end
 
-@doc """ Disables pythoncall gc calls
+@doc """ Disables pythoncall gc calls during the execution of an expression.
 
+$(TYPEDSIGNATURES)
 
+This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution. 
+The garbage collector is re-enabled after the expression has been executed, regardless of whether the expression completed successfully or an error was thrown.
 """
 macro nogc(expr)
     ex = quote
@@ -357,7 +446,14 @@ macro nogc(expr)
     end
     esc(ex)
 end
-@doc "Multi(threaded) optimization function."
+@doc """ Multi-threaded optimization function.
+
+$(TYPEDSIGNATURES)
+
+The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`. 
+`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective. 
+The function returns a function that performs a multi-threaded optimization for a given set of parameters.
+"""
 function _multi_opt_func(splits, backtest_func, median_func, obj_type)
     (params) -> begin
         job(n) = backtest_func(params, n)
@@ -372,14 +468,28 @@ function _multi_opt_func(splits, backtest_func, median_func, obj_type)
     end
 end
 
-@doc "Single(threaded) optimization function."
+@doc """ Single-threaded optimization function.
+
+$(TYPEDSIGNATURES)
+
+The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`. 
+`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective. 
+The function returns a function that performs a single-threaded optimization for a given set of parameters.
+"""
 function _single_opt_func(splits, backtest_func, median_func, args...)
     (params) -> begin
         mapreduce(permutedims, vcat, [(backtest_func(params, n) for n in 1:splits)...]) |> median_func
     end
 end
 
-@doc "The median in multi(objective) mode has to be applied over all the (repeated) iterations."
+@doc """ Defines the median function for multi-objective mode.
+
+$(TYPEDSIGNATURES)
+
+The function takes a boolean argument `ismulti` which indicates if the optimization is multi-objective. 
+If `ismulti` is `true`, the function returns a function that calculates the median over all the repeated iterations. 
+Otherwise, it returns a function that calculates the median of a given array.
+"""
 function define_median_func(ismulti)
     if ismulti
         (x) -> tuple(median(x; dims=1)...)
@@ -388,6 +498,14 @@ function define_median_func(ismulti)
     end
 end
 
+@doc """ Defines the optimization function for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes several arguments: `s`, `backtest_func`, `ismulti`, `splits`, `obj_type`, and `isthreaded`. 
+`s` is the strategy, `backtest_func` is the backtest function, `ismulti` indicates if the optimization is multi-objective, `splits` is the number of splits for the optimization process, `obj_type` is the type of the objective, and `isthreaded` indicates if the optimization is threaded. 
+The function returns the appropriate optimization function based on these parameters.
+"""
 function define_opt_func(
     s::Strategy; backtest_func, ismulti, splits, obj_type, isthreaded=isthreadsafe(s)
 )
@@ -396,31 +514,68 @@ function define_opt_func(
     opt_func(splits, backtest_func, median_func, obj_type)
 end
 
-@doc "Returns the number of objectives and their type."
+@doc """ Returns the number of objectives and their type.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` as an argument. 
+It returns a tuple containing the type of the objective and the number of objectives.
+"""
 function objectives(s)
     let test_obj = ping!(s, OptScore())
         typeof(test_obj), length(test_obj)
     end
 end
 
-@doc "Fetch the named tuple of a single parameters combination."
+@doc """ Fetches the named tuple of a single parameters combination.
+
+$(TYPEDSIGNATURES)
+
+The function takes an optimization session `sess` and an optional index `idx` (defaulting to the last row of the results). 
+It returns the parameters of the optimization session at the specified index as a named tuple.
+"""
 function result_params(sess::OptSession, idx=nrow(sess.results))
     iszero(idx) && return nothing
     row = sess.results[idx, :]
     (; (k => getproperty(row, k) for k in keys(sess.params))...)
 end
 
+@doc """ Generates the path for the log file of a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` and an optional `name` (defaulting to the current timestamp). 
+It constructs a directory path based on the strategy's path, and ensures this directory exists. 
+Then, it returns the full path to the log file within this directory, along with the directory path itself.
+
+"""
 function log_path(s, name=split(string(now()), ".")[1])
     dirpath = joinpath(realpath(dirname(s.path)), "logs", "opt", string(nameof(s)))
     isdir(dirpath) || mkpath(dirpath)
     joinpath(dirpath, name * ".log"), dirpath
 end
 
+@doc """ Returns the paths to all log files for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` as an argument. 
+It retrieves the directory path for the strategy's log files and returns the full paths to all log files within this directory.
+
+"""
 function logs(s)
     dirpath = log_path(s, "")[2]
     joinpath.(dirpath, readdir(dirpath))
 end
 
+@doc """ Clears all log files for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` as an argument. 
+It retrieves the directory path for the strategy's log files and removes all files within this directory.
+
+"""
 function logs_clear(s)
     dirpath = log_path(s, "")[2]
     for f in readdir(dirpath)
@@ -428,6 +583,14 @@ function logs_clear(s)
     end
 end
 
+@doc """ Prints the content of a specific log file for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` and an optional index `idx` (defaulting to the last log file). 
+It retrieves the directory path for the strategy's log files, selects the log file at the specified index, and prints its content.
+
+"""
 function print_log(s, idx=nothing)
     let logs = logs(s)
         isempty(logs) && error("no logs found for strategy $(nameof(s))")
@@ -446,6 +609,14 @@ function agg(f, sess::OptSession)
         combine(gd, f; renamecols=false)
     end
 end
+@doc """ Aggregates the results of an optimization session.
+
+$(TYPEDSIGNATURES)
+
+The function takes an optimization session `sess` and optional functions `reduce_func` and `agg_func`. 
+It groups the results by the session parameters, applies the `reduce_func` to each group, and then applies the `agg_func` to the reduced results.
+
+"""
 function agg(sess::OptSession; reduce_func=mean, agg_func=median)
     agg(
         (
@@ -460,7 +631,14 @@ function optsessions(s::Strategy; zi=zilmdb())
     optsessions(string(nameof(s)); zi)
 end
 
-@doc "Returns the zarrays storing all the optimization session over the specified zarrinstance."
+@doc """ Returns the zarrays storing all the optimization session over the specified zarrinstance.
+
+$(TYPEDSIGNATURES)
+
+The function takes a strategy `s` as an argument. 
+It retrieves the directory path for the strategy's log files and returns the full paths to all log files within this directory.
+
+"""
 function optsessions(s_name::String; zi=zilmdb())
     opt_group = zgroup_opt(zi)
     if s_name in keys(opt_group.groups)
@@ -470,12 +648,15 @@ function optsessions(s_name::String; zi=zilmdb())
     end
 end
 
-@doc "Clear all optimization session of a strategy.
-`keep_by`: will not delete sessions that match this attributes (`Dict{String, Any}`).
-    - `ctx`: the `Context` of the optimization session
-    - `params`: the params (`NamedTuple`) of the optimization session
-    - `attrs`: the config (`NamedTuple`) of the optimization session
-"
+@doc """ Clears optimization sessions of a strategy.
+
+$(TYPEDSIGNATURES)
+
+The function accepts a strategy name `s_name` and an optional `keep_by` dictionary.
+If `keep_by` is provided, sessions matching these attributes (`ctx`, `params`, or `attrs`) are not deleted.
+It checks each session, and deletes it if it doesn't match `keep_by` or if `keep_by` is empty.
+
+"""
 function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb())
     delete_all = isempty(keep_by)
     @assert delete_all || all(k ∈ ("ctx", "params", "attrs") for k in keys(keep_by)) "`keep_by` only support ctx, params or attrs keys."
@@ -497,6 +678,14 @@ function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb(
     end
 end
 
+@doc """ Extracts the lower and upper bounds from a parameters dictionary.
+
+$(TYPEDSIGNATURES)
+
+The function takes a parameters dictionary `params` as an argument. 
+It returns two arrays, `lower` and `upper`, containing the first and last values of each parameter range in the dictionary, respectively.
+
+"""
 lowerupper(params) = begin
     lower, upper = [], []
     for p in values(params)
@@ -507,7 +696,12 @@ lowerupper(params) = begin
 end
 
 delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
-@doc "Loads the BayesianOptimization extension"
+@doc """ Loads the BayesianOptimization extension.
+
+The function checks if the BayesianOptimization package is installed in the current environment. 
+If not, it prompts the user to add it to the main environment.
+
+"""
 function extbayes!()
     let prev = Pkg.project().path
         try
