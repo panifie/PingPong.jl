@@ -46,6 +46,15 @@ using Base: negate
 
 _ispossym(py, sym, eid::EIDType) = pyeq(Bool, resp_position_symbol(py, eid), @pystr(sym))
 
+@doc """ Handles the response from a position fetch request.
+
+$(TYPEDSIGNATURES)
+
+This function takes a response from a position fetch request and an asset instance. 
+It verifies the response, checks if it matches the requested side (buy/sell), and whether it is for the correct asset. 
+It returns the relevant position if found, otherwise it returns 'nothing'.
+
+"""
 function _handle_pos_resp(resp, ai, side)
     sym = raw(ai)
     eid = exchangeid(ai)
@@ -79,6 +88,15 @@ function _handle_pos_resp(resp, ai, side)
     end
 end
 
+@doc """ Fetches and processes the current position for a specific asset and side.
+
+$(TYPEDSIGNATURES)
+
+This function forces a fetch of the current position for a specific asset and side (buy/sell) through the `fetch_positions` function. 
+It then processes the response using the `_handle_pos_resp` function. 
+The position is then stored in the position watcher and processed.
+
+"""
 function _force_fetchpos(s, ai, side; fallback_kwargs)
     w = positions_watcher(s)
     @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller 7
@@ -101,6 +119,15 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     end
 end
 
+@doc """ Retrieves the current position for a specific asset and side.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the current position for a specific asset and side (buy/sell) through the `get_positions` function. 
+If the function is forced to fetch, or if the data is outdated, it will fetch the position again using the `_force_fetchpos` function. 
+It waits for the position update to occur and then returns the position update.
+
+"""
 function live_position(
     s::LiveStrategy,
     ai,
@@ -148,6 +175,13 @@ function live_position(
     return pup
 end
 
+@doc """ Retrieves the current position update for a specific asset.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the current position update for a specific asset through the `live_position` function and logs the status of the position update.
+
+"""
 function _pup(s, ai, args...; kwargs...)
     pup = live_position(s, ai, args...; kwargs...)
     if isnothing(pup)
@@ -158,6 +192,15 @@ function _pup(s, ai, args...; kwargs...)
     pup
 end
 
+@doc """ Retrieves the number of contracts for a specific asset in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the current position update for a specific asset through the `_pup` function.
+It then extracts the number of contracts from the position update. 
+If the asset is short, the function returns the negative of the number of contracts.
+
+"""
 function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
@@ -172,6 +215,14 @@ function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     end
 end
 
+@doc """ Retrieves the notional value of a specific asset in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the current position update for a specific asset through the `_pup` function. 
+It then extracts the notional value from the position update.
+
+"""
 function live_notional(s::LiveStrategy, ai, args...; kwargs...)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
@@ -181,6 +232,14 @@ function live_notional(s::LiveStrategy, ai, args...; kwargs...)
     end
 end
 
+@doc """ Retrieves the maintenance margin requirement (MMR) for a position.
+
+$(TYPEDSIGNATURES)
+
+This function first tries to retrieve the MMR from the live position. 
+If the retrieved MMR is zero or less, it falls back to the MMR value stored in the position.
+
+"""
 _ccxtmmr(lp::Py, pos, eid) =
     let v = resp_position_mmr(lp, eid)
         if v > ZERO
@@ -190,6 +249,7 @@ _ccxtmmr(lp::Py, pos, eid) =
         end
     end
 
+@doc """ Defines a named tuple for positions.  """
 const Pos = NamedTuple(
     Symbol(f) => f for f in (
         "liquidationPrice",
@@ -220,10 +280,33 @@ const Pos = NamedTuple(
 
 _ccxtposside(::ByPos{Long}) = "long"
 _ccxtposside(::ByPos{Short}) = "short"
+@doc """ Checks if a position is short.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is short by comparing the side of the position with the string "short". 
+It returns `true` if the position is short, and `false` otherwise.
+
+"""
 function _ccxtisshort(v::Py, eid::EIDType)
     pyeq(Bool, resp_position_side(v, eid), @pyconst("short"))
 end
+@doc """ Checks if a position is long.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is long by comparing the side of the position with the string "long". 
+It returns `true` if the position is long, and `false` otherwise.
+
+"""
 _ccxtislong(v::Py, eid::EIDType) = pyeq(Bool, resp_position_side(v, eid), @pyconst("long"))
+@doc """ Returns the `PositionSide` of a position from the ccxt position object.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves and returns the side (long/short) of a given position.
+
+"""
 _ccxtposside(v::Py, eid::EIDType) =
     if _ccxtislong(v, eid)
         Long()
@@ -232,6 +315,17 @@ _ccxtposside(v::Py, eid::EIDType) =
     else
         _ccxtpnlside(v, eid)
     end
+
+@doc """ Returns the side of a position for a live margin strategy.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the side (buy/sell) of a given position from a live margin strategy.
+If the side is "sell", it returns Short().
+If the side is "buy", it returns Long().
+If the side is neither "sell" nor "buy", it issues a warning and defaults to the provided default side (Long by default).
+
+"""
 function _ccxtposside(::MarginStrategy{Live}, v::Py, eid::EIDType; def=Long())
     let side = resp_order_side(v, eid)
         if pyeq(Bool, side, @pyconst("sell"))
@@ -245,6 +339,17 @@ function _ccxtposside(::MarginStrategy{Live}, v::Py, eid::EIDType; def=Long())
     end
 end
 _ccxtposside(::NoMarginStrategy{Live}, args...; kwargs...) = Long()
+
+@doc """ Returns the price of a position.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the last price of a position. 
+If the last price is zero or less, it tries to retrieve the mark price. 
+If the mark price is also zero or less, it defaults to the last price of the asset. 
+It returns the retrieved price.
+
+"""
 function _ccxtposprice(ai, update)
     eid = exchangeid(ai)
     lp = resp_position_lastprice(update, eid)
@@ -260,6 +365,14 @@ function _ccxtposprice(ai, update)
     end
 end
 
+@doc """ Determines the side of a position based on its unrealized profit and loss (PNL).
+
+$(TYPEDSIGNATURES)
+
+This function determines the side (long/short) of a position based on its unrealized PNL, liquidation price, and entry price.
+If the unrealized PNL is greater than or equal to zero and the liquidation price is less than the entry price, it returns Long(). Otherwise, it returns Short().
+
+"""
 function _ccxtpnlside(update, eid::EIDType)
     unpnl = resp_position_unpnl(update, eid)
     liqprice = resp_position_liqprice(update, eid)
@@ -267,6 +380,16 @@ function _ccxtpnlside(update, eid::EIDType)
     ifelse(unpnl >= ZERO && liqprice < eprice, Long(), Short())
 end
 
+@doc """ Determines the side of a position based on information from CCXT library.
+
+$(TYPEDSIGNATURES)
+
+This function first checks if the CCXT position side is provided. 
+If not, it infers the side from the position state or from the provided position object, if available. 
+If the CCXT side is provided, it checks if it's "short" or "long", and returns Short() or Long() respectively.
+If the CCXT side is neither "short" nor "long", it infers the side from the position state and returns it.
+
+"""
 function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
     ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
@@ -294,6 +417,16 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
     end
 end
 
+@doc """ Checks if a position is open based on information from CCXT library.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is open by checking if the number of contracts is greater than zero.
+It also checks if the initial margin, notional, and liquidation price are non-zero. 
+If the number of contracts is greater than zero, but any of the other three values are zero, it issues a warning about the position state being dirty.
+The function returns `true` if the number of contracts is greater than zero, indicating that the position is open, and `false` otherwise.
+
+"""
 function _ccxt_isposopen(pos::Py, eid::EIDType)
     c = resp_position_contracts(pos, eid) > ZERO
     i = !iszero(resp_position_initial_margin(pos, eid))
@@ -305,6 +438,16 @@ function _ccxt_isposopen(pos::Py, eid::EIDType)
     c
 end
 
+@doc """ Checks if a position is closed based on information from CCXT library.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is closed by checking if the number of contracts is zero.
+It also checks if the initial margin, notional, unrealized PNL, and liquidation price are non-zero. 
+If the number of contracts is zero, but any of the other four values are non-zero, it issues a warning about the position state being dirty.
+The function returns `true` if the number of contracts is zero, indicating that the position is closed, and `false` otherwise.
+
+"""
 function _ccxt_isposclosed(pos::Py, eid::EIDType)
     c = iszero(resp_position_contracts(pos, eid))
     i = !iszero(resp_position_initial_margin(pos, eid))
@@ -317,6 +460,24 @@ function _ccxt_isposclosed(pos::Py, eid::EIDType)
     c
 end
 
+@doc """ Waits for a position to reach a certain state.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a position to reach a certain state based on several parameters.
+- `bp`: The position side (default is the side of the asset).
+- `since`: The time from which to start waiting (optional).
+- `waitfor`: The time to wait for the position to reach the desired state (default is 5 seconds).
+- `force`: A boolean that determines whether to forcefully wait until the position is found (default is true).
+- `fallback_kwargs`: Additional keyword arguments (optional).
+
+The function fetches the position and checks if it has reached the desired state. 
+If it has not, it waits for a specified period and then checks again. 
+This process is repeated until the position reaches the desired state, or the function times out.
+If the function times out, it returns `false`. 
+If the position reaches the desired state within the time limit, the function returns `true`.
+
+"""
 function waitforpos(
     s::LiveStrategy,
     ai,
@@ -382,6 +543,16 @@ function waitforpos(
     end
 end
 
+@doc """ Waits for a local position to reach a certain state.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a local position to reach a certain state based on several parameters.
+The function fetches the position's timestamp and checks if it has changed. 
+If it has not, it waits for a specified period and then checks again. 
+This process is repeated until the timestamp changes, or the function times out.
+
+"""
 function waitforpos(s::LiveStrategy, ai, bp::ByPos, ::Val{:local}; waitfor=Second(5))
     pos = position(ai, bp)
     eid = exchangeid(ai)
@@ -394,6 +565,20 @@ function waitforpos(s::LiveStrategy, ai, bp::ByPos, ::Val{:local}; waitfor=Secon
     end
 end
 
+@doc """ Waits for a position to close.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a position to close based on several parameters.
+- `bp`: The position side (default is the side of the asset).
+- `waitfor`: The time to wait for the position to close (default is 5 seconds).
+- `sync`: A boolean that determines whether to sync live positions (default is true).
+
+The function fetches the position status and checks if it's closed. If not, it waits for a specified period and checks again. This process is repeated until the position is closed, or the function times out.
+
+If the function times out, it returns `false`. If the position closes within the time limit, the function returns `true`.
+
+"""
 function waitposclose(
     s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5), sync=true
 )

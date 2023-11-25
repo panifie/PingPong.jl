@@ -7,9 +7,13 @@ const ot = OrderTypes
 _execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
 _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 
+@doc "Converts a Python object to a string."
 pytostring(v) = pytruth(v) ? string(v) : ""
+@doc "Get the value of a Python container by key."
 get_py(v::Py, k) = get(v, @pystr(k), pybuiltins.None)
+@doc "Get the value of a Python container by key, with a default value."
 get_py(v::Py, k, def) = get(v, @pystr(k), def)
+@doc "Get the value of a Python container by multiple keys."
 get_py(v::Py, def, keys::Vararg{String}) = begin
     for k in keys
         ans = get_py(v, k)
@@ -17,8 +21,12 @@ get_py(v::Py, def, keys::Vararg{String}) = begin
     end
     return def
 end
+
+@doc "Get value of key as a string."
 get_string(v::Py, k) = get_py(v, k) |> pytostring
+@doc "Get value of key as a float."
 get_float(v::Py, k) = get_py(v, k) |> pytofloat
+@doc "Get value of key as a boolean."
 get_bool(v::Py, k) = get_py(v, k) |> pytruth
 
 _option_float(o::Py, k) =
@@ -28,6 +36,13 @@ _option_float(o::Py, k) =
         end
     end
 
+@doc """ Retrieves a float value from a Python response.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves a float value from a Python response `resp` for a given key `k`. If the key isn't found, it returns a default value `def`. If the key is found and the retrieved value isn't approximately equal to `def`, it logs a warning and returns the retrieved value.
+
+"""
 function get_float(resp::Py, k, def, args...; ai)
     v = _option_float(resp, k)
     if isnothing(v)
@@ -42,9 +57,12 @@ function get_float(resp::Py, k, def, args...; ai)
     end
 end
 
+@doc "Test whether a Python object is a list."
 islist(v) = pyisinstance(v, pybuiltins.list)
+@doc "Test whether a Python object is a dictionary."
 isdict(v) = pyisinstance(v, pybuiltins.dict)
 
+@doc "Get the timestamp from a Python object, by accessing the first of key available."
 get_timestamp(py, keys=("lastUpdateTimestamp", "timestamp")) =
     for k in keys
         v = get_py(py, k)
@@ -53,6 +71,7 @@ get_timestamp(py, keys=("lastUpdateTimestamp", "timestamp")) =
 
 _tryasdate(py) = tryparse(DateTime, rstrip(string(py), 'Z'))
 pytodate(py::Py) = pytodate(py, "lastUpdateTimestamp", "timestamp")
+@doc "Convert a Python object to a date."
 function pytodate(py::Py, keys...)
     let v = get_timestamp(py, keys)
         if pyisinstance(v, pybuiltins.str)
@@ -65,6 +84,7 @@ function pytodate(py::Py, keys...)
     end
 end
 pytodate(py::Py, ::EIDType, args...; kwargs...) = pytodate(py, args...; kwargs...)
+@doc "Convert a Python object to a date, defaulting to `now()`."
 get_time(v::Py, keys...) = @something pytodate(v, keys...) now()
 
 _pystrsym(v::String) = @pystr(uppercase(v))
@@ -84,6 +104,7 @@ _ccxtmarginmode(::NoMargin) = pybuiltins.None
 _ccxtmarginmode(::CrossMargin) = @pyconst "cross"
 _ccxtmarginmode(v) = marginmode(v) |> _ccxtmarginmode
 
+@doc "Convert a ccxt order type to a LiveMode order type."
 ordertype_fromccxt(resp, eid::EIDType) =
     let v = resp_order_type(resp, eid)
         if pyeq(Bool, v, @pyconst "market")
@@ -93,6 +114,7 @@ ordertype_fromccxt(resp, eid::EIDType) =
         end
     end
 
+@doc "Convert a PingPong order type to a ccxt time-in-force string."
 function _ccxttif(exc, type)
     if type <: AnyPostOnlyOrder
         @assert has(exc, :createPostOnlyOrder) "Exchange $(nameof(exc)) doesn't support post only orders."
@@ -111,6 +133,7 @@ function _ccxttif(exc, type)
     end
 end
 
+@doc "Convert a ccxt time-in-force string to a PingPong order type."
 ordertype_fromtif(o::Py, eid::EIDType) =
     let tif = resp_order_tif(o, eid)
         if pyeq(Bool, tif, @pyconst("PO"))
@@ -124,6 +147,7 @@ ordertype_fromtif(o::Py, eid::EIDType) =
         end
     end
 
+@doc "Convert a ccxt order side to a PingPong order side."
 _orderside(o::Py, eid) =
     let v = resp_order_side(o, eid)
         if pyeq(Bool, v, @pyconst("buy"))
@@ -133,6 +157,7 @@ _orderside(o::Py, eid) =
         end
     end
 
+@doc "Get the order id from a ccxt order object as a string."
 _orderid(o::Py, eid::EIDType) =
     let v = resp_order_id(o, eid)
         if pyisinstance(v, pybuiltins.str)
@@ -149,6 +174,7 @@ function _checkordertype(exc, sym)
     @assert has(exc, sym) "Exchange $(nameof(exc)) doesn't support $sym orders."
 end
 
+@doc "Get the ccxt order type string from a PingPong order type."
 function _ccxtordertype(exc, type)
     @pystr if type <: AnyLimitOrder
         _checkordertype(exc, :createLimitOrder)
@@ -161,14 +187,18 @@ function _ccxtordertype(exc, type)
     end
 end
 
+@doc "Get the ccxt exchange specific time-in-force value."
 time_in_force_value(::Exchange, v) = v
+@doc "Get the ccxt exchange specific time-in-force key."
 time_in_force_key(::Exchange) = "timeInForce"
 
+@doc "Tests if a ccxt order object is filled."
 function _ccxtisfilled(resp::Py, ::EIDType)
     get_float(resp, "filled") == get_float(resp, "amount") &&
         iszero(get_float(resp, "remaining"))
 end
 
+@doc "Tests if a ccxt order object is synced by comparing filled amount and trades."
 function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
     isapprox(ai, filled_amount(o), resp_order_filled(resp, eid), Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
@@ -176,6 +206,7 @@ function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
         end
 end
 
+@doc "Determine the PingPong order side from a ccxt order object."
 function _ccxt_sidetype(
     resp, eid::EIDType; o=nothing, getter=resp_trade_side
 )::Type{<:OrderSide}
@@ -196,11 +227,14 @@ _ccxtisstatus(resp, statuses::Vararg{String}) = any(x -> _ccxtisstatus(resp, x),
 function _ccxtisstatus(resp, status::String, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pystr(status))
 end
+@doc "Tests if a ccxt order object is open."
 _ccxtisopen(resp, eid::EIDType) = pyeq(Bool, resp_order_status(resp, eid), @pyconst("open"))
+@doc "Tests if a ccxt order object is closed."
 function _ccxtisclosed(resp, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pyconst("closed"))
 end
 
+@doc "The ccxt balance type to use depending on the strategy."
 _ccxtbalance_type(::NoMarginStrategy) = @pyconst("spot")
 _ccxtbalance_type(::MarginStrategy) = @pyconst("futures")
 

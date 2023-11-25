@@ -1,3 +1,12 @@
+@doc """ Cancels live orders on an exchange.
+
+$(TYPEDSIGNATURES)
+
+The function cancels either all live orders or specified ones based on the side (buy/sell). 
+It can optionally confirm if the cancellation was successful. 
+If the confirmation fails or if any error occurs during the process, a warning is issued and the function returns false.
+
+"""
 function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=nothing)
     eid = exchangeid(ai)
     (func, kwargs) = if side === Both && all

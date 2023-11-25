@@ -2,6 +2,13 @@ using .PaperMode.SimMode: trade!
 using .Lang: splitkws
 using .Python: pydicthash
 
+@doc """ Determines the date from which trades should be watched on startup.
+
+$(TYPEDSIGNATURES)
+
+This function determines the date from which trades should be watched when the live strategy `s` starts up. The date is calculated as the current time minus a specific `offset`.
+
+"""
 function startup_watch_since(s::LiveStrategy, offset=Millisecond(1))
     last_date = DateTime(0)
     for o in values(s)
@@ -24,7 +31,15 @@ function startup_watch_since(s::LiveStrategy, offset=Millisecond(1))
     end
 end
 
+@doc """ Determines if the exchange has the `fetchMyTrades` method. """
 hasmytrades(exc) = has(exc, :fetchMyTrades, :fetchMyTradesWs, :watchMyTrades)
+@doc """ Starts tasks to watch the exchange for trades for an asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function starts tasks in a live strategy `s` that watch the exchange for trades for an asset instance `ai`. It constantly checks and updates the trades based on the latest data from the exchange.
+
+"""
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @lock tasks.lock begin
@@ -113,8 +128,22 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     end
 end
 
+@doc """ Retrieves the asset trades task for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the asset trades task for a given asset instance `ai` from the live strategy `s`. The asset trades task is responsible for watching the exchange for trades for the asset instance.
+
+"""
 asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
 asset_trades_task(s, ai) = asset_trades_task(asset_tasks(s, ai).byname)
+@doc """ Checks if an exception is a specific Python exception.
+
+$(TYPEDSIGNATURES)
+
+This function checks if an exception `e` is a specific Python exception `pyexception`.
+
+"""
 function ispyexception(e, pyexception)
     pyisinstance(e, pyexception) || try
         hasproperty(e, :args) &&
@@ -136,6 +165,7 @@ function ispycancelled_error(e)
     ispyexception(e, Python.gpa.pyaio.CancelledError)
 end
 
+@doc """ Generates a minimal hash for a trade response. """
 _trade_kv_hash(resp, eid::EIDType) = begin
     p1 = resp_trade_price(resp, eid, Py)
     p2 = resp_trade_timestamp(resp, eid)
@@ -146,6 +176,7 @@ _trade_kv_hash(resp, eid::EIDType) = begin
     hash((p1, p2, p3, p4, p5, p6))
 end
 
+@doc """ Uses the trade id to generate a hash, otherwise uses the trade info. """
 function trade_hash(resp, eid)
     id = resp_trade_id(resp, eid)
     if pyisnone(id)
@@ -160,6 +191,13 @@ function trade_hash(resp, eid)
     end
 end
 
+@doc """ Retrieves the state of an order with a specific ID.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the state of an order with a specific `id` from a collection of orders `orders_byid`. If the state is not immediately available, the function waits for a specified duration `waitfor` before trying again.
+
+"""
 function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, line=@__LINE__)
     @something(
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
@@ -172,6 +210,16 @@ function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, lin
     )
 end
 
+@doc """ Handles a trade for a live strategy with an asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function manages a trade for a live strategy `s` with an asset instance `ai`. It looks at the collection of orders `orders_byid` and the response `resp` from the exchange to update the state of the trade. 
+It first checks if the trade is already present in `orders_byid`. If it is, the function updates the existing order with the new information from `resp`. If the trade is not present in `orders_byid`, the function creates a new order and adds it to `orders_byid`.
+It then checks if the trade has been completed. If it has, the function updates the state of the order in `orders_byid` to reflect this.
+A semaphore `sem` is used to ensure that only one thread is updating `orders_byid` at a time, to prevent data races.
+
+"""
 function handle_trade!(s, ai, orders_byid, resp, sem)
     try
         @debug "handle trade:" n_keys = length(resp)
@@ -267,6 +315,10 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
     end
 end
 
+@doc """ Stops the watcher for trades for a specific asset instance in a live strategy.
+
+$(TYPEDSIGNATURES)
+"""
 function stop_watch_trades!(s::LiveStrategy, ai)
     t = asset_trades_task(s, ai)
     if istaskrunning(t)
@@ -274,6 +326,12 @@ function stop_watch_trades!(s::LiveStrategy, ai)
     end
 end
 
+@doc """ Waits for a condition function to return true for a specified time.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a condition function `cond` to return true. It keeps checking the condition for a specified `time`. 
+"""
 function waitforcond(cond::Function, time)
     timeout = Millisecond(time).value
     waiting = Ref(true)
@@ -293,6 +351,13 @@ function waitforcond(cond::Function, time)
     return slept[]
 end
 
+@doc """ Waits for a certain condition for a specified time.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a certain condition `cond` to be met within a specified `time`. The condition `cond` is a function that returns a boolean value. The function continuously checks the condition until it's true or until the specified `time` has passed.
+
+"""
 function waitforcond(cond, time)
     timeout = max(Millisecond(time).value, 100)
     waiting = Ref(true)
@@ -315,6 +380,13 @@ function waitforcond(cond, time)
     return slept[]
 end
 
+@doc """ Waits for a trade in a live strategy with a specific asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a trade in a live strategy `s` with a specific asset instance `ai`. It continues to wait for a specified duration `waitfor` until a trade occurs.
+
+"""
 function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     tt = asset_trades_task(s, ai)
     timeout = Millisecond(waitfor).value
@@ -332,6 +404,13 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     slept
 end
 
+@doc """ Waits for a specific order to trade in a live strategy with a specific asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a specific order `o` to trade in a live strategy `s` with a specific asset instance `ai`. It continues to wait for a specified duration `waitfor` until the order is traded.
+
+"""
 function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     isfilled(ai, o) && return true
     order_trades = trades(o)
@@ -359,6 +438,13 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     this_count > prev_count
 end
 
+@doc """ Forces a fetch trades operation for a specific order in a live strategy with an asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function forces a fetch trades operation for a specific order `o` in a live strategy `s` with an asset instance `ai`. This function is typically used when the normal fetch trades operation did not return the expected results and a forced fetch is necessary.
+
+"""
 function _force_fetchtrades(s, ai, o)
     ordersby_id = active_orders(s, ai)
     state = get_order_state(ordersby_id, o.id; waitfor=Millisecond(0))

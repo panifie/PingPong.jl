@@ -2,6 +2,15 @@ using .Executors.Instruments: AbstractCash
 using .Lang: @get
 import .st: current_total
 
+@doc """ Handles the response from a balance fetch operation.
+
+$(TYPEDSIGNATURES)
+
+The function `_handle_bal_resp` takes a response `resp` from a balance fetch operation.
+If the response is a `PyException`, it returns `nothing`.
+If the response is a dictionary, it returns the response as is.
+For any other type of response, it logs an unhandled response message and returns `nothing`.
+"""
 function _handle_bal_resp(resp)
     if resp isa PyException
         @debug "force fetch bal: error" resp
@@ -14,6 +23,15 @@ function _handle_bal_resp(resp)
     end
 end
 
+@doc """ Forces a balance fetch operation.
+
+$(TYPEDSIGNATURES)
+
+The function `_force_fetchbal` forces a balance fetch operation for a given strategy `s`.
+It locks the balance watcher `w` for the strategy, fetches the balance, and processes the response.
+If the balance watcher is already locked, it returns `nothing`.
+The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
+"""
 function _force_fetchbal(s; fallback_kwargs)
     w = balance_watcher(s)
     @debug "force fetch bal: locking w" islocked(w) f = @caller
@@ -31,6 +49,15 @@ function _force_fetchbal(s; fallback_kwargs)
     end
 end
 
+@doc """ Waits for a balance update.
+
+$(TYPEDSIGNATURES)
+
+The function `waitforbal` waits for a balance update for a given strategy `s` and asset `ai`.
+It checks the balance at intervals specified by `waitfor` until the balance is updated or a timeout occurs.
+If the balance is not found and `force` is `true`, it forces a balance fetch operation.
+The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
+"""
 function waitforbal(
     s::LiveStrategy,
     ai,
@@ -90,6 +117,15 @@ function waitforbal(
     end
 end
 
+@doc """ Retrieves the live balance for a strategy.
+
+$(TYPEDSIGNATURES)
+
+The function `live_balance` retrieves the live balance for a given strategy `s` and asset `ai`.
+If `force` is `true` and the balance watcher is not locked, it forces a balance fetch operation.
+If the balance is not found or is outdated, it waits for a balance update or forces a balance fetch operation depending on the `force` parameter.
+The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
+"""
 function live_balance(
     s::LiveStrategy,
     ai=nothing;
@@ -122,6 +158,14 @@ function live_balance(
     bal
 end
 
+@doc """ Retrieves a specific kind of live balance.
+
+$(TYPEDSIGNATURES)
+
+The function `_live_kind` retrieves a specific kind of live balance for a given strategy `s` and asset `ai`.
+The kind of balance to retrieve is specified by the `kind` parameter.
+If the balance is not found, it returns a zero balance with the current date.
+"""
 function _live_kind(args...; kind, kwargs...)
     bal = live_balance(args...; kwargs...)
     if isnothing(bal)
@@ -143,6 +187,14 @@ _getbal(bal, ai::AssetInstance) = get(bal, bc(ai), (;))
 _getbal(bal, c) = get(bal, nameof(c), (;))
 _getfree(bal, obj) = @get(_getbal(bal, obj), :free, _getval(obj))
 
+@doc """ Calculates the current total balance for a strategy.
+
+$(TYPEDSIGNATURES)
+
+The function `current_total` calculates the current total balance for a given strategy `s`.
+It sums up the value of all assets in the universe of the strategy, using either the local balance or the fetched balance depending on the `local_bal` parameter.
+The function accepts a `price_func` parameter to determine the price of each asset.
+"""
 function st.current_total(
     s::LiveStrategy{N,<:ExchangeID,<:WithMargin}; price_func=lastprice, local_bal=false
 ) where {N}
@@ -172,6 +224,14 @@ function st.current_total(
     tot[] + s_tot
 end
 
+@doc """ Calculates the total balance for a strategy.
+
+$(TYPEDSIGNATURES)
+
+This function computes the total balance for a given strategy `s` by summing up the value of all assets in the strategy's universe. 
+The balance can be either local or fetched depending on the `local_bal` parameter. 
+The `price_func` parameter is used to determine the price of each asset.
+"""
 function st.current_total(
     s::LiveStrategy{N,<:ExchangeID,NoMargin}; price_func=lastprice, local_bal=false
 ) where {N}

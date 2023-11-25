@@ -8,12 +8,25 @@ using .Lang: splitkws, safenotify, safewait
 const CcxtPositionsVal = Val{:ccxt_positions}
 # :read, if true, the value of :pos has already be locally synced
 # :closed, if true, the value of :pos should be considered stale, and the position should be closed (contracts == 0)
+@doc """ A named tuple for keeping track of position updates.
+
+$(FIELDS)
+
+This named tuple `PositionUpdate7` has fields for date (`:date`), notification condition (`:notify`), read status (`:read`), closed status (`:closed`), and Python response (`:resp`), which are used to manage and monitor the updates of a position.
+
+"""
 const PositionUpdate7 = NamedTuple{
     (:date, :notify, :read, :closed, :resp),
     Tuple{DateTime,Base.Threads.Condition,Ref{Bool},Ref{Bool},Py},
 }
 const PositionsDict2 = Dict{String,PositionUpdate7}
 
+@doc """ Guesses the settlement for a given margin strategy.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to guess the settlement for a given margin strategy `s`. The guessed settlement is returned.
+"""
 function guess_settle(s::MarginStrategy)
     try
         first(s.universe).asset.sc |> string |> uppercase
@@ -36,6 +49,12 @@ function split_params(kwargs)
     end
 end
 
+@doc """ Wraps a fetch positions function with a specified interval.
+
+$(TYPEDSIGNATURES)
+
+This function wraps a fetch positions function `s` with a specified `interval`. Additional keyword arguments `kwargs` are passed to the fetch positions function.
+"""
 function _w_fetch_positions_func(s, interval; kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
@@ -68,6 +87,12 @@ function _w_fetch_positions_func(s, interval; kwargs)
     end
 end
 
+@doc """ Sets up a watcher for CCXT positions.
+
+$(TYPEDSIGNATURES)
+
+This function sets up a watcher for positions in the CCXT library. The watcher keeps track of the positions and updates them as necessary.
+"""
 function ccxt_positions_watcher(
     s::Strategy;
     interval=Second(5),
@@ -98,6 +123,12 @@ function ccxt_positions_watcher(
     )
 end
 
+@doc """ Starts the watcher for positions in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function starts the watcher for positions in a live strategy `s`. The watcher checks and updates the positions at a specified interval.
+"""
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
     w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
         s; interval, start=true
@@ -106,6 +137,13 @@ function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
     w
 end
 
+@doc """ Stops the watcher for positions in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function stops the watcher that is tracking and updating positions for a live strategy `s`.
+
+"""
 function stop_watch_positions!(s::LiveStrategy)
     w = get(s.attrs, :live_positions_watcher, nothing)
     if w isa Watcher && isstarted(w)
@@ -144,6 +182,13 @@ function _posupdate(prev, date, resp)
     PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
+@doc """ Processes positions for a watcher using the CCXT library.
+
+$(TYPEDSIGNATURES)
+
+This function processes positions for a watcher `w` using the CCXT library. It goes through the positions stored in the watcher and updates their status based on the latest data from the exchange. If a symbol `sym` is provided, it processes only the positions for that symbol, updating their status based on the latest data for that symbol from the exchange.
+
+"""
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     isempty(w.buffer) && return nothing
     data_date, data = last(w.buffer)
@@ -181,6 +226,13 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     skip_notify || safenotify(w.beacon.process)
 end
 
+@doc """ Updates position flags for a symbol in a dictionary.
+
+$(TYPEDSIGNATURES)
+
+This function updates the position flags for a symbol `sym` in a given dictionary `dict`. The flags are updated based on the `data_date`, `side`, and `processed_syms` to reflect the most recent state of the symbol's position in the market. The exchange ID type `eid` is also considered while updating the position flags.
+
+"""
 function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
     set!(sym, pup) = begin
         prev_closed = pup.closed[]

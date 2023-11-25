@@ -1,6 +1,14 @@
 import PaperMode.SimMode: liquidate!
 using .Instances: value
 
+@doc """ Executes post-trade updates for a given strategy, asset, order, and trade
+
+$(TYPEDSIGNATURES)
+
+Invoked after a trade event, it fetches the updated position data and syncs the local state. 
+If the position update fails or is stale, warnings are logged.
+
+"""
 function Executors.aftertrade!(
     s::MarginStrategy{Live}, ai::A, o::O, t::T
 ) where {A,O,T<:Trade}
@@ -58,9 +66,11 @@ function Executors.aftertrade!(
     t
 end
 
-@doc """ In live mode liquidations are not simulated because ccxt hasn't yet unified liquidation behaviour.
-When a liquidation happens on the exchange w
+@doc """ Logs a warning when a liquidation event is approaching in live mode
 
+$(TYPEDSIGNATURES)
+
+Liquidations are not simulated in live mode due to lack of unified behavior in ccxt. This function logs the crucial details such as leverage, margin, entry price, liquidation price, and position value when a liquidation event is impending.
 
 """
 function liquidate!(

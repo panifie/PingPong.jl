@@ -1,3 +1,13 @@
+@doc """ Calculates the live profit and loss for a given position.
+
+$(TYPEDSIGNATURES)
+
+This function calculates the live profit and loss (PnL) for a given position in a live trading strategy. 
+It fetches the current position from the exchange and compares it with the position in the strategy. 
+If there is a discrepancy, it synchronizes the position and recalculates the PnL. 
+The function returns the calculated PnL.
+
+"""
 function live_pnl(
     s::LiveStrategy,
     ai,

@@ -5,6 +5,15 @@ using .Executors.Instruments: AbstractAsset
 using .OrderTypes: ordertype
 using .Lang: filterkws
 
+@doc """ Creates a live order.
+
+$(TYPEDSIGNATURES)
+
+This function is designed to create a live order on a given strategy and asset instance. 
+It verifies the response from the exchange and constructs the order with the provided parameters. 
+If the order fails to construct and is marked as synced, it attempts to synchronize the strategy and universe cash, and then retries order creation. 
+Finally, if the order is marked as active, the function sets it as the active order.
+"""
 function create_live_order(
     s::LiveStrategy,
     resp,
@@ -82,6 +91,13 @@ function create_live_order(
     return o
 end
 
+@doc """ Sends and constructs a live order.
+
+$(TYPEDSIGNATURES)
+
+This function sends a live order using the provided parameters and constructs it based on the response received. 
+
+"""
 function create_live_order(
     s::LiveStrategy,
     ai::AssetInstance,

@@ -3,6 +3,7 @@ _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v)
 _isstrequal(a::Py, b::String) = string(a) == b
 _isstrequal(a::Py, b::Py) = pyeq(Bool, a, b)
 _ispydict(v) = pyisinstance(v, pybuiltins.dict)
+@doc "Anything that can't be tested for emptiness is emptish."
 isemptish(v::Py) =
     try
         pyisnone(v) || isempty(v)
@@ -16,6 +17,7 @@ isemptish(v) =
         true
     end
 
+@doc "Filter out items from a python list."
 _pyfilter!(out, pred::Function) = begin
     n = 0
     while n < length(out)
@@ -29,6 +31,12 @@ _pyfilter!(out, pred::Function) = begin
     out
 end
 
+@doc """ Retrieves the trades for an order from a Python response.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the trades associated with an order from a Python response `resp` from a given exchange `exc`. The function uses the provided function `isid` to determine which trades are associated with the order.
+"""
 function _ordertrades(resp, exc, isid=(x) -> length(x) > 0)
     (pyisnone(resp) || resp isa PyException || isempty(resp)) && return nothing
     out = pylist()
@@ -41,6 +49,13 @@ function _ordertrades(resp, exc, isid=(x) -> length(x) > 0)
     out
 end
 
+@doc """ Cancels all orders for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function cancels all orders for a given asset instance `ai`. It retrieves the orders using the provided function `orders_f` and cancels them using the provided function `cancel_f`.
+
+"""
 function _cancel_all_orders(ai, orders_f, cancel_f)
     sym = raw(ai)
     eid = exchangeid(ai)
@@ -51,6 +66,7 @@ function _cancel_all_orders(ai, orders_f, cancel_f)
         _execfunc(cancel_f, ids; symbol=sym)
     end
 end
+@doc """ Same as [`_cancel_all_orders`](@ref) but does one call for each order.  """
 function _cancel_all_orders_single(ai, orders_f, cancel_f)
     _cancel_all_orders(
         ai, orders_f, ((ids; symbol) -> begin
@@ -61,6 +77,13 @@ function _cancel_all_orders_single(ai, orders_f, cancel_f)
     )
 end
 
+@doc """ Cancels specified orders for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function cancels orders with specified `ids` for a given asset instance `ai` and a specific side (`side`). It retrieves the orders using the provided function `orders_f` and cancels them using the provided function `cancel_f`.
+
+"""
 function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     eid = exchangeid(ai)
@@ -90,6 +113,13 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
 end
 
 _syms(ais) = ((raw(ai) for ai in ais)...,)
+@doc """ Filters positions based on exchange ID type and side.
+
+$(TYPEDSIGNATURES)
+
+This function filters positions from `out` based on the provided exchange ID type `eid` and the `side` (default is `Hedged`). It returns the filtered positions.
+
+"""
 function _filter_positions(out, eid::EIDType, side=Hedged())
     if out isa Exception || (@something side Hedged()) isa Hedged
         out
@@ -98,6 +128,13 @@ function _filter_positions(out, eid::EIDType, side=Hedged())
     end
 end
 
+@doc """ Fetches orders for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function fetches orders for a given asset instance `ai` using the provided `fetch_func`. The `side` parameter (default is `Both`) and `ids` parameter (default is an empty tuple) allow filtering of the fetched orders. Additional keyword arguments `kwargs...` are passed to the fetch function.
+
+"""
 function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
     symbol = raw(ai)
     eid = exchangeid(ai)
@@ -131,6 +168,7 @@ end
 
 ## FUNCTIONS
 
+@doc "Sets up the [`fetch_orders`](@ref) closure for the ccxt exchange instance."
 function ccxt_orders_func!(a, exc)
     # NOTE: these function are not similar since the single fetchOrder functions
     # fetch by id, while fetchOrders might not find the order (if it is too old)
@@ -152,6 +190,7 @@ function ccxt_orders_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`create_order`](@ref) closure for the ccxt exchange instance."
 function ccxt_create_order_func!(a, exc)
     func = first(exc, :createOrderWs, :createOrder)
     @assert !isnothing(func) "Exchange doesn't have a `create_order` function"
@@ -164,6 +203,7 @@ function positions_func(exc::Exchange, ais, args...; kwargs...)
     )
 end
 
+@doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
     a[:live_positions_func] = if has(exc, :fetchPositions)
@@ -181,6 +221,7 @@ function ccxt_positions_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`cancel_order`](@ref) closure for the ccxt exchange instance."
 function ccxt_cancel_orders_func!(a, exc)
     orders_f = a[:live_orders_func]
     a[:live_cancel_func] = if has(exc, :cancelOrders)
@@ -198,6 +239,7 @@ function ccxt_cancel_orders_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`cancel_all_orders`](@ref) closure for the ccxt exchange instance."
 function ccxt_cancel_all_orders_func!(a, exc)
     a[:live_cancel_all_func] = if has(exc, :cancelAllOrders)
         func = first(exc, :cancelAllOrdersWs, :cancelAllOrders)
@@ -218,6 +260,7 @@ function ccxt_cancel_all_orders_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`fetch_open_orders`](@ref) or [`fetch_closed_orders`](@ref) closure for the ccxt exchange instance."
 function ccxt_open_orders_func!(a, exc; open=true)
     oc = open ? "open" : "closed"
     cap = open ? "Open" : "Closed"
@@ -243,6 +286,7 @@ function ccxt_open_orders_func!(a, exc; open=true)
     end
 end
 
+@doc "Sets up the [`fetch_my_trades`](@ref) closure for the ccxt exchange instance."
 function ccxt_my_trades_func!(a, exc)
     a[:live_my_trades_func] = if has(exc, :fetchMyTrades)
         let f = first(exc, :fetchMyTradesWs, :fetchMyTrades)
@@ -257,6 +301,7 @@ function ccxt_my_trades_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`fetch_order_trades`](@ref) closure for the ccxt exchange instance."
 function ccxt_order_trades_func!(a, exc)
     a[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
         f = first(exc, :fetchOrderTradesWs, :fetchOrderTrades)
@@ -320,12 +365,14 @@ function ccxt_order_trades_func!(a, exc)
     end
 end
 
+@doc "Sets up the [`fetch_candles`](@ref) closure for the ccxt exchange instance."
 function ccxt_fetch_candles_func!(a, exc)
     fetch_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
     a[:live_fetch_candles_func] =
         (args...; kwargs...) -> _execfunc(fetch_func, args...; kwargs...)
 end
 
+@doc "Sets up the [`fetch_l2ob`](@ref) closure for the ccxt exchange instance."
 function ccxt_fetch_l2ob_func!(a, exc)
     fetch_func = first(exc, :fetchOrderBookWs, :fetchOrderBook)
     a[:live_fetch_l2ob_func] = (ai; kwargs...) -> _execfunc(fetch_func, raw(ai); kwargs...)

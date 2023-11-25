@@ -1,3 +1,11 @@
+@doc """ Places a market order and waits for its completion.
+
+$(TYPEDSIGNATURES)
+
+This function creates a live market order and then waits for it to either be filled or cancelled, depending on the waiting time provided. 
+The function returns the last trade if any trades have occurred, otherwise it returns a `missing` status.
+
+"""
 function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     o = create_live_order(
         s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs

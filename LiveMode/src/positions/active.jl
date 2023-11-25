@@ -1,4 +1,11 @@
+@doc """ Sets the active position for an asset based on cash and timestamp conditions
 
+$(TYPEDSIGNATURES)
+
+Determines the active position (long or short) for an asset based on the cash amounts and timestamps of the long and short positions.
+If there is no decisive active side, the last active position remains.
+
+"""
 function set_active_position!(
     ai;
     cash_long=cash(ai, Long()),

@@ -1,3 +1,13 @@
+@doc """ Fetches a live order by id from the exchange.
+
+$(TYPEDSIGNATURES)
+
+This function fetches an order by id from the exchange for an asset.
+It first retrieves the order id and status from the response. 
+If the status of the order is open, it fetches open orders from the exchange and searches for the order with the given id.
+If the order is not found or its status is not open, it fetches closed orders from the exchange and searches for the order with the given id.
+
+"""
 function live_order_byid(s::LiveStrategy, ai; resp)
     eid = exchangeid(ai)
     id = resp_order_id(resp, eid, String)
@@ -41,6 +51,16 @@ end
 #     getter=(resp, k, def) -> get_float(resp, k, def, Val(:amount); ai),
 # )
 
+@doc """ Returns a value from a live order response with a fallback mechanism.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to fetch a specific value from a live order response. 
+If the value does not match the expected default within a given tolerance, 
+it fetches the order by its id as a fallback and tries to get the value again. 
+A warning is issued if the fetched value still doesn't match the expected default.
+
+"""
 function _ccxtvalue_with_fallback(
     s::LiveStrategy, ai, resp, k, def; getter, rtol=0.05, fallback_resp=nothing
 )

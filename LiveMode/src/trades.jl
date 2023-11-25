@@ -2,6 +2,15 @@ import .SimMode: maketrade, trade!
 using .SimMode: @maketrade, iscashenough, cost
 using .Misc.TimeToLive: safettl
 
+@doc """ Checks and filters trades based on a timestamp.
+
+$(TYPEDSIGNATURES)
+
+The function checks if the response is a list. If not, it issues a warning and returns `nothing`.
+If a `since` timestamp is provided, it filters out trades that occurred before this timestamp.
+The function returns the filtered list of trades or the original response if no `since` timestamp is provided.
+
+"""
 function _check_and_filter(resp; ai, since, kind="")
     pyisinstance(resp, pybuiltins.list) || begin
         @warn "Couldn't fetch $kind trades for $(raw(ai))"
@@ -22,16 +31,35 @@ function _timestamp(v, eid::EIDType)
     pyconvert(Int, resp_trade_timestamp(v, eid)) |> TimeTicks.dtstamp
 end
 
+@doc """ Fetches and filters the user's trades.
+
+$(TYPEDSIGNATURES)
+
+The function fetches the user's trades using the `fetch_my_trades` function.
+If a `since` timestamp is provided, it filters out trades that occurred before this timestamp using the `_check_and_filter` function.
+The function returns the filtered list of trades or the original response if no `since` timestamp is provided.
+
+"""
 function live_my_trades(s::LiveStrategy, ai; since=nothing, kwargs...)
     resp = fetch_my_trades(s, ai; since, kwargs...)
     _check_and_filter(resp; ai, since)
 end
 
+@doc """ Fetches and filters trades for a specific order
+
+$(TYPEDSIGNATURES)
+
+This function fetches the trades associated with a specific order using the `fetch_order_trades` function.
+If a `since` timestamp is provided, it filters out trades that occurred before this timestamp using the `_check_and_filter` function.
+The function returns the filtered list of trades or the original response if no `since` timestamp is provided.
+
+"""
 function live_order_trades(s::LiveStrategy, ai, id; since=nothing, kwargs...)
     resp = fetch_order_trades(s, ai, id; since, kwargs...)
     _check_and_filter(resp; ai, since, kind="order")
 end
 
+@doc "A named tuple representing the ccxt fields of a trade."
 const Trf = NamedTuple(
     Symbol(f) => f for f in (
         "id",
@@ -63,6 +91,7 @@ function check_limits(v, ai, lim_sym)
     end
 end
 
+@doc "A cache for storing market symbols by currency with a time-to-live of 360 seconds."
 const MARKETS_BY_CUR = safettl(Tuple{ExchangeID,String}, Vector{String}, Second(360))
 function anyprice(cur::String, sym, exc)
     try
@@ -81,11 +110,29 @@ function anyprice(cur::String, sym, exc)
 end
 
 _feebysign(rate, cost) = rate >= ZERO ? cost : -cost
+@doc """ Calculates the fee from a fee dictionary
+
+$(TYPEDSIGNATURES)
+
+This function calculates the fee from a fee dictionary. 
+It retrieves the rate and cost from the fee dictionary and then uses the `_feebysign` function to calculate the fee based on the rate and cost.
+
+"""
 function _getfee(fee_dict, cost=get_float(fee_dict, "cost"))
     rate = get_float(fee_dict, "rate")
     _feebysign(rate, cost)
 end
 
+@doc """ Determines the fee cost based on the currency
+
+$(TYPEDSIGNATURES)
+
+This function determines the fee cost based on the currency specified in the fee dictionary. 
+If the currency matches the quote currency, it returns the fee in quote currency. 
+If the currency matches the base currency, it returns the fee in base currency. 
+If the currency doesn't match either, it returns zero for both.
+
+"""
 function _feecost(
     fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai))
 )
@@ -117,6 +164,15 @@ end
 #     end
 # end
 
+@doc """ Determines the currency of the fee based on the order side
+
+$(TYPEDSIGNATURES)
+
+This function determines the currency of the fee based on the side of the order. 
+It uses the `feeSide` property of the market associated with the order. 
+The function returns `:base` if the fee is in the base currency and `:quote` if the fee is in the quote currency.
+
+"""
 function trade_feecur(ai, side::Type{<:OrderSide})
     # Default to get since it should be the most common
     feeside = get(market(ai), "feeSide", "get")
@@ -141,6 +197,14 @@ function trade_feecur(ai, side::Type{<:OrderSide})
     end
 end
 
+@doc """ Calculates the default trade fees based on the order side
+
+$(TYPEDSIGNATURES)
+
+This function calculates the default trade fees based on the side of the order and the current market conditions. 
+It uses the `trade_feecur` function to determine the currency of the fee and then calculates the fee based on the amount and cost of the trade.
+
+"""
 function _default_trade_fees(
     ai, side::Type{<:OrderSide}; fees_base, fees_quote, actual_amount, net_cost
 )
@@ -155,6 +219,16 @@ function _default_trade_fees(
 end
 
 market(ai) = exchange(ai).markets[raw(ai)]
+@doc """ Determines the trade fees based on the response and side of the order
+
+$(TYPEDSIGNATURES)
+
+This function determines the trade fees based on the response from the exchange and the side of the order. 
+It first checks if the response contains a fee dictionary. If it does, it calculates the fee cost based on the dictionary. 
+If the response does not contain a fee dictionary but contains a list of fees, it calculates the total fee cost from the list. 
+If the response does not contain either, it calculates the default trade fees.
+
+"""
 function _tradefees(resp, side, ai; actual_amount, net_cost)
     eid = exchangeid(ai)
     v = resp_trade_fee(resp, eid)
@@ -183,6 +257,14 @@ end
 _addfees(net_cost, fees_quote, ::IncreaseOrder) = net_cost + fees_quote
 _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
+@doc """ Checks if the trade symbol matches the order symbol
+
+$(TYPEDSIGNATURES)
+
+This function checks if the trade symbol from the response matches the symbol of the order. 
+If they do not match, it issues a warning and returns `false`.
+
+"""
 function check_symbol(ai, o, resp, eid::EIDType; getter=resp_trade_symbol)::Bool
     pyeq(Bool, getter(resp, eid), @pystr(raw(ai))) || begin
         @warn "Mismatching trade for $(raw(ai))($(resp_trade_symbol(resp, eid))), order: $(o.asset), refusing construction."
@@ -190,6 +272,14 @@ function check_symbol(ai, o, resp, eid::EIDType; getter=resp_trade_symbol)::Bool
     end
 end
 
+@doc """ Checks if the response is of the expected type
+
+$(TYPEDSIGNATURES)
+
+This function checks if the response from the exchange is of the expected type. 
+If the response is not of the expected type, it issues a warning and returns `false`.
+
+"""
 function check_type(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
     pyisinstance(resp, type) || begin
         @warn "Invalid response for order $(raw(ai)), order: $o, refusing construction."
@@ -197,6 +287,14 @@ function check_type(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
     end
 end
 
+@doc """ Checks if the trade id matches the order id
+
+$(TYPEDSIGNATURES)
+
+This function checks if the trade id from the response matches the id of the order. 
+If they do not match, it issues a warning and returns `false`.
+
+"""
 function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_order)::Bool
     string(getter(resp, eid)) == o.id || begin
         @warn "Mismatching id $(raw(ai))($(resp_trade_order(resp, eid))), order: $(o.id), refusing construction."
@@ -204,6 +302,14 @@ function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_order)::Bool
     end
 end
 
+@doc """ Checks if the trade side matches the order side
+
+$(TYPEDSIGNATURES)
+
+This function checks if the side of the trade from the response matches the side of the order. 
+If they do not match, it issues a warning and returns `false`.
+
+"""
 function _check_side(side, o)::Bool
     side == orderside(o) || begin
         @warn "Mismatching trade side $side and order side $(orderside(o)), refusing construction."
@@ -211,6 +317,15 @@ function _check_side(side, o)::Bool
     end
 end
 
+@doc """ Checks if the trade price is valid
+
+$(TYPEDSIGNATURES)
+
+This function checks if the trade price from the response is approximately equal to the order price or if the order is a market order. 
+If the price is far off from the order price, it issues a warning. 
+The function also checks if the price is greater than zero, issuing a warning and returning `false` if it's not.
+
+"""
 function _check_price(s, ai, actual_price, o; resp)::Bool
     isapprox(actual_price, o.price; rtol=0.05) ||
         o isa AnyMarketOrder ||
@@ -223,6 +338,14 @@ function _check_price(s, ai, actual_price, o; resp)::Bool
     end
 end
 
+@doc """ Checks if the trade amount is valid
+
+$(TYPEDSIGNATURES)
+
+This function checks if the trade amount from the response is greater than zero. 
+If it's not, it issues a warning and returns `false`.
+
+"""
 function _check_amount(s, ai, actual_amount; resp)::Bool
     actual_amount > ZERO || begin
         @warn "Trade amount can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
@@ -230,11 +353,29 @@ function _check_amount(s, ai, actual_amount; resp)::Bool
     end
 end
 
+@doc """ Warns if the local cash is not enough for the trade
+
+$(TYPEDSIGNATURES)
+
+This function checks if the local cash is enough for the trade. 
+If it's not, it issues a warning.
+
+"""
 function _warn_cash(s, ai, o; actual_amount)
     iscashenough(s, ai, actual_amount, o) ||
         @warn "make trade: local cash not enough" cash(ai) o.id actual_amount
 end
 
+@doc """ Constructs a trade based on the order and response
+
+$(TYPEDSIGNATURES)
+
+This function constructs a trade based on the order and the response from the exchange. 
+It performs several checks on the response, such as checking the type, symbol, id, side, price, and amount. 
+If any of these checks fail, the function returns `nothing`. 
+Otherwise, it calculates the fees, warns if the local cash is not enough for the trade, and constructs the trade.
+
+"""
 function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, kwargs...)
     eid = exchangeid(ai)
     trade isa Trade && return trade

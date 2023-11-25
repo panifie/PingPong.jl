@@ -7,6 +7,17 @@ using .OrderTypes: isimmediate
 using Watchers: fetch!
 import .Executors: pong!, aftertrade!
 
+@doc """ Updates leverage or places an order in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function either updates the leverage of a position or places an order in a live trading strategy. 
+It first checks if the position is open or has pending orders. 
+If not, it updates the leverage on the exchange and then synchronizes the position. 
+If an order is to be placed, it checks for any open positions on the opposite side and places the order if none exist. 
+The function returns the trade or leverage update status.
+
+"""
 function Executors.pong!(
     s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
 )
@@ -28,6 +39,15 @@ function Executors.pong!(
     end
 end
 
+@doc """ Checks for open positions on the opposite side in an isolated strategy.
+
+$(TYPEDSIGNATURES)
+
+This macro checks if there are any open positions on the opposite side in an isolated trading strategy. 
+If an open position is found, it issues a warning and returns `nothing`. 
+The check is performed for the current trade type `t` and the associated asset instance `ai`.
+
+"""
 macro isolated_position_check()
     ex = quote
         p = positionside(t)
@@ -47,6 +67,15 @@ end
 
 _warnpos(p) = @warn "$p Orders are not allowed, other pos ($(opposite(p))) is still open."
 
+@doc """ Executes a limit order in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function executes a limit order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`. 
+It checks for open positions on the opposite side and places the order if none exist. 
+The function returns the trade or leverage update status.
+
+"""
 function Executors.pong!(
     s::IsolatedStrategy{Live},
     ai::MarginInstance,
@@ -69,6 +98,15 @@ function Executors.pong!(
     trade
 end
 
+@doc """ Executes a market order in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function executes a market order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`. 
+It checks for open positions on the opposite side and places the order if none exist. 
+The function returns the trade or leverage update status.
+
+"""
 function Executors.pong!(
     s::IsolatedStrategy{Live},
     ai::MarginInstance,
@@ -93,7 +131,15 @@ end
 _close_order_bypos(::Short) = ShortMarketOrder{Buy}
 _close_order_bypos(::Long) = MarketOrder{Sell}
 
-@doc "Closes a leveraged position (Live)."
+@doc """ Closes a leveraged position in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function cancels any pending orders and checks the position status.
+If the position is open, it places a closing trade and waits for it to be executed.
+The function returns `true` if the position is successfully closed, `false` otherwise.
+
+"""
 function pong!(
     s::MarginStrategy{Live},
     ai,

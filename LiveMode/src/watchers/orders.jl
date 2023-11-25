@@ -8,6 +8,17 @@ using .SimMode: @maketrade
 # This could be improved by batching new tasks called within a short amount time
 # and use the `...ForSymbols` functions from ccxt.
 
+@doc """ Watches and manages orders for a live strategy with an asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function watches orders for a live strategy `s` with an asset instance `ai`. It starts a task that continuously fetches the latest orders from the exchange and updates the live strategy's order list.
+First, it fetches the latest orders from the exchange using the asset instance `ai`. It then goes through each fetched order and checks if it already exists in the live strategy's order list. If it does, the function updates the existing order with the latest information. If it doesn't, the function adds the new order to the list.
+In addition, this function also manages order statuses. If an order's status has changed (e.g., from 'open' to 'closed'), it updates the status in the live strategy's order list.
+Any additional keyword arguments (`exc_kwargs`) are passed to the asset instance, which can use them to customize its behavior.
+The function handles exceptions gracefully. If an exception occurs during the fetch orders operation, it logs the exception and continues with the next iteration.
+
+"""
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @lock tasks.lock begin
@@ -123,10 +134,25 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
 end
 
 asset_orders_task(tasks) = get(tasks, :orders_task, nothing)
+@doc """ Retrieves the orders task for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the orders task for a given asset instance `ai` from the live strategy `s`. The orders task is responsible for watching and updating orders for the asset instance.
+
+"""
 asset_orders_task(s, ai) = asset_orders_task(asset_tasks(s, ai).byname)
 asset_orders_stop_task(tasks) = get(tasks, :orders_stop_task, nothing)
+@doc """ Retrieves the orders stop task for a given asset instance.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the orders stop task for a given asset instance `ai` from the live strategy `s`. The orders stop task is responsible for stopping the watching and updating of orders for the asset instance.
+
+"""
 asset_orders_stop_task(s, ai) = asset_orders_stop_task(asset_tasks(s, ai).byname)
 
+@doc """ Generates a unique enough hash for an order. """
 function _order_kv_hash(resp, eid::EIDType)
     p1 = resp_order_price(resp, eid, Py)
     p2 = resp_order_timestamp(resp, eid, Py)
@@ -144,11 +170,13 @@ function _order_kv_hash(resp, eid::EIDType)
     hash((p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
 end
 
+@doc """ Stops the orders watcher for an asset instance. """
 function stop_watch_orders!(s::LiveStrategy, ai)
     asset_orders_stop_task(s, ai) |> stop_task
     asset_orders_task(s, ai) |> stop_task
 end
 
+@doc """ Generates a unique enough hash for an order, preferably based on the last update, or the order info otherwise. """
 order_update_hash(resp, eid) = begin
     last_update = resp_order_lastupdate(resp, eid)
     if pyisnone(last_update)
@@ -163,6 +191,16 @@ order_update_hash(resp, eid) = begin
     end
 end
 
+@doc """ Updates an existing order in the system.
+
+$(TYPEDSIGNATURES)
+
+This function updates the state of an order in the system based on the new information received. 
+It locks the state and updates the hash of the order. 
+If the order is still open, it emulates the trade. 
+If the order is filled or not open anymore, it finalizes the order, waits for trades to be processed if necessary, and removes it from the active orders map. 
+If the order did not complete, it sends an error and cancels the order.
+"""
 function update_order!(s, ai, eid; resp, state)
     @debug "update ord: locking state" id = state.order.id islocked(ai) f = @caller 7
     @lock state.lock begin
@@ -247,6 +285,15 @@ function update_order!(s, ai, eid; resp, state)
     end
 end
 
+@doc """ Re-activates a previously active order.
+
+$(TYPEDSIGNATURES)
+
+This function attempts to re-activate an order that was previously active in the system.
+If the order is still open, it updates the order state. 
+If the order cannot be found or re-created, it cancels the order from the exchange and removes it from the local state if present.
+
+"""
 function re_activate_order!(s, ai, id; eid, resp)
     function docancel(o=nothing)
         @error "reactivate ord: could not re-create order, cancelling from exchange" id exc = nameof(
@@ -296,6 +343,13 @@ function re_activate_order!(s, ai, id; eid, resp)
     end
 end
 
+@doc """Manages the lifecycle of an order event.
+
+$(TYPEDSIGNATURES)
+
+The function extracts an order id from the `resp` object and based on the status of the order, it either updates, re-activates, or cancels the order. 
+It uses a semaphore to ensure the order of events is respected.
+"""
 function handle_order!(s, ai, orders_byid, resp, sem)
     try
         @debug "handle ord: new event" sem = length(sem)
@@ -355,7 +409,14 @@ function handle_order!(s, ai, orders_byid, resp, sem)
     end
 end
 
-# EXPERIMENTAL
+@doc """Emulates a trade based on order and response objects.
+
+$(TYPEDSIGNATURES)
+
+This function checks if an order is open, validates the order details (type, symbol, id, side), and calculates the filled amount. 
+If the filled amount has changed, it computes the new average price and checks if it's within the limits. 
+It then emulates the trade and updates the order state.
+"""
 function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price), exec=true)
     isopen(ai, o) || begin
         @error "emu trade: closed order ($(o.id))"
@@ -440,6 +501,14 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     end
 end
 
+@doc """Waits for any order event to happen on the specified asset.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a specified amount of time or until an order event happens. 
+It keeps track of the number of orders and checks if any new order has been added during the wait time. 
+If the task is not running, it stops waiting and returns the time spent waiting.
+"""
 function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
     aot = @something asset_orders_task(s, ai) watch_orders!(s, ai) missing
     ismissing(aot) && return 0
@@ -463,6 +532,16 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
     slept
 end
 
+@doc """ Waits for a specific order to be processed. 
+
+$(TYPEDSIGNATURES)
+
+This function waits for a specific order to be processed within a given time frame specified by `waitfor`. 
+If the order is not found or not tracked within the given timeframe, the function returns `false`.
+If the order is found and tracked within the given timeframe, the function returns `true`.
+It tracks the time spent waiting and if the timeout is reached before the order is found, the function returns `false`.
+
+"""
 function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     slept = 0
     timeout = Millisecond(waitfor).value

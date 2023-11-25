@@ -5,6 +5,16 @@ import .Instances: lastprice
 import .Executors: priceat
 isactive(ai::AssetInstance) = is_pair_active(raw(ai), exchange(ai))
 
+@doc """ Fetches the price of an asset at a specific date.
+
+$(TYPEDSIGNATURES)
+
+The function `priceat` retrieves the price of a given asset (`ai`) at a specified date (`date`), using a specific strategy (`s`).
+The price is fetched from the opening, high, low, or closing price of the asset, as specified by the `step` parameter (default is `:open`).
+The symbol for the asset is determined by the `sym` parameter (default is the raw value of the asset instance).
+The function uses the `fetch_candles` method to retrieve the price data and returns the price as a float.
+If the price data cannot be fetched, the function returns `nothing`.
+"""
 function priceat(s::Strategy, ai::AssetInstance, date::DateTime; step=:open, sym=raw(ai))
     timeframe = first(exchange(ai).timeframes)
     since = dtstamp(date)
@@ -29,6 +39,15 @@ function priceat(s::Strategy, ai::AssetInstance, date::DateTime; step=:open, sym
 end
 
 Exchanges.ticker!(ai::AssetInstance) = Exchanges.ticker!(raw(ai), exchange(ai))
+@doc """ Fetches the last price of an asset.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the last price of a given asset (`ai`) for a specific side (`bs`).
+It first attempts to get the price from the ticker of the asset.
+If the price is not available, it falls back to the last price from the ticker if `last_fallback` is set to `true`.
+The function returns the price as a float or `nothing` if the price cannot be fetched.
+"""
 function lastprice(ai::AssetInstance, bs::BySide; last_fallback=true)
     tk = Exchanges.ticker!(ai)
     eid = exchangeid(ai)
@@ -43,6 +62,16 @@ function lastprice(ai::AssetInstance, bs::BySide; last_fallback=true)
     end
 end
 
+@doc """ Fetches the last price of an asset from the order book.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves the last price of a given asset (`ai`) for a specific side (`bs`) from the order book.
+It fetches the order book for the asset and checks if it is a dictionary.
+If it is, it asserts that the symbol of the asset matches the symbol in the order book.
+Then, it retrieves the list of prices for the specified side from the order book.
+If the list exists, it returns the first price in the list as a float.
+"""
 function lastprice(s, ai::AssetInstance, bs::BySide, ::Val{:ob})
     ob = fetch_l2ob(s, ai)
     if isdict(ob)
@@ -60,6 +89,14 @@ end
 
 updates_dict(s) = @lget! s.attrs :updated_at Dict{Tuple{Vararg{Symbol}},DateTime}()
 updated_at!(s, k, date=now()) = updates_dict(s)[k] = date
+@doc """ Updates the state of a real-time strategy.
+
+$(TYPEDSIGNATURES)
+
+This function applies a given function `f` to update the state of a real-time strategy `s` for a set of columns `cols`.
+The function `f` is applied to each asset in the universe of the strategy.
+The timeframe `tf` for the update can be specified, with the default being the timeframe of the strategy.
+"""
 function update!(f::Function, s::RTStrategy, cols::Vararg{Symbol}; tf=s.timeframe)
     updates = updates_dict(s)
     for ai in s.universe
@@ -67,6 +104,15 @@ function update!(f::Function, s::RTStrategy, cols::Vararg{Symbol}; tf=s.timefram
     end
 end
 
+@doc """ Attempts to get the size of the data.
+
+$(TYPEDSIGNATURES)
+
+This function tries to get the size of the `data`.
+If it can't, it returns a tuple of zeros.
+If the data is one-dimensional, it returns a tuple with the size and zero.
+If the data is two-dimensional, it returns the size as a tuple.
+"""
 trysize(data) =
     try
         sz = size(data)
@@ -82,6 +128,14 @@ trysize(data) =
         (0, 0)
     end
 
+@doc """ Applies a function to update the state of a real-time strategy.
+
+$(TYPEDSIGNATURES)
+
+The function `update!` applies a given function `f` to update the state of a real-time strategy `s` for a set of columns `cols`.
+The function `f` is applied to each asset in the universe of the strategy.
+The timeframe `tf` for the update can be specified, with the default being the timeframe of the strategy.
+"""
 function update!(
     f::Function,
     s::RTStrategy,

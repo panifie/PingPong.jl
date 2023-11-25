@@ -1,7 +1,15 @@
 using .Executors.Instruments: freecash
 
+@doc "Represents a trigger order with fields for the order type, price, and trigger condition."
 const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
 
+@doc """ Converts a trigger order to a dictionary compatible with ccxt.
+
+$(TYPEDSIGNATURES)
+
+The function transforms the order type, price, and trigger price into a Python dictionary. 
+This dictionary is compatible with the ccxt cryptocurrency trading library.
+"""
 function trigger_dict(exc, v)
     out = pydict()
     out[@pyconst("type")] = _ccxtordertype(exc, v.type)
@@ -10,14 +18,34 @@ function trigger_dict(exc, v)
     out
 end
 
+@doc """ Checks if there is enough free cash to execute an increase order.
+
+$(TYPEDSIGNATURES)
+
+The function compares the absolute value of free cash in the strategy to the absolute value of the required cash for the order, which is the product of the amount and price.
+"""
 function check_available_cash(s, _, amount, price, ::Type{<:IncreaseOrder})
     abs(freecash(s)) >= abs(amount) * price
 end
 
+@doc """ Checks if there is enough free cash to execute a reduce order.
+
+$(TYPEDSIGNATURES)
+
+The function compares the absolute value of free cash in the asset instance to the absolute value of the required cash for the order, which is the amount.
+"""
 function check_available_cash(_, ai, amount, _, o::Type{<:ReduceOrder})
     abs(freecash(ai, posside(o))) >= abs(amount)
 end
 
+@doc """ Sends a live order and performs checks for sufficient cash and order features.
+
+$(TYPEDSIGNATURES)
+
+This function initiates a live order in the specified strategy and asset instance. 
+It first checks available cash and whether certain order features are supported. 
+It then sends the order to the exchange, retries if exceptions occur, and handles the response. 
+"""
 function live_send_order(
     s::LiveStrategy,
     ai,

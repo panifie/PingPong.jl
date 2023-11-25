@@ -7,7 +7,15 @@ using .Python: pytofloat, Py, @pystr, @pyconst, PyDict, @pyfetch, pyfetch, pycon
 using .Instances: bc, qc
 import .st: current_total, MarginStrategy, NoMarginStrategy
 
+@doc """ Enum representing the status of a balance.
+
+$(FIELDS)
+
+This enum is used to represent the status of a balance in the system. 
+It can take one of three values: `TotalBalance`, `FreeBalance`, or `UsedBalance`.
+"""
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
+@doc "A reference to the time-to-live duration for balance data."
 const BalanceTTL = Ref(Second(5))
 const BalanceCacheDict = safettl(
     Tuple{ExchangeID,String,Bool}, Dict{Tuple{BalanceStatus,Symbol},Py}, BalanceTTL[]
@@ -30,6 +38,13 @@ end
 
 _exc_balance_func(exc) = first(exc, :fetchBalanceWs, :fetchBalance)
 
+@doc """ Fetches the balance for a given live strategy.
+
+$(TYPEDSIGNATURES)
+
+The function fetches the balance by calling the `_fetch_balance` function with the exchange associated with the live strategy and any additional arguments.
+The balance is fetched from the exchange's API.
+"""
 function fetch_balance(s::LiveStrategy, args...; kwargs...)
     _fetch_balance(exchange(s), args...; kwargs...)
 end
@@ -37,11 +52,20 @@ end
 function _fetch_balance(exc, args...; kwargs...)
     pyfetch(_exc_balance_func(exc), args...; (splitkws(:type; kwargs).rest)...)
 end
+
+@doc """ Updates or retrieves the balance dictionary for a given exchange.
+
+$(TYPEDSIGNATURES)
+"""
 function _balancedict!(exc)
     @lget! BalanceCacheDict (exchangeid(exc), current_account(exc), issandbox(exc)) Dict{
         Tuple{BalanceStatus,Symbol},Py
     }()
 end
+@doc """ Updates or retrieves the symbol dictionary for a given exchange.
+
+$(TYPEDSIGNATURES)
+"""
 function _symdict!(exc)
     @lget! BalanceCacheSyms (exchangeid(exc), current_account(exc), issandbox(exc)) Dict{
         Tuple{Symbol,BalanceStatus,Symbol},DFT
@@ -49,7 +73,14 @@ function _symdict!(exc)
 end
 _balancetype(_, _) = Symbol()
 
-@doc "Fetch balance, caching for $(BalanceTTL[])"
+@doc """ Fetches and caches the balance for a given exchange.
+
+$(TYPEDSIGNATURES)
+
+The function retrieves the balance for a specified exchange and caches it for a duration defined by `BalanceTTL[]`.
+The balance is indexed by the balance status and type.
+This function is useful when you need to frequently access the balance without making repeated API calls to the exchange.
+"""
 function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwargs...)
     d = _balancedict!(exc)
     try
@@ -64,7 +95,15 @@ function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwa
     end
 end
 
-@doc "Fetch balance for symbol, caching for $(BalanceTTL[])."
+@doc """ Fetches and caches the balance for a specified exchange.
+
+$(TYPEDSIGNATURES)
+
+The function retrieves the balance for a specified exchange and caches it for a duration defined by `BalanceTTL[]`.
+The balance is indexed by the balance status and type.
+It is useful when you need to frequently access the balance without making repeated API calls to the exchange.
+
+"""
 function balance(
     exc::Exchange,
     sym::Union{<:AssetInstance,Symbol,String},
@@ -85,7 +124,15 @@ function balance(
     end
 end
 
-@doc "Fetch balance forcefully, caching for $(BalanceTTL[])."
+@doc """ Fetches the balance for a specified exchange, forcefully caching it.
+
+$(TYPEDSIGNATURES)
+
+The function fetches the balance for a specified exchange and forcefully caches it for a duration defined by `BalanceTTL[]`.
+Unlike `balance`, this function updates the cache even if the balance is already cached.
+This is useful when you need to ensure that the most recent balance is used.
+
+"""
 function balance!(
     exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...
 )
@@ -108,7 +155,15 @@ function balance!(
     end
 end
 
-@doc "Fetch balance forcefully for symbol, caching for $(BalanceTTL[])."
+@doc """ Fetches the balance for a specified exchange and symbol, forcefully caching it.
+
+$(TYPEDSIGNATURES)
+
+This function fetches the balance for a specified exchange and symbol, and forcefully caches it for a duration defined by `BalanceTTL[]`.
+Unlike `balance`, this function updates the cache even if the balance is already cached.
+This is useful when you need to ensure that the most recent balance is used for a specific symbol.
+
+"""
 function balance!(
     exc::Exchange,
     sym::Union{<:AssetInstance,String,Symbol},

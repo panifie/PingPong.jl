@@ -1,3 +1,11 @@
+@doc """ Synchronizes the cash balance of a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function synchronizes the cash balance of a live strategy with the actual cash balance on the exchange.
+It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
+
+"""
 function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
     bal = live_balance(s)
@@ -32,8 +40,13 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     nothing
 end
 
-@doc """ Asset balance is the true balance when no margin is invoved.
+@doc """ Synchronizes the cash balance of all assets in a NoMarginStrategy universe.
 
+$(TYPEDSIGNATURES)
+
+The function iterates over each asset in the universe of a `NoMarginStrategy` instance.
+For each asset, it locks the asset and updates its cash and committed cash values based on the balance information retrieved from the exchange.
+If no balance information is found for an asset, its cash and committed cash values are set to zero.
 
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
@@ -53,6 +66,15 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     end
 end
 
+@doc """ Synchronizes the cash balance of a specific asset in a NoMarginStrategy universe.
+
+$(TYPEDSIGNATURES)
+
+The function retrieves the balance information for a specific asset in the universe of a `NoMarginStrategy` instance.
+It locks the asset and updates its cash and committed cash values based on the retrieved balance information.
+If no balance information is found for the asset, its cash and committed cash values are set to zero.
+
+"""
 function live_sync_cash!(
     s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), kwargs...
 )

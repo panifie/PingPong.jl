@@ -1,8 +1,14 @@
 using .Executors: _cashfrom
 
-# Before syncing orders, set cash of both strategy and asset instance to maximum to avoid failing order creation.
-maxout!(s::LiveStrategy, ai) = begin
-    # Strategy
+@doc """ Maximizes cash and neutralizes commitments before syncing.
+
+$(TYPEDSIGNATURES)
+
+Before syncing orders, this function sets the cash value of both the strategy and asset instance to its maximum and commits cash to zero. This prevents order creation from failing due to insufficient funds.
+
+"""
+maxout!(s::livestrategy, ai) = begin
+    # strategy
     v = s.cash.value
     cash!(s.cash, typemax(v))
     cash!(s.cash_committed, zero(v))
@@ -27,6 +33,20 @@ end
 
 _amount_from_trades(trades) = sum(t.amount for t in trades)
 
+@doc """ Synchronizes open orders with the live trading environment.
+
+$(TYPEDSIGNATURES)
+
+This function syncs the live open orders with the trading strategy and asset instance provided. 
+It fetches open orders, replay them, and updates the order tracking. 
+This function also handles checking and updating of cash commitments for the strategy and asset instance.
+
+- `strict`: A boolean flag indicating whether to strictly sync orders (default is `true`).
+- `exec`: A boolean flag indicating whether to execute the orders during syncing (default is `false`).
+- `create_kwargs`: A dictionary of keyword arguments for creating an order (default is `(;)`).
+- `side`: The side of the order (default is `Both`).
+
+"""
 function live_sync_open_orders!(
     s::LiveStrategy, ai; strict=true, exec=false, create_kwargs=(;), side=Both
 )
@@ -153,6 +173,13 @@ function live_sync_open_orders!(
     nothing
 end
 
+@doc """ Finds an order by id in a given side of the market.
+
+$(TYPEDSIGNATURES)
+
+The function searches for the order in live orders and then in trades history. If the id is empty or order not found, it returns nothing.
+
+"""
 function findorder(
     s,
     ai;
@@ -177,6 +204,17 @@ function findorder(
     end
 end
 
+@doc """ Replays an order from a live strategy based on a response.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the order has been filled, and if it hasn't, it resets the order and returns. 
+If the order is filled, the function fetches its trades from the order struct or an API call, validates the trades, and applies new trades if necessary. 
+If there are no new trades, it emulates a trade.
+The flag 'exec' determines whether the trades are executed or simply made. 
+The flag 'insert' determines whether the trades are inserted to the asset trades history or not.
+
+"""
 function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
@@ -248,6 +286,13 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     o
 end
 
+@doc """ Performs actions after a trade for any limit order.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the order is filled and removes it from the active orders in the live strategy if it is.
+
+"""
 function aftertrade_nocommit!(s, ai, o::AnyLimitOrder, _)
     if isfilled(ai, o)
         delete!(s, ai, o)
@@ -258,9 +303,13 @@ function aftertrade_nocommit!(s, ai, o::Union{AnyFOKOrder,AnyIOCOrder}, _)
     isfilled(ai, o) || ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
 end
 aftertrade_nocommit!(_, _, o::AnyMarketOrder, args...) = nothing
-@doc """ Similar to `trade!` but doesn't update cash.
+@doc """ Applies a trade to a strategy without updating cash.
 
+$(TYPEDSIGNATURES)
 
+This function fills the order with the trade and adds the trade to the asset's history or the trades of the order, depending on the 'insert' flag. 
+After applying the trade, the function performs actions specified in 'aftertrade_nocommit!' function.
+The 'insert' flag determines whether the trade is inserted to the asset trades history at a specific index based on its date, or simply added to the end of the history.
 """
 function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
     isnothing(trade) && return nothing
@@ -284,12 +333,27 @@ function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
     aftertrade_nocommit!(s, ai, o, trade)
 end
 
+@doc """ Synchronizes open orders for all assets in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function performs an asynchronous operation for each asset in the universe of the strategy to synchronize their open orders.
+
+"""
 function live_sync_open_orders!(s::LiveStrategy; kwargs...)
     @sync for ai in s.universe
         @async live_sync_open_orders!(s, ai; kwargs...)
     end
 end
 
+@doc """ Checks synchronization of orders in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function locks all assets in the universe of the strategy, and checks if the tracked order ids and the local order ids match the order ids from the exchange. 
+If there are any discrepancies, the function logs an error message. If the ids are all matching, the function logs a message stating the number of orders currently being tracked.
+
+"""
 function check_orders_sync(s::LiveStrategy)
     try
         lock.(s.universe)
@@ -323,6 +387,18 @@ function check_orders_sync(s::LiveStrategy)
     end
 end
 
+@doc """ Synchronizes closed orders for a single asset in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function fetches closed orders from the exchange for an asset. 
+If it's successful, it locks the asset and processes each closed order. 
+For each closed order, it retrieves the order id and finds or creates a corresponding order in the strategy. 
+If an order can be found or created, the function checks if the order is filled. 
+If it is, it asserts that the order has trades, and if it isn't, it replays the order. 
+Afterwards, the order is deleted from the active orders.
+
+"""
 function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both, kwargs...)
     eid = exchangeid(ai)
     closed_orders = fetch_closed_orders(s, ai; side, kwargs...)
@@ -368,6 +444,13 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
     end
 end
 
+@doc """ Synchronizes closed orders for all assets in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function performs an asynchronous operation for each asset in the universe of the strategy to synchronize their closed orders.
+
+"""
 function live_sync_closed_orders!(s::LiveStrategy; kwargs...)
     @sync for ai in s.universe
         @async live_sync_closed_orders!(s, ai; kwargs...)

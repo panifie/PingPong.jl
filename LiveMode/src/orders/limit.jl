@@ -1,3 +1,12 @@
+@doc """ Places a limit order and waits for its completion.
+
+$(TYPEDSIGNATURES)
+
+This function creates a live limit order and then waits for it to either be filled or cancelled, depending on the waiting time provided. 
+It handles immediate orders differently, in such cases it waits for the order to be closed. 
+If an order fails or is cancelled, the function returns the relevant status.
+
+"""
 function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synced, kwargs)
     o = create_live_order(s, ai; t, amount, price, exc_kwargs=kwargs)
     isnothing(o) && return nothing

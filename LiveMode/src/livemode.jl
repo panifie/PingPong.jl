@@ -16,6 +16,7 @@ using Base: SimpleLogger, with_logger
 using .Executors.Instruments: cnum
 import .Executors: pong!
 import .Misc: start!, stop!
+using .Misc.DocStringExtensions
 
 include("utils.jl")
 include("ccxt.jl")

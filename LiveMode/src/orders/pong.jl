@@ -1,6 +1,14 @@
 using .Executors: AnyLimitOrder
 
-@doc "Creates a live limit order."
+@doc """ Places a limit order and synchronizes the cash balance.
+
+$(TYPEDSIGNATURES)
+
+This function initiates a limit order through the `_live_limit_order` function. 
+Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction. 
+It returns the trade information once the transaction is complete.
+
+"""
 function pong!(
     s::NoMarginStrategy{Live},
     ai,
@@ -19,7 +27,15 @@ function pong!(
     trade
 end
 
-@doc "Creates a live market order."
+@doc """ Places a market order and synchronizes the cash balance.
+
+$(TYPEDSIGNATURES)
+
+This function initiates a market order through the `_live_market_order` function. 
+Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction. 
+It returns the trade information once the transaction is complete.
+
+"""
 function pong!(
     s::NoMarginStrategy{Live},
     ai,
@@ -37,7 +53,15 @@ function pong!(
     trade
 end
 
-@doc "Cancel orders for a particular asset instance."
+@doc """ Cancels all live orders of a certain type and synchronizes the cash balance.
+
+$(TYPEDSIGNATURES)
+
+This function cancels all live orders of a certain side (buy/sell) through the `live_cancel` function. 
+Once the orders are cancelled, it waits for confirmation of the cancellation and then synchronizes the cash balance in the live strategy to reflect the cancellations. 
+It returns a boolean indicating whether the cancellation was successful.
+
+"""
 function pong!(
     s::Strategy{Live},
     ai::AssetInstance,

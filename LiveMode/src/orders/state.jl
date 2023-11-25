@@ -53,7 +53,14 @@ function fill!(
     @deassert ltxzero(ai, committed(o), Val(:amount))
 end
 
-@doc "When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade)."
+@doc """ Fills an increase order for a margin strategy.
+
+This function fills an increase order for a margin strategy based on a given trade. 
+It updates the unfilled and committed attributes of the order according to the trade.
+
+Note:
+When entering positions, the cash committed from the trade must be downsized by leverage (at the time of the trade).
+"""
 function fill!(
     ::MarginStrategy{Live}, ai::MarginInstance, o::IncreaseOrder, t::IncreaseTrade
 )

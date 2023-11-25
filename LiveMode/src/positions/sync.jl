@@ -1,3 +1,11 @@
+@doc """ Logs a warning if a position is unsynced
+
+$(TYPEDSIGNATURES)
+
+This macro logs a warning if a position is not in sync between local and remote states. 
+The warning includes the provided message, position details, and the instance and strategy names.
+
+"""
 macro warn_unsynced(what, loc, rem, msg="unsynced")
     ex = quote
         (
@@ -8,6 +16,18 @@ macro warn_unsynced(what, loc, rem, msg="unsynced")
     esc(ex)
 end
 
+@doc """ Synchronizes the live position.
+
+$(TYPEDSIGNATURES)
+
+This function synchronizes the live position with the actual position in the market. 
+It does this by checking various parameters such as the amount, entry price, leverage, notional, and margins. 
+If there are discrepancies, it adjusts the live position accordingly. 
+For instance, if the amount in the live position does not match the actual amount, it updates the live position's amount. 
+It also checks for conditions like whether the position is open or closed, and if the position is hedged or not. 
+If the position is closed, it resets the position. If the position is open, it updates the timestamp of the position. 
+
+"""
 function _live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
@@ -272,6 +292,17 @@ function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
     end
 end
 
+@doc """ Synchronizes the cash position in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function synchronizes the cash position of a given asset in a live trading strategy. 
+It checks the current position status and updates it accordingly. 
+If the position is closed, it resets the position. 
+If the position is open, it synchronizes the position with the market. 
+The function locks the asset instance during the update to prevent race conditions.
+
+"""
 function live_sync_cash!(
     s::MarginStrategy{Live},
     ai,
@@ -299,7 +330,14 @@ function live_sync_cash!(
     position(ai, bp)
 end
 
-@doc """ Asset balance is the position of the asset when margin is involved.
+@doc """ Synchronizes the cash position for all assets in a live trading strategy.
+
+$(TYPEDSIGNATURES)
+
+This function synchronizes the cash position for all assets in a live trading strategy. 
+It iterates over each asset in the universe and synchronizes its cash position. 
+The function uses a helper function `dosync` to perform the synchronization for each asset. 
+The synchronization process is performed concurrently for efficiency.
 
 """
 function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, kwargs...)
