@@ -9,18 +9,34 @@ using .Misc.Lang: @lget!, @debug_backtrace, Option, @ifdebug
 using .Misc: LittleDict
 using .ect: cnum
 
+@doc """ The `TaskState` type is used to store the state of a task. """
 const TaskState = NamedTuple{(:task, :offset, :running),Tuple{Task,Ref{Int},Ref{Bool}}}
+@doc "Holds the Telegram clients for each strategy."
 const CLIENTS = LittleDict{UInt64,Any}()
+@doc "Holds the task states for each strategy."
 const TASK_STATE = IdDict{Strategy,TaskState}()
+@doc "The timeout in seconds for the Telegram API requests."
 const TIMEOUT = Ref(20)
 
 include("emojis.jl")
 include("commands.jl")
 
+@doc """ Creates or retrieves a Telegram client for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a Telegram client for the provided strategy already exists. If it does, the function retrieves it. If it doesn't, the function creates a new Telegram client. The Telegram token and chat_id are retrieved from the strategy attributes or from environment variables. If these are not found, an error is thrown.
+"""
 function tgclient(token, args...; kwargs...)
     @lget! CLIENTS hash(token) TelegramClient(token, args...; kwargs...)
 end
 
+@doc """ Transforms a given key into a Telegram environment variable.
+
+$(TYPEDSIGNATURES)
+
+This function takes a key as input and transforms it into a corresponding Telegram environment variable. If the key starts with "tg", it removes the "tg" prefix before transforming it into an uppercase string prefixed with "TELEGRAM_BOT_".
+"""
 _envvar(k) = begin
     v = string(k)
     if startswith(v, "tg")
@@ -35,6 +51,12 @@ function _getoption(s, k)
     ) missing
 end
 
+@doc """ Retrieves or creates a Telegram client for a strategy.
+
+$(TYPEDSIGNATURES)
+
+The function first checks if a Telegram client for the provided strategy already exists. If it does, the function retrieves it. If it doesn't, the function creates a new Telegram client. The Telegram token and chat_id are retrieved from the strategy attributes or from environment variables. If these are not found, an error is thrown.
+"""
 function tgclient(s::Strategy)
     @lget! s.attrs :tgclient begin
         token = _getoption(s, :tgtoken)
@@ -55,6 +77,12 @@ function tgclient(s::Strategy)
     end
 end
 
+@doc """ Generates a list of Telegram commands.
+
+$(TYPEDSIGNATURES)
+
+This function generates a list of Telegram commands with their descriptions. The commands include operations like starting and stopping the strategy, showing summaries and histories, showing current balance, showing trades history by asset, showing toml config, uploading most recent logs, setting and getting a strategy attribute.
+"""
 function tgcommands()
     (
         (; command="start", description="start the strategy"),
@@ -72,9 +100,21 @@ function tgcommands()
     ) |> JSON3.write
 end
 
+@doc """ Sends an error message for an invalid command.
+
+$(TYPEDSIGNATURES)
+
+This function sends a message to the user indicating that the command they attempted to use is invalid.
+"""
 function invalid(cl, text, chat_id)
     sendMessage(cl; text=string("invalid command: ", text), chat_id)
 end
+@doc """ Creates an asynchronous task for handling Telegram messages.
+
+$(TYPEDSIGNATURES)
+
+This function creates an asynchronous task that listens for incoming Telegram messages. It checks the username of the sender and only processes the message if the username matches the one specified in the strategy. It also handles command execution and maintains the state of the last executed command.
+"""
 function tgtask(cl, s, running::Ref{Bool}, offset::Ref{Int})
     @async begin
         user = _getoption(s, :tgusername)
@@ -153,6 +193,12 @@ function _get_task(s)
     end
 end
 
+@doc """ Starts a Telegram client for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a Telegram client for the provided strategy already exists and is running. If it does, the function retrieves it. If it doesn't, the function creates a new Telegram client and starts it. The Telegram token and chat_id are retrieved from the strategy attributes or from environment variables. If these are not found, an error is thrown.
+"""
 function tgstart!(s::Strategy)
     cl = tgclient(s)
     state = _get_state(s)
@@ -175,6 +221,12 @@ function tgstart!(s::Strategy)
     TASK_STATE[s] = state
 end
 
+@doc """ Stops a Telegram client for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a Telegram client for the provided strategy is running. If it is, the function stops it and throws an InterruptException to the task associated with the client.
+"""
 function tgstop!(s::Strategy)
     state = _get_state(s)
     if state isa TaskState && !istaskdone(state.task)
@@ -187,12 +239,23 @@ function tgstop!(s::Strategy)
     end
 end
 
+@doc """ Updates the offset if the current message's update_id is greater.
+
+$(TYPEDSIGNATURES)
+
+This function checks if the current message's update_id is greater than the current offset. If it is, the function updates the offset to be one more than the update_id.
+"""
 update_offset!(offset, msg) =
     if offset[] <= get(msg, :update_id, -1)
         offset[] = get(msg, :update_id, -1) + 1
     end
 
-@doc "Same as `Telegram.run_bot` but rethrows interrupts in the inner loop"
+@doc """ Runs the Telegram bot with error handling.
+
+$(TYPEDSIGNATURES)
+
+This function runs the Telegram bot in a loop, processing incoming messages. If an error occurs, it is logged and the loop continues. If an InterruptException is thrown, the loop breaks.
+"""
 function tgrun(
     f, tg::TelegramClient=Telegram.DEFAULT_OPTS.client; timeout=TIMEOUT[], offset=Ref(-1)
 )
