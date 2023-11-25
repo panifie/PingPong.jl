@@ -46,8 +46,22 @@ const QUERY_SYMS = IdDict{Any,Vector{String}}()
 const CDN_URL = Ref(URI())
 const COLS = [1, 2, 3, 4, 5, 6]
 
+@doc """ Checks if the input symbol is one of the kline types.
+
+$TYPEDSIGNATURES)
+
+This function checks if the input symbol `s` is one of the following: `:index`, `:klines`, `:mark`, `:premium`. It returns `true` if `s` is one of these, and `false` otherwise.
+
+"""
 isklines(s) = s ∈ (:index, :klines, :mark, :premium)
 
+@doc """ Updates the CDN_URL with the URL from the Binance data vision page.
+
+$TYPEDSIGNATURES)
+
+The function checks if the CDN_URL is empty. If it is, it sends a GET request to the Binance data vision page, parses the HTML response to find the CDN URL, and updates the CDN_URL with the found URL.
+
+"""
 function cdn!()
     if CDN_URL[] === URI()
         html = HTTP.get(BASE_URL; HTTP_PARAMS...).body |> ez.parsehtml
@@ -63,6 +77,13 @@ function make_path(; market=:um, freq=:monthly, kind=:klines)
     )
 end
 
+@doc """ Constructs a URL for accessing Binance data.
+
+$TYPEDSIGNATURES)
+
+The function first calls `cdn!` to ensure the CDN_URL is updated. It then constructs a path using the provided keyword arguments and appends it to the CDN_URL. The "/" at the end of the URL is important as it ensures the query returns more than one element.
+
+"""
 function make_url(; kwargs...)
     cdn!()
     p = make_path(; kwargs...)
@@ -70,11 +91,25 @@ function make_url(; kwargs...)
     URI(CDN_URL[]; query=("delimiter=/&" * "prefix=data/" * p * '/'))
 end
 
+@doc """ Constructs a URL for a specific symbol.
+
+$TYPEDSIGNATURES)
+
+This function first calls `make_url` with the provided keyword arguments to construct a base URL. It then appends the symbol and the current timeframe to the path of the URL, creating a URL specific to the symbol.
+
+"""
 function make_sym_url(sym; kwargs...)
     url = make_url(; kwargs...)
     sym_path = join((rstrip(url.query, '/'), sym, string(TF[])), '/')
     URI(url; query=sym_path * '/')
 end
+@doc """ Retrieves a list of links for a specific symbol.
+
+$TYPEDSIGNATURES)
+
+This function first calls `make_sym_url` with the provided keyword arguments to construct a URL specific to the symbol. It then sends a GET request to this URL, parses the XML response, and extracts the links related to the symbol.
+
+"""
 function symlinkslist(s; kwargs...)
     url = make_sym_url(s; kwargs...)
     html = ez.parsexml(HTTP.get(url).body)
@@ -89,6 +124,13 @@ function symlinkslist(s; kwargs...)
     return links
 end
 
+@doc """ Retrieves a list of all symbols available for Binance.
+
+$TYPEDSIGNATURES)
+
+The function first checks if the symbols are cached. If not, it sends a GET request to the Binance URL, parses the XML response, and extracts all the symbols. The symbols are then cached for future use.
+
+"""
 function binancesyms(; kwargs...)
     @lget! QUERY_SYMS kwargs begin
         key = key_path("allsyms"; kwargs...)
@@ -111,6 +153,13 @@ function binancesyms(; kwargs...)
     end
 end
 
+@doc """ Fetches OHLCV data for a given file.
+
+$TYPEDSIGNATURES)
+
+The function constructs a URL for the file, fetches the data, and converts it into a DataFrame. It then renames the columns, adds a timestamp column, cleans up the data, and stores it in the output.
+
+"""
 function fetch_ohlcv(::Any, file; out)
     url = URI(BASE_URL; path=('/' * file))
     data = fetchfile(url; dec=zipdecode)
@@ -124,6 +173,13 @@ function fetch_ohlcv(::Any, file; out)
 end
 
 using ..Scrapers: Scrapers as scr
+@doc """ Fetches data for a specific symbol.
+
+$TYPEDSIGNATURES)
+
+The function first checks if the data for the symbol is cached. If not, it retrieves a list of links for the symbol and fetches the data for each link. The data is then processed and returned along with the last file fetched.
+
+"""
 function fetchsym(sym; reset, path_kws...)
     from = reset ? nothing : ca.load_cache(key_path(sym; path_kws...); raise=false)
     files = let links = symlinkslist(sym; path_kws...)
@@ -134,12 +190,26 @@ function fetchsym(sym; reset, path_kws...)
     (mergechunks(files, out), last(files))
 end
 
+@doc """ Generates a key for a given symbol.
+
+$TYPEDSIGNATURES)
+
+This function generates a key for a given symbol `sym` by combining it with the market type and kind of data. The market type and kind of data are obtained from the keyword arguments `:market` and `:kind`, respectively.
+
+"""
 key(sym; path_kws...) = begin
     mkt = get(path_kws, :market, "um")
     kind = get(path_kws, :kind, "klines")
     "$(sym)_$(mkt)_$(kind)"
 end
 key_path(sym; path_kws...) = joinpath(NAME, key(sym; path_kws...))
+@doc """ Saves symbol data to disk.
+
+$(TYPEDSIGNATURES)
+
+`binancesave` persists the OHLCV data for a given symbol to disk. It uses the `save_ohlcv` function internally to achieve this. The `reset` parameter controls whether existing data should be overwritten.
+
+"""
 function binancesave(sym, ohlcv; reset=false, zi=zi[], path_kws...)
     save_ohlcv(
         zi,
@@ -152,6 +222,13 @@ function binancesave(sym, ohlcv; reset=false, zi=zi[], path_kws...)
     )
 end
 
+@doc """ Downloads and saves symbol data from Binance.
+
+$(TYPEDSIGNATURES)
+
+`binancedownload` gets symbol data from Binance and saves it to disk. It uses `fetchsym` to get the data and `binancesave` to persist it. If no symbols match the selection, the function throws an error.
+
+"""
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     cdn!()
     path_kws = filterkws(:market, :freq, :kind; kwargs)
@@ -177,7 +254,13 @@ end
 
 @argstovec binancedownload AbstractString
 
-@doc "Load previously downloaded data from binance."
+@doc """ Loads saved Binance symbol data.
+
+$(TYPEDSIGNATURES)
+
+`binanceload` retrieves saved OHLCV data for specified symbols. It uses `load_ohlcv` to load the data from disk. The symbols are selected using `selectsyms`, which matches against all available symbols.
+
+"""
 function binanceload(syms::AbstractVector; zi=zi[], quote_currency="usdt", kwargs...)
     path_kws, rest_kws = splitkws(:market, :freq, :kind; kwargs)
     selected = let all_syms = binancesyms(; path_kws...)

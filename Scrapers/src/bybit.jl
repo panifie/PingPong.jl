@@ -42,10 +42,24 @@ const TRADING_SYMS = String[]
 const TRADES_COLS = [:symbol, :timestamp, :price, :size]
 const SPOT_COLS = [:timestamp, :price, :volume]
 
+@doc """ Extracts the list of links from an HTML document
+
+$(TYPEDSIGNATURES)
+
+This function takes an EzXML document object as input and navigates through the nested elements to extract the list of links present in the document.
+
+"""
 function links_list(doc)
     elements(elements(elements(elements(doc.node)[1])[2])[3])
 end
 
+@doc """ Retrieves all trading symbols from Bybit
+
+$(TYPEDSIGNATURES)
+
+This function fetches and returns all trading symbols available on the Bybit platform. If the symbols have already been fetched and stored in `TRADING_SYMS`, it returns the stored symbols instead of making a new request.
+
+"""
 function bybitallsyms(path=PATHS.trading)
     if isempty(TRADING_SYMS)
         url = joinpath(BASE_URL, path)
@@ -60,6 +74,13 @@ function bybitallsyms(path=PATHS.trading)
     end
 end
 
+@doc """ Selects trading symbols based on given criteria
+
+$(TYPEDSIGNATURES)
+
+This function takes a list of symbols and a path, and returns a list of selected symbols from Bybit. It filters the symbols based on the `quote_currency` and whether they are in the provided path.
+
+"""
 function symsvec(syms; path=PATHS.trading, quote_currency="usdt")
     all_syms = bybitallsyms(path)
     qc = uppercase(quote_currency)
@@ -75,6 +96,13 @@ function symsvec(syms; path=PATHS.trading, quote_currency="usdt")
     mysyms
 end
 
+@doc """ Returns the appropriate column vector based on the path
+
+$(TYPEDSIGNATURES)
+
+This function returns `TRADES_COLS` if the path is `PATHS.trading`, otherwise it returns `SPOT_COLS`.
+
+"""
 function colvec(path=PATHS.trading)
     if path == PATHS.trading
         TRADES_COLS
@@ -90,6 +118,16 @@ function colrename(path=PATHS.trading)
     end
 end
 
+@doc """ Fetches OHLCV data for a given symbol and file
+
+$(TYPEDSIGNATURES)
+
+The function fetches the data from a URL constructed using the symbol and file.
+It then converts the fetched data into a DataFrame using the appropriate column vector based on the path.
+The DataFrame is then renamed and converted into OHLCV format.
+The resulting OHLCV data is stored in the `out` dictionary with the timestamp as the key.
+
+"""
 function fetch_ohlcv(sym, file; out, path=PATHS.trading)
     url = symurl(sym, file; path)
     data = fetchfile(url)
@@ -104,6 +142,14 @@ function fetch_ohlcv(sym, file; out, path=PATHS.trading)
     nothing
 end
 
+@doc """ Retrieves the list of links for a given symbol
+
+$(TYPEDSIGNATURES)
+
+The function sends a GET request to the URL constructed using the symbol and path.
+It then parses the HTML response and extracts the list of links present in the document.
+
+"""
 symlinkslist(sym; path=PATHS.trading) = begin
     resp = HTTP.get(symurl(sym; path))
     doc = EzXML.parsehtml(resp.body)
@@ -112,6 +158,17 @@ end
 cache_key(sym; path=PATHS.trading) = "$(NAME)/_$(sym)_$(path)"
 
 symurl(args...; path=PATHS.trading) = joinpath(BASE_URL, path, args...)
+@doc """ Fetches trading data for a given symbol
+
+$(TYPEDSIGNATURES)
+
+The function fetches trading data for a given symbol from a URL constructed using the symbol and path.
+If the `reset` parameter is `false`, it loads the cache for the symbol.
+It then fetches the list of links for the symbol and filters the files based on the cache.
+The function fetches the OHLCV data for each file and stores it in the `out` dictionary.
+The function returns the merged chunks of data, the last file, and the `out` dictionary.
+
+"""
 function fetchsym(sym; reset=false, path=PATHS.trading)
     from = reset ? nothing : ca.load_cache(cache_key(sym; path); raise=false)
     files = let links = symlinkslist(sym; path)
@@ -123,15 +180,31 @@ function fetchsym(sym; reset=false, path=PATHS.trading)
 end
 
 key(sym, args...) = join((sym, args...), '_')
+@doc """ Saves the OHLCV data for a given symbol
+
+$(TYPEDSIGNATURES)
+
+The function saves the OHLCV data for a given symbol.
+The data is saved under a key constructed using the symbol and path.
+The function also checks if the data is valid before saving, if the debug flag is set.
+
+"""
 function bybitsave(sym, data; path=PATHS.trading, zi=zi[])
     save_ohlcv(
         zi, NAME, key(sym, path), string(TF[]), data; check=@ifdebug(check_all_flag, :none)
     )
 end
 
-@doc "Download data for symbols `syms` from bybit.
-`reset`: if `true` start from scratch.
-"
+@doc """ Downloads data for symbols from Bybit
+
+$(TYPEDSIGNATURES)
+
+The function fetches trading data for given symbols from Bybit.
+If the `reset` parameter is `true`, it starts from scratch.
+It fetches all trading symbols available on the Bybit platform and selects the symbols based on the `quote_currency`.
+The function throws an error if no symbols are found matching the input symbols.
+
+"""
 function bybitdownload(
     syms=String[]; reset=false, path=PATHS.trading, quote_currency="usdt"
 )
@@ -165,7 +238,14 @@ end
 @fromassets bybitdownload
 @argstovec bybitdownload AbstractString
 
-@doc "Load previously downloaded data from bybit."
+@doc """ Loads previously downloaded data from Bybit
+
+$(TYPEDSIGNATURES)
+
+The function loads previously downloaded trading data for given symbols from Bybit.
+It fetches all trading symbols available on the Bybit platform and selects the symbols based on the `quote_currency`.
+
+"""
 function bybitload(
     syms::AbstractVector; quote_currency="usdt", path=PATHS.trading, zi=zi[], kwargs...
 )
