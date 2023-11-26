@@ -6,6 +6,8 @@ import .Misc: start!, stop!
 
 @doc """Backtest a strategy `strat` using context `ctx` iterating according to the specified timeframe.
 
+$(TYPEDSIGNATURES)
+
 On every iteration, the strategy is queried for the _current_ timestamp.
 The strategy should only access data up to this point.
 Example:
@@ -48,8 +50,26 @@ function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=tru
     s
 end
 
-@doc "Backtest with context of all data loaded in the strategy universe."
+@doc """
+Backtest with context of all data loaded in the strategy universe.
+
+$(TYPEDSIGNATURES)
+
+Backtest the strategy with the context of all data loaded in the strategy universe. This function ensures that the universe data starts at the same time. If `trim_universe` is true, it trims the data to ensure alignment. If `doreset` is true, it resets the strategy before starting the backtest. The backtest is performed using the specified `ctx` context. 
+
+"""
 start!(s::Strategy{Sim}; kwargs...) = start!(s, Context(s); kwargs...)
+
+@doc """
+Starts the strategy with the given count.
+
+$(TYPEDSIGNATURES)
+
+Starts the strategy with the given count. 
+If `count` is greater than 0, it sets the start and end timestamps based on the count and the strategy's timeframe. 
+Otherwise, it sets the start and end timestamps based on the last timestamp in the strategy's universe. 
+
+"""
 function start!(s::Strategy{Sim}, count::Integer; kwargs...)
     if count > 0
         from = ohlcv(first(s.universe)).timestamp[begin]
@@ -62,6 +82,13 @@ function start!(s::Strategy{Sim}, count::Integer; kwargs...)
     start!(s, ctx; kwargs...)
 end
 
+@doc """Returns the latest date in the given strategy's universe.
+
+$(TYPEDSIGNATURES)
+
+Iterates over the strategy's universe to find the date of the last data point. Returns the latest date as a `DateTime` object.
+
+"""
 _todate(s) = begin
     to = typemin(DateTime)
     for ai in s.universe
@@ -73,6 +100,13 @@ _todate(s) = begin
     return to
 end
 
+@doc """ Starts the strategy simulation from a specific date to another.
+
+$(TYPEDSIGNATURES)
+
+This function initializes a simulation context with the given timeframe and date range, then starts the strategy with this context.
+
+"""
 function start!(s::Strategy{Sim}, from::DateTime, to::DateTime=_todate(s); kwargs...)
     ctx = Context(Sim(), s.timeframe, from, to)
     start!(s, ctx; kwargs...)

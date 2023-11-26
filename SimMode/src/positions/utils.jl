@@ -10,6 +10,13 @@ using .Instances: margin, maintenance, status, posside
 using .Misc: DFT
 import Executors: position!
 
+"""
+Open a position in `s` with `ai` using `t`.
+
+$(TYPEDSIGNATURES)
+
+The function opens a position in the specified strategy using the given margin instance and position trade.
+"""
 function open_position!(
     s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P};
 ) where {P<:PositionSide}
@@ -33,6 +40,13 @@ function open_position!(
     ping!(s, ai, t, po, PositionOpen())
 end
 
+@doc """Force exit a position.
+
+$(TYPEDSIGNATURES)
+
+This function cancels all orders associated with the specified position and updates the position with a forced order. The function also handles cases where the position is already closed or has zero committed funds.
+
+"""
 function force_exit_position(s::Strategy, ai, p, date::DateTime)
     for (_, o) in orders(s, ai, p)
         cancel!(s, o, ai; err=OrderCancelled(o))
@@ -58,6 +72,15 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
     end
 end
 
+"""
+Closes a leveraged position.
+
+$(TYPEDSIGNATURES)
+
+When a date is given, this function closes pending orders and sells the remaining cash. 
+It then resets the position, deletes it from the holdings, and checks that the position is closed and no funds are committed.
+
+"""
 function close_position!(
     s::IsolatedStrategy, ai, p::PositionSide, date=nothing
 )
@@ -82,10 +105,13 @@ end
 #     # margin!(pos, )
 # end
 
-@doc "Liquidates a position at a particular date.
+@doc """ Liquidates a position at a particular date.
+
+$(TYPEDSIGNATURES)
+
 `fees`: the fees for liquidating a position (usually higher than trading fees.)
 `actual_price/amount`: the price/amount to execute the liquidation market order with (for paper mode).
-"
+"""
 function liquidate!(
     s::MarginStrategy,
     ai::MarginInstance,
@@ -108,6 +134,15 @@ function liquidate!(
     close_position!(s, ai, p)
 end
 
+"""
+Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position).
+
+$(TYPEDSIGNATURES)
+
+If a position is open and liquidatable, it is liquidated using the `liquidate!` function.
+The liquidation is performed on the asset positions in `ai` on the specified `date`.
+
+"""
 @doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
 function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date)
     pos = position(ai)
@@ -117,6 +152,15 @@ function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date)
     isliquidatable(s, ai, p, date) && liquidate!(s, ai, p, date)
 end
 
+@doc """Updates the position by applying a position trade.
+
+$(TYPEDSIGNATURES)
+
+Applies the position trade `t` to the isolated strategy `s` and the margin instance `ai`.
+The order of calls is important.
+Checks if the position has a notional value not equal to zero.
+Updates the cash of the position using the trade construction.
+"""
 function update_position!(
     s::IsolatedStrategy, ai, t::PositionTrade{P}
 ) where {P<:PositionSide}
@@ -129,7 +173,15 @@ function update_position!(
     ping!(s, ai, t, po, PositionUpdate())
 end
 
-@doc "Updates an isolated position in mode from a new trade."
+@doc """ Updates or opens a position based on a given trade.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is open. If it is, it either updates the position with the given trade or closes it if the position is dust. 
+If the position is not open, it opens a new position with the given trade. 
+After updating or opening the position, it checks if the position needs to be liquidated.
+
+"""
 function position!(
     s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P}
 ) where {P<:PositionSide}
@@ -149,7 +201,15 @@ function position!(
     maybe_liquidate!(s, ai, t.date)
 end
 
-@doc "Updates an isolated position in `Sim` mode from a new candle."
+@doc """ Updates an isolated position in `Sim` mode from a new candle.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a position is open and updates the timestamp. 
+If the position is liquidatable, it is liquidated. 
+Otherwise, the position remains open and a `PositionUpdate` is pinged.
+
+"""
 function position!(s::IsolatedStrategy{Sim}, ai, date::DateTime, pos::Position=position(ai))
     # NOTE: Order of calls is important
     @deassert isopen(pos)
@@ -177,7 +237,13 @@ _checkorders(s) = begin
     end
 end
 
-@doc "Updates all open positions in a isolated (non hedged) strategy."
+""" Updates all open positions in an isolated (non hedged) strategy for a specific date.
+
+$(TYPEDSIGNATURES)
+
+This function is used to update the state of all active asset holdings within the provided instance of `IsolatedStrategy` for a specified date. 
+Execution updates include the maintenance of position and order records and accounting for any change of asset state to reflect liquidations or trade updates.
+"""
 function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
     @ifdebug _checkorders(s)
     for ai in s.holdings

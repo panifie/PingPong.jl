@@ -7,6 +7,12 @@ import .OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sml
 using .Strategies: Strategies as st
 
+@doc """ Creates a simulated limit order.
+
+$(TYPEDSIGNATURES)
+
+This function creates a limit order in a simulated environment. It takes a strategy `s`, an order type `t`, and an asset `ai` as inputs, along with an `amount` and an optional `skipcommit` flag. If the order is valid, it is queued for execution.
+"""
 function create_sim_limit_order(s, t, ai; amount, skipcommit=false, kwargs...)
     o = limitorder(s, ai, amount; type=t, skipcommit, kwargs...)
     isnothing(o) && return nothing
@@ -15,8 +21,12 @@ function create_sim_limit_order(s, t, ai; amount, skipcommit=false, kwargs...)
     return o
 end
 
-@doc "The price at a particular date for an order.
-- `datefunc`: the function to normalize the date which takes the timeframe and the date as inputs (default `available`)."
+@doc """ The price at a particular date for an order.
+
+$(TYPEDSIGNATURES)
+
+This function returns the price at a particular date for an order. It takes a strategy `s`, an order type, an asset `ai`, and a date as inputs. It also takes an optional `datefunc` parameter, which is a function to normalize the date. The `datefunc` takes the timeframe and the date as inputs and defaults to `available`.
+"""
 function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date; datefunc=available)
     st.closeat(ai, datefunc(s.timeframe, date))
 end
@@ -25,10 +35,22 @@ function priceat(s::MarginStrategy{Sim}, ::T, args...) where {T<:Order}
     priceat(s, T, args...)
 end
 
+@doc """ Determines if a buy limit order is triggered.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a buy limit order `o` is triggered at a given `date` for an asset `ai`. It returns a boolean indicating whether the order is triggered.
+"""
 _istriggered(o::AnyLimitOrder{Buy}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
     pbs, (pbs <= o.price)
 end
+@doc """ Determines if a sell limit order is triggered.
+
+$(TYPEDSIGNATURES)
+
+This function checks if a sell limit order `o` is triggered at a given `date` for an asset `ai`. It returns a boolean indicating whether the order is triggered.
+"""
 _istriggered(o::AnyLimitOrder{Sell}, date, ai) = begin
     pbs = _pricebyside(o, date, ai)
     pbs, pbs >= o.price
@@ -53,7 +75,12 @@ function order!(
     t
 end
 
-@doc "Executes a limit order at a particular time only if price is lower(buy) than order price."
+@doc """ Executes a limit order at a particular time only if price is lower(buy) or higher(sell) than order price.
+
+$(TYPEDSIGNATURES)
+
+This function executes a limit order `o` at a given `date` for an asset `ai` only if the price is lower (for buy orders) or higher (for sell orders) than the order price.
+"""
 function limitorder_ifprice!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
     @ifdebug PRICE_CHECKS[] += 1
     pbs, triggered = _istriggered(o, date, ai)
@@ -67,7 +94,13 @@ function limitorder_ifprice!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
     end
 end
 
-# The probability the trade should succeed
+@doc """ Determines if a trade should succeed based on the volume of the candle compared to the order amount.
+
+$(TYPEDSIGNATURES)
+
+This function calculates the ratio of the volume of the candle (`cdl_vol`) to the order amount.
+Depending on the ratio, it determines if the trade should succeed and returns a boolean indicating the result along with the actual amount that can be filled.
+"""
 function _fill_happened(
     amount, cdl_vol, depth=1; initial_amount=amount, max_depth=4, max_reduction=0.1
 )
@@ -91,7 +124,12 @@ function _fill_happened(
     end
 end
 
-@doc "Executes a limit order at a particular time according to volume (called by `limitorder_ifprice!`)."
+@doc """ Executes a limit order at a particular time according to volume.
+
+$(TYPEDSIGNATURES)
+
+This function executes a limit order `o` at a given `date` for an asset `ai` based on the volume of the candle compared to the order amount. It checks if the trade should succeed and performs the trade if conditions are met.
+"""
 function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
     @ifdebug VOL_CHECKS[] += 1
     ans = missing

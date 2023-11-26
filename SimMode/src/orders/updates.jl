@@ -1,5 +1,12 @@
 _lastupdate!(s, date) = s.attrs[:sim_last_orders_update] = date
 _lastupdate(s) = s.attrs[:sim_last_orders_update]
+@doc """Checks if the last update date is greater than or equal to the given date and throws an error if not.
+
+$(TYPEDSIGNATURES)
+
+If the last update date is not greater than or equal to the given date, an error with the message "Tried to update orders multiple times on the same date." is thrown.
+
+"""
 function _check_update_date(s, date)
     _lastupdate(s) >= date &&
         error("Tried to update orders multiple times on the same date.")
@@ -7,23 +14,48 @@ end
 using Executors.Instances.DataStructures: SAIterationState
 using Simulations.Random: shuffle!
 
+@doc """Pushes all orders from side_orders into all_orders.
+
+$(TYPEDSIGNATURES)
+
+This function pushes all orders from side_orders into all_orders. It collapses all assets into a single array, so what is shuffled is either orders of the same side.
+
+"""
 _dopush!(side_orders, all_orders) =
     for (ai, ords) in side_orders
         push!(all_orders, (ai, ords))
     end
 
+@doc """Pushes orders from `ai_orders` into the simulation `s` at the specified `date`.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over each order in `ai_orders` and checks if it is already queued in the simulation `s`.
+If not, it calls the `order!` function to add the order to the simulation at the specified `date`.
+"""
 _dopong!(s, ai, ai_orders, date) =
     for o in collect(ai_orders)
         isqueued(o, s, ai) || continue
         order!(s, o, date, ai)
     end
 
+@doc """Iterates over all pending orders checking for new fills.
+
+$(TYPEDSIGNATURES)
+
+This function iterates over each order in `all_orders` and calls `_dopong!` to add the order to the simulation `s` at the specified `date`.
+
+"""
 _doall!(s, all_orders, date) =
     for (ai, ords) in all_orders
         _dopong!(s, ai, ords, date)
     end
 
-@doc """Iterates over all pending orders checking for new fills. If you don't have any callbacks attached to orders,
+@doc """Iterates over all pending orders checking for new fills. 
+
+$(TYPEDSIGNATURES)
+
+If you don't have any callbacks attached to orders,
 the outcome is the same as plain `UpdateOrders`. (It is ~10% slower than the basic function.)
 
 The difference between this function and the base one dispatched over `UpdateOrders` is that
@@ -69,6 +101,9 @@ function update!(s::Strategy{Sim}, date, ::UpdateOrdersShuffled)
 end
 
 @doc "Iterates over all pending orders checking for new fills.
+
+$(TYPEDSIGNATURES)
+
 Should be called only once, precisely at the beginning of the main `ping!` function.
 Orders are evaluated sequentially, first sell orders than buy orders.
 

@@ -1,8 +1,11 @@
 using Executors: WatchOHLCV
 using .Instances.Data: empty_ohlcv
 using .Instances.Data.DFUtils: firstdate, setcols!
+@doc "Watchers are not used in `SimMode`."
 pong!(::Strategy{Sim}, ::WatchOHLCV) = nothing
+@doc "Data should be pre initialized in `SimMode`."
 pong!(::Strategy{Sim}, ::UpdateData) = nothing
+@doc "Data should be pre initialized in `SimMode`."
 function pong!(
     ::Function,
     s::Strategy{Sim},
@@ -12,6 +15,7 @@ function pong!(
 )
     nothing
 end
+@doc "Data should be pre initialized in `SimMode`."
 function pong!(
     ::Function,
     s::Strategy{Sim},
@@ -23,6 +27,13 @@ function pong!(
     nothing
 end
 
+@doc """Initialize data for each asset in the strategy.
+
+$(TYPEDSIGNATURES)
+
+This function initializes data for each asset in the strategy by retrieving the OHLCV data and setting the specified columns. It uses the provided function `f` to process the OHLCV data and sets the columns of the `ohlcv` object accordingly. If the `ohlcv` object is empty, no data initialization is performed.
+
+"""
 function _init_data(f, s, cols...; timeframe)
     for ai in s.universe
         ohlcv = @lget! ohlcv_dict(ai) timeframe empty_ohlcv()
@@ -34,6 +45,13 @@ function _init_data(f, s, cols...; timeframe)
     end
 end
 
+@doc """Initialize data for each asset in the strategy.
+
+$(TYPEDSIGNATURES)
+
+This function initializes data for each asset in the strategy by retrieving the OHLCV data and setting the specified columns.
+
+"""
 function pong!(
     f::Function,
     s::Strategy{Sim},
