@@ -5,7 +5,7 @@ There may be many terms used through out the code base that can semantically mea
 - pair: it is most of the times a `String` (or a `SubString`) of the form "\$BASE/\$QUOTE" (note the slash in-between).
 - bc,qc: variables that have this name are base or quote currency symbols, like the ones accessed as fields of an `AbstractAsset`, and they are indeed of type `Symbol`.
 - futures/swap/perps: swaps are futures, but they are a kind of "perpetual futures" so they have distinct naming.
-  Following ccxt conventions, if its a swap the raw symbol is of the form "\$BASE/\$QUOTE:\$SETTLE", if it is a plain "future" contract then it will have an expiry date attached like "\$BASE/\$QUOTE:\$SETTLE-$EXPIRY"
+  Following ccxt conventions, if its a swap the raw symbol is of the form "\$BASE/\$QUOTE:\$SETTLE", if it is a plain "future" contract then it will have an expiry date attached like "\$BASE/\$QUOTE:\$SETTLE-\$EXPIRY"
 - amount: when we talk about amounts, we usually mean the quantity in _base_ currency. If we buy 100\$ worth of BTC priced at 1000$, then our amount will be 100/1000 == 0.1BTC
 - price: it is always the _quotation_ of the base currency. BTC price is 1000$ if `1BTC / 1$ == 1000`
 - size: it is most of the times the quantity in quote currency spent to execute a trade, it *includes* fees.
