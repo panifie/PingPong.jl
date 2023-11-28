@@ -8,7 +8,7 @@ Writing a pingpong strategy is equivalent to writing a julia module, that the bo
 
 The framework provides a long list of convenience or utility functions to manipulate the strategy and assets objects defined in different modules. In fact the bot is quite modular and is made of almost 30 packages, even though the majority of them is required to actually run the bot.
 
-From the strategy you can manage orders through `pong!` functions and expect them to be executed during simulation and live trading (through the CCXT library) while returning _the same data structures_ even if populated through different means.
+From the strategy you can manage orders through `pong!` functions and expect them to be executed during simulation and live trading (through the CCXT library, and other venues in a possible future) while returning _the same data structures_ even if populated through different means.
 
 The advantage of PingPong over trading bots written in other programming languages is its flexibility thanks to the julia parametric type system that allows to extend the bot by specializing functions to perform ad hoc logic. An exchange is behaving differently compared to others? You can specialize the `balance` function over only that particular exchange by defining:
 
@@ -23,19 +23,19 @@ And it is also how we are able to have almost zero code duplication between simu
 
 The bot has tools to download, clean and store data, that make use of popular julia libraries. See [Data](data.md), and tools to resample time series see [Processing](./API/processing.md).
 
-It can track live data like tickers, trades, ohlcv, see [Watchers](watchers/watchers.md).
-
-It can compute statistics about backtest runs, see [Stats](stats.md)
-
-It can generate interactive and fully browsable plots for ohlcv data, indicators and backtesting runs, see [Plotting](plotting.md)
+It can:
+- track live data like tickers, trades, ohlcv, see [Watchers](watchers/watchers.md).
+- compute statistics about backtest runs, see [Stats](stats.md)
+- generate interactive and fully browsable plots for ohlcv data, indicators and backtesting runs, see [Plotting](plotting.md)
+- Optimize strategy parameters [Optimization](optimization.md)
 
 ## Install (docker)
-There are 4 images:
+Recommended installation is through docker. There are 4 images:
 
-|                | precompiled 🧰      
-|----------------|--------------------|
-| only runtime 🖥‍| pingpong-precomp   |
-| with plotting and optimizer 📊   | ipingpong-precomp   |
+|                                | precompiled 🧰               | sysimage 📦 |
+|--------------------------------|------------------------------|---|
+| only runtime 🖥‍                 | `pingpong-precomp`             | `pingpong-sysimage`   |
+| with plotting and optimizer 📊 | `pingpong-precomp-interactive` | `pingpong-sysimage-interactive` |
 
 ```@setup
 # Precompiled images are smaller, more flexible but have a slower startup. Compiled images are bigger, there might be unexpected issues, but are faster to startup.
@@ -44,7 +44,7 @@ There are 4 images:
 
 
 ```shell
-docker pull panifie/pingpong-precomp
+docker pull docker.io/panifie/pingpong-precomp
 ```
 
 ## Install (git)
@@ -57,16 +57,21 @@ cd PingPong.jl
 ``` 
 
 Check the env vars in `.envrc`, then enabled them with `direnv allow`.
-Launch julia activate the package:
+Launch julia with the `PingPong` project:
 
+``` shell
+julia --project ./PingPong
+```
+
+Load PingPong
 ``` julia
 ] instantiate
-using PingPong # or IPingPong for plotting and optimization
+using PingPong # or PingPongInteractive for plotting and optimization
 ```
 
 ## Quickstart
 
-Load the default strategy, which you can look up at `./user/strategies/Example.jl`
+Load the default strategy, which you can look up at `./user/strategies/Example.jl` or [make your own](./strategy.md#Setup-a-new-strategy).
 
 ```julia
 using PingPong
@@ -95,14 +100,14 @@ end
 Backtest the strategy within the period available from the loaded data.
 
 ```julia
-using Engine.Executors.SimMode: SimMode as bt
+using Engine.Executors.SimMode: SimMode as sm
 bt.start!(s)
 ```
 
 Plot the simulated trades.
 
 ```julia
-using IPingPong
+using PingPongInteractive
 balloons(s)
 ```
 
@@ -113,6 +118,7 @@ Here's a list of the most important underlying packages.
 - [Strategies](./strategy.md): Types and concept for building strategies.
 - [Exchanges](./exchanges.md): Loads exchanges instances, markets and pairlists, based on [ccxt](https://docs.ccxt.com/en/latest/manual.html).
 - [Plotting](./plotting.md): Output plots for ohlcv data, indicators, backtests, based on [Makie](https://github.com/MakieOrg/Makie.jl).
+- [Remote](./remote.md) Control the bot remotely.
 - [Data](./data.md): Loading and saving ohlcv data (and more), based Zarr.
 - [Stats](./stats.md): Statistics about backtests, and live operations.
 - [Processing](./API/processing.md): Data cleanup, normalization, resampling functions.
