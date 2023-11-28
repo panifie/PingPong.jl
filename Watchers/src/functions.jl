@@ -21,7 +21,7 @@ function Base.deleteat!(w::Watcher, range::DateTuple)
     _deleteat!(w, _val(w); from=range.start, to=range.stop)
 end
 
-@doc """ Executes the flush function of the watcher (defaults to [`default_flush!`](@ref)).
+@doc """ Executes the flush function of the watcher (defaults to [`default_flusher`](@ref)).
 
 $(TYPEDSIGNATURES)
 
@@ -59,16 +59,16 @@ function fetch!(w::Watcher; reset=false, kwargs...)
     end
 end
 
-@doc "Executes the watcher `_process!` function (defaults to [`default_process!`](@ref))."
+@doc "Executes the watcher `_process!` function (defaults to [`default_process`](@ref))."
 function process!(w::Watcher, args...; kwargs...)
     @logerror w begin
         _process!(w, _val(w), args...; kwargs...)
         safenotify(w.beacon.process)
     end
 end
-@doc "Executes the watcher `_load!` function (defaults to [`default_load!`](@ref))."
+@doc "Executes the watcher `_load!` function (defaults to [`default_loader`](@ref))."
 load!(w::Watcher, args...; kwargs...) = _load!(w, _val(w), args...; kwargs...)
-@doc "Executes the watcher `_init!` function (defaults to [`default_init!`](@ref))."
+@doc "Executes the watcher `_init!` function (defaults to [`default_init`](@ref))."
 init!(w::Watcher, args...; kwargs...) = _init!(w, _val(w), args...; kwargs...)
 @doc "Add `v` to the things the watcher is fetching."
 function Base.push!(w::Watcher, v, args...; kwargs...)
