@@ -3,8 +3,19 @@ using Base: negate
 using .st: trades_count
 
 const DAYS_IN_YEAR = 365
+@doc "All the metrics that supported."
 const METRICS = Set((:total, :sharpe, :sortino, :calmar, :drawdown, :expectancy, :cagr, :trades))
 
+@doc """ Generates code to calculate the cumulative total balance for a given set of trades over a given timeframe.
+
+$(SIGNATURES)
+
+This macro generates code that calculates the cumulative total balance for a given set of trades `s` over a given timeframe `tf`.
+It first gets a DataFrame of balances for `s` and `tf` using the `trades_balance` function. 
+If this DataFrame is `nothing` (which means there are no trades), it immediately returns `-Inf`.
+Otherwise, it extracts the `cum_total` column from the DataFrame, which represents the cumulative total balance, and assigns this to `balance`.
+The generated code is then returned.
+"""
 macro balance_arr()
     s = esc(:s)
     tf = esc(:tf)
@@ -16,25 +27,66 @@ macro balance_arr()
     end
 end
 
+@doc """ Calculates the simple returns for an array of prices.
+
+$(SIGNATURES)
+
+This function takes an array of prices `arr` as a parameter, calculates the differences between successive prices, divides each difference by the corresponding previous price, and returns the resulting array of simple returns.
+Please note that the first element of the return array would be `NaN` due to the lack of a previous price for the first element in `arr`.
+"""
 _returns_arr(arr) = begin
     n_series = length(arr)
     diff(arr) ./ view(arr, 1:(n_series - 1))
 end
 
+@doc """ Annualizes a volatility value.
+
+$(SIGNATURES)
+
+This function takes a volatility value `v` and a timeframe `tf` as parameters.
+It multiplies `v` by the square root of the ratio of the number of days in a year times the period of `tf` to the period of a day.
+This effectively converts `v` from a volatility per `tf` period to an annual volatility.
+"""
 _annualize(v, tf) = v * sqrt(DAYS_IN_YEAR * period(tf) / period(tf"1d"))
 
+@doc """ Computes the non-annualized Sharpe ratio.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Sharpe ratio given an array of `returns`.
+The ratio is computed as the excess of the mean return over the risk-free rate `rfr`, divided by the standard deviation of the `returns`.
+`tf` specifies the timeframe for the returns and defaults to one day.
+
+"""
 function _rawsharpe(returns; rfr=0.0, tf=tf"1d")
     avg_returns = mean(returns)
     ratio = (avg_returns - rfr) / std(returns)
     _annualize(ratio, tf)
 end
 
+@doc """ Computes the Sharpe ratio for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Sharpe ratio for a `Strategy` `s` over a specified timeframe `tf`, defaulting to one day.
+The risk-free rate `rfr` can be specified, and defaults to 0.0.
+
+"""
 function sharpe(s::Strategy, tf=tf"1d", rfr=0.0)
     @balance_arr
     returns = _returns_arr(balance)
     _rawsharpe(returns; rfr, tf)
 end
 
+@doc """ Computes the non-annualized Sortino ratio.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Sortino ratio given an array of `returns`.
+The ratio is the excess of the mean return over the risk-free rate `rfr`, divided by the standard deviation of the negative `returns`.
+`tf` specifies the timeframe for the returns and defaults to one day.
+
+"""
 function _rawsortino(returns; rfr=0.0, tf=tf"1d")
     avg_returns = mean(returns)
     downside_idx = returns .< 0.0
@@ -42,30 +94,71 @@ function _rawsortino(returns; rfr=0.0, tf=tf"1d")
     _annualize(ratio, tf)
 end
 
+@doc """ Computes the Sortino ratio for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Sortino ratio for a `Strategy` `s` over a specified timeframe `tf`, defaulting to one day.
+The risk-free rate `rfr` can be specified, and defaults to 0.0.
+
+"""
 function sortino(s::Strategy, tf=tf"1d", rfr=0.0)
     @balance_arr
     returns = _returns_arr(balance)
     _rawsortino(returns; rfr, tf)
 end
 
+@doc """ Computes the non-annualized Calmar ratio.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Calmar ratio given an array of `returns`.
+The ratio is the annual return divided by the maximum drawdown.
+`tf` specifies the timeframe for the returns and defaults to one day.
+
+"""
 function _rawcalmar(returns; tf=tf"1d")
     max_drawdown = maxdd(returns)
     annual_returns = mean(returns) * DAYS_IN_YEAR
     negate(annual_returns) / max_drawdown
 end
 
+@doc """ Computes the maximum drawdown for a series of returns.
+
+$(TYPEDSIGNATURES)
+
+Calculates the maximum drawdown given an array of `returns`. 
+The drawdown is the largest percentage drop in the cumulative product of 1 plus the returns.
+
+"""
 function maxdd(returns)
     length(returns) == 1 && return zero(DFT)
     cum_returns = cumprod(1.0 .+ returns)
     minimum(diff(cum_returns) ./ @view(cum_returns[1:(end - 1)]))
 end
 
+@doc """ Computes the Calmar ratio for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the Calmar ratio for a `Strategy` `s` over a specified timeframe `tf`, defaulting to one day.
+
+"""
 function calmar(s::Strategy, tf=tf"1d")
     @balance_arr
     returns = _returns_arr(balance)
     _rawcalmar(returns; tf)
 end
 
+@doc """ Computes the trading expectancy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the trading expectancy given an array of `returns`.
+This is a measure of the mean value of both winning and losing trades.
+It takes into account both the probability and the average win/loss of trades.
+
+"""
 function _rawexpectancy(returns)
     isempty(returns) && return 0.0
 
@@ -83,10 +176,25 @@ function _rawexpectancy(returns)
     return ((1.0 + risk_reward_ratio) * up_rate) - 1.0
 end
 
+@doc """ Computes the trading expectancy for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the trading expectancy for a `Strategy` `s` over a specified timeframe `tf`, defaulting to one day.
+
+"""
 function expectancy(s::Strategy, tf=tf"1d")
     _rawexpectancy(returns)
 end
 
+@doc """ Computes the Compound Annual Growth Rate (CAGR) for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+Calculates the CAGR for a `Strategy` `s` over a specified `Period` `prd`, defaulting to the period of the strategy's trades.
+The initial cash amount `initial` and the pricing function `price_func` can also be specified.
+
+"""
 function cagr(
     s::Strategy,
     prd::Period=st.tradesperiod(s),
@@ -97,7 +205,14 @@ function cagr(
     (final / initial)^inv(prd / Day(DAYS_IN_YEAR)) - 1.0
 end
 
-@doc "Returns a dict of the calculated `metrics` see `METRICS` for what's available."
+@doc """ Returns a dict of calculated metrics for a given strategy.
+
+$(TYPEDSIGNATURES)
+
+For a `Strategy` `s`, calculates specified `metrics` over a specified timeframe `tf`, defaulting to one day.
+If `normalize` is `true`, the metrics are normalized with respect to `norm_max`.
+
+"""
 function multi(
     s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false, norm_max=(;)
 )
@@ -141,6 +256,7 @@ end
 
 _zeronan(v) = ifelse(isnan(v), 0.0, v)
 _clamp_metric(v, max) = clamp(_zeronan(v / max), zero(v), one(v))
+@doc """ Normalize a metric. Based on the value of `max`. """
 normalize_metric(v, ::Val{:total}, max=1e6) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:drawdown}, max=1e6) = _clamp_metric(v, max)
 normalize_metric(v, ::Val{:sharpe}, max=1e1) = _clamp_metric(v, max)
