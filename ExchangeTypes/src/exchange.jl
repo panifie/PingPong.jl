@@ -16,6 +16,7 @@ Defines the interface for interacting with crypto exchanges. Implemented for CCX
 """
 abstract type Exchange{I} end
 const OptionsDict = Dict{String,Dict{String,Any}}
+
 @doc """The `CcxtExchange` type wraps a ccxt exchange instance. Some attributes frequently accessed
 are copied over to avoid round tripping python. More attributes might be added in the future.
 To instantiate an exchange call `getexchange!` or `setexchange!`.
@@ -66,8 +67,6 @@ end
 
 Exchange() = Exchange(pybuiltins.None)
 @doc""" Instantiates a new `Exchange` wrapper for the provided `x` Python object.
-
-$(TYPEDSIGNATURES)
 
 This constructs a `CcxtExchange` struct with the provided Python object.
 It extracts the exchange ID, name, and other metadata. 
