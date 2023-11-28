@@ -4,6 +4,7 @@ using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
 using Pbar.Term: RGB, tprint
+import ExchangeTypes: issupported
 using ExchangeTypes
 using Data: Data, DataFrame
 @reexport using ExchangeTypes
@@ -22,7 +23,6 @@ using .Misc.TimeToLive
 using .Misc.TimeTicks
 using .Misc.Lang: @lget!
 using .Misc.DocStringExtensions
-import ExchangeTypes: issupported
 
 @doc "The cache for tickers which lasts for 100 minutes by exchange pair."
 const tickers_cache = safettl(Tuple{String,Symbol}, Dict, Minute(100))

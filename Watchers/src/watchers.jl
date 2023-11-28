@@ -135,7 +135,7 @@ $(FIELDS)
 
 A `Watcher` is a mutable struct that manages data. It pulls data from a source, keeps a cache in memory, and optionally flushes the data to persistent storage periodically. The struct contains fields for managing the buffer, scheduling fetch operations, and handling fetch failures.
 """
-mutable struct Watcher{T}
+@kwdef mutable struct Watcher{T}
     "A CircularBuffer of the watcher type parameter"
     const buffer::CircularBuffer{BufferEntry(T)}
     "The name is used for dispatching"
@@ -163,7 +163,7 @@ mutable struct Watcher{T}
     "The most recent time the flush function was called"
     last_flush::DateTime = DateTime(0)
     "Additional attributes for the watcher"
-    attrs::Dict{Symbol,Any} = Dict()
+    attrs::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 const WATCHERS = Misc.ConcurrentCollections.ConcurrentDict{String,Watcher}()
 

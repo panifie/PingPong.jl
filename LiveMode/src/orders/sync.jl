@@ -7,7 +7,7 @@ $(TYPEDSIGNATURES)
 Before syncing orders, this function sets the cash value of both the strategy and asset instance to its maximum and commits cash to zero. This prevents order creation from failing due to insufficient funds.
 
 """
-maxout!(s::livestrategy, ai) = begin
+maxout!(s::LiveStrategy, ai) = begin
     # strategy
     v = s.cash.value
     cash!(s.cash, typemax(v))

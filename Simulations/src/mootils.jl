@@ -29,6 +29,7 @@ The module uses the StatsBase and IterTools packages.
 module Mootils
 using IterTools
 using StatsBase
+using ..DocStringExtensions
 import Base.|>
 |>(xs::Tuple{Float64,Float64}, f) = f(xs...)
 |>(xs::Tuple{Float64,Float64,Float64}, f) = f(xs...)

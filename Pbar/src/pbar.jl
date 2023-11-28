@@ -2,6 +2,7 @@ using Term.Progress
 using Term: Term
 using TimeTicks: now, Millisecond, Second, DateTime, Lang
 using .Lang: toggle!, @preset, @precomp
+using .Lang.DocStringExtensions
 
 @doc "Stores the timestamp of the last render in the progress bar."
 const last_render = Ref(DateTime(0))

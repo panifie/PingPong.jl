@@ -25,8 +25,6 @@ import OrderTypes: trades
 
 @doc """Defines the abstract type for an instance.
 
-$(FIELDS)
-
 The `AbstractInstance` type is a generic abstract type for an instance. It is parameterized by two types: `A`, which must be a subtype of `AbstractAsset`, and `E`, which must be a subtype of `ExchangeID`.
 """
 abstract type AbstractInstance{A<:AbstractAsset,E<:ExchangeID} end
@@ -49,35 +47,34 @@ $(FIELDS)
 An `AssetInstance` holds all known state about an exchange asset like `BTC/USDT`.
 """
 struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
-  "The identifier of the asset."
-  asset::T
-  "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
-  data::SortedDict{TimeFrame,DataFrame}
-  "The trade history of the pair."
-  history::Vector{Trade{O,T,E} where O<:OrderType}
-  "Logs of events related to the asset."
-  logs::Vector{AssetEvent{E}}
-  "A lock for synchronizing access to the asset instance."
-  lock::ReentrantLock
-  "The amount of the asset currently held. This can be positive or negative (short)."
-  cash::Option{CCash{E}{S1}} where {S1}
-  "The amount of the asset currently committed for orders."
-  cash_committed::Option{CCash{E}{S2}} where {S2}
-  "The exchange instance that this asset instance belongs to."
-  exchange::Exchange{E}
-  "The long position of the asset."
-  longpos::Option{Position{Long,E,M}}
-  "The short position of the asset."
-  shortpos::Option{Position{Short,E,M}}
-  "The last position of the asset."
-  lastpos::Vector{Option{Position{P,E,M} where {P<:PositionSide}}}
-  "The minimum order size (from the exchange)."
-  limits::Limits{DFT}
-  "The number of decimal points (from the exchange)."
-  precision::Precision{<:Union{Int,DFT}}
-  "The fees associated with the asset (from the exchange)."
-  fees::Fees{DFT}
-end
+    "The identifier of the asset."
+    asset::T
+    "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
+    data::SortedDict{TimeFrame,DataFrame}
+    "The trade history of the pair."
+    history::Vector{Trade{O,T,E} where O<:OrderType}
+    "Logs of events related to the asset."
+    logs::Vector{AssetEvent{E}}
+    "A lock for synchronizing access to the asset instance."
+    lock::ReentrantLock
+    "The amount of the asset currently held. This can be positive or negative (short)."
+    cash::Option{CCash{E}{S1}} where {S1}
+    "The amount of the asset currently committed for orders."
+    cash_committed::Option{CCash{E}{S2}} where {S2}
+    "The exchange instance that this asset instance belongs to."
+    exchange::Exchange{E}
+    "The long position of the asset."
+    longpos::Option{Position{Long,E,M}}
+    "The short position of the asset."
+    shortpos::Option{Position{Short,E,M}}
+    "The last position of the asset."
+    lastpos::Vector{Option{Position{P,E,M} where {P<:PositionSide}}}
+    "The minimum order size (from the exchange)."
+    limits::Limits{DFT}
+    "The number of decimal points (from the exchange)."
+    precision::Precision{<:Union{Int,DFT}}
+    "The fees associated with the asset (from the exchange)."
+    fees::Fees{DFT}
     @doc """ Create an `AssetInstance` object.
 
     $(TYPEDSIGNATURES)
@@ -407,7 +404,7 @@ bc(ai::AssetInstance) = bc(asset(ai))
 @doc " Get the quote currency of an `AssetInstance`. "
 qc(ai::AssetInstance) = qc(asset(ai))
 
-@doc """ Round a value based on the `precision` field of the `ai` asset instance. 
+@doc """ Round a value based on the `precision` field of the `ai` asset instance.
 
 $(TYPEDSIGNATURES)
 

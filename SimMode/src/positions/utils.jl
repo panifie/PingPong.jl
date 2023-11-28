@@ -143,7 +143,6 @@ If a position is open and liquidatable, it is liquidated using the `liquidate!` 
 The liquidation is performed on the asset positions in `ai` on the specified `date`.
 
 """
-@doc "Checks asset positions for liquidations and executes them (Non hedged mode, so only the currently open position)."
 function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date)
     pos = position(ai)
     isnothing(pos) && return nothing

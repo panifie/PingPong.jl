@@ -1,8 +1,8 @@
+using Data: Candle, Misc
+using .Misc.DocStringExtensions
 include("mootils.jl")
 using .Mootils: Mootils as mt
-using Data: Candle, Misc
 using .Misc: Lang, TimeTicks
-using .Misc.DocStringExtensions
 using Random: Random
 using Statistics: Statistics
 

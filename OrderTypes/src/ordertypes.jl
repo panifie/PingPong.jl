@@ -5,6 +5,7 @@ using Instruments: Misc
 import Base: ==
 
 using .Misc: config, PositionSide, Long, Short, TimeTicks, Lang
+using .Misc.DocStringExtensions
 import .Misc: opposite
 using .TimeTicks
 
@@ -67,7 +68,7 @@ $(FIELDS)
     @assert isless(avail_ohlcv.timestamp[end], dt"2020-05-24T02:30:00")
     @assert isequal(avail_ohlcv.timestamp[end] + tf.period, dt"2020-05-24T02:30:00")
     ```
- """
+"""
 struct Order{
     T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
 } <: AssetEvent{E}
