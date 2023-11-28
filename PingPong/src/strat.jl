@@ -160,6 +160,7 @@ function _generate_strategy(
                 @eval Main using Revise
             end
         end
+        config!("strategy"; cfg, cfg.path)
         strategy!(strat_sym, cfg)
     end
 end
