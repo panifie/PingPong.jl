@@ -22,6 +22,7 @@ using ..Pbar
 using Instruments
 using ..Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
 using ..TimeTicks
+using ..DocStringExtensions
 
 using EzXML: EzXML as ez
 using URIs

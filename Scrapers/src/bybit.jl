@@ -28,6 +28,7 @@ using ..Scrapers:
     symfiles,
     @acquire,
     @fromassets
+using ..DocStringExtensions
 
 const NAME = "Bybit"
 const BASE_URL = URI("https://public.bybit.com/")

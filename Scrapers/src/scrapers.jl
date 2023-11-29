@@ -12,6 +12,7 @@ using .Misc.TimeTicks
 using .Misc.Lang
 using .Misc.Lang: @ifdebug, @acquire, splitkws
 using .Misc: LittleDict
+using .Misc.DocStringExtensions
 using .Data.Cache: Cache as ca
 using .Data.DFUtils: lastdate, firstdate
 using .Data.DataFrames

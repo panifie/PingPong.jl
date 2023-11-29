@@ -13,6 +13,7 @@ using SimMode.Lang: Option, splitkws
 using Stats.Statistics: median, mean
 using REPL.TerminalMenus
 using Pkg: Pkg
+using SimMode.Misc.DocStringExtensions
 import .st: ping!
 
 @doc "A named tuple representing the context and space in the optimization process."
