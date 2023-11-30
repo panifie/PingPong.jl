@@ -1,48 +1,49 @@
-# Running in paper mode
-To construct a strategy in paper mode you can specify the default mode in the `user/pingpong.toml` file, or in the `Project.toml` file of your strategy project, or by passing the mode as a keyword argument:
+# Running in Paper Mode
+In order to configure a strategy in paper mode, you can define the default mode in `user/pingpong.toml` or in your strategy project's `Project.toml` file. Alternatively, pass the mode as a keyword argument:
 
-``` toml
+```toml
 [Example]
 mode = "Paper"
 ```
 
-``` julia
+```julia
 using Strategies
 s = strategy(:Example, mode=Paper())
 ```
 
-Start the strategy:
+To start the strategy, use the following command:
 
-``` julia
+```julia
 using PaperMode
 start!(s)
 ```
 
-Expect logging output:
+Upon executing this, the following log output is expected:
 
-``` julia
+```julia
 ┌ Info: Starting strategy ExampleMargin in paper mode!
-│ 
+│
 │     throttle: 5 seconds
 │     timeframes: 1m(main), 1m(optional), 1m 15m 1h 1d(extras)
 │     cash: USDT: 100.0 (on phemex) [100.0]
 │     assets: ETH/USDT:USDT, BTC/USDT:USDT, SOL/USDT:USDT
 │     margin: Isolated()
-└     
+└
 [ Info: 2023-07-07T04:49:51.051(ExampleMargin@phemex) 0.0/100.0[100.0](USDT), orders: 0/0(+/-) trades: 0/0/0(L/S/Q)
 [ Info: 2023-07-07T04:49:56.057(ExampleMargin@phemex) 0.0/100.0[100.0](USDT), orders: 0/0(+/-) trades: 0/0/0(L/S/Q)
 ```
 
-Running the strategy as a task
+To run the strategy as a background task:
 
-``` julia
+```julia
 start!(s, foreground=false)
 ```
 
-Logs will be written either to the strategy `s[:logfile]` key if present or the output of `runlog(s)`.
+The logs will be written either to the `s[:logfile]` key of the strategy object, if present, or to the output of the `runlog(s)` command.
 
-# How paper mode works
-When you start paper mode asset prices are monitored in real time from the exchange. Orders execution is similar to SimMode, but the actual price and the amount trade and the orders execution sequence is dependent on the exchange data. 
+# Understanding Paper Mode
+When you initiate paper mode, asset prices are monitored in real-time from the exchange. Order execution in Paper Mode is similar to SimMode, albeit the actual price, the trade amount, and the order execution sequence are guided by real-time exchange data.
 
-- *Market orders* are executed by looking at the orderbook, and sweeping the bids/asks available on it, the final price and amount is therefore the average of all the orderbook entries available on the orderbook.
-- *Limit orders* also sweep the orderbook, but only for the bids/asks that fall below the limit price of the order. If the order is not yet fully filled (and is a GTC order) a task is spawned that constantly watches _the trades history_ from the exchange. Trades that fall within the order limit price will be used to fill the remaining limit order amount. 
+In detail:
+- **Market Orders** are executed by surveying the order book and sweeping available bids/asks. Consequently, the final price and amount reflect the average of all the entries available on the order book.
+- **Limit Orders** sweep the order book as well, though only for bids/asks that are below the limit price set for the order. If a Good-Till-Canceled (GTC) order is not entirely filled, a task is generated that continuously monitors the exchange's trade history. Trades that align with the order's limit price are used to fulfill the remainder of the limit order amount.

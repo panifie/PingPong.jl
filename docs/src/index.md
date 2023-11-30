@@ -75,44 +75,43 @@ Load the default strategy, which you can look up at `./user/strategies/Example.j
 
 ```julia
 using PingPong
-using Engine.Strategies
-s = strategy(:Example)
+@environment!
+s = st.strategy(:Example) # `st` is the `Strategies` module
 ```
 
 Download some data:
 
 ```julia
-using Instruments
-pairs = raw.(s.universe.data.asset)
-using Scrapers: BinanceData as bn
+pairs = im.raw.(s.universe.data.asset) # `im` is the Instruments module
+const bn = scr.BinanceData `scr` is the Scrapers module
 bn.binancedownload(pairs)
 ```
 
 Load the data into the strategy universe:
 
 ```julia
-using Engine.Collections: stub!
 let data = bn.binanceload(pairs)
-    stub!(s.universe, data)
+    da.stub!(s.universe, data) # `da` is the `Data` module
 end
 ```
 
 Backtest the strategy within the period available from the loaded data.
 
 ```julia
-using Engine.Executors.SimMode: SimMode as sm
-bt.start!(s)
+sm.start!(s) # `sm` is the `SimMode` module
 ```
 
 Plot the simulated trades.
 
 ```julia
-using PingPongInteractive
+using Plotting
+using WGLMakie # or `GLMakie`
+plots!() # or `Pkg.activate("PingPongInteractive"); using PingPongInteractive`
 balloons(s)
 ```
 
 ## Packages
-Here's a list of the most important underlying packages.
+The most relevant underlying PingPong modules.
 
 - [Engine](./engine/engine.md): The actual backtest engine.
 - [Strategies](./strategy.md): Types and concept for building strategies.

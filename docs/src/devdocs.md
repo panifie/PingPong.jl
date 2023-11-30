@@ -1,6 +1,8 @@
+## PingPongDev
+The `PingPongDev` package provides some helper functions to help working on pingpong itself and for tests.
+
 ## Precompilation
 
-Functions that should be precompiled
 Precompilation can be skipped for some modules, by setting `JULIA_NOPRECOMP` env var:
 
 ```julia
@@ -63,6 +65,7 @@ end
 ```
 
 ### Segfaults
+This should not be required unless you have some weird multi-threaded setup.
 See https://github.com/cjdoris/PythonCall.jl/issues/201
 Before loading PingPong disable the GC and re-enable it afterwards.
 
@@ -82,7 +85,7 @@ When adding `using` or `imports` statements inside packages you must consider th
 
 ## Customizations and the type hierarchy
 
-If you look at the package `OrderTypes` (or `EventTypes`) there are multiple definition for dispatching functions on orders whether they are buy,sell,long,short. Care must be taken for ensuring that dispatching works as intended because multiple definitions that might trick you into thinking they are similar, they are not:
+If you look at the package `OrderTypes` (or `EventTypes`) there are multiple definitions for dispatching functions on orders whether they are buy,sell,long,short. Care must be taken for ensuring that dispatching works as intended because multiple definitions that might trick you into thinking they are similar, they are not:
 
 ```julia
 struct One{T} end
