@@ -55,7 +55,7 @@ opposite(::Type{Long}) = Short
 opposite(::Long) = Short()
 opposite(::Type{Short}) = Long
 opposite(::Short) = Long()
-const ObjectOrType{T} = Union{T, Type{T}}
+const ObjectOrType{T} = Union{T,Type{T}}
 ==(::ObjectOrType{Long}, ::ObjectOrType{Long}) = true
 ==(::ObjectOrType{Short}, ::ObjectOrType{Short}) = true
 
@@ -74,9 +74,14 @@ const MM{T<:Real} = NamedTuple{(:min, :max),Tuple{T,T}}
 
 # TODO: This should use `Scratch.jl` instead
 @doc "Returns the default local directory."
-default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong.jl", args...)
+default_local_dir(args...) = joinpath(ENV["HOME"], ".cache", "PingPong", args...)
 function local_dir(args...)
-    @something get(ENV, "XDG_CACHE_DIR", nothing) default_local_dir(args...)
+    xdg = get(ENV, "XDG_CACHE_DIR", nothing)
+    if isnothing(xdg)
+        default_local_dir(args...)
+    else
+        joinpath(xdg, "PingPong")
+    end
 end
 const DATA_PATH = local_dir("data")
 
