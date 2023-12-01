@@ -1,38 +1,48 @@
-# Stats
+# Stats Module Documentation
 
-Within the stats package there are function that help you analyze the outcome of a backtest run.
+The `Stats` module provides functions for analyzing the outcomes of backtest runs within the trading strategy framework.
 
-``` julia
+### Resampling Trades
+
+Using the [`Stats.resample_trades`](@ref) function, trades can be resampled to a specified time frame. This aggregates the profit and loss (PnL) of each trade for every asset in the strategy over the given period.
+
+```julia
 using PingPong
 using Stats
 
-s = strategy(:Example)
-Stats.resample_trades(s, tf"1d")
+strategy_instance = strategy(:Example)
+Stats.resample_trades(strategy_instance, tf"1d")
 ```
 
-In this case all the trades have been resampled with one day resolution, summing pnl of each trade for each trades asset in the strategy.
+In the example above, all trades are resampled to a daily resolution (`1d`), summing the PnL for each asset within the strategy.
 
-``` julia
-Stats.trades_balance(s, tf"1d")
+### Trade Balance Calculation
+
+The [`Stats.trades_balance`](@ref) function calculates the cumulative balance over time for a given time frame, using the `cum_total` column as a reference. This function relies on the prior resampling of trades through `resample_trades`.
+
+```julia
+Stats.trades_balance(strategy_instance, tf"1d")
 ```
 
-`trades_balance` (which depends on `trades_resample`) calculates the cumulative total balance at each time frame using the column `cum_total`.
+### Performance Metrics
 
-## Metrics
+The module includes implementations of common trading performance [metrics](./API/stats.md) such as Sharpe ratio (`sharpe`), Sortino ratio (`sortino`), Calmar ratio (`calmar`), and expectancy (`expectancy`).
 
-Some common metrics used to analyze pnl are implemented, like `sharpe`, `sortino`, `calmar`, and `expectancy`.
-
-``` julia
-Stats.sharpe(s, tf"1d", rfr=0.01)
-Stats.sortino(s, tf"1d", rfr=0.01)
-Stats.calmar(s, tf"1d")
-Stats.expectancy(s, tf"1d")
+```julia
+Stats.sharpe(strategy_instance, tf"1d", rfr=0.01)
+Stats.sortino(strategy_instance, tf"1d", rfr=0.01)
+Stats.calmar(strategy_instance, tf"1d")
+Stats.expectancy(strategy_instance, tf"1d")
 ```
 
-The function `multi` is used to calc multiple metrics.
+Each of these functions calculates the respective metric over a daily time frame, with `rfr` representing the risk-free rate, which is an optional parameter for the Sharpe and Sortino ratios.
 
-``` julia
-Stats.multi(s, :sortino, :calmar; tf=tf"1d", normalize=true)
+### Multi-Metric Calculation
+
+To calculate multiple metrics simultaneously, use the `multi` function. It allows for the normalization of results, ensuring metric values are constrained between 0 and 1.
+
+```julia
+Stats.multi(strategy_instance, :sortino, :calmar; tf=tf"1d", normalize=true)
 ```
 
-`normalize` clamps the metric such that its value is always between 0 and 1. It does so by dividing by an arbitrary constant the value and then clipping between zero and one.
+The `normalize` option normalizes the metric values by dividing by a predefined constant and then clipping the results to the range [0, 1].

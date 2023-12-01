@@ -1,23 +1,31 @@
-# Extending the framework/bot
+# Extending the Framework/Bot
 
-There are parametrized types for:
-- strategies
-- assets
-- instances
-- orders and trades.
-- exchanges
+The framework provides parametrized types for various elements such as:
+- Strategies
+- Assets
+- Instances
+- Orders and Trades
+- Exchanges
 
-The strategy parametrization is what allows us to implement the _ping pong_ model by separating simulations from live executions, the rest can be used to implement custom logic behaviour.
+Parametrizing strategies enables the implementation of models like the _ping pong_ model, which distinguishes between simulations and live executions. The other parametrized types facilitate the introduction of custom logic and behavior.
 
-An exchange offers a unique order type? you can implement it by defining a new order type like:
+### Implementing Custom Order Types
 
-``` julia
+If an exchange offers a unique order type, you can define it by creating a new abstract type that inherits from `OrderType`. For example:
+
+\```julia
 using OrderTypes
 abstract type MyCustomOrderType{S} <: OrderType{S} end
-```
+\```
 
-Then you implement the functions where the logic diverges from standard market/limit orders. You might find that the order execution to be quite fine grained, which _should_ allow you to implement the cusomization by defining the minimum amount of functions possible while avoid touch things that might behave the same as limit or market orders. If that is not the case, file an issue.
+After defining the new order type, implement the necessary functions that deviate from the standard market or limit order logic. Ideally, the order execution should be fine-grained, allowing for minimalistic customization. Only the essential functions differing from standard orders need definition, thereby avoiding modifications to existing shared behavior. If customization is not suitably granular, please file an issue for further enhancements.
 
-Another common thing that can happen is that the exchange where you are trading behaves inconsistently over the interface. Despite CCXT unifying a good chunk of the api, many exchanges still remain where the private api might be required. Again look into the api and see what is worth overriding, if some function is too big, we might split it and allow for easier dispatching.
+### Dealing with Inconsistent Exchange Interfaces
 
-Many functions take the strategy as arguments, and strategies always have their name within the types parameters, so you can always define "snowflake" functions that only work for a specific strategy, use this flexibility wisely as to avoid complexity bankruptcy.
+Exchanges sometimes exhibit inconsistent behavior through their APIs. Although CCXT provides a unified layer for a significant portion of the exchange APIs, private APIs might still be needed for certain exchanges. Review the exchange-specific API to determine which functions could be overridden. If a function is particularly complex, we may consider splitting it to facilitate more straightforward customization.
+
+### Strategy-Specific Functions
+
+Functions often accept strategies as arguments, and strategy names are included within type parameters. This design allows for the creation of strategy-specific functions, also known as "snowflake" functions. While this flexibility is powerful, it should be used judiciously to prevent unnecessary complexity.
+
+Remember to leverage this flexibility to enhance functionality without overcomplicating the system, thus avoiding "complexity bankruptcy."

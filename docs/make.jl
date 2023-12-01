@@ -101,7 +101,7 @@ makedocs(;
         "Plotting" => "plotting.md",
         "Misc" => [
             "Config" => "config.md",
-            "Disambiguation" => "disambiguation.md",
+            "Disambiguation (Glossary)" => "disambiguation.md",
             "Troubleshooting" => "troubleshooting.md",
             "Devdocs" => "devdocs.md",
             "Contacts" => "contacts.md",

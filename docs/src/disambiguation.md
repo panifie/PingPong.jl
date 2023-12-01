@@ -1,20 +1,33 @@
-There may be many terms used through out the code base that can semantically mean the same thing, so it can be confusing when trying to understand what a function does, here is a list to should clear up at least some of them:
+- **asset**: An asset refers to a structure created from parsing a symbol. It typically represents an `Asset`, `Derivative`, or `AssetInstance`. Variables representing asset instances are often named `ai`, while simple assets are named `a` or `aa` (for `AbstractAsset`).
 
-- asset: an asset is a structure constructed from parsing a symbol, usually we mean either an simple `Asset` or a `Derivative` or an `AssetInstance`. Many times asset instances variables are named `ai`, and plain assets either `a` or `aa` (`AbstractAsset`).
-- sym: In julia `Symbol` is a built in type, but many times in trading context a "symbol" represents an association between a base currency and a quote currency. There isn't a clear distinction here about when we call things as `sym`. But most of the times it is either a `Symbol` if it is only a currency or a `String` if it is a pair.
-- pair: it is most of the times a `String` (or a `SubString`) of the form "\$BASE/\$QUOTE" (note the slash in-between).
-- bc,qc: variables that have this name are base or quote currency symbols, like the ones accessed as fields of an `AbstractAsset`, and they are indeed of type `Symbol`.
-- futures/swap/perps: swaps are futures, but they are a kind of "perpetual futures" so they have distinct naming.
-  Following ccxt conventions, if its a swap the raw symbol is of the form "\$BASE/\$QUOTE:\$SETTLE", if it is a plain "future" contract then it will have an expiry date attached like "\$BASE/\$QUOTE:\$SETTLE-\$EXPIRY"
-- amount: when we talk about amounts, we usually mean the quantity in _base_ currency. If we buy 100\$ worth of BTC priced at 1000$, then our amount will be 100/1000 == 0.1BTC
-- price: it is always the _quotation_ of the base currency. BTC price is 1000$ if `1BTC / 1$ == 1000`
-- size: it is most of the times the quantity in quote currency spent to execute a trade, it *includes* fees.
-- long/short: long and short are terms only used in the context of margin trading.
-- ohlc/v: usually a dataframe of ohlcv data
-- pairdata: a "lower" kind of data structure that represents an association between a dataframe, a zarr array, and a pair.
-- exc/exchange: either an `Exchange` instance, or an `ExchangeID`, or just the `Symbol` of an exchange id. There is a global `exc` variable in the `ExchangeTypes` module that is defined for convenience when working in the repl.
-- sandbox: many exchanges provide a "testnet" to test api endpoints, be ware that it has nothing to do with paper trading.
-- instance: most of the times it means an _asset_ instance (`AssetInstance`).
-- candle: it is either a dataframe row (from an ohlcv dataframe) or a named tuple, or an actual `Candle` struct.
-- resample: when we resample we usually mean _down sampling_ since up sampling is rarely useful.
-- side/position: when we use the word side we usually mean either buy or sell. When instead we mean the "side of a position", long or short we just use the word position. The side of a trade is either buy or sell, the position of a trade is either long or short.
+- **sym**: Though `Symbol` is a built-in type in Julia, in a trading context "symbol" often denotes the pairing of a base currency with a quote currency. There is no strict rule for the usage of `sym`, but it commonly refers to a `Symbol` for single currencies and a `String` for currency pairs.
+
+- **pair**: A pair is usually a `String` in the format `"$BASE/$QUOTE"` where the slash separates the base and the quote currencies.
+
+- **bc, qc**: These abbreviations stand for base currency (`bc`) and quote currency (`qc`). They are `Symbol` types and correspond to the fields of an `AbstractAsset`.
+
+- **futures/swap/perps**: While swaps are a type of futures contract, they are specifically "perpetual futures" and are thus referred to distinctly. Following the CCXT library's conventions, swaps have symbols formatted as `"$BASE/$QUOTE:$SETTLE"`. Plain future contracts include an expiry date, denoted as `"$BASE/$QUOTE:$SETTLE-$EXPIRY"`.
+
+- **amount**: The term "amount" generally refers to the quantity of the base currency. For example, if you purchase 100 USD worth of BTC at a price of 1000 USD per BTC, the amount is `100 / 1000 = 0.1 BTC`.
+
+- **price**: The price always refers to the cost of the base currency quoted in the quote currency. For instance, if the price of BTC is 1000 USD, it means `1 BTC = 1000 USD`.
+
+- **size**: Size typically indicates the quantity of quote currency used to execute a trade, inclusive of fees.
+
+- **long/short**: These terms are exclusively used in the context of margin trading. "Long" indicates a position betting on an increase in an asset's price, while "short" refers to a position betting on a decrease.
+
+- **ohlc/v**: This abbreviation stands for Open, High, Low, Close, and Volume, and it usually refers to a dataframe containing this market data.
+
+- **pairdata**: This term describes a complex data structure that associates a dataframe, a Zarr array, and a trading pair.
+
+- **exc/exchange**: This can refer to an `Exchange` instance, an `ExchangeID`, or merely the `Symbol` of an exchange ID. For convenience, a global `exc` variable is defined in the `ExchangeTypes` module for use in the REPL.
+
+- **sandbox**: Many exchanges offer a "testnet" to trial API endpoints. Note that this is distinct from paper trading and should not be confused with it.
+
+- **instance**: This term typically implies an `AssetInstance`.
+
+- **candle**: A candle can be a row from an OHLCV dataframe, a named tuple, or an actual `Candle` structure.
+
+- **resample**: Resampling usually implies downsampling, as upsampling is seldom beneficial.
+
+- **side/position**: The word "side" refers to either a "buy" or "sell" action. In contrast, when discussing the "side of a position," such as "long" or "short," the term "position" is used instead. Thus, a trade's side is either "buy" or "sell," while its position is "long" or "short."

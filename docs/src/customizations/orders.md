@@ -1,37 +1,40 @@
-## Custom orders
+## Custom Orders
 
-For example this is a sketch on how we can implement an OCO order type for simulations:
+This section demonstrates how to implement an OCO (One-Cancels-the-Other) order type for simulation purposes:
 
 ```julia
 using OrderTypes: OrderType, @deforders
+
 abstract type OCOOrderType{S} <: OrderType{S}
 @deforders OCO
 ```
 
-We can use the limitorder constructor function as template and tweak it for what we would need for an OCO order:
+We can base our implementation on the existing constructor for limit orders and modify it to meet the requirements of an OCO order:
 
 ```julia
-const _OCOOrderState = NamedTuple{(:committed, :filled, :trades, :twin), Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}, Ref{OCOOrder{S where S}}}}
+const _OCOOrderState = NamedTuple{(:committed, :filled, :trades, :twin), Tuple{Vector{Float64}, Vector{Float64}, Vector{Trade}, Ref{OCOOrder}}}
+
 function oco_order_state(
-    committed::Vector{T}, filled=[0.0], trades=Trade[]
-) where {T}
+    committed::Vector{T}, filled::Vector{Float64}=[0.0], trades::Vector{Trade}=Vector{Trade}()
+) where T
     _OCOOrderState((committed, filled, trades, Ref{OCOOrder}()))
 end
+
 function ocoorder(
     ai::AssetInstance,
-    ::SanitizeOff
-    ;
-    price_lower,
-    amount_lower,
-    price_upper,
-    amount_upper,
-    committed_lower,
-    committed_upper,
-    date,
+    ::SanitizeOff;
+    price_lower::Float64,
+    amount_lower::Float64,
+    price_upper::Float64,
+    amount_upper::Float64,
+    committed_lower::Vector{Float64},
+    committed_upper::Vector{Float64},
+    date::Datetime
 )
     ismonotonic(price_lower, price_upper) || return nothing
     iscost(ai, amount_lower, price_lower) || return nothing
     iscost(ai, amount_upper, price_upper) || return nothing
+
     lower_order = OrderTypes.Order(
         ai,
         OCOOrderType{Sell};
@@ -39,64 +42,70 @@ function ocoorder(
         price_lower,
         amount_lower,
         committed_lower,
-        attrs=oco_order_state(nothing, nothing, committed),
+        attrs=oco_order_state(committed_lower)
     )
     upper_order = OrderTypes.Order(
         ai,
         OCOOrderType{Buy};
         date,
-        price_lower,
-        amount_lower,
-        committed_lower,
-        attrs=oco_order_state(nothing, nothing, committed),
+        price_upper,
+        amount_upper,
+        committed_upper,
+        attrs=oco_order_state(committed_upper)
     )
+
     lower_order.attrs[:twin] = upper_order
     upper_order.attrs[:twin] = lower_order
     return lower_order
 end
 ```
 
-Now we add two `pong!` functions, one for order creation, and one for updates.
+Next, we introduce two `pong!` functions to handle creating and updating simulated OCO orders:
 
 ```julia
-@doc "Creates a simulated oco order."
+@doc "Creates a simulated OCO order."
 function pong!(
     s::Strategy{Sim}, ::Type{Order{<:OCOOrderType}}, ai; date, kwargs...
 )
     o = ocoorder(s, ai; date, kwargs...)
     isnothing(o) && return nothing
     iscommittable(s, o, ai) || return nothing
-    ## add logic to execute and return trades...
+    # TODO: Implement logic to execute the order and return resulting trades.
 end
-@doc "Progresses a simulated oco order."
+
+@doc "Updates a simulated OCO order."
 function pong!(
     s::Strategy{Sim}, ::Type{<:Order{OCOOrderType}}, date::Datetime, ai; kwargs...
 )
     o = ocoorder(s, ai; date, kwargs...)
     isnothing(o) && return nothing
     iscommittable(s, o, ai) || return nothing
-    iscommittable(s, o.attrs.twin, ai) || return nothing
-    ## add logic to execute and return trades...
+    iscommittable(s, o.attrs[:twin], ai) || return nothing
+    # TODO: Implement logic to execute the order update and return resulting trades.
 end
 ```
 
-## Custom instruments
+## Custom Instruments
 
-Instruments are also extendable, we have a simpler `Asset` and `Derivative` which are both subtypes of `AbstractAsset`, they are constructed following the CCXT naming scheme (`QUOTE/BASE:SETTLE`), the most basic
-expectation for instruments is that they have a _base_and \_quote_ currency.
+We can extend instruments to create new types such as `Asset` and `Derivative`, which are subtypes of `AbstractAsset`. They are named using the CCXT convention (`QUOTE/BASE:SETTLE`), and it's expected that all instruments define a base and a quote currency.
 
-## Instances and exchanges
+## Instances and Exchanges
 
-Asset instances are parametrized with the type of asset (asset,derivative...) and an exchange. The parametrization over `ExchangeID` allows us to customize the execution for particular exchanges.
+Asset instances are parameterized by the type of the asset (e.g., asset, derivative) and the exchange they are associated with. By using `ExchangeID` as a parameter, we can fine-tune the behavior for specific exchanges.
 
-For example if in live mode we wanted to support OCO orders differently across exchanges we could write `pong!` functions that dispatch depending on the exchange parameter of the asset instance.
+For example, if we want to handle OCO orders differently across exchanges in live mode, we can define `pong!` functions that are specialized based on the exchange parameter of the asset instance.
 
 ```julia
 function pong!(
-    s::Strategy{Live}, ::Type{Order{<:OCOOrderType}}, ai::AssetInstance{A where A, ExchangeID{:bybit}}; date, kwargs...
+    s::Strategy{Live}, 
+    ::Type{Order{<:OCOOrderType}}, 
+    ai::AssetInstance{A, ExchangeID{:bybit}}; 
+    date, 
+    kwargs...
 )
-### Call some private method of the ccxt exchange class to execute the order
+    # Replace the following comment with the actual call to a private method of the ccxt exchange class to execute the order.
+    ### Call some private method of the ccxt exchange class to execute the order
 end
 ```
 
-The above function would only dispatch to asset instances belonging to the exchange `bybit`.
+The function above is designed to handle asset instances that are specifically tied to the `bybit` exchange.

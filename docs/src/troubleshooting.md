@@ -1,69 +1,67 @@
 # Troubleshooting
 
-## Precompilation fails
+## Precompilation Issues
 
-- A repo update might have added some dependencies. If there are problems with precompilation ensure all the packages are resolved.
+- **Dependency Conflicts:** After updating the repository, new dependencies may cause precompilation to fail. Ensure all packages are fully resolved by running:
 
 ```julia
 include("resolve.jl")
-recurse_projects() # optional ;update=true
+recurse_projects() # Optionally set update=true
 ```
 
-- If you are not doing it already, try to load the repl passing the project as arg, e.g.:
+- **Starting the REPL:** Rather than starting a REPL and then activating the project, launch Julia directly with the project as an argument to avoid precompilation issues:
 
 ```julia
 julia --project=./PingPong
 ```
-Avoid starting a repl and then calling `Pkg.activate(".")` when precompiling.
 
-- Precompilation of things that depend on python (like exchange functions) can cause segfaults. Some famous suspects that can cause dangling pointers in the precompiled code are:
-  - global caches, like the `tickers_cache`, since the content of global constants is serialized by precompilation, make sure that those constants are *empty* during precompilation.
-  - macros like `@py` can rewrite code putting _in place_ python objects. Avoid use of those macros in functions that you want precompiled.
+- **Python-Dependent Precompilation:** Precompiling code that relies on Python, such as exchange functions, may lead to segmentation faults. To prevent this:
+  - Clear global caches, like `tickers_cache`, before precompilation. Ensure global constants are empty, as their contents are serialized during precompilation.
+  - Avoid using macros that directly insert Python objects, such as `@py`, in precompilable functions.
   
-- If some package keeps skipping precompilation, it is likely that the `JULIA_NOPRECOMP` env var contains dependencies of such package.
+- **Persistent Precompilation Skipping:** If a package consistently skips precompilation, check if `JULIA_NOPRECOMP` environment variable includes dependencies of the package.
 
-## Python can't find modules
+## Python Module Discovery
 
-- If python complains about missing dependencies, while in the julia REPL, with this repository as the activated project, do this:
+- **Missing Python Dependencies:** If Python reports missing modules, execute the following in the Julia REPL with the current repository activated:
 
 ```julia
-; find ./ -name .CondaPkg | xargs -I {} rm -r {} # Delete existing conda environments
-using Python # Loads our python wrapper around CondaPkg which fixes `PYTHONPATH` env var
+; find ./ -name .CondaPkg | xargs -I {} rm -r {} # Removes existing Conda environments
+using Python # Activates our Python wrapper with CondaPkg environment variable fixes
 import Pkg; Pkg.instantiate()
 ```
 
-- Alternatively force CondaPkg env resolution, from `julia --project.`
+- **Force CondaPkg Environment Resolution:** In the case of persistent issues, force resolution of the CondaPkg environment by running:
 
 ```julia
 using Python.PythonCall.C.CondaPkg
 CondaPkg.resolve(force=true)
 ```
 
-restart the REPL.
+Then, restart the REPL.
 
-## It is unresponsive
+## Unresponsive Exchange Instance
 
-- If the exchange instance has been idle for quite a while the connection might have been closed. It should fail according to the ccxt exchange timeout, although more often than not it takes longer. After the inevitable timeout error the connection is re-established and subsequent functions that rely on api calls should become responsive again.
+- **Idle Connection Closure:** If an exchange instance remains idle for an extended period, the connection may close. It should time out according to the `ccxt` exchange timeout. Following a timeout error, the connection will re-establish, and API-dependent functions will resume normal operation.
 
-## Can't save data
+## Data Saving Issues
 
-- If you are using LMDB with zarr (which is default) the initial db size is 64MB. To increase it:
+- **LMDB Size Limitations:** When using LMDB with Zarr, the initial database size is set to 64MB by default. To increase the maximum size:
 
 ```julia
 using Data
 zi = zilmdb()
-Data.mapsize!(zi, 1024) # This will set the max DB size to 1GB
-Data.mapsize!!(zi, 100) # Double bang (!!) will _add_ to the previous mapsize (in this case 1.1GB)
+Data.mapsize!(zi, 1024) # Sets the DB size to 1GB
+Data.mapsize!!(zi, 100) # Adds 100MB to the current mapsize (resulting in 1.1GB total)
 ```
 
-Whenever the stored data reaches the mapsize, you have to increase it.
+Increase the mapsize before reaching the limit to continue saving data.
 
-## Plotting tooltips are unaligned
+## Misaligned Plotting Tooltips
 
-Likely a bug with `WGLMakie`, use `GLMakie` instead:
+- **Rendering Bugs:** If you encounter misaligned tooltips with `WGLMakie`, switch to `GLMakie` to resolve rendering issues:
 
 ```julia
 using GLMakie
 GLMakie.activate!()
 ```
-

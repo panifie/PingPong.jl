@@ -1,9 +1,9 @@
 # Optimization
 
-PingPong provides tools to optimize strategy parameters. Optimzations are managed through the `OptSession` type. Which is a structure that holds informations about the optimization parameters, configuration and previous runs.
+PingPong provides tools to optimize strategy parameters. Optimzations are managed through the [`Optimization.OptSession`](@ref) type. Which is a structure that holds informations about the optimization parameters, configuration and previous runs.
 Optimization sessions can be periodically saved, and therefore can be reloaded at a later time to explore previous results or continue the optimization from where it left off.
 
-There are currently 3 different optimization methods: `gridsearch`, `bboptimize` `boptimize!`.
+There are currently 3 different optimization methods: [`Optimization.gridsearch`](@ref), [`Optimization.bboptimize`](@ref), `boptimize!`(when using `BayesianOptimization`).
 Configuration is done by defining three `ping!` functions.
 
 - `ping!(::S, ::OptSetup)`: returns a named tuples with:
@@ -19,16 +19,16 @@ Configuration is done by defining three `ping!` functions.
 This is the recommended approach, useful if the strategy has a small set of parameters (<5).
 ```julia
 using Optimization
-gridsearch(s, repeats=1, save_freq=Minute(1), resume=false)
+gridsearch(s, splits=1, save_freq=Minute(1), resume=false)
 ```
 Will perform an search from scratch, saving every minute.
-`repeats` controls the number of times a backtest is run using the _same_ combination of parameters. When repeats > 1 we split the optimization `Context` into shorter ranges and restart the backtest on each one of these sub contexes. This allows to fuzz out scenarios of overfitting by averaging the results of different backtest "restarts".
+`splits` controls the number of times a backtest is run using the _same_ combination of parameters. When splits > 1 we split the optimization `Context` into shorter ranges and restart the backtest on each one of these sub contexes. This allows to fuzz out scenarios of overfitting by averaging the results of different backtest "restarts".
 
 ### Black box optimization
 The `BlackBoxOptim` offers multiple methods for searching, also also offers multi objective optimization. You can pass any arg supported by the upstream `bboptimze` function.
 
 ```julia
-Optimization.bboptimize(s, repeats=3, MaxTime=240.0, Method=:borg_moea)
+Optimization.bboptimize(s, splits=3, MaxTime=240.0, Method=:borg_moea)
 ```
 We exclude some optimization methods because they are slow or for some other quirks. Get the list of methods by calling `bbomethods`.
 ```julia
@@ -40,31 +40,41 @@ Optimization.bbomethods(true) # multi obj methods
 The `BayesianOptimization` package instead focus on gausiann processes and is provided as an extension of the `Optimization` package, (you need to install the packgage yourself). If you want to customize the optimization parameters you can define methods for your strategy over the functions `gpmodel`, `modelopt` and `acquisition`.
 Like `bboptimize` you can pass any upstream kwargs to `boptimize!`.
 
-## Multi threading
-Parallel execution is supported for the optimizations in different capacities. For grid search we allow parallel execution between different combinations, while repetitions are done sequentially. For black box optimization instead, repetitions are done in parallel, while the optimization run is done sequentially because the improvement of parallel execution during optimization is marginal, and because `BlackBoxOptim` current multi threading support is broken.
-Multi threading is only enabled if the strategy defines a global value like:
-```julia
+## Multi-threading
+Parallel execution is supported for optimizations, though the extent and approach vary depending on the optimization method used.
+
+### Grid Search
+In grid search optimizations, parallel execution is permitted across different parameter combinations, enhancing efficiency. However, repetitions of the optimization process are executed sequentially to maintain result consistency.
+
+### Black Box Optimization
+For black box optimization, the scenario is reversed: repetitions are performed in parallel to expedite the overall process, while the individual optimization runs are sequential. This approach is due to the limited benefits of parallelizing these runs and the current limitations in the `BlackBoxOptim` library's multi-threading support.
+
+To enable multi-threading, your strategy must declare a global thread-safe flag as follows:
+```
+julia
 const THREADSAFE = Ref(true)
 ```
 
-!!! warning "Thread safety"
-    Multi threading is not safe in general, avoid any use of python objects within your strategy or you will incur into crashes. Use locks or `ConcurrentCollections` for synchronization. You are responsible for the thread safety of your strategy.
+!!! warning "Thread Safety Caution"
+    Multi-threading can introduce safety issues, particularly with Python objects. To prevent crashes, avoid using Python objects within your strategy and utilize synchronization mechanisms like locks or `ConcurrentCollections`. Ensuring thread safety is your responsibility.
 
-## Plotting results
-After completing an optimization, the results can be plotted using the function `Plotting.plot_results`. The function accepts many arguments in order to customize which axes to plot (up to 3), how to customize coloring of plot elements (e.g. default cash column in a scatter plot go from red to green) and how to group results elements. It by default plot a scatter. Surfaces and contourf also work fine.
+## Plotting Results
+Visualizing the outcomes of an optimization can be accomplished with the `Plotting.plot_results` function. This function is versatile, offering customization options for axes selection (supports up to three axes), color gradients (e.g., depicting cash flow from red to green in a scatter plot), and grouping of result elements. The default visualization is a scatter plot, but surface and contour plots are also supported.
 
-!!! info "Loading order of packages"
-    The `plot_results` function is defined in the `Plotting` package as an extension. To load it run:
-    ```julia
-    # If PingPong is already imported, you should restart the repl
+!!! info "Package Loading Order"
+    The `plot_results` function is part of the `Plotting` package, which acts as an extension. To use it, perform the following steps:
+    ```
+    julia
+    # Restart the REPL if PingPong was previously imported.
     using Pkg: Pkg
     Pkg.activate("PingPongInteractive")
     using PingPongInteractive
-    # Plotting.plot_results(...)
+    # Now you can call Plotting.plot_results(...)
     ```
-    Alteranatively first activate the `Plotting` package, then load it and then load the `Optimization` package. There are convenience functions in `PingPong` to save you a few lines:
-    ```julia
+    Alternatively, activate and load the `Plotting` package first, followed by the `Optimization` package. The `PingPong` framework provides convenience functions to streamline this process:
+    ```
+    julia
     using PingPong
-    plots!() # loads Plotting
+    plots!() # This loads the Plotting package.
     using Optimization
     ```

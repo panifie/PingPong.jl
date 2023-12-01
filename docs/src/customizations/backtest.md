@@ -1,13 +1,27 @@
-## HFT backtesting
+## High-Frequency Trading (HFT) Backtesting Documentation
 
-The pingpong backtester (`SimMode`) relies on OHLCV data to execute trades. 
+The `SimMode` class, also known as the pingpong backtester, utilizes Open-High-Low-Close-Volume (OHLCV) data to simulate the execution of trades.
 
-A few reasons why you might not want to backtest tick by tick:
-- Bid/ask data is hard to find and very large in size, it is more resource expensive.
-- Constructing order book data from trades history is guess work that introduces a lot of bias.
-- Backtesting in such high details will likely overfit any strategy against a specific combination of market makers, more bias.
-- Because of the high data requirements and computational costs you might be able to only backtest a few days, not giving you enough confidence in the backtest itself since it can't run across regime changes.
+### Reasons to Avoid Tick-by-Tick Backtesting
+Tick-by-tick backtesting may not be ideal due to several factors:
+- **Data Availability**: Bid/ask tick data is often difficult to obtain and can be extremely voluminous, leading to increased resource consumption.
+- **Data Reconstruction**: Attempting to reconstruct order book data from trade history is speculative and can introduce significant bias.
+- **Overfitting Risks**: High-detail backtesting can cause strategies to overfit to specific market maker behaviors, resulting in additional bias.
+- **Computational Costs**: Intensive data and computational requirements may limit backtesting to a short time frame, insufficient for evaluating performance through different market conditions.
 
-If you are still set in adding HFT backtesting there are two approaches: 
-- The simpler one is to still use the OHLCV model, but construct the ohlcv from trades history building very short candles, like `1s`. The backtester simply iterates over timesteps, by default using the strategy base timeframe. If you choose `1s` as timeframe and feed it the correct candles it would be enough to run a backtest at the time resolution you require.
-- The harder approach is to create a new `ExecMode`, let's call it `TickSimMode` and reimplement the desired logic starting from the `backtest!` function. Practically most of the logic for orders creation can be reused, but functions like `volumeat(ai, date)` or `openat,closeat`, etc... are used to calculate fills and slippage, which query the current candle, and you would need to customize those to calc the correct price/volume of the trade from the tick data, (see for example `limitorder_ifprice!`).
+### Implementing HFT Backtesting
+Should you decide to implement HFT backtesting, consider the following two approaches:
+
+#### OHLCV-Based Approach
+- A simpler method involves using the OHLCV model with extremely short-duration candles, such as `1s` candles. The backtester processes time steps, typically using the strategy's base timeframe. By selecting a `1s` timeframe and supplying the corresponding candles, you can achieve the desired time resolution for your backtest.
+
+#### Tick-Based Approach
+- A more complex method requires developing a new execution mode, which could be named `TickSimMode`. This involves adapting the `backtest!` function to handle tick data. While order creation logic may remain largely unchanged, functions like `volumeat(ai, date)` or `openat, closeat`, which currently fetch candle data, need to be modified. These functions should be tailored to compute the trade's actual price and volume from the tick data. This is analogous to customizing functions such as `limitorder_ifprice!` to work with tick data.
+
+\```example
+// Example of setting up a 1-second OHLCV backtest
+// Note: Actual implementation details will vary based on your specific backtesting framework
+SimMode backtester = new SimMode("1s");
+backtester.loadData("path/to/1s_candle_data.csv");
+backtester.run();
+\```
