@@ -38,7 +38,7 @@ Other frameworks build the backtester like an event-driven "simulated" exchange 
 - Friendlier to parameter optimization (it is _standalone_ and easy to parallelize)
 
 ### By-Simulation
-The fine-grained ability to simulate orders and trades allows us to run the simulation *even during live trading*. This means that we can either tune our simulation against our chosen live trading exchange, or be alerted about exchange misbehavior when our simulation diverges from exchange execution. Achieving this with an event-driven backtester ends up being either very hard, a brittle mess or simply impossible. This is a unique feature of PingPong that no other framework provides and we called it _by-simulation_.
+The fine-grained ability to simulate orders and trades allows us to run the simulation *even during live trading*. This means that we can either tune our simulation against our chosen live trading exchange, or be alerted about exchange misbehavior when our simulation diverges from exchange execution. Achieving this with an event-driven backtester ends up being either very hard, a brittle mess or simply impossible. This is a unique feature of PingPong that no other framework provides and we called it _by-simulation_[^1].
 
 ### Low Strategy Code Duplication
 In every execution mode, there is always a view of the strategy state which is local first, there is full access to orders, trades history, balances. What differs between the execution modes is not what but how all our internal data structures are populated, which is abstracted away from the user. From the user perspective, strategy code works the same during backtesting, paper and live trading. Yet the user can still (!) choose to branch execution on different modes, for example, to pre-fill some data during simulations, the strategy is of course always self-aware of what mode it is running in.
@@ -66,7 +66,7 @@ Here's a comparison of features with other popular trading frameworks:
 | :floppy_disk: Data Management          | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: |
 | :zap: Fast & flexible backtester       | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :x:                |
 | :chart_with_upwards_trend: DEX support | :x: (planned)      | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :x:                |
-| :scales: Margin/Leverage               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| :moneybag: Margin/Leverage               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | :mag: Optimization                     | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                |
 | :bar_chart: Plotting                   | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :wavy_dash:                  |
 | :desktop_computer: Dashboard           | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                |
@@ -121,7 +121,8 @@ ENV["JULIA_CONDAPKG_ENV"] = joinpath(dirname(Base.active_project()), ".conda")
 import Pkg; Pkg.instantiate()
 ```
 
-Read the [:book:documentation](https://panifie.github.io/PingPong.jl/) to learn how to get started with the bot.
-For questions and direct support you can join the [:speech_balloon:discord chat](https://discord.gg/xDeBmSzDUr)
+Read the :book: documentation ([link](https://panifie.github.io/PingPong.jl/)) to learn how to get started with the bot.
+
+For questions and direct support you can join the :speech_balloon: discord chat ([link](https://discord.gg/xDeBmSzDUr))
 
 [^1]: Not to be confused with bisimulation :)
