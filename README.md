@@ -1,41 +1,114 @@
 [![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
+> Advanced solutions for demanding practitioners
 
-:zap: Speedy backtester!
-:bar_chart: Highly interactive and explorative plotting!
-:rocket: Trivial deployments!
+PingPong is a framework designed to help you build your own trading bot. While it is primarily built around the [CCXT](https://github.com/ccxt/ccxt) API, it can be extended to work with any custom exchange, albeit with some effort.
 
-The one-of-a-kind solution for automated (crypto)trading. PingPong is unparalleled in its flexibility to adapt to different trading environments. The bot is setup to be easy to customize, and can execute any kind of strategy thanks to an approachable set of interfaces. It comes with a backtest engine that also supports trading with margin (and therefore position management). Paper mode allows to dry run your strategies before executing them in Live mode. The framework allows to achieve no code duplication between simulated and live modes.
+### One Language to Rule Them All
+Many trading bots are implemented in Python, which can lead to slow or hard-to-customize vectorized backtesters. By writing trading strategies in Julia, PingPong can perform efficiently during both backtesting and live execution. Other bots implement a faster backtester in another language (Cython, Numba, Rust) but still pay the price for calling code from strategies written in Python, or require the user to implement the strategy itself in a less ergonomic language.
 
-[:book:DOCUMENTATION](https://panifie.github.io/PingPong.jl/)
+PingPong, being fully written in Julia, does not incur these trade-offs and can offer performant execution in both simulations and live trading. Moreover, sharing the same language means that anyone who manages trading strategies in Julia can also contribute to making the PingPong backtester (and the rest) better and faster for every other user. In other words, a contribution to the PingPong codebase is a worthwhile investment more so than over other non-Julia trading frameworks.
 
-[:speech_balloon:DISCORD CHAT](https://discord.gg/xDeBmSzDUr)
+### Customizations
+Julia's dispatch mechanism makes it easy to customize any part of the bot without feeling like you are monkey patching code. It allows you to easily implement ad-hoc behavior to solve exchange API inconsistencies (despite CCXT's best efforts at unification). You don't have to wait for upstream to fix some annoying exchange issue, you can fix most things by dispatching a function instead of having to maintain a fork with a patchset. Ad-hoc customizations are non-intrusive.
 
-## A non exhaustive list of features...
-- :chart_with_upwards_trend: Backtest in spot markets, or with margin in isolated mode).
-- :bar_chart: Plotting for OHLCV, custom indicators, trades history, asset balance history
-- :mag: Optimization (grid search, evolution and bayesian opt algorithms, restore/resume capability and plotting)
-- :page_facing_up: Paper mode (using real orderbook and trades history)
-- :red_circle: Live (not implemented)
-- :stop_button: Telegram Bot (not implemented)
-- :desktop_computer: Dashboard (not implemented)
-- :satellite: Help you write data feeds to monitor exchanges or 3rd party apis.
-- :arrow_down: Download data from external archives in parallel, and api wrappers for crypto apis.
-- :floppy_disk: Store and load OHLCV (and arbitrary) data locally or remotely (with resampling).
-- :wrench: Implement custom behaviour thanks to a fine grained type hierarchy for instruments, exchanges, orders, etc...
+### Margin and Leverage
+Most open-source trading frameworks don't have a fully thought-out system for handling margined positions. PingPong employs a type hierarchy that can handle isolated and cross margin trading, with hedged or unhedged positions. (However, only isolated unhedged positions management is currently implemented, PRs welcome).
 
+### Large Datasets
+Strategies can take a lot of data but not everything can fit into memory. PingPong addresses this issue head-on by relying on [Zarr.jl](https://github.com/JuliaIO/Zarr.jl) for persistence of OHLCV timeseries (and other) with the ability to access data progressively chunk by chunk. It also allows you to _save_ data chunk by chunk.
+
+### Data Consistency
+When dealing with timeseries we want to make sure data is _sane_. More than other frameworks, PingPong goes the extra mile to ensure that OHLCV data does not have "holes", requiring data to be contiguous. During IO, we check the dates index to ensure data is always properly appended or prepended to existing ones.
+
+### Data Feeds
+Many frameworks are eager to provide data that you can use to develop your strategies with backtesting in mind, but leave you hanging when it comes to pipeline fresh data into live trading. PingPong provides a standard interface that makes it easier to build jobs that fetch, process and store data feeds to use in real-time.
+
+### Lookahead Bias
+Dealing with periods of time is crucial for any trading strategy, yet many trading frameworks gloss over this not so small detail causing repeated lookahead bias bugs. PingPong implements a full-featured library to handle parsing and conversions of both dates and timeframes. It has convenient macros to handle date periods and timeframes within the REPL and provides indexing by date and range of dates for dataframes.
+
+### Multiplicity
+Handling a large number of strategies can be cumbersome and brittle. PingPong doesn't step on your toes when you are trying to piece everything together, because there are no requirements for a runtime environment, there is no overly complicated setup, starting and stopping strategies is as easy as calling `start!` and `stop!` on the strategy object. That's it. You can construct higher-level cross-currency or cross-exchange systems by just instantiating multiple strategies.
+
+### Peculiar Backtesting
+Other frameworks build the backtester like an event-driven "simulated" exchange such that they can mirror as precise as possible real-world exchanges. In PingPong instead, the backtester is functionally a loop, with execution implemented _from scratch_. This makes the backtester:
+- Simpler to debug (it is _self-contained_)
+- Faster (it is _synchronous_)
+- Friendlier to parameter optimization (it is _standalone_ and easy to parallelize)
+
+### By-Simulation
+The fine-grained ability to simulate orders and trades allows us to run the simulation *even during live trading*. This means that we can either tune our simulation against our chosen live trading exchange, or be alerted about exchange misbehavior when our simulation diverges from exchange execution. Achieving this with an event-driven backtester ends up being either very hard, a brittle mess or simply impossible. This is a unique feature of PingPong that no other framework provides and we called it _by-simulation_.
+
+### Low Strategy Code Duplication
+In every execution mode, there is always a view of the strategy state which is local first, there is full access to orders, trades history, balances. What differs between the execution modes is not what but how all our internal data structures are populated, which is abstracted away from the user. From the user perspective, strategy code works the same during backtesting, paper and live trading. Yet the user can still (!) choose to branch execution on different modes, for example, to pre-fill some data during simulations, the strategy is of course always self-aware of what mode it is running in.
+
+### Thin Abstractions
+Other frameworks achieve low code duplication by completely abstracting away order management and instead provide a _signal_ interface. PingPong abstractions are thin, from the strategy, you are sending orders directly yourself, there is no man in the middle, you decide how, what, when to enter or exit trades. If you want a higher level of abstractions like signals and risk management, those can be implemented as modules that the strategy dependencies, PRs welcome.
+
+## Pingpong also...
+- Can plot OHLCV data, custom indicators, trades history, asset balance history
+- Can perform parameter optimization using grid search, evolution and Bayesian opt algorithms. Has restore/resume capability and plotting of the optimization space.
+- In Paper mode, trades are simulated using the real order book and exchange trades history
+- Has a Telegram bot to control strategies
+- Can download data from external archives in parallel, and has API wrappers for crypto APIs.
+
+## Comparison Chart
+Here's a comparison of features with other popular trading frameworks:
+
+> :warning: This table might be imprecise or outdated (please file an [issue](https://github.com/panifie/PingPong.jl/issues) for improvements)
+
+| _Feature_                              | *PingPong*         | *Freqtrade*        | *Hummingbot*       | *OctoBot*          | *JesseAI*          | *Nautilus*         | *Backtrader*       |
+|----------------------------------------|:------------------:|:------------------:|:------------------:|--------------------|:------------------:|--------------------|:------------------:|
+| :red_circle: Paper/Live execution      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :wavy_dash:                  | :wavy_dash:                  | :wavy_dash:                  |
+| :control_knobs: Remote control         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                |
+| :floppy_disk: Data Management          | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: |
+| :zap: Fast & flexible backtester       | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| :chart_with_upwards_trend: DEX support | :x: (planned)      | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :x:                |
+| :scales: Margin/Leverage               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| :mag: Optimization                     | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                |
+| :bar_chart: Plotting                   | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :wavy_dash:                  |
+| :desktop_computer: Dashboard           | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                |
+| :satellite: Live feeds                 | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| :shield: Bias hardened                 | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :x:                |
+| :wrench: Customizable                  | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| :nut_and_bolt: Composable              | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| :repeat: Low code duplication          | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                |
+| :anchor: By-Simulation                 | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :x:                | :x:                |
 
 ## Install
+### With docker
+For developing strategies:
+``` bash
+# Sysimage build (the largest number of methods precompiled) plus interactive modules (plotting and optimization)
+docker pull docker.io/panifie/pingpong-sysimage-interactive
+
+```
+For running live strategies
+``` bash
+# Sysimage build with only the core components, better for live deployments
+docker pull docker.io/panifie/pingpong-sysimage
+```
+
+For developing pingpong
+
+``` bash
+# Precomp build. Slower loading times, smaller image
+docker pull docker.io/panifie/pingpong-precomp-interactive
+# Precomp build without interactive modules
+docker pull docker.io/panifie/pingpong-precomp
+```
+
+### From sources
 PingPong.jl requires at least Julia 1.9. Is not in the julia registry, to install it do the following:
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/panifie/PingPong.jl PingPong
+git clone --recurse-submodules https://github.com/panifie/PingPong.jl pingpong
 ```
 - Activate the project:
 ```bash
-cd PingPong
+cd pingpong
 git submodule init
 git submodule update
 julia --project=.
@@ -47,6 +120,7 @@ ENV["JULIA_CONDAPKG_ENV"] = joinpath(dirname(Base.active_project()), ".conda")
 import Pkg; Pkg.instantiate()
 ```
 
-## Warning
-The api is *not* stable. If you want more stability around some functionality open an issue for the function of interest such that I can add a test around it. 
+Read the [:book:documentation](https://panifie.github.io/PingPong.jl/) to learn how to get started with the bot.
+For questions and direct support you can join the [:speech_balloon:discord chat](https://discord.gg/xDeBmSzDUr)
 
+[^1]: Not to be confused with bisimulation :)
