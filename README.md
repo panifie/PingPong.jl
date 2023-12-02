@@ -20,7 +20,7 @@ Most open-source trading frameworks don't have a fully thought-out system for ha
 Strategies can take a lot of data but not everything can fit into memory. PingPong addresses this issue head-on by relying on [Zarr.jl](https://github.com/JuliaIO/Zarr.jl) for persistence of OHLCV timeseries (and other) with the ability to access data progressively chunk by chunk. It also allows you to _save_ data chunk by chunk.
 
 ### Data Consistency
-When dealing with timeseries we want to make sure data is _sane_. More than other frameworks, PingPong goes the extra mile to ensure that OHLCV data does not have "holes", requiring data to be contiguous. During IO, we check the dates index to ensure data is always properly appended or prepended to existing ones.
+When dealing with timeseries we want to make sure data is _sane_. More than other frameworks, PingPong goes the extra mile to ensure that OHLCV data does not have missing entries, requiring data to be contiguous. During IO, we check the dates index to ensure data is always properly appended or prepended to existing ones.
 
 ### Data Feeds
 Many frameworks are eager to provide data that you can use to develop your strategies with backtesting in mind, but leave you hanging when it comes to pipeline fresh data into live trading. PingPong provides a standard interface that makes it easier to build jobs that fetch, process and store data feeds to use in real-time.
