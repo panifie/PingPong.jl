@@ -1,7 +1,7 @@
 [![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
-> Advanced solutions for demanding practitioners
+> _Advanced solutions for demanding practitioners_
 
 PingPong is a framework designed to help you build your own trading bot. While it is primarily built around the [CCXT](https://github.com/ccxt/ccxt) API, it can be extended to work with any custom exchange, albeit with some effort.
 
