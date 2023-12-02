@@ -52,6 +52,7 @@ Other frameworks achieve low code duplication by completely abstracting away ord
 - In Paper mode, trades are simulated using the real order book and exchange trades history
 - Has a Telegram bot to control strategies
 - Can download data from external archives in parallel, and has API wrappers for crypto APIs.
+- Can still easily call into python (with async support!) if you wish
 
 ## Comparison Chart
 Here's a comparison of features with other popular trading frameworks:
