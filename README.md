@@ -44,7 +44,7 @@ The fine-grained ability to simulate orders and trades allows us to run the simu
 In every execution mode, there is always a view of the strategy state which is local first, there is full access to orders, trades history, balances. What differs between the execution modes is not what but how all our internal data structures are populated, which is abstracted away from the user. From the user perspective, strategy code works the same during backtesting, paper and live trading. Yet the user can still (!) choose to branch execution on different modes, for example, to pre-fill some data during simulations, the strategy is of course always self-aware of what mode it is running in.
 
 ### Thin Abstractions
-Other frameworks achieve low code duplication by completely abstracting away order management and instead provide a _signal_ interface. PingPong abstractions are thin, from the strategy, you are sending orders directly yourself, there is no man in the middle, you decide how, what, when to enter or exit trades. If you want a higher level of abstractions like signals and risk management, those can be implemented as modules that the strategy dependencies, PRs welcome.
+Other frameworks achieve low code duplication by completely abstracting away order management and instead provide a _signal_ interface. PingPong abstractions are thin, from the strategy, you are sending orders directly yourself, there is no man in the middle, you decide how, what, when to enter or exit trades. If you want a higher level of abstractions like signals and risk management, those can be implemented as modules that the strategy depends on, PRs welcome.
 
 ## Pingpong also...
 - Can plot OHLCV data, custom indicators, trades history, asset balance history
