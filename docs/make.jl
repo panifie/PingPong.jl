@@ -41,14 +41,21 @@ function use(name, args...; activate=false)
         end
     end
 end
-get(ENV, "LOADED", "false") == "true" || begin
+
+if isempty(get(ENV, "PINGPONG_DOCS_SKIP_BUILD", ""))
+    withenv("PINGPONG_DOCS_SKIP_BUILD" => "true") do
+        run(`julia --project=PingPong docs/make.jl`)
+    end
+end
+
+get(ENV, "PINGPONG_DOCS_LOADED", "false") == "true" || begin
     use(:Prices, "Data", "src", "prices.jl")
     use(:Fetch, "Fetch")
     use(:Processing, "Processing")
     use(:Instruments, "Instruments")
     use(:Exchanges, "Exchanges")
     use(:Plotting, "Plotting")
-    use(:Analysis, "Analysis", activate=true)
+    use(:Analysis, "Analysis"; activate=true)
     use(:Engine, "Engine")
     use(:Watchers, "Watchers")
     use(:Pbar, "Pbar")
@@ -72,6 +79,8 @@ function filter_strategy(t)
         false
     end
 end
+
+get(ENV, "PINGPONG_DOCS_SKIP_BUILD", "") == "true" && exit()
 
 makedocs(;
     sitename="PingPong.jl",

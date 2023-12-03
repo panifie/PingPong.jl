@@ -45,14 +45,14 @@ jobs:
     - name: Install dependencies
       run: |
         git submodule update --init;
-        sudo apt-get install -y xvfb xauth
+        sudo apt-get install -y xauth
         # FIXME
-        [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
-        xvfb-run julia --project=PingPong docs/setup.jl
+        # [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
+        julia --project=PingPong docs/setup.jl
     - name: Build docs
       run: |
         # FIXME
-        [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
+        # [ -e ~/.cache/PingPong.jl/data ] && rm -r ~/.cache/PingPong.jl/data
         # export JULIA_CONDAPKG_OFFLINE=yes
         julia --project=PingPong docs/make.jl
     - name: Checkout gh-pages branch
