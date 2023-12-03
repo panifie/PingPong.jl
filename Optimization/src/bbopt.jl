@@ -217,5 +217,4 @@ function bboptimize(
     sess, (; opt, r)
 end
 
-export OptimizationContext
 export bboptimize, best_fitness, best_candidate

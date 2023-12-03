@@ -436,5 +436,5 @@ end
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
-export @as, @sym_str, @exportenum, @caller
-export Option, toggle, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
+export @as, @sym_str, @caller
+export Option, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
