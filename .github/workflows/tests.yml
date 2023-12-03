@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_VERSION: 1
-
     steps:
     - uses: actions/checkout@v2
     - uses: actions/cache@v3
@@ -30,14 +29,31 @@ jobs:
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
-        julia-version: ${{ env.JULIA_VERSION }}
+        version: ${{ env.JULIA_VERSION }}
+        include-all-prereleases: true
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
       run: |
         git submodule init; git submodule update
-        which xvfb-run || sudo apt-get install -y xvfb xauth
-        xvfb-run julia --project=. -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
-    - name: run tests
-      run: julia --project=. -e 'import Pkg; Pkg.test()'
+        sudo apt-get install -y xauth
+        julia --project=. -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
+    - name: Run tests
+      uses: julia-actions/julia-runtest@v1
+      with:
+        project: "./PingPong"
+    - name: Process coverage
+      uses: julia-actions/julia-processcoverage@v1
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Save Cache
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: |
+          $HOME/.julia
+          ./.CondaPkg
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
