@@ -5,7 +5,7 @@ function recurse_projects(
     path=".";
     io=stdout,
     top=true,
-    exclude=("test", "docs", "deps", "user"),
+    exclude=("test", "docs", "deps", "user", ".conda", ".CondaPkg", ".git"),
     top_proj=Base.active_project(),
     kwargs...,
 )
@@ -13,7 +13,7 @@ function recurse_projects(
     @sync for subpath in readdir(path)
         fullpath = joinpath(path, subpath)
         if endswith(fullpath, "Project.toml")
-            @async f(path, fullpath; io, kwargs...)
+            f(path, fullpath; io, kwargs...)
         elseif isdir(fullpath)
             if !startswith(fullpath, ".") && all((!endswith(fullpath, e) for e in exclude))
                 recurse_projects(f, fullpath; io, top=false, top_proj, kwargs...)
