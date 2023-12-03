@@ -61,7 +61,6 @@ Other frameworks achieve low code duplication by completely abstracting away ord
 Here's a comparison of features with other popular trading frameworks:
 
 > ⚠️ This table might be imprecise or outdated (please file an [issue](https://github.com/panifie/PingPong.jl/issues) for improvements)
-[^wow]
 
 | _Feature_                     | *PingPong*   | [*Freqtrade*](https://github.com/freqtrade/freqtrade) | [*Hummingbot*](https://github.com/hummingbot/hummingbot) | [*OctoBot*](https://github.com/Drakkar-Software/OctoBot) | [*Jesse*](https://github.com/jesse-ai/jesse) | [*Nautilus*](https://github.com/nautechsystems/nautilus_trader) | [*Backtrader*](https://github.com/mementum/backtrader) |
 |-------------------------------|:------------:|:-----------------------------------------------------:|:--------------------------------------------------------:|:--------------------------------------------------------:|:--------------------------------------------:|:---------------------------------------------------------------:|:------------------------------------------------------:|
@@ -132,4 +131,3 @@ Read the :book: documentation ([link](https://panifie.github.io/PingPong.jl/)) t
 For questions and direct support you can join the :speech_balloon: discord chat ([link](https://discord.gg/xDeBmSzDUr))
 
 [^1]: Not to be confused with bisimulation :)
-[^wow]: https://github.com
