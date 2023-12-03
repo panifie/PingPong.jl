@@ -55,7 +55,7 @@ issim(::Strategy{M}) where {M<:ExecMode} = M == Sim
 ispaper(::Strategy{M}) where {M<:ExecMode} = M == Paper
 islive(::Strategy{M}) where {M<:ExecMode} = M == Live
 @doc "The name of the strategy module."
-Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N} = N
+Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N<:Symbol} = N
 @doc "The name of the strategy module."
 Base.nameof(s::Strategy) = nameof(typeof(s))
 @doc "The strategy `AssetCollection`."

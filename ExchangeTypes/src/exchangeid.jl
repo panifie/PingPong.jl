@@ -40,7 +40,8 @@ end
 
 const EIDType = Type{<:ExchangeID}
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
-Base.nameof(::Union{T,Type{T}}) where {T<:ExchangeID} = T.parameters[1]
+Base.nameof(t::Type{<:ExchangeID}) = t.parameters[1]
+Base.nameof(::ExchangeID{T}) where {T} = T
 Base.show(io::IO, id::ExchangeID) = begin
     write(io, "ExchangeID(:")
     write(io, id.sym)
