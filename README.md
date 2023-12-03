@@ -1,7 +1,10 @@
 [![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
-> _Advanced solutions for demanding practitioners_
+
+<!-- PRESENTATION BEGIN -->
+
+> _PingPong, advanced solutions for demanding practitioners_
 
 PingPong is a framework designed to help you build your own trading bot. While it is primarily built around the [CCXT](https://github.com/ccxt/ccxt) API, it can be extended to work with any custom exchange, albeit with some effort.
 
@@ -41,7 +44,7 @@ Other frameworks build the backtester like an event-driven "simulated" exchange 
 The fine-grained ability to simulate orders and trades allows us to run the simulation *even during live trading*. This means that we can either tune our simulation against our chosen live trading exchange, or be alerted about exchange misbehavior when our simulation diverges from exchange execution. Achieving this with an event-driven backtester ends up being either very hard, a brittle mess or simply impossible. This is a unique feature of PingPong that no other framework provides and we called it _by-simulation_[^1].
 
 ### Low Strategy Code Duplication
-In every execution mode, there is always a view of the strategy state which is local first, there is full access to orders, trades history, balances. What differs between the execution modes is not what but how all our internal data structures are populated, which is abstracted away from the user. From the user perspective, strategy code works the same during backtesting, paper and live trading. Yet the user can still (!) choose to branch execution on different modes, for example, to pre-fill some data during simulations, the strategy is of course always self-aware of what mode it is running in.
+In every execution mode, there is always a view of the strategy state which is local first, there is full access to orders, trades history, balances. What differs between the execution modes is not what but how all our internal data structures are populated, which is abstracted away from the user. From the user perspective, strategy code works the same during backtesting, paper and live trading. Yet the user can still choose to branch execution on different modes, for example, to pre-fill some data during simulations, the strategy is of course always self-aware of what mode it is running in.
 
 ### Thin Abstractions
 Other frameworks achieve low code duplication by completely abstracting away order management and instead provide a _signal_ interface. PingPong abstractions are thin, from the strategy, you are sending orders directly yourself, there is no man in the middle, you decide how, what, when to enter or exit trades. If you want a higher level of abstractions like signals and risk management, those can be implemented as modules that the strategy depends on, PRs welcome.
@@ -57,25 +60,27 @@ Other frameworks achieve low code duplication by completely abstracting away ord
 ## Comparison Chart
 Here's a comparison of features with other popular trading frameworks:
 
-> :warning: This table might be imprecise or outdated (please file an [issue](https://github.com/panifie/PingPong.jl/issues) for improvements)
+> ⚠️ This table might be imprecise or outdated (please file an [issue](https://github.com/panifie/PingPong.jl/issues) for improvements)
 
-| _Feature_                              | *PingPong*         | *Freqtrade*        | *Hummingbot*       | *OctoBot*          | *JesseAI*          | *Nautilus*         | *Backtrader*       |
-|----------------------------------------|:------------------:|:------------------:|:------------------:|--------------------|:------------------:|--------------------|:------------------:|
-| :red_circle: Paper/Live execution      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :wavy_dash:                  | :wavy_dash:                  | :wavy_dash:                  |
-| :control_knobs: Remote control         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                |
-| :floppy_disk: Data Management          | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: |
-| :zap: Fast & flexible backtester       | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :x:                |
-| :chart_with_upwards_trend: DEX support | :x: (planned)      | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :x:                |
-| :moneybag: Margin/Leverage               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| :mag: Optimization                     | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                |
-| :bar_chart: Plotting                   | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                | :wavy_dash:                  |
-| :desktop_computer: Dashboard           | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                |
-| :satellite: Live feeds                 | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| :shield: Bias hardened                 | :heavy_check_mark: | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :x:                |
-| :wrench: Customizable                  | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
-| :nut_and_bolt: Composable              | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| :repeat: Low code duplication          | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                |
-| :anchor: By-Simulation                 | :heavy_check_mark: | :x:                | :x:                | :x:                | :x:                | :x:                | :x:                |
+| _Feature_                               | *PingPong* | *Freqtrade* | *Hummingbot* | *OctoBot* | *JesseAI* | *Nautilus* | *Backtrader* |
+|-----------------------------------------|:----------:|:-----------:|:------------:|:---------:|:---------:|:----------:|:------------:|
+| 🔴 Paper/Live execution                 | ✔️         | ✔️          | ✔️           | ✔️        | 〰️        | 〰️         | 〰️          |
+| 🎛 Remote control                       | ✔️         | ✔️          | ✔️           | ✔️        | ❌         | ❌         | ❌          |
+| 💾 Data Management                      | ✔️         | ✔️          | ❌           | ❌        | ❌         | ❌         | ✔️          |
+| ⚡ Fast & flexible backtester            | ✔️         | ❌          | ❌           | ❌        | ❌         | ✔️         | ❌          |
+| 📈 DEX support                          | ❌ (planned)| ❌         | ✔️           | ❌        | ✔️         | ❌         | ❌          |
+| 💰 Margin/Leverage                      | ✔️         | ❌          | ❌           | ✔️        | ✔️         | ✔️         | ❌          |
+| 🔍 Optimization                         | ✔️         | ✔️          | ❌           | ✔️        | ✔️         | ❌         | ❌          |
+| 📊 Plotting                             | ✔️         | ✔️          | ❌           | ✔️        | ✔️         | ❌         | 〰️          |
+| 🖥 Dashboard                            | ❌         | ✔️          | ✔️           | ✔️        | ❌         | ❌         | ❌          |
+| 📡 Live feeds                           | ✔️         | ❌          | ❌           | ❌        | ❌         | ✔️         | ✔️          |
+| 🛡 Bias hardened                        | ✔️         | ✔️          | ❌           | ❌        | ❌         | ❌         | ❌          |
+| 🔧 Customizable                         | ✔️         | ❌          | ✔️           | ❌        | ❌         | ✔️         | ❌          |
+| 🪛 Composable                           | ✔️         | ❌          | ❌           | ❌        | ❌         | ✔️         | ✔️          |
+| 🔁 Low code duplication                 | ✔️         | ✔️          | ❌           | ✔️        | ❌         | ✔️         | ❌          |
+| ⚓ By-Simulation                         | ✔️         | ❌          | ❌           | ❌        | ❌         | ❌         | ❌          |
+
+<!-- PRESENTATION END -->
 
 ## Install
 ### With docker
