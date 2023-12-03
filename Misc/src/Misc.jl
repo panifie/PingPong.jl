@@ -7,7 +7,10 @@ if get(ENV, "JULIA_NOPRECOMP", "") == "all"
         @eval _doinit()
     end
 else
-    occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
+    if occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", ""))
+        __precompile__(false)
+        include("consts.jl")
+    end
     include("misc.jl")
     __init__() = _doinit()
     include("precompile.jl")
