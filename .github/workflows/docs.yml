@@ -22,7 +22,7 @@ jobs:
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
-        version: '^1.9'
+        version: '1'
         include-all-prereleases: true
     - uses: actions/cache@v3
       id: julia-cache
