@@ -4,12 +4,12 @@ using Serialization: AbstractSerializer, serialize_type
 
 using Reexport
 using Pbar.Term: RGB, tprint
-import ExchangeTypes: issupported
 using ExchangeTypes
 using Data: Data, DataFrame
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
+import .Ccxt: issupported
 using .Python: pyfetch, @pystr
 using .Python: Py, pyconvert, PyDict, PyList, pydict, pyimport, @pyconst
 using .Python: pyisnone, pyisnull, pyisbool, pyisTrue, pyisstr
