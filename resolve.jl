@@ -15,7 +15,7 @@ function recurse_projects(
         if endswith(fullpath, "Project.toml")
             f(path, fullpath; io, kwargs...)
         elseif isdir(fullpath)
-            if !startswith(fullpath, ".") && all((!endswith(fullpath, e) for e in exclude))
+            if !startswith(fullpath, ".") && all(!endswith(fullpath, e) for e in exclude)
                 recurse_projects(f, fullpath; io, top=false, top_proj, kwargs...)
             end
         end

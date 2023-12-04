@@ -8,11 +8,9 @@ const SettlementCurrency = Symbol
 @doc "Differentiates between perpetuals and options."
 @enum DerivativeKind Unkn Call Put
 function parse_option(s::AbstractString)
-    begin
-        s == "C" && return Call
-        s == "P" && return Put
-        throw(ArgumentError("Failed to parse $s as `DerivativeKind`."))
-    end
+    s == "C" && return Call
+    s == "P" && return Put
+    throw(ArgumentError("Failed to parse $s as `DerivativeKind`."))
 end
 
 _derivative_error(s) = "Failed to parse derivative symbols for $s."
@@ -104,10 +102,10 @@ is_inverse(d::Derivative) = is_settled(d) ? d.bc == d.sc : false
 macro d_str(s)
     :($(parse(Derivative, s)))
 end
-function ==(b::NTuple{3,Symbol}, a::Derivative)
+function Base.:(==)(b::NTuple{3,Symbol}, a::Derivative)
     a.bc == b[1] && a.qc == b[2] && a.sc == b[3]
 end
-function ==(a::Derivative, b::Derivative)
+function Base.:(==)(a::Derivative, b::Derivative)
     a.qc == b.qc && a.bc == b.bc && a.sc == b.sc
 end
 Base.hash(a::Derivative) = hash(getfield(a, :asset).raw) #hash(Instruments._hashtuple(a))

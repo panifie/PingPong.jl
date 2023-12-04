@@ -488,7 +488,7 @@ $(TYPEDSIGNATURES)
 - `remove_keys` (optional, default is true): a boolean indicating whether to remove the API keys while enabling sandbox mode.
 
 """
-function sandbox!(exc::Exchange=exc, flag=!issandbox(exc); remove_keys=true)
+function sandbox!(exc::Exchange=exc; flag=!issandbox(exc), remove_keys=true)
     success = try
         exc.py.setSandboxMode(flag)
         true

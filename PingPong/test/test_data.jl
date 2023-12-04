@@ -19,14 +19,17 @@ function test_save_json(zi=nothing, key="coingecko/markets/all")
         using Mmap
         da = Data
     end
-    data = JSON.parsefile("test/stubs/cg_markets.json")
+    filepath = joinpath(dirname(Base.active_project()), "test/stubs/cg_markets.json")
+    data = JSON.parsefile(filepath)
     if isnothing(zi)
         zi = zilmdb()
     end
+    sz = (length(data), 2)
     za, existing = da._get_zarray(
-        zi, key, (length(data), 2); type=String, overwrite=true, reset=true
+        zi, key, sz; type=String, overwrite=true, reset=true
     )
-    @test size(za) == (length(data), 2)
+    resize!(za, sz)
+    @test za.metadata.chunks == (length(data), 2)
     @test existing isa Bool
     v = [[(v["last_updated"]), JSON.json(v)] for v in values(data)]
     v = reduce(hcat, v) |> permutedims
@@ -43,19 +46,25 @@ test_zarray_save(zi) = begin
     z, existing = da._get_zarray(
         zi, k, sz; type=String, overwrite=true, reset=true
     )
-    @test !existing
-    @test z isa ZArray
-    @test eltype(z) == String
-    @test length(z) == reduce(*, sz)
-    @test size(z) == sz
+    try
+        @test !existing
+        @test z isa ZArray
+        @test eltype(z) == String
+        @test z.metadata.chunks == (123, 3)
+        @test length(z) == 0
+        @test size(z) == (0, 3)
+    finally
+        delete!(z)
+        Main.z = z
+    end
     return z
 end
 
-test_data() = @testset "data" begin
+test_data() = @testset "data" failfast = true begin
     @eval begin
-        using PingPong.Data
+        using PingPong.Engine.Data
         da = Data
-        using Data.Zarr
+        using .Data.Zarr
         za = Zarr
     end
     zi = test_zarrinstance()
