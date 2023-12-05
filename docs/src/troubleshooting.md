@@ -65,3 +65,12 @@ Increase the mapsize before reaching the limit to continue saving data.
 using GLMakie
 GLMakie.activate!()
 ```
+
+## Segfaults when saving ohlcv
+The default `ZarrInstance` uses an `LMDB` store. It is possible that the underlying lmdb database has been corrupted. To fix this the database must be re-created. Either delete the database manually (default path is in under `Data.DATA_PATH`) or run this code on a fresh repl:
+
+``` julia
+using Data
+Data.zilmdb(force=true)
+```
+
