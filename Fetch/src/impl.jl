@@ -383,6 +383,7 @@ function _fetch_with_delay(
         handle_data(data::DataFrame) = data
         isempty(data) || size(data, 1) == 0 ? handle_empty(data) : handle_data(data)
     catch e
+        e isa InterruptException && rethrow(e)
         __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converter, retry)
     end
 end
@@ -574,6 +575,7 @@ function __save_ohlcv(zi, ohlcv, name, timeframe, exc_name, reset)
     try
         save_ohlcv(zi, exc_name, name, timeframe, ohlcv; reset)
     catch e
+        e isa InterruptException && rethrow(e)
         __handle_save_ohlcv_error(e, exc_name, name, timeframe, ohlcv)
     end
 end
