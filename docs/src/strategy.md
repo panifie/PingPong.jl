@@ -143,3 +143,6 @@ Really delete strategy located at /run/media/fra/stateful-1/dev/PingPong.jl/user
 Remove user config entry MyNewStrategy? [n]/y: y
 ```
 
+## Strategy examples
+Strategy examples can be found in the `user/strategies` folder, some strategies are single files like `Example.jl` while strategies like `BollingerBands` or `ExampleMargin` are project based.
+
