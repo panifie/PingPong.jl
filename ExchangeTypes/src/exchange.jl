@@ -66,7 +66,7 @@ function close_exc(exc::CcxtExchange)
 end
 
 Exchange() = Exchange(pybuiltins.None)
-@doc""" Instantiates a new `Exchange` wrapper for the provided `x` Python object.
+@doc """ Instantiates a new `Exchange` wrapper for the provided `x` Python object.
 
 This constructs a `CcxtExchange` struct with the provided Python object.
 It extracts the exchange ID, name, and other metadata. 

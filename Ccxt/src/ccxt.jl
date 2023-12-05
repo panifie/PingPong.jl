@@ -114,7 +114,7 @@ function _multifunc(exc, suffix, hasinputs=false)
     end
 end
 
-@doc"""
+@doc """
 A dictionary for storing function wrappers with their unique identifiers.
 """
 const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
