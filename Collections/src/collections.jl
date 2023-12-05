@@ -111,7 +111,7 @@ Base.getindex(ac::AssetCollection, i, i2, i3) = ac[i, i2][i3]
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
 function bqe(df::DataFrame, b::T, q::T, e::T) where {T<:Symbol}
-    isbase.(df.asset, b) && isquote.(df.asset, q) && df.exchange .== e
+    isbase.(df.asset, b) .&& isquote.(df.asset, q) .&& df.exchange .== e
 end
 function bqe(df::DataFrame, ::Nothing, q::T, e::T) where {T<:Symbol}
     isquote(df.asset, q) && df.exchange .== e
@@ -119,8 +119,8 @@ end
 function bqe(df::DataFrame, b::T, ::Nothing, e::T) where {T<:Symbol}
     isbase.(df.asset, b) && df.exchange .== e
 end
-function bqe(df::DataFrame, ::T, q::T, e::Nothing) where {T<:Symbol}
-    isbase.(df.asset, b) && isquote.(df.asset, q)
+function bqe(df::DataFrame, b::T, q::T, e::Nothing) where {T<:Symbol}
+    isbase.(df.asset, b) .&& isquote.(df.asset, q)
 end
 bqe(df::DataFrame, ::Nothing, ::Nothing, e::T) where {T<:Symbol} = begin
     df.exchange .== e
