@@ -176,7 +176,7 @@ function getexchange!(
         else
             py = ccxt_exchange(x, params; kwargs...)
             e = Exchange(py)
-            sandbox && sandbox!(e, true; remove_keys=false)
+            sandbox && sandbox!(e; flag=true, remove_keys=false)
             setexchange!(e; markets)
         end,
     )
