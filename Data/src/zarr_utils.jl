@@ -269,7 +269,7 @@ function _get_zarray(
     if is_zarray(zi.store, key)
         za = zopen(zi.store, "w"; path=key)
         if isempty(za) || _wrongdims(za, sz) || _wrongcols(za, sz) || reset
-            @debug "wrong dims? $(_wrongdims(za, sz)), wrong cols? $(_wrongcols(za, sz))"
+            @debug "_get_zarray" sz _wrongdims(za, sz) _wrongcols(za, sz)
             if overwrite || reset
                 delete!(zi.store, key)
                 za = @zcreate
