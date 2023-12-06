@@ -1,7 +1,9 @@
 using Reexport
 @reexport using PingPong
-using PingPong.Engine: Strategies as st
+using PingPong.Engine: Strategies as st, Engine as egn
 using PingPong: @environment!
+using Random
+using Stubs
 
 using PingPong.Misc
 
