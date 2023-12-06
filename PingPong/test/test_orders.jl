@@ -1,6 +1,8 @@
 using Test
-using Python
 using Random
+using PingPong.Engine.Lang: @m_str
+using PingPong.Engine.TimeTicks
+using PingPong.Exchanges.Python
 
 function test_sanitize()
     s = "BTC/USDT:USDT"
@@ -14,16 +16,17 @@ function test_sanitize()
     amount = ect.Checks.sanitize_amount(ai, amount)
     price = ect.Checks.sanitize_price(ai, price)
 
-    amt_prec = @py Int(exc.markets[s]["precision"]["amount"])
-    prc_prec = @py Int(exc.markets[s]["precision"]["price"])
+    amt_prec = exc.markets[s]["precision"]["amount"]
+    prc_prec = exc.markets[s]["precision"]["price"]
     @test price != init_price
     @test amount != init_amount
     ccxt_amt_prec = pyconvert(
-        Float64, @py float(exc.py.decimalToPrecision(amount; precision=amt_prec))
+        Float64, @py float(exc.py.decimalToPrecision(amount; counting_mode=Int(exc.precision), precision=amt_prec))
     )
     ccxt_prc_prec = pyconvert(
-        Float64, @py float(exc.py.decimalToPrecision(price; precision=prc_prec))
+        Float64, @py float(exc.py.decimalToPrecision(price; counting_mode=Int(exc.precision), precision=prc_prec))
     )
+    @info "TEST: " price ccxt_prc_prec prc_prec
     @test Bool(price ≈ ccxt_prc_prec)
     @test Bool(amount ≈ ccxt_amt_prec)
 end
@@ -36,7 +39,8 @@ end
 function test_orderscount(s)
     @test ect.execmode(s) == ect.Sim()
     st.reset!(s)
-    ai = s.universe[m"btc"].instance
+    ai = s[m"btc"]
+    @info "TEST: " ai
     row = ai.ohlcv[100, :]
     date(n=1) = row.timestamp + tf"1m" * n
     ect.pong!(
@@ -70,7 +74,7 @@ function test_orderscount(s)
     @test length(collect(ect.orders(s, ai, ect.Sell))) == 0
     @test ect.hasorders(s, ect.Buy)
     @test !ect.hasorders(s, ect.Sell)
-    bt.default!(s)
+    st.default!(s)
     ect.cash!(s.cash, 1e6)
     ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount=10.0, date=date(3))
     @test s.cash < 1e6
@@ -111,8 +115,14 @@ function test_orderscount(s)
 end
 
 test_orders() = @testset "orders" begin
-    @eval include(joinpath(@__DIR__, "env.jl"))
-    @testset test_sanitize()
+    @eval begin
+        using PingPongDev
+        using PingPongDev.PingPong
+        using Random
+        PingPong.@environment!
+        using .Misc: roundfloat
+    end
+    @testset failfast = true test_sanitize()
     s = _strat()
-    @testset test_orderscount(s)
+    @testset failfast = true test_orderscount(s)
 end
