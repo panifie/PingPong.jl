@@ -57,7 +57,7 @@ islive(::Strategy{M}) where {M<:ExecMode} = M == Live
 @doc "The name of the strategy module."
 Base.nameof(::Type{<:Strategy{<:ExecMode,N}}) where {N<:Symbol} = N
 @doc "The name of the strategy module."
-Base.nameof(s::Strategy) = nameof(typeof(s))
+Base.nameof(s::Strategy) = typeof(s).parameters[2]
 @doc "The strategy `AssetCollection`."
 universe(s::Strategy) = getfield(s, :universe)
 @doc "The `throttle` attribute determines the strategy polling interval."
