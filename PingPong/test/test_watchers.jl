@@ -14,11 +14,11 @@ macro deser!(v)
     end
 end
 
-function _test_save(k)
+function _test_save(k, w)
     z = Data.load_data(k; serialized=true)
     prevsz = size(z, 1)
-    d1 = z[end, 1]
-    wc.flush!(w)
+    d1 = prevsz[1] > 0 ? z[end, 1] : NaN
+    wa.flush!(w)
     z = Data.load_data(k; serialized=true)
     newsz = size(z, 1)
     d2 = z[end, 1]
@@ -27,33 +27,37 @@ end
 
 function _test_watchers_1()
     w = wi.cg_ticker_watcher("btc", "eth")
-    @test w.name == "btceth"
+    @test w.name == "cg_ticker-7224535830704663454"
     @test w.buffer isa DataStructures.CircularBuffer
-    @test w.interval == Minute(6)
-    @test w.flush_interval == Minute(6)
-    wc.fetch!(w)
-    @test length(w.buffer) > 0
-    @test now() - (last(w.buffer).time) < Minute(12)
-    _test_save("btceth")
+    @test w.interval.flush == Minute(6)
+    @test w.interval.flush == Minute(6)
+    wa.fetch!(w)
+    if wi.cg.STATUS[] == 200
+        @test length(w.buffer) > 0
+        @test now() - (last(w.buffer).time) < Minute(12)
+        _test_save("cg_ticker_btc_eth", w)
+    end
 end
 
 function _test_watchers_2()
     w = wi.cg_derivatives_watcher("binance_futures")
-    k = "cg_binance_futures_derivatives"
-    @test w.name == k
-    wc.fetch!(w)
-    @test last(w).value isa Dict{wi.Derivative, wi.CgSymDerivative}
-    _test_save(k)
+    @test w.name == "cg_derivatives-16819285695551769070"
+    wa.fetch!(w)
+    if wi.cg.STATUS[] == 200
+        @test last(w).value isa Dict{wi.Derivative,wi.CgSymDerivative}
+        k = "cg_binance_futures_derivatives"
+        _test_save(k, w)
+    end
 end
 
-test_watchers() = @testset "watchers" begin
+test_watchers() = @testset failfast = true "watchers" begin
     @eval begin
-        using PingPong.Watchers
+        using PingPong.Engine.LiveMode.Watchers
         using PingPong.Data
         using DataStructures
         using Serialization
-        wc = Watchers
-        wi = wc.WatchersImpls
+        wa = Watchers
+        isdefined(@__MODULE__, :wi) || (wi = wa.WatchersImpls)
     end
     _test_watchers_1()
     _test_watchers_2()

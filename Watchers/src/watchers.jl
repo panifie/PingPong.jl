@@ -8,6 +8,7 @@ using .Data.DataFrames: DataFrame
 using .Misc
 using .Misc.TimeTicks
 using .Misc.Lang: Option, safewait, safenotify, @lget!, Lang
+using .Misc: after
 using Base.Threads: @spawn
 
 @doc """ Attempts to fetch data for a watcher

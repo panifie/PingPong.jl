@@ -35,6 +35,7 @@ const DEFAULT_CUR = "usd"
 
 const last_query = Ref(DateTime(0))
 const limit = Millisecond(3 * 1000)
+const STATUS = Ref{Int}(0)
 @doc "Allows only 1 query every $(limit) seconds."
 ratelimit() = sleep(max(Second(0), (last_query[] - now()) + limit))
 
@@ -42,6 +43,7 @@ function get(path::T where {T}, query=nothing)
     ratelimit()
     resp = HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS)
     last_query[] = now()
+    STATUS[] = resp.status
     @assert resp.status == 200
     json = LazyJSON.value(resp.body)
     return json

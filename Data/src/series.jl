@@ -86,12 +86,14 @@ function _wrap_save_data(
 end
 
 function _overwrite_checks(data, za, offset, data_first_ts, saved_last_ts, data_col, z_col)
-    @debug dt(data_first_ts), dt(saved_last_ts)
-    @debug let saved = (dt.(za[end, z_col])),
-        data = (dt.(data[begin, data_col])),
-        offset = dt(za[offset, z_col])
-
-        "saved: $saved, data: $data, offset: $offset"
+    @debug "series: overwrite_checks" dt(data_first_ts) dt(saved_last_ts) z_dates = begin
+        if !isempty(za)
+            (;
+                saved=dt(timefloat(za[end, z_col])),
+                offset=offset > size(za, 1) ? nothing : timefloat(za[offset, z_col]),
+                data=dt(timefloat(data[begin, data_col])),
+            )
+        end
     end
 
     if offset <= size(za, 1)
@@ -230,7 +232,7 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
         _load_data(zi, key, sz; kwargs..., serialized)
     catch e
         if typeof(e) ∈ (MethodError, ArgumentError)
-            @error e
+            @error "load data error: " exception=e
             delete!(zi.store, key) # ensure path does not exist
             type = serialized ? Vector{UInt8} : get(kwargs, :type, Float64)
             emptyz = zcreate(
