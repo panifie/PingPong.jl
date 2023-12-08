@@ -57,7 +57,7 @@ Other frameworks achieve low code duplication by completely abstracting away ord
 - Can download data from external archives in parallel, and has API wrappers for crypto APIs.
 - Can still easily call into python (with async support!) if you wish
 
-## Comparison Chart
+## Comparison
 Here's a comparison of features with other popular trading frameworks:
 
 > ⚠️ This table might be imprecise or outdated (please file an [issue](https://github.com/panifie/PingPong.jl/issues) for improvements)
