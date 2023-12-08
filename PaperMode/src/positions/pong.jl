@@ -25,7 +25,6 @@ function pong!(
     o, obside = create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
     isnothing(o) && return nothing
     trade = marketorder!(s, o, ai; obside, date)
-    trade isa Trade && position!(s, ai, trade)
     trade
 end
 
