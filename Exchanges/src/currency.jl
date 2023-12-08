@@ -135,7 +135,8 @@ function Base.isapprox(cc::C, v::N) where {C<:CurrencyCash,N<:Number}
 end
 Base.isapprox(v::N, cc::C) where {C<:CurrencyCash,N<:Number} = isapprox(cc, v)
 Base.setproperty!(::CurrencyCash, ::Symbol, v) = error("CurrencyCash is private.")
-Base.zero(c::Union{<:CurrencyCash,Type{<:CurrencyCash}}) = zero(c.cash)
+Base.zero(c::CurrencyCash) = zero(c.cash)
+Base.zero(::Type{<:CurrencyCash{C}}) where {C} = zero(C)
 function Base.iszero(c::CurrencyCash{Cash{S,T}}) where {S,T}
     isapprox(value(c), zero(T); atol=_prec(c))
 end
