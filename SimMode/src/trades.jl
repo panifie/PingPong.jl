@@ -161,6 +161,7 @@ function maketrade(
     @maketrade
 end
 
+# include("debug.jl")
 @doc """ Executes a trade with the given parameters and updates the strategy state.
 
 $(TYPEDSIGNATURES)
@@ -193,12 +194,14 @@ function trade!(
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     @deassert !isdust(ai, o) committed(o), o
+    # Fills the order
     fill!(s, ai, o, trade)
     push!(ai.history, trade)
     push!(trades(o), trade)
-    # update cash
+    # update asset cash and strategy cash
     cash!(s, ai, trade)
     # unqueue or decommit order if filled
+    # and update position state
     aftertrade!(s, ai, o, trade)
     ping!(s, ai, trade, NewTrade())
     @ifdebug _aftertrade(s, ai, o)

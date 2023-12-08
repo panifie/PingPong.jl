@@ -56,10 +56,9 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
     price = priceat(s, ot, ai, date; datefunc=Returns(date))
     amount = abs(nondust(ai, price, p))
     if amount > 0.0
+        @ifdebug prevcash = s.cash.value
         t = pong!(s, ai, ot; amount, date, price)
-        # o = create_sim_market_order(
-        #     s, ForcedOrder{liqside(p),typeof(p)}, ai; amount, date, price
-        # )
+        @debug "force exit position: " amount price t.price s.cash.value - prevcash t.value
         @deassert let o = t.order
             (
                 t isa Trade &&
@@ -192,9 +191,11 @@ function position!(
             close_position!(s, ai, P())
         else
             @deassert !iszero(cash(pos)) || t isa ReduceTrade
+            @debug "position update" pos.entryprice[] t.value t.price
             update_position!(s, ai, t)
         end
-    else
+    elseif t isa IncreaseTrade
+        @debug "position open" cash(ai, t) t
         open_position!(s, ai, t)
     end
     maybe_liquidate!(s, ai, t.date)

@@ -392,6 +392,9 @@ function strategycash!(s::IsolatedStrategy, ai, t::ReduceTrade)
     @deassert t.fees > 0.0 || maxfees(ai) < 0.0
     gained = margin + unrealized_pnl - t.fees # minus fees
     @ifdebug _showliq(s, unrealized_pnl, gained, po, t)
+    @debug "strategycash reduce trade:" gained t.value margin unrealized_pnl t.fees po.entryprice[] cash(
+        po
+    ) t.price t.leverage t.amount
     add!(s.cash, gained)
     @deassert s.cash |> gtxzero || (hasorders(s) || hascash(s)) (;
         s.cash, s.cash_committed, t.price, t.amount, unrealized_pnl, t.fees, margin

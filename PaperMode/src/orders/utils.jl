@@ -102,9 +102,11 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
+    @ifdebug prev = s.cash.value
     ob_trade = trade!(
         s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false
     )
+    @debug "from orderbook:" s.cash.value - prev avg_price this_vol ob_trade.value
     if isnothing(ob_trade) && o isa AnyFOKOrder
         cancel!(s, o, ai; err=OrderFailed("FOK order for $(ai.asset) failed $(o.date)."))
     end

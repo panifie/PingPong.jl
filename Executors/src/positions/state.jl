@@ -13,6 +13,7 @@ This function calculates the new entry price of a position using the notional am
 """
 function update_price!(po::Position; ntl, prev_ntl, size)
     @deassert notional(po) >= 0.0 && ntl >= 0.0
+    @debug "update price:" prev_ntl ntl size cash(po) newprice = abs((prev_ntl + size) / cash(po))
     po.entryprice[] = abs((prev_ntl + size) / cash(po))
 end
 @doc """ Updates notional value.
@@ -95,9 +96,13 @@ function withtrade!(po::Position{P}, t::PositionTrade{P}; settle_price=t.price) 
     @deassert iszero(price(po)) ||
         abs(notional(po) / cash(po)) != price(po) ||
         abs(cash(po)) == abs(t.order.amount) - abs(t.amount)
-    @debug "Entryprice" entryprice(po)
+    @debug "withtrade entryprice:" entryprice(po)
     timestamp!(po, t.date)
     @deassert settle_price != t.price || t.order.asset.sc == t.order.asset.qc
+    if iszero(po.cash)
+        reset!(po)
+        return nothing
+    end
     # @show cash(po) t.amount positionside(t) orderside(t)
     ntl = _roundpos(cash(po) * settle_price)
     @deassert ntl > 0.0 || cash(po) <= 0.0
