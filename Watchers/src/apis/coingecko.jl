@@ -34,17 +34,27 @@ const ApiPaths = (;
 const DEFAULT_CUR = "usd"
 
 const last_query = Ref(DateTime(0))
-const limit = Millisecond(3 * 1000)
+const RATE_LIMIT = Ref(Millisecond(3 * 1000))
 const STATUS = Ref{Int}(0)
-@doc "Allows only 1 query every $(limit) seconds."
-ratelimit() = sleep(max(Second(0), (last_query[] - now()) + limit))
+const RETRY = Ref(false)
+@doc "Allows only 1 query every $(RATE_LIMIT[]) seconds."
+ratelimit() = sleep(max(Second(0), (last_query[] - now()) + RATE_LIMIT[]))
 
-function get(path::T where {T}, query=nothing)
+function get(path, query=nothing)
     ratelimit()
-    resp = HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS)
+    resp = try
+        HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS)
+    catch e
+       e
+    end
     last_query[] = now()
     STATUS[] = resp.status
-    @assert resp.status == 200
+    if resp.status == 429 && RETRY[]
+        sleep(RATE_LIMIT[])
+        return get(path, query)
+    else
+        @assert resp.status == 200 resp
+    end
     json = LazyJSON.value(resp.body)
     return json
 end

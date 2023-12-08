@@ -17,12 +17,13 @@ const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "applicati
 - from env var `CMC_API_KEY`
 - or from config key $(API_KEY_CONFIG)
 """
-function setapikey!(from_env=false, config_path="cfg/backtest.toml")
+function setapikey!(from_env=false, config_path=joinpath(pwd(), "user", "secrets.toml"))
     apikey = if from_env
         get(ENV, "CMC_API_KEY")
     else
-        cfg = Config(:default; path=config_path)
-        @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in [default] configuration."
+        cfg = Config(:default, config_path)
+        @info cfg.attrs
+        @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in secrets."
         cfg.attrs[API_KEY_CONFIG]
     end
     keepat!(API_HEADERS, (x -> x[1] != API_HEADER).(API_HEADERS))
@@ -89,7 +90,7 @@ quotes(syms::AbstractArray{Symbol}) = get(ApiPaths.quotes, "symbol" => join(syms
 @doc "Fetch all coin listings."
 function listings(quot="USD", as_json=false; kwargs...)
     query = queryfromstruct(Params; kwargs...)
-    json = get(ApiPaths.listings, params)
+    json = get(ApiPaths.listings, query)
     if as_json
         json
     else

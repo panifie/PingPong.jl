@@ -1,27 +1,34 @@
 using Test
+using Instruments.Derivatives
 
 function test_coingecko()
-    @testset "coingecko" begin
-        @eval begin
-            using PingPong.Watchers.CoinGecko
-            using Instruments
-            using Instruments.Derivatives
-            using TimeTicks
-            cg = CoinGecko
-        end
+    @eval begin
+        using PingPong.Engine.LiveMode.Watchers.CoinGecko
+        using PingPong.Engine.Instruments
+        using PingPong.Engine.TimeTicks
+        cg = CoinGecko
+        # ensure other watchers are pulling data from coingecko
+        # to avoid rate limit
+        PingPong.Engine.LiveMode.Watchers._closeall()
+    end
+    @testset failfast = true "coingecko" begin
+        @test cg.RATE_LIMIT[] isa Period
+        cg.RATE_LIMIT[] = Millisecond(1 * 1000)
+        cg.RETRY[] = true
         @test cg.ping()
         @test coingecko_ratelimit()
-        @test cg.idbysym("eth") == "ethereum"
+        @test occursin("ethereum", cg.idbysym("eth"))
+        @test "ethereum" in cg.idbysym("eth", false)
         @test coingecko_tickers()
         @test coingecko_price()
         @test coingecko_currencies()
         @test length(cg.loadcoins!()) > 0
-        @test length(cg.coinsmarkets!()) > 0
+        @test length(cg.coinsmarkets()) > 0
         @test cg.coinsid("bitcoin")["id"] == "bitcoin"
-        @test "identifier" ∈ cg.coinsticker("monero")[1]["market"]
+        @test "identifier" ∈ keys(cg.coinsticker("monero")[1]["market"])
         @test trunc(cg.coinshistory("bitcoin", "2020-01-02").price) == 7193
-        @test coingecko_chart()
-        @test coingecko_ohlc()
+        coingecko_chart()
+        coingecko_ohlc()
         @test fieldnames(typeof(cg.globaldata())) == (:volume, :mcap_change_24h, :date)
         @test length(cg.trending()) > 0
     end
@@ -38,7 +45,7 @@ coingecko_ratelimit() = begin
     cg.ping()
     start = now()
     cg.ping()
-    now() - start > cg.limit
+    now() - start > cg.RATE_LIMIT[]
 end
 
 function coingecko_price()
@@ -53,16 +60,17 @@ end
 
 coingecko_chart() = begin
     data = cg.coinschart("ethereum"; days_ago=7)
-    @assert data isa NamedTuple
-    one = Day(6) < now() - data.dates[1] < Day(8)
+    @test data isa NamedTuple
+    @test Day(6) < now() - data.dates[1] < Day(8)
     data = cg.coinschart_tf("monero"; timeframe=tf"5m")
-    two = (data.dates[2] - data.dates[1]) <= Minute(5)
-    one && two
+    @test round(data.dates[2] - data.dates[1], Minute) <= Minute(5)
 end
 
 coingecko_ohlc() = begin
     data = cg.coinsohlc("bitcoin")
-    data isa Matrix{Flaot64} && size(data)[2] == 5 && size(data)[1] > 0
+    @test data isa Matrix{Float64}
+    @test size(data)[2] == 5
+    @test size(data)[1] > 0
 end
 
 coingecko_derivatives() = begin
