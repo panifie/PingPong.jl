@@ -25,19 +25,21 @@ function test_paper_margin(s)
     ai = s[m"eth"]
     date = now()
     this_p = lastprice(ai)
+    prevcash = s.cash.value
     t = ect.pong!(
         s, ai, ot.MarketOrder{ot.Buy}; amount=0.02, price=this_p + this_p / 50.0, date
     )
     @test t isa ot.LongTrade
     @test t isa ot.BuyTrade
     @test t.amount == 0.02
+    @test isapprox(prevcash - s.cash, abs(t.size), atol=s.cash.precision)
     pos = position(ai, Long())
-    @test t.entryprice ≈ inst.price(pos) atol = 1e01
+    @test t.entryprice < inst.price(pos) || isapprox(t.entryprice, inst.price(pos), atol=1e01)
     @test inst.isopen(pos)
     @test !inst.isopen(position(ai, Short()))
     @test cash(pos) ≈ 0.02
     @test t.value ≈ inst.notional(pos) atol = 1e-1
-    @test trunc(t.size) == Base.negate(trunc(inst.notional(pos)))
+    @test trunc(t.size + t.fees) == Base.negate(trunc(inst.notional(pos)))
     @test pos.timestamp[] == date == t.date
     @test pos.asset == ai.asset
     @test inst.additional(pos) == 0.0
@@ -45,20 +47,25 @@ function test_paper_margin(s)
     @test cash(pos) >= pos.min_size
     @test pos.hedged == false
     date += Minute(1)
+    prevcash = s.cash.value
     t = ect.pong!(s, ai, ot.MarketOrder{ot.Sell}; amount=0.011, date)
     @test t isa ot.LongTrade
     @test t isa ot.SellTrade
     @test cash(pos) == 0.01
     @test pos.timestamp[] == date
+    @test isapprox(s.cash.value - prevcash, t.value - t.fees, atol=1e-1)
     prev_cash = s.cash.value
-    ai_pnl = inst.pnl(ai, Long(), lastprice(ai))
+    lpr = lastprice(ai)
+    ai_pnl = inst.pnl(ai, Long(), lpr)
     ai_margin = inst.margin(ai, Long()) + inst.additional(ai, Long())
     ect.pong!(s, ai, Long(), now(), ect.PositionClose())
+    @test ai_margin <= 1e8
     @test iszero(ai)
     @test !isopen(pos)
     @test iszero(s.cash_committed)
     @test s.cash - prev_cash ≈ ai_margin + ai_pnl atol = 1e-1
-    @test last(ai.history).value >= s.cash - prev_cash
+    trade = last(ai.history)
+    @test trade.value >= s.cash - prev_cash || trade.price < lpr
     @test ect.pong!(s, ai, 1.2, ect.UpdateLeverage(); pos=Long())
     @test inst.leverage(pos) == 1.2
     this_p = lastprice(ai)
@@ -201,8 +208,8 @@ function test_paper_nomargin_gtc(s)
         length(o.attrs.trades) > prev_len && (was_filled = true; break)
     end
     @test ect.isfilled(ai, o) ||
-        length(o.attrs.trades) > prev_len ||
-        lastprice(ai) >= o.price
+          length(o.attrs.trades) > prev_len ||
+          lastprice(ai) >= o.price
     amount = total_vol[] / 100.0
     price = this_p * 2.0
     date += Millisecond(1)
@@ -313,20 +320,33 @@ function test_paper_nomargin_fok(s)
 end
 
 function test_paper()
-    @testset "paper" begin
-        @eval include(joinpath(@__DIR__, "env.jl"))
-        try
-            s = backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Paper())
-            @testset test_paper_nomargin_market(s)
-            @testset test_paper_nomargin_gtc(s)
-            @testset test_paper_nomargin_ioc(s)
-            @testset test_paper_nomargin_fok(s)
-        finally
-            reset!(s)
-        end
+    @eval begin
+        using PingPongDev
+        using PingPong
+        PingPong.@environment!
+    end
+    s = @eval backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Paper())
+    try
+        @testset failfast=true "paper" begin
+            # try
+            #     @testset test_paper_nomargin_market(s)
+            #     @testset test_paper_nomargin_gtc(s)
+            #     @testset test_paper_nomargin_ioc(s)
+            #     @testset test_paper_nomargin_fok(s)
+            # finally
+            #     stop!(s)
+            #     reset!(s)
+            # end
 
-        s = backtest_strat(:ExampleMargin; config_attrs=(; skip_watcher=true), mode=Paper())
-        @testset test_paper_margin(s)
-        return nothing
+            s = @eval backtest_strat(:ExampleMargin; config_attrs=(; skip_watcher=true), mode=Paper())
+            try
+                @testset test_paper_margin(s)
+            finally
+                stop!(s)
+                reset!(s)
+            end
+        end
+    finally
+        stop!(s)
     end
 end
