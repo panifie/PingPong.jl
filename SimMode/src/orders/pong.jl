@@ -51,7 +51,7 @@ function pong!(
     t::Type{O}=Both,
     kwargs...,
 ) where {O<:OrderSide}
-    for (_, o) in values(orders(s, ai, t))
-        cancel!(s, o, ai; err=OrderCancelled(o))
+    for tup in orders(s, ai, t)
+        cancel!(s, tup.second, ai; err=OrderCancelled(tup.second))
     end
 end

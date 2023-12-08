@@ -13,7 +13,7 @@ function orders(s::Strategy, ai, pos::PositionSide, os::Type{<:OrderSide})
     ((k, v) for (k, v) in orders(s, ai, os) if ispos(pos, v))
 end
 function orders(s::Strategy, ai, pos::PositionSide)
-    ((k, v) for bs in (Buy, Sell) for (k, v) in orders(s, ai, pos, bs))
+    (tup for bs in (Buy, Sell) for tup in orders(s, ai, pos, bs))
 end
 @doc """ Returns a generator for orders matching a given position side
 
