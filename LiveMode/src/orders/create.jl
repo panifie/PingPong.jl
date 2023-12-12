@@ -9,9 +9,9 @@ using .Lang: filterkws
 
 $(TYPEDSIGNATURES)
 
-This function is designed to create a live order on a given strategy and asset instance. 
-It verifies the response from the exchange and constructs the order with the provided parameters. 
-If the order fails to construct and is marked as synced, it attempts to synchronize the strategy and universe cash, and then retries order creation. 
+This function is designed to create a live order on a given strategy and asset instance.
+It verifies the response from the exchange and constructs the order with the provided parameters.
+If the order fails to construct and is marked as synced, it attempts to synchronize the strategy and universe cash, and then retries order creation.
 Finally, if the order is marked as active, the function sets it as the active order.
 """
 function create_live_order(
@@ -30,41 +30,48 @@ function create_live_order(
         @warn "create order: empty response ($(raw(ai)))"
         return nothing
     end
-    eid = exchangeid(ai)
-    side = @something _orderside(resp, eid) orderside(t)
-    @debug "Creating order" status = resp_order_status(resp, eid) filled =
-        resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
-    _ccxtisopen(resp, eid) ||
-        resp_order_filled(resp, eid) > ZERO ||
-        !isempty(resp_order_id(resp, eid)) ||
-        begin
-            @warn "create order: not open, not partially fillled, id is empty, refusing construction."
-            return nothing
+    eid = side = type = loss = profit = date = id = nothing
+    try
+        eid = exchangeid(ai)
+        side = @something _orderside(resp, eid) orderside(t)
+        @debug "Creating order" status = resp_order_status(resp, eid) filled =
+            resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
+        _ccxtisopen(resp, eid) ||
+            resp_order_filled(resp, eid) > ZERO ||
+            !isempty(resp_order_id(resp, eid)) ||
+            begin
+                @warn "create order: not open, not partially fillled, id is empty, refusing construction."
+                return nothing
+            end
+        type = let ot = ordertype_fromccxt(resp, eid)
+            if isnothing(ot) && t isa Type{<:Order}
+                t
+            else
+                pos = @something posside(t) posside(ai) Long()
+                Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
+            end
         end
-    type = let ot = ordertype_fromccxt(resp, eid)
-        if isnothing(ot) && t isa Type{<:Order}
-            t
-        else
-            pos = posside(t)
-            Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
+        amount = resp_order_amount(resp, eid, amount, Val(:amount); ai)
+        price = resp_order_price(resp, eid, price, Val(:price); ai)
+        loss = resp_order_loss_price(resp, eid)
+        profit = resp_order_profit_price(resp, eid)
+        date = let this_date = @something pytodate(resp, eid) now()
+            # ensure order pricetime doesn't clash
+            while haskey(s, ai, (; price, time=this_date), side)
+                this_date += Millisecond(1)
+            end
+            this_date
         end
-    end
-    amount = resp_order_amount(resp, eid, amount, Val(:amount); ai)
-    price = resp_order_price(resp, eid, price, Val(:price); ai)
-    loss = resp_order_loss_price(resp, eid)
-    profit = resp_order_profit_price(resp, eid)
-    date = let this_date = @something pytodate(resp, eid) now()
-        # ensure order pricetime doesn't clash
-        while haskey(s, ai, (; price, time=this_date), side)
-            this_date += Millisecond(1)
+        id = @something _orderid(resp, eid) begin
+            @warn "create order: missing id (default to pricetime hash)" ai = raw(ai) s = nameof(
+                s
+            )
+            string(hash((price, date)))
         end
-        this_date
-    end
-    id = @something _orderid(resp, eid) begin
-        @warn "create order: missing id (default to pricetime hash)" ai = raw(ai) s = nameof(
-            s
-        )
-        string(hash((price, date)))
+    catch
+        @error "create order: parsing failed"
+        @debug_backtrace
+        return nothing
     end
     o = let f = construct_order_func(type)
         function create()
@@ -95,7 +102,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function sends a live order using the provided parameters and constructs it based on the response received. 
+This function sends a live order using the provided parameters and constructs it based on the response received.
 
 """
 function create_live_order(
