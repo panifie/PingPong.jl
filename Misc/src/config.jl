@@ -135,11 +135,11 @@ $(FIELDS)
     "The default (shortest) timeframe of the candles."
     min_timeframe::TimeFrame = tf"1m"
     "Vector of sorted timeframes that the strategy uses (for loading data)."
-    timeframes::Vector{TimeFrame} = timeframe.(["1m", "15m", "1h", "1d"])
+    timeframes::Vector{<:TimeFrame} = [(timeframe(t) for t in ("1m", "15m", "1h", "1d"))...]
     "The default number of candles (OHLCV)."
     window::Period = Day(7)
     "Mapping of modules symbols name to (.jl) file paths"
-    sources::Dict{Symbol,String} = Dict()
+    sources::Dict{Symbol,String} = Dict{Symbol,String}()
     "Generic metadata container."
     attrs::Dict{Any,Any} = Dict()
     "Raw toml that instantiated this config."
@@ -152,6 +152,8 @@ function Config(args...; kwargs...)
     Config{DEFAULT_FLOAT_TYPE}(args...; kwargs...)
 end
 
+const config_fields = fieldnames(Config)
+
 @doc """Creates a Config object from a profile and path.
 
 $(TYPEDSIGNATURES)
@@ -160,7 +162,7 @@ This function creates a `Config` object using the provided `profile` and `path`.
 
 """
 function Config(profile::Union{Symbol,Module,String}, path::String=config_path(); hasentry=true, kwargs...)
-    config_kwargs, attrs_kwargs = splitkws(fieldnames(Config)...; kwargs)
+    config_kwargs, attrs_kwargs = splitkws(config_fields...; kwargs)
     cfg = Config(; config_kwargs...)
     name = _namestring(profile)
     config!(name; cfg, path, check=hasentry)
@@ -218,10 +220,10 @@ This function sets the `toml` field of the `cfg` object to the parsed contents o
 """
 function _toml!(cfg, name; check=true)
     cfg.toml = PersistentHashMap(
-        collect(
+        [(
             (k, v) for (k, v) in TOML.parsefile(cfg.path) if
             k ∉ Set(("deps", "uuid", "extras", "compat"))
-        ),
+        )...,]
     )
     if check && name ∉ keys(cfg.toml) && name ∉ keys(get(cfg.toml, "sources", (;)))
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
