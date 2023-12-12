@@ -14,6 +14,7 @@ export loadmarkets!, tickers, pairs
 export issandbox, ratelimit!, ispercentage
 export timestamp, timeout!, check_timeout
 export ticker!, lastprice
+export leverage!, marginmode!
 
 using Reexport
 @reexport using ExchangeTypes
