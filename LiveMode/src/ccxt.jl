@@ -2,6 +2,7 @@ using .Lang: @ifdebug
 using .Python: @pystr, @pyconst
 using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
+using .Misc.Mocking: Mocking, @mock
 const ot = OrderTypes
 
 _execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
@@ -111,6 +112,8 @@ ordertype_fromccxt(resp, eid::EIDType) =
             ot.MarketOrderType
         elseif pyeq(Bool, v, @pyconst "limit")
             ordertype_fromtif(resp, eid)
+        else
+            ot.LimitOrderType
         end
     end
 
