@@ -2,7 +2,7 @@
 
 $(TYPEDSIGNATURES)
 
-This macro logs a warning if a position is not in sync between local and remote states. 
+This macro logs a warning if a position is not in sync between local and remote states.
 The warning includes the provided message, position details, and the instance and strategy names.
 
 """
@@ -20,12 +20,13 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function synchronizes the live position with the actual position in the market. 
-It does this by checking various parameters such as the amount, entry price, leverage, notional, and margins. 
-If there are discrepancies, it adjusts the live position accordingly. 
-For instance, if the amount in the live position does not match the actual amount, it updates the live position's amount. 
-It also checks for conditions like whether the position is open or closed, and if the position is hedged or not. 
-If the position is closed, it resets the position. If the position is open, it updates the timestamp of the position. 
+This function synchronizes the live position with the actual position in the market.
+It does this by checking various parameters such as the amount, entry price, leverage, notional, and margins.
+If there are discrepancies, it adjusts the live position accordingly.
+For instance, if the amount in the live position does not match the actual amount, it updates the live position's amount.
+It also checks for conditions like whether the position is open or closed, and if the position is hedged or not.
+If the position is closed, it resets the position. If the position is open, it updates the timestamp of the position.
+`forced_side` auto closes the opposite position side when `true.
 
 """
 function _live_sync_position!(
@@ -38,6 +39,7 @@ function _live_sync_position!(
     commits=true,
     skipchecks=false,
     strict=false,
+    forced_side=false,
     waitfor=Second(5),
 )
     let queue = asset_queue(s, ai)
@@ -59,25 +61,31 @@ function _live_sync_position!(
     end
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
-            let amount = resp_position_contracts(
-                    get_positions(s, ai, opposite(pside)).resp, eid
-                ),
-                oppos = opposite(pside)
+            let oppos = opposite(pside),
+                live_pos = live_position(s, ai, oppos, force=true).resp,
+                amount = resp_position_contracts(
+                    live_pos, eid
+                )
 
                 if amount > ZERO
-                    @warn "sync pos: double position open in NON hedged mode. Resetting opposite side." oppos cash(
+                    @warn "sync pos: double position open in NON hedged mode." oppos cash(
                         ai, oppos
                     ) raw(ai) nameof(s) f = @caller
-                    pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
-                    oppos_pos = position(ai, oppos)
-                    if isopen(oppos_pos)
-                        @error "sync pos: failed to close opposite position" oppos_pos raw(ai) nameof(s) f = @caller
+                    if forced_side
+                        pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
+                        oppos_pos = position(ai, oppos)
+                        if isopen(oppos_pos)
+                            @error "sync pos: failed to close opposite position" oppos_pos raw(ai) nameof(s) f = @caller
+                            return pos
+                        end
+                    else
                         return pos
                     end
                 else
                     @debug "sync pos: resetting opposite position" ai = raw(ai) oppos
                     reset!(oppos_pos)
                 end
+
             end
         end
     end
@@ -283,7 +291,10 @@ function live_sync_position!(
     kwargs...,
 )
     update = live_position(s, ai, pos; force, since, waitfor)
-    isnothing(update) || live_sync_position!(s, ai, pos, update; kwargs...)
+    if isnothing(update)
+    else
+        live_sync_position!(s, ai, pos, update; kwargs...)
+    end
 end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
@@ -296,10 +307,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function synchronizes the cash position of a given asset in a live trading strategy. 
-It checks the current position status and updates it accordingly. 
-If the position is closed, it resets the position. 
-If the position is open, it synchronizes the position with the market. 
+This function synchronizes the cash position of a given asset in a live trading strategy.
+It checks the current position status and updates it accordingly.
+If the position is closed, it resets the position.
+If the position is open, it synchronizes the position with the market.
 The function locks the asset instance during the update to prevent race conditions.
 
 """
@@ -334,9 +345,9 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function synchronizes the cash position for all assets in a live trading strategy. 
-It iterates over each asset in the universe and synchronizes its cash position. 
-The function uses a helper function `dosync` to perform the synchronization for each asset. 
+This function synchronizes the cash position for all assets in a live trading strategy.
+It iterates over each asset in the universe and synchronizes its cash position.
+The function uses a helper function `dosync` to perform the synchronization for each asset.
 The synchronization process is performed concurrently for efficiency.
 
 """
