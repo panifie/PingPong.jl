@@ -331,19 +331,20 @@ This macro retries executing an expression `expr` for a specified number of time
 
 """
 macro retry(expr, count=3)
-    quote
+    ex = quote
         att = 0
         while true
-            resp = $(esc(expr))
+            resp = $(expr)
             if resp isa Exception
                 att += 1
-                att > $(esc(count)) && return resp
+                att > $(count) && return resp
             else
                 return resp
             end
             sleep(att)
         end
     end
+    esc(ex)
 end
 
 @doc """ Retrieves orders of an asset (open and closed). """

@@ -160,7 +160,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
         end
     end
     if resp isa PyException
-        @debug "Error when fetching orders for $(raw(ai)) $resp"
+        @error "ccxt fetch orders" raw(ai) resp
         return nothing
     end
     _pyfilter!(resp, should_skip)
@@ -264,9 +264,9 @@ end
 function ccxt_open_orders_func!(a, exc; open=true)
     oc = open ? "open" : "closed"
     cap = open ? "Open" : "Closed"
-    func_sym = Symbol("fetch$(cap)Orders")
-    func_sym_ws = Symbol("fetch$(cap)OrdersWs")
-    a[Symbol("live_$(oc)_orders_func")] = if has(exc, func_sym)
+    func_sym = Symbol("fetch", cap, "Orders")
+    func_sym_ws = Symbol("fetch", cap, "OrdersWs")
+    a[Symbol("live_", oc, "_orders_func")] = if has(exc, func_sym)
         let f = first(exc, func_sym_ws, func_sym)
             (ai; kwargs...) -> _fetch_orders(ai, f; kwargs...)
         end
