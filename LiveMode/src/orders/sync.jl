@@ -424,7 +424,7 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
                     skipcommit=true,
                     activate=false,
                     withoutkws(:skipcommit; kwargs=create_kwargs)...,
-                ) missing)::Option{Order}
+                ) missing)::Union{Order, Missing}
                 if ismissing(o)
                 else
                     @deassert resp_order_status(resp, eid, String) ∈
