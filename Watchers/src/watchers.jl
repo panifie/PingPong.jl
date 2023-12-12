@@ -238,8 +238,8 @@ This function creates a new watcher with the specified parameters and adds it to
 """
 function watcher(T::Type, name::String, args...; kwargs...)
     if haskey(WATCHERS, name)
-        @warn "Replacing watcher $name with new instance."
         pop!(WATCHERS, name) |> close
+        @warn "Replacing watcher $name with new instance."
     end
     WATCHERS[name] = _watcher(T, name, args...; kwargs...)
 end
