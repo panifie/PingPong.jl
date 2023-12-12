@@ -13,9 +13,7 @@ include("consts.jl")
 @doc "Exported `Dates.now(UTC)` to avoid inadvertently calling now() which defaults to system timezone."
 now() = Dates.now(UTC)
 
-@doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature.
-Units bigger than days are converted to the equivalent number of days days."
-function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
+_parse_timeframe(s) = begin
     mul = 0
     m = match(r"([0-9]+)([a-zA-Z]+)", s)
     n = m[1]
@@ -37,6 +35,12 @@ function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
         n = parse(n) * mul
     end
     TimeFrame("$n$t")
+end
+
+@doc "Parses a string into a `TimeFrame` according to (ccxt) timeframes nomenclature.
+Units bigger than days are converted to the equivalent number of days days."
+function Base.parse(::Type{TimeFrame}, s::AbstractString)::TimeFrame
+    _parse_timeframe(s)
 end
 
 # const tf_parse_map = Dict{String,TimeFrame}()
@@ -260,8 +264,8 @@ macro infertf(data, field=:timestamp)
     quote
         begin
             arr = getproperty($(esc(data)), $(QuoteNode(field)))
-            td1 = arr[begin + 1] - arr[begin]
-            td2 = arr[end] - arr[end - 1]
+            td1 = arr[begin+1] - arr[begin]
+            td2 = arr[end] - arr[end-1]
             @assert td1 === td2 """mismatch in dataframe dates found!
             1: $(arr[begin])
             2: $(arr[begin+1])
