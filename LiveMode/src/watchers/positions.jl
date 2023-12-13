@@ -234,12 +234,12 @@ This function updates the position flags for a symbol `sym` in a given dictionar
 
 """
 function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
-    set!(sym, pup) = begin
+    set!(this_sym, pup) = begin
         prev_closed = pup.closed[]
-        if (sym, side) ∉ processed_syms
-            pup_prev = get(dict, sym, nothing)
+        if (this_sym, side) ∉ processed_syms && this_sym != sym
+            pup_prev = get(dict, this_sym, nothing)
             @deassert pup_prev === pup
-            dict[sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+            dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
             pup.closed[] = true
             # NOTE: this might fix some race conditions (when a position is updated right after)
             # the new update might have a lower timestamp and would skip sync (from `live_position_sync!`). Therefore
