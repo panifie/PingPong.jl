@@ -96,7 +96,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                             throw(updates)
                         elseif updates isa Exception
                             @ifdebug ispyminor_error(trades) ||
-                                @debug "Error fetching trades (using watch: $(iswatch))" updates
+                                     @debug "Error fetching trades (using watch: $(iswatch))" updates
                             sleep(1)
                         else
                             !islist(updates) && (updates = pylist(updates))
@@ -214,7 +214,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function manages a trade for a live strategy `s` with an asset instance `ai`. It looks at the collection of orders `orders_byid` and the response `resp` from the exchange to update the state of the trade. 
+This function manages a trade for a live strategy `s` with an asset instance `ai`. It looks at the collection of orders `orders_byid` and the response `resp` from the exchange to update the state of the trade.
 It first checks if the trade is already present in `orders_byid`. If it is, the function updates the existing order with the new information from `resp`. If the trade is not present in `orders_byid`, the function creates a new order and adds it to `orders_byid`.
 It then checks if the trade has been completed. If it has, the function updates the state of the order in `orders_byid` to reflect this.
 A semaphore `sem` is used to ensure that only one thread is updating `orders_byid` at a time, to prevent data races.
@@ -222,7 +222,6 @@ A semaphore `sem` is used to ensure that only one thread is updating `orders_byi
 """
 function handle_trade!(s, ai, orders_byid, resp, sem)
     try
-        @debug "handle trade:" n_keys = length(resp)
         eid = exchangeid(ai)
         id = resp_trade_order(resp, eid, String)
         isprocessed_order(s, ai, id) && return nothing
@@ -288,8 +287,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                 if isfilled(ai, o) && length(trades(o)) > 0
                                     amount = resp_trade_amount(resp, eid)
                                     last_amount = last(trades(o)).amount
-                                    @warn "handle trade: no matching active order, possibly a late trade" emulated =
-                                        last_amount exchange = amount
+                                    @warn "handle trade: no matching active order, possibly a late trade" emulated = last_amount exchange = amount
                                 else
                                     @error "handle trade: expected live order state since order was not filled" id ai = raw(
                                         ai
@@ -298,7 +296,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                             else
                                 @warn "handle trade: no matching order nor state" id ai = raw(
                                     ai
-                                ) s = nameof(s)
+                                ) resp_order_type(resp, eid) s = nameof(s)
                             end
                         end
                     end
@@ -331,7 +329,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function waits for a condition function `cond` to return true. It keeps checking the condition for a specified `time`. 
+This function waits for a condition function `cond` to return true. It keeps checking the condition for a specified `time`.
 """
 function waitforcond(cond::Function, time)
     timeout = Millisecond(time).value
@@ -456,7 +454,7 @@ function _force_fetchtrades(s, ai, o)
         trades_resp = fetch_order_trades(s, ai, o.id)
         if trades_resp isa Exception
             @ifdebug ispyminor_error(trades_resp) ||
-                @debug "Error fetching trades (force fetch)" trades_resp
+                     @debug "Error fetching trades (force fetch)" trades_resp
         elseif islist(trades_resp)
             trades_task = @something asset_trades_task(s, ai) watch_trades!(s, ai)
             sem = task_sem(trades_task)

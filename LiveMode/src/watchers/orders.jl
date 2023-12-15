@@ -73,7 +73,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                             throw(updates)
                         elseif updates isa Exception
                             @ifdebug ispyminor_error(updates) ||
-                                @debug "Error fetching orders (using watch: $(iswatch))" updates
+                                     @debug "Error fetching orders (using watch: $(iswatch))" updates
                             sleep(1)
                         else
                             !islist(updates) && (updates = pylist(updates))
@@ -195,10 +195,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function updates the state of an order in the system based on the new information received. 
-It locks the state and updates the hash of the order. 
-If the order is still open, it emulates the trade. 
-If the order is filled or not open anymore, it finalizes the order, waits for trades to be processed if necessary, and removes it from the active orders map. 
+This function updates the state of an order in the system based on the new information received.
+It locks the state and updates the hash of the order.
+If the order is still open, it emulates the trade.
+If the order is filled or not open anymore, it finalizes the order, waits for trades to be processed if necessary, and removes it from the active orders map.
 If the order did not complete, it sends an error and cancels the order.
 """
 function update_order!(s, ai, eid; resp, state)
@@ -246,7 +246,7 @@ function update_order!(s, ai, eid; resp, state)
             if hasmytrades(exchange(ai))
                 trades_count = length(order_trades)
                 if (order_filled && trades_count == 0) ||
-                    !isorder_synced(state.order, ai, resp)
+                   !isorder_synced(state.order, ai, resp)
                     @debug "update ord: waiting for trade events" id = state.order.id
                     waitfortrade(s, ai, state.order; waitfor=Second(1))
                     if length(order_trades) == trades_count
@@ -290,7 +290,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function attempts to re-activate an order that was previously active in the system.
-If the order is still open, it updates the order state. 
+If the order is still open, it updates the order state.
 If the order cannot be found or re-created, it cancels the order from the exchange and removes it from the local state if present.
 
 """
@@ -347,12 +347,11 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function extracts an order id from the `resp` object and based on the status of the order, it either updates, re-activates, or cancels the order. 
+The function extracts an order id from the `resp` object and based on the status of the order, it either updates, re-activates, or cancels the order.
 It uses a semaphore to ensure the order of events is respected.
 """
 function handle_order!(s, ai, orders_byid, resp, sem)
     try
-        @debug "handle ord: new event" sem = length(sem)
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
         isprocessed_order(s, ai, id) && return nothing
@@ -361,7 +360,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
             @warn "handle ord: missing order id"
             return nothing
         else
-            # TODO: we could repllace the queue with the handler_tasks vector
+            # TODO: we could replace the queue with the handler_tasks vector
             # since the order is the same
             # remember events order
             n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
@@ -414,8 +413,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if an order is open, validates the order details (type, symbol, id, side), and calculates the filled amount. 
-If the filled amount has changed, it computes the new average price and checks if it's within the limits. 
+This function checks if an order is open, validates the order details (type, symbol, id, side), and calculates the filled amount.
+If the filled amount has changed, it computes the new average price and checks if it's within the limits.
 It then emulates the trade and updates the order state.
 """
 function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price), exec=true)
@@ -506,8 +505,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function waits for a specified amount of time or until an order event happens. 
-It keeps track of the number of orders and checks if any new order has been added during the wait time. 
+This function waits for a specified amount of time or until an order event happens.
+It keeps track of the number of orders and checks if any new order has been added during the wait time.
 If the task is not running, it stops waiting and returns the time spent waiting.
 """
 function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
@@ -533,11 +532,11 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
     slept
 end
 
-@doc """ Waits for a specific order to be processed. 
+@doc """ Waits for a specific order to be processed.
 
 $(TYPEDSIGNATURES)
 
-This function waits for a specific order to be processed within a given time frame specified by `waitfor`. 
+This function waits for a specific order to be processed within a given time frame specified by `waitfor`.
 If the order is not found or not tracked within the given timeframe, the function returns `false`.
 If the order is found and tracked within the given timeframe, the function returns `true`.
 It tracks the time spent waiting and if the timeout is reached before the order is found, the function returns `false`.

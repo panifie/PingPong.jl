@@ -145,7 +145,7 @@ function update!(
     tf=s.timeframe,
 )
     ohlcv = @lget! ohlcv_dict(ai) tf Data.empty_ohlcv()
-    @info "update" objectid(ohlcv)
+    @debug "ohlcv update" objectid(ohlcv)
     last_update = @lget! updates cols typemin(DateTime)
     if !isempty(ohlcv)
         to_date = lastdate(ohlcv)

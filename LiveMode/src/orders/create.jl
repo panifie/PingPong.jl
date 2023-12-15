@@ -75,6 +75,7 @@ function create_live_order(
     end
     o = let f = construct_order_func(type)
         function create()
+            @debug "create order: local" ai = raw(ai) id amount date type price loss profit
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
         o = create()
