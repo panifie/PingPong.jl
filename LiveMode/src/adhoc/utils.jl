@@ -16,8 +16,4 @@ _tif_value(v) = @pystr if v == "PO"
 
 time_in_force_key(::Exchange{<:(eids(:phemex, :bybit))}, ::AbstractAsset) = @pyconst "timeInForce"
 time_in_force_value(::Exchange{<:(eids(:phemex))}, ::Option{<:AbstractAsset}, v) = _tif_value(v)
-
-function time_in_force_value(::Exchange{<:(eids(:bybit))}, ::Derivative, v)
-    _tif_value(v)
-end
-time_in_force_value(::Exchange{<:(eids(:bybit))}, ::Option{<:AbstractAsset}, v) = v
+time_in_force_value(::Exchange, _, v) = v

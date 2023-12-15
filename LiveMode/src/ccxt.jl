@@ -113,7 +113,9 @@ ordertype_fromccxt(resp, eid::EIDType) =
         elseif pyeq(Bool, v, @pyconst "limit")
             ordertype_fromtif(resp, eid)
         else
-            ot.LimitOrderType
+            # when CCXT doesn't fill the order type
+            # we use the type from our side of the request
+            nothing
         end
     end
 
