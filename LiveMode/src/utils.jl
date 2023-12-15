@@ -192,11 +192,11 @@ This function stops all tasks associated with strategy `s`. If the `reset` flag 
 """
 function stop_all_tasks(s::LiveStrategy; reset=true)
     @sync begin
-        @async stop_all_asset_tasks(s; reset)
-        @async stop_all_strategy_tasks(s; reset)
         @async stop_watch_ohlcv!(s)
         @async stop_watch_positions!(s)
         @async stop_watch_balance!(s)
+        @async stop_all_asset_tasks(s; reset)
+        @async stop_all_strategy_tasks(s; reset)
     end
     @debug "tasks: stopped all" s = nameof(s)
 end
