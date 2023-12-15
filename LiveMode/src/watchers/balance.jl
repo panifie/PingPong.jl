@@ -4,9 +4,10 @@ using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _last
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Exchanges.Python: @py
-using .Lang: splitkws, safenotify, safewait
+using .Lang: splitkws, withoutkws, safenotify, safewait
 
 const CcxtBalanceVal = Val{:ccxt_balance_val}
+
 @doc """ Wraps a fetch balance function with a specified interval.
 
 $(TYPEDSIGNATURES)
@@ -15,7 +16,7 @@ This function wraps a fetch balance function `s` with a specified `interval`. Ad
 """
 function _w_fetch_balance_func(s, interval; kwargs)
     exc = exchange(s)
-    params, rest = split_params(kwargs)
+    params, rest = _ccxt_balance_args(s, kwargs)
     fetch_f = first(exc, :fetchBalanceWs, :fetchBalance)
     if has(exc, :watchBalance)
         f = exc.watchBalance
@@ -58,25 +59,18 @@ function ccxt_balance_watcher(
     wid="ccxt_balance",
     buffer_capacity=10,
     start=true,
+    params=LittleDict{Any,Any}(),
     kwargs...,
 )
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    params = LittleDict{Py,Any}()
-    params[@pystr("type")] = if s isa MarginStrategy
+    params["type"] = if s isa MarginStrategy
         @pystr("swap")
     else
         @pystr("spot")
     end
-    func_kwargs = (; params, (
-        if :params ∈ keys(kwargs)
-            merge!(params, kwargs[:params])
-            withoutkws(:params; kwargs)
-        else
-            kwargs
-        end
-    )...)
+    func_kwargs = (; params, kwargs...)
     _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs=func_kwargs))
     _exc!(attrs, exc)
     watcher_type = Py

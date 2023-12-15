@@ -11,7 +11,7 @@ import .st: current_total, MarginStrategy, NoMarginStrategy
 
 $(FIELDS)
 
-This enum is used to represent the status of a balance in the system. 
+This enum is used to represent the status of a balance in the system.
 It can take one of three values: `TotalBalance`, `FreeBalance`, or `UsedBalance`.
 """
 @enum BalanceStatus TotalBalance FreeBalance UsedBalance
@@ -45,12 +45,12 @@ $(TYPEDSIGNATURES)
 The function fetches the balance by calling the `_fetch_balance` function with the exchange associated with the live strategy and any additional arguments.
 The balance is fetched from the exchange's API.
 """
-function fetch_balance(s::LiveStrategy, args...; kwargs...)
-    _fetch_balance(exchange(s), args...; kwargs...)
+function fetch_balance(s::LiveStrategy, args...; type=_balance_type(s), kwargs...)
+    _fetch_balance(exchange(s), args...; type, kwargs...)
 end
 
 function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(_exc_balance_func(exc), args...; (splitkws(:type; kwargs).rest)...)
+    pyfetch(_exc_balance_func(exc), args...; kwargs...)
 end
 
 @doc """ Updates or retrieves the balance dictionary for a given exchange.
@@ -185,16 +185,20 @@ function balance!(
     end
 end
 
-function balance(s::LiveStrategy, args...; kwargs...)
-    balance(exchange(s), args...; kwargs...)
+function balance(s::NoMarginStrategy{Live}, args...; type=_balance_type(s), kwargs...)
+    balance(exchange(s), args...; type, kwargs...)
 end
 
-function balance(s::LiveStrategy, sym, args...; kwargs...)
-    balance(exchange(s), sym, args...; kwargs...)
+function balance(s::MarginStrategy{Live}, sym, args...; type=_balance_type(s), kwargs...)
+    balance(exchange(s), sym, args...; type, kwargs...)
 end
 
-function balance!(s::LiveStrategy, args...; kwargs...)
-    balance!(exchange(s), args...; kwargs...)
+function balance!(s::NoMarginStrategy{Live}, args...; type=_balance_type(s), kwargs...)
+    balance!(exchange(s), args...; type, kwargs...)
+end
+
+function balance!(s::MarginStrategy{Live}, args...; type=_balance_type(s), kwargs...) # or :margin
+    balance!(exchange(s), args...; type, kwargs...)
 end
 
 

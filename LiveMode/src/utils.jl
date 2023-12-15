@@ -1,7 +1,7 @@
 using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
-using .Lang: @lget!
+using .Lang: @lget!, Option
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
@@ -28,7 +28,7 @@ TaskFlag() =
 @doc """ Used to send a cancel request to the python coroutine.
 
 The python coroutine will be cancelled if the task `getindex` returns `true`.
-The task flag is passed to `pyfetch/pytask` as a tuple. 
+The task flag is passed to `pyfetch/pytask` as a tuple.
 """
 pycoro_running(flag) = (flag,)
 pycoro_running() = pycoro_running(TaskFlag())
@@ -513,25 +513,29 @@ This function retrieves the balance associated with a strategy `s`. It achieves 
 
 """
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
-get_balance(s, sym) =
-    let bal = get_balance(s)
-        isnothing(bal) && return zerobal_tuple()
-        (; date=bal.date[], balance=@lget!(bal.balance, sym, zerobal()))
-    end
-get_balance(s, sym, type)::Option{DFT} =
-    let bal = get_balance(s)
-        @deassert type ∈ (:used, :total, :free, nothing)
-        isnothing(bal) && return zerobal_tuple()
-        tup = @lget!(bal.balance, sym, zerobal()), type
-        if isnothing(type)
-            tup
+get_balance(s, sym; fallback_kwargs=(;), bal=get_balance(s)) = begin
+    if isnothing(bal) || sym ∉ keys(bal.balance)
+        if nameof(s.cash) == sym || st.inuniverse(sym, s)
+            _force_fetchbal(s; fallback_kwargs)
+            bal = get_balance(s)
         else
-            _balance_bytype(tup, type)
+            return zerobal_tuple()
         end
     end
+    (; date=bal.date[], balance=@lget!(bal.balance, sym, zerobal()))
+end
+get_balance(s, sym, type; kwargs...) = begin
+    @deassert type ∈ (:used, :total, :free, nothing)
+    tup = get_balance(s, sym; kwargs...)
+    if isnothing(type)
+        tup
+    else
+        _balance_bytype(tup, type)
+    end
+end
 get_balance(s, ::Nothing, ::Nothing) = get_balance(s, nothing)
-get_balance(s, ai::AssetInstance, ::Nothing=nothing) = get_balance(s, bc(ai))
-get_balance(s, ::Nothing, args...) = get_balance(s, nameof(s.cash), args...)
+get_balance(s, ai::AssetInstance, tp::Option{Symbol}=nothing; kwargs...) = get_balance(s, bc(ai), tp; kwargs...)
+get_balance(s, ::Nothing, args...; kwargs...) = get_balance(s, nameof(s.cash), args...; kwargs...)
 
 @doc """ Retrieves the timestamp for a specific asset instance in a strategy.
 

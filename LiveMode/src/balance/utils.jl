@@ -2,6 +2,15 @@ using .Executors.Instruments: AbstractCash
 using .Lang: @get
 import .st: current_total
 
+_balance_type(s::NoMarginStrategy) = :spot
+_balance_type(s::MarginStrategy) = :swap
+
+function _ccxt_balance_args(s, kwargs)
+    params, rest = split_params(kwargs)
+    @lget! params @pyconst("type") @pystr(_balance_type(s))
+    (; params, rest)
+end
+
 @doc """ Handles the response from a balance fetch operation.
 
 $(TYPEDSIGNATURES)
@@ -39,8 +48,7 @@ function _force_fetchbal(s; fallback_kwargs)
     @lock w begin
         waslocked && return nothing
         time = now()
-        params, rest = split_params(fallback_kwargs)
-        params["type"] = _ccxtbalance_type(s)
+        params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
         bal = _handle_bal_resp(resp)
         isnothing(bal) && return nothing
@@ -136,25 +144,25 @@ function live_balance(
     type=nothing,
 )
     bal = get_balance(s, ai)
+    wlocked = islocked(balance_watcher(s))
     if force &&
-        !islocked(balance_watcher(s)) &&
-        (isnothing(bal) || (!isnothing(since)) && bal.date < since)
+       !wlocked &&
+       (isnothing(bal) || (!isnothing(since)) && bal.date < since)
         _force_fetchbal(s; fallback_kwargs)
         bal = get_balance(s, ai, type)
     end
-    isnothing(since) ||
-        isnothing(bal) ||
-        begin
-            if waitforbal(s, ai; since, force, waitfor, fallback_kwargs)
-            elseif force
-                @debug "live bal: last force fetch"
-                _force_fetchbal(s; fallback_kwargs)
-            end
-            bal = get_balance(s, ai, type)
-            if isnothing(bal) || bal.date < since
-                @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since f = @caller
-            end
+    if (force && wlocked) ||
+       !(isnothing(since) || isnothing(bal))
+        if waitforbal(s, ai; since, force, waitfor, fallback_kwargs)
+        elseif force
+            @debug "live bal: last force fetch"
+            _force_fetchbal(s; fallback_kwargs)
         end
+        bal = get_balance(s, ai, type)
+        if isnothing(bal) || (!isnothing(since) && bal.date < since)
+            @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since f = @caller
+        end
+    end
     bal
 end
 
@@ -228,8 +236,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function computes the total balance for a given strategy `s` by summing up the value of all assets in the strategy's universe. 
-The balance can be either local or fetched depending on the `local_bal` parameter. 
+This function computes the total balance for a given strategy `s` by summing up the value of all assets in the strategy's universe.
+The balance can be either local or fetched depending on the `local_bal` parameter.
 The `price_func` parameter is used to determine the price of each asset.
 """
 function st.current_total(

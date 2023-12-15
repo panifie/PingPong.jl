@@ -50,17 +50,17 @@ If no balance information is found for an asset, its cash and committed cash val
 
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
-    bal_dict = get_balance(s).balance
+    bal = live_balance(s; kwargs...)
+    loop_kwargs = filterkws(:fallback_kwargs; kwargs)
     @sync for ai in s.universe
         @debug "Locking ai" ai = raw(ai)
         @async @lock ai begin
-            bal_ai = get(bal_dict, bc(ai), nothing)
+            bal_ai = get_balance(s, ai; bal, loop_kwargs...)
             if isnothing(bal_ai)
-                cash!(ai, ZERO)
-                cash!(committed(ai), ZERO)
             else
-                cash!(ai, bal_ai.total)
-                cash!(committed(ai), bal_ai.used)
+                this_bal = bal_ai.balance
+                cash!(ai, this_bal.total)
+                cash!(committed(ai), this_bal.used)
             end
         end
     end
@@ -76,9 +76,9 @@ If no balance information is found for the asset, its cash and committed cash va
 
 """
 function live_sync_cash!(
-    s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), kwargs...
+    s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), force=false, kwargs...
 )
-    bal = live_balance(s, ai; since, waitfor, force=true)
+    bal = live_balance(s, ai; since, waitfor, force, kwargs...)
     @lock ai if isnothing(bal)
         @warn "Resetting asset cash (not found)" ai = raw(ai)
         cash!(ai, ZERO)
