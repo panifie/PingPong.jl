@@ -6,6 +6,9 @@ using .Misc: attr, setattr!
 import .Misc: marginmode
 using .OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
+const _STR_SYMBOLS_CACHE = Dict{String,Symbol}()
+const _SYM_SYMBOLS_CACHE = Dict{Symbol,Symbol}()
+
 @doc """ Retrieves the market identifiers for a given strategy type.
 
 $(TYPEDSIGNATURES)
@@ -13,11 +16,24 @@ $(TYPEDSIGNATURES)
 The `marketsid` function invokes the `ping!` function with the strategy type and `StrategyMarkets()` as arguments.
 This function is used to fetch the market identifiers associated with a specific strategy type.
 """
-marketsid(t::Type{<:Strategy}) = invokelatest(ping!, t, StrategyMarkets())
-marketsid(s::Strategy) = ping!(typeof(s), StrategyMarkets())
+marketsid(t::Type{<:S}) where {S<:Strategy} = invokelatest(ping!, t, StrategyMarkets())
+marketsid(s::S) where {S<:Strategy} = begin
+
+    ping!(typeof(s), StrategyMarkets())
+end
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
 @doc "Assets loaded by the strategy."
 assets(s::Strategy) = universe(s).data.asset
+inuniverse(a::AbstractAsset, s::Strategy) = a ∈ assets(s)
+inuniverse(ai::AssetInstance, s::Strategy) = ai.asset ∈ assets(s)
+inuniverse(sym::Symbol, s::Strategy) = begin
+    for ai in s.universe
+        if sym == bc(ai)
+            return true
+        end
+    end
+    return false
+end
 @doc "Strategy assets instance."
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
