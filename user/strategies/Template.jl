@@ -23,7 +23,7 @@ function ping!(s::SC, ts::DateTime, _)
     end
 end
 
-function ping!(::Type{<:SC}, ::StrategyMarkets)
+function ping!(::Union{<:SC,Type{<:SC}}, ::StrategyMarkets)
     String[]
 end
 
