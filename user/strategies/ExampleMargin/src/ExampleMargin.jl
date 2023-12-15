@@ -13,11 +13,11 @@ const TF = tf"1m"
 include("common.jl")
 
 # function __init__() end
-function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0))
+function _reset_pos!(s, def_lev=get!(s.attrs, :def_lev, 1.0); synced=true)
     @sync for ai in s.universe
         @async begin
-            pong!(s, ai, def_lev, UpdateLeverage(); pos=Long())
-            pong!(s, ai, def_lev, UpdateLeverage(); pos=Short())
+            pong!(s, ai, def_lev, UpdateLeverage(); pos=Long(), synced)
+            pong!(s, ai, def_lev, UpdateLeverage(); pos=Short(), synced)
         end
     end
 end
@@ -46,7 +46,7 @@ end
 function ping!(t::Type{<:SC}, config, ::LoadStrategy)
     s = st.default_load(@__MODULE__, t, config)
     _reset!(s)
-    _reset_pos!(s)
+    _reset_pos!(s, synced=false)
     if s isa Union{PaperStrategy,LiveStrategy} && !(attr(s, :skip_watcher, false))
         _tickers_watcher(s)
     end
@@ -83,7 +83,7 @@ function ping!(::Type{<:S}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
-function ping!(::SC{ExchangeID{:bybit}}, ::StrategyMarkets)
+function ping!(::Union{<:S,Type{<:S}}, ::StrategyMarkets) where {S<:SC{ExchangeID{:bybit}}}
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 
