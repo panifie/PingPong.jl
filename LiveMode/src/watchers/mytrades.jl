@@ -285,7 +285,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                         # NOTE: give id directly since the _resp is for a trade and not an order
                         let o = findorder(s, ai; resp, id)
                             if o isa Order
-                                if isfilled(ai, o) && length(resp(o)) > 0
+                                if isfilled(ai, o) && length(trades(o)) > 0
                                     amount = resp_trade_amount(resp, eid)
                                     last_amount = last(trades(o)).amount
                                     @warn "handle trade: no matching active order, possibly a late trade" emulated =
