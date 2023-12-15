@@ -11,15 +11,15 @@ import .Executors: pong!, aftertrade!
 
 $(TYPEDSIGNATURES)
 
-This function either updates the leverage of a position or places an order in a live trading strategy. 
-It first checks if the position is open or has pending orders. 
-If not, it updates the leverage on the exchange and then synchronizes the position. 
-If an order is to be placed, it checks for any open positions on the opposite side and places the order if none exist. 
+This function either updates the leverage of a position or places an order in a live trading strategy.
+It first checks if the position is open or has pending orders.
+If not, it updates the leverage on the exchange and then synchronizes the position.
+If an order is to be placed, it checks for any open positions on the opposite side and places the order if none exist.
 The function returns the trade or leverage update status.
 
 """
 function Executors.pong!(
-    s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide
+    s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide, synced=false
 )
     if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
@@ -31,8 +31,10 @@ function Executors.pong!(
         since = now()
         # First update on exchange
         if leverage!(exchange(ai), val, raw(ai))
-            # then sync position
-            live_sync_position!(s, ai, pos; force=false, since)
+            if synced
+                # then sync position
+                live_sync_position!(s, ai, pos; force=false, since)
+            end
         end
         @deassert isapprox(leverage(ai, pos), val, rtol=0.01) (leverage(ai, pos), lev)
         true
