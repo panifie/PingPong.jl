@@ -16,6 +16,10 @@ struct ResetStrategy <: ExecAction end
 struct StrategyMarkets <: ExecAction end
 @doc "[`ping!(s::Strategy, ::WarmupPeriod)`](@ref)"
 struct WarmupPeriod <: ExecAction end
+@doc "A strategy event "
+struct StrategyErrorEvent{E<:ExchangeID} <: StrategyEvent{E}
+    error::Any
+end
 # TODO: maybe methods that dispatch on strategy types should be named `ping` (without excl mark)
 @doc """Called to construct the strategy, should return the strategy instance.
 $(TYPEDSIGNATURES)"""
@@ -26,7 +30,7 @@ ping!(::Strategy, ::ResetStrategy) = nothing
 @doc "How much lookback data the strategy needs. $(TYPEDSIGNATURES)"
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
 @doc "When an order is cancelled the strategy is pinged with an order error. $(TYPEDSIGNATURES)"
-ping!(::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = err
+ping!(s::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = push!(s.logs, StrategyErrorEvent{exchangeid(s)}(err))
 @doc "Market symbols that populate the strategy universe"
 ping!(::Type{<:Strategy}, ::StrategyMarkets)::Vector{String} = String[]
 
