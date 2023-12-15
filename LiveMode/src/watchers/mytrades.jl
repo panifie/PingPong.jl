@@ -225,7 +225,8 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
         @debug "handle trade:" n_keys = length(resp)
         eid = exchangeid(ai)
         id = resp_trade_order(resp, eid, String)
-        @debug "handle trade: new event" order = id
+        isprocessed_order(s, ai, id) && return nothing
+        @debug "handle trade: new event" order = id n_keys = length(resp)
         if isempty(id)
             @warn "handle trade: missing order id"
             return nothing

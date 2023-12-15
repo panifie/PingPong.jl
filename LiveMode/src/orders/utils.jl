@@ -2,6 +2,7 @@ using .Misc.Lang: @lget!, @deassert, Option
 using .Python: @py, pydict
 using .Executors:
     AnyGTCOrder, AnyMarketOrder, AnyLimitOrder, AnyIOCOrder, AnyFOKOrder, AnyPostOnlyOrder
+using LRUCache
 
 @doc "Represents the state of a live order comprising order details, a lock, trade hashes, an update hash, and average price."
 const LiveOrderState = NamedTuple{
@@ -16,7 +17,7 @@ const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
 $(TYPEDSIGNATURES)
 
-Returns a dictionary of active orders for all asset instances in a live strategy. 
+Returns a dictionary of active orders for all asset instances in a live strategy.
 If no dictionary exists, a new one is created.
 
 """
@@ -28,12 +29,26 @@ function active_orders(s::LiveStrategy, ai)
     @lget! ords ai AssetOrdersDict()
 end
 
+@doc "An lru cache of recently processed orders ids."
+const RecentOrdersDict = LRUCache.LRU{String,Nothing}
+@doc """ Retrieves recent orders ids for a live strategy.
+
+$(TYPEDSIGNATURES)
+
+Returns a dictionary of recent orders ids for a given asset instance.
+
+"""
+function recent_orders(s::LiveStrategy, ai)
+    lro = @lget! attrs(s) :live_recent_orders Dict{AssetInstance,RecentOrdersDict}()
+    @lget! lro ai RecentOrdersDict(maxsize=100)
+end
+
 @doc """ Computes the average price of an order.
 
 $(TYPEDSIGNATURES)
 
-It calculates the average price by summing the value and amount of each trade in the order, 
-and then dividing the total value by the total amount. 
+It calculates the average price by summing the value and amount of each trade in the order,
+and then dividing the total value by the total amount.
 If no trades exist, it returns the original order price.
 
 """
@@ -49,16 +64,30 @@ avgprice(o::Order) =
         return val / amt
     end
 
+
+@doc "Stores and order id in the recently orders cache."
+record_order!(s::LiveStrategy, ai, id::String) =
+    let lro = recent_orders(s, ai)
+        lro[id] = nothing
+    end
+@doc "Stores and order in the recently orders cache."
+record_order!(s::LiveStrategy, ai, o::Order) = record_order!(s, ai, o.id)
+@doc "Tests if an order id has been recently processed."
+isprocessed_order(s::LiveStrategy, ai, id::String) = id ∈ keys(recent_orders(s, ai))
+@doc "Tests if an order has been recently processed."
+isprocessed_order(s::LiveStrategy, ai, o::Order) = isprocessed_order(o.id)
+
 @doc """ Registers an active order in a live strategy.
 
 $(TYPEDSIGNATURES)
 
-This function sets an order as active for a given asset in a live strategy. 
+This function sets an order as active for a given asset in a live strategy.
 The order's state includes a lock, trade hashes, an update hash, and the average price.
-The function ensures that the trade and orders watchers are running for the asset. 
+The function ensures that the trade and orders watchers are running for the asset.
 
 """
 function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
+    @debug "orders: set active" o.id
     state = @lget! active_orders(s, ai) o.id (;
         order=o,
         lock=ReentrantLock(),
@@ -71,11 +100,18 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     state
 end
 
+@doc "Remove order from the set of active orders."
+function clear_order!(s::LiveStrategy, ai, o::Order)
+    ao = active_orders(s, ai)
+    delete!(ao, o.id)
+    record_order!(s, ai, o)
+end
+
 @doc """ Displays the active orders.
 
 $(TYPEDSIGNATURES)
 
-This function prints the active orders for a given asset in a live strategy.  
+This function prints the active orders for a given asset in a live strategy.
 Each order's id is printed along with its open status.
 
 """
@@ -93,7 +129,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro checks if an order is filled. 
+This macro checks if an order is filled.
 If the order is filled, it decommits the order and deletes it from the active orders for a specified asset in a live strategy.
 
 """
@@ -112,9 +148,9 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function waits until all active orders for a given asset in a live strategy are closed or until a specified timeout is reached. 
-If the orders are not closed by the time the timeout is reached, it attempts to sync the open orders. 
-If orders remain open after the sync attempt, it signals an error. 
+This function waits until all active orders for a given asset in a live strategy are closed or until a specified timeout is reached.
+If the orders are not closed by the time the timeout is reached, it attempts to sync the open orders.
+If orders remain open after the sync attempt, it signals an error.
 
 """
 function waitfor_closed(
@@ -172,8 +208,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function determines if there are active orders for a specific side (Buy/Sell/Both) 
-for a given asset in a live strategy. 
+This function determines if there are active orders for a specific side (Buy/Sell/Both)
+for a given asset in a live strategy.
 
 """
 function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=Both)
@@ -187,7 +223,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function determines if a specific limit order is active for a given asset in a live strategy. 
+This function determines if a specific limit order is active for a given asset in a live strategy.
 """
 function isactive(
     s::LiveStrategy, ai, o::AnyLimitOrder; pt=pricetime(o), active=active_orders(s, ai)

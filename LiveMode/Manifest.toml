@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0-rc2"
 manifest_format = "2.0"
-project_hash = "d0b6e727a270cca20fa78db3cba1d9b18a6081db"
+project_hash = "d1b7612af80668c5eb67f75b0b3814c8a744d1fe"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -352,9 +352,9 @@ uuid = "6206cf0b-f360-5984-af49-5437264c140e"
 version = "0.9.27+0"
 
 [[deps.LRUCache]]
-git-tree-sha1 = "d36130483e3b6e4cd88d81633b596563264f15db"
+git-tree-sha1 = "5930ef949f30a9a947c69ef6b069c0b1aa27619d"
 uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.5.0"
+version = "1.6.0"
 
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "50901ebc375ed41dbf8058da26f9de442febbbec"

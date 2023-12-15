@@ -101,13 +101,13 @@ function live_sync_open_orders!(
                 @debug "sync orders: removing filled active order" o.id o.amount trades_amount = _amount_from_trades(
                     trades(o)
                 ) ai = raw(ai) s = nameof(s)
-                delete!(ao, o.id)
+                clear_order!(s, ai, o)
             else
                 @debug "sync orders: setting active order" o.id ai = raw(ai) s = nameof(s)
                 push!(live_orders, o.id)
                 replay_order!(s, o, ai; resp, exec)
                 if isfilled(ai, o)
-                    delete!(ao, o.id)
+                    clear_order!(s, ai, o)
                 elseif filled_amount(o) > ZERO && o isa IncreaseOrder
                     @ifdebug if ai ∉ s.holdings
                         @debug "sync orders: asset not in holdings" ai = raw(ai)
@@ -151,9 +151,9 @@ function live_sync_open_orders!(
                         exchange(ai)
                     ) resp = order_resp
                 end
-                delete!(ao, id)
+                clear_order!(s, ai, state.order)
             else
-                delete!(ao, id)
+                clear_order!(s, ai, state.order)
             end
         end
     end

@@ -274,7 +274,7 @@ function update_order!(s, ai, eid; resp, state)
                 )
             end
             @debug "update ord: de activating order" id = state.order.id ai = raw(ai)
-            delete!(active_orders(s, ai), state.order.id)
+            clear_order!(s, ai, state.order)
             @ifdebug if hasorders(s, ai, state.order.id)
                 @warn "update ord: order should already have been removed from local state, \
                 possible emulation problem" id = state.order.id order_trades = trades(
@@ -355,6 +355,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
         @debug "handle ord: new event" sem = length(sem)
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
+        isprocessed_order(s, ai, id) && return nothing
         @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
         if isempty(id)
             @warn "handle ord: missing order id"

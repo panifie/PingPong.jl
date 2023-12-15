@@ -358,9 +358,9 @@ uuid = "6206cf0b-f360-5984-af49-5437264c140e"
 version = "0.9.27+0"
 
 [[deps.LRUCache]]
-git-tree-sha1 = "d36130483e3b6e4cd88d81633b596563264f15db"
+git-tree-sha1 = "5930ef949f30a9a947c69ef6b069c0b1aa27619d"
 uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.5.0"
+version = "1.6.0"
 
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "50901ebc375ed41dbf8058da26f9de442febbbec"
@@ -421,7 +421,7 @@ deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LiveMode]]
-deps = ["PaperMode", "Watchers"]
+deps = ["LRUCache", "PaperMode", "Watchers"]
 path = "../LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 version = "0.1.0"
