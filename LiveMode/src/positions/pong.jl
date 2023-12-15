@@ -45,8 +45,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro checks if there are any open positions on the opposite side in an isolated trading strategy. 
-If an open position is found, it issues a warning and returns `nothing`. 
+This macro checks if there are any open positions on the opposite side in an isolated trading strategy.
+If an open position is found, it issues a warning and returns `nothing`.
 The check is performed for the current trade type `t` and the associated asset instance `ai`.
 
 """
@@ -73,8 +73,8 @@ _warnpos(p) = @warn "$p Orders are not allowed, other pos ($(opposite(p))) is st
 
 $(TYPEDSIGNATURES)
 
-This function executes a limit order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`. 
-It checks for open positions on the opposite side and places the order if none exist. 
+This function executes a limit order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`.
+It checks for open positions on the opposite side and places the order if none exist.
 The function returns the trade or leverage update status.
 
 """
@@ -104,8 +104,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function executes a market order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`. 
-It checks for open positions on the opposite side and places the order if none exist. 
+This function executes a market order in a live trading strategy, given a strategy `s`, an asset instance `ai`, and a trade type `t`.
+It checks for open positions on the opposite side and places the order if none exist.
 The function returns the trade or leverage update status.
 
 """
@@ -124,7 +124,7 @@ function Executors.pong!(
     trade = _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
         live_sync_position!(
-            s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
+            s, ai, posside(trade); since=trade.date, waitfor=@timeout_now
         )
     end
     trade
@@ -193,17 +193,17 @@ function pong!(
             @debug "pong pos close: timedout" pos = P ai = raw(ai)
         end
         live_sync_position!(
-            s, ai, P(); since, force=true, strict=true, waitfor=@timeout_now
+            s, ai, P(); since, strict=true, waitfor=@timeout_now
         )
         if @lock ai isopen(ai, pos)
             @debug "pong pos close:" timestamp(ai, pos) >= since timestamp(ai, pos) ==
-                DateTime(0)
+                                                                 DateTime(0)
             pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
             @debug "pong pos close: still open (local) position" since position(ai, pos) data =
                 try
                     resp = fetch_positions(s, ai)[0]
                     this_pup = live_position(
-                        s, ai, P(); since, force=true, waitfor=@timeout_now
+                        s, ai, P(); since, waitfor=@timeout_now
                     )
                     eid = exchangeid(ai)
                     (;

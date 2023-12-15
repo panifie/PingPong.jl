@@ -62,7 +62,7 @@ function _live_sync_position!(
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
             let oppos = opposite(pside),
-                live_pos = live_position(s, ai, oppos, force=true).resp,
+                live_pos = live_position(s, ai, oppos, since=update.date).resp,
                 amount = resp_position_contracts(
                     live_pos, eid
                 )
@@ -285,13 +285,14 @@ function live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
     pos::ByPos;
-    force=true,
+    force=false,
     since=nothing,
     waitfor=Second(5),
     kwargs...,
 )
     update = live_position(s, ai, pos; force, since, waitfor)
     if isnothing(update)
+        @warn "live sync pos: no update found" ai pos force since
     else
         live_sync_position!(s, ai, pos, update; kwargs...)
     end
@@ -320,10 +321,11 @@ function live_sync_cash!(
     bp::ByPos=@something(posside(ai), get_position_side(s, ai));
     since=nothing,
     waitfor=Second(5),
+    force=false,
     kwargs...,
 )
     side = posside(bp)
-    pup = live_position(s, ai, side; since, force=true, waitfor)
+    pup = live_position(s, ai, side; since, force, waitfor)
     @lock ai if isnothing(pup)
         @warn "sync cash: resetting (both) position cash (not found)" ai = raw(ai)
         reset!(ai, Long())
@@ -351,11 +353,12 @@ The function uses a helper function `dosync` to perform the synchronization for 
 The synchronization process is performed concurrently for efficiency.
 
 """
-function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, kwargs...)
+function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=false, kwargs...)
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force=true) missing
+        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing) live_position(s, ai, side; force=true)
+        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force) missing
         if ismissing(pup)
             @debug "sync uni: resetting position (no update)" ai = raw(ai) side
             reset!(ai, side)

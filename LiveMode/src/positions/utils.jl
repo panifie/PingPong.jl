@@ -50,8 +50,8 @@ _ispossym(py, sym, eid::EIDType) = pyeq(Bool, resp_position_symbol(py, eid), @py
 
 $(TYPEDSIGNATURES)
 
-This function takes a response from a position fetch request and an asset instance. 
-It verifies the response, checks if it matches the requested side (buy/sell), and whether it is for the correct asset. 
+This function takes a response from a position fetch request and an asset instance.
+It verifies the response, checks if it matches the requested side (buy/sell), and whether it is for the correct asset.
 It returns the relevant position if found, otherwise it returns 'nothing'.
 
 """
@@ -92,8 +92,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function forces a fetch of the current position for a specific asset and side (buy/sell) through the `fetch_positions` function. 
-It then processes the response using the `_handle_pos_resp` function. 
+This function forces a fetch of the current position for a specific asset and side (buy/sell) through the `fetch_positions` function.
+It then processes the response using the `_handle_pos_resp` function.
 The position is then stored in the position watcher and processed.
 
 """
@@ -123,8 +123,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function retrieves the current position for a specific asset and side (buy/sell) through the `get_positions` function. 
-If the function is forced to fetch, or if the data is outdated, it will fetch the position again using the `_force_fetchpos` function. 
+This function retrieves the current position for a specific asset and side (buy/sell) through the `get_positions` function.
+If the function is forced to fetch, or if the data is outdated, it will fetch the position again using the `_force_fetchpos` function.
 It waits for the position update to occur and then returns the position update.
 
 """
@@ -142,36 +142,36 @@ function live_position(
     @ifdebug force && @debug "live pos: force fetching position" watcher_locked = islocked(
         positions_watcher(s)
     ) maxlog = 1
-    if force &&
-        !islocked(positions_watcher(s)) &&
-        (
-            isnothing(pup) || (
-                !isnothing(since) &&
-                let time = @something(
-                        pytodate(pup.resp, exchangeid(ai)), timestamp(ai, side)
-                    )
-                    time < since
-                end
-            )
+    w = positions_watcher(s)
+    wlocked = islocked(w)
+    if (force && !wlocked) || isempty(buffer(w)) &&
+                              (
+        isnothing(pup) || (
+            !isnothing(since) &&
+            let time = @something(
+                    pytodate(pup.resp, exchangeid(ai)), timestamp(ai, side)
+                )
+                time < since
+            end
         )
+    )
         _force_fetchpos(s, ai, side; fallback_kwargs)
         pup = get_positions(s, ai, side)
     end
-    isnothing(since) ||
-        isnothing(pup) ||
-        begin
-            if waitforpos(s, ai, side; since, force, waitfor)
-            elseif force # try one last time to force fetch
-                @debug "live pos: last force fetch"
-                _force_fetchpos(s, ai, side; fallback_kwargs)
-            end
-            pup = get_positions(s, ai, side)
-            if isnothing(pup) || pup.date < since
-                @error "live pos: last force fetch failed" date =
-                    isnothing(pup) ? nothing : pup.date since force pup.read[] pup.closed[] f = @caller
-                return nothing
-            end
+    if (force && wlocked) ||
+       !(isnothing(since) || isnothing(pup))
+        if waitforpos(s, ai, side; since, force, waitfor)
+        elseif force # try one last time to force fetch
+            @debug "live pos: last force fetch"
+            _force_fetchpos(s, ai, side; fallback_kwargs)
         end
+        pup = get_positions(s, ai, side)
+        if !isnothing(since) && (isnothing(pup) || pup.date < since)
+            @error "live pos: last force fetch failed" date =
+                isnothing(pup) ? nothing : pup.date since force # pup.read[] pup.closed[] f = @caller
+            return nothing
+        end
+    end
     return pup
 end
 
@@ -197,7 +197,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function retrieves the current position update for a specific asset through the `_pup` function.
-It then extracts the number of contracts from the position update. 
+It then extracts the number of contracts from the position update.
 If the asset is short, the function returns the negative of the number of contracts.
 
 """
@@ -219,7 +219,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function retrieves the current position update for a specific asset through the `_pup` function. 
+This function retrieves the current position update for a specific asset through the `_pup` function.
 It then extracts the notional value from the position update.
 
 """
@@ -236,7 +236,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function first tries to retrieve the MMR from the live position. 
+This function first tries to retrieve the MMR from the live position.
 If the retrieved MMR is zero or less, it falls back to the MMR value stored in the position.
 
 """
@@ -284,7 +284,7 @@ _ccxtposside(::ByPos{Short}) = "short"
 
 $(TYPEDSIGNATURES)
 
-This function checks if a position is short by comparing the side of the position with the string "short". 
+This function checks if a position is short by comparing the side of the position with the string "short".
 It returns `true` if the position is short, and `false` otherwise.
 
 """
@@ -295,7 +295,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if a position is long by comparing the side of the position with the string "long". 
+This function checks if a position is long by comparing the side of the position with the string "long".
 It returns `true` if the position is long, and `false` otherwise.
 
 """
@@ -344,9 +344,9 @@ _ccxtposside(::NoMarginStrategy{Live}, args...; kwargs...) = Long()
 
 $(TYPEDSIGNATURES)
 
-This function retrieves the last price of a position. 
-If the last price is zero or less, it tries to retrieve the mark price. 
-If the mark price is also zero or less, it defaults to the last price of the asset. 
+This function retrieves the last price of a position.
+If the last price is zero or less, it tries to retrieve the mark price.
+If the mark price is also zero or less, it defaults to the last price of the asset.
 It returns the retrieved price.
 
 """
@@ -384,8 +384,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function first checks if the CCXT position side is provided. 
-If not, it infers the side from the position state or from the provided position object, if available. 
+This function first checks if the CCXT position side is provided.
+If not, it infers the side from the position state or from the provided position object, if available.
 If the CCXT side is provided, it checks if it's "short" or "long", and returns Short() or Long() respectively.
 If the CCXT side is neither "short" nor "long", it infers the side from the position state and returns it.
 
@@ -422,7 +422,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function checks if a position is open by checking if the number of contracts is greater than zero.
-It also checks if the initial margin, notional, and liquidation price are non-zero. 
+It also checks if the initial margin, notional, and liquidation price are non-zero.
 If the number of contracts is greater than zero, but any of the other three values are zero, it issues a warning about the position state being dirty.
 The function returns `true` if the number of contracts is greater than zero, indicating that the position is open, and `false` otherwise.
 
@@ -443,7 +443,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function checks if a position is closed by checking if the number of contracts is zero.
-It also checks if the initial margin, notional, unrealized PNL, and liquidation price are non-zero. 
+It also checks if the initial margin, notional, unrealized PNL, and liquidation price are non-zero.
 If the number of contracts is zero, but any of the other four values are non-zero, it issues a warning about the position state being dirty.
 The function returns `true` if the number of contracts is zero, indicating that the position is closed, and `false` otherwise.
 
@@ -471,10 +471,10 @@ This function waits for a position to reach a certain state based on several par
 - `force`: A boolean that determines whether to forcefully wait until the position is found (default is true).
 - `fallback_kwargs`: Additional keyword arguments (optional).
 
-The function fetches the position and checks if it has reached the desired state. 
-If it has not, it waits for a specified period and then checks again. 
+The function fetches the position and checks if it has reached the desired state.
+If it has not, it waits for a specified period and then checks again.
 This process is repeated until the position reaches the desired state, or the function times out.
-If the function times out, it returns `false`. 
+If the function times out, it returns `false`.
 If the position reaches the desired state within the time limit, the function returns `true`.
 
 """
@@ -548,8 +548,8 @@ end
 $(TYPEDSIGNATURES)
 
 This function waits for a local position to reach a certain state based on several parameters.
-The function fetches the position's timestamp and checks if it has changed. 
-If it has not, it waits for a specified period and then checks again. 
+The function fetches the position's timestamp and checks if it has changed.
+If it has not, it waits for a specified period and then checks again.
 This process is repeated until the timestamp changes, or the function times out.
 
 """
@@ -589,8 +589,8 @@ function waitposclose(
     last_sync = false
     while true
         if update.closed[] ||
-            iszero(resp_position_contracts(update.resp, eid)) ||
-            isempty(resp_position_side(update.resp, eid))
+           iszero(resp_position_contracts(update.resp, eid)) ||
+           isempty(resp_position_side(update.resp, eid))
             update.read[] || live_sync_position!(s, ai, bp, update)
             @deassert !isopen(ai, bp)
             return true
