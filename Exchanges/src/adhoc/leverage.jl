@@ -1,15 +1,6 @@
 # using ExchangeTypes: has
 
-function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol)
-    pyfetch(exc.setPositionMode, false, symbol) # hedged mode to false
-    has(exc, :watchPositions) && @warn "phemex supports watchPositions"
-    has(exc, :fetchPosition) && @warn "phemex supports fetchPosition"
-    settle = let mkt = get(exc.markets, symbol, nothing)
-        @assert !isnothing(mkt) "Symbol $symbol not found in exchange markets $(nameof(exc))"
-        settle = get(mkt, "settle", nothing)
-        @assert !isnothing(settle) "Symbol does not have a settle currency"
-        settle
-    end
+_lev_frompos(exc, symbol, settle) = begin
     pos = pyfetch(exc.fetchPositions; params=LittleDict(("settle",), (settle,)))
     pos isa PyException && return pos
     this_lev = nothing
@@ -20,15 +11,58 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol)
             break
         end
     end
-    this_lev = @something this_lev 1.0
-    lev = if mode_str == "cross"
-        Base.negate(abs(this_lev))
+    @something this_lev 1.0
+end
+
+_settle_from_market(exc, symbol) = begin
+    mkt = get(exc.markets, symbol, nothing)
+    @assert !isnothing(mkt) "Symbol $symbol not found in exchange markets $(nameof(exc))"
+    settle = get(mkt, "settle", nothing)
+    @assert !isnothing(settle) "Symbol does not have a settle currency"
+    settle
+end
+
+_negative_lev_if_cross(mode_str, lev) =
+    if mode_str == "cross"
+        Base.negate(abs(lev))
     elseif mode_str == "isolated"
-        abs(this_lev)
+        abs(lev)
     else
         error("Margin mode $mode_str is not valid [supported: 'cross', 'isolated']")
     end
-    resp = pyfetch(exc.setLeverage, lev, symbol)
-    resp isa PyException && return resp
-    Bool(get(resp, "code", @pyconst("1")) == @pyconst("0"))
+
+function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol,
+    hedged=false, settle=_settle_from_market(exc, symbol), lev=_lev_frompos(exc, symbol, settle)
+)
+    @sync begin
+        @async pyfetch(exc.setPositionMode, hedged, symbol) # set hedged mode
+        this_lev = _negative_lev_if_cross(mode_str, lev)
+        resp = @async pyfetch(exc.setLeverage, this_lev, symbol)
+        if resp isa PyException
+            return resp
+        end
+        Bool(get(resp, "code", @pyconst("1")) == @pyconst("0"))
+    end
+end
+
+function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;
+    hedged=false, settle=_settle_from_market(exc, symbol), lev=_lev_frompos(exc, symbol, settle)
+)
+    @sync begin
+        if has(exc, :setPositionMode)
+            @async pyfetch(exc.setPositionMode, hedged, symbol) # hedged mode to false
+        end
+        resp = pyfetch(exc.setMarginMode, mode_str, symbol, params=LittleDict(("leverage",), (lev,)))
+        if resp isa PyException
+            msg = string(resp.v.args)
+            # mode unchanged, avoid liquidation
+            return if occursin(r"(110026)|(110011)", msg)
+                true
+            else
+                resp
+            end
+        else
+            Bool(get(resp, "retCode", @pyconst("1")) == @pyconst("0"))
+        end
+    end
 end

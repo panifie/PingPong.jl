@@ -149,13 +149,23 @@ end
 
 @doc "Update margin mode for a specific symbol on the exchange.
 
+Also sets if the position is hedged or one sided.
+For customizations, dispatch to `dosetmargin`.
+
 $(TYPEDSIGNATURES)
 "
-function marginmode!(exc::Exchange, mode, symbol)
+function marginmode!(exc::Exchange, mode, symbol; hedged=false, kwargs...)
     mode_str = string(mode)
     if mode_str in ("isolated", "cross")
-        dosetmargin(exc, mode_str, symbol)
+        ans = dosetmargin(exc, mode_str, symbol; hedged, kwargs...)
+        if ans isa Bool
+            return ans
+        else
+            @error "failed to set margin mode" exc = nameof(exc) err = ans
+            return false
+        end
     elseif mode_str == "nomargin"
+        return true
     else
         error("Invalid margin mode $mode")
     end
