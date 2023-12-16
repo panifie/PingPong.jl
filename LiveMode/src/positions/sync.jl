@@ -56,8 +56,8 @@ function _live_sync_position!(
 
     # check hedged mode
     resp_position_hedged(resp, eid) == ishedged(pos) || begin
-        @warn "sync pos: hedged mode mismatch (local: $(pos.hedged))"
-        marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai))
+        @warn "sync pos: hedged mode mismatch" loc = ishedged(pos)
+        @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "failed to set hedged mode on exchange"
     end
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
@@ -116,9 +116,11 @@ function _live_sync_position!(
 
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
-        pyisnone(mm) ||
-            pyeq(Bool, mm, _ccxtmarginmode(pos)) ||
-            @warn "sync pos: position margin mode mismatch" loc = marginmode(pos) rem = mm
+        if pyisnone(mm) || pyeq(Bool, mm, _ccxtmarginmode(pos))
+        else
+            @warn "sync pos: position margin mode mismatch" ai = raw(ai) loc = marginmode(pos) rem = mm
+            @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "sync pos: failed to set margin mode on exchange"
+        end
     end
 
     # resp cash, (always positive for longs, or always negative for shorts)
