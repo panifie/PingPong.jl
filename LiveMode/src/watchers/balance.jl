@@ -23,13 +23,15 @@ function _w_fetch_balance_func(s, interval; kwargs)
         init = Ref(true)
         (w) -> try
             if init[]
-                v = _execfunc(fetch_f; params, rest...)
-                _dopush!(w, v; if_func=isdict)
+                @lock w begin
+                    v = _execfunc(fetch_f; params, rest...)
+                    _dopush!(w, v; if_func=isdict)
+                end
                 init[] = false
                 sleep(interval)
             else
                 v = _execfunc(f; params, rest...)
-                _dopush!(w, v; if_func=isdict)
+                @lock w _dopush!(w, v; if_func=isdict)
             end
         catch
             @debug_backtrace
@@ -37,8 +39,10 @@ function _w_fetch_balance_func(s, interval; kwargs)
         end
     else
         (w) -> try
-            v = _execfunc(fetch_f; params, rest...)
-            _dopush!(w, v; if_func=isdict)
+            @lock w begin
+                v = _execfunc(fetch_f; params, rest...)
+                _dopush!(w, v; if_func=isdict)
+            end
             sleep(interval)
         catch
             @debug_backtrace
