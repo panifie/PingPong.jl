@@ -69,6 +69,7 @@ function pong!(
     lev,
     ::UpdateLeverage;
     pos::PositionSide,
+    kwargs...
 )
     if isopen(ai, pos) || hasorders(s, ai, pos)
         false

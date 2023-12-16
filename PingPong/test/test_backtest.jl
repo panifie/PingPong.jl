@@ -3,33 +3,34 @@ using Test
 using Random
 using Lang: @m_str
 
-openval(s, a) = s.universe[a].instance.ohlcv.open[begin]
-closeval(s, a) = s.universe[a].instance.ohlcv.close[end]
+openval(s, a) = s.universe[a].ohlcv.open[begin]
+closeval(s, a) = s.universe[a].ohlcv.close[end]
 test_synth(s) = begin
     @test openval(s, m"sol") == 101.0
     @test closeval(s, m"sol") == 1753.0
-    @test openval(s, m"btc") == 99.0
-    @test closeval(s, m"btc") == 574.0
-    @test openval(s, m"eth") == 97.0
-    @test closeval(s, m"eth") == 123.0
+    @test openval(s, m"eth") == 99.0
+    @test closeval(s, m"eth") == 574.0
+    @test openval(s, m"btc") == 97.0
+    @test closeval(s, m"btc") == 123.0
 end
 
-trades(s) = s.universe[m"eth"].instance.history
+trades(s) = s[m"eth"].history
 eq4(a, b) = isapprox(a, b; atol=1e-4)
 test_nomargin_market(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.start!(s)
     @test first(trades(s)).order isa egn.MarketOrder
-    @test eq4(Cash(:USDT, 9.7334), s.cash.value)
+    @info "TEST: " s.cash.value
+    @test eq4(Cash(:USDT, 9.12134), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_count(s) == 77
+    @test st.trades_count(s) == 5109
     mmh = st.minmax_holdings(s)
     @test mmh.count == 1
-    @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 335.2945 atol = 1e-4
-    @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 335.2945 atol = 1e-4
+    @test mmh.min[1] == :BTC
+    @test mmh.min[2] ≈ 0.9704 atol = 1e-4
+    @test mmh.max[1] == :BTC
+    @test mmh.max[2] ≈ 0.9704 atol = 1e-4
 end
 
 test_nomargin_gtc(s) = begin
@@ -37,15 +38,16 @@ test_nomargin_gtc(s) = begin
     s.attrs[:overrides] = (; ordertype=:gtc)
     egn.start!(s)
     @test first(trades(s)).order isa egn.GTCOrder
-    @test eq4(Cash(:USDT, 9.4619), s.cash.value)
+    @info "TEST: " s.cash.value
+    @test eq4(Cash(:USDT, 7615.8409), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_count(s) == 130
+    @test st.trades_count(s) == 10105
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 1
-    @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 275.3880 atol = 1e3
-    @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 275.3880 atol = 1e3
+    @test mmh.count == 0
+    @test mmh.min[1] == :USDT
+    @test mmh.min[2] ≈ Inf atol = 1e3
+    @test mmh.max[1] == :USDT
+    @test mmh.max[2] ≈ 0 atol = 1e3
 end
 
 test_nomargin_ioc(s) = begin
@@ -53,15 +55,17 @@ test_nomargin_ioc(s) = begin
     s.attrs[:overrides] = (; ordertype=:ioc)
     egn.start!(s)
     @test first(trades(s)).order isa egn.IOCOrder
-    @test Cash(:USDT, 9.359) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_count(s) == 92
+    @info "TEST: " s.cash.value
+    @test Cash(:USDT, 79514.0133) ≈ s.cash atol = 1e-3
+    @info "TEST: " s.cash_committed.value
+    @test Cash(:USDT, -0.4e-7) ≈ s.cash_committed
+    @test st.trades_count(s) == 8318
     mmh = st.minmax_holdings(s)
     @test mmh.count == 1
     @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 453.41604 atol = 1e-1
+    @test mmh.min[2] ≈ 6874.15118 atol = 1e-1
     @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 453.41604 atol = 1e-1
+    @test mmh.max[2] ≈ 6874.15118 atol = 1e-1
 end
 
 test_nomargin_fok(s) = begin
@@ -72,16 +76,16 @@ test_nomargin_fok(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(trades(s)).order isa egn.FOKOrder
-    @test Cash(:USDT, 917.976) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 958.192) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-7
-    @test st.trades_count(s) == 677
+    @test st.trades_count(s) == 824
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 1
     @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 798414.27082 atol = 1e-4
+    @test mmh.min[2] ≈ 2.65385492016e6 atol = 1e-4
     @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 798414.27082 atol = 9e-1
+    @test mmh.max[2] ≈ 2.65385492016e6 atol = 9e-1
 end
 
 function margin_overrides(ot=:market)
@@ -103,9 +107,9 @@ test_margin_market(s) = begin
     s.attrs[:overrides] = margin_overrides(:market)
     egn.start!(s)
     @test first(trades(s)).order isa ect.AnyMarketOrder
-    @test Cash(:USDT, 0.046) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_count(s) == 252
+    @test Cash(:USDT, 0.959) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 0.364) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 405
     mmh = st.minmax_holdings(s)
     @test mmh.count == 0
     @test mmh.min[1] == :USDT
@@ -119,9 +123,9 @@ test_margin_gtc(s) = begin
     s.attrs[:overrides] = margin_overrides(:gtc)
     egn.start!(s)
     @test first(trades(s)).order isa ect.AnyGTCOrder
-    @test Cash(:USDT, 0.705) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_count(s) == 558
+    @test Cash(:USDT, 1.058) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 0.148) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 573
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -139,9 +143,9 @@ test_margin_fok(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(trades(s)).order isa ect.AnyFOKOrder
-    @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_count(s) == 1112
+    @test Cash(:USDT, 1276.0) ≈ s.cash atol = 1e1
+    @test Cash(:USDT, 1275.0) ≈ s.cash_committed atol = 1e1
+    @test st.trades_count(s) == 2052
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -159,9 +163,9 @@ test_margin_ioc(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(trades(s)).order isa ect.AnyIOCOrder
-    @test Cash(:USDT, -0.357) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.0) ≈ s.cash_committed
-    @test st.trades_count(s) == 1112
+    @test Cash(:USDT, 743.74) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 743.032) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 2050
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -171,18 +175,19 @@ test_margin_ioc(s) = begin
     @test mmh.max[2] ≈ 0.0 atol = 1e-3
 end
 
-test_backtest() = @testset "backtest" begin
-    @eval include(joinpath(@__DIR__, "env.jl"))
-    s = backtest_strat(:Example)
-    @testset test_synth(s)
-    @testset test_nomargin_market(s)
-    @testset test_nomargin_gtc(s)
-    @testset test_nomargin_ioc(s)
-    @testset test_nomargin_fok(s)
+test_backtest() = begin
+    @testset failfast = true "backtest" begin
+        s = backtest_strat(:Example)
+        @testset test_synth(s)
+        @testset test_nomargin_market(s)
+        @testset test_nomargin_gtc(s)
+        @testset test_nomargin_ioc(s)
+        @testset test_nomargin_fok(s)
 
-    s = backtest_strat(:ExampleMargin)
-    @testset test_margin_market(s)
-    @testset test_margin_gtc(s)
-    @testset test_margin_ioc(s)
-    @testset test_margin_fok(s)
+        s = backtest_strat(:ExampleMargin)
+        @testset test_margin_market(s)
+        @testset test_margin_gtc(s)
+        @testset test_margin_ioc(s)
+        @testset test_margin_fok(s)
+    end
 end

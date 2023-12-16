@@ -24,7 +24,7 @@ mutable struct Stoploss3{T}
 
     """
     function Stoploss3(
-        loss::T, trailing_loss=NaN, trailing_offset=0.0; min=0.01, max=0.99
+        loss::T, trailing_loss=NaN, trailing_offset=0.0; min=0.001, max=0.99
     ) where {T}
         loss = clamp(loss, min, max)
         trailing_loss = clamp(trailing_loss, min, max)
@@ -76,19 +76,20 @@ end
 $(TYPEDSIGNATURES)
 
 """
-stopat(open, stop::Stoploss) = open * stop.target
+stopat(open, stop::Stoploss) = open * stop.loss_target
 @doc """Computes the stop price based on the given `Candle` open price and `Stoploss` instance.
 
 $(TYPEDSIGNATURES)
 
 """
-stopat(cdl::Candle, stop::Stoploss) = stoplossat(cdl.open, stop)
+stopat(cdl::Candle, stop::Stoploss) = stopat(cdl.open, stop)
 
 @doc """For stoploss to trigger, the low must be lower or equal the target price.
 
 $(TYPEDSIGNATURES)
 """
 triggered(::Stoploss, cdl::Candle, price) = cdl.low <= price
+triggered(cdl::Candle, price) = cdl.low <= price
 
 @doc """Computes the stop price based on the given `Stoploss` instance and other parameters.
 
