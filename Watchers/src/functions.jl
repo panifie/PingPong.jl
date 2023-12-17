@@ -166,17 +166,37 @@ Base.islocked(w::Watcher) = islocked(_fetch_lock(w))
 @doc "True if the buffer lock is locked."
 Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(_buffer_lock(w))
 @doc "Lock the fetch lock and execute `f`."
-Base.lock(f, w::Watcher) = lock(f, _fetch_lock(w))
+Base.lock(f, w::Watcher) = begin
+    @debug "watchers: locking fetch" w = w.name
+    lock(f, _fetch_lock(w))
+    @debug "watchers: unlocked fetch" w = w.name
+end
 @doc "Lock the buffer lock and execute `f`."
-Base.lock(f, w::Watcher, ::Val{:buffer}) = lock(f, _buffer_lock(w))
+Base.lock(f, w::Watcher, ::Val{:buffer}) = begin
+    @debug "watchers: locking buffer" w = w.name
+    lock(f, _buffer_lock(w))
+    @debug "watchers: unlocked buffer" w = w.name
+end
 @doc "Lock the fetch lock."
-Base.lock(w::Watcher) = lock(_fetch_lock(w))
+Base.lock(w::Watcher) = begin
+    @debug "watchers: locking fetch" w = w.name
+    lock(_fetch_lock(w))
+end
 @doc "Lock the buffer lock."
-Base.lock(w::Watcher, ::Val{:buffer}) = lock(_buffer_lock(w))
+Base.lock(w::Watcher, ::Val{:buffer}) = begin
+    @debug "watchers: locking buffer" w = w.name
+    lock(_buffer_lock(w))
+end
 @doc "Unlock the fetch lock."
-Base.unlock(w::Watcher) = unlock(_fetch_lock(w))
+Base.unlock(w::Watcher) = begin
+    unlock(_fetch_lock(w))
+    @debug "watchers: unlocked fetch" w = w.name
+end
 @doc "Unlock the buffer lock."
-Base.unlock(w::Watcher, ::Val{:buffer}) = unlock(_buffer_lock(w))
+Base.unlock(w::Watcher, ::Val{:buffer}) = begin
+    unlock(_buffer_lock(w))
+    @debug "watchers: unlocked buffer" w = w.name
+end
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
@@ -184,7 +204,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end - 40):end]))
+        write(out, @view(tps[(end-40):end]))
     else
         write(out, tps)
     end
