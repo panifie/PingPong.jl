@@ -297,7 +297,7 @@ resp_order_status(resp, ::EIDType) = get_py(resp, "status")
 function resp_order_status(resp, eid::EIDType, ::Type{String})
     resp_order_status(resp, eid) |> pytostring
 end
-resp_order_loss_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopLossPrice")
+resp_order_loss_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopLossPrice", nonzero=true)
 resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
     _option_float(resp, "takeProfitPrice", nonzero=true)
 resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice", nonzero=true)
