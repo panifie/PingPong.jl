@@ -69,7 +69,7 @@ function create_live_order(
             string(hash((price, date)))
         end
     catch
-        @error "create order: parsing failed"
+        @error "create order: parsing failed" resp
         @debug_backtrace
         return nothing
     end
@@ -92,6 +92,7 @@ function create_live_order(
     end
     if isnothing(o)
         @error "create order: failed to sync" id ai = raw(ai) s = nameof(s)
+        @debug "create order: failed sync response" resp
         return nothing
     elseif activate
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))

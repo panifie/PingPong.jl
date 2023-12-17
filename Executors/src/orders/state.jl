@@ -46,8 +46,14 @@ function basicorder(
     profit=nothing,
     id="",
 )
-    ismonotonic(loss, price, profit) || return nothing
-    iscost(ai, amount, loss, price, profit) || return nothing
+    if !ismonotonic(loss, price, profit)
+        @debug "basic order: prices not monotonic" ai = raw(ai) loss price profit type
+        return nothing
+    end
+    if !iscost(ai, amount, loss, price, profit)
+        @debug "basic order: invalid cost" ai = raw(ai) amount loss price profit type
+        return nothing
+    end
     @deassert if type <: IncreaseOrder
         committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
     else
@@ -161,8 +167,8 @@ $(TYPEDSIGNATURES)
 """
 function _check_committment(o)
     @deassert attr(o, :committed)[] |> gtxzero ||
-        ordertype(o) <: MarketOrderType ||
-        o isa IncreaseLimitOrder o
+              ordertype(o) <: MarketOrderType ||
+              o isa IncreaseLimitOrder o
 end
 
 @doc """Checks if the unfilled amount for a limit sell order is positive.

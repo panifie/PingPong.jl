@@ -203,7 +203,7 @@ function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, lin
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
         begin
             @debug "get ord state: order not found active, waiting" id = id waitfor =
-                waitfor _file = file _line = line
+                waitfor _file = file _line = line @caller
             waitforcond(() -> haskey(orders_byid, id), waitfor)
             get(orders_byid, id, missing)
         end
