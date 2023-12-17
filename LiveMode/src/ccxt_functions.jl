@@ -155,7 +155,7 @@ function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
             notside
         end
     else
-        let ids_set = Set(ids)
+        let ids_set = Set(eltype(ids) == String ? ids : (string(id) for id in ids))
             (o) -> (resp_order_id(o, eid, String) ∉ ids_set || notside(o))
         end
     end
@@ -172,16 +172,29 @@ end
 function ccxt_orders_func!(a, exc)
     # NOTE: these function are not similar since the single fetchOrder functions
     # fetch by id, while fetchOrders might not find the order (if it is too old)
+    has_fallback = has(exc, :fetchOpenOrders) && has(exc, :fetchClosedOrders)
     a[:live_orders_func] = if has(exc, :fetchOrders)
-        (ai; kwargs...) ->
-            _fetch_orders(ai, first(exc, :fetchOrdersWs, :fetchOrders); kwargs...)
+        f = first(exc, :fetchOrdersWs, :fetchOrders)
+        (ai; kwargs...) -> let resp = _fetch_orders(ai, f; kwargs...)
+            if isemptish(resp) && has_fallback
+                out = pylist()
+                @sync begin
+                    @async out.extend(a[:live_open_orders_func](ai; kwargs...))
+                    @async out.extend(a[:live_closed_orders_func](ai; kwargs...))
+                end
+                return out
+            end
+        end
     elseif has(exc, :fetchOrder)
+        f = first(exc, :fetchOrderWs, :fetchOrder)
         (ai; ids, side=Both, kwargs...) -> let out = pylist()
             sym = raw(ai)
             @sync for id in ids
-                @async out.append(
-                    _execfunc(first(exc, :fetchOrderWs, :fetchOrder), id, sym; kwargs...),
-                )
+                @async let resp = _execfunc(f, id, sym; kwargs...)
+                    if !isemptish(resp)
+                        out.append(resp)
+                    end
+                end
             end
             out
         end
