@@ -46,10 +46,12 @@ The function fetches the balance by calling the `_fetch_balance` function with t
 The balance is fetched from the exchange's API.
 """
 function fetch_balance(s::LiveStrategy, args...; type=_balance_type(s), kwargs...)
-    _fetch_balance(exchange(s), args...; type, kwargs...)
+    qc = nameof(s.cash)
+    syms = st.assets(s)
+    _fetch_balance(exchange(s), qc, syms, args...; type, kwargs...)
 end
 
-function _fetch_balance(exc, args...; kwargs...)
+function _fetch_balance(exc, qc, syms, args...; kwargs...)
     pyfetch(_exc_balance_func(exc), args...; kwargs...)
 end
 
