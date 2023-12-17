@@ -23,3 +23,59 @@ function ccxt_orders_func!(a, exc::Exchange{ExchangeID{:bybit}})
         @warn "ccxt funcs: fetch orders not supported" exchange = nameof(exc)
     end
 end
+
+_phemex_ispending(o) =
+    let status = get_py(get_py(o, "info"), "execStatus")
+        pyisTrue(@py "Pending" ∈ status)
+    end
+_func_syms(open) = begin
+    oc = open ? "open" : "closed"
+    cap = open ? "Open" : "Closed"
+    func_sym = Symbol("fetch", cap, "Orders")
+    func_sym_ws = Symbol("fetch", cap, "OrdersWs")
+    func_key = Symbol("live_", oc, "_orders_func")
+    (; func_sym, func_sym_ws, func_key)
+end
+
+@doc "Sets up the [`fetch_open_orders`](@ref) or [`fetch_closed_orders`](@ref) closure for the ccxt exchange instance. (phemex)"
+function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true)
+    func_sym, func_sym_ws, func_key = _func_syms(open)
+    a[func_key] = if has(exc, func_sym)
+        let f = first(exc, func_sym_ws, func_sym)
+            if open
+                (ai; kwargs...) -> let ans = _fetch_orders(ai, f; kwargs...)
+                    _pyfilter!(ans, _phemex_ispending)
+                end
+            else
+                open_f = first(exc, values(_func_syms(true))[1:2]...)
+                (ai; kwargs...) -> begin
+                    ot, ct = @sync begin
+                        (@async _fetch_orders(ai, open_f; kwargs...)),
+                        (@async _fetch_orders(ai, f; kwargs...))
+                    end
+                    cancelled_ords = _pyfilter!(fetch(ot), _phemex_ispending)
+                    closed_ords = fetch(ct)
+                    closed_ords.extend(cancelled_ords)
+                    closed_ords
+                end
+            end
+        end
+    else
+        fetch_func = get(a, :live_orders_func, nothing)
+        @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
+        eid = typeof(exchangeid(exc))
+        pred_func = o -> pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
+        status_pred_func = if open
+            (o) -> pred_func(o) && !_phemex_ispending(o)
+        else
+            !pred_func
+        end
+        (ai; kwargs...) -> let out = pylist()
+            all_orders = fetch_func(ai; kwargs...)
+            for o in all_orders
+                status_pred_func(o) && out.append(o)
+            end
+            out
+        end
+    end
+end
