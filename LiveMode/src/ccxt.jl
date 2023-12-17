@@ -217,17 +217,17 @@ end
 
 @doc "Determine the PingPong order side from a ccxt order object."
 function _ccxt_sidetype(
-    resp, eid::EIDType; o=nothing, getter=resp_trade_side
+    resp, eid::EIDType; o=nothing, getter=resp_trade_side, def::Type{<:OrderSide}=Sell
 )::Type{<:OrderSide}
     side = getter(resp, eid)
     if pyeq(Bool, side, @pyconst("buy"))
         Buy
     elseif pyeq(Bool, side, @pyconst("sell"))
         Sell
-    elseif isnothing(o)
-        nothing
-    else
+    elseif applicable(orderside, o)
         orderside(o)
+    else
+        def
     end
 end
 
