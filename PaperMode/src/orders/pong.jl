@@ -42,5 +42,5 @@ function pong!(
     date,
     kwargs...,
 )
-    limitorder!(s, ai, t; amount, date, kwargs...)
+    create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
 end

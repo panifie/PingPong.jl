@@ -20,6 +20,7 @@ function _ticker_volume(ai)
     (Ref(apply(tf"1d", now())), Ref(0.0), Ref(_basevol(ai)))
 end
 
+_paper_liquidity(s, ai) = @lget! attr(s, :paper_liquidity) ai _ticker_volume(ai)
 @doc """ Limits the volume of order execution to the daily limit of the asset.
 
 $(TYPEDSIGNATURES)
@@ -32,7 +33,7 @@ The function also uses the `_basevol` and `_ticker_volume` functions to get the 
 """
 function volumecap!(s, ai; amount)
     # Check there is enough liquidity
-    day_vol, taken_vol, total_vol = @lget! attr(s, :paper_liquidity) ai _ticker_volume(ai)
+    day_vol, taken_vol, total_vol = _paper_liquidity(s, ai)
     let this_day = apply(tf"1d", now())
         if this_day > day_vol[]
             day_vol[] = this_day
@@ -111,10 +112,9 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         cancel!(s, o, ai; err=OrderFailed("FOK order for $(ai.asset) failed $(o.date)."))
     end
     @assert o.amount ≈ this_vol ||
-        o isa AnyLimitOrder ||
-        # NOTE: this can fail only if orderbook hasn't enough vol
-        sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
+            o isa AnyLimitOrder ||
+            # NOTE: this can fail only if orderbook hasn't enough vol
+            sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
     taken_vol[] += this_vol
     return avg_price, this_vol, ob_trade
 end
-

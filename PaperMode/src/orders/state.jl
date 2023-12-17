@@ -33,9 +33,16 @@ Finally, it creates a simulated market order using the `create_sim_market_order`
 
 """
 function create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
-    volumecap!(s, ai; amount) || return nothing
+    if volumecap!(s, ai; amount)
+    else
+        @debug "paper market order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(s, ai)
+        return nothing
+    end
     obside = orderbook_side(ai, t)
-    isempty(obside) && return nothing
+    if isempty(obside)
+        @debug "paper market order: empty OB" ai = raw(ai) t
+        return nothing
+    end
     if isnan(price)
         price = first(obside)[1]
     end

@@ -1,5 +1,5 @@
 using .Misc: LittleDict
-using .Misc.Lang: @logerror
+using .Misc.Lang: @logerror, @debug_backtrace
 using .Instances.Exchanges: Py, pyfetch, @pystr, @pyconst, has
 using SimMode: trade!
 using .Executors: AnyGTCOrder
@@ -7,7 +7,7 @@ using .OrderTypes: ImmediateOrderType, OrderCancelled
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
-@doc """ Executes a limit order in PaperMode.
+@doc """ Updates a limit order in PaperMode.
 
 $(TYPEDSIGNATURES)
 
@@ -85,7 +85,7 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
     attr(s, :paper_order_tasks)[o] = (; task, alive)
 end
 
-@doc """ Executes a limit order in PaperMode.
+@doc """ Creates a limit order in PaperMode.
 
 $(TYPEDSIGNATURES)
 
@@ -95,8 +95,11 @@ If the order is not filled and is of type ImmediateOrderType, it cancels the ord
 For Good Till Cancelled (GTC) orders, it queues them for execution using the `paper_limitorder!` function.
 
 """
-function limitorder!(s, ai, t; amount, date, kwargs...)
-    volumecap!(s, ai; amount) || return nothing
+function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
+    if volumecap!(s, ai; amount)
+        @debug "paper limit order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(s, ai)
+        return nothing
+    end
     o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
     isnothing(o) && return nothing
     try
@@ -113,9 +116,9 @@ function limitorder!(s, ai, t; amount, date, kwargs...)
         end
         # return first trade (if any)
         return trade
-    catch e
-        Base.showerror(stdout, e)
-        Base.show_backtrace(stdout, catch_backtrace())
+    catch
+        @debug_backtrace
         !isfilled(ai, o) && cancel!(s, o, ai; err=OrderFailed(e))
+        return missing
     end
 end

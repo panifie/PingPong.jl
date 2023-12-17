@@ -46,5 +46,5 @@ function pong!(
     kwargs...,
 )
     isopen(ai, opposite(positionside(t))) && return nothing
-    limitorder!(s, ai, t; amount, date, kwargs...)
+    create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
 end
