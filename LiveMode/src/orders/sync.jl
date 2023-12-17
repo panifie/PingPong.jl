@@ -1,4 +1,4 @@
-using .Executors: _cashfrom
+using .Executors: _cashfrom, hasorders
 
 @doc """ Maximizes cash and neutralizes commitments before syncing.
 
@@ -37,8 +37,8 @@ _amount_from_trades(trades) = sum(t.amount for t in trades)
 
 $(TYPEDSIGNATURES)
 
-This function syncs the live open orders with the trading strategy and asset instance provided. 
-It fetches open orders, replay them, and updates the order tracking. 
+This function syncs the live open orders with the trading strategy and asset instance provided.
+It fetches open orders, replay them, and updates the order tracking.
 This function also handles checking and updating of cash commitments for the strategy and asset instance.
 
 - `strict`: A boolean flag indicating whether to strictly sync orders (default is `true`).
@@ -78,7 +78,11 @@ function live_sync_open_orders!(
         strict && maxout!(s, ai)
         for resp in open_orders
             id = resp_order_id(resp, eid, String)
-            o = (@something get(ao, id, nothing) findorder(
+            o = (@something let state = get(ao, id, nothing)
+                if state isa LiveOrderState
+                    state.order
+                end
+            end findorder(
                 s, ai; id, side, resp
             ) create_live_order(
                 s,
@@ -90,7 +94,7 @@ function live_sync_open_orders!(
                 synced=false,
                 skipcommit=(!strict),
                 withoutkws(:skipcommit; kwargs=create_kwargs)...,
-            ) missing)::Option{Order}
+            ) missing)::Union{Nothing,<:Order,Missing}
             ismissing(o) && continue
             if isfilled(ai, o)
                 isapprox(ai, _amount_from_trades(trades(o)), o.amount, Val(:amount)) ||
@@ -185,7 +189,7 @@ function findorder(
     ai;
     resp=nothing,
     id=resp_order_id(resp, exchangeid(ai), String),
-    side=@something(_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side), Both)
+    side=_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=Both)
 )
     if !isempty(id)
         for o in values(s, ai, side)
@@ -208,10 +212,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the order has been filled, and if it hasn't, it resets the order and returns. 
-If the order is filled, the function fetches its trades from the order struct or an API call, validates the trades, and applies new trades if necessary. 
+This function checks if the order has been filled, and if it hasn't, it resets the order and returns.
+If the order is filled, the function fetches its trades from the order struct or an API call, validates the trades, and applies new trades if necessary.
 If there are no new trades, it emulates a trade.
-The flag 'exec' determines whether the trades are executed or simply made. 
+The flag 'exec' determines whether the trades are executed or simply made.
 The flag 'insert' determines whether the trades are inserted to the asset trades history or not.
 
 """
@@ -219,7 +223,13 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
-        iszero(filled_amount(o)) || reset!(o, ai)
+        if !iszero(filled_amount(o))
+            @warn "replay order: unexpected order state (resetting order)"
+            reset!(o, ai)
+        end
+        if !hasorders(s, ai, o.id)
+            queue!(s, o, ai)
+        end
         @debug "replay order: order unfilled (returning)"
         return o
     end
@@ -256,7 +266,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
             reset!(o, ai)
         end
     end
-    new_trades = @view order_trades[(begin + local_count):end]
+    new_trades = @view order_trades[(begin+local_count):end]
     if isempty(new_trades)
         @debug "replay order: emulating trade"
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
@@ -307,7 +317,7 @@ aftertrade_nocommit!(_, _, o::AnyMarketOrder, args...) = nothing
 
 $(TYPEDSIGNATURES)
 
-This function fills the order with the trade and adds the trade to the asset's history or the trades of the order, depending on the 'insert' flag. 
+This function fills the order with the trade and adds the trade to the asset's history or the trades of the order, depending on the 'insert' flag.
 After applying the trade, the function performs actions specified in 'aftertrade_nocommit!' function.
 The 'insert' flag determines whether the trade is inserted to the asset trades history at a specific index based on its date, or simply added to the end of the history.
 """
@@ -350,7 +360,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function locks all assets in the universe of the strategy, and checks if the tracked order ids and the local order ids match the order ids from the exchange. 
+This function locks all assets in the universe of the strategy, and checks if the tracked order ids and the local order ids match the order ids from the exchange.
 If there are any discrepancies, the function logs an error message. If the ids are all matching, the function logs a message stating the number of orders currently being tracked.
 
 """
@@ -391,11 +401,11 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function fetches closed orders from the exchange for an asset. 
-If it's successful, it locks the asset and processes each closed order. 
-For each closed order, it retrieves the order id and finds or creates a corresponding order in the strategy. 
-If an order can be found or created, the function checks if the order is filled. 
-If it is, it asserts that the order has trades, and if it isn't, it replays the order. 
+This function fetches closed orders from the exchange for an asset.
+If it's successful, it locks the asset and processes each closed order.
+For each closed order, it retrieves the order id and finds or creates a corresponding order in the strategy.
+If an order can be found or created, the function checks if the order is filled.
+If it is, it asserts that the order has trades, and if it isn't, it replays the order.
 Afterwards, the order is deleted from the active orders.
 
 """
@@ -424,11 +434,11 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
                     skipcommit=true,
                     activate=false,
                     withoutkws(:skipcommit; kwargs=create_kwargs)...,
-                ) missing)::Union{Order, Missing}
+                ) missing)::Union{Order,Missing}
                 if ismissing(o)
                 else
                     @deassert resp_order_status(resp, eid, String) ∈
-                        ("closed", "open", "cancelled")
+                              ("closed", "open", "cancelled")
                     @ifdebug trades_count = length(ai.history)
                     if isfilled(ai, o)
                         @deassert !isempty(trades(o))

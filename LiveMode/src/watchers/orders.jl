@@ -285,6 +285,15 @@ function update_order!(s, ai, eid; resp, state)
     end
 end
 
+_default_ordertype(s, ai::MarginInstance) = begin
+    if islong(ai)
+        MarketOrder{Buy}
+    else
+        ShortMarketOrder{Sell}
+    end
+end
+_default_ordertype(s, ai::NoMarginInstance) = MarketOrder{cash(ai) > ZERO ? Sell : Buy}
+
 @doc """ Re-activates a previously active order.
 
 $(TYPEDSIGNATURES)
@@ -321,11 +330,12 @@ function re_activate_order!(s, ai, id; eid, resp)
             docancel(o)
         end
     else
+        @debug "reactivate order: " id resp
         o = create_live_order(
             s,
             resp,
             ai;
-            t=get_position_side(s, ai),
+            t=_default_ordertype(s, ai),
             price=missing,
             amount=missing,
             synced=false,
