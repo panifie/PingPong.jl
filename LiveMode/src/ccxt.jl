@@ -30,10 +30,14 @@ get_float(v::Py, k) = get_py(v, k) |> pytofloat
 @doc "Get value of key as a boolean."
 get_bool(v::Py, k) = get_py(v, k) |> pytruth
 
-_option_float(o::Py, k) =
+_option_float(o::Py, k; nonzero=false) =
     let v = get_py(o, k)
         if pyisinstance(v, pybuiltins.float)
-            pytofloat(v)
+            ans = pytofloat(v)
+            if nonzero && iszero(ans)
+            else
+                ans
+            end
         end
     end
 
@@ -295,10 +299,10 @@ function resp_order_status(resp, eid::EIDType, ::Type{String})
 end
 resp_order_loss_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopLossPrice")
 resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
-    _option_float(resp, "takeProfitPrice")
-resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice")
-resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice")
-resp_order_info(resp, ::EIDType)::Option{DFT} = _option_float(resp, "info")
+    _option_float(resp, "takeProfitPrice", nonzero=true)
+resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice", nonzero=true)
+resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice", nonzero=true)
+resp_order_info(resp, ::EIDType) = get_py(resp, "info")
 
 resp_position_symbol(resp, ::EIDType) = get_py(resp, Pos.symbol)
 function resp_position_symbol(resp, ::EIDType, ::Type{String})
