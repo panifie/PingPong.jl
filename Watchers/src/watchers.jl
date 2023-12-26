@@ -38,9 +38,12 @@ function _tryfetch(w)::Bool
     if result isa Exception
         logerror(w, result)
         false
-    else
+    elseif result isa Bool
         safenotify(w.beacon.fetch)
         result
+    else
+        logerror(w, ErrorException("Fetch result is not a bool ($(w.name))"))
+        false
     end
 end
 const Enabled = Val{true}
@@ -172,8 +175,8 @@ const WATCHERS = Misc.ConcurrentCollections.ConcurrentDict{String,Watcher}()
 
 $(TYPEDSIGNATURES)
 
-This function creates a new watcher with the specified parameters. 
-It checks the flush interval, initializes the watcher, loads data if necessary, and sets a timer for the watcher if the `start` parameter is `true`. 
+This function creates a new watcher with the specified parameters.
+It checks the flush interval, initializes the watcher, loads data if necessary, and sets a timer for the watcher if the `start` parameter is `true`.
 It also ensures that the `_fetch!` function is applicable for the watcher.
 
 
