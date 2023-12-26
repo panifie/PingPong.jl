@@ -134,7 +134,7 @@ If the currency doesn't match either, it returns zero for both.
 
 """
 function _feecost(
-    fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai))
+    fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(bc(ai))
 )
     cur = get_py(fee_dict, "currency")
     @debug "live fee cost" cur qc_py bc_py
