@@ -35,7 +35,7 @@ const AnyPostOnlyOrder{S<:OrderSide,P<:PositionSide} = Order{
     <:PostOnlyOrderType{S},<:AbstractAsset,<:ExchangeID,P
 }
 
-@doc """ 
+@doc """
 Clamps the given values within the correct boundaries.
 
 $(TYPEDSIGNATURES)
@@ -53,7 +53,7 @@ function _doclamp(clamper, ai, whats...)
     expr
 end
 
-@doc """ 
+@doc """
 Ensures the price is within correct boundaries.
 
 $(TYPEDSIGNATURES)
@@ -62,7 +62,7 @@ macro price!(ai, prices...)
     _doclamp(:($(@__MODULE__).sanitize_price), ai, prices...)
 end
 
-@doc """ 
+@doc """
 Ensures the amount is within correct boundaries.
 
 $(TYPEDSIGNATURES)
@@ -71,7 +71,7 @@ macro amount!(ai, amounts...)
     _doclamp(:($(@__MODULE__).sanitize_amount), ai, amounts...)
 end
 
-@doc """ 
+@doc """
 Calculates the commitment for an increase order without margin.
 
 $(TYPEDSIGNATURES)
@@ -83,7 +83,7 @@ function committment(
     withfees(cost(price, amount), maxfees(ai), IncreaseOrder)
 end
 
-@doc """ 
+@doc """
 Calculates the commitment for a leveraged position.
 
 $(TYPEDSIGNATURES)
@@ -103,7 +103,7 @@ function committment(
     margin + fees
 end
 
-@doc """ 
+@doc """
 Calculates the commitment when exiting a position for longs.
 
 $(TYPEDSIGNATURES)
@@ -113,7 +113,7 @@ function committment(::Type{<:SellOrder}, ai, price, amount; fees_base=ZERO, kwa
     _deducted_amount(amount, fees_base)
 end
 
-@doc """ 
+@doc """
 Calculates the commitment when exiting a position for shorts.
 
 $(TYPEDSIGNATURES)
@@ -123,7 +123,7 @@ function committment(::Type{<:ShortBuyOrder}, ai, price, amount; fees_base=ZERO,
     _deducted_amount(negate(amount), fees_base)
 end
 
-@doc """ 
+@doc """
 Calculates the partial commitment of a trade.
 
 $(TYPEDSIGNATURES)
@@ -135,7 +135,7 @@ function committment(ai::AssetInstance, t::Trade)
     )
 end
 
-@doc """ 
+@doc """
 Calculates the commitment for an order.
 
 $(TYPEDSIGNATURES)
@@ -144,7 +144,7 @@ function committment(ai::AssetInstance, o::Order; kwargs...)
     committment(typeof(o), ai, o.price, o.amount; kwargs...)
 end
 
-@doc """ 
+@doc """
 Calculates the unfulfilled amount for a buy order.
 
 $(TYPEDSIGNATURES)
@@ -155,7 +155,7 @@ function unfillment(t::Type{<:AnyBuyOrder}, amount)
     negate(amount)
 end
 
-@doc """ 
+@doc """
 Calculates the unfulfilled amount for a sell order.
 
 $(TYPEDSIGNATURES)
@@ -166,26 +166,26 @@ function unfillment(t::Type{<:AnySellOrder}, amount)
     amount
 end
 
-@doc """ 
+@doc """
 Calculates the unfulfilled amount for an order.
 
 $(TYPEDSIGNATURES)
 """
 unfillment(o::Order) = unfillment(typeof(o), o.amount)
 
-@doc """ 
+@doc """
 Checks if a strategy can commit to an increase order.
 
 $(TYPEDSIGNATURES)
 """
 function iscommittable(s::Strategy, ::Type{<:IncreaseOrder}, commit, ai)
     @deassert st.freecash(s) |> gtxzero
-    let c = st.freecash(s), comm = commit[]
-        c >= comm || isapprox(c, comm)
-    end
+    c = st.freecash(s)
+    comm = commit[]
+    c >= comm || isapprox(c, comm)
 end
 
-@doc """ 
+@doc """
 Checks if a strategy can commit to a sell order.
 
 $(TYPEDSIGNATURES)
@@ -193,12 +193,12 @@ $(TYPEDSIGNATURES)
 function iscommittable(s::Strategy, ::Type{<:SellOrder}, commit, ai)
     @deassert Instances.freecash(ai, Long()) |> gtxzero
     @deassert commit[] |> gtxzero
-    let c = Instances.freecash(ai, Long()), comm = commit[]
-        c >= commit[] || isapprox(c, comm)
-    end
+    c = Instances.freecash(ai, Long())
+    comm = commit[]
+    c >= comm || isapprox(c, comm)
 end
 
-@doc """ 
+@doc """
 Checks if a strategy can commit to a short buy order.
 
 $(TYPEDSIGNATURES)
@@ -206,12 +206,12 @@ $(TYPEDSIGNATURES)
 function iscommittable(::Strategy, ::Type{<:ShortBuyOrder}, commit, ai)
     @deassert Instances.freecash(ai, Short()) |> ltxzero
     @deassert commit[] |> ltxzero
-    let c = Instances.freecash(ai, Short()), comm = commit[]
-        c <= comm || isapprox(c, comm)
-    end
+    c = Instances.freecash(ai, Short())
+    comm = commit[]
+    c <= comm || isapprox(c, comm)
 end
 
-@doc """ 
+@doc """
 Iterates over all the orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -220,7 +220,7 @@ function orders(s::Strategy)
     OrderIterator((orders(s, ai, side) for side in (Buy, Sell) for ai in s.holdings))
 end
 
-@doc """ 
+@doc """
 Iterates over all the orderless orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -229,7 +229,7 @@ function orders(s::Strategy, ::Val{:orderless})
     (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
 end
 
-@doc """ 
+@doc """
 Iterates over all the orders for an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -248,7 +248,7 @@ function orders(s::Strategy, ai::AssetInstance)
     end
 end
 
-@doc """ 
+@doc """
 Iterates over all the orderless orders for an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -257,28 +257,28 @@ function orders(s::Strategy, ai::AssetInstance, ::Val{:orderless})
     (o for side in (Buy, Sell) for o in orders(s, ai, side))
 end
 
-@doc """ 
+@doc """
 Returns all orders for an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 orders(s, ai, ::Type{Both}) = orders(s, ai)
 
-@doc """ 
+@doc """
 Returns all buy orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
 orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
 
-@doc """ 
+@doc """
 Returns all sell orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
 orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
 
-@doc """ 
+@doc """
 Returns all buy orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -287,7 +287,7 @@ function orders(s::Strategy{M,S,E}, ai, ::BySide{Buy}) where {M,S,E}
     @lget! s.buyorders ai st.BuyOrdersDict{E}(st.BuyPriceTimeOrdering())
 end
 
-@doc """ 
+@doc """
 Returns all sell orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -296,14 +296,14 @@ function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
 
-@doc """ 
+@doc """
 Returns all keys for orders in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 Base.keys(s::Strategy, args...; kwargs...) = (k for (k, _) in orders(s, args...; kwargs...))
 
-@doc """ 
+@doc """
 Returns all values for orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -312,7 +312,7 @@ function Base.values(s::Strategy, args...; kwargs...)
     (o for (_, o) in orders(s, args...; kwargs...))
 end
 
-@doc """ 
+@doc """
 Returns the first order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -321,7 +321,7 @@ function Base.first(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
     values(s, ai, bs) |> first
 end
 
-@doc """ 
+@doc """
 Returns the first index for an order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -330,7 +330,7 @@ function Base.firstindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
     keys(s, ai, bs) |> first
 end
 
-@doc """ 
+@doc """
 Returns the last order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -344,7 +344,7 @@ function Base.last(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
     ans
 end
 
-@doc """ 
+@doc """
 Returns the last index for an order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -358,7 +358,7 @@ function Base.lastindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
     ans
 end
 
-@doc """ 
+@doc """
 Returns the count of orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -371,7 +371,7 @@ function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans
 end
 
-@doc """ 
+@doc """
 Returns the count of pending entry orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -386,7 +386,7 @@ function orderscount(s::Strategy, ::Val{:increase})
     ans
 end
 
-@doc """ 
+@doc """
 Returns the count of pending exit orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -401,7 +401,7 @@ function orderscount(s::Strategy, ::Val{:reduce})
     ans
 end
 
-@doc """ 
+@doc """
 Returns the total count of pending orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -410,7 +410,7 @@ function orderscount(s::Strategy)
     orderscount(s, Buy) + orderscount(s, Sell)
 end
 
-@doc """ 
+@doc """
 Returns the count of orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -423,21 +423,21 @@ function orderscount(s::Strategy, ai::AssetInstance)
     n
 end
 
-@doc """ 
+@doc """
 Returns the count of orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 orderscount(s::Strategy, ai::AssetInstance, ::Type{Both}) = orderscount(s, ai)
 
-@doc """ 
+@doc """
 Returns the count of buy orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 orderscount(s::Strategy, ai::AssetInstance, ::Type{Buy}) = length(buyorders(s, ai))
 
-@doc """ 
+@doc """
 Returns the count of sell orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -455,49 +455,49 @@ function hascash(s::Strategy)
     return false
 end
 
-@doc """ 
+@doc """
 Checks if a strategy has orders.
 
 $(TYPEDSIGNATURES)
 """
 hasorders(s::Strategy) = orderscount(s) == 0
 
-@doc """ 
+@doc """
 Returns buy orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 buyorders(s::Strategy, ai) = orders(s, ai, Buy)
 
-@doc """ 
+@doc """
 Returns sell orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 sellorders(s::Strategy, ai) = orders(s, ai, Sell)
 
-@doc """ 
+@doc """
 Returns orders for an asset in a strategy by side.
 
 $(TYPEDSIGNATURES)
 """
 sideorders(s::Strategy, ai, ::Type{Buy}) = buyorders(s, ai)
 
-@doc """ 
+@doc """
 Returns orders for an asset in a strategy by side.
 
 $(TYPEDSIGNATURES)
 """
 sideorders(s::Strategy, ai, ::Type{Sell}) = sellorders(s, ai)
 
-@doc """ 
+@doc """
 Returns orders for an asset in a strategy by side.
 
 $(TYPEDSIGNATURES)
 """
 sideorders(s::Strategy, ai, ::BySide{S}) where {S} = sideorders(s, ai, S)
 
-@doc """ 
+@doc """
 Checks if an array has any elements.
 
 $(TYPEDSIGNATURES)
@@ -511,14 +511,14 @@ function _hasany(arr)
     n != 0
 end
 
-@doc """ 
+@doc """
 Checks if an asset instance has pending buy orders in a strategy.
 
 $(TYPEDSIGNATURES)
 """
 hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(orders(s, ai, Buy))
 
-@doc """ 
+@doc """
 Checks if an asset instance has pending sell orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -527,7 +527,7 @@ function hasorders(s::Strategy, ai, ::Type{Sell})
     !iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell))
 end
 
-@doc """ 
+@doc """
 Checks if an asset instance has pending orders in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -536,7 +536,7 @@ function hasorders(s::Strategy, ai::AssetInstance)
     (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
 end
 
-@doc """ 
+@doc """
 Checks if an asset instance has a specific order in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -548,7 +548,7 @@ hasorders(s::Strategy, ai, id::String) = begin
     false
 end
 
-@doc """ 
+@doc """
 Checks if an asset instance has a specific order in a strategy by side.
 
 $(TYPEDSIGNATURES)
@@ -560,14 +560,14 @@ function hasorders(s::Strategy, ai, id::String, ::BySide{S}) where {S<:OrderSide
     false
 end
 
-@doc """ 
+@doc """
 Checks if a strategy has a specific order for an asset.
 
 $(TYPEDSIGNATURES)
 """
 Base.haskey(s::Strategy, ai, o::Order) = haskey(sideorders(s, ai, o), pricetime(o))
 
-@doc """ 
+@doc """
 Checks if a strategy has a specific order for an asset by price and time.
 
 $(TYPEDSIGNATURES)
@@ -576,7 +576,7 @@ function Base.haskey(s::Strategy, ai, pt::PriceTime, side::BySide{<:Union{Buy,Se
     haskey(sideorders(s, ai, side), pt)
 end
 
-@doc """ 
+@doc """
 Checks if a strategy has a specific order for an asset by price and time.
 
 $(TYPEDSIGNATURES)
@@ -585,21 +585,21 @@ function Base.haskey(s::Strategy, ai, pt::PriceTime, ::BySide{Both})
     haskey(sideorders(s, ai, Buy), pt) || haskey(sideorders(s, ai, Sell), pt)
 end
 
-@doc """ 
+@doc """
 Checks if a strategy has a specific order for an asset by price and time.
 
 $(TYPEDSIGNATURES)
 """
 Base.haskey(s::Strategy, ai, pt::PriceTime) = haskey(s, ai, pt, Both)
 
-@doc """ 
+@doc """
 Checks if a strategy has buy orders.
 
 $(TYPEDSIGNATURES)
 """
 hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
 
-@doc """ 
+@doc """
 Checks if a strategy has sell orders.
 
 $(TYPEDSIGNATURES)
@@ -611,7 +611,7 @@ function hasorders(s::Strategy, ::Type{Sell})
     return false
 end
 
-@doc """ 
+@doc """
 Checks if a strategy is out of orders.
 
 $(TYPEDSIGNATURES)
@@ -620,7 +620,7 @@ function isoutof_orders(s::Strategy)
     ltxzero(s.cash) && isempty(s.holdings) && length(orderscount(s)) == 0
 end
 
-@doc """ 
+@doc """
 Checks a buy trade.
 
 $(TYPEDSIGNATURES)
@@ -630,10 +630,10 @@ function _check_trade(t::BuyTrade, ai)
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
     @deassert gtxzero(ai, committed(t.order), Val(:price)) ||
-        ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
+              ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
 end
 
-@doc """ 
+@doc """
 Checks a sell trade.
 
 $(TYPEDSIGNATURES)
@@ -647,7 +647,7 @@ function _check_trade(t::SellTrade, ai)
     @deassert committed(t.order) >= -1e-12
 end
 
-@doc """ 
+@doc """
 Checks a short sell trade.
 
 $(TYPEDSIGNATURES)
@@ -659,7 +659,7 @@ function _check_trade(t::ShortSellTrade, ai)
     @deassert abs(committed(t.order)) <= t.fees || t.order isa ShortSellOrder
 end
 
-@doc """ 
+@doc """
 Checks a short buy trade.
 
 $(TYPEDSIGNATURES)
@@ -673,18 +673,18 @@ function _check_trade(t::ShortBuyTrade, ai)
     @deassert committed(t.order) |> ltxzero
 end
 
-@doc """ 
+@doc """
 Checks the cash for an asset instance in a strategy for long.
 
 $(TYPEDSIGNATURES)
 """
 function _check_cash(ai::AssetInstance, ::Long)
     @deassert gtxzero(ai, committed(ai, Long()), Val(:amount)) ||
-        ordertype(last(ai.history)) <: MarketOrderType committed(ai, Long()).value
+              ordertype(last(ai.history)) <: MarketOrderType committed(ai, Long()).value
     @deassert cash(ai, Long()) |> gtxzero
 end
 
-@doc """ 
+@doc """
 Checks the cash for an asset instance in a strategy for short.
 
 $(TYPEDSIGNATURES)

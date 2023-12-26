@@ -2,7 +2,7 @@
 
 $(TYPEDSIGNATURES)
 
-This function creates a market order in a simulated environment. 
+This function creates a market order in a simulated environment.
 It takes a strategy `s`, an order type `t`, and an asset `ai` as inputs, along with an `amount`, `date`, and `price`.
 It also takes an optional `skipcommit` flag. If the order is valid, it is committed.
 """

@@ -52,8 +52,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-In a short sell trade, our position increases in the opposite direction. 
-This function checks if there is enough QC (Quote Currency) to cover the short sell trade. 
+In a short sell trade, our position increases in the opposite direction.
+This function checks if there is enough QC (Quote Currency) to cover the short sell trade.
 It does this by verifying if the free cash in the strategy, combined with the committed amount, is sufficient to cover the size of the short sell trade when multiplied by the leverage.
 
 """
@@ -78,10 +78,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro generates a Trade object with the given order, date, actual amount, actual price, fees, size, leverage, and entry price. 
-The actual price and actual amount are the price and amount of the trade after considering slippage and fees. 
-The size is the total cost of the trade including fees. 
-The leverage is the leverage of the asset instance for the order. 
+This macro generates a Trade object with the given order, date, actual amount, actual price, fees, size, leverage, and entry price.
+The actual price and actual amount are the price and amount of the trade after considering slippage and fees.
+The size is the total cost of the trade including fees.
+The leverage is the leverage of the asset instance for the order.
 The entry price is the price of the asset instance after the trade.
 
 """
@@ -106,10 +106,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro generates a Trade object with the given order, date, actual amount, actual price, fees, size, leverage, and entry price. 
-The actual price and actual amount are the price and amount of the trade after considering slippage and fees. 
-The size is the total cost of the trade including fees. 
-The leverage is the leverage of the asset instance for the order. 
+This macro generates a Trade object with the given order, date, actual amount, actual price, fees, size, leverage, and entry price.
+The actual price and actual amount are the price and amount of the trade after considering slippage and fees.
+The size is the total cost of the trade including fees.
+The leverage is the leverage of the asset instance for the order.
 The entry price is the price of the asset instance after the trade.
 
 """
@@ -136,8 +136,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function calculates the net cost of the trade and checks if there is enough cash for the trade using the `iscashenough` function. 
-If there is not enough cash, it returns nothing. 
+This function calculates the net cost of the trade and checks if there is enough cash for the trade using the `iscashenough` function.
+If there is not enough cash, it returns nothing.
 Otherwise, it calculates the fees and creates a trade using the `@maketrade` macro.
 
 """
