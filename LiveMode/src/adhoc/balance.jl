@@ -1,7 +1,11 @@
 using .Lang: splitkws, @get
 
-function _fetch_balance(exc::Exchange{ExchangeID{:bybit}}, qc, syms, args...; type=:swap, params=pydict(), kwargs...)
-    params["type"] = @pystr(type, lowercase(string(type)))
+_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N} = :unified
+_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = :unified
+
+function _fetch_balance(exc::Exchange{ExchangeID{:bybit}}, qc, syms, args...; type="unified", params=pydict(), kwargs...)
+    # assume bybit UTA
+    params[@pyconst("type")] = "unified"
     pyfetch(_exc_balance_func(exc), args...; params, kwargs...)
 end
 
