@@ -2,7 +2,7 @@ using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
 using .Strategies: PriceTime
 using .Instances:
-    MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, _deducted_amount
+    MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, amount_with_fees
 using .OrderTypes:
     IncreaseOrder, ShortBuyOrder, LimitOrderType, MarketOrderType, PostOnlyOrderType
 using .OrderTypes: ExchangeID, ByPos, ordertype
@@ -110,7 +110,7 @@ $(TYPEDSIGNATURES)
 """
 function committment(::Type{<:SellOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
     @deassert amount > 0.0
-    _deducted_amount(amount, fees_base)
+    amount_with_fees(amount, fees_base)
 end
 
 @doc """
@@ -120,7 +120,7 @@ $(TYPEDSIGNATURES)
 """
 function committment(::Type{<:ShortBuyOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
     @deassert amount > 0.0
-    _deducted_amount(negate(amount), fees_base)
+    amount_with_fees(negate(amount), fees_base)
 end
 
 @doc """

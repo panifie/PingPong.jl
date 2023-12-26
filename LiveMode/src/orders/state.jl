@@ -1,4 +1,4 @@
-using .PaperMode.Instances: _deducted_amount
+using .PaperMode.Instances: amount_with_fees
 using Base: negate
 using .Executors: attr, committment, _check_unfillment, IncreaseLimitOrder
 import Base: fill!
@@ -25,7 +25,7 @@ function fill!(::LiveStrategy, ai::AssetInstance, o::SellOrder, t::SellTrade)
     @deassert o isa SellOrder && _check_unfillment(o)
     @deassert committed(o) == o.attrs.committed[] && gtxzero(ai, committed(o), Val(:amount))
     # from pos to 0 (sell amount is neg)
-    amt = _deducted_amount(t)
+    amt = amount_with_fees(t)
     @ifdebug if o isa AnyMarketOrder
         @info "AMOUNT: " amt attr(o, :unfilled) attr(o, :committed) o.amount
     end
@@ -43,7 +43,7 @@ function fill!(
     @deassert o isa ShortBuyOrder && _check_unfillment(o) o
     @deassert committed(o) == o.attrs.committed[] && ltxzero(ai, committed(o), Val(:price))
     @deassert attr(o, :unfilled)[] < 0.0
-    amt = _deducted_amount(t)
+    amt = amount_with_fees(t)
     attr(o, :unfilled)[] += amt # from neg to 0 (buy amount is pos)
     @deassert ltxzero(ai, attr(o, :unfilled)[], Val(:amount))
     # NOTE: committment is always positive except for short buy orders

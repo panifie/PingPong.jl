@@ -511,14 +511,24 @@ Instruments.sub!(ai::NoMarginInstance, v, args...) = sub!(cash(ai), v)
 Instruments.sub!(ai::MarginInstance, v, p::PositionSide) = sub!(cash(ai, p), v)
 Instruments.cash!(ai::NoMarginInstance, v, args...) = cash!(cash(ai), v)
 Instruments.cash!(ai::MarginInstance, v, p::PositionSide) = cash!(cash(ai, p), v)
-Instruments.cash!(ai::NoMarginInstance, t::BuyTrade) = add!(cash(ai), t.amount)
 # Positive `fees_base` go `trade --> exchange`
 # Negative `fees_base` go `exchange --> trade`
-# When reducing a position: t.amount is fee adjusted, but we need to update the local cash value,
-# so we also need to deduct the `fees_base` qty, but only when those fees are paid
-# from the trade to the exchange.
-_deducted_amount(amt, fb) = fb > ZERO ? (amt > ZERO ? amt + fb : amt - fb) : amt
-_deducted_amount(t::Trade) = _deducted_amount(t.amount, t.fees_base)
+# When updating a position t.amount must be fee adjusted if there are (positive) fees in base currency.
+# We assume the amount field in a trade is always PRE fees. So
+# - If the trade amount is 1 and fees are 0.01, the cash to add (sub) to the asset will be ±0.99
+# - If the trade amount is 1 and fees are -0.01 (rebates), the cash to add (sub) to the asset will be ±1.01
+@doc "The amount of a trade include fees (either positive or negative)."
+amount_with_fees(amt, fb) =
+    if fb > ZERO # trade --> exchange (the amount spent is the trade amount plus the base fees)
+        amt - fb
+    else # exchange --> trade (rebates, the amount spent is the trade amount minus the base fees (which we get back))
+        amt + fb
+    end
+amount_with_fees(t::Trade) = amount_with_fees(t.amount, t.fees_base)
+function Instruments.cash!(ai::NoMarginInstance, t::BuyTrade)
+    amt = amount_with_fees(t)
+    add!(cash(ai), amt)
+end
 @doc """ Update the cash value for a `NoMarginInstance` after a `SellTrade`.
 
 $(TYPEDSIGNATURES)
@@ -527,7 +537,7 @@ This function updates the cash value of a `NoMarginInstance` after a `SellTrade`
 
 """
 function Instruments.cash!(ai::NoMarginInstance, t::SellTrade)
-    amt = _deducted_amount(t)
+    amt = amount_with_fees(t)
     add!(cash(ai), amt)
     add!(committed(ai), amt)
 end
@@ -539,7 +549,8 @@ This function updates the cash value of a `MarginInstance` after an `IncreaseTra
 
 """
 function Instruments.cash!(ai::MarginInstance, t::IncreaseTrade)
-    add!(cash(ai, positionside(t)()), t.amount)
+    amt = amount_with_fees(t)
+    add!(cash(ai, positionside(t)()), amt)
 end
 @doc """ Update the cash value for a `MarginInstance` after a `ReduceTrade`.
 
@@ -549,7 +560,7 @@ This function updates the cash value of a `MarginInstance` after a `ReduceTrade`
 
 """
 function Instruments.cash!(ai::MarginInstance, t::ReduceTrade)
-    amt = _deducted_amount(t)
+    amt = amount_with_fees(t)
     add!(cash(ai, positionside(t)()), amt)
     add!(committed(ai, positionside(t)()), amt)
 end
