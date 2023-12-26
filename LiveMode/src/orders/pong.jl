@@ -4,8 +4,8 @@ using .Executors: AnyLimitOrder
 
 $(TYPEDSIGNATURES)
 
-This function initiates a limit order through the `_live_limit_order` function. 
-Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction. 
+This function initiates a limit order through the `_live_limit_order` function.
+Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction.
 It returns the trade information once the transaction is complete.
 
 """
@@ -15,7 +15,7 @@ function pong!(
     t::Type{<:AnyLimitOrder};
     amount,
     price=lastprice(s, ai, t),
-    waitfor=Second(1),
+    waitfor=Second(5),
     synced=true,
     kwargs...,
 )::Union{<:Trade,Nothing,Missing}
@@ -31,8 +31,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function initiates a market order through the `_live_market_order` function. 
-Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction. 
+This function initiates a market order through the `_live_market_order` function.
+Once the order is placed, it synchronizes the cash balance in the live strategy to reflect the transaction.
 It returns the trade information once the transaction is complete.
 
 """
@@ -48,6 +48,7 @@ function pong!(
     @timeout_start
     trade = _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
+        waitfororder(s, ai, trade.order; waitfor=@timeout_now)
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
     trade
@@ -57,8 +58,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function cancels all live orders of a certain side (buy/sell) through the `live_cancel` function. 
-Once the orders are cancelled, it waits for confirmation of the cancellation and then synchronizes the cash balance in the live strategy to reflect the cancellations. 
+This function cancels all live orders of a certain side (buy/sell) through the `live_cancel` function.
+Once the orders are cancelled, it waits for confirmation of the cancellation and then synchronizes the cash balance in the live strategy to reflect the cancellations.
 It returns a boolean indicating whether the cancellation was successful.
 
 """
