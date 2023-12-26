@@ -1,4 +1,5 @@
 using .Executors.Instruments: freecash
+using .Executors: @price!, @amount!
 
 @doc "Represents a trigger order with fields for the order type, price, and trigger condition."
 const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
@@ -7,7 +8,7 @@ const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
 
 $(TYPEDSIGNATURES)
 
-The function transforms the order type, price, and trigger price into a Python dictionary. 
+The function transforms the order type, price, and trigger price into a Python dictionary.
 This dictionary is compatible with the ccxt cryptocurrency trading library.
 """
 function trigger_dict(exc, v)
@@ -42,9 +43,9 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function initiates a live order in the specified strategy and asset instance. 
-It first checks available cash and whether certain order features are supported. 
-It then sends the order to the exchange, retries if exceptions occur, and handles the response. 
+This function initiates a live order in the specified strategy and asset instance.
+It first checks available cash and whether certain order features are supported.
+It then sends the order to the exchange, retries if exceptions occur, and handles the response.
 """
 function live_send_order(
     s::LiveStrategy,
@@ -63,6 +64,10 @@ function live_send_order(
     skipchecks=false,
     kwargs...,
 )
+    # NOTE: this should not be needed, but some exchanges can be buggy
+    # might be used in a specialized function for problematic exchanges
+    # @price! ai stop_loss stop_trigger price profit_trigger take_profit
+    # @amount! ai amount
     skipchecks ||
         check_available_cash(s, ai, amount, price, t) ||
         begin
