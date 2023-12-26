@@ -209,10 +209,22 @@ end
 
 @doc "Tests if a ccxt order object is synced by comparing filled amount and trades."
 function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
-    isapprox(ai, filled_amount(o), resp_order_filled(resp, eid), Val(:amount)) ||
+    @debug "is order synced:" filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
+    order_filled = resp_order_filled(resp, eid)
+    v = isapprox(ai, filled_amount(o), order_filled, Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
-            ntrades > 0 && ntrades == length(trades(o))
+        order_trades = trades(o)
+        if ntrades > 0
+            ntrades == length(order_trades)
+        elseif length(order_trades) > 0
+            amt = sum(t.amount for t in order_trades)
+            isapprox(ai, amt, order_filled, Val(:amount))
+        else
+            false
         end
+    end
+    @debug "is order synced:" v
+    return v
 end
 
 @doc "Determine the PingPong order side from a ccxt order object."
