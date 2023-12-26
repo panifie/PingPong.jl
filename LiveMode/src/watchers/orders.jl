@@ -535,8 +535,12 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
                 break
             end
         else
-            @error "Wait for order: orders task is not running" ai = raw(ai)
-            break
+            @debug "Wait for order: orders task is not running, restarting" ai = raw(ai)
+            aot = watch_orders!(s, ai)
+            if !istaskrunning(aot)
+                @error "Wait for order: failed to restart task"
+                break
+            end
         end
     end
     slept
