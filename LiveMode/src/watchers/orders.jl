@@ -560,7 +560,10 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     slept = 0
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
-    (haskey(orders_byid, o.id) && haskey(s, ai, o)) || return false
+    if !(haskey(orders_byid, o.id) && haskey(s, ai, o))
+        @debug "Wait for order: inactive" unfilled(o) filled_amount(o) isfilled(ai, o) fetch_orders(s, ai, ids=(o.id,))
+        return isprocessed_order(s, ai, o.id) || isfilled(ai, o)
+    end
     @debug "Wait for order: start" id = o.id timeout = timeout
     while slept < timeout
         slept += waitfororder(s, ai; waitfor)
