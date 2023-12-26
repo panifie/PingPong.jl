@@ -145,7 +145,7 @@ $(TYPEDSIGNATURES)
 """
 function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSide}
     let k = pricetime(o), d = orders(s, ai, S) #, stok = searchsortedfirst(d, k)
-        @assert k ∉ keys(d) "Orders with same price and date are not allowed."
+        @assert k ∉ keys(d) "Orders with same price and date are not allowed. ($(o.price), $(o.date))"
         d[k] = o
     end
 end

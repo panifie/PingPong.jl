@@ -97,6 +97,7 @@ function create_live_order(
     elseif activate
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     end
+    @debug "create order: done" committed(o) o.amount ordertype(o)
     return o
 end
 

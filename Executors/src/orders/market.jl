@@ -23,7 +23,7 @@ function marketorder(
     @price! ai take stop
     @amount! ai amount
     comm = Ref(committment(type, ai, price, amount))
-    @debug "create markeorder:" ai = raw(ai) price amount is_comm = iscommittable(s, type, comm, ai)
+    @debug "create market order:" ai = raw(ai) price amount cash(ai) comm type is_comm = iscommittable(s, type, comm, ai)
     if skipcommit || iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end

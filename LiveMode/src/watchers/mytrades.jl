@@ -150,7 +150,7 @@ function ispyexception(e, pyexception)
             (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
     catch
         @debug_backtrace
-        isdefined(Main, :e) && (Main.e[] = e)
+        @ifdebug isdefined(Main, :e) && Main.e isa Ref{Any} && (Main.e[] = e)
         @error "Can't check exception of type $(typeof(e))"
         false
     end
@@ -257,7 +257,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                         queue = asset_queue(s, ai)
                                         inc!(queue)
                                         try
-                                            trade!(
+                                            @debug "handle trade: trade!" trade!(
                                                 s,
                                                 state.order,
                                                 ai;
@@ -461,15 +461,16 @@ function _force_fetchtrades(s, ai, o)
         trades_resp = fetch_order_trades(s, ai, o.id)
         if trades_resp isa Exception
             @ifdebug ispyminor_error(trades_resp) ||
-                     @debug "Error fetching trades (force fetch)" trades_resp
+                     @debug "force fetch trades: error fetching trades" trades_resp
         elseif islist(trades_resp)
+            @debug "force fetch trades: trades task"
             trades_task = @something asset_trades_task(s, ai) watch_trades!(s, ai)
             sem = task_sem(trades_task)
             for resp in trades_resp
                 handle_trade!(s, ai, ordersby_id, resp, sem)
             end
         else
-            @error "force fetch trades: invalid repsonse " trades_resp
+            @error "force fetch trades: invalid response " trades_resp
         end
     end
 

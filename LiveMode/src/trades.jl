@@ -137,9 +137,12 @@ function _feecost(
     fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(qc(ai))
 )
     cur = get_py(fee_dict, "currency")
+    @debug "live fee cost" cur qc_py bc_py
     if pyeq(Bool, cur, qc_py)
+        @debug "live fee cost: quote currency" _getfee(fee_dict)
         (_getfee(fee_dict), ZERO)
     elseif pyeq(Bool, cur, bc_py)
+        @debug "live fee cost: base currency" _getfee(fee_dict)
         (ZERO, _getfee(fee_dict))
     else
         (ZERO, ZERO)
@@ -233,6 +236,7 @@ function _tradefees(resp, side, ai; actual_amount, net_cost)
     eid = exchangeid(ai)
     v = resp_trade_fee(resp, eid)
     if pyisinstance(v, pybuiltins.dict)
+        @debug "live trade fees: " _feecost(v, ai, eid)
         return _feecost(v, ai, eid)
     end
     v = resp_trade_fees(resp, eid)
@@ -251,6 +255,7 @@ function _tradefees(resp, side, ai; actual_amount, net_cost)
             ai, side; fees_base, fees_quote, actual_amount, net_cost
         )
     end
+    @debug "live trade fees" fees_quote fees_base
     return (fees_quote, fees_base)
 end
 

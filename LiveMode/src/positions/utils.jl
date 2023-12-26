@@ -204,9 +204,11 @@ If the asset is short, the function returns the negative of the number of contra
 function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
+        @debug "live contracts: " isnothing(pup) closed = isnothing(pup) ? nothing : pup.closed[]
         ZERO
     else
         amt = resp_position_contracts(pup.resp, exchangeid(ai))
+        @debug "live contracts: " amt
         if isshort(ai)
             -amt
         else
