@@ -1,5 +1,6 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
 import .Misc: start!, stop!, load!
+import .Data.DFUtils: lastdate
 
 _timer(w) = getfield(w, :_timer)
 _exec(w) = getfield(w, :_exec)
@@ -87,6 +88,15 @@ end
 Base.last(w::Watcher) = last(w.buffer)
 @doc "The length of the watcher buffer."
 Base.length(w::Watcher) = length(w.buffer)
+@doc "The date of the last update fetched by the watcher."
+lastdate(w::Watcher) =
+    let buf = buffer(w)
+        if isempty(buf)
+            typemin(DateTime)
+        else
+            last(buf).time
+        end
+    end
 @doc """ Stops the watcher and optionally flushes the data.
 
 $(TYPEDSIGNATURES)
