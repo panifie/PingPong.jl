@@ -55,22 +55,31 @@ $(TYPEDSIGNATURES)
 
 This function wraps a fetch positions function `s` with a specified `interval`. Additional keyword arguments `kwargs` are passed to the fetch positions function.
 """
-function _w_fetch_positions_func(s, interval; kwargs)
+function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
     @lget! params "settle" guess_settle(s)
-    # FIXME: see `_setposflags!`. We assume that if the update doesn't
-    # have the entry for an open position, it was closed. This is the case because
-    # currently only `fetchPositions` is used. In case of `watchPositions` with `newUpdates`
-    # only the updated positions would be present in an update. There is already the logic to handle
-    # every single position separately (see `_force_fetchpos`) so supporting `watchPositions` would be just
-    # a matter of setting 2 flags.
-    if false # has(exc, :watchPositions)
+    fetch_f = first(exc, :fetchPositionsWs, :fetchPositions)
+    if is_watch_func
         f = exc.watchPositions
-        (w) -> try
-            v = _execfunc(f; params, rest...)
-            _dopush!(w, v)
+        init = Ref(true)
+        (w) -> try # TODO: implement `init[]` like the balance watcher
+            if init[]
+                @lock w begin
+                    v = _execfunc(fetch_f; params, rest...)
+                    if islist(v)
+                        _dopush!(w, v)
+                    end
+                end
+                init[] = false
+                sleep(interval)
+            else
+                v = _execfunc(f; params, rest...)
+                @lock w _dopush!(w, v)
+            end
         catch
+            @debug_backtrace
+            sleep(1)
         end
     else
         (w) -> try
@@ -82,7 +91,8 @@ function _w_fetch_positions_func(s, interval; kwargs)
             end
             sleep(interval)
         catch
-            sleep(interval)
+            @debug_backtrace
+            sleep(1)
         end
     end
 end
@@ -104,10 +114,12 @@ function ccxt_positions_watcher(
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    _tfunc!(attrs, _w_fetch_positions_func(s, interval; kwargs))
+    is_watch_func = false # has(exc, :watchPositions)
+    _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))
+    attrs[:is_watch_func] = is_watch_func
     watcher(
         watcher_type,
         wid,
@@ -154,18 +166,28 @@ end
 _position_task!(w) = begin
     f = _tfunc(w)
     @async while isstarted(w)
-        f(w)
+        try
+            f(w)
+        catch
+        end
     end
 end
 
 _position_task(w) = @lget! attrs(w) :position_task _position_task!(w)
 
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
-    task = _position_task(w)
-    if !istaskstarted(task) || istaskdone(task)
-        _position_task!(w)
+    try
+        task = _position_task(w)
+        if !istaskstarted(task) || istaskdone(task)
+            new_task = _position_task!(w)
+            setattr!(w, new_task, :position_task)
+        end
+        true
+    catch
+        @debug_backtrace
+        false
     end
-    return true
+    true
 end
 
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
@@ -182,6 +204,19 @@ function _posupdate(prev, date, resp)
     PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
+function _last_updated_position(long_dict, short_dict, sym)
+    lp = get(long_dict, sym, nothing)
+    sp = get(short_dict, sym, nothing)
+    if isnothing(sp)
+        Long()
+    elseif isnothing(lp)
+        Short()
+    elseif lp.date >= sp.date
+        Long()
+    else
+        Short()
+    end
+end
 @doc """ Processes positions for a watcher using the CCXT library.
 
 $(TYPEDSIGNATURES)
@@ -197,10 +232,11 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
     processed_syms = Set{Tuple{String,PositionSide}}()
+    @debug "watchers: position" data
     for resp in data
         isdict(resp) || continue
         sym = resp_position_symbol(resp, eid, String)
-        side = posside_fromccxt(resp, eid)
+        side = posside_fromccxt(resp, eid, default_side_func=Returns(_last_updated_position(long_dict, short_dict, sym)))
         side_dict = ifelse(islong(side), long_dict, short_dict)
         pup_prev = get(side_dict, sym, nothing)
         date = let this_date = @something pytodate(resp, eid) data_date
@@ -221,8 +257,11 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     end
     # do notify if we added at least one response, or removed at least one
     skip_notify = all(isempty(x for x in (processed_syms, long_dict, short_dict)))
-    _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
-    _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
+    # Only update closed state when using plain `fetch*` functions.
+    if !w[:is_watch_func]
+        _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
+        _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
+    end
     skip_notify || safenotify(w.beacon.process)
 end
 
@@ -230,13 +269,13 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function updates the position flags for a symbol `sym` in a given dictionary `dict`. The flags are updated based on the `data_date`, `side`, and `processed_syms` to reflect the most recent state of the symbol's position in the market. The exchange ID type `eid` is also considered while updating the position flags.
+This function updates the `PositionUpdate` status when *not* using `watch*` function. This is neccesary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions it is expected that position close updates are received as new events.
 
 """
 function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
     set!(this_sym, pup) = begin
         prev_closed = pup.closed[]
-        if (this_sym, side) ∉ processed_syms && this_sym != sym
+        if (this_sym, side) ∉ processed_syms
             pup_prev = get(dict, this_sym, nothing)
             @deassert pup_prev === pup
             dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
