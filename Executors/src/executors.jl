@@ -58,6 +58,6 @@ export OptSetup, OptRun, OptScore
 export NewTrade
 export WatchOHLCV, UpdateData, InitData
 export limitorder, marketorder
-export unfilled, committed, isfilled, islastfill, isfirstfill, trades, cost
+export unfilled, committed, isfilled, islastfill, isfirstfill, trades, cost, feespaid
 export queue!, cancel!, commit!
 export hasorders

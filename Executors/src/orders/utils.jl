@@ -693,3 +693,20 @@ _check_cash(ai::AssetInstance, ::Short) = begin
     @deassert committed(ai, Short()) |> ltxzero
     @deassert cash(ai, Short()) |> ltxzero
 end
+
+_cur_by_side(o::BuyOrder) = :fees_base
+_cur_by_side(o::SellOrder) = :fees
+@doc """
+The sum of all the trades fees that have heppened for the order.
+
+$(TYPEDSIGNATURES)
+"""
+function feespaid(o::Order)
+    ot = trades(o)
+    if isempty(ot)
+        ZERO
+    else
+        cur = _cur_by_side(o)
+        sum(getproperty(t, cur) for t in trades(o))
+    end
+end
