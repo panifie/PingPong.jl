@@ -73,20 +73,21 @@ $(TYPEDSIGNATURES)
 The function retrieves the balance information for a specific asset in the universe of a `NoMarginStrategy` instance.
 It locks the asset and updates its cash and committed cash values based on the retrieved balance information.
 If no balance information is found for the asset, its cash and committed cash values are set to zero.
+`drift` is the margin of error for timestamps ([5 milliseconds]).
 
 """
 function live_sync_cash!(
-    s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), force=false, kwargs...
+    s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), force=false, drift=Millisecond(5), kwargs...
 )
     bal = live_balance(s, ai; since, waitfor, force, kwargs...)
     @lock ai if isnothing(bal)
         @warn "Resetting asset cash (not found)" ai = raw(ai)
         cash!(ai, ZERO)
         cash!(committed(ai), ZERO)
-    elseif isnothing(since) || bal.date >= since
+    elseif isnothing(since) || bal.date >= since - drift
         cash!(ai, bal.balance.total)
         cash!(committed(ai), bal.balance.used)
     else
-        @error "Could not update asset cash" since bal.date ai = raw(ai)
+        @error "Could not update asset cash" since bal.date ai = raw(ai) @caller
     end
 end
