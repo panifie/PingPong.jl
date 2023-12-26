@@ -208,6 +208,18 @@ function findorder(
     end
 end
 
+@doc "Find order from asset instance trades history.
+`property`: if set, returns the matching order property."
+function findorder(ai::AssetInstance, id; property=missing)
+    for t in trades(ai)
+        if t.order.id == id
+            o = t.order
+            return ismissing(property) ? o : getproperty(o, property)
+        end
+    end
+    return nothing
+end
+
 @doc """ Replays an order from a live strategy based on a response.
 
 $(TYPEDSIGNATURES)
