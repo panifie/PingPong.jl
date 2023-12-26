@@ -310,7 +310,10 @@ $(TYPEDSIGNATURES)
 
 """
 function Instances.isdust(ai::AssetInstance, o::Order)
-    abs(unfilled(o)) * o.price < ai.limits.cost.min
+    unf = abs(unfilled(o))
+    unf < ai.limits.amount.min ||
+        unf * o.price < ai.limits.cost.min ||
+        unf < ai.fees.min
 end
 
 @doc """Checks if an order is filled.
@@ -318,7 +321,14 @@ end
 $(TYPEDSIGNATURES)
 
 """
-isfilled(ai::AssetInstance, o::Order) = isdust(ai, o)
+isfilled(ai::AssetInstance, o::Order) = isdust(ai, o) || begin
+    ot = trades(o)
+    if length(ot) > 0
+        sum(t.amount for t in trades(o)) >= o.amount
+    else
+        false
+    end
+end
 
 @doc """Updates the strategy's cash after a buy trade.
 
