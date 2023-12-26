@@ -66,7 +66,12 @@ function minmax_holdings(s::Strategy)
         price = try
             closeat(df, datef(df.timestamp))
         catch
-            last(df.close)
+            close = df.close
+            if isempty(close)
+                NaN
+            else
+                last(close)
+            end
         end
         (n_holdings, min_hold, max_hold) = _assetval(
             ai, n_holdings, min_hold, max_hold; price
