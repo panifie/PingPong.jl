@@ -130,6 +130,16 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     end
 end
 
+_isstale(ai, pup, side, since) =
+    if isnothing(pup)
+        true
+    elseif isnothing(since)
+        false
+    else
+        time = @something(pytodate(pup.resp, exchangeid(ai)), timestamp(ai, side))
+        time < since
+    end
+
 @doc """ Retrieves the current position for a specific asset and side.
 
 $(TYPEDSIGNATURES)
@@ -155,17 +165,10 @@ function live_position(
     ) maxlog = 1
     w = positions_watcher(s)
     wlocked = islocked(w)
-    if (force && !wlocked) || isempty(buffer(w)) &&
-                              (
-        isnothing(pup) || (
-            !isnothing(since) &&
-            let time = @something(
-                    pytodate(pup.resp, exchangeid(ai)), timestamp(ai, side)
-                )
-                time < since
-            end
-        )
-    )
+    @debug "live pos: " wlocked
+    if (force && !wlocked) ||
+       isempty(buffer(w)) &&
+       _isstale(ai, pup, side, since)
         _force_fetchpos(s, ai, side; fallback_kwargs)
         pup = get_positions(s, ai, side)
     end
