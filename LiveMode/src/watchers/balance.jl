@@ -59,7 +59,7 @@ This function sets up a watcher for balance in the CCXT library. The watcher kee
 """
 function ccxt_balance_watcher(
     s::Strategy;
-    interval=Second(5),
+    interval=Second(1),
     wid="ccxt_balance",
     buffer_capacity=10,
     start=true,
