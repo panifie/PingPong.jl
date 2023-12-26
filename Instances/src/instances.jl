@@ -247,7 +247,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified amount in base currency is considered zero with respect to an `AssetInstance`'s minimum limit. The amount is considered zero if it is less than the minimum limit minus a small epsilon value.
 
 """
-function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min - eps(DFT))
+function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min + eps(DFT))
     isapprox(v, zero(DFT); atol)
 end
 @doc """ Check if the asset cash for a position side is zero.
@@ -258,7 +258,7 @@ This function checks if the cash value of an `AssetInstance` for a specific `Pos
 
 """
 function Base.iszero(ai::AssetInstance, p::PositionSide)
-    isapprox(value(cash(ai, p)), zero(DFT); atol=ai.limits.amount.min - eps(DFT))
+    isapprox(value(cash(ai, p)), zero(DFT); atol=ai.limits.amount.min + eps(DFT))
 end
 @doc """ Check if the asset cash is zero.
 
@@ -279,7 +279,7 @@ This function checks if a specified amount `v` is greater than zero for an `Asse
 
 """
 function gtxzero(ai::AssetInstance, v, ::Val{:amount})
-    gtxzero(v; atol=ai.limits.amount.min - eps())
+    gtxzero(v; atol=ai.limits.amount.min + eps())
 end
 @doc """ Check if an amount is less than zero for an `AssetInstance`.
 
@@ -289,7 +289,7 @@ This function checks if a specified amount `v` is less than zero for an `AssetIn
 
 """
 function ltxzero(ai::AssetInstance, v, ::Val{:amount})
-    ltxzero(v; atol=ai.limits.amount.min - eps())
+    ltxzero(v; atol=ai.limits.amount.min + eps())
 end
 @doc """ Check if a price is greater than zero for an `AssetInstance`.
 
@@ -298,7 +298,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified price `v` is greater than zero for an `AssetInstance`. The price is considered greater than zero if it is above the minimum limit minus a small epsilon value.
 
 """
-gtxzero(ai::AssetInstance, v, ::Val{:price}) = gtxzero(v; atol=ai.limits.price.min - eps())
+gtxzero(ai::AssetInstance, v, ::Val{:price}) = gtxzero(v; atol=ai.limits.price.min + eps())
 @doc """ Check if a price is less than zero for an `AssetInstance`.
 
 $(TYPEDSIGNATURES)
@@ -306,7 +306,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified price `v` is less than zero for an `AssetInstance`. The price is considered less than zero if it is below the minimum limit minus a small epsilon value.
 
 """
-ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.min - eps())
+ltxzero(ai::AssetInstance, v, ::Val{:price}) = ltxzero(v; atol=ai.limits.price.min + eps())
 @doc """ Check if a cost is greater than zero for an `AssetInstance`.
 
 $(TYPEDSIGNATURES)
@@ -314,7 +314,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified cost `v` is greater than zero for an `AssetInstance`. The cost is considered greater than zero if it is above the minimum limit minus a small epsilon value.
 
 """
-gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min - eps())
+gtxzero(ai::AssetInstance, v, ::Val{:cost}) = gtxzero(v; atol=ai.limits.cost.min + eps())
 @doc """ Check if a cost is less than zero for an `AssetInstance`.
 
 $(TYPEDSIGNATURES)
@@ -322,7 +322,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified cost `v` is less than zero for an `AssetInstance`. The cost is considered less than zero if it is below the minimum limit minus a small epsilon value.
 
 """
-ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min - eps())
+ltxzero(ai::AssetInstance, v, ::Val{:cost}) = ltxzero(v; atol=ai.limits.cost.min + eps())
 @doc """ Check if two amounts are approximately equal for an `AssetInstance`.
 
 $(TYPEDSIGNATURES)
@@ -331,7 +331,7 @@ This function checks if two specified amounts `v1` and `v2` are approximately eq
 
 """
 function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount})
-    isapprox(value(v1), value(v2); atol=ai.precision.amount - eps(DFT))
+    isapprox(value(v1), value(v2); atol=ai.precision.amount + eps(DFT))
 end
 @doc """ Check if two prices are approximately equal for an `AssetInstance`.
 
@@ -341,7 +341,7 @@ This function checks if two specified prices `v1` and `v2` are approximately equ
 
 """
 function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:price})
-    isapprox(value(v1), value(v2); atol=ai.precision.price - eps(DFT))
+    isapprox(value(v1), value(v2); atol=ai.precision.price + eps(DFT))
 end
 
 @doc """ Create an `AssetInstance` from a zarr instance.
