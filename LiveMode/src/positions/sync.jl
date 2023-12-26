@@ -90,6 +90,11 @@ function _live_sync_position!(
         end
     end
 
+    update.read[] && begin
+        @debug "sync pos: update already read" ai = raw(ai) pside strict f = @caller
+        strict || return pos
+    end
+
     if update.closed[]
         if !isdust(ai, _ccxtposprice(ai, resp), pside) && isfinite(cash(pos))
             @warn "sync pos: cash expected to be (close to) zero, found" cash = cash(
@@ -101,11 +106,6 @@ function _live_sync_position!(
         timestamp!(pos, update.date)
         @debug "sync pos: closed flag set, reset"
         return pos
-    end
-
-    update.read[] && begin
-        @debug "sync pos: update already read" ai = raw(ai) pside strict f = @caller
-        strict || return pos
     end
 
     this_timestamp = update.date
@@ -125,8 +125,9 @@ function _live_sync_position!(
 
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
+        @debug "sync pos: amount" rv posside(pos)
         isapprox(ai, cash(pos), rv, Val(:amount)) ||
-            @warn_unsynced "amount" abs(cash(pos)) amount
+            @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
         cash!(pos, rv)
     end
     # If the respd amount is "dust" the position should be considered closed, and to be reset
@@ -246,7 +247,7 @@ function _live_sync_position!(
         )
     end
     mrg_set || _margin!()
-    mm_set || resp_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
+    mm_set || update_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
     function higherwarn(whata, whatb, a, b)
         "sync pos: ($(raw(ai))) $whata ($(a)) can't be higher than $whatb ($(b))"
     end
@@ -356,6 +357,14 @@ The synchronization process is performed concurrently for efficiency.
 
 """
 function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=false, kwargs...)
+    if force # wait for position watcher
+        let w = positions_watcher(s)
+            while isempty(w.buffer)
+                @lock w nothing
+                sleep(0.5)
+            end
+        end
+    end
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
