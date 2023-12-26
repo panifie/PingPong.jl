@@ -191,7 +191,7 @@ function waitfor_closed(
             if orderscount(s, ai, t) > 0
                 @debug "wait ord close: syncing(2nd) f" orderscount(s, ai, t)
                 live_sync_open_orders!(s, ai; side=t, strict=false, exec=true)
-                orderscount(s, ai, t) > 0
+                iszero(orderscount(s, ai, t))
             else
                 true
             end
