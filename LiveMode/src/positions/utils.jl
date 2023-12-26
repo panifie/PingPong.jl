@@ -101,11 +101,21 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     w = positions_watcher(s)
     @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
+    last_time = lastdate(w)
+    prev_pup = get_positions(s, ai, side)
+
     @lock w begin
-        waslocked && return nothing
+        if waslocked &&
+           _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
+            return
+        end
         time = now()
         resp = fetch_positions(s, ai; side, fallback_kwargs...)
         pos = _handle_pos_resp(resp, ai, side)
+        @debug "force fetch pos:" amount = try
+            resp_position_contracts(pos[0], exchangeid(ai))
+        catch
+        end
         pushnew!(
             w,
             if islist(pos)

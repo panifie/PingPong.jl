@@ -5,6 +5,7 @@ using .Lang: @lget!, Option
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
+using Watchers: Watcher
 import .Instances: timestamp
 
 ## TASKS
@@ -613,5 +614,35 @@ function _last_posside(ai)
         end
     else
         posside(ai_pos)
+    end
+end
+
+_asdate(v::DateTime) = v
+_asdate(v::Ref{DateTime}) = v[]
+function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
+    last_v = if isempty(buffer(w))
+        return false
+    else
+        last(buffer(w))
+    end
+    @debug "isupdated: " prev_v last_v
+    if !isempty(last_v.value) && last_v.time > last_time
+        this_v = this_v_func()
+        prev_nth = isnothing(prev_v)
+        this_nth = isnothing(this_v)
+        return if (!this_nth && prev_nth) ||
+                  (this_nth && !prev_nth)
+            true
+        elseif (!this_nth && !prev_nth) && _asdate(this_v.date) > _asdate(prev_v.date)
+            true
+        else
+            updated = isnothing(prev_v) || _asdate(this_v.date) > _asdate(prev_v.date)
+            if updated
+                process!(w)
+            end
+            updated
+        end
+    else
+        return false
     end
 end

@@ -2,12 +2,13 @@ using .Executors.Instruments: AbstractCash
 using .Lang: @get
 import .st: current_total
 
+# FIXME: this should be handled by a `ccxt_balancetype` function
 _balance_type(s::NoMarginStrategy) = :spot
 _balance_type(s::MarginStrategy) = :swap
 
 function _ccxt_balance_args(s, kwargs)
     params, rest = split_params(kwargs)
-    @lget! params @pyconst("type") @pystr(_balance_type(s))
+    @lget! params "type" @pystr(_balance_type(s))
     (; params, rest)
 end
 
@@ -45,8 +46,14 @@ function _force_fetchbal(s; fallback_kwargs)
     w = balance_watcher(s)
     @debug "force fetch bal: locking w" islocked(w) f = @caller
     waslocked = islocked(w)
+    last_time = lastdate(w)
+    prev_bal = get_balance(s)
+
     @lock w begin
-        waslocked && return nothing
+        if waslocked &&
+           _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
+            return
+        end
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
@@ -154,13 +161,13 @@ function live_balance(
     if (force && wlocked) ||
        !(isnothing(since) || isnothing(bal))
         if waitforbal(s, ai; since, force, waitfor, fallback_kwargs)
-        elseif force
+        else
             @debug "live bal: last force fetch"
             _force_fetchbal(s; fallback_kwargs)
         end
         bal = get_balance(s, ai, type)
         if isnothing(bal) || (!isnothing(since) && bal.date < since)
-            @error "live bal: unexpected" date = isnothing(bal) ? nothing : bal.date since f = @caller
+            @warn "live bal: no newer update" date = isnothing(bal) ? nothing : bal.date since f = @caller
         end
     end
     bal
