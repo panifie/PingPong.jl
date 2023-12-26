@@ -69,11 +69,7 @@ function ccxt_balance_watcher(
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    params["type"] = if s isa MarginStrategy
-        @pystr("swap")
-    else
-        @pystr("spot")
-    end
+    params[@pyconst("type")] = lowercase(string(_balance_type(s)))
     func_kwargs = (; params, kwargs...)
     _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs=func_kwargs))
     _exc!(attrs, exc)
