@@ -67,10 +67,11 @@ function _handle_pos_resp(resp, ai, side)
             return resp
         else
             for this in resp
+                this_side = _ccxtposside(this, eid; def=_last_posside(ai))
                 @debug "force fetch pos: list el" resp_position_timestamp(this, eid) resp_position_contracts(
                     this, eid
-                ) side _ccxtposside(this, eid) issym = _ispossym(this, sym, eid)
-                if _ccxtposside(this, eid) == side && _ispossym(this, sym, eid)
+                ) side this_side issym = _ispossym(this, sym, eid)
+                if this_side == side && _ispossym(this, sym, eid)
                     @deassert !isnothing(this) && isdict(this)
                     return this
                 end
@@ -319,13 +320,13 @@ $(TYPEDSIGNATURES)
 This function retrieves and returns the side (long/short) of a given position.
 
 """
-_ccxtposside(v::Py, eid::EIDType) =
+_ccxtposside(v::Py, eid::EIDType; def=Long()) =
     if _ccxtislong(v, eid)
         Long()
     elseif _ccxtisshort(v, eid)
         Short()
     else
-        _ccxtpnlside(v, eid)
+        _ccxtpnlside(v, eid; def)
     end
 
 @doc """ Returns the side of a position for a live margin strategy.
@@ -385,11 +386,18 @@ This function determines the side (long/short) of a position based on its unreal
 If the unrealized PNL is greater than or equal to zero and the liquidation price is less than the entry price, it returns Long(). Otherwise, it returns Short().
 
 """
-function _ccxtpnlside(update, eid::EIDType)
+function _ccxtpnlside(update, eid::EIDType; def=Long())
     unpnl = resp_position_unpnl(update, eid)
     liqprice = resp_position_liqprice(update, eid)
     eprice = resp_position_entryprice(update, eid)
-    ifelse(unpnl >= ZERO && liqprice < eprice, Long(), Short())
+    @debug "ccxt pnl side" unpnl liqprice eprice
+    if eprice == ZERO
+        def
+    elseif unpnl >= ZERO && liqprice < eprice
+        Long()
+    else
+        Short()
+    end
 end
 
 @doc """ Determines the side of a position based on information from CCXT library.
@@ -400,9 +408,10 @@ This function first checks if the CCXT position side is provided.
 If not, it infers the side from the position state or from the provided position object, if available.
 If the CCXT side is provided, it checks if it's "short" or "long", and returns Short() or Long() respectively.
 If the CCXT side is neither "short" nor "long", it infers the side from the position state and returns it.
+If the side can't be parsed, a function `default_side_func` can be passed as argument that takes as input the response and returns a `PositionSide`.
 
 """
-function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
+function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; default_side_func=Returns(nothing))
     ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
         if isnothing(p)
@@ -421,8 +430,9 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing)
                 @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" side_str resp_position_contracts(
                     update, eid
                 ) f = @caller
-                side = _ccxtpnlside(update, eid)
-                @debug "ccxt posside: inferred" side
+                def_side = default_side_func(update)
+                side::PositionSide = @something def_side _ccxtpnlside(update, eid)
+                @debug "ccxt posside: inferred" def_side side
                 side
             end
         end
