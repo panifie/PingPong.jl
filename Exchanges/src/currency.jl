@@ -131,14 +131,14 @@ Base.getproperty(c::CurrencyCash, s::Symbol) =
         getfield(c, s)
     end
 function Base.isapprox(cc::C, v::N) where {C<:CurrencyCash,N<:Number}
-    isapprox(value(cc), v; atol=_prec(cc))
+    isapprox(value(cc), v; atol=_atol(cc))
 end
 Base.isapprox(v::N, cc::C) where {C<:CurrencyCash,N<:Number} = isapprox(cc, v)
 Base.setproperty!(::CurrencyCash, ::Symbol, v) = error("CurrencyCash is private.")
 Base.zero(c::CurrencyCash) = zero(c.cash)
 Base.zero(::Type{<:CurrencyCash{C}}) where {C} = zero(C)
 function Base.iszero(c::CurrencyCash{Cash{S,T}}) where {S,T}
-    isapprox(value(c), zero(T); atol=_prec(c))
+    isapprox(value(c), zero(T); atol=_atol(c))
 end
 
 function Base.show(io::IO, c::CurrencyCash{<:Cash,E}) where {E<:ExchangeID}
@@ -162,6 +162,9 @@ _cash(cc::CurrencyCash) = getfield(cc, :cash)
 _prec(cc::CurrencyCash) = getfield(cc, :precision)
 _toprec(cc::AbstractCash, v) = toprecision(v, _prec(cc))
 _toprec(cc::AbstractCash, c::Cash) = toprecision(value(c), _prec(cc))
+_asatol(v::F) where {F<:AbstractFloat} = v
+_asatol(v::I) where {I<:Integer} = 1 / 10^v
+_atol(cc::CurrencyCash) = _prec(cc) |> _asatol
 
 -(a::CurrencyCash, b::Real) = _toprec(a, a.cash - b)
 +(a::CurrencyCash, b::Real) = _toprec(a, a.cash + b)
@@ -188,12 +191,12 @@ rdiv!(c::CurrencyCash, v) = _applyop!(/, c, v)
 div!(c::CurrencyCash, v) = div!(_cash(c), v)
 mod!(c::CurrencyCash, v) = mod!(_cash(c), v)
 cash!(c::CurrencyCash, v) = cash!(_cash(c), _toprec(c, v))
-addzero!(c::CurrencyCash, v, args...; atol=_prec(c), kwargs...) = begin
+addzero!(c::CurrencyCash, v, args...; atol=_atol(c), kwargs...) = begin
     add!(c, v)
     atleast!(c; atol)
     c
 end
 
-gtxzero(c::CurrencyCash) = gtxzero(value(c); atol=getfield(c, :precision))
-ltxzero(c::CurrencyCash) = ltxzero(value(c); atol=getfield(c, :precision))
-approxzero(c::CurrencyCash) = approxzero(value(c); atol=getfield(c, :precision))
+gtxzero(c::CurrencyCash) = gtxzero(value(c); atol=_atol(c))
+ltxzero(c::CurrencyCash) = ltxzero(value(c); atol=_atol(c))
+approxzero(c::CurrencyCash) = approxzero(value(c); atol=_atol(c))
