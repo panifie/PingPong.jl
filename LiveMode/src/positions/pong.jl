@@ -59,7 +59,10 @@ macro isolated_position_check()
         end
         side_dict = get_positions(s, opposite(p))
         tup = get(side_dict, raw(ai), nothing)
-        if !isnothing(tup) && !tup.closed[] && _ccxt_isposopen(tup.resp, exchangeid(ai))
+        if !isnothing(tup) &&
+           tup.date >= timestamp(ai, opposite(p)) &&
+           !tup.closed[] &&
+           _ccxt_isposopen(tup.resp, exchangeid(ai))
             _warnpos(p)
             return nothing
         end
@@ -155,17 +158,17 @@ function pong!(
     pos = P()
     @timeout_start
     pong!(s, ai, CancelOrders(); t=Both, synced=false, waitfor=@timeout_now)
-    update = live_position(s, ai)
+    update = live_position(s, ai, pos)
     if isnothing(update)
         @warn "pong pos close: no position update (resetting)" ai = raw(ai) side = P
-        isopen(ai, P()) && reset!(ai, P())
+        isopen(ai, P()) && reset!(ai, pos)
         return true
     end
     if !(update.read[])
         @warn "pong pos close: outdated position state (syncing)." amount = resp_position_contracts(
             update.resp, exchangeid(ai)
         )
-        live_sync_position!(s, ai, P(), update)
+        live_sync_position!(s, ai, pos, update)
     end
     isopen(ai, pos) || begin
         @warn "pong pos close: not open locally" ai = raw(ai) side = P
@@ -184,8 +187,8 @@ function pong!(
     since = if close_trade isa Trade
         close_trade.date
     else
-        @warn "pong pos close: missing trade" values(s, ai, orderside(t)) ai = raw(ai)
-        now()
+        @warn "pong pos close: closing order trades delay" values(s, ai, orderside(t)) ai = raw(ai)
+        timestamp(ai) + Millisecond(1)
     end
     if waitfor_closed(s, ai, @timeout_now)
         if waitposclose(s, ai, P; waitfor=@timeout_now)
