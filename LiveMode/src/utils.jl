@@ -364,6 +364,8 @@ end
 function fetch_positions(s, args...; kwargs...)
     @retry attr(s, :live_positions_func)(args...; kwargs...)
 end
+@doc """ Retrieves all asset positions for a strategy. """
+fetch_positions(s; kwargs...) = fetch_positions(s, s.universe; kwargs...)
 @doc """ Cancels orders of an asset by order identifier. """
 cancel_orders(s, args...; kwargs...) = @retry attr(s, :live_cancel_func)(args...; kwargs...)
 @doc """ Cancels all orders of an asset. """
@@ -598,5 +600,18 @@ function stop!(s::LiveStrategy; kwargs...)
         stop_all_tasks(s)
     finally
         invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
+    end
+end
+
+function _last_posside(ai)
+    ai_pos = position(ai)
+    if isnothing(ai_pos)
+        try
+            posside(last(trades(ai)))
+        catch
+            nothing
+        end
+    else
+        posside(ai_pos)
     end
 end

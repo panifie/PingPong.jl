@@ -90,6 +90,9 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     all_orders = _execfunc(
         orders_f, ai; (isnothing(side) ? () : (; side))..., (isempty(ids) ? () : (; ids))...
     )
+    if isemptish(all_orders)
+        return
+    end
     open_orders = (
         (
             o for o in all_orders if pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
@@ -120,11 +123,11 @@ $(TYPEDSIGNATURES)
 This function filters positions from `out` based on the provided exchange ID type `eid` and the `side` (default is `Hedged`). It returns the filtered positions.
 
 """
-function _filter_positions(out, eid::EIDType, side=Hedged())
+function _filter_positions(out, eid::EIDType, side=Hedged(); default_side_func=Returns(nothing))
     if out isa Exception || (@something side Hedged()) isa Hedged
         out
     elseif isshort(side) || islong(side)
-        _pyfilter!(out, (p) -> !isside(posside_fromccxt(p, eid), side))
+        _pyfilter!(out, (p) -> !isside(posside_fromccxt(p, eid; default_side_func), side))
     end
 end
 
@@ -176,13 +179,17 @@ function ccxt_orders_func!(a, exc)
     a[:live_orders_func] = if has(exc, :fetchOrders)
         f = first(exc, :fetchOrdersWs, :fetchOrders)
         (ai; kwargs...) -> let resp = _fetch_orders(ai, f; kwargs...)
-            if isemptish(resp) && has_fallback
+            if isemptish(resp)
                 out = pylist()
-                @sync begin
-                    @async out.extend(a[:live_open_orders_func](ai; kwargs...))
-                    @async out.extend(a[:live_closed_orders_func](ai; kwargs...))
+                if has_fallback
+                    @sync begin
+                        @async out.extend(a[:live_open_orders_func](ai; kwargs...))
+                        @async out.extend(a[:live_closed_orders_func](ai; kwargs...))
+                    end
                 end
-                return out
+                out
+            else
+                resp
             end
         end
     elseif has(exc, :fetchOrder)
@@ -216,20 +223,36 @@ function positions_func(exc::Exchange, ais, args...; kwargs...)
     )
 end
 
+function _matching_asset(resp, eid, ais)
+    sym = resp_position_symbol(resp, eid, String)
+    for ai in ais
+        if sym == raw(ai)
+            return ai
+        end
+    end
+    return nothing
+end
+
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
     a[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; kwargs...)
-            _filter_positions(out, eid, side)
+            _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
         end
     else
         f = exc.fetchPosition
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
             @sync for ai in ais
-                @async out.append(_execfunc(f, raw(ai); kwargs...))
+                @async let p = _execfunc(f, raw(ai))
+                    last_side = _last_posside(ai)
+                    p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
+                    if isside(p_side, side)
+                        out.append(p)
+                    end
+                end
             end
-            _filter_positions(out, eid, side)
+            out
         end
     end
 end
@@ -327,9 +350,9 @@ function ccxt_order_trades_func!(a, exc)
         o_closed_func = a[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
             resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
-            trades = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
-            !isemptish(trades) && return trades
-            trades = nothing
+            trades_resp = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+            !isemptish(trades_resp) && return trades_resp
+            trades_resp = nothing
             let since = (
                     (@something since try
                         eid = exchangeid(ai)
@@ -353,11 +376,11 @@ function ccxt_order_trades_func!(a, exc)
                                 @error "Unexpected returned value while fetching orders for $id \n $ords"
                                 return nothing
                             end
-                            trades = resp_order_trades(o, eid)
-                            if isemptish(trades)
-                                resp_order_timestamp(o, eid)
+                            trades_resp = resp_order_trades(o, eid)
+                            if isemptish(trades_resp)
+                                @something resp_order_timestamp(o, eid) findorder(ai, id; property=:date) isempty(trades(ai)) ? now() - Day(1) : last(trades(ai)).date
                             else
-                                return trades
+                                return trades_resp
                             end
                         end
                     catch
@@ -366,13 +389,14 @@ function ccxt_order_trades_func!(a, exc)
                     end) - Second(1) |> dtstamp
                 )
                 tries = 0
-                while tries < 3 && isemptish(trades)
+                trades_resp = pylist()
+                while tries < 3 && isemptish(trades_resp)
                     resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
-                    trades = _ordertrades(resp, exc, ((x) -> string(x) == id))
+                    trades_resp = _ordertrades(resp, exc, ((x) -> string(x) == id))
                     since -= 86400000
                     tries += 1
                 end
-                return trades
+                return trades_resp
             end
         end
     end
