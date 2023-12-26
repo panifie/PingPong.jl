@@ -608,6 +608,10 @@ function waitposclose(
     slept = 0
     timeout = Millisecond(waitfor).value
     update = get_positions(s, ai, bp)
+    if isnothing(update)
+        @debug "wait pos close: no position found open" update
+        return true
+    end
     last_sync = false
     while true
         if update.closed[] ||
@@ -622,7 +626,11 @@ function waitposclose(
                 return false
             else
                 @deassert sync
-                update = live_position(s, ai, bp; force=true)
+                update = live_position(s, ai, bp; since)
+                if isnothing(update)
+                    @debug "wait pos close: no position found open" update
+                    return true
+                end
                 @debug "wait pos close: last sync" ai = raw(ai) bp date =
                     isnothing(update) ? nothing : update.date closed =
                     isnothing(update) ? nothing : update.closed[] amount =
