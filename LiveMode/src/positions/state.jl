@@ -37,10 +37,10 @@ function Executors.aftertrade!(
                 )
             end
         end
-        if isnothing(update)
+        if isnothing(update) && !isdust(ai, t.price)
             @warn "after trade: position sync failed, risk of corrupted state" side = posside(
                 o
-            ) o.id t.date
+            ) o.id t.date cash(ai)
         elseif update.date >= since
             @deassert islocked(ai)
             @debug "after trade: syncing with position" update.date update.closed[] contracts = resp_position_contracts(
