@@ -1,3 +1,4 @@
+using .Python: pyis, pybuiltins
 
 function ccxt_orders_func!(a, exc::Exchange{ExchangeID{:bybit}})
     a[:live_orders_func] = if has(exc, :fetchOrder)
@@ -26,7 +27,7 @@ end
 
 _phemex_ispending(o) =
     let status = get_py(get_py(o, "info"), "execStatus")
-        pyisTrue(@py "Pending" ∈ status)
+        pyis(status, pybuiltins.str) && pyisTrue(@py "Pending" ∈ status)
     end
 _func_syms(open) = begin
     oc = open ? "open" : "closed"
@@ -44,7 +45,12 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
         let f = first(exc, func_sym_ws, func_sym)
             if open
                 (ai; kwargs...) -> let ans = _fetch_orders(ai, f; kwargs...)
-                    _pyfilter!(ans, _phemex_ispending)
+                    @debug "open orders phemex: " ans
+                    if isnothing(ans)
+                        return pylist()
+                    else
+                        _pyfilter!(ans, _phemex_ispending)
+                    end
                 end
             else
                 open_f = first(exc, values(_func_syms(true))[1:2]...)
@@ -54,7 +60,7 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
                         (@async _fetch_orders(ai, f; kwargs...))
                     end
                     cancelled_ords = _pyfilter!(fetch(ot), _phemex_ispending)
-                    closed_ords = fetch(ct)
+                    closed_ords = @something fetch(ct) pylist()
                     closed_ords.extend(cancelled_ords)
                     closed_ords
                 end
