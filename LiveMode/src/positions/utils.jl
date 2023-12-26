@@ -156,7 +156,9 @@ function live_position(
     fallback_kwargs=(),
     since=nothing,
     force=false,
+    synced=true,
     waitfor=Second(5),
+    drift=Millisecond(5)
 )
     pup = get_positions(s, ai, side)::Option{PositionUpdate7}
 
@@ -164,6 +166,8 @@ function live_position(
         positions_watcher(s)
     ) maxlog = 1
     w = positions_watcher(s)
+    @debug "live pos: locking w"
+    synced && @lock w nothing
     wlocked = islocked(w)
     @debug "live pos: " wlocked
     if (force && !wlocked) ||
@@ -175,12 +179,12 @@ function live_position(
     if (force && wlocked) ||
        !(isnothing(since) || isnothing(pup))
         if waitforpos(s, ai, side; since, force, waitfor)
-        elseif force # try one last time to force fetch
+        else # try one last time to force fetch
             @debug "live pos: last force fetch"
             _force_fetchpos(s, ai, side; fallback_kwargs)
         end
         pup = get_positions(s, ai, side)
-        if !isnothing(since) && (isnothing(pup) || pup.date < since)
+        if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
             @error "live pos: last force fetch failed" date =
                 isnothing(pup) ? nothing : pup.date since force # pup.read[] pup.closed[] f = @caller
             return nothing
@@ -609,6 +613,7 @@ function waitposclose(
 )
     eid = exchangeid(ai)
     slept = 0
+    since = now()
     timeout = Millisecond(waitfor).value
     update = get_positions(s, ai, bp)
     if isnothing(update)
