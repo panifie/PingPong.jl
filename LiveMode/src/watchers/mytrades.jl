@@ -410,7 +410,7 @@ $(TYPEDSIGNATURES)
 This function waits for a specific order `o` to trade in a live strategy `s` with a specific asset instance `ai`. It continues to wait for a specified duration `waitfor` until the order is traded.
 
 """
-function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
+function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5), force=true)
     isfilled(ai, o) && return true
     order_trades = trades(o)
     this_count = prev_count = length(order_trades)
@@ -419,15 +419,22 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5))
     side = orderside(o)
     pt = pricetime(o)
     active = active_orders(s, ai)
+    _force() =
+        if force
+            _force_fetchtrades(s, ai, o)
+            length(order_trades) > prev_count
+        else
+            false
+        end
     @debug "wait for trade:" id = o.id timeout = timeout current_trades = this_count
     while true
         slept < timeout || begin
             @debug "wait for trade: timedout" o.id f = @caller 7
-            return false
+            return _force()
         end
         isactive(s, ai, o; pt, active) || begin
             @debug "wait for trade: order not present"
-            return false
+            return _force()
         end
         @debug "wait for trade: " isfilled(ai, o) length(order_trades)
         slept += waitfortrade(s, ai; waitfor=timeout - slept)
