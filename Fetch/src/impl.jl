@@ -203,7 +203,7 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
         append!(
             out,
             _fetch_with_delay(fetch_func, pair; since=since_ts, df=is_df, limit, converter),
-        )
+            cols=:union)
         if size(out, 1) > 0
             first_date = apply(tf"1d", out[begin, :timestamp])
             since_date = apply(tf"1d", dt(since_ts))

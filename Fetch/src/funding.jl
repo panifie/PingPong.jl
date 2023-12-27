@@ -2,22 +2,25 @@ using Exchanges.Instruments
 using .TimeTicks
 using .Misc: DFT, FUNDING_PERIOD
 using .Misc.TimeToLive
-using .Misc.Lang: @lget!
+using .Misc.Lang: @lget!, @debug_backtrace
 using .Instruments.Derivatives
 using Exchanges: exc
 using .Python: PyDict
 using Processing: _fill_missing_candles
+using Processing.Data: Not, select!
 
 @doc """Retrieves all or a subset of funding data for a symbol from an exchange.
 
 $(TYPEDSIGNATURES)
 
-The `funding_data` function retrieves all funding data returned by an exchange `exc` for a symbol `s`, or a subset of the funding data if specific `syms` are provided. For example, you could retrieve all funding data for the "BTC/USDT:USDT" pair, or only the funding rate and mark price data.
+The `funding_data` function retrieves all funding data returned by an exchange `exc` for a symbol `sym`.
 """
-function funding_data(exc::Exchange, s::AbstractString, syms...)
-    fr = pyfetch(exc.fetchFundingRate, s)
-    isempty(syms) || syms[1] == :all && return pyconvert(Dict, fr)
-    Dict(s => fr[string(s)] for s in syms)
+function funding_data(exc::Exchange, sym::AbstractString)
+    try
+        pyfetch(exc.fetchFundingRate, sym)
+    catch
+        @debug_backtrace
+    end
 end
 funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
 funding_data(v, args...) = funding_data(exc, v, args...)
@@ -38,8 +41,16 @@ function funding_rate(exc::Exchange, s::AbstractString)
         else
             pyfetch(exc.fetchFundingRate, s)
         end
-        get(k, def) = pytofloat(resp[k], def)
-        @something get("fundingRate", nothing) get("nextFundingRate", 0.00001)
+        get(k) =
+            let
+                v = (resp.get(k))
+                if Python.pyisTrue(pytype(v) == pybuiltins.str)
+                    pytofloat(v)
+                else
+                    pyconvert(Option{DFT}, v)
+                end
+            end
+        @something get("fundingRate") get("nextFundingRate") 0.00001
     end
 end
 funding_rate(exc, a::Derivative) = funding_rate(exc, a.raw)
@@ -94,7 +105,7 @@ function funding_history(
     from, to = from_to_dt(FUNDING_PERIOD, from, to)
     from, to = _check_from_to(from, to)
     ff =
-        (pair, since, limit) -> begin
+        (pair, since, limit; kwargs...) -> begin
             try
                 pyfetch(exc.py.fetchFundingRateHistory, pair; since, limit, params)
             catch err
@@ -120,7 +131,7 @@ function funding_history(
                 [DateTime[], String[], Float64[]], FUNDING_RATE_COLS; copycols=false
             )
             _fetch_loop(
-                ff, exc, a; from, to, sleep_t, converter=extract_futures_data, limit, out
+                ff, exc, raw(a); from, to, sleep_t, converter=extract_futures_data, limit, out
             )
             a => out
         end for a in assets
@@ -150,7 +161,7 @@ function _cleanup_funding_history(df, name, half_tf, f_tf)
     resample(df, half_tf, f_tf)
     # add close because of fill_missing_candles
     df[!, :close] .= 0.0
-    buildf(ts, args...) = (; timestamp=ts, pair=name, rate=0.0001, close=NaN)
+    buildf(ts, args...) = (; timestamp=ts, pair=string(name), rate=0.0001, close=NaN)
     _fill_missing_candles(
         df,
         FUNDING_PERIOD;
