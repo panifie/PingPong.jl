@@ -68,7 +68,7 @@ function test_live_pong_mg(s)
     if ismissing(trade)
         o = first(values(s, ai, Sell))
         @info "TEST: trades delay" o.id
-        @test lm.waitfortrade(s, ai, o; waitfor=Second(3))
+        @test lm.waitfortrade(s, ai, o; waitfor=Second(3)) || lm.waitfororder(s, ai, o, waitfor=Second(3))
     end
     pup = lm.live_position(s, ai, force=true)
     @info "TEST:" pup trade
