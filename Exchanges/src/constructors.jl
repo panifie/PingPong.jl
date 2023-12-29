@@ -77,10 +77,10 @@ function _elconvert(v)
             ans[i] = _elconvert(ans[i])
         end
         ans
-    # If input is a generic Python object, convert it to Julia object
+        # If input is a generic Python object, convert it to Julia object
     elseif v isa Py
         pyconvert(Any, v)
-    # If input is not a Python object, return it as is
+        # If input is not a Python object, return it as is
     else
         v
     end
@@ -343,11 +343,8 @@ macro tickers!(type=nothing, force=false)
                 $tickers = pyconvert(
                     Dict{String,Dict{String,Any}},
                     let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
-                        if v isa PyException && Bool(f == $exc.watchTickers)
-                            pyfetch(
-                                $(exc).fetchTickers;
-                                params=LittleDict(@pyconst("type") => @pystr(tp)),
-                            )
+                        if v isa PyException
+                            pyfetch($(exc).fetchTickers)
                         elseif v isa Exception
                             throw(v)
                         else
