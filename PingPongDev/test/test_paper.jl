@@ -1,7 +1,7 @@
 using Stubs
 using Test
 using Random
-using Lang: @m_str
+using PingPongDev.PingPong.Engine.Lang: @m_str
 
 function emptyuni!(s)
     copysubs! = @eval da.DFUtils.copysubs!

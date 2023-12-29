@@ -2,9 +2,9 @@ using Test
 
 function _test_tradesohlcv_1()
     @eval begin
-        using JSON
+        using PingPong.Misc.JSON
         using PingPong.Misc.TimeTicks
-        using Processing
+        using PingPong.Engine.Processing
         using PingPong.Engine.LiveMode.Watchers
         wi = Watchers.WatchersImpls
         pro = Processing

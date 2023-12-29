@@ -12,11 +12,12 @@ function test_paprika()
         end
         @test test_ratelimit()
         @test test_twitter()
-        @test test_exchanges()
+        @test test_cp_exchanges()
         @test (unix2datetime(cpr.glob()["last_updated"]) > now() - Day(1))
         @test "btc-bitcoin" ∈ keys(cpr.loadcoins!())
         @test "dydx-dydx" ∈ keys(cpr.coin_markets("eth-ethereum"))
         @test cpr.coin_ohlcv("xmr-monero") isa Candle
+        @test test_cp_markets()
         @test test_tickers()
         @test cpr.ticker("btc-bitcoin") isa Dict{String,Float64}
         betas = cpr.betas()
@@ -41,12 +42,12 @@ function test_ratelimit()
         (cpr.addcalls!(100); cpr.query_stack[] == 100)
 end
 
-function test_exchanges()
+function test_cp_exchanges()
     excs = cpr.coin_exchanges("btc-bitcoin")
     "binance" in keys(excs)
 end
 
-function test_markets()
+function test_cp_markets()
     excs = cpr.loadexchanges!()
     one = "binance" ∈ keys(excs)
     mkt = cpr.markets("binance")

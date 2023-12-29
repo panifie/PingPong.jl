@@ -1,4 +1,3 @@
-include("test_live.jl")
 
 function _check_state(s, ai)
     eid = exchangeid(ai)

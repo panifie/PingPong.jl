@@ -1,10 +1,10 @@
-using Python
-using Lang: @lget!, @m_str
+using PingPongDev.PingPong.Engine.Exchanges.Python
+using PingPong.PingPong.Engine.Lang: @lget!, @m_str
 using Test
 using Mocking
 using Mocking: apply
-using Exchanges: Exchanges as exs
-using Misc: MarginMode
+using PingPongDev.PingPong.Engine.Exchanges: Exchanges as exs
+using PingPongDev.PingPong.Engine.Misc: MarginMode
 
 Mocking.activate()
 

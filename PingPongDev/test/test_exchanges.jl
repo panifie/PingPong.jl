@@ -1,7 +1,7 @@
 using Test
 
-exc_sym = :kucoin
-test_exch() = @test setexchange!(:kucoin, sandbox=false).name == "KuCoin"
+exc_sym = :bybit
+test_exch() = @test setexchange!(:bybit, sandbox=false).name == "Bybit"
 _exchange() = begin
     empty!(Exchanges.exchanges)
     empty!(Exchanges.sb_exchanges)
@@ -24,12 +24,17 @@ _exchange_sbox() = begin
     ratelimit!()
 end
 
-test_exchanges() = @testset "exchanges" failfast=true begin
+test_exchanges() = begin
     @eval begin
-        using PingPong.Exchanges: marketsid, sandbox!, ratelimit!
+        using PingPong.Exchanges: Exchanges, marketsid, sandbox!, ratelimit!, setexchange!, getexchange!, issandbox
+        using PingPong.Exchanges: ExchangeTypes
+        using Stubs
     end
-    test_exch()
-    e = _exchange()
-    _exchange_pairs(e)
-    @test _exchange_sbox()
+    @testset "exchanges" failfast = true begin
+        test_exch()
+        e = _exchange()
+        Main.e = e
+        _exchange_pairs(e)
+        @test _exchange_sbox()
+    end
 end

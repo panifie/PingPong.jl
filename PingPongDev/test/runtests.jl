@@ -1,6 +1,6 @@
 # All the packages added in the test/Project.toml go here (before the NO_TMP switch)
-using Aqua
-using Test
+# using Aqua
+# using Test
 # Disable TMP project path
 NO_TMP = "JULIA_NO_TMP" ∈ keys(ENV)
 if NO_TMP
@@ -11,7 +11,7 @@ if NO_TMP
         root = ".."
     end
     Pkg.activate(root)
-    @assert Pkg.project().name == "PingPong"
+    @assert Pkg.project().name == "PingPongDev"
     if ispath(joinpath(root, ".CondaPkg", "env"))
         ENV["JULIA_CONDAPKG_OFFLINE"] = "yes"
     end
@@ -24,7 +24,7 @@ include("test_time.jl")
 include("test_data.jl")
 include("test_derivatives.jl")
 include("test_markets.jl")
-include("test_funding.jl") # FIXME
+include("test_funding.jl")
 include("test_exchanges.jl")
 include("test_ohlcv.jl")
 include("test_collections.jl")
@@ -50,16 +50,16 @@ test_map = Dict(
     :data => [test_data],
     :exchanges => [test_exchanges],
     :assets => [test_exch, test_assetcollection],
-    :collections => [test_collections],
-    :strategy => [test_exch, test_strategy],
+    :collections => [test_assetcollection],
+    :strategy => [test_exch, test_strategies],
     :backtest => [test_exch, test_backtest],
     :derivatives => [test_derivatives],
     :time => [test_time],
     :ohlcv => [test_ohlcv],
     :orders => [test_orders],
-    :cmc => [test_coinmarketcap],
+    :cmc => [test_cmc],
     :gecko => [test_coingecko],
-    :paprika => [test_coinpaprika],
+    :paprika => [test_paprika],
     :tradesohlcv => [test_tradesohlcv]
 )
 for (testname, tests) in test_map

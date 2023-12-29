@@ -5,7 +5,6 @@
          (lsp-julia-default-environment . "PingPong")
          (eval . (progn
                    (setenv "JULIA_DEV" "1")
-                   (setenv "JULIA_NO_TMP" "1")
                    (when (boundp 'envrc-auto-reload-paths)
                      (cl-pushnew (file-name-concat
                                   (locate-dominating-file (pwd) ".dir-locals.el") ".envrc")

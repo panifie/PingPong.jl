@@ -1,7 +1,7 @@
 using Stubs
 using Test
 using Random
-using Lang: @m_str
+using PingPongDev.PingPong.Engine.Lang: @m_str
 
 openval(s, a) = s.universe[a].ohlcv.open[begin]
 closeval(s, a) = s.universe[a].ohlcv.close[end]

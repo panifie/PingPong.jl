@@ -1,3 +1,6 @@
+using PingPong.Engine.Instruments.Derivatives: @d_str
+using PingPong.Engine.TimeTicks: @dtr_str, @dt_str
+
 function _test_funding_history(exc)
     assets = [d"BTC/USDT:USDT", d"ETH/USDT:USDT"]
     fu = Fetch.funding_history(exc, assets; from=dtr"2022-06..".start, to=dtr"..2023-".stop)

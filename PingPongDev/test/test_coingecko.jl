@@ -1,5 +1,4 @@
 using Test
-using Instruments.Derivatives
 
 function test_coingecko()
     @eval begin
