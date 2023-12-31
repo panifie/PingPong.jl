@@ -97,6 +97,7 @@ For Good Till Cancelled (GTC) orders, it queues them for execution using the `pa
 """
 function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
     if volumecap!(s, ai; amount)
+    else
         @debug "paper limit order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(s, ai)
         return nothing
     end
