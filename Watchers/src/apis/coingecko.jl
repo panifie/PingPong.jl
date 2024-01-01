@@ -45,18 +45,22 @@ function get(path, query=nothing)
     resp = try
         HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS)
     catch e
-       e
+        e
     end
     last_query[] = now()
-    STATUS[] = resp.status
-    if resp.status == 429 && RETRY[]
-        sleep(RATE_LIMIT[])
-        return get(path, query)
+    if hasproperty(resp, :status)
+        STATUS[] = resp.status
+        if resp.status == 429 && RETRY[]
+            sleep(RATE_LIMIT[])
+            return get(path, query)
+        else
+            @assert resp.status == 200 resp
+        end
+        json = LazyJSON.value(resp.body)
+        return json
     else
-        @assert resp.status == 200 resp
+        throw(resp)
     end
-    json = LazyJSON.value(resp.body)
-    return json
 end
 
 ping() = "gecko_says" ∈ keys(get(ApiPaths.ping))
