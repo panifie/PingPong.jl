@@ -1,5 +1,5 @@
-using Lang: @ifdebug, safewait, safenotify
-using Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
+using PingPong.Engine.Lang: @ifdebug, safewait, safenotify
+using PingPong.Engine.LiveMode.Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()

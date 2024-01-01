@@ -25,13 +25,14 @@ $(TYPEDSIGNATURES)
 This macro imports necessary modules and aliases for the PingPong module.
 It sets up the environment for working with exchanges, order types, instances, collections, simulations, strategies, executors, modes, and other utilities.
 """
-macro environment!()
+macro environment!(pp=@__MODULE__)
     quote
-        using PingPong
-        using PingPong: PingPong as pp
-        using PingPong.Exchanges
-        using PingPong.Exchanges: Exchanges as exs
-        using PingPong.Engine:
+        if !isdefined($(__module__), :pp)
+            const $(esc(:pp)) = $pp
+        end
+        using .pp.Exchanges
+        using .pp.Exchanges: Exchanges as exs
+        using .pp.Engine:
             OrderTypes as ot,
             Instances as inst,
             Collections as co,
@@ -43,24 +44,26 @@ macro environment!()
             LiveMode as lm,
             Engine as egn
 
-        using Lang: @m_str
-        using TimeTicks
-        using TimeTicks: TimeTicks as tt
-        using Misc
-        using Misc: Misc as mi
-        using Instruments
-        using Instruments: Instruments as im
-        using Instruments.Derivatives
-        using Instruments.Derivatives: Derivatives as der
-        using Data: Data as da, DFUtils as du
-        using Data.Cache: save_cache, load_cache
-        using Processing: Processing as pro
-        using Remote: Remote as rmt
-        using Watchers
-        using Watchers: WatchersImpls as wi
+        using .pp.Engine.Lang: @m_str
+        using .pp.Engine.TimeTicks
+        using .TimeTicks: TimeTicks as tt
+        using .pp.Engine.Misc
+        using .Misc: Misc as mi
+        using .pp.Engine.Instruments
+        using .Instruments: Instruments as im
+        using .Instruments.Derivatives
+        using .Instruments.Derivatives: Derivatives as der
+        using .pp.Engine.Data: Data as da, DFUtils as du
+        using .da.Cache: save_cache, load_cache
+        using .pp.Engine.Processing: Processing as pro
+        using .pp.Remote: Remote as rmt
+        using .pp.Engine.LiveMode.Watchers
+        using .Watchers: WatchersImpls as wi
 
-        using Random
-        using Stubs
+        if !isdefined($(__module__), :Stubs)
+            using Stubs
+        end
+        using .sml.Random
         using .inst
         using .ot
     end
@@ -116,7 +119,7 @@ macro strategyenv!()
         using .ect: WatchOHLCV, UpdateData, InitData
         using .ect: UpdateOrders, CancelOrders
 
-        $(Engine.Strategies).@interface
+        $(PingPong.Engine.Strategies).@interface
 
         const EXCID = ExchangeID(isdefined(@__MODULE__, :EXC) ? EXC : Symbol())
         if !isdefined(@__MODULE__, :MARGIN)
@@ -155,7 +158,7 @@ It prepares the environment for working with simulation modes and statistics.
 """
 macro optenv!()
     quote
-        using Engine.SimMode: SimMode as sm
+        using PingPong.Engine.SimMode: SimMode as sm
         using Stats: Stats as stats
     end
 end
