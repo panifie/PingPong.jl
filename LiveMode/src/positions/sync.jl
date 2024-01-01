@@ -62,28 +62,33 @@ function _live_sync_position!(
     skipchecks || begin
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
             let oppos = opposite(pside),
-                live_pos = live_position(s, ai, oppos, since=update.date).resp,
-                amount = resp_position_contracts(
-                    live_pos, eid
-                )
+                live_pup = let lp(force) = live_position(s, ai, oppos; since=update.date, force)
+                    @something lp(false) lp(true)
+                end
 
-                if amount > ZERO
-                    @warn "sync pos: double position open in NON hedged mode." oppos cash(
-                        ai, oppos
-                    ) raw(ai) nameof(s) f = @caller
-                    if forced_side
-                        pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
-                        oppos_pos = position(ai, oppos)
-                        if isopen(oppos_pos)
-                            @error "sync pos: failed to close opposite position" oppos_pos raw(ai) nameof(s) f = @caller
+                if !isnothing(live_pup)
+                    live_pos = live_pup.resp
+                    amount = resp_position_contracts(
+                        live_pos, eid
+                    )
+                    if amount > ZERO
+                        @warn "sync pos: double position open in NON hedged mode." oppos cash(
+                            ai, oppos
+                        ) raw(ai) nameof(s) f = @caller
+                        if forced_side
+                            pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
+                            oppos_pos = position(ai, oppos)
+                            if isopen(oppos_pos)
+                                @error "sync pos: failed to close opposite position" oppos_pos raw(ai) nameof(s) f = @caller
+                                return pos
+                            end
+                        else
                             return pos
                         end
-                    else
-                        return pos
                     end
                 else
                     @debug "sync pos: resetting opposite position" ai = raw(ai) oppos
-                    reset!(oppos_pos)
+                    reset!(position(ai, oppos))
                 end
 
             end
