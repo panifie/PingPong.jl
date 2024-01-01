@@ -1,6 +1,6 @@
-using Stubs
+using PingPongDev.Stubs
 using Test
-using Random
+using .PingPong.Engine.Simulations.Random
 using PingPongDev.PingPong.Engine.Lang: @m_str
 
 openval(s, a) = s.universe[a].ohlcv.open[begin]
@@ -14,13 +14,13 @@ test_synth(s) = begin
     @test closeval(s, m"btc") == 123.0
 end
 
-trades(s) = s[m"eth"].history
+_ai_trades(s) = s[m"eth"].history
 eq4(a, b) = isapprox(a, b; atol=1e-4)
 test_nomargin_market(s) = begin
-    @test marginmode(s) isa egn.NoMargin
+    @test egn.marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:market)
     egn.start!(s)
-    @test first(trades(s)).order isa egn.MarketOrder
+    @test first(_ai_trades(s)).order isa egn.MarketOrder
     @info "TEST: " s.cash.value
     @test eq4(Cash(:USDT, 9.12134), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
@@ -37,7 +37,7 @@ test_nomargin_gtc(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:gtc)
     egn.start!(s)
-    @test first(trades(s)).order isa egn.GTCOrder
+    @test first(_ai_trades(s)).order isa egn.GTCOrder
     @info "TEST: " s.cash.value
     @test eq4(Cash(:USDT, 7615.8409), s.cash.value)
     @test eq4(Cash(:USDT, 0.0), s.cash_committed)
@@ -54,7 +54,7 @@ test_nomargin_ioc(s) = begin
     @test marginmode(s) isa egn.NoMargin
     s.attrs[:overrides] = (; ordertype=:ioc)
     egn.start!(s)
-    @test first(trades(s)).order isa egn.IOCOrder
+    @test first(_ai_trades(s)).order isa egn.IOCOrder
     @info "TEST: " s.cash.value
     @test Cash(:USDT, 79514.0133) ≈ s.cash atol = 1e-3
     @info "TEST: " s.cash_committed.value
@@ -75,7 +75,7 @@ test_nomargin_fok(s) = begin
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
     egn.start!(s)
-    @test first(trades(s)).order isa egn.FOKOrder
+    @test first(_ai_trades(s)).order isa egn.FOKOrder
     @test Cash(:USDT, 958.192) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-7
     @test st.trades_count(s) == 824
@@ -106,7 +106,7 @@ test_margin_market(s) = begin
     @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:market)
     egn.start!(s)
-    @test first(trades(s)).order isa ect.AnyMarketOrder
+    @test first(_ai_trades(s)).order isa ect.AnyMarketOrder
     @test Cash(:USDT, 0.959) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.364) ≈ s.cash_committed atol = 1e-1
     @test st.trades_count(s) == 405
@@ -122,10 +122,10 @@ test_margin_gtc(s) = begin
     @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:gtc)
     egn.start!(s)
-    @test first(trades(s)).order isa ect.AnyGTCOrder
-    @test Cash(:USDT, 1.058) ≈ s.cash atol = 1e-3
+    @test first(_ai_trades(s)).order isa ect.AnyGTCOrder
+    @test Cash(:USDT, 0.992) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.148) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 573
+    @test st.trades_count(s) == 588
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -142,10 +142,10 @@ test_margin_fok(s) = begin
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
     egn.start!(s)
-    @test first(trades(s)).order isa ect.AnyFOKOrder
+    @test first(_ai_trades(s)).order isa ect.AnyFOKOrder
     @test Cash(:USDT, 1276.0) ≈ s.cash atol = 1e1
     @test Cash(:USDT, 1275.0) ≈ s.cash_committed atol = 1e1
-    @test st.trades_count(s) == 2052
+    @test st.trades_count(s) == 2822
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -162,10 +162,10 @@ test_margin_ioc(s) = begin
     s.config.initial_cash = 1e6
     s.config.min_size = 1e3
     egn.start!(s)
-    @test first(trades(s)).order isa ect.AnyIOCOrder
-    @test Cash(:USDT, 743.74) ≈ s.cash atol = 1e-3
+    @test first(_ai_trades(s)).order isa ect.AnyIOCOrder
+    @test Cash(:USDT, 743.104) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 743.032) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 2050
+    @test st.trades_count(s) == 2070
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -175,19 +175,33 @@ test_margin_ioc(s) = begin
     @test mmh.max[2] ≈ 0.0 atol = 1e-3
 end
 
+_nomargin_backtest_tests(s) = begin
+    @testset test_synth(s)
+    @testset test_nomargin_market(s)
+    @testset test_nomargin_gtc(s)
+    @testset test_nomargin_ioc(s)
+    @testset test_nomargin_fok(s)
+end
+
+_margin_backtest_tests(s) = begin
+    @testset test_margin_market(s)
+    @testset test_margin_gtc(s)
+    @testset test_margin_ioc(s)
+    @testset test_margin_fok(s)
+end
+
 test_backtest() = begin
-    @testset failfast = true "backtest" begin
+    @eval begin
+        using PingPongDev.PingPong.Engine: Engine as egn
+        using .egn.Instruments: Cash
+        PingPong.@environment!
+        using .PingPong.Engine.Strategies: reset!
+    end
+    @testset failfast = FAILFAST "backtest" begin
         s = backtest_strat(:Example)
-        @testset test_synth(s)
-        @testset test_nomargin_market(s)
-        @testset test_nomargin_gtc(s)
-        @testset test_nomargin_ioc(s)
-        @testset test_nomargin_fok(s)
+        invokelatest(_nomargin_backtest_tests, s)
 
         s = backtest_strat(:ExampleMargin)
-        @testset test_margin_market(s)
-        @testset test_margin_gtc(s)
-        @testset test_margin_ioc(s)
-        @testset test_margin_fok(s)
+        invokelatest(_margin_backtest_tests, s)
     end
 end

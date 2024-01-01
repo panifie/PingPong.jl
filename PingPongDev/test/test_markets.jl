@@ -16,6 +16,6 @@ function _test_markets(name=:binance, pair="BTC/USDT")
 end
 
 test_markets() = @testset "markets" begin
-    @eval using PingPong.Exchanges: loadmarkets!, exchanges, getexchange!, Exchanges
+    @eval using .PingPong.Exchanges: loadmarkets!, exchanges, getexchange!, Exchanges
     _test_markets()
 end

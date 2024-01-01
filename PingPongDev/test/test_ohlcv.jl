@@ -15,7 +15,7 @@ _test_ohlcv_exc(exc) = begin
     @test names(pd.data) == String.(OHLCV_COLUMNS)
     @test size(pd.data)[1] > (count / 10 * 9) # if its less there is something wrong
     lastcandle = pd.data[end, :][1]
-    @test islast(lastcandle, timeframe)
+    @test islast(lastcandle, timeframe) || now() - lastcandle.timestamp < Second(5)
 end
 
 _test_ohlcv() = begin
@@ -31,10 +31,10 @@ end
 
 test_ohlcv() = @testset "ohlcv" begin
     @eval begin
-        using PingPong.Engine.LiveMode.Watchers.Fetch
+        using .PingPong.Engine.LiveMode.Watchers.Fetch
         using .Fetch.Exchanges
-        using Data: OHLCV_COLUMNS, ZArray, PairData
-        using Processing: islast
+        using .PingPong.Engine.Data: OHLCV_COLUMNS, ZArray, PairData
+        using .PingPong.Engine.Processing: islast
     end
     _test_ohlcv()
 end

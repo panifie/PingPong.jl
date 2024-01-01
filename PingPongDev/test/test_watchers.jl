@@ -50,12 +50,12 @@ function _test_watchers_2()
     end
 end
 
-test_watchers() = @testset failfast = true "watchers" begin
+test_watchers() = @testset failfast = FAILFAST "watchers" begin
     @eval begin
-        using PingPong.Engine.LiveMode.Watchers
-        using PingPong.Data
-        using DataStructures
-        using Serialization
+        using .PingPong.Engine.LiveMode.Watchers
+        using .PingPong.Data
+        using .PingPong.Data.DataStructures
+        using .PingPong.Data.Serialization
         wa = Watchers
         isdefined(@__MODULE__, :wi) || (wi = wa.WatchersImpls)
     end

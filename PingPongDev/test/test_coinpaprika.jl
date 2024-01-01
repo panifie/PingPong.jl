@@ -3,11 +3,11 @@ using Test
 function test_paprika()
     @testset "paprika" begin
         @eval begin
-            using PingPong.Engine.LiveMode.Watchers.CoinPaprika
-            using Instruments
-            using TimeTicks
+            using .PingPong.Engine.LiveMode.Watchers.CoinPaprika
+            using .PingPong.Engine.Instruments
+            using .PingPong.Engine.TimeTicks
             using .CoinPaprika.LazyJSON
-            using Data: Candle
+            using .PingPong.Engine.Data: Candle
             cpr = CoinPaprika
         end
         @test test_ratelimit()

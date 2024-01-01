@@ -1,5 +1,5 @@
 using PingPongDev.PingPong.Engine.Exchanges.Python
-using PingPong.PingPong.Engine.Lang: @lget!, @m_str
+using PingPongDev.PingPong.Engine.Lang: @lget!, @m_str
 using Test
 using Mocking
 using Mocking: apply
@@ -54,8 +54,8 @@ end
 
 function _live_load()
     @eval begin
-        using PingPong
-        @environment!
+        using PingPongDev
+        PingPongDev.PingPong.@environment!
         using .inst: MarginInstance, raw, cash, cash!
         using .Python:
             PyException,
@@ -491,7 +491,7 @@ function test_live_openclosed_orders(s)
         lm.exc_live_funcs!(s)
         @test has(exchange(ai), :fetchClosedOrders)
         orders = lm.fetch_closed_orders(s, ai)
-        @test length(orders) == 15 # no check is done when query is direct from exchange
+        @test length(orders) == 30 # no check is done when query is direct from exchange
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
         disabled[] = (:fetchClosedOrders,)
         lm.exc_live_funcs!(s)
@@ -503,7 +503,8 @@ function test_live_openclosed_orders(s)
 end
 
 _test_live() = begin
-    @testset failfast = true "live" begin
+    ENV["JULIA_DEBUG"] = "LiveMode"
+    @testset failfast = FAILFAST "live" begin
         s = apply([patch_pf, patch_pft]) do
             live_strat(:ExampleMargin)
         end

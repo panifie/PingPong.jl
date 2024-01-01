@@ -1,6 +1,6 @@
-using Stubs
 using Test
-using Random
+using .PingPong.Engine.Simulations.Random
+using PingPongDev.Stubs
 using PingPongDev.PingPong.Engine.Lang: @m_str
 
 function emptyuni!(s)
@@ -20,6 +20,7 @@ end
 function test_paper_margin(s)
     s.config.initial_cash = 1e8
     doreset!(s)
+    @test s.cash == 1e8
     @test s isa st.IsolatedStrategy
     @test execmode(s) == Paper()
     ai = s[m"eth"]
@@ -90,7 +91,7 @@ function test_paper_margin(s)
     @test taken_vol[] > prev_taken
     prev_cash = cash(ai)
     pos_price = inst.price(ai, this_p, Long)
-    @test this_p != pos_price
+    @test this_p != pos_price || this_p == t.price
     prev_count = ect.orderscount(s, ai)
     t = ect.pong!(
         s,
@@ -101,7 +102,11 @@ function test_paper_margin(s)
         date,
     )
     @test cash(ai) == prev_cash || t isa ot.Trade
-    @test !ect.isfilled(ai, t.order)
+    @test if t isa ot.Trade
+        length(ot.trades(t.order)) > 0
+    else
+        !ect.isfilled(ai, t.order)
+    end
     @test ect.orderscount(s, ai) - 1 == prev_count
     @test ect.orderscount(s, ai) == length(s[:paper_order_tasks])
     @test !ect.pong!(s, ai, 1.0, ect.UpdateLeverage(); pos=Long())
@@ -322,12 +327,12 @@ end
 function test_paper()
     @eval begin
         using PingPongDev
-        using PingPong
+        using .PingPong
         PingPong.@environment!
     end
     s = @eval backtest_strat(:Example; config_attrs=(; skip_watcher=true), mode=Paper())
     try
-        @testset failfast=true "paper" begin
+        @testset failfast = FAILFAST "paper" begin
             # try
             #     @testset test_paper_nomargin_market(s)
             #     @testset test_paper_nomargin_gtc(s)

@@ -1,5 +1,5 @@
 using Test
-# using PingPong.Data.DFUtils
+# using .PingPong.Data.DFUtils
 # include("env.jl")
 # btc = first(s.universe, a"BTC/USDT")
 #
@@ -15,11 +15,11 @@ end
 
 function test_save_json(zi=nothing, key="coingecko/markets/all")
     @eval begin
-        using JSON
+        using PingPongDev.Misc.JSON
         using Mmap
         da = Data
     end
-    filepath = joinpath(dirname(Base.active_project()), "test/stubs/cg_markets.json")
+    filepath = joinpath(PROJECT_PATH, "test/stubs/cg_markets.json")
     data = JSON.parsefile(filepath)
     if isnothing(zi)
         zi = zilmdb()
@@ -60,9 +60,9 @@ test_zarray_save(zi) = begin
     return z
 end
 
-test_data() = @testset "data" failfast = true begin
+test_data() = @testset "data" failfast = FAILFAST begin
     @eval begin
-        using PingPong.Engine.Data
+        using .PingPong.Engine.Data
         da = Data
         using .Data.Zarr
         za = Zarr

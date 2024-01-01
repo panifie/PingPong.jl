@@ -21,7 +21,7 @@ end
 test_profits() = @testset "profits" begin
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Simulations: Simulations as sml
+        using .PingPong.Engine.Simulations: Simulations as sml
         using Data: Data as da
     end
     _highfirst_1()

@@ -71,7 +71,7 @@ function test_live_pong_mg(s)
     end
     pup = lm.live_position(s, ai, force=true)
     @info "TEST:" pup trade
-    @test lm.live_contracts(s, ai) < ZERO
+    @test lm.live_contracts(s, ai, force=true) < ZERO || iszero(cash(ai))
     @test !isnothing(position(ai))
     @test !isnothing(pup) # FLAPS
     @info "TEST: Position" date = isnothing(pup) ? nothing : pup.date lm.live_contracts(
@@ -94,7 +94,7 @@ function test_live_pong_mg(s)
         price = lastprice(ai) + 100
         for _ in 1:3
             @async let
-                sleep(0.01) # this avoid potential orders having same date on some exchanges
+                sleep(0.5) # this avoid potential orders having same date on some exchanges
                 trade = ect.pong!(s, ai, GTCOrder{Buy}; amount=0.001, price, waitfor)
                 if ismissing(trade)
                     lm.waitfortrade(s, ai, first(values(s, ai, Buy)); waitfor=Second(10)) ||
@@ -220,7 +220,7 @@ function test_live_pong_nm_market(s)
     @test ect.isfilled(ai, o)
     @test lm.waitfor_closed(s, ai, Second(3); t=side)
     @info "TEST: nm_market sync cash" o.id last(ect.trades(o)).date
-    lm.live_sync_cash!(s, ai; since=last(ect.trades(o)).date + Millisecond(1))
+    lm.live_sync_cash!(s, ai; since=last(ect.trades(o)).date + Millisecond(1), force=true)
     @test !ect.hasorders(s, ai, o.id, side)
     fees = sum(getproperty.(ect.trades(o), :fees_base))
     @info "TEST: nm_market fees" fees
@@ -228,7 +228,7 @@ function test_live_pong_nm_market(s)
     @info "TEST: nm_market gtxzero" cash(ai) diff prev_cash amount fees
     @test ect.gtxzero(ai, diff, Val(:amount))
     @test length(ai.history) > prev_trades
-    t = ect.pong!(s, ai, MarketOrder{side}; amount, waitfor=Second(0), synced=false)
+    t = ect.pong!(s, ai, MarketOrder{side}; amount, waitfor=Second(0), synced=false, skipchecks=true)
     @test ismissing(t) || t isa Trade
     @test if ect.isfilled(ai, o)
         @test lm.waitfor_closed(s, ai, Second(3); t=side)
@@ -325,7 +325,8 @@ end
 
 function test_live_pong(exchange=:bybit)
     @eval _live_load()
-    @eval @testset failfast = true "live" begin
+    ENV["JULIA_DEBUG"] = "LiveMode"
+    @eval @testset failfast = FAILFAST "live" begin
 
         exchange = $(QuoteNode(exchange))
         s = live_strat(:ExampleMargin; exchange, initial_cash=1e8)

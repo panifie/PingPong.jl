@@ -30,10 +30,10 @@ end
 test_stoploss() = begin
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Simulations: Simulations as sml
+        using .PingPong.Engine.Simulations: Simulations as sml
         using Data: Data as da
     end
-    @testset failfast = true "stoploss" begin
+    @testset failfast = FAILFAST "stoploss" begin
         _stoploss_1()
         _stoploss_2()
     end

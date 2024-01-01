@@ -12,6 +12,6 @@ function _test_derivatives_1()
 end
 
 test_derivatives() = @testset "derivative" begin
-    @eval using PingPong.Engine.Collections.Instruments.Derivatives
+    @eval using .PingPong.Engine.Collections.Instruments.Derivatives
     _test_derivatives_1()
 end

@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0-rc2"
 manifest_format = "2.0"
-project_hash = "c5b41d2e83b3d8fac393b59926e494ece967ad1b"
+project_hash = "98a56a02114ce5aab4efe8a7e14be1145419255a"
 
 [[deps.Aqua]]
 deps = ["Compat", "Pkg", "Test"]
@@ -92,6 +92,9 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.2+1"
+
+[[deps.Mmap]]
+uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.Mocking]]
 deps = ["Compat", "ExprTools"]

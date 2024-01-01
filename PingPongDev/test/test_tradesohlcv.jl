@@ -2,14 +2,18 @@ using Test
 
 function _test_tradesohlcv_1()
     @eval begin
-        using PingPong.Misc.JSON
-        using PingPong.Misc.TimeTicks
-        using PingPong.Engine.Processing
-        using PingPong.Engine.LiveMode.Watchers
-        wi = Watchers.WatchersImpls
-        pro = Processing
+        using .PingPong.Misc.JSON
+        using .PingPong.Misc.TimeTicks
+        using .PingPong.Engine.Processing
+        using .PingPong.Engine.LiveMode.Watchers
+        if !(isdefined(Main, :wi))
+            wi = Watchers.WatchersImpls
+        end
+        if !(isdefined(Main, :pro))
+            pro = Processing
+        end
     end
-    trades = JSON.parsefile(joinpath(dirname(Base.active_project()), "test", "stubs", "trades.json"))
+    trades = JSON.parsefile(joinpath(PROJECT_PATH, "test", "stubs", "trades.json"))
     trades = wi.trades_fromdict.(trades, Val(wi.CcxtTrade))
     (df, _, _) = pro.TradesOHLCV.trades_to_ohlcv(trades, tf"1m")
     @views begin

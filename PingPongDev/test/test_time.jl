@@ -18,6 +18,6 @@ function _test_time()
 end
 
 test_time() = @testset "time" begin
-    @eval using PingPong.Engine.TimeTicks
+    @eval using .PingPong.Engine.TimeTicks
     @eval _test_time()
 end

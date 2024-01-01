@@ -1,9 +1,10 @@
 # TODO: add some stub data
 test_assetcollection() = @testset "AssetCollection" begin
     @eval begin
-        using PingPong.Engine.Collections
-        using PingPong.Engine.Misc
-        using PingPong.Engine.Instruments
+        using .PingPong.Engine.Collections
+        using .PingPong.Engine.Misc
+        using .PingPong.Engine.Instruments
+        using .PingPong.Engine.Exchanges
     end
     prs = ["ETH/USDT", "BTC/USDT"]
     exc = getexchange!(:bybit)

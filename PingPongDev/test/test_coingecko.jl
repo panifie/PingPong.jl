@@ -2,15 +2,15 @@ using Test
 
 function test_coingecko()
     @eval begin
-        using PingPong.Engine.LiveMode.Watchers.CoinGecko
-        using PingPong.Engine.Instruments
-        using PingPong.Engine.TimeTicks
+        using .PingPong.Engine.LiveMode.Watchers.CoinGecko
+        using .PingPong.Engine.Instruments
+        using .PingPong.Engine.TimeTicks
         cg = CoinGecko
         # ensure other watchers are pulling data from coingecko
         # to avoid rate limit
         PingPong.Engine.LiveMode.Watchers._closeall()
     end
-    @testset failfast = true "coingecko" begin
+    @testset failfast = FAILFAST "coingecko" begin
         @test cg.RATE_LIMIT[] isa Period
         cg.RATE_LIMIT[] = Millisecond(1 * 1000)
         cg.RETRY[] = true

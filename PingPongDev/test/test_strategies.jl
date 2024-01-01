@@ -1,16 +1,17 @@
-_strategies_1() = begin end
+_strategies_load() = begin
+    @eval begin
+        using .PingPong.Engine.TimeTicks
+        using .PingPong.Engine.Simulations: Simulations as sml
+        using .PingPong.Engine.Data: Data as da
+        using .PingPong.Engine
+        PingPongDev.@environment!
+    end
+end
 
 function test_strategies()
-    @eval begin
-        using TimeTicks
-        using PingPong.Engine.Simulations: Simulations as sml
-        using Data: Data as da
-        using PingPong.Engine
-        PingPong.@environment!
-    end
-
+    _strategies_load()
     @testset "strategies" begin
-        cfg = Config(Symbol(exc.id))
+        cfg = Config(exchange=Symbol(exc.id))
         @test cfg isa Config
         s = st.strategy!(:Example, cfg)
         @test s isa st.Strategy

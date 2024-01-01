@@ -1,6 +1,6 @@
 # All the packages added in the test/Project.toml go here (before the NO_TMP switch)
-# using Aqua
-# using Test
+using Aqua
+using Test
 # Disable TMP project path
 NO_TMP = "JULIA_NO_TMP" ∈ keys(ENV)
 if NO_TMP
@@ -16,8 +16,12 @@ if NO_TMP
         ENV["JULIA_CONDAPKG_OFFLINE"] = "yes"
     end
 end
-using PingPong
+using PingPongDev
+using PingPongDev.PingPong.Engine.Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
+PROJECT_PATH = pathof(PingPongDev) |> dirname |> dirname
+push!(LOAD_PATH, dirname(PROJECT_PATH))
 TEST_ALL = "all" ∈ ARGS || length(ARGS) == 0
+FAILFAST = true # parse(Bool, get(ENV, "FAILFAST", "0"))
 
 include("test_aqua.jl")
 include("test_time.jl")
@@ -45,27 +49,45 @@ include("test_paper.jl")
 include("test_live.jl")
 include("test_live_pong.jl")
 
-test_map = Dict(
+test_map = [
     :aqua => [test_aqua],
-    :data => [test_data],
-    :exchanges => [test_exchanges],
-    :assets => [test_exch, test_assetcollection],
-    :collections => [test_assetcollection],
-    :strategy => [test_exch, test_strategies],
-    :backtest => [test_exch, test_backtest],
-    :derivatives => [test_derivatives],
     :time => [test_time],
-    :ohlcv => [test_ohlcv],
+    :data => [test_data],
+    #
+    :derivatives => [test_derivatives],
+    :exchanges => [test_exchanges],
+    :markets => [test_markets],
+    :collections => [test_assetcollection],
     :orders => [test_orders],
+    :strategies => [test_strategies],
+    #
+    :ohlcv => [test_ohlcv],
+    :tradesohlcv => [test_tradesohlcv],
+    :watchers => [test_watchers],
+    #
+    :backtest => [test_backtest],
+    :paper => [test_paper],
+    :live => [test_live],
+    :live_pong => [test_live_pong],
+    #
+    :profits => [test_profits],
+    :roi => [test_roi],
+    :stoploss => [test_stoploss],
+    #
     :cmc => [test_cmc],
-    :gecko => [test_coingecko],
     :paprika => [test_paprika],
-    :tradesohlcv => [test_tradesohlcv]
-)
+    :gecko => [test_coingecko],
+    :funding => [test_funding],
+]
 for (testname, tests) in test_map
     if TEST_ALL || lowercase(string(testname)) ∈ ARGS
         for f in tests
-            f()
+            try
+                gc_disable()
+                f()
+            finally
+                gc_enable()
+            end
         end
     end
 end

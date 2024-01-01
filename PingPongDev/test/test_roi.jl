@@ -40,7 +40,7 @@ end
 test_roi() = @testset "roi" begin
     @eval begin
         using TimeTicks
-        using PingPong.Engine.Simulations: Simulations as sml
+        using .PingPong.Engine.Simulations: Simulations as sml
         using Data: Data as da
     end
     _roi_1()

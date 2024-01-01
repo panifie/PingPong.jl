@@ -1,14 +1,17 @@
 using Test
-using Random
-using PingPong.Engine.Lang: @m_str
-using PingPong.Engine.TimeTicks
-using PingPong.Exchanges.Python
+using PingPongDev.PingPong.Engine.Lang: @m_str
+using PingPongDev.PingPong.Engine.TimeTicks
+using PingPongDev.PingPong.Engine.Exchanges.Python
+using PingPongDev.PingPong.Engine.Simulations.Random
 
 function test_sanitize()
     s = "BTC/USDT:USDT"
     asset = parse(Derivative, s)
-    setexchange!(:kucoinfutures)
-    ai = inst.instance(asset)
+    @test asset isa Derivative
+    exc = getexchange!(:binanceusdm, sandbox=false)
+    @test exc isa Exchange{ExchangeID{:binanceusdm}}
+    ai = inst.instance(exc, asset)
+    @test ai isa AssetInstance{Instruments.Derivatives.Derivative8,ExchangeID{:binanceusdm},NoMargin}
 
     init_amount = amount = 123.1234567891012
     init_price = price = 0.12333333333333333
@@ -27,8 +30,9 @@ function test_sanitize()
         Float64, @py float(exc.py.decimalToPrecision(price; counting_mode=Int(exc.precision), precision=prc_prec))
     )
     @info "TEST: " price ccxt_prc_prec prc_prec
-    @test Bool(price ≈ ccxt_prc_prec)
-    @test Bool(amount ≈ ccxt_amt_prec)
+    @test price ≈ ccxt_prc_prec atol = prc_prec
+    @info "TEST: " amount ccxt_amt_prec amt_prec
+    @test amount ≈ ccxt_amt_prec atol = amt_prec
 end
 
 _strat() = begin
@@ -118,11 +122,11 @@ test_orders() = @testset "orders" begin
     @eval begin
         using PingPongDev
         using PingPongDev.PingPong
-        using Random
-        PingPong.@environment!
+        using PingPongDev.PingPong.Engine.Simulations.Random
+        PingPongDev.PingPong.@environment!
         using .Misc: roundfloat
     end
-    @testset failfast = true test_sanitize()
+    @testset failfast = FAILFAST test_sanitize()
     s = _strat()
-    @testset failfast = true test_orderscount(s)
+    @testset failfast = FAILFAST test_orderscount(s)
 end

@@ -19,11 +19,11 @@ jobs:
       id: julia-cache
       with:
         path: |
-          $HOME/.julia
-          ./.CondaPkg
+          ~/.julia
+          ./.conda
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
         restore-keys: |
-          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('PingPongDev/Manifest.toml') }}
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
           ${{ runner.os }}-
     - name: Set up Julia
@@ -38,11 +38,11 @@ jobs:
       run: |
         git submodule init; git submodule update
         sudo apt-get install -y xauth
-        julia --project=. -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
     - name: Run tests
       uses: julia-actions/julia-runtest@v1
       with:
-        project: "./PingPong"
+        project: "./PingPongDev"
     - name: Process coverage
       uses: julia-actions/julia-processcoverage@v1
     - name: Upload coverage to Codecov

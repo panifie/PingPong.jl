@@ -1,5 +1,5 @@
-using PingPong.Engine.Instruments.Derivatives: @d_str
-using PingPong.Engine.TimeTicks: @dtr_str, @dt_str
+using PingPongDev.PingPong.Engine.Instruments.Derivatives: @d_str
+using PingPongDev.PingPong.Engine.TimeTicks: @dtr_str, @dt_str
 
 function _test_funding_history(exc)
     assets = [d"BTC/USDT:USDT", d"ETH/USDT:USDT"]
@@ -28,9 +28,11 @@ end
 
 test_funding() = begin
     @eval begin
-        using Fetch
-        using TimeTicks
-        using Data
+        using .PingPong.Engine.LiveMode.Watchers.Fetch
+        using .PingPong.Engine.TimeTicks
+        using .PingPong.Engine.Data
+        using .PingPong.Engine.Exchanges: getexchange!
+        using .PingPong.Engine.Misc
     end
     @testset "funding" begin
         _test_funding(:binance)

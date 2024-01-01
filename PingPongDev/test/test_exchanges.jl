@@ -1,7 +1,7 @@
 using Test
 
 exc_sym = :bybit
-test_exch() = @test setexchange!(:bybit, sandbox=false).name == "Bybit"
+test_exch() = setexchange!(:bybit, sandbox=false).name == "Bybit"
 _exchange() = begin
     empty!(Exchanges.exchanges)
     empty!(Exchanges.sb_exchanges)
@@ -24,17 +24,22 @@ _exchange_sbox() = begin
     ratelimit!()
 end
 
-test_exchanges() = begin
+_exchanges_test_env() = begin
     @eval begin
-        using PingPong.Exchanges: Exchanges, marketsid, sandbox!, ratelimit!, setexchange!, getexchange!, issandbox
-        using PingPong.Exchanges: ExchangeTypes
-        using Stubs
+        using .PingPong.Exchanges: Exchanges, marketsid, sandbox!, ratelimit!, setexchange!, getexchange!, issandbox
+        using .PingPong.Exchanges: ExchangeTypes
+        using PingPongDev.Stubs
     end
-    @testset "exchanges" failfast = true begin
-        test_exch()
-        e = _exchange()
-        Main.e = e
-        _exchange_pairs(e)
-        @test _exchange_sbox()
-    end
+end
+
+_do_test_exchanges() = begin
+    @test test_exch()
+    e = _exchange()
+    _exchange_pairs(e)
+    @test _exchange_sbox()
+end
+
+test_exchanges() = begin
+    _exchanges_test_env()
+    @testset "exchanges" failfast = FAILFAST _do_test_exchanges()
 end
