@@ -94,16 +94,24 @@ This function tries to open and parse a JSON file named after the exchange `name
 
 """
 function exchange_keys(name; sandbox)::Dict{String,Any}
-    try
+    names = ("apiKey", "secret", "password")
+    exc_name = sandbox ? "$(name)_sandbox" : string(name)
+    ans = try
         local cfg
-        name = sandbox ? "$(name)_sandbox" : string(name)
-        open(keys_path(name)) do f
+        open(keys_path(exc_name)) do f
             cfg = JSON.parse(f)
         end
-        Dict(k => get(cfg, k, "") for k in ("apiKey", "secret", "password"))
+        Dict(k => get(cfg, k, "") for k in names)
     catch
         Dict()
     end
+    for k in names
+        this_name = "PINGPONG_$(uppercase(exc_name))_$(uppercase(k))"
+        if haskey(ENV, this_name)
+            ans[k] = ENV[this_name]
+        end
+    end
+    ans
 end
 
 @doc """ Strategy config.
@@ -161,7 +169,12 @@ $(TYPEDSIGNATURES)
 This function creates a `Config` object using the provided `profile` and `path`. The `profile` can be a `Symbol`, `Module`, or `String` representing a specific configuration setup or a user/project profile. If `hasentry` is `true`, it also checks for an entry point.
 
 """
-function Config(profile::Union{Symbol,Module,String}, path::String=config_path(); hasentry=true, kwargs...)
+function Config(
+    profile::Union{Symbol,Module,String},
+    path::String=config_path();
+    hasentry=true,
+    kwargs...,
+)
     config_kwargs, attrs_kwargs = splitkws(config_fields...; kwargs)
     cfg = Config(; config_kwargs...)
     name = _namestring(profile)
@@ -219,12 +232,12 @@ This function sets the `toml` field of the `cfg` object to the parsed contents o
 
 """
 function _toml!(cfg, name; check=true)
-    cfg.toml = PersistentHashMap(
-        [(
+    cfg.toml = PersistentHashMap([
+        (
             (k, v) for (k, v) in TOML.parsefile(cfg.path) if
             k ∉ Set(("deps", "uuid", "extras", "compat"))
-        )...,]
-    )
+        )...,
+    ])
     if check && name ∉ keys(cfg.toml) && name ∉ keys(get(cfg.toml, "sources", (;)))
         throw("Config section [$name] not found in the configuration read from $(cfg.path)")
     end
