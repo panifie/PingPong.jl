@@ -37,12 +37,11 @@ jobs:
     - name: Install dependencies
       run: |
         git submodule init; git submodule update
-        sudo apt-get install -y xauth
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.resolve(); Pkg.instantiate()'
-    - name: Run tests
-      uses: julia-actions/julia-runtest@v1
-      with:
-        project: "./PingPongDev"
+        sudo apt-get install -y xauth direnv
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate()'
+        direnv allow .
+        eval "$(direnv hook bash)"
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.test()'
     - name: Process coverage
       uses: julia-actions/julia-processcoverage@v1
     - name: Upload coverage to Codecov
