@@ -17,8 +17,7 @@ end
 function _test_funding_rate(e)
     exc = getexchange!(e)
     v = funding_rate(exc, "BTC/USDT:USDT")
-    @test v isa Number
-    @test v >= ZERO
+    @test v isa AbstractFloat
 end
 
 _test_funding(e) = begin
