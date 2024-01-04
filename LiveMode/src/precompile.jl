@@ -1,6 +1,7 @@
 using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
 
 @preset let
+    ENV["JULIA_DEBUG"] = "LiveMode"
     st.Instances.Exchanges.Python.py_start_loop()
     s = st.strategy(st.BareStrat; mode=Live())
     exc_live_funcs!(s)
@@ -17,13 +18,15 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
     amount = ai.limits.amount.min
     date = now()
     price = ai.limits.price.min * 2
-    @precomp @ignore begin
+    @precomp begin
         start!(s)
         stop!(s)
     end
     ot = OrderTypes
     start!(s)
     SimMode.@compile_pong
+    SimMode.@compile_pong # HACK: if not called twice, some IO tasks are left running which stalls precompilation, should be debugged
+
     @precomp @ignore begin
         stop!(s)
         reset!(s)
