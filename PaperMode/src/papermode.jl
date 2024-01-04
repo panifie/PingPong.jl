@@ -32,7 +32,7 @@ _assets(s) =
         str[begin:min(length(str), displaysize()[2] - 1)]
     end
 
-@doc """ 
+@doc """
 Generates a formatted string representing the configuration of a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -49,7 +49,7 @@ function header(s::Strategy, throttle)
         margin: $(marginmode(s))
         "
 end
-@doc """ 
+@doc """
 Logs the current state of a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -68,7 +68,7 @@ function log(s::Strategy)
         short liquidations = liq
 end
 
-@doc """ 
+@doc """
 Creates a function to flush the log and a lock for thread safety.
 
 $(TYPEDSIGNATURES)
@@ -91,7 +91,7 @@ function flushlog_func(s::Strategy)
     maybeflush, log_lock
 end
 
-@doc """ 
+@doc """
 Executes the main loop of the strategy.
 
 $(TYPEDSIGNATURES)
@@ -103,27 +103,34 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     @assert isassigned(is_running)
     setattr!(s, now(), :is_start)
     setattr!(s, missing, :is_stop)
+    log_tasks = Task[]
+    ping_start = DateTime(0)
     try
-        @sync while is_running[]
+        while is_running[]
             try
                 log(s)
                 flushlog(loghandle)
+                ping_start = now()
                 ping!(s, now(), nothing)
-                sleep(throttle)
+                sleep(clamp(now() - ping_start, Second(0), throttle))
             catch e
                 e isa InterruptException && begin
                     is_running[] = false
                     rethrow(e)
                 end
                 @debug_backtrace
-                @async lock(log_lock) do
-                    try
-                        @logerror loghandle
-                    catch
-                        @debug "Failed to log $(now())"
-                    end
-                end
-                sleep(throttle)
+                filter!(t -> istaskdone(t), log_tasks)
+                push!(
+                    log_tasks,
+                    lock(log_lock) do
+                        try
+                            @logerror loghandle
+                        catch
+                            @debug "Failed to log $(now())"
+                        end
+                    end,
+                )
+                sleep(clamp(now() - ping_start, Second(0), throttle))
             end
         end
     catch e
@@ -135,7 +142,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     end
 end
 
-@doc """ 
+@doc """
 Starts the execution of a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -184,7 +191,7 @@ function start!(
     end
 end
 
-@doc """ 
+@doc """
 Calculates the elapsed time since the strategy started running.
 
 $(TYPEDSIGNATURES)
@@ -200,7 +207,7 @@ function elapsed(s::Strategy{<:Union{Paper,Live}})
     )
 end
 
-@doc """ 
+@doc """
 Stops the execution of a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -227,7 +234,7 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
     end
 end
 
-@doc """ 
+@doc """
 Returns the log file path for a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -238,7 +245,7 @@ function runlog(s, name=lowercase(string(execmode(s))))
     get!(s.attrs, :logfile, st.logpath(s; name))
 end
 
-@doc """ 
+@doc """
 Checks if a given strategy is running.
 
 $(TYPEDSIGNATURES)
