@@ -79,7 +79,7 @@ function ping!(s::T, ts::DateTime, _) where {T<:SC}
     end
 end
 
-function ping!(::Type{<:S}, ::StrategyMarkets)
+function ping!(::Union{<:SC, Type{<:SC}}, ::StrategyMarkets)
     ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
 end
 

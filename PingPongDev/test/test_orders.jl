@@ -44,7 +44,7 @@ function test_orderscount(s)
     @test ect.execmode(s) == ect.Sim()
     st.reset!(s)
     ai = s[m"btc"]
-    @info "TEST: " ai
+    @info "TEST: " typeof(ai)
     row = ai.ohlcv[100, :]
     date(n=1) = row.timestamp + tf"1m" * n
     ect.pong!(
@@ -55,6 +55,7 @@ function test_orderscount(s)
         price=100.0,
         date=row.timestamp,
     )
+    @info "TEST: " collect(ect.orders(s, ai))
     @test length(collect(ect.orders(s, ai))) == 0
     ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e10, date=date())
     @test length(collect(ect.orders(s, ai))) == 0
