@@ -42,6 +42,11 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
+      run: |
+        git submodule init; git submodule update
+        sudo apt-get install -y xauth direnv
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate()'
+    - name: Run tests
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
         PINGPONG_BYBIT_SANDBOX_SECRET: ${{ secrets.PINGPONG_BYBIT_SANDBOX_SECRET }}
@@ -50,9 +55,6 @@ jobs:
         PINGPONG_PHEMEX_SANDBOX_SECRET: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_SECRET }}
         PINGPONG_PHEMEX_SANDBOX_PASSWORD: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_PASSWORD }}
       run: |
-        git submodule init; git submodule update
-        sudo apt-get install -y xauth direnv
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate()'
         direnv allow .
         eval "$(direnv hook bash)"
         julia --project=PingPongDev/ -e 'import Pkg; Pkg.test()'
