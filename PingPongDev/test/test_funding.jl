@@ -35,10 +35,10 @@ test_funding() = begin
     end
     @testset "funding" begin
         _test_funding(:binance)
-        _test_funding(:bybit)
+        _test_funding(:phemex)
         _test_funding(:phemex)
         _test_funding_rate(:binance)
-        _test_funding_rate(:bybit)
+        _test_funding_rate(:phemex)
         _test_funding_rate(:phemex)
     end
 end

@@ -1,7 +1,7 @@
 using Test
 
-exc_sym = :bybit
-test_exch() = setexchange!(:bybit, sandbox=false).name == "Bybit"
+exc_sym = :phemex
+test_exch() = setexchange!(:phemex, sandbox=false).name == "Phemex"
 _exchange() = begin
     empty!(Exchanges.exchanges)
     empty!(Exchanges.sb_exchanges)

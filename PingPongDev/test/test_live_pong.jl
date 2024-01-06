@@ -323,7 +323,7 @@ function test_live_pong_nm_fok(s)
     @test prev_trades == length(ai.history)
 end
 
-function test_live_pong(exchange=:bybit)
+function test_live_pong(exchange=:phemex)
     @eval _live_load()
     ENV["JULIA_DEBUG"] = "LiveMode"
     @eval @testset failfast = FAILFAST "live" begin
