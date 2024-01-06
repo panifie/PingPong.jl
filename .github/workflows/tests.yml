@@ -45,7 +45,7 @@ jobs:
       run: |
         git submodule init; git submodule update
         sudo apt-get install -y xauth direnv
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate()'
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate(); using PingPongDev;'
     - name: Run tests
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
