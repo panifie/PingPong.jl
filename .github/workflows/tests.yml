@@ -68,6 +68,6 @@ jobs:
       if: always()
       with:
         path: |
-          $HOME/.julia
-          ./.CondaPkg
+          ~/.julia
+          .conda
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
