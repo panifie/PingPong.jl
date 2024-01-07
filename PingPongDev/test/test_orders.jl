@@ -8,7 +8,7 @@ function test_sanitize()
     s = "BTC/USDT:USDT"
     asset = parse(Derivative, s)
     @test asset isa Derivative
-    exc = getexchange!(:binanceusdm, sandbox=false)
+    exc = getexchange!(:binanceusdm) # NOTE: binanceusdm NON sandbox version is geo restricted (not CI friendly)
     @test exc isa Exchange{ExchangeID{:binanceusdm}}
     ai = inst.instance(exc, asset)
     @test ai isa AssetInstance{Instruments.Derivatives.Derivative8,ExchangeID{:binanceusdm},NoMargin}
