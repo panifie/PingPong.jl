@@ -10,13 +10,18 @@ using PingPong.Misc
 global s, ai, e
 
 function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
+    @info "btstrat: newconfig"
     cfg = Config(sym; mode, kwargs...)
     for (k, v) in pairs(config_attrs)
         cfg.attrs[k] = v
     end
+    @info "btstrat: strategy!"
     s = egn.strategy!(sym, cfg)
     Random.seed!(1)
-    mode == Sim() && Stubs.stub!(s; trades=false)
+    mode == Sim() && begin
+        @info "btstrat: stub!"
+        Stubs.stub!(s; trades=false)
+    end
     s
 end
 
