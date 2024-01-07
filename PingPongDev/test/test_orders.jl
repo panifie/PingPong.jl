@@ -4,11 +4,10 @@ using PingPongDev.PingPong.Engine.TimeTicks
 using PingPongDev.PingPong.Engine.Exchanges.Python
 using PingPongDev.PingPong.Engine.Simulations.Random
 
-function test_sanitize()
+function test_sanitize(exc)
     s = "BTC/USDT:USDT"
     asset = parse(Derivative, s)
     @test asset isa Derivative
-    exc = getexchange!(:binanceusdm) # NOTE: binanceusdm NON sandbox version is geo restricted (not CI friendly)
     @test exc isa Exchange{ExchangeID{:binanceusdm}}
     ai = inst.instance(exc, asset)
     @test ai isa AssetInstance{Instruments.Derivatives.Derivative8,ExchangeID{:binanceusdm},NoMargin}
@@ -36,8 +35,8 @@ function test_sanitize()
 end
 
 _strat() = begin
-    invokelatest(Random.seed!, 123)
-    invokelatest(backtest_strat, :ExampleMargin)
+    Random.seed!(123)
+    backtest_strat(:ExampleMargin)
 end
 
 function test_orderscount(s)
@@ -128,8 +127,9 @@ test_orders() = @testset "orders" begin
         using .Misc: roundfloat
     end
     @info "TEST: sanitize"
-    @testset failfast = FAILFAST test_sanitize()
-    s = _strat()
+    exc = getexchange!(:binanceusdm) # NOTE: binanceusdm NON sandbox version is geo restricted (not CI friendly)
+    @testset failfast = FAILFAST test_sanitize(exc)
     @info "TEST: orderscount"
+    s = _strat()
     @testset failfast = FAILFAST test_orderscount(s)
 end
