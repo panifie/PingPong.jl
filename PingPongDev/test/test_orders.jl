@@ -127,7 +127,9 @@ test_orders() = @testset "orders" begin
         PingPongDev.PingPong.@environment!
         using .Misc: roundfloat
     end
+    @info "TEST: sanitize"
     @testset failfast = FAILFAST test_sanitize()
     s = _strat()
+    @info "TEST: orderscount"
     @testset failfast = FAILFAST test_orderscount(s)
 end

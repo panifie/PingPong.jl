@@ -59,6 +59,8 @@ test_watchers() = @testset failfast = FAILFAST "watchers" begin
         wa = Watchers
         isdefined(@__MODULE__, :wi) || (wi = wa.WatchersImpls)
     end
+    @info "TEST: watchers 1"
     _test_watchers_1()
+    @info "TEST: watchers 2"
     _test_watchers_2()
 end
