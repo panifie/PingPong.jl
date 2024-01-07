@@ -21,9 +21,8 @@ jobs:
         path: |
           ~/.julia
           ./.conda
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('PingPongDev/Manifest.toml') }}
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
           ${{ runner.os }}-
     - name: Set up Julia
@@ -71,4 +70,4 @@ jobs:
         path: |
           $HOME/.julia
           ./.CondaPkg
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ hashFiles('Project.toml') }}
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
