@@ -22,6 +22,7 @@ jobs:
         path: |
           ~/.julia
           .conda
+          PingPongDev/.CondaPkg/env
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-
@@ -63,6 +64,7 @@ jobs:
       uses: julia-actions/julia-processcoverage@v1
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
+      if: always()
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Save Cache
@@ -72,4 +74,5 @@ jobs:
         path: |
           ~/.julia
           .conda
+          PingPongDev/.CondaPkg/env
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
