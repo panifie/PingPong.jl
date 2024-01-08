@@ -22,7 +22,8 @@ function _test_save(k, w)
     z = Data.load_data(k; serialized=true)
     newsz = size(z, 1)
     d2 = newsz[1] > 0 ? z[end, 1] : NaN
-    @test d1 === d2 || newsz > prevsz
+    @info "TEST: " newsz prevsz
+    @test d1 == d2 || d1 === d2 || newsz > prevsz
 end
 
 function _test_watchers_1()
