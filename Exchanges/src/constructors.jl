@@ -169,7 +169,7 @@ It uses a WS instance if available, otherwise an async instance.
 function getexchange!(
     x::Symbol, params=PyDict("newUpdates" => true); sandbox=true, markets=:yes, kwargs...
 )
-    @info x @caller
+    @debug "exchanges: getexchange!" x @caller
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
