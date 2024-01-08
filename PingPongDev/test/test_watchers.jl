@@ -21,8 +21,8 @@ function _test_save(k, w)
     wa.flush!(w)
     z = Data.load_data(k; serialized=true)
     newsz = size(z, 1)
-    d2 = z[end, 1]
-    @test d1 == d2 || newsz > prevsz
+    d2 = newsz[1] > 0 ? z[end, 1] : NaN
+    @test d1 === d2 || newsz > prevsz
 end
 
 function _test_watchers_1()
@@ -36,6 +36,8 @@ function _test_watchers_1()
         @test length(w.buffer) > 0
         @test now() - (last(w.buffer).time) < Minute(12)
         _test_save("cg_ticker_btc_eth", w)
+    else
+        @warn "TEST: coingecko error" wi.cg.STATUS[]
     end
 end
 
