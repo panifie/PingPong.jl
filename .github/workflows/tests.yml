@@ -22,10 +22,9 @@ jobs:
         path: |
           ~/.julia
           .conda
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
-          ${{ runner.os }}-
+          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
@@ -73,4 +72,4 @@ jobs:
         path: |
           ~/.julia
           .conda
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
+        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
