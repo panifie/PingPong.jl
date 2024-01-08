@@ -15,12 +15,13 @@ jobs:
       JULIA_VERSION: 1
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v3
+    - name: restore cache
+      uses: actions/cache/restore@v3
       id: julia-cache
       with:
         path: |
           ~/.julia
-          ./.conda
+          .conda
         key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-cache-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-
