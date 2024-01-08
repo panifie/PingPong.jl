@@ -92,16 +92,16 @@ function test_live_pong_mg(s)
     @info "TEST: Long Buy waitfortrade" position(ai)
     @sync begin
         price = lastprice(ai) + 100
-        for _ in 1:3
+        for n in 0:2
+            sleep_n = n
             @async let
-                sleep(0.5) # this avoid potential orders having same date on some exchanges
+                sleep(sleep_n) # this avoid potential orders having same date on some exchanges
                 trade = ect.pong!(s, ai, GTCOrder{Buy}; amount=0.001, price, waitfor)
                 if ismissing(trade)
                     lm.waitfortrade(s, ai, first(values(s, ai, Buy)); waitfor=Second(10)) ||
                         lm._force_fetchtrades(s, ai, first(values(s, ai, Buy)))
                 end
             end
-            sleep(Millisecond(1))
         end
     end
     pos = position(ai)
