@@ -71,10 +71,11 @@ The macro ensures that the length of the dataframe does not exceed the provided 
 """
 macro append_dict_data(dict, data, maxlen_var)
     maxlen = esc(maxlen_var)
+    df = esc(:df)
     quote
         function doappend((key, newdata))
-            df = @kget! $(esc(dict)) key df()
-            appendmax!(df, newdata, $maxlen)
+            $(df) = @kget! $(esc(dict)) key df()
+            appendmax!($df, newdata, $maxlen)
         end
         foreach(doappend, $(esc(data)))
     end
