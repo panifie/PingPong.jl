@@ -85,11 +85,11 @@ end
     @precomp let
         try
             s = stub_strategy()
-            gensave_trades(; s, dosave=false)
+            gensave_trades(; s, dosave=true)
         catch
             s = stub_strategy(; dostub=false)
             while any(isempty(ai.history) for ai in s.universe)
-                gensave_trades(; s, dosave=false)
+                gensave_trades(; s, dosave=true)
             end
             for ai in s.universe
                 save_stubtrades(ai)

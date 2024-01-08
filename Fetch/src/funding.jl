@@ -25,7 +25,6 @@ end
 funding_data(exc, a::Derivative, args...) = funding_data(exc, a.raw)
 funding_data(v, args...) = funding_data(exc, v, args...)
 
-
 @doc """Retrieves the funding rate for a symbol from an exchange.
 
 $(TYPEDSIGNATURES)
@@ -123,7 +122,7 @@ function funding_history(
             end
         end
     if isnothing(limit)
-        limit = get(futures_limits, nameof(exc.id), nothing)
+        limit = get(futures_limits, Symbol(exc.id), nothing)
     end
     ans = Dict(
         begin
@@ -131,7 +130,15 @@ function funding_history(
                 [DateTime[], String[], Float64[]], FUNDING_RATE_COLS; copycols=false
             )
             _fetch_loop(
-                ff, exc, raw(a); from, to, sleep_t, converter=extract_futures_data, limit, out
+                ff,
+                exc,
+                raw(a);
+                from,
+                to,
+                sleep_t,
+                converter=extract_futures_data,
+                limit,
+                out,
             )
             a => out
         end for a in assets

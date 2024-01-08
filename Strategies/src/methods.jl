@@ -38,7 +38,7 @@ end
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy main exchange id."
-exchange(s::S) where {S<:Strategy} = getexchange!(nameof(exchangeid(s)))
+exchange(s::S) where {S<:Strategy} = getexchange!(Symbol(exchangeid(s)))
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
@@ -110,6 +110,7 @@ function reset!(s::Strategy, config=false)
         reset!(s.config)
     else
         let cfg = s.config
+            nameof(exchange(s))
             cfg.exchange = nameof(exchange(s))
             cfg.mode = execmode(s)
             cfg.margin = marginmode(s)

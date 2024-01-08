@@ -160,6 +160,7 @@ end
 @doc "Get the global exchange."
 getexchange() = exc
 
+using .Misc.Lang: @caller
 @doc """getexchage!: ccxt exchange by symbol either from cache or anew.
 
 $(TYPEDSIGNATURES)
@@ -168,6 +169,7 @@ It uses a WS instance if available, otherwise an async instance.
 function getexchange!(
     x::Symbol, params=PyDict("newUpdates" => true); sandbox=true, markets=:yes, kwargs...
 )
+    @info x @caller
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
@@ -182,7 +184,7 @@ function getexchange!(
     )
 end
 function getexchange!(x::ExchangeID, args...; kwargs...)
-    getexchange!(nameof(x), args...; kwargs...)
+    getexchange!(Symbol(x), args...; kwargs...)
 end
 
 @doc """Initializes an exchange struct.
@@ -449,7 +451,7 @@ issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
 function exckeys!(exc, key, secret, pass)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
-    if nameof(exc.id) ∈ (:kucoin, :kucoinfutures)
+    if Symbol(exc.id) ∈ (:kucoin, :kucoinfutures)
         (key, secret) = secret, key
     end
     exc.py.apiKey = key
@@ -463,11 +465,11 @@ end
 $(TYPEDSIGNATURES)
 "
 function exckeys!(exc; sandbox=issandbox(exc))
-    exc_keys = exchange_keys(nameof(exc.id); sandbox)
+    eid = Symbol(exc.id)
+    exc_keys = exchange_keys(eid; sandbox)
     # Check the exchange->futures mapping to re-use keys
-    if isempty(exc_keys) && nameof(exc.id) ∈ values(futures_exchange)
-        sym = Symbol(exc.id)
-        id = argmax(x -> x[2] == sym, futures_exchange)
+    if isempty(exc_keys) && eid ∈ values(futures_exchange)
+        id = argmax(x -> x[2] == eid, futures_exchange)
         merge!(exc_keys, exchange_keys(id.first; sandbox))
     end
     if !isempty(exc_keys)

@@ -263,7 +263,7 @@ function strategy!(mod::Module, cfg::Config)
         @warn "Mismatching margin mode" config = cfg.margin strategy = def_mm
     end
     s_type = _strategy_type(mod, cfg)
-    strat_exc = nameof(exchangeid(s_type))
+    strat_exc = Symbol(exchangeid(s_type))
     # The strategy can have a default exchange symbol
     if cfg.exchange == Symbol()
         cfg.exchange = strat_exc

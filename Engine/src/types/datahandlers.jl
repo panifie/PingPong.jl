@@ -27,7 +27,7 @@ using Scrapers.BinanceData as bn
 using Strategies
 using Exchanges
 setexchange!(:binanceusdm)
-cfg = Config(nameof(exc.id))
+cfg = Config(Symbol(exc.id))
 strat = strategy!(:Example, cfg)
 data = bn.binanceload()
 stub!(strat.universe, data)

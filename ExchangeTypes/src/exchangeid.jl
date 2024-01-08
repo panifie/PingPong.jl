@@ -40,7 +40,6 @@ end
 
 const EIDType = Type{<:ExchangeID}
 Base.getproperty(::T, ::Symbol) where {T<:ExchangeID} = T.parameters[1]
-Base.nameof(t::Type{<:ExchangeID}) = t.parameters[1]
 Base.nameof(::ExchangeID{T}) where {T} = T
 Base.show(io::IO, id::ExchangeID) = begin
     write(io, "ExchangeID(:")
@@ -49,6 +48,8 @@ Base.show(io::IO, id::ExchangeID) = begin
 end
 Base.convert(::Type{<:AbstractString}, id::ExchangeID) = string(id.sym)
 Base.convert(::Type{Symbol}, id::ExchangeID) = id.sym
+Base.Symbol(::Type{<:ExchangeID{T}}) where {T} = T
+Base.Symbol(id::ExchangeID) = id.sym
 Base.string(id::ExchangeID) = string(id.sym)
 function Base.display(
     ids::T

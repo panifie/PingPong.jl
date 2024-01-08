@@ -42,7 +42,7 @@ This function attempts to close the given exchange if it exists. It checks if th
 """
 function close_exc(exc::CcxtExchange)
     try
-        (haskey(exchanges, nameof(exc.id)) || haskey(sb_exchanges, nameof(exc.id))) &&
+        (haskey(exchanges, Symbol(exc.id)) || haskey(sb_exchanges, Symbol(exc.id))) &&
             return nothing
         e = exc.py
         if !pyisnull(e) && pyhasattr(e, "close")
@@ -90,7 +90,7 @@ function Exchange(x::Py)
         Dict{Symbol,Bool}(),
         excDecimalPlaces,
     )
-    funcs = get(HOOKS, nameof(id), ())::Union{Tuple{},Vector{Function}}
+    funcs = get(HOOKS, Symbol(id), ())::Union{Tuple{},Vector{Function}}
     for f in funcs
         f(e)
     end
@@ -110,7 +110,7 @@ decimal_to_size(v, p::ExcPrecisionMode) = begin
     end
 end
 
-Base.isempty(e::Exchange) = nameof(e.id) === Symbol()
+Base.isempty(e::Exchange) = Symbol(e.id) === Symbol()
 
 @doc "The hash of an exchange object is reduced to its symbol (the function used to instantiate the object from ccxt)."
 Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
@@ -192,7 +192,7 @@ _closeall() = begin
 end
 
 # atexit(_closeall)
-Base.nameof(e::CcxtExchange) = nameof(getfield(e, :id))
+Base.nameof(e::CcxtExchange) = Symbol(getfield(e, :id))
 
 exchange(e::Exchange, args...; kwargs...) = e
 exchangeid(e::E) where {E<:Exchange} = getfield(e, :id)
