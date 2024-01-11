@@ -4,7 +4,7 @@ using .Lang: @preset, @precomp
     using .Lang: Logging
     @precomp begin
         ZarrInstance()
-        zilmdb()
+        zinstance()
     end
     isdefined(Data, :__init__) && @precomp __init__()
     empty!(zcache) # Need to empty otherwise compile cache keeps dangling pointers
@@ -16,7 +16,7 @@ using .Lang: @preset, @precomp
     exc_name = "abc"
     pair = "AAA/BBB:CCC"
     tfr = "1d"
-    tmp_zi = Ref(zilmdb(mktempdir()))
+    tmp_zi = Ref(zinstance(mktempdir()))
     args = (tmp_zi[], exc_name, pair, tfr)
     Logging.disable_logging(Logging.Error)
     try
@@ -61,7 +61,7 @@ using .Lang: @preset, @precomp
             end
         end
         @precomp begin
-            default(Candle)
+            default_value(Candle)
             candleat(df[], dt"2020-01-01")
             openat(df[], dt"2020-01-01")
             highat(df[], dt"2020-01-01")
@@ -110,6 +110,8 @@ using .Lang: @preset, @precomp
         end
     finally
         Logging.disable_logging(Logging.Debug)
-        rm(tmp_zi[].store.a)
+        if @load_preference("data_store", "lmdb") == "lmdb"
+            rm(tmp_zi[].store.a)
+        end
     end
 end

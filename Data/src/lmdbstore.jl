@@ -44,6 +44,31 @@ mapsize!!(store::LMDBDictStore, prc::AbstractFloat) = begin
     mapsize!(store, sz + sz * prc)
 end
 
+function check_mapsize(data, arr::ZArray)
+    if arr.storage isa LMDBDictStore
+        # HACK: for this check to be 100% secure, it would have to read data from disk
+        # and sum `saved_size` with `new_size` to ensure that the total chunk size is
+        # below the LMDB mapsize which we use (our default 64M).
+        # Here instead we consider only the size of the saved data.
+        chunk_len = arr.metadata.chunks[1]
+        chunk_size = 0
+        chunk_count = 0
+        maxsize = mapsize(arr.storage)
+        for n in 1:size(data, 1)
+            chunk_size += mapreduce(length, +, data[n])
+            chunk_count += 1
+            if chunk_count < chunk_len
+                @assert chunk_size < maxsize "Size of data exceeded lmdb current map size, reduce objects size or increase mapsize."
+            else
+                chunk_size = 0
+                chunk_count = 0
+            end
+        end
+    end
+end
+
+push!(CHECK_FUNCTIONS, check_mapsize)
+
 function Base.setindex!(d::LMDBDictStore, v, i::AbstractString)
     try
         d.a[i] = v
@@ -152,10 +177,10 @@ function Base.rm(d::lm.LMDBDict)
     empty!(d)
     delete!(zcache, path)
     # delete all lmdb files
-    mdbfiles = filter(x -> endswith(x, ".mdb"), readdir(path, join=true))
+    mdbfiles = filter(x -> endswith(x, ".mdb"), readdir(path; join=true))
     foreach(rm, mdbfiles)
     # only delete dir if is empty
     isdirempty(path) && rm(path)
 end
 
-export zilmdb
+export zinstance

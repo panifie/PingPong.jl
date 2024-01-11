@@ -1,6 +1,8 @@
 using Serialization
 using .Lang
 
+const CHECK_FUNCTIONS = Function[]
+
 # Required by external modules
 using DataStructures: DataStructures
 

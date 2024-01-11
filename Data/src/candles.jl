@@ -33,7 +33,7 @@ function to_ohlcv(data::V, timeframe::T) where {V<:AbstractVector{Candle},T<:Tim
     df
 end
 
-default(::Type{Candle}) = Candle(DateTime(0), 0, 0, 0, 0, 0)
+default_value(::Type{Candle}) = Candle(DateTime(0), 0, 0, 0, 0, 0)
 
 Base.convert(::Type{Candle}, row::DataFrameRow) = Candle(row...)
 

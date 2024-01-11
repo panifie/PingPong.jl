@@ -4,7 +4,7 @@ using CSV
 using Instruments
 using ZipFile: ZipFile as zip
 using HTTP
-using .Data: zi, zilmdb
+using .Data: zi, zinstance
 using .Data.Misc
 using CodecZlib: CodecZlib as zlib
 
@@ -31,7 +31,7 @@ const DEFAULT_HTTP_PARAMS = (; connect_timeout=30)
 const HTTP_PARAMS = LittleDict{Symbol, Any}(:connect_timeout => 30)
 
 function _doinit()
-    zi[] = zilmdb()
+    zi[] = zinstance()
 end
 
 include("utils.jl")

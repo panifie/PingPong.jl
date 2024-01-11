@@ -3,7 +3,7 @@ using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using SimMode.TimeTicks
 using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
-using .Instances.Data: zilmdb, za
+using .Instances.Data: zinstance, za
 using .Instances.Data.Zarr: getattrs, writeattrs
 using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 using .Instances.Exchanges: exc, sb_exchanges
@@ -193,7 +193,7 @@ $(TYPEDSIGNATURES)
 The function first ensures that the zgroup for the strategy exists. Then, it writes various session attributes to zarr if we're starting from the beginning (`from == 0`). Finally, it saves the result data for the specified range (`from` to `to`).
 
 """
-function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zilmdb())
+function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zinstance())
     k, parts = session_key(sess)
     # ensure zgroup
     zgroup_strategy(zi, sess.s)
@@ -257,7 +257,7 @@ function load_session(
     startstop=".*",
     params_k=".*",
     code="";
-    zi=zilmdb(),
+    zi=zinstance(),
     as_z=false,
     results_only=false,
     s=nothing,
@@ -628,7 +628,7 @@ function agg(sess::OptSession; reduce_func=mean, agg_func=median)
     )
 end
 
-function optsessions(s::Strategy; zi=zilmdb())
+function optsessions(s::Strategy; zi=zinstance())
     optsessions(string(nameof(s)); zi)
 end
 
@@ -640,7 +640,7 @@ The function takes a strategy `s` as an argument.
 It retrieves the directory path for the strategy's log files and returns the full paths to all log files within this directory.
 
 """
-function optsessions(s_name::String; zi=zilmdb())
+function optsessions(s_name::String; zi=zinstance())
     opt_group = zgroup_opt(zi)
     if s_name in keys(opt_group.groups)
         opt_group.groups[s_name].arrays
@@ -658,7 +658,7 @@ If `keep_by` is provided, sessions matching these attributes (`ctx`, `params`, o
 It checks each session, and deletes it if it doesn't match `keep_by` or if `keep_by` is empty.
 
 """
-function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zilmdb())
+function delete_sessions!(s_name::String; keep_by=Dict{String,Any}(), zi=zinstance())
     delete_all = isempty(keep_by)
     @assert delete_all || all(k ∈ ("ctx", "params", "attrs") for k in keys(keep_by)) "`keep_by` only support ctx, params or attrs keys."
     for z in values(optsessions(s_name; zi))

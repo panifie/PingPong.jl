@@ -4,9 +4,9 @@ using .Misc: @skipoffline
 @preset let
     Python.py_start_loop()
     pair = "BTC/USDT"
-    using .Data: zilmdb
+    using .Data: zinstance
     using Exchanges.ExchangeTypes: _closeall
-    tmp_zi = zilmdb(mktempdir())
+    tmp_zi = zinstance(mktempdir())
     @warn "Precompilation of the `Fetch` module does api calls!"
     try
         let e = getexchange!(:cryptocom)

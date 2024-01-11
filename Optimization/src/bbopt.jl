@@ -121,7 +121,7 @@ function bboptimize(
     splits=1,
     resume=true,
     save_freq=nothing,
-    zi=zilmdb(),
+    zi=zinstance(),
     kwargs...,
 )
     running!()

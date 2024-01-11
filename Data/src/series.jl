@@ -8,26 +8,9 @@ $(TYPEDSIGNATURES)
 Used to check the size of data against a ZArray `arr`. It takes in the data and the ZArray `arr` as input.
 Compares the size of the data with the size of the ZArray. If the sizes do not match, it raises a `SizeMismatchError`.
 """
-function _check_size(data, arr::ZArray)
-    if arr.storage isa LMDBDictStore
-        # HACK: for this check to be 100% secure, it would have to read data from disk
-        # and sum `saved_size` with `new_size` to ensure that the total chunk size is
-        # below the LMDB mapsize which we use (our default 64M).
-        # Here instead we consider only the size of the saved data.
-        chunk_len = arr.metadata.chunks[1]
-        chunk_size = 0
-        chunk_count = 0
-        maxsize = mapsize(arr.storage)
-        for n in 1:size(data, 1)
-            chunk_size += mapreduce(length, +, data[n])
-            chunk_count += 1
-            if chunk_count < chunk_len
-                @assert chunk_size < maxsize "Size of data exceeded lmdb current map size, reduce objects size or increase mapsize."
-            else
-                chunk_size = 0
-                chunk_count = 0
-            end
-        end
+function check_data(data, arr::ZArray)
+    for f in CHECK_FUNCTIONS
+        f(data, arr)
     end
 end
 
@@ -128,7 +111,7 @@ function _save_data(
     za, existing = _get_zarray(
         zi, key, @something(chunk_size, chunksize(data)); type, overwrite, reset
     )
-    eltype(data) <: Vector{UInt8} && _check_size(data, za)
+    eltype(data) <: Vector{UInt8} && check_data(data, za)
 
     @debug "Zarr dataset for key $key, len: $(size(data))."
     if !reset && existing && !isempty(za)
@@ -232,14 +215,14 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
         _load_data(zi, key, sz; kwargs..., serialized)
     catch e
         if typeof(e) ∈ (MethodError, ArgumentError)
-            @error "load data error: " exception=e
-            delete!(zi.store, key) # ensure path does not exist
+            @error "load data error: " exception = e
+            delete!(zi.store, key, recursive=true) # ensure path does not exist
             type = serialized ? Vector{UInt8} : get(kwargs, :type, Float64)
             emptyz = zcreate(
                 type,
                 zi.store,
                 sz;
-                fill_value=default(type),
+                fill_value=default_value(type),
                 fill_as_missing=false,
                 path=key,
                 compressor,
@@ -257,7 +240,7 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
         end
     end
 end
-load_data(key::AbstractString; kwargs...) = load_data(zilmdb(), key; kwargs...)
+load_data(key::AbstractString; kwargs...) = load_data(zinstance(), key; kwargs...)
 
 function _load_data(
     zi::ZarrInstance,

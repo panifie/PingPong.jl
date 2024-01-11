@@ -15,7 +15,7 @@ include("strat.jl")
 function _doinit()
     # default to using lmdb store for data
     @debug "Initializing LMDB zarr instance..."
-    Data.zi[] = Data.zilmdb()
+    Data.zi[] = Data.zinstance()
 end
 
 @doc """ Sets up the environment for the PingPong module.

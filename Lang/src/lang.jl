@@ -2,6 +2,7 @@ using Distributed: Distributed, @distributed
 using Logging: Logging, with_logger, NullLogger
 using PrecompileTools
 using DocStringExtensions
+using Preferences: Preferences
 
 const Option{T} = Union{Nothing,T} where {T}
 

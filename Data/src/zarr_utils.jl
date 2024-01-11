@@ -4,6 +4,7 @@ using Zarr: AbstractStore, DirectoryStore, is_zarray, isemptysub, ZArray
 using .TimeTicks
 using Misc: DATA_PATH, isdirempty
 using .Lang: @lget!, Option
+using .Lang.Preferences
 import Base: delete!, isempty, empty!
 
 @doc "Default zarr compressor used in the module (zstd, clevel=2)."
@@ -56,6 +57,7 @@ function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
 end
 
 function delete!(store::AbstractStore, paths...; recursive=true)
+display("zarr_utils.jl:60")
     delete!(store, paths...; recursive)
 end
 
@@ -169,7 +171,7 @@ $(TYPEDSIGNATURES)
 
 This function returns the default value of the specified type t.
 """
-default(t::Type) = begin
+default_value(t::Type) = begin
     if applicable(zero, t)
         zero(t)
     elseif applicable(empty, Tuple{t})
@@ -179,7 +181,7 @@ default(t::Type) = begin
     elseif istypeorval(AbstractChar, t)
         '\0'
     elseif istypeorval(Tuple, t)
-        ((default(ft) for ft in fieldtypes(t))...,)
+        ((default_value(ft) for ft in fieldtypes(t))...,)
     elseif istypeorval(DateTime, t)
         DateTime(0)
     elseif t isa Function
@@ -187,7 +189,7 @@ default(t::Type) = begin
     elseif applicable(t)
         t()
     elseif t isa Union && t.a == Nothing
-        default(t.b)
+        default_value(t.b)
     else
         throw(ArgumentError("No default value for type: $t"))
     end
@@ -241,7 +243,7 @@ macro zcreate()
                 $type,
                 $(zi).store,
                 $(sz)...;
-                fill_value=default($(esc(:type))),
+                fill_value=default_value($(esc(:type))),
                 fill_as_missing=false,
                 path=$key,
                 compressor=compressor,
@@ -271,7 +273,7 @@ function _get_zarray(
         if isempty(za) || _wrongdims(za, sz) || _wrongcols(za, sz) || reset
             @debug "_get_zarray" sz _wrongdims(za, sz) _wrongcols(za, sz)
             if overwrite || reset
-                delete!(zi.store, key)
+                delete!(zi.store, key, recursive=true)
                 za = @zcreate
             else
                 throw(
@@ -307,7 +309,12 @@ function Base.unique!(by::Function, z::ZArray; dims=1)
     z[:] = reduce(vcat, [reshape(el, (1, slice_len)) for el in u])
 end
 
-include("lmdbstore.jl")
+if @load_preference("data_store", "lmdb") == "lmdb"
+    include("lmdbstore.jl")
+    zinstance(args...; kwargs...) = zilmdb(args...; kwargs...)
+else
+    zinstance(args...; kwargs...) = ZarrInstance()
+end
 
 const zi = Ref{Option{ZarrInstance}}()
 const zcache = Dict{String,ZarrInstance}()

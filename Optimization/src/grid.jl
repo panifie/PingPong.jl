@@ -137,7 +137,7 @@ The function attempts to load a saved session and resumes it.
 If the saved session does not match the current session in terms of strategy, context, parameters, or attributes, an error is thrown.
 If the session is successfully resumed, the results from the saved session are appended to the current session's results.
 """
-function resume!(sess; zi=zilmdb())
+function resume!(sess; zi=zinstance())
     saved_sess = try
         load_session(sess; zi)
     catch e
@@ -206,7 +206,7 @@ function gridsearch(
     resume=true,
     logging=true,
     random_search=false,
-    zi=zilmdb(),
+    zi=zinstance(),
     grid_itr=nothing,
     offset=0,
 )

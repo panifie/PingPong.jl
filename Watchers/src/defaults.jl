@@ -46,7 +46,7 @@ function default_flusher(w::Watcher, key; reset=false, buf=w.buffer)
     if most_recent.time > last_flushed.time
         recent_slice = after(buf, last_flushed; by=x -> x.time)
         save_data(
-            zilmdb(), key, recent_slice; serialize=_isserialized(w), overwrite=true, reset
+            zinstance(), key, recent_slice; serialize=_isserialized(w), overwrite=true, reset
         )
         setattr!(w, most_recent, :last_flushed)
     end
@@ -60,7 +60,7 @@ The function takes a watcher and a key as arguments. If the watcher data is not 
 """
 function default_loader(w::Watcher, key)
     attr!(w, :loaded, false) && return nothing
-    v = load_data(zilmdb(), key; serialized=_isserialized(w))
+    v = load_data(zinstance(), key; serialized=_isserialized(w))
     !isnothing(v) && pushstart!(w, v)
     w.has.process && process!(w)
     setattr!(w, true, :loaded)
@@ -149,7 +149,7 @@ _push!(w::Watcher, ::Val) = _notimpl(push!, w)
 @doc "Same as `_push!` but for removing elements."
 _pop!(w::Watcher, ::Val) = _notimpl(pop!, w)
 function _delete!(w::Watcher, ::Val)
-    delete!(zilmdb().group, attr!(w, :key, w.name))
+    delete!(zinstance().group, attr!(w, :key, w.name))
     nothing
 end
 @doc "Executed before starting the timer."
@@ -169,7 +169,7 @@ The function takes a watcher as an argument, along with optional from and to arg
 """
 function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
     k = attr!(w, :key, w.name)
-    z = load_data(zilmdb(), k; as_z=true)
+    z = load_data(zinstance(), k; as_z=true)
     zdelete!(z, from, to; serialized=_isserialized(w), kwargs...)
     # TODO generalize this searchsorted based deletion function
     if isnothing(from)

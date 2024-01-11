@@ -250,7 +250,7 @@ This function is used to load OHLCV data from a ZarrInstance. It takes in the Za
 function load_ohlcv(
     zi::ZarrInstance, exc_name::AbstractString, pairs, timeframe; raw=false, kwargs...
 )
-    out = Dict{String,raw ? za.ZArray : PairData}()
+    out = Dict{String,raw ? ZArray : PairData}()
     load_func = raw ? _load_zarr : _load_pairdata
     pairs isa AbstractString && (pairs = [pairs])
     @sync for p in pairs
@@ -461,6 +461,6 @@ function _check_contiguity(
         throw(LeftContiguityException(dt(saved_last_ts), dt(data_first_ts)))
 end
 
-export ZarrInstance, zilmdb, PairData
+export ZarrInstance, zinstance, PairData
 export df!, @as_mat, @to_mat
 export load, load_ohlcv, save_ohlcv

@@ -1,7 +1,8 @@
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.2.0"
+data_store = ""
 
 [deps]
 Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"
@@ -14,4 +15,8 @@ Remote = "711acd30-27b5-475d-809f-796ffbe15f78"
 Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 
 [extras]
+Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
 SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
+
+[preferences.Data]
+data_store = "lmdb"

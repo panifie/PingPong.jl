@@ -50,7 +50,7 @@ Then, restart the REPL.
 
 ```julia
 using Data
-zi = zilmdb()
+zi = zinstance()
 Data.mapsize!(zi, 1024) # Sets the DB size to 1GB
 Data.mapsize!!(zi, 100) # Adds 100MB to the current mapsize (resulting in 1.1GB total)
 ```
@@ -71,6 +71,13 @@ The default `ZarrInstance` uses an `LMDB` store. It is possible that the underly
 
 ``` julia
 using Data
-Data.zilmdb(force=true)
+Data.zinstance(force=true)
 ```
 
+## LMDB not available
+LMDB requires a precompiled binary. If it is not available for your platform you can disable it by setting the `data_store` preference in your strategy (or top package) `Project.toml`.
+
+``` toml
+[preferences.Data]
+data_store = "" # Disables lmdb (set it back to "lmdb" to enable lmdb)
+```
