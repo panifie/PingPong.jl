@@ -12,7 +12,7 @@ using .Lang: PrecompileTools, @preset, @precomp
         cleanup_ohlcv_data(df, timeframe(df))
         isincomplete(dt"2020-01-01", tf"1m")
         islast("2020-01-01", "1d")
-        islast(da.default(Candle), tf"1d")
+        islast(da.default_value(Candle), tf"1d")
         isadjacent(dt"2020-01-02", dt"2020-01-01", tf"1d")
     end
 end

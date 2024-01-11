@@ -47,7 +47,7 @@ end
 Base.convert(::Type{Candle}, py::PyList) = _to_candle(py, 1, 2:6)
 Base.convert(::Type{Candle}, py::Py) = _to_candle(py, 0, 1:5)
 _pytoval(::Type{DateTime}, v) = dt(to_float(v))
-_pytoval(t::Type, v) = @something pyconvert(t, v) Data.default(t)
+_pytoval(t::Type, v) = @something pyconvert(t, v) Data.default_value(t)
 _pytoval(t::Type, v, def) = @something pyconvert(t, v) def
 @doc "Defines the tuple type for OHLCV data, where each element represents a specific metric (Open, High, Low, Close, Volume)."
 const OHLCVTupleTypes = (DateTime, fill(Float64, 4)..., Option{Float64})
