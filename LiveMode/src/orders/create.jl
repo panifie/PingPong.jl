@@ -2,7 +2,7 @@ using .Executors: AnyLimitOrder
 using .PaperMode: create_sim_limit_order
 using .PaperMode.SimMode: construct_order_func
 using .Executors.Instruments: AbstractAsset
-using .OrderTypes: ordertype
+using .OrderTypes: ordertype, MarketOrderType, GTCOrderType
 using .Lang: filterkws
 
 @doc """ Creates a live order.
@@ -43,12 +43,23 @@ function create_live_order(
                 @warn "create order: not open, not partially fillled, id is empty, refusing construction."
                 return nothing
             end
+        this_order_type(ot) = begin
+            pos = @something posside(t) posside(ai) Long()
+            Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
+        end
         type = let ot = ordertype_fromccxt(resp, eid)
-            if isnothing(ot) && t isa Type{<:Order}
-                t
+            if isnothing(ot)
+                if t isa Type{<:Order}
+                    t
+                else
+                    @something ordertype_fromtif(resp, eid) (if _ccxtisstatus(resp, "closed", eid)
+                        MarketOrderType
+                    else
+                        GTCOrderType
+                    end |> this_order_type)
+                end
             else
-                pos = @something posside(t) posside(ai) Long()
-                Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
+                this_order_type(ot)
             end
         end
         amount = resp_order_amount(resp, eid, amount, Val(:amount); ai)
