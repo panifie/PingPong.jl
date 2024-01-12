@@ -6,7 +6,7 @@ const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
 
-_timeframe(s) = s.attrs[:timeframe]
+_timeframe(s) = attr(s, :timeframe, tf"1m")
 _reset!(s) = begin
     attrs = s.attrs
     attrs[:buydiff] = 1.01
