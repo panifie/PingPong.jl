@@ -62,7 +62,7 @@ function log(s::Strategy)
     comm = s.cash_committed
     inc = orderscount(s, Val(:increase))
     red = orderscount(s, Val(:reduce))
-    tot = st.current_total(s, lastprice)
+    tot = st.current_total(s, price_func=lastprice, local_bal=true)
     @info string(nameof(s), "@", nameof(exchange(s))) time = now() cash = cv committed =
         comm balance = tot inc_orders = inc red_orders = red long_trades = long short_trades =
         short liquidations = liq
@@ -139,6 +139,9 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     finally
         is_running[] = false
         setattr!(s, now(), :is_stop)
+        for t in log_tasks
+            schedule(t, InterruptException(); error=true)
+        end
     end
 end
 
@@ -176,17 +179,20 @@ function start!(
         @info startinfo
         _doping(s; throttle, loghandle=stdout, flushlog, log_lock)
     else
-        logfile = runlog(s)
-        loghandle = open(logfile, "w")
-        logger = SimpleLogger(open(logfile, "w"))
-        try
-            s[:run_task] = @async with_logger(logger) do
-                @info startinfo
-                _doping(s; throttle, loghandle, flushlog, log_lock)
+        s[:run_task] = @async begin
+            logfile = runlog(s)
+            loghandle = open(logfile, "w")
+            try
+                logger = SimpleLogger(loghandle)
+                with_logger(logger) do
+                    @info startinfo
+                    _doping(s; throttle, loghandle, flushlog, log_lock)
+                end
+            finally
+                flush(loghandle)
+                close(loghandle)
+                @assert !isopen(loghandle)
             end
-        finally
-            flush(loghandle)
-            close(loghandle)
         end
     end
 end
