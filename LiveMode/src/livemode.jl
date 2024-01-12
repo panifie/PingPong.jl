@@ -19,6 +19,7 @@ import .Misc: start!, stop!
 using .Misc.DocStringExtensions
 
 include("utils.jl")
+include("caching.jl")
 include("ccxt.jl")
 include("ccxt_functions.jl")
 include("watchers/positions.jl")

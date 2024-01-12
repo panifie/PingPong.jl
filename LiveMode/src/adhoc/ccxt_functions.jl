@@ -45,7 +45,7 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
         let f = first(exc, func_sym_ws, func_sym)
             if open
                 (ai; kwargs...) -> let ans = _fetch_orders(ai, f; kwargs...)
-                    @debug "open orders phemex: " ans
+                    @debug "open/closed orders phemex: " ans
                     if isnothing(ans)
                         return pylist()
                     else

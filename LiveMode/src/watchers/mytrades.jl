@@ -1,6 +1,7 @@
 using .PaperMode.SimMode: trade!
 using .Lang: splitkws
 using .Python: pydicthash
+using LRUCache
 
 @doc """ Determines the date from which trades should be watched on startup.
 
@@ -210,6 +211,13 @@ function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, lin
     )
 end
 
+@doc "Stores a trade in the recently orders cache."
+record_trade_update!(s::LiveStrategy, ai, resp) =
+    let lrt = recent_trade_update(s, ai)
+        lrt[trade_hash(resp, exchangeid(ai))] = nothing
+    end
+isprocessed_trade_update(s, ai, resp) = trade_hash(resp, exchangeid(ai)) ∈ keys(recent_trade_update(s, ai))
+
 @doc """ Handles a trade for a live strategy with an asset instance.
 
 $(TYPEDSIGNATURES)
@@ -225,6 +233,8 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
         eid = exchangeid(ai)
         id = resp_trade_order(resp, eid, String)
         isprocessed_order(s, ai, id) && return nothing
+        isprocessed_trade_update(s, ai, resp) && return nothing
+        record_trade_update!(s, ai, resp)
         @debug "handle trade: new event" order = id n_keys = length(resp)
         if isempty(id)
             @warn "handle trade: missing order id"

@@ -49,10 +49,10 @@ $(TYPEDSIGNATURES)
 This function attempts to stop a running task `t`. It sets the task's running flag to `false` and notifies any waiting threads if applicable.
 
 """
-stop_task(t::Task) =
+stop_task(t::Task) = begin
+    t.storage[:running] = false
     if istaskrunning(t)
         try
-            t.storage[:running] = false
             let cond = get(t.storage, :notify, nothing)
                 isnothing(cond) || safenotify(cond)
             end
@@ -64,6 +64,7 @@ stop_task(t::Task) =
     else
         true
     end
+end
 
 @doc """ Initializes and starts a task with a given state.
 
@@ -405,11 +406,26 @@ function st.default!(s::Strategy{Live})
     a = attrs(s)
     _simmode_defaults!(s, a)
     reset_logs(s)
-    get!(a, :throttle, Second(5))
+
+    throttle = get!(a, :throttle, Second(5))
+    limit = get!(a, :sync_history_limit, 100)
+    # The number of trades (lists) responses to cache
+    get!(a, :trades_cache_size, 1000 / Second(throttle).value)
+    # The number of days to look back for an order previous trades
+    get!(a, :max_order_lookback, Day(3))
+    # How long to cache orders (lists) responses for
+    get!(a, :orders_ttl, throttle)
+    # How long to cache open orders (lists) responses for
+    get!(a, :open_orders_ttl, throttle)
+    # How long to cache closed orders (lists) responses for
+    get!(a, :closed_orders_ttl, throttle)
+    # How long to cache orders (dicts) responses for
+    get!(a, :orders_byid_ttl, throttle)
+
     asset_tasks(s)
     strategy_tasks(s)
     exc_live_funcs!(s)
-    limit = get!(a, :sync_history_limit, 100)
+
     if limit > 0
         live_sync_closed_orders!(s; limit)
     end

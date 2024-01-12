@@ -1,3 +1,6 @@
+using LRUCache: LRUCache
+using .Misc.TimeToLive: safettl
+
 _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
 
 _isstrequal(a::Py, b::String) = string(a) == b
@@ -337,64 +340,76 @@ function ccxt_my_trades_func!(a, exc)
     end
 end
 
+_find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
+    try
+        eid = exchangeid(ai)
+        ords = @lget! _order_byid_resp_cache(a, ai) id _execfunc(o_id_func, id, raw(ai))
+        if isemptish(ords)
+            ords = @lget! _orders_resp_cache(a, ai) id _execfunc(o_func, ai; ids=(id,))
+            if isemptish(ords) # its possible for the order to not be present in
+                # the fetch orders function if it is closed
+                ords = @lget! _closed_orders_resp_cache id _execfunc(o_closed_func, ai; ids=(id,))
+            end
+        end
+        if isemptish(ords)
+            @debug "live order trades: couldn't fetch trades (default to last day trades)" order = id ai = raw(ai) exc = nameof(exc) since = _last_trade_date(ai)
+            _last_trade_date(ai)
+        else
+            o = if isdict(ords)
+                ords
+            elseif islist(ords)
+                ords[0]
+            else
+                @error "live order trades: unexpected returned value" id ords
+                error()
+            end
+            trades_resp = resp_order_trades(o, eid)
+            if isemptish(trades_resp)
+                @something resp_order_timestamp(o, eid) findorder(ai, id; property=:date) _last_trade_date(ai)
+            else
+                return trades_resp
+            end
+        end
+    catch
+        @debug_backtrace
+        _last_trade_date(ai)
+    end
+end
+
 @doc "Sets up the [`fetch_order_trades`](@ref) closure for the ccxt exchange instance."
 function ccxt_order_trades_func!(a, exc)
     a[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
         f = first(exc, :fetchOrderTradesWs, :fetchOrderTrades)
-        (ai, id; since=nothing, params=nothing) ->
-            _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
+        (ai, id; since=nothing, params=nothing) -> begin
+            cache = _order_trades_resp_cache(a, ai)
+            @lget! cache id _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
+        end
     else
         fetch_func = a[:live_my_trades_func]
         o_id_func = @something first(exc, :fetchOrderWs, :fetchOrder) Returns(())
         o_func = a[:live_orders_func]
         o_closed_func = a[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
-            resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
-            trades_resp = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+            trades_cache = _trades_resp_cache(a, ai)
+            trades_resp = @lget! cache DateTime(0) begin
+                resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
+                _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+            end
             !isemptish(trades_resp) && return trades_resp
-            trades_resp = nothing
-            let since = (
-                    (@something since try
-                        eid = exchangeid(ai)
-                        ords = _execfunc(o_id_func, id, raw(ai))
-                        if isemptish(ords)
-                            ords = _execfunc(o_func, ai; ids=(id,))
-                            if isempty(ords) # its possible for the order to not be present in
-                                # the fetch orders function if it is closed
-                                ords = _execfunc(o_closed_func, ai; ids=(id,))
-                            end
-                        end
-                        if isemptish(ords)
-                            @debug "Couldn't fetch order id $id ($(raw(ai))@$(nameof(exc))) (defaulting to last day orders)"
-                            now() - Day(1)
-                        else
-                            o = if isdict(ords)
-                                ords
-                            elseif islist(ords)
-                                ords[0]
-                            else
-                                @error "Unexpected returned value while fetching orders for $id \n $ords"
-                                return nothing
-                            end
-                            trades_resp = resp_order_trades(o, eid)
-                            if isemptish(trades_resp)
-                                @something resp_order_timestamp(o, eid) findorder(ai, id; property=:date) isempty(trades(ai)) ? now() - Day(1) : last(trades(ai)).date
-                            else
-                                return trades_resp
-                            end
-                        end
-                    catch
-                        @debug_backtrace
-                        now() - Day(1)
-                    end) - Second(1) |> dtstamp
-                )
-                tries = 0
-                trades_resp = pylist()
-                while tries < 3 && isemptish(trades_resp)
-                    resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
-                    trades_resp = _ordertrades(resp, exc, ((x) -> string(x) == id))
+            trades_resp = pylist()
+            let since = @something(since,
+                    _find_since(a, ai, id;
+                        o_func, o_id_func, o_closed_func)) - Second(1) |> dtstamp
+                since_bound = since - dtstamp(a[:max_order_lookback])
+                while since > since_bound
+                    resp = @lget! trades_cache since let this_resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
+                        _ordertrades(this_resp, exc, ((x) -> string(x) == id))
+                    end
+                    if !isemptish(resp)
+                        trades_resp.extend(resp)
+                        break
+                    end
                     since -= 86400000
-                    tries += 1
                 end
                 return trades_resp
             end

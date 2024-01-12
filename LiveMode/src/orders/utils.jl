@@ -29,19 +29,6 @@ function active_orders(s::LiveStrategy, ai)
     @lget! ords ai AssetOrdersDict()
 end
 
-@doc "An lru cache of recently processed orders ids."
-const RecentOrdersDict = LRUCache.LRU{String,Nothing}
-@doc """ Retrieves recent orders ids for a live strategy.
-
-$(TYPEDSIGNATURES)
-
-Returns a dictionary of recent orders ids for a given asset instance.
-
-"""
-function recent_orders(s::LiveStrategy, ai)
-    lro = @lget! attrs(s) :live_recent_orders Dict{AssetInstance,RecentOrdersDict}()
-    @lget! lro ai RecentOrdersDict(maxsize=100)
-end
 
 @doc """ Computes the average price of an order.
 

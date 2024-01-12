@@ -73,7 +73,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                             throw(updates)
                         elseif updates isa Exception
                             @ifdebug ispyminor_error(updates) ||
-                                     @debug "Error fetching orders (using watch: $(iswatch))" updates
+                                     @debug "watch orders: fetching error" updates iswatch
                             sleep(1)
                         else
                             !islist(updates) && (updates = pylist(updates))
@@ -89,7 +89,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                     if e isa InterruptException
                         rethrow(e)
                     else
-                        @debug "orders watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)."
+                        @debug "watch orders: error (task termination?)" raw(ai) istaskrunning() current_task().storage[:running]
                         @debug_backtrace
                     end
                     sleep(1)
@@ -102,6 +102,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             task_local_storage(:running, true)
             while istaskrunning()
                 safewait(cond)
+                istaskrunning() || break
                 sleep(stop_delay[])
                 stop_delay[] = Second(0)
                 # if there are no more orders, stop the monitoring tasks
@@ -353,6 +354,13 @@ function re_activate_order!(s, ai, id; eid, resp)
     end
 end
 
+@doc "Stores an order in the recently orders cache."
+record_order_update!(s::LiveStrategy, ai, resp) =
+    let lru = recent_order_update(s, ai)
+        lru[order_update_hash(resp, exchangeid(ai))] = nothing
+    end
+isprocessed_order_update(s::LiveStrategy, ai, resp) = order_update_hash(resp, exchangeid(ai)) ∈ keys(recent_order_update(s, ai))
+
 @doc """Manages the lifecycle of an order event.
 
 $(TYPEDSIGNATURES)
@@ -365,6 +373,8 @@ function handle_order!(s, ai, orders_byid, resp, sem)
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
         isprocessed_order(s, ai, id) && return nothing
+        isprocessed_order_update(s, ai, resp) && return nothing
+        record_order_update!(s, ai, resp)
         @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
         if isempty(id)
             @warn "handle ord: missing order id"
