@@ -76,7 +76,7 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
 
 [[deps.ExchangeTypes]]
-deps = ["Ccxt", "FunctionalCollections", "Mocking", "OrderedCollections"]
+deps = ["Ccxt", "FunctionalCollections", "Mocking", "OrderedCollections", "Serialization"]
 path = "../ExchangeTypes"
 uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
