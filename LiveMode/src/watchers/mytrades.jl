@@ -44,6 +44,7 @@ This function starts tasks in a live strategy `s` that watch the exchange for tr
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @lock tasks.lock begin
+        isrunning(s) || return
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_trades_task(tasks.byname)
             istaskrunning(task) && return task

@@ -22,6 +22,7 @@ The function handles exceptions gracefully. If an exception occurs during the fe
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @lock tasks.lock begin
+        isrunning(s) || return
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)
             istaskrunning(task) && return task
@@ -521,6 +522,19 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     end
 end
 
+function wait_for_task(s, ai; waitfor)
+    local aot
+    slept = 0
+    timeout = Millisecond(waitfor).value
+    while slept < timeout
+        aot = @something asset_orders_task(s, ai) watch_orders!(s, ai) missing
+        ismissing(aot) || break
+        sleep(Millisecond(100))
+        slept += 100
+    end
+    return (slept, aot)
+end
+
 @doc """Waits for any order event to happen on the specified asset.
 
 $(TYPEDSIGNATURES)
@@ -530,25 +544,26 @@ It keeps track of the number of orders and checks if any new order has been adde
 If the task is not running, it stops waiting and returns the time spent waiting.
 """
 function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
-    aot = @something asset_orders_task(s, ai) watch_orders!(s, ai) missing
-    ismissing(aot) && return 0
+    aot, aot_slept = wait_for_task(s, ai; waitfor)
+    @debug "wait for order: any" aot aot_slept
+    ismissing(aot) && return aot_slept
     timeout = Millisecond(waitfor).value
     cond = aot.storage[:notify]
     prev_count = orderscount(s, ai)
-    slept = 0
-    @debug "Wait for any order" ai = raw(ai) waitfor
+    slept = aot_slept
+    @debug "wait for order: loop" ai = raw(ai) waitfor
     while slept < timeout
         if istaskrunning(aot)
             slept += waitforcond(cond, timeout - slept)
             orderscount(s, ai) != prev_count && begin
-                @debug "New order event" ai = raw(ai) slept
+                @debug "wait for order: new event" ai = raw(ai) slept
                 break
             end
         else
-            @debug "Wait for order: orders task is not running, restarting" ai = raw(ai)
+            @debug "wait for order: orders task is not running, restarting" ai = raw(ai)
             aot = watch_orders!(s, ai)
             if !istaskrunning(aot)
-                @error "Wait for order: failed to restart task"
+                @error "wait for order: failed to restart task"
                 break
             end
         end

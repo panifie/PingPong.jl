@@ -5,7 +5,7 @@ using Test
 #
 
 test_zarrinstance() = begin
-    zi = Data.zilmdb()
+    zi = Data.zinstance()
     @test zi isa ZarrInstance
     @test zi.store isa Data.LMDBDictStore
     @test startswith(zi.store.a.env.path, Data.DATA_PATH)
@@ -22,7 +22,7 @@ function test_save_json(zi=nothing, key="coingecko/markets/all")
     filepath = joinpath(PROJECT_PATH, "test/stubs/cg_markets.json")
     data = JSON.parsefile(filepath)
     if isnothing(zi)
-        zi = zilmdb()
+        zi = zinstance()
     end
     sz = (length(data), 2)
     za, existing = da._get_zarray(

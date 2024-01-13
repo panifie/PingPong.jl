@@ -27,24 +27,30 @@ macro compile_pong()
                 end
                 out
             end
-            @precomp @ignore begin
+            @precomp @ignore @sync begin
                 for otp in dispatched_orders()
-                    pong!(s, ai, otp; amount, date, prc, synced=false)
+                    @async pong!(s, ai, otp; amount, date, prc, synced=false)
                 end
-                pong!(
-                    Returns(nothing), s, ect.InitData(); cols=(:abc,), timeframe=tf"1d"
+                @async pong!(
+                    Returns(nothing),
+                    s,
+                    ect.InitData();
+                    cols=(:abc,),
+                    timeframe=tf"1d",
+                    synced=false,
                 )
-                pong!(
+                @async pong!(
                     Returns(nothing),
                     s,
                     ect.UpdateData();
                     cols=(:abc,),
                     timeframe=tf"1d",
+                    synced=false,
                 )
-                pong!(s, ect.WatchOHLCV(), synced=false)
-                pong!(s, ai, 1.0, ect.UpdateLeverage(); pos=Long(), synced=false)
-                pong!(s, ai, Short(), date, ect.PositionClose(), synced=false)
-                pong!(s, ai, ect.CancelOrders(), synced=false)
+                @async pong!(s, ect.WatchOHLCV(), synced=false)
+                @async pong!(s, ai, 1.0, ect.UpdateLeverage(); pos=Long(), synced=false)
+                @async pong!(s, ai, Short(), date, ect.PositionClose(), synced=false)
+                @async pong!(s, ai, ect.CancelOrders(), synced=false)
             end
         end
     end
