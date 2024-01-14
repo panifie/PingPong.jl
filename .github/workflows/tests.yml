@@ -52,6 +52,8 @@ jobs:
       uses: julia-actions/julia-processcoverage@v1
       with:
         file: lcov.info
+        directories: TimeTicks,Optimization,LiveMode,Instruments,Simulations,Plotting,Stats,Engine,Python,Stubs,Executors,PingPong,Scrapers,Pbar,Misc,OrderTypes,Analysis,Lang,Ccxt,ExchangeTypes,Exchanges,Instances,PaperMode,Strategies,Data,Watchers,SimMode,Remote,Processing,Collections,Fetch,PingPongDev
+        # Cli,PingPongDev,PingPongInteractive,Zarr,Temporal
     - name: Run tests
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}

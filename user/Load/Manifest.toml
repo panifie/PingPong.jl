@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.0-rc1"
+julia_version = "1.10.0"
 manifest_format = "2.0"
 project_hash = "548c6473a262ec0d33a6a49536487b041c362c7f"
 
@@ -215,7 +215,7 @@ uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
 version = "0.1.9"
 
 [[deps.ExchangeTypes]]
-deps = ["Ccxt", "FunctionalCollections", "Mocking", "OrderedCollections"]
+deps = ["Ccxt", "FunctionalCollections", "Mocking", "OrderedCollections", "Serialization"]
 path = "../../ExchangeTypes"
 uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
@@ -374,7 +374,7 @@ uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 version = "1.3.1"
 
 [[deps.Lang]]
-deps = ["Distributed", "Logging", "PrecompileTools", "Preferences"]
+deps = ["Distributed", "DocStringExtensions", "Logging", "PrecompileTools", "Preferences"]
 path = "../../Lang"
 uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
 version = "0.1.0"
@@ -427,7 +427,7 @@ deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LiveMode]]
-deps = ["PaperMode", "Watchers"]
+deps = ["LRUCache", "PaperMode", "Watchers"]
 path = "../../LiveMode"
 uuid = "c1773ea8-8a7c-4b58-b57f-053be4f98df9"
 version = "0.1.0"
@@ -645,7 +645,7 @@ uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
 version = "0.1.2"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["CondaPkg", "Dates", "DocStringExtensions", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
@@ -802,7 +802,7 @@ uuid = "19a5ee1f-efca-4178-b297-263c7ceb508d"
 version = "0.1.0"
 
 [[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
+deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.2.1+1"
 
