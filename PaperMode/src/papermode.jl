@@ -62,7 +62,7 @@ function log(s::Strategy)
     comm = s.cash_committed
     inc = orderscount(s, Val(:increase))
     red = orderscount(s, Val(:reduce))
-    tot = st.current_total(s, price_func=lastprice, local_bal=true)
+    tot = st.current_total(s; price_func=lastprice, local_bal=true)
     @info string(nameof(s), "@", nameof(exchange(s))) time = now() cash = cv committed =
         comm balance = tot inc_orders = inc red_orders = red long_trades = long short_trades =
         short liquidations = liq
@@ -229,7 +229,7 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
             @assert isnothing(task) || istaskdone(task)
             return nothing
         else
-            @assert running[] || istaskdone(task)
+            @assert running[] || isnothing(task) || istaskdone(task)
         end
         running[] = false
         task
