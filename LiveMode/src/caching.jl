@@ -1,10 +1,5 @@
 using LRUCache: LRUCache
 
-@doc """ The key is the `since` argument of the fetch trades function."""
-const SINCE_RESP_DICT = LRUCache.LRU{DateTime,Any}
-@doc """ The key is the order id."""
-const TRADES_RESP_DICT = LRUCache.LRU{String,Any}
-
 _last_trade_date(ai) = isempty(trades(ai)) ? now() - Day(1) : last(trades(ai)).date
 
 function somevalue(dict, keys...)
@@ -18,14 +13,14 @@ ttl_resp_dict(ttl::Period, kt=DateTime) = safettl(kt, Union{Missing,Vector{Any}}
 
 function _trades_resp_cache(a, ai)
     # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
-    cache = @lget! a :trades_cache Dict{AssetInstance,SINCE_RESP_DICT}()
-    @lget! cache ai SINCE_RESP_DICT(maxsize=a[:trades_cache_size])
+    cache = @lget! a :trades_cache Dict{AssetInstance,<:TTL}()
+    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl])
 end
 
 function _order_trades_resp_cache(a, ai)
     # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
-    cache = @lget! a :trades_cache Dict{AssetInstance,TRADES_RESP_DICT}()
-    @lget! cache ai TRADES_RESP_DICT(maxsize=a[:trades_cache_size])
+    cache = @lget! a :trades_cache Dict{AssetInstance,<:TTL}()
+    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl])
 end
 
 function _open_orders_resp_cache(a, ai)

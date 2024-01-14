@@ -410,7 +410,7 @@ function st.default!(s::Strategy{Live})
     throttle = get!(a, :throttle, Second(5))
     limit = get!(a, :sync_history_limit, 100)
     # The number of trades (lists) responses to cache
-    get!(a, :trades_cache_size, 1000 / Second(throttle).value)
+    get!(a, :trades_cache_ttl, round(Int, 1000 / Second(throttle).value) |> Millisecond)
     # The number of days to look back for an order previous trades
     get!(a, :max_order_lookback, Day(3))
     # How long to cache orders (lists) responses for
