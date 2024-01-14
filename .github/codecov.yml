@@ -1,0 +1,8 @@
+ignore:
+  - "user/"
+  - "docs/"
+  - "scripts/"
+  - "logs/"
+  - ".Conda/"
+  - ".CondaPkg/"
+  - ".conda/"
