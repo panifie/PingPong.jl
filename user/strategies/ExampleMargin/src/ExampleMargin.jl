@@ -79,12 +79,18 @@ function ping!(s::T, ts::DateTime, _) where {T<:SC}
     end
 end
 
-function ping!(::Union{<:SC, Type{<:SC}}, ::StrategyMarkets)
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
+const ASSETS = Ref{Union{Nothing, Vector{String}}}(nothing)
+
+if_asset_available(s, assets=("ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT")) = begin
+    [a for a in assets if a in keys(exchange(s).markets)]
 end
 
-function ping!(::Union{<:S,Type{<:S}}, ::StrategyMarkets) where {S<:SC{ExchangeID{:bybit}}}
-    ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"]
+function ping!(s::Union{<:SC,Type{<:SC}}, ::StrategyMarkets)
+    @something ASSETS[] (ASSETS[] = if_asset_available(s))
+end
+
+function ping!(s::Union{<:S,Type{<:S}}, ::StrategyMarkets) where {S<:SC{ExchangeID{:bybit}}}
+    @something ASSETS[] (ASSETS[] = if_asset_available(s))
 end
 
 function longorshort(s::SC, ai, ats)

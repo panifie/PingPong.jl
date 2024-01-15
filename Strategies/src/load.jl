@@ -220,18 +220,22 @@ If this fails, it then tries to access the `SC` property of the module.
 The function also checks if the exchange is specified in the strategy or in the configuration.
 """
 function _strategy_type(mod, cfg)
-    s_type = try
+    s_type = if isdefined(mod, :S) &&
+                mod.S isa Type{<:Strategy} &&
+                exchangeid(mod.S) == exchangeid(cfg.exchange)
         mod.S
-    catch
+    else
         if cfg.exchange == Symbol()
-            if hasproperty(mod, :EXCID) && mod.EXCID != Symbol()
+            if isdefined(mod, :EXCID) && mod.EXCID != Symbol()
                 cfg.exchange = mod.EXCID
+            elseif isdefined(mod, :S)
+                cfg.exchange = exchangeid(mod.S)
             else
                 error("loading: exchange not specified (neither in strategy nor in config)")
             end
         end
         try
-            if hasproperty(mod, :EXCID) && mod.EXCID != cfg.exchange
+            if isdefined(mod, :EXCID) && mod.EXCID != cfg.exchange
                 @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
             end
             mod.SC{ExchangeID{cfg.exchange}}
