@@ -18,7 +18,7 @@ $(TYPEDSIGNATURES)
 This function tries to fetch data for a given watcher. It locks the watcher, updates the last fetch time, and attempts to fetch data. If the fetch is successful, it returns `true`, otherwise it logs the error and returns `false`. It also handles stopping the watcher if needed.
 """
 function _tryfetch(w)::Bool
-    result = lock(w) do
+    result = @lock w begin
         w.last_fetch = now()
         try
             _fetch!(w, _val(w))
@@ -39,7 +39,6 @@ function _tryfetch(w)::Bool
         logerror(w, result)
         false
     elseif result isa Bool
-        safenotify(w.beacon.fetch)
         result
     else
         logerror(w, ErrorException("Fetch result is not a bool ($(w.name))"))

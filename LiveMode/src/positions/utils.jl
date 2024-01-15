@@ -100,16 +100,20 @@ The position is then stored in the position watcher and processed.
 """
 function _force_fetchpos(s, ai, side; fallback_kwargs)
     w = positions_watcher(s)
-    @debug "force fetch pos: locking w" islocked(w) ai = raw(ai) f = @caller 7
+    @debug "force fetch pos: checking" islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
     last_time = lastdate(w)
     prev_pup = get_positions(s, ai, side)
 
+    if waslocked
+        @debug "force fetch pos: waiting notiffy" islocked(w) ai = raw(ai)
+        wait(w)
+        _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
+        return
+    end
+
+    @debug "force fetch pos: locking" islocked(w) ai = raw(ai)
     @lock w begin
-        if waslocked &&
-           _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
-            return
-        end
         time = now()
         resp = fetch_positions(s, ai; side, fallback_kwargs...)
         pos = _handle_pos_resp(resp, ai, side)
@@ -126,6 +130,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
             end,
             time,
         )
+        @debug "force fetch pos: processing"
         process!(w; sym=raw(ai))
     end
 end
@@ -167,8 +172,11 @@ function live_position(
     ) maxlog = 1
     w = positions_watcher(s)
     @debug "live pos: locking w"
-    synced && @lock w nothing
     wlocked = islocked(w)
+    if synced && wlocked
+        @debug "live pos: waiting for fetch notify" ai = raw(ai) isrunning(s) isstarted(w)
+        wait(w)
+    end
     @debug "live pos: " wlocked
     if (force && !wlocked) ||
        isempty(buffer(w)) &&

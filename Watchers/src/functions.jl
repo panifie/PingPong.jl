@@ -145,6 +145,7 @@ Base.getindex(w::Watcher, i) = getindex(attr(w, :view), i)
 stop!(w::Watcher) = begin
     @assert isstarted(w) "Tried to stop an already stopped watcher."
     Base.close(w._timer)
+    safenotify(w.beacon.fetch)
     safenotify(w.beacon.process)
     safenotify(w.beacon.flush)
     _stop!(w, _val(w))
@@ -207,6 +208,12 @@ Base.unlock(w::Watcher, ::Val{:buffer}) = begin
     unlock(_buffer_lock(w))
     @debug "watchers: unlocked buffer" w = w.name
 end
+function Base.wait(w::Watcher, b=:fetch)
+    if isstopped(w)
+    else
+        safewait(getproperty(w.beacon, b))
+    end
+end
 
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
@@ -214,7 +221,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end-40):end]))
+        write(out, @view(tps[(end - 40):end]))
     else
         write(out, tps)
     end

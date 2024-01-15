@@ -365,8 +365,8 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
     if force # wait for position watcher
         let w = positions_watcher(s)
             while isempty(w.buffer)
-                @lock w nothing
-                sleep(0.5)
+                @debug "sync uni cash: waiting for position data"
+                wait(w)
             end
         end
     end
@@ -379,6 +379,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
             @debug "sync uni: resetting position (no update)" ai = raw(ai) side
             reset!(ai, side)
         else
+            @debug "sync uni: sync pos" ai = raw(ai) side
             live_sync_position!(s, ai, side, pup; strict, kwargs...)
         end
     end

@@ -13,7 +13,7 @@ If the watcher is not stopped, it tries to propagate the OHLCV data.
 propagate_loop(::RTStrategy, ai, w::Watcher) = begin
     data = ai.data
     while true
-        safewait(w.beacon.process)
+        wait(w, :process)
         isstopped(w) && break
         try
             propagate_ohlcv!(data)
@@ -33,7 +33,7 @@ If the watcher is not stopped, it tries to propagate the OHLCV data for each ass
 """
 propagate_loop(s::RTStrategy, w::Watcher) = begin
     while true
-        safewait(w.beacon.process)
+        wait(w, :process)
         isstopped(w) && break
         for ai in s.universe
             try

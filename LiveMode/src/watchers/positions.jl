@@ -58,6 +58,7 @@ This function wraps a fetch positions function `s` with a specified `interval`. 
 function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
+    timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
     fetch_f = first(exc, :fetchPositionsWs, :fetchPositions)
     if is_watch_func
@@ -66,7 +67,7 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
         (w) -> try # TODO: implement `init[]` like the balance watcher
             if init[]
                 @lock w begin
-                    v = _execfunc(fetch_f; params, rest...)
+                    v = _execfunc_timeout(fetch_f; timeout, params, rest...)
                     if islist(v)
                         _dopush!(w, v)
                     end
@@ -165,10 +166,13 @@ end
 
 _position_task!(w) = begin
     f = _tfunc(w)
-    @async while isstarted(w)
-        try
-            f(w)
-        catch
+    @async begin
+        while isstarted(w)
+            try
+                f(w)
+            catch
+            end
+            safenotify(w.beacon.fetch)
         end
     end
 end
@@ -187,7 +191,6 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
         @debug_backtrace
         false
     end
-    true
 end
 
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
@@ -232,7 +235,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
     processed_syms = Set{Tuple{String,PositionSide}}()
-    @debug "watchers: position" data
+    @debug "watchers process: position" data
     for resp in data
         isdict(resp) || continue
         sym = resp_position_symbol(resp, eid, String)
@@ -262,6 +265,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
         _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
         _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
     end
+    @debug "watchers process: notify"
     skip_notify || safenotify(w.beacon.process)
 end
 

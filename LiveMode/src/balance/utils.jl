@@ -43,24 +43,30 @@ If the balance watcher is already locked, it returns `nothing`.
 The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
 """
 function _force_fetchbal(s; fallback_kwargs)
+    isrunning(s) || return
     w = balance_watcher(s)
     @debug "force fetch bal: locking w" islocked(w) f = @caller
     waslocked = islocked(w)
     last_time = lastdate(w)
     prev_bal = get_balance(s)
 
+    if waslocked
+        @debug "force fetch bal: waiting for fetch notify"
+        wait(w)
+        _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
+        @debug "force fetch bal: waited"
+        return
+    end
     @lock w begin
-        if waslocked &&
-           _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
-            return
-        end
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
         bal = _handle_bal_resp(resp)
         isnothing(bal) && return nothing
         pushnew!(w, bal, time)
+        @debug "force fetch bal: processing"
         process!(w)
+        @debug "force fetch bal: processed"
     end
 end
 

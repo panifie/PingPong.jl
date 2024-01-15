@@ -234,10 +234,11 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
         running[] = false
         task
     end
-    @info "strategy: stopped" mode = execmode(s) elapsed(s)
+    @info "strategy: stopping" mode = execmode(s) elapsed(s)
     if task isa Task
         wait(task)
     end
+    @info "strategy: stopped" mode = execmode(s) elapsed(s)
 end
 
 @doc """

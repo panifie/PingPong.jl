@@ -16,6 +16,7 @@ This function wraps a fetch balance function `s` with a specified `interval`. Ad
 """
 function _w_fetch_balance_func(s, interval; kwargs)
     exc = exchange(s)
+    timeout = throttle(s)
     params, rest = _ccxt_balance_args(s, kwargs)
     fetch_f = first(exc, :fetchBalanceWs, :fetchBalance)
     if has(exc, :watchBalance)
@@ -24,7 +25,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
         (w) -> try
             if init[]
                 @lock w begin
-                    v = _execfunc(fetch_f; params, rest...)
+                    v = _execfunc_timeout(fetch_f; timeout, params, rest...)
                     _dopush!(w, v; if_func=isdict)
                 end
                 init[] = false
@@ -40,7 +41,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
     else
         (w) -> try
             @lock w begin
-                v = _execfunc(fetch_f; params, rest...)
+                v = _execfunc_timeout(fetch_f; timeout, params, rest...)
                 _dopush!(w, v; if_func=isdict)
             end
             sleep(interval)
