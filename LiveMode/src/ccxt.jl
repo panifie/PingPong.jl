@@ -6,6 +6,8 @@ using .Misc.Mocking: Mocking, @mock
 const ot = OrderTypes
 
 _execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
+_execfunc_timeout(f::Py, args...; timeout, kwargs...) = @mock pyfetch_timeout(f, Returns(missing), timeout, args...; kwargs...)
+# Native functions shouldn't require a timeout
 _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 
 @doc "Converts a Python object to a string."

@@ -220,9 +220,9 @@ function ccxt_create_order_func!(a, exc)
     a[:live_send_order_func] = (args...; kwargs...) -> _execfunc(func, args...; kwargs...)
 end
 
-function positions_func(exc::Exchange, ais, args...; kwargs...)
-    _execfunc(
-        first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; kwargs...
+function positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
+    _execfunc_timeout(
+        first(exc, :fetchPositionsWs, :fetchPositions), _syms(ais), args...; timeout, kwargs...
     )
 end
 
@@ -239,15 +239,16 @@ end
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
+    timeout = get!(a, :throttle, Second(5))
     a[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; kwargs...)
+        (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; timeout, kwargs...)
             _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
         end
     else
-        f = exc.fetchPosition
+        fetch_func = exc.fetchPosition
         (ais; side=Hedged(), kwargs...) -> let out = pylist()
             @sync for ai in ais
-                @async let p = _execfunc(f, raw(ai))
+                @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout)
                     last_side = _last_posside(ai)
                     p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
                     if isside(p_side, side)
@@ -340,25 +341,31 @@ function ccxt_my_trades_func!(a, exc)
     end
 end
 
+_wrap_excp(v) =
+    if v isa Exception
+        []
+    else
+        [i for i in v]
+    end
 _find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
     try
         eid = exchangeid(ai)
-        ords = @lget! _order_byid_resp_cache(a, ai) id _execfunc(o_id_func, id, raw(ai))
+        ords = @lget! _order_byid_resp_cache(a, ai) id (_execfunc(o_id_func, id, raw(ai)) |> _wrap_excp)
         if isemptish(ords)
-            ords = @lget! _orders_resp_cache(a, ai) id _execfunc(o_func, ai; ids=(id,))
+            ords = @lget! _orders_resp_cache(a, ai) id (_execfunc(o_func, ai; ids=(id,)) |> _wrap_excp)
             if isemptish(ords) # its possible for the order to not be present in
                 # the fetch orders function if it is closed
-                ords = @lget! _closed_orders_resp_cache id _execfunc(o_closed_func, ai; ids=(id,))
+                ords = @lget! _closed_orders_resp_cache(a, ai) id (_execfunc(o_closed_func, ai; ids=(id,)) |> _wrap_excp)
             end
         end
         if isemptish(ords)
-            @debug "live order trades: couldn't fetch trades (default to last day trades)" order = id ai = raw(ai) exc = nameof(exc) since = _last_trade_date(ai)
+            @debug "live order trades: couldn't fetch trades (default to last day trades)" order = id ai = raw(ai) exc = nameof(exchange(ai)) since = _last_trade_date(ai)
             _last_trade_date(ai)
         else
             o = if isdict(ords)
                 ords
-            elseif islist(ords)
-                ords[0]
+            elseif islist(ords) || ords isa Vector
+                first(ords)
             else
                 @error "live order trades: unexpected returned value" id ords
                 error()
@@ -391,25 +398,30 @@ function ccxt_order_trades_func!(a, exc)
         o_closed_func = a[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
             trades_cache = _trades_resp_cache(a, ai)
-            trades_resp = @lget! cache DateTime(0) begin
+            trades_resp = @lget! trades_cache DateTime(0) begin
                 resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
-                _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+                [_ordertrades(resp_latest, exc, ((x) -> string(x) == id))...]
             end
             !isemptish(trades_resp) && return trades_resp
             trades_resp = pylist()
             let since = @something(since,
                     _find_since(a, ai, id;
-                        o_func, o_id_func, o_closed_func)) - Second(1) |> dtstamp
-                since_bound = since - dtstamp(a[:max_order_lookback])
+                        o_func, o_id_func, o_closed_func)) - Second(1)
+                since_bound = since - round(a[:max_order_lookback], Millisecond)
                 while since > since_bound
-                    resp = @lget! trades_cache since let this_resp = _execfunc(fetch_func, ai; _skipkwargs(; since, params)...)
-                        _ordertrades(this_resp, exc, ((x) -> string(x) == id))
+                    resp = @lget! trades_cache since let this_resp = _execfunc(fetch_func, ai; _skipkwargs(; since=dtstamp(since), params)...)
+                        this_trades = _ordertrades(this_resp, exc, ((x) -> string(x) == id))
+                        if isnothing(this_trades)
+                            missing
+                        else
+                            [this_trades...]
+                        end
                     end
                     if !isemptish(resp)
                         trades_resp.extend(resp)
                         break
                     end
-                    since -= 86400000
+                    since -= Day(1)
                 end
                 return trades_resp
             end

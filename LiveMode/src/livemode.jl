@@ -5,7 +5,7 @@ using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMargin
 using .Instances
 using .Exchanges
 using .Exchanges: Python
-using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy
+using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy, throttle
 using PaperMode.OrderTypes
 using PaperMode.Misc
 using .Misc: Lang, LittleDict
@@ -17,6 +17,7 @@ using .Executors.Instruments: cnum
 import .Executors: pong!
 import .Misc: start!, stop!
 using .Misc.DocStringExtensions
+using .Python: pyfetch_timeout
 
 include("utils.jl")
 include("caching.jl")

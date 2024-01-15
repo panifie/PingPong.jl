@@ -420,7 +420,7 @@ function st.default!(s::Strategy{Live})
     # How long to cache closed orders (lists) responses for
     get!(a, :closed_orders_ttl, throttle)
     # How long to cache orders (dicts) responses for
-    get!(a, :orders_byid_ttl, throttle)
+    get!(a, :order_byid_ttl, throttle)
 
     asset_tasks(s)
     strategy_tasks(s)
