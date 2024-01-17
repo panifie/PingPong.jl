@@ -19,32 +19,30 @@ function _trades_resp_cache(a, ai)
     @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl])
 end
 
+@doc """Use `DateTime(0)` as key to fetch the *latest* response."""
+const LATEST_RESP_KEY = DateTime(0)
+
 function _order_trades_resp_cache(a, ai)
-    # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
-    cache = @lget! a :trades_cache Dict{AssetInstance,ttl_dict_type(a[:trades_cache_ttl])}()
-    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl])
+    cache = @lget! a :trades_cache Dict{AssetInstance,ttl_dict_type(a[:trades_cache_ttl], String)}()
+    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl], String)
 end
 
 function _open_orders_resp_cache(a, ai)
-    # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
     cache = @lget! a :open_orders_cache Dict{AssetInstance,ttl_dict_type(a[:open_orders_ttl])}()
     @lget! cache ai ttl_resp_dict(a[:open_orders_ttl])
 end
 
 function _closed_orders_resp_cache(a, ai)
-    # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
     cache = @lget! a :closed_orders_cache Dict{AssetInstance,ttl_dict_type(a[:closed_orders_ttl], Union{String,DateTime})}()
     @lget! cache ai ttl_resp_dict(a[:closed_orders_ttl], Union{String,DateTime})
 end
 
 function _orders_resp_cache(a, ai)
-    # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
     cache = @lget! a :orders_cache Dict{AssetInstance,ttl_dict_type(a[:orders_ttl], Any)}()
     @lget! cache ai ttl_resp_dict(a[:orders_ttl], Any)
 end
 
 function _order_byid_resp_cache(a, ai)
-    # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
     cache = @lget! a :order_byid_cache Dict{AssetInstance,ttl_dict_type(a[:order_byid_ttl], String)}()
     @lget! cache ai ttl_resp_dict(a[:order_byid_ttl], String)
 end

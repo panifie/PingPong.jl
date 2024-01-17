@@ -423,7 +423,9 @@ Afterwards, the order is deleted from the active orders.
 """
 function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both, kwargs...)
     eid = exchangeid(ai)
-    closed_orders = fetch_closed_orders(s, ai; side, kwargs...)
+    closed_orders = @lget! _closed_orders_resp_cache(s.attrs, ai) LATEST_RESP_KEY let resp = fetch_closed_orders(s, ai; side, kwargs...)
+        isnothing(resp) ? [] : [resp...]
+    end
     if isnothing(closed_orders)
         @error "sync orders: couldn't fetch closed orders, skipping sync" ai = raw(ai) s = nameof(
             s
@@ -432,7 +434,11 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
     end
     @lock ai begin
         default_pos = get_position_side(s, ai)
+        i = 1
+        limit = attr(s, :sync_history_limit)
         @sync for resp in closed_orders
+            i > limit && break
+            i += 1
             @async begin
                 id = resp_order_id(resp, eid, String)
                 o = (@something findorder(s, ai; resp, id, side) create_live_order(
@@ -450,7 +456,7 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
                 if ismissing(o)
                 else
                     @deassert resp_order_status(resp, eid, String) ∈
-                              ("closed", "open", "cancelled")
+                              ("closed", "open", "canceled") resp_order_status(resp, eid, String)
                     @ifdebug trades_count = length(ai.history)
                     if isfilled(ai, o)
                         @deassert !isempty(trades(o))

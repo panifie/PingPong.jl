@@ -70,7 +70,7 @@ function _handle_pos_resp(resp, ai, side)
                 this_side = _ccxtposside(this, eid; def=_last_posside(ai))
                 @debug "force fetch pos: list el" resp_position_timestamp(this, eid) resp_position_contracts(
                     this, eid
-                ) side this_side issym = _ispossym(this, sym, eid)
+                ) side this_side issym = _ispossym(this, sym, eid) ai = raw(ai)
                 if this_side == side && _ispossym(this, sym, eid)
                     @deassert !isnothing(this) && isdict(this)
                     return this
@@ -99,6 +99,7 @@ The position is then stored in the position watcher and processed.
 
 """
 function _force_fetchpos(s, ai, side; fallback_kwargs)
+    isrunning(s) || return
     w = positions_watcher(s)
     @debug "force fetch pos: checking" islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
@@ -106,7 +107,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     prev_pup = get_positions(s, ai, side)
 
     if waslocked
-        @debug "force fetch pos: waiting notiffy" islocked(w) ai = raw(ai)
+        @debug "force fetch pos: waiting notiffy" islocked(w) ai = raw(ai) isstopped(w)
         wait(w)
         _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
         return
@@ -120,7 +121,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
         @debug "force fetch pos:" amount = try
             resp_position_contracts(pos[0], exchangeid(ai))
         catch
-        end
+        end pos
         pushnew!(
             w,
             if islist(pos)

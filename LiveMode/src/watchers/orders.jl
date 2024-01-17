@@ -452,7 +452,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     new_filled = resp_order_filled(resp, eid)
     prev_filled = filled_amount(o)
     actual_amount = new_filled - prev_filled
-    ltxzero(ai, actual_amount, Val(:amount)) && begin
+    actual_amount < ai.limits.amount.min && begin
         @debug "emu trade: fill status unchanged" o.id prev_filled new_filled actual_amount
         return nothing
     end

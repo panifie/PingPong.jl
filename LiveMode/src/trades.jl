@@ -12,18 +12,25 @@ The function returns the filtered list of trades or the original response if no 
 
 """
 function _check_and_filter(resp; ai, since, kind="")
-    pyisinstance(resp, pybuiltins.list) || begin
+    if resp isa Vector
+        if isnothing(since)
+            resp
+        else
+            filter(t -> _timestamp(t, exchangeid(ai)) >= since, resp)
+        end
+    elseif pyisinstance(resp, pybuiltins.list)
+        if isnothing(since)
+            resp
+        else
+            out = pylist()
+            for t in resp
+                _timestamp(t, exchangeid(ai)) >= since && out.append(t)
+            end
+            out
+        end
+    else
         @warn "Couldn't fetch $kind trades for $(raw(ai))"
         return nothing
-    end
-    if isnothing(since)
-        resp
-    else
-        out = pylist()
-        for t in resp
-            _timestamp(t, exchangeid(ai)) >= since && out.append(t)
-        end
-        out
     end
 end
 
@@ -114,7 +121,7 @@ _feebysign(rate, cost) = rate >= ZERO ? cost : -cost
 
 $(TYPEDSIGNATURES)
 
-This function calculates the fee from a fee dictionary. 
+This function calculates the fee from a fee dictionary.
 It retrieves the rate and cost from the fee dictionary and then uses the `_feebysign` function to calculate the fee based on the rate and cost.
 
 """
@@ -127,9 +134,9 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function determines the fee cost based on the currency specified in the fee dictionary. 
-If the currency matches the quote currency, it returns the fee in quote currency. 
-If the currency matches the base currency, it returns the fee in base currency. 
+This function determines the fee cost based on the currency specified in the fee dictionary.
+If the currency matches the quote currency, it returns the fee in quote currency.
+If the currency matches the base currency, it returns the fee in base currency.
 If the currency doesn't match either, it returns zero for both.
 
 """
@@ -171,8 +178,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function determines the currency of the fee based on the side of the order. 
-It uses the `feeSide` property of the market associated with the order. 
+This function determines the currency of the fee based on the side of the order.
+It uses the `feeSide` property of the market associated with the order.
 The function returns `:base` if the fee is in the base currency and `:quote` if the fee is in the quote currency.
 
 """
@@ -204,7 +211,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function calculates the default trade fees based on the side of the order and the current market conditions. 
+This function calculates the default trade fees based on the side of the order and the current market conditions.
 It uses the `trade_feecur` function to determine the currency of the fee and then calculates the fee based on the amount and cost of the trade.
 
 """
@@ -226,9 +233,9 @@ market(ai) = exchange(ai).markets[raw(ai)]
 
 $(TYPEDSIGNATURES)
 
-This function determines the trade fees based on the response from the exchange and the side of the order. 
-It first checks if the response contains a fee dictionary. If it does, it calculates the fee cost based on the dictionary. 
-If the response does not contain a fee dictionary but contains a list of fees, it calculates the total fee cost from the list. 
+This function determines the trade fees based on the response from the exchange and the side of the order.
+It first checks if the response contains a fee dictionary. If it does, it calculates the fee cost based on the dictionary.
+If the response does not contain a fee dictionary but contains a list of fees, it calculates the total fee cost from the list.
 If the response does not contain either, it calculates the default trade fees.
 
 """
@@ -266,7 +273,7 @@ _addfees(net_cost, fees_quote, ::ReduceOrder) = net_cost - fees_quote
 
 $(TYPEDSIGNATURES)
 
-This function checks if the trade symbol from the response matches the symbol of the order. 
+This function checks if the trade symbol from the response matches the symbol of the order.
 If they do not match, it issues a warning and returns `false`.
 
 """
@@ -281,7 +288,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the response from the exchange is of the expected type. 
+This function checks if the response from the exchange is of the expected type.
 If the response is not of the expected type, it issues a warning and returns `false`.
 
 """
@@ -296,7 +303,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the trade id from the response matches the id of the order. 
+This function checks if the trade id from the response matches the id of the order.
 If they do not match, it issues a warning and returns `false`.
 
 """
@@ -311,7 +318,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the side of the trade from the response matches the side of the order. 
+This function checks if the side of the trade from the response matches the side of the order.
 If they do not match, it issues a warning and returns `false`.
 
 """
@@ -326,8 +333,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the trade price from the response is approximately equal to the order price or if the order is a market order. 
-If the price is far off from the order price, it issues a warning. 
+This function checks if the trade price from the response is approximately equal to the order price or if the order is a market order.
+If the price is far off from the order price, it issues a warning.
 The function also checks if the price is greater than zero, issuing a warning and returning `false` if it's not.
 
 """
@@ -347,7 +354,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the trade amount from the response is greater than zero. 
+This function checks if the trade amount from the response is greater than zero.
 If it's not, it issues a warning and returns `false`.
 
 """
@@ -362,7 +369,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the local cash is enough for the trade. 
+This function checks if the local cash is enough for the trade.
 If it's not, it issues a warning.
 
 """
@@ -375,9 +382,9 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function constructs a trade based on the order and the response from the exchange. 
-It performs several checks on the response, such as checking the type, symbol, id, side, price, and amount. 
-If any of these checks fail, the function returns `nothing`. 
+This function constructs a trade based on the order and the response from the exchange.
+It performs several checks on the response, such as checking the type, symbol, id, side, price, and amount.
+If any of these checks fail, the function returns `nothing`.
 Otherwise, it calculates the fees, warns if the local cash is not enough for the trade, and constructs the trade.
 
 """
@@ -413,4 +420,3 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     @debug "Constructing trade" cash = cash(ai, posside(o)) ai = raw(ai) s = nameof(s)
     @maketrade
 end
-

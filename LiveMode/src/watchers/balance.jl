@@ -94,7 +94,11 @@ end
 _balance_task!(w) = begin
     f = _tfunc(w)
     w[:balance_task] = @async while isstarted(w)
-        f(w)
+        try
+            f(w)
+        catch
+        end
+        safenotify(w.beacon.fetch)
     end
 end
 

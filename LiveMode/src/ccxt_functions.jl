@@ -383,13 +383,23 @@ _find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
     end
 end
 
-@doc "Sets up the [`fetch_order_trades`](@ref) closure for the ccxt exchange instance."
+_resp_to_vec(resp) =
+    if isnothing(resp)
+        []
+    else
+        [resp...]
+    end
+
+@doc """Sets up the [`fetch_order_trades`](@ref) closure for the ccxt exchange instance.
+
+!!! warning "Uses caching"
+"""
 function ccxt_order_trades_func!(a, exc)
     a[:live_order_trades_func] = if has(exc, :fetchOrderTrades)
         f = first(exc, :fetchOrderTradesWs, :fetchOrderTrades)
         (ai, id; since=nothing, params=nothing) -> begin
             cache = _order_trades_resp_cache(a, ai)
-            @lget! cache id _execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...)
+            @lget! cache id _resp_to_vec(_execfunc(f; symbol=raw(ai), id, _skipkwargs(; since, params)...))
         end
     else
         fetch_func = a[:live_my_trades_func]
@@ -397,12 +407,22 @@ function ccxt_order_trades_func!(a, exc)
         o_func = a[:live_orders_func]
         o_closed_func = a[:live_closed_orders_func]
         (ai, id; since=nothing, params=nothing) -> begin
+            # Filter recent trades history for trades matching the order
             trades_cache = _trades_resp_cache(a, ai)
-            trades_resp = @lget! trades_cache DateTime(0) begin
-                resp_latest = _execfunc(fetch_func, ai; _skipkwargs(; params)...)
-                [_ordertrades(resp_latest, exc, ((x) -> string(x) == id))...]
+            trades_resp = let resp_latest = @lget! trades_cache LATEST_RESP_KEY _resp_to_vec(_execfunc(fetch_func, ai; _skipkwargs(; params)...))
+                if isempty(resp_latest)
+                    []
+                else
+                    this_trades = _ordertrades(resp_latest, exc, ((x) -> string(x) == id))
+                    if isnothing(this_trades)
+                        missing
+                    else
+                        Any[this_trades...]
+                    end
+                end
             end
             !isemptish(trades_resp) && return trades_resp
+            # Fallback to fetching trades history using since
             trades_resp = pylist()
             let since = @something(since,
                     _find_since(a, ai, id;

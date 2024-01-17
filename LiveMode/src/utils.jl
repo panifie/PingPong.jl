@@ -5,6 +5,7 @@ using .Lang: @lget!, Option
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict
+using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
 import .Instances: timestamp
 
@@ -408,19 +409,20 @@ function st.default!(s::Strategy{Live})
     reset_logs(s)
 
     throttle = get!(a, :throttle, Second(5))
+    throttle_per_asset = throttle * nrow(s.universe.data)
     limit = get!(a, :sync_history_limit, 100)
     # The number of trades (lists) responses to cache
-    get!(a, :trades_cache_ttl, round(Int, 1000 / Second(throttle).value) |> Millisecond)
+    get!(a, :trades_cache_ttl, round(Int, 1000 / Second(throttle).value) |> Second |> Millisecond)
     # The number of days to look back for an order previous trades
     get!(a, :max_order_lookback, Day(3))
     # How long to cache orders (lists) responses for
-    get!(a, :orders_ttl, throttle)
+    get!(a, :orders_ttl, throttle_per_asset)
     # How long to cache open orders (lists) responses for
-    get!(a, :open_orders_ttl, throttle)
+    get!(a, :open_orders_ttl, throttle_per_asset)
     # How long to cache closed orders (lists) responses for
-    get!(a, :closed_orders_ttl, throttle)
+    get!(a, :closed_orders_ttl, throttle_per_asset)
     # How long to cache orders (dicts) responses for
-    get!(a, :order_byid_ttl, throttle)
+    get!(a, :order_byid_ttl, throttle_per_asset)
 
     asset_tasks(s)
     strategy_tasks(s)
