@@ -145,7 +145,10 @@ $(TYPEDSIGNATURES)
 """
 function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSide}
     let k = pricetime(o), d = orders(s, ai, S) #, stok = searchsortedfirst(d, k)
-        @assert k ∉ keys(d) "Orders with same price and date are not allowed. ($(o.price), $(o.date))"
+        @ifdebug if k ∉ keys(d)
+            @debug "Duplicate order key" o.id d[k].id o.price o.date
+        end
+        @assert k ∉ keys(d)
         d[k] = o
     end
 end
@@ -167,8 +170,8 @@ $(TYPEDSIGNATURES)
 """
 function _check_committment(o)
     @deassert attr(o, :committed)[] |> gtxzero ||
-              ordertype(o) <: MarketOrderType ||
-              o isa IncreaseLimitOrder o
+        ordertype(o) <: MarketOrderType ||
+        o isa IncreaseLimitOrder o
 end
 
 @doc """Checks if the unfilled amount for a limit sell order is positive.
@@ -311,9 +314,7 @@ $(TYPEDSIGNATURES)
 """
 function Instances.isdust(ai::AssetInstance, o::Order)
     unf = abs(unfilled(o))
-    unf < ai.limits.amount.min ||
-        unf * o.price < ai.limits.cost.min ||
-        unf < ai.fees.min
+    unf < ai.limits.amount.min || unf * o.price < ai.limits.cost.min || unf < ai.fees.min
 end
 
 @doc """Checks if an order is filled.
@@ -321,14 +322,15 @@ end
 $(TYPEDSIGNATURES)
 
 """
-isfilled(ai::AssetInstance, o::Order) = isdust(ai, o) || begin
-    ot = trades(o)
-    if length(ot) > 0
-        sum(t.amount for t in trades(o)) >= o.amount
-    else
-        false
+isfilled(ai::AssetInstance, o::Order) =
+    isdust(ai, o) || begin
+        ot = trades(o)
+        if length(ot) > 0
+            sum(t.amount for t in trades(o)) >= o.amount
+        else
+            false
+        end
     end
-end
 
 @doc """Updates the strategy's cash after a buy trade.
 
