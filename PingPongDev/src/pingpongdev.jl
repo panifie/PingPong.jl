@@ -15,7 +15,7 @@ function backtest_strat(sym; mode=Sim(), config_attrs=(;), kwargs...)
     for (k, v) in pairs(config_attrs)
         cfg.attrs[k] = v
     end
-    @info "btstrat: strategy!"
+    @info "btstrat: strategy!" cfg.exchange
     s = egn.strategy!(sym, cfg)
     Random.seed!(1)
     mode == Sim() && begin
