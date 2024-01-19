@@ -30,7 +30,8 @@ $(TYPEDSIGNATURES)
 - `data`: The data to be saved.
 - `cache_path`: The path to the cache directory. Default is `CACHE_PATH[]`.
 """
-function save_cache(k, data; cache_path=CACHE_PATH[])
+function save_cache(k, data; cache_path=nothing)
+    cache_path = @something cache_path CACHE_PATH[]
     key_path = joinpath(cache_path, k)
     let dir = dirname(key_path)
         ispath(dir) || mkpath(dir)
@@ -53,8 +54,8 @@ $(TYPEDSIGNATURES)
 
 Returns the cached data if it exists and meets the age criteria, or `nothing` otherwise.
 """
-function load_cache(k; raise=true, agemax=nothing, cache_path=CACHE_PATH[])
-    key_path = joinpath(cache_path, k)
+function load_cache(k; raise=true, agemax=nothing, cache_path=nothing)
+    key_path = joinpath(@something(cache_path, CACHE_PATH[]), k)
     if !ispath(key_path)
         if raise
             throw(ArgumentError("Key $k does not exist."))

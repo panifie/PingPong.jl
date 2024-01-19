@@ -47,6 +47,32 @@ function _order_byid_resp_cache(a, ai)
     @lget! cache ai ttl_resp_dict(a[:order_byid_ttl], String)
 end
 
+function save_strategy_cache(s; inmemory=false, cache_path=nothing)
+    cache = Dict()
+    for k in (:trades_cache, :open_orders_cache, :closed_orders_cache, :orders_cache, :order_byid_cache)
+        if k in keys(s)
+            cache[k] = s[k]
+        end
+    end
+    if inmemory
+        Main.strategy_cache = cache
+    else
+        Data.Cache.save_cache("strategy_cache", cache; cache_path)
+    end
+    return s
+end
+
+function load_strategy_cache(s, cache_path=nothing, raise=false)
+    cache = if isdefined(Main, :strategy_cache)
+    else
+        Data.Cache.load_cache("strategy_cache"; cache_path, raise)
+    end
+    if cache isa Dict
+        merge!(s.attrs, cache)
+    end
+    return s
+end
+
 @doc "An lru cache of recently processed orders ids."
 const RecentOrdersDict = LRUCache.LRU{String,Nothing}
 @doc """ Retrieves recent orders ids for a live strategy.
