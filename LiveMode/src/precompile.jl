@@ -5,6 +5,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
     st.Instances.Exchanges.Python.py_start_loop()
     run_funcs(exchange, margin) = begin
         s = st.strategy(st.BareStrat; mode=Live(), exchange, margin)
+        s[:sync_history_limit] = 0
         exc_live_funcs!(s)
         sml = SimMode.sml
         @info "PRECOMP: live mode ohlcv" exchange margin
@@ -42,6 +43,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         @async run_funcs(:gateio, st.Isolated())
         @async run_funcs(:phemex, st.NoMargin())
     end
+    @info "PRECOMP: live mode closing"
     st.Instances.Exchanges.ExchangeTypes._closeall()
     st.Instances.Exchanges.Python.py_stop_loop()
 end
