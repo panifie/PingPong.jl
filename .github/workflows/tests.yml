@@ -48,13 +48,7 @@ jobs:
         direnv allow .
         eval "$(direnv hook bash)"
         julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate(); using PingPongDev;'
-    - name: Process coverage
-      uses: julia-actions/julia-processcoverage@v1
-      with:
-        file: lcov.info
-        directories: TimeTicks,Optimization,LiveMode,Instruments,Simulations,Plotting,Stats,Engine,Python,Stubs,Executors,PingPong,Scrapers,Pbar,Misc,OrderTypes,Analysis,Lang,Ccxt,ExchangeTypes,Exchanges,Instances,PaperMode,Strategies,Data,Watchers,SimMode,Remote,Processing,Collections,Fetch,PingPongDev
-        # Cli,PingPongDev,PingPongInteractive,Zarr,Temporal
-    - name: Run tests
+    - name: Run tests # coverage is generated only on success
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
         PINGPONG_BYBIT_SANDBOX_SECRET: ${{ secrets.PINGPONG_BYBIT_SANDBOX_SECRET }}
