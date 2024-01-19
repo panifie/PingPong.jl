@@ -25,7 +25,7 @@ _mock_py_f(pyf, f, args...; kwargs...) = begin
         pylist()
     elseif occursin("_balance", name)
         pylist()
-    elseif occursin("leverage", name)
+    elseif occursin("leverage", name) && !occursin("tiers", name)
         PyDict("code" => "0")
     else
         pyf(f, args...; kwargs...)
@@ -156,12 +156,12 @@ function test_live_fetch_orders(s)
 end
 
 function test_live_fetch_positions(s)
-    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    patch = @patch function Python.pyfetch_timeout(f::Py, args...; kwargs...)
         _pyjson("fetch_positions.json")
     end
-    @live_setup!
-    ais = [s[m"btc"], s[m"eth"]]
     Mocking.apply(patch) do
+        @live_setup!
+        ais = [s[m"btc"], s[m"eth"]]
         resp = lm.fetch_positions(s, ais)
         @test length(resp) == 2
         syms = getindex.(resp, "symbol") .|> string
@@ -246,11 +246,11 @@ end
 
 function test_live_position(s)
     resps = []
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    patch1 = @patch function Python.pyfetch_timeout(f::Py, args...; kwargs...)
         if occursin("position", string(f.__name__))
             _pyjson("fetch_positions.json")
         else
-            Python._pyfetch(f, args...; kwargs...)
+            Python._pyfetch_timeout(f, args...; kwargs...)
         end
     end
     @live_setup!
@@ -260,7 +260,7 @@ function test_live_position(s)
         empty!(lm.get_positions(s).short)
         # ensure watcher is unlocked otherwise force fetching gets skipped
         @lock lm.positions_watcher(s) nothing
-        update = lm.live_position(s, ai, Short(); force=true)
+        update = lm.live_position(s, ai, Short(); force=true, synced=true)
         @test update.date <= now()
         @test !update.read[]
         @test !update.closed[]
@@ -331,7 +331,7 @@ function test_live_position_sync(s)
 end
 function test_live_pnl(s)
     @live_setup!
-    apply([patch_pf]) do
+    apply([patch_pf, patch_pft]) do
         # set some parameters for testing
         p = Short()
         lp = lm.fetch_positions(s, ai; side=p)[0]
@@ -447,11 +447,14 @@ function test_live_order_trades(s)
     haspatch, disabled = _has_patch()
     id = "1682179200-BTCUSDT-1439869-Buy"
     mockapp([patch1, haspatch]) do
-        disabled[] = (:fetchOrderTrades,)
+        disabled[] = (:fetchOrderTrades, :fetchOrderTradesWs)
+        @info "TEST: live setup"
         @live_setup!
+        @info "TEST: order trades 1"
         trades = lm.live_order_trades(s, ai, id)
         @test length(trades) == 1
-        @test string(trades[0]["order"]) == id
+        @test string(first(trades)["order"]) == id
+        @info "TEST: order trades 2"
         trades = lm.live_order_trades(s, ai, "")
         @test isempty(trades)
     end
@@ -502,11 +505,18 @@ function test_live_openclosed_orders(s)
     end
 end
 
-_test_live() = begin
-    ENV["JULIA_DEBUG"] = "LiveMode"
+_test_live(debug=true) = begin
+    if debug
+        ENV["JULIA_DEBUG"] = "LiveMode"
+    end
+    let cbs = st.STRATEGY_LOAD_CALLBACKS.live
+        if lm.load_strategy_cache ∉ cbs
+            push!(cbs, lm.load_strategy_cache)
+        end
+    end
     @testset failfast = FAILFAST "live" begin
         s = apply([patch_pf, patch_pft]) do
-            live_strat(:ExampleMargin)
+            live_strat(:ExampleMargin, exchange=:phemex)
         end
         try
             @testset "live_fetch_orders" test_live_fetch_orders(s)
@@ -521,12 +531,14 @@ _test_live() = begin
             @testset "live_order_trades" test_live_order_trades(s)
             @testset "live_openclosed_order" test_live_openclosed_orders(s)
         finally
+            s[:sync_history_limit] = 0
             reset!(s)
+            lm.save_strategy_cache(s, inmemory=true)
         end
     end
 end
 
-function test_live()
+function test_live(debug=true)
     @eval _live_load()
-    @eval _test_live()
+    @eval _test_live($debug)
 end
