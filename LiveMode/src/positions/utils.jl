@@ -99,7 +99,6 @@ The position is then stored in the position watcher and processed.
 
 """
 function _force_fetchpos(s, ai, side; fallback_kwargs)
-    isrunning(s) || return
     w = positions_watcher(s)
     @debug "force fetch pos: checking" islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
@@ -107,7 +106,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     prev_pup = get_positions(s, ai, side)
 
     if waslocked
-        @debug "force fetch pos: waiting notiffy" islocked(w) ai = raw(ai) isstopped(w)
+        @debug "force fetch pos: waiting notify" islocked(w) ai = raw(ai) isstopped(w)
         wait(w)
         _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
         return
@@ -178,15 +177,17 @@ function live_position(
         @debug "live pos: waiting for fetch notify" ai = raw(ai) isrunning(s) isstarted(w)
         wait(w)
     end
-    @debug "live pos: " wlocked
+    @debug "live pos: " wlocked force _isstale(ai, pup, side, since)
     if (force && !wlocked) ||
-       isempty(buffer(w)) &&
-       _isstale(ai, pup, side, since)
+       (isempty(buffer(w)) &&
+        _isstale(ai, pup, side, since))
+        @debug "live pos: force syncing"
         _force_fetchpos(s, ai, side; fallback_kwargs)
         pup = get_positions(s, ai, side)
     end
     if (force && wlocked) ||
        !(isnothing(since) || isnothing(pup))
+        @debug "live pos: force waiting"
         if waitforpos(s, ai, side; since, force, waitfor)
         else # try one last time to force fetch
             @debug "live pos: last force fetch"

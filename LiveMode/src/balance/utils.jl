@@ -43,7 +43,6 @@ If the balance watcher is already locked, it returns `nothing`.
 The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
 """
 function _force_fetchbal(s; fallback_kwargs)
-    isrunning(s) || return
     w = balance_watcher(s)
     @debug "force fetch bal: locking w" islocked(w) f = @caller
     waslocked = islocked(w)
