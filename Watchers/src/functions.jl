@@ -212,8 +212,10 @@ Base.unlock(w::Watcher, ::Val{:buffer}) = begin
 end
 function Base.wait(w::Watcher, b=:fetch)
     if isstopped(w)
+        false
     else
         safewait(getproperty(w.beacon, b))
+        true
     end
 end
 
