@@ -104,22 +104,24 @@ $(TYPEDSIGNATURES)
 The function takes a watcher and an optional doflush argument. If the watcher is not stopped, it stops the watcher. If doflush is true, it flushes the watcher data.
 """
 function Base.close(w::Watcher; doflush=true)
-    # @lock w begin
-    l = w._exec.fetch_lock
-    if trylock(l)
-        try
-            isstopped(w) || stop!(w)
-            doflush && flush!(w)
-            if haskey(WATCHERS, w.name)
-                attr(WATCHERS[w.name], :started, DateTime(0)) ==
-                attr(w, :started, DateTime(0)) && delete!(WATCHERS, w.name)
-            end
-            nothing
-        finally
-            unlock(l)
+    lf = trylock(w._exec.fetch_lock)
+    lb = trylock(w._exec.buffer_lock)
+    try
+        isstopped(w) || stop!(w)
+        doflush && flush!(w)
+        if haskey(WATCHERS, w.name)
+            attr(WATCHERS[w.name], :started, DateTime(0)) ==
+            attr(w, :started, DateTime(0)) && delete!(WATCHERS, w.name)
         end
-    else
-        w._stop = true
+        nothing
+    catch
+    finally
+        if lf
+            unlock(w._exec.fetch_lock)
+        end
+        if lb
+            unlock(w._exec.buffer_lock)
+        end
     end
 end
 @doc "Empty the watcher buffer."
