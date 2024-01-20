@@ -27,7 +27,7 @@ end
 
 _phemex_ispending(o) =
     let status = get_py(get_py(o, "info"), "execStatus")
-        pyis(status, pybuiltins.str) && pyisTrue(@py "Pending" ∈ status)
+        pyeq(Bool, Python.pytype(status), pybuiltins.str) && pyisTrue(@py "Pending" ∈ status)
     end
 _func_syms(open) = begin
     oc = open ? "open" : "closed"
