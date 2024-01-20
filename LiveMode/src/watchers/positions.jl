@@ -277,9 +277,10 @@ This function updates the `PositionUpdate` status when *not* using `watch*` func
 
 """
 function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
+    skip_sym = isnothing(sym)
     set!(this_sym, pup) = begin
         prev_closed = pup.closed[]
-        if (this_sym, side) ∉ processed_syms
+        if (this_sym, side) ∉ processed_syms && (skip_sym || this_sym != sym)
             pup_prev = get(dict, this_sym, nothing)
             @deassert pup_prev === pup
             dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
