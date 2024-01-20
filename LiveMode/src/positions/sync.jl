@@ -336,8 +336,7 @@ function live_sync_cash!(
     pup = live_position(s, ai, side; since, force, waitfor)
     @lock ai if isnothing(pup)
         @warn "sync cash: resetting (both) position cash (not found)" ai = raw(ai)
-        reset!(ai, Long())
-        reset!(ai, Short())
+        reset!(ai, bp)
     elseif pup.closed[]
         @info "sync cash: resetting position cash (closed)" ai = raw(ai) side
         reset!(ai, side)
@@ -380,7 +379,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
             reset!(ai, side)
         else
             @debug "sync uni: sync pos" ai = raw(ai) side
-            live_sync_position!(s, ai, side, pup; strict, kwargs...)
+            live_sync_cash!(s, ai, side; force, kwargs...)
         end
     end
     @sync for ai in s.universe
