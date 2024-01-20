@@ -651,3 +651,5 @@ function reset!(o::Order, ai)
     attr(o, :committed)[] = committment(ai, o)
     attr(o, :unfilled)[] = unfillment(o)
 end
+
+queue!(s::Strategy, o::Order, ai; skipcommit=false) = nothing
