@@ -157,6 +157,7 @@ $(TYPEDSIGNATURES)
 function marginmode!(exc::Exchange, mode, symbol; hedged=false, kwargs...)
     mode_str = string(mode)
     if mode_str in ("isolated", "cross")
+        exc.options["defaultMarginMode"] = mode_str
         ans = dosetmargin(exc, mode_str, symbol; hedged, kwargs...)
         if ans isa Bool
             return ans
