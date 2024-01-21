@@ -186,6 +186,9 @@ function pong!(
     )
     since = if close_trade isa Trade
         close_trade.date
+    elseif isnothing(close_trade)
+        @error "pong pos close: failed to reduce position to zero"
+        return false
     else
         @warn "pong pos close: closing order trades delay" values(s, ai, orderside(t)) ai = raw(ai)
         timestamp(ai) + Millisecond(1)
