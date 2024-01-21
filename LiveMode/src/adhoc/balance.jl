@@ -19,3 +19,16 @@ function _fetch_balance(
         _exc_balance_func(exc); params, kwargs...
     )
 end
+
+function _fetch_balance(
+    exc::Exchange{ExchangeID{:deribit}}, qc, syms, args...; type=:swap, code=nothing, params=pydict(), kwargs...
+)
+    params["code"] = @pystr code uppercase(string(@something code qc))
+    if haskey(params, "type")
+        delete!(params, "type")
+    end
+
+    pyfetch(
+        _exc_balance_func(exc); params, kwargs...
+    )
+end
