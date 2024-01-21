@@ -83,11 +83,11 @@ The function retrieves the balance for a specified exchange and caches it for a 
 The balance is indexed by the balance status and type.
 This function is useful when you need to frequently access the balance without making repeated API calls to the exchange.
 """
-function balance(exc::Exchange, args...; type=Symbol(), status=TotalBalance, kwargs...)
+function balance(exc::Exchange, args...; qc=Symbol(), type=Symbol(), status=TotalBalance, kwargs...)
     d = _balancedict!(exc)
     try
         @lget! d (status, type) begin
-            b = _fetch_balance(exc, args...; type, kwargs...)
+            b = _fetch_balance(exc, qc, args...; type, kwargs...)
             b[@pystr(lowercase(string(status)))]
         end
 
@@ -110,6 +110,7 @@ function balance(
     exc::Exchange,
     sym::Union{<:AssetInstance,Symbol,String},
     args...;
+    qc=Symbol(),
     type=Symbol(),
     status=TotalBalance,
     kwargs...,
@@ -117,7 +118,7 @@ function balance(
     d = _symdict!(exc)
     k = _pystrsym(sym)
     @lget! d (Symbol(k), status, type) begin
-        b = balance(exc, args...; type, status, kwargs...)
+        b = balance(exc, args...; qc, type, status, kwargs...)
         if b isa Py
             pyconvert(DFT, get_py(b, k, ZERO))
         else
