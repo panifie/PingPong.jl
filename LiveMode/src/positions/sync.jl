@@ -365,21 +365,21 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
         let w = positions_watcher(s)
             while isempty(w.buffer)
                 @debug "sync uni cash: waiting for position data"
-                wait(w)
+                wait(w) || break
             end
         end
     end
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing) live_position(s, ai, side; force=true)
-        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force) missing
+        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing) live_position(s, ai, side; synced=force)
+        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force, synced=force) missing
         if ismissing(pup)
             @debug "sync uni: resetting position (no update)" ai = raw(ai) side
             reset!(ai, side)
         else
             @debug "sync uni: sync pos" ai = raw(ai) side
-            live_sync_cash!(s, ai, side; force, kwargs...)
+            live_sync_position!(s, ai, side, pup; strict, kwargs...)
         end
     end
     @sync for ai in s.universe
