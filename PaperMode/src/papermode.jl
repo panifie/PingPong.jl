@@ -168,6 +168,11 @@ function start!(
             s[:is_running] = Ref(true)
         elseif s[:is_running][]
             @error "start: strategy already running" s = nameof(s)
+            t = attr(s, :run_task, nothing)
+            if !(istaskrunning(t))
+                @error "start: strategy running but task is not found (or not running)" s = nameof(s)
+            end
+            return t
         end
         @deassert attr(s, :is_running)[]
 
@@ -235,7 +240,7 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
         task
     end
     @info "strategy: stopping" mode = execmode(s) elapsed(s)
-    if task isa Task
+    if task isa Task && !istaskdone(task)
         wait(task)
     end
     @info "strategy: stopped" mode = execmode(s) elapsed(s)
