@@ -293,9 +293,10 @@ This function retrieves tasks associated with all assets in the strategy `s`. It
 
 """
 function asset_tasks(s::Strategy)
-    @lock s @lget! attrs(s) :live_asset_tasks finalizer(
-        (_) -> stop_all_asset_tasks(s), Dict{AssetInstance,AssetTasks}()
-    )
+    @lock s @lget! attrs(s) :live_asset_tasks begin
+        tasks = Dict{AssetInstance,AssetTasks}()
+        finalizer((_) -> stop_all_asset_tasks(s), tasks)
+    end
 end
 @doc """ Retrieves tasks associated with a specific asset.
 
@@ -318,9 +319,12 @@ This function retrieves tasks associated with the strategy `s`. It returns a dic
 
 """
 function strategy_tasks(s::Strategy)
-    @lock s @lget! attrs(s) :live_strategy_tasks finalizer(
-        (_) -> stop_all_strategy_tasks(s), Dict{String,TasksDict}()
-    )
+    @lock s begin
+        tasks = Dict{String,TasksDict}()
+        @lget! attrs(s) :live_strategy_tasks finalizer(
+            (_) -> stop_all_strategy_tasks(s), tasks
+        )
+    end
 end
 @doc """ Retrieves tasks associated with a strategy for a specific account.
 
