@@ -359,10 +359,11 @@ end
 
 @doc "Stores an order in the recently orders cache."
 record_order_update!(s::LiveStrategy, ai, resp) =
-    let lru = recent_order_update(s, ai)
+    let lru = recent_orders(s, ai)
+        @debug "record order update: " lru = typeof(lru) order_update_hash(resp, exchangeid(ai))
         lru[order_update_hash(resp, exchangeid(ai))] = nothing
     end
-isprocessed_order_update(s::LiveStrategy, ai, resp) = order_update_hash(resp, exchangeid(ai)) ∈ keys(recent_order_update(s, ai))
+isprocessed_order_update(s::LiveStrategy, ai, resp) = order_update_hash(resp, exchangeid(ai)) ∈ keys(recent_orders(s, ai))
 
 @doc """Manages the lifecycle of an order event.
 
