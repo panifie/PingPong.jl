@@ -91,7 +91,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     sym = raw(ai)
     eid = exchangeid(ai)
     all_orders = _execfunc(
-        orders_f, ai; (isnothing(side) ? () : (; side))..., (isempty(ids) ? () : (; ids))...
+        orders_f, ai; (isnothing(side) ? () : (; side))..., ids=(isempty(ids) ? () : ids)
     )
     if isemptish(all_orders)
         return
