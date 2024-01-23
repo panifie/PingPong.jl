@@ -67,9 +67,9 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             cond = task_local_storage(:notify)
             sem = task_sem()
             handler_tasks = Task[]
-            while istaskrunning()
+            while @istaskrunning()
                 try
-                    while istaskrunning()
+                    while @istaskrunning()
                         updates = f(flag, coro_running)
                         stop_delay[] = Second(60)
                         if updates isa InterruptException
@@ -103,9 +103,9 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
         stop_task = @async begin
             task_local_storage(:sleep, 10)
             task_local_storage(:running, true)
-            while istaskrunning()
+            while @istaskrunning()
                 safewait(cond)
-                istaskrunning() || break
+                @istaskrunning() || break
                 sleep(stop_delay[])
                 stop_delay[] = Second(0)
                 # if there are no more orders, stop the monitoring tasks
@@ -145,7 +145,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the orders task for a given asset instance `ai` from the live strategy `s`. The orders task is responsible for watching and updating orders for the asset instance.
 
 """
-asset_orders_task(s, ai) = asset_orders_task(asset_tasks(s, ai).byname)
+asset_orders_task(s, ai) = @lget! asset_tasks(s, ai).byname :orders_task watch_orders!(s, ai)
 asset_orders_stop_task(tasks) = get(tasks, :orders_stop_task, nothing)
 @doc """ Retrieves the orders stop task for a given asset instance.
 
