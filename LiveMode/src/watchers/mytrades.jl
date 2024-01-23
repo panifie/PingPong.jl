@@ -46,10 +46,16 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
     tasks = asset_tasks(s, ai)
     @debug "watch trades: locking" ai = raw(ai)
     @lock tasks.lock begin
-        isrunning(s) || return
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_trades_task(tasks.byname)
-            istaskrunning(task) && return task
+            if istaskrunning(task)
+                @debug "watch trades: task running"
+                return task
+            end
+        end
+        if force || isrunning(s)
+            @debug "watch trades: strategy stopped"
+            return nothing
         end
         exc = exchange(ai)
         hasmytrades(exc) || return nothing
@@ -92,9 +98,9 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
             coro_running = pycoro_running(flag)
             sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
             handler_tasks = Task[]
-            while istaskrunning()
+            while @istaskrunning()
                 try
-                    while istaskrunning()
+                    while @istaskrunning()
                         updates = f(flag, coro_running)
                         if updates isa InterruptException
                             throw(updates)
@@ -132,6 +138,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
     end
 end
 
+asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
 @doc """ Retrieves the asset trades task for a given asset instance.
 
 $(TYPEDSIGNATURES)
@@ -139,8 +146,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the asset trades task for a given asset instance `ai` from the live strategy `s`. The asset trades task is responsible for watching the exchange for trades for the asset instance.
 
 """
-asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
-asset_trades_task(s, ai) = asset_trades_task(asset_tasks(s, ai).byname)
+asset_trades_task(s, ai) = @lget! asset_tasks(s, ai).byname :trades_task watch_trades!(s, ai)
 @doc """ Checks if an exception is a specific Python exception.
 
 $(TYPEDSIGNATURES)
@@ -401,6 +407,10 @@ This function waits for a trade in a live strategy `s` with a specific asset ins
 """
 function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     tt = asset_trades_task(s, ai)
+    if !(tt isa Task)
+        @error "wait for trade: task not running (strategy stopped?)"
+        return 0
+    end
     timeout = Millisecond(waitfor).value
     cond = tt.storage[:notify]
     prev_count = length(ai.history)
