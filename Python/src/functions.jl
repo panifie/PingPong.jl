@@ -87,6 +87,7 @@ pydicthash(d) =
                 end
             end
         catch
+            return hash(h)
         end
         return h
     end
