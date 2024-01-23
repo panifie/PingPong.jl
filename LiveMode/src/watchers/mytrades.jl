@@ -41,8 +41,10 @@ $(TYPEDSIGNATURES)
 This function starts tasks in a live strategy `s` that watch the exchange for trades for an asset instance `ai`. It constantly checks and updates the trades based on the latest data from the exchange.
 
 """
-function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
+function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
+    @debug "watch trades: get tasks" ai = raw(ai) islocked(s)
     tasks = asset_tasks(s, ai)
+    @debug "watch trades: locking" ai = raw(ai)
     @lock tasks.lock begin
         isrunning(s) || return
         @deassert tasks.byname === asset_tasks(s, ai).byname
@@ -97,7 +99,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                         if updates isa InterruptException
                             throw(updates)
                         elseif updates isa Exception
-                            @ifdebug ispyminor_error(trades) ||
+                            @ifdebug ispyminor_error(updates) ||
                                      @debug "Error fetching trades (using watch: $(iswatch))" updates
                             sleep(1)
                         else

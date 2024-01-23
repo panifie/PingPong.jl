@@ -174,7 +174,7 @@ function live_position(
     @debug "live pos: locking w"
     wlocked = islocked(w)
     if synced && wlocked
-        @debug "live pos: waiting for fetch notify" ai = raw(ai) isrunning(s) isstarted(w)
+        @debug "live pos: waiting for fetch notify" ai = raw(ai) isrunning(s) isstarted(w) f = @caller
         wait(w)
     end
     @debug "live pos: " wlocked force _isstale(ai, pup, side, since)

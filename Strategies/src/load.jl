@@ -376,6 +376,7 @@ If any inverse contracts are found, it asserts an error.
 """
 function _no_inv_contracts(exc::Exchange, uni)
     for ai in uni
-        @assert something(get(exc.markets[ai.asset.raw], "linear", true), true) "Inverse contracts are not supported by SimMode."
+        sym = raw(ai)
+        @assert something(get(exc.markets[sym], "linear", true), true) "Inverse contracts are not supported by SimMode. $(sym)"
     end
 end

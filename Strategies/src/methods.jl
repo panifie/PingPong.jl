@@ -1,4 +1,4 @@
-using .Lang: @lget!, @deassert, MatchString
+using .Lang: @lget!, @deassert, MatchString, @caller
 import .Instances.ExchangeTypes: exchangeid, exchange
 import .Instances.Exchanges: marketsid
 import .Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
@@ -233,9 +233,19 @@ end
 Base.getindex(s::Strategy, k::MatchString) = getindex(s.universe, k)
 Base.getindex(s::Strategy, k) = attr(s, k)
 Base.setindex!(s::Strategy, v, k...) = setattr!(s, v, k...)
-Base.lock(s::Strategy) = lock(getfield(s, :lock))
-Base.lock(f, s::Strategy) = lock(f, getfield(s, :lock))
-Base.unlock(s::Strategy) = unlock(getfield(s, :lock))
+Base.lock(s::Strategy) = begin
+    @debug "strategy: locked" @caller
+    lock(getfield(s, :lock))
+end
+Base.lock(f, s::Strategy) = begin
+    @debug "strategy: locked" @caller
+    lock(f, getfield(s, :lock))
+    @debug "strategy: unlocked" @caller
+end
+Base.unlock(s::Strategy) = begin
+    @debug "strategy: unlocked" @caller
+    unlock(getfield(s, :lock))
+end
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value
 

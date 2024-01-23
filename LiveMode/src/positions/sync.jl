@@ -372,7 +372,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing) live_position(s, ai, side; synced=force)
+        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing)
         pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force, synced=force) missing
         if ismissing(pup)
             @debug "sync uni: resetting position (no update)" ai = raw(ai) side

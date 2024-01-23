@@ -84,6 +84,7 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     )
     watch_trades!(s, ai) # ensure trade watcher is running
     watch_orders!(s, ai) # ensure orders watcher is running
+    @debug "orders: state"
     state
 end
 

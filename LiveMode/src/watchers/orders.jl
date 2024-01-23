@@ -20,7 +20,9 @@ The function handles exceptions gracefully. If an exception occurs during the fe
 
 """
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
+    @debug "watch orders: get task" ai = raw(ai) islocked(s)
     tasks = asset_tasks(s, ai)
+    @debug "watch orders: locking" ai = raw(ai) islocked(s)
     @lock tasks.lock begin
         isrunning(s) || return
         @deassert tasks.byname === asset_tasks(s, ai).byname

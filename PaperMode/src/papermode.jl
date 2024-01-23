@@ -156,6 +156,7 @@ function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
     local startinfo, flushlog, log_lock
+    @debug "start: locking"
     @lock s begin
         attrs = s.attrs
         first_start = !haskey(attrs, :is_running)
@@ -165,6 +166,7 @@ function start!(
         end
 
         if first_start
+            @debug "start: first start"
             s[:is_running] = Ref(true)
         elseif s[:is_running][]
             @error "start: strategy already running" s = nameof(s)

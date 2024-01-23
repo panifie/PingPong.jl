@@ -72,7 +72,7 @@ function live_sync_open_orders!(
         cash_short = cash(ai, Short())
         comm_short = committed(ai, Short())
     end
-    @debug "sync orders: syncing" islocked(ai) length(open_orders)
+    @debug "sync orders: syncing" ai = raw(ai) islocked(ai) length(open_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
         strict && maxout!(s, ai)
@@ -174,6 +174,7 @@ function live_sync_open_orders!(
         comm_short == committed(ai, Short()),
     ))
     strict && @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
+    @debug "sync orders: done" ai = raw(ai)
     nothing
 end
 
@@ -427,11 +428,12 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         isnothing(resp) ? [] : [resp...]
     end
     if isnothing(closed_orders)
-        @error "sync orders: couldn't fetch closed orders, skipping sync" ai = raw(ai) s = nameof(
+        @error "sync closed orders: couldn't fetch orders, skipping sync" ai = raw(ai) s = nameof(
             s
         )
         return nothing
     end
+    @debug "sync closed orders: locking ai"
     @lock ai begin
         default_pos = get_position_side(s, ai)
         i = 1
