@@ -368,7 +368,7 @@ function fetch_positions(s, args...; kwargs...)
     @retry attr(s, :live_positions_func)(args...; kwargs...)
 end
 @doc """ Retrieves all asset positions for a strategy. """
-fetch_positions(s; kwargs...) = fetch_positions(s, s.universe; kwargs...)
+fetch_positions(s; kwargs...) = fetch_positions(s, ((ai for ai in s.universe)...,); kwargs...)
 @doc """ Cancels orders of an asset by order identifier. """
 cancel_orders(s, args...; kwargs...) = @retry attr(s, :live_cancel_func)(args...; kwargs...)
 @doc """ Cancels all orders of an asset. """
