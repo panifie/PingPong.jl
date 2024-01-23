@@ -460,7 +460,10 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5), force=tr
             return _force()
         end
         @debug "wait for trade: " isfilled(ai, o) length(order_trades)
-        slept += waitfortrade(s, ai; waitfor=timeout - slept)
+        slept += let time = waitfortrade(s, ai; waitfor=timeout - slept)
+            iszero(time) && break
+            time
+        end
         this_count = length(order_trades)
         this_count > prev_count && return true
     end
