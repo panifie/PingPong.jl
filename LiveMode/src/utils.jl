@@ -98,8 +98,18 @@ init_task(state) = init_task(current_task, state)
 
 This function checks if the current task is running by accessing the task's local storage.
 
+!!! warning "Don't use within macros"
+    Use the homonymous macro `@istaskrunning()` instead.
+
 """
 istaskrunning() = task_local_storage(:running)
+@doc """ Checks if the current task is running (Macro).
+
+Equivalent to `istaskrunning()` but should be used within other macros.
+"""
+macro istaskrunning()
+    :(task_local_storage(:running, false))
+end
 
 @doc """ Stops all tasks associated with a particular asset.
 
