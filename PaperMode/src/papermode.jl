@@ -120,16 +120,13 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                 end
                 @debug_backtrace
                 filter!(t -> istaskdone(t), log_tasks)
-                push!(
-                    log_tasks,
-                    lock(log_lock) do
-                        try
-                            @logerror loghandle
-                        catch
-                            @debug "Failed to log $(now())"
-                        end
-                    end,
-                )
+                let lt = @async @lock log_lock try
+                        @logerror loghandle
+                    catch
+                        @debug "Failed to log $(now())"
+                    end
+                    push!(log_tasks, lt)
+                end
                 sleep(clamp(now() - ping_start, Second(0), throttle))
             end
         end
@@ -140,7 +137,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
         is_running[] = false
         setattr!(s, now(), :is_stop)
         for t in log_tasks
-            schedule(t, InterruptException(); error=true)
+            istaskdone(t) || schedule(t, InterruptException(); error=true)
         end
     end
 end
