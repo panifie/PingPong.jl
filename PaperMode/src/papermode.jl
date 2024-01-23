@@ -158,8 +158,9 @@ function start!(
         attrs = s.attrs
         first_start = !haskey(attrs, :is_running)
         if doreset && first_start # only set defaults on first run
-            default!(s)
             reset!(s)
+        elseif first_start
+            default!(s)
         end
 
         if first_start
