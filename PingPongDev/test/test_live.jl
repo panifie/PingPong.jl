@@ -534,6 +534,7 @@ _test_live(debug=true) = begin
             s[:sync_history_limit] = 0
             reset!(s)
             lm.save_strategy_cache(s, inmemory=true)
+            @async lm.stop_all_tasks(s)
         end
     end
 end

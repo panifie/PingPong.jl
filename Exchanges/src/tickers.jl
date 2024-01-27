@@ -145,7 +145,7 @@ function market!(pair, exc::Exchange=exc)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
 
-_tickerfunc(exc) = first(exc, :watchTicker, :fetchTicker)
+_tickerfunc(exc) = first(exc, :fetchTickerWs, :fetchTicker)
 @doc """Fetch the ticker for a specific pair from an exchange.
 
 $(TYPEDSIGNATURES)
@@ -157,18 +157,21 @@ The `ticker!` function takes the following parameters:
 - `timeout` (optional, default is 3 seconds): the maximum time to wait for the ticker fetch operation.
 - `func` (optional, default is the result of `_tickerfunc(exc)`): the function to use to fetch the ticker.
 """
-function ticker!(pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc))
+function ticker!(
+    pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc), delay=Second(1)
+)
     lock(@lget!(tickersLockDict, pair, ReentrantLock())) do
         @lget! tickersCache10Sec pair let v = nothing::Option{Py}
             while true
                 v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
                 if v isa PyException
-                    @error "Fetch ticker error: $v" offline = isoffline()
+                    @error "Fetch ticker error: $v" offline = isoffline() func pair
                     v = pylist()
                     isoffline() && break
                 else
                     break
                 end
+                sleep(delay)
             end
             v
         end

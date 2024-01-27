@@ -1,3 +1,5 @@
+using Test
+using PingPongDev.PingPong.Engine.Lang: @m_str
 
 function _check_state(s, ai)
     eid = exchangeid(ai)
@@ -49,17 +51,23 @@ function test_live_pong_mg(s)
     # lm.stop_all_tasks(s)
     ai = s[m"btc"]
     eid = exchangeid(ai)
+    start!(s)
+    @test lm.hasattr(s, :trades_cache_ttl)
+    @test lm.isrunning(s)
     lm.live_sync_strategy!(s, force=true)
     side = posside(ai)
     since = now()
     waitfor = Second(3)
     pos = position(ai)
+    @test lm.isrunning(s)
 
     _check_state(s, ai)
     setglobal!(Main, :s, s)
+    @test lm.isrunning(s)
 
     _reset_remote_pos(s, ai)
     @test lm.live_contracts(s, ai, side) == 0
+    @test lm.isrunning(s)
 
     @info "TEST: Short sell"
     trade = ect.pong!(s, ai, ShortGTCOrder{Sell}; amount=0.001, price=lastprice(ai) - 100)
@@ -323,9 +331,17 @@ function test_live_pong_nm_fok(s)
     @test prev_trades == length(ai.history)
 end
 
-function test_live_pong(exchange=:phemex)
+# NOTE: phemex testnet is disabled during weekends
+function test_live_pong(exchange=:deribit; debug=true)
     @eval _live_load()
-    ENV["JULIA_DEBUG"] = "LiveMode"
+    if debug
+        ENV["JULIA_DEBUG"] = "LiveMode"
+    end
+    let cbs = st.STRATEGY_LOAD_CALLBACKS.live
+        if lm.load_strategy_cache ∉ cbs
+            push!(cbs, lm.load_strategy_cache)
+        end
+    end
     @eval @testset failfast = FAILFAST "live" begin
 
         exchange = $(QuoteNode(exchange))
@@ -334,9 +350,9 @@ function test_live_pong(exchange=:phemex)
         try
             @testset test_live_pong_mg(s)
         finally
-            lm.stop_watch_positions!(s)
             @async lm.stop_all_tasks(s)
         end
+        return
         s = live_strat(:Example; exchange, initial_cash=1e8)
         setglobal!(Main, :s, s)
         try
@@ -345,7 +361,9 @@ function test_live_pong(exchange=:phemex)
             @testset test_live_pong_nm_ioc(s)
             @testset test_live_pong_nm_fok(s)
         finally
-            lm.stop_watch_positions!(s)
+            s[:sync_history_limit] = 0
+            reset!(s)
+            lm.save_strategy_cache(s, inmemory=true)
             @async lm.stop_all_tasks(s)
         end
     end
