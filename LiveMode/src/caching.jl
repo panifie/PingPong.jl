@@ -74,7 +74,7 @@ function load_strategy_cache(s, cache_path=nothing, raise=false)
 end
 
 @doc "An lru cache of recently processed orders ids."
-const RecentOrdersDict = LRUCache.LRU{String,Nothing}
+const RecentOrdersDict = LRUCache.LRU{Union{UInt64,String},Nothing}
 @doc """ Retrieves recent orders ids for a live strategy.
 
 $(TYPEDSIGNATURES)
