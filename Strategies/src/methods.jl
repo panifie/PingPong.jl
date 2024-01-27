@@ -234,17 +234,18 @@ Base.getindex(s::Strategy, k::MatchString) = getindex(s.universe, k)
 Base.getindex(s::Strategy, k) = attr(s, k)
 Base.setindex!(s::Strategy, v, k...) = setattr!(s, v, k...)
 Base.lock(s::Strategy) = begin
-    @debug "strategy: locked" @caller
+    @debug "strategy: locking" @caller
     lock(getfield(s, :lock))
+    @debug "strategy: locked" @caller
 end
 Base.lock(f, s::Strategy) = begin
-    @debug "strategy: locked" @caller
+    @debug "strategy: locking" @caller
     lock(f, getfield(s, :lock))
-    @debug "strategy: unlocked" @caller
+    @debug "strategy: locked" @caller
 end
 Base.unlock(s::Strategy) = begin
-    @debug "strategy: unlocked" @caller
     unlock(getfield(s, :lock))
+    @debug "strategy: unlocked" @caller
 end
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value

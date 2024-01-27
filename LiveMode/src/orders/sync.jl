@@ -234,6 +234,7 @@ The flag 'insert' determines whether the trades are inserted to the asset trades
 """
 function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
+    @debug "replay order: activate" o.id
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
         if !iszero(filled_amount(o))

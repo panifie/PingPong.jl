@@ -657,7 +657,7 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     else
         last(buffer(w))
     end
-    @debug "isupdated: " prev_v last_v
+    @debug "isupdated: " _module=Watchers prev_v last_v
     if !isempty(last_v.value) && last_v.time > last_time
         this_v = this_v_func()
         prev_nth = isnothing(prev_v)

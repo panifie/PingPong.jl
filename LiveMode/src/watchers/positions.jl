@@ -235,7 +235,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
     processed_syms = Set{Tuple{String,PositionSide}}()
-    @debug "watchers process: position" data
+    @debug "watchers process: position" data _module=Watchers
     for resp in data
         isdict(resp) || continue
         sym = resp_position_symbol(resp, eid, String)
@@ -265,7 +265,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
         _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
         _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
     end
-    @debug "watchers process: notify"
+    @debug "watchers process: notify" _module=Watchers
     skip_notify || safenotify(w.beacon.process)
 end
 

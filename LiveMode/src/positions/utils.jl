@@ -557,6 +557,7 @@ function waitforpos(
 
     while true
         slept += waitforcond(pup.notify, timeout - slept)
+        @debug "wait for pos: waited" slept
         this_timestamp = pup.date
         if this_timestamp >= prev_timestamp >= prev_since
             since

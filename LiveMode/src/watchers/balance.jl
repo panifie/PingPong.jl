@@ -149,7 +149,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
         )
     end
     w.view.date[] = date
-    @debug "balance watcher update:" date get(bal, :BTC, nothing)
+    @debug "balance watcher update:" date get(bal, :BTC, nothing) _module=:Watchers
     safenotify(w.beacon.process)
 end
 

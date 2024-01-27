@@ -42,19 +42,19 @@ This function starts tasks in a live strategy `s` that watch the exchange for tr
 
 """
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
-    @debug "watch trades: get tasks" ai = raw(ai) islocked(s)
+    @debug "watch trades: get tasks" _module=Watchers ai = raw(ai) islocked(s) @caller
     tasks = asset_tasks(s, ai)
-    @debug "watch trades: locking" ai = raw(ai)
+    @debug "watch trades: locking" _module=Watchers ai = raw(ai)
     @lock tasks.lock begin
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_trades_task(tasks.byname)
             if istaskrunning(task)
-                @debug "watch trades: task running"
+                @debug "watch trades: task running" _module=Watchers
                 return task
             end
         end
-        if force || isrunning(s)
-            @debug "watch trades: strategy stopped"
+        if force || !isrunning(s)
+            @debug "watch trades: strategy stopped" _module=Watchers
             return nothing
         end
         exc = exchange(ai)
@@ -406,7 +406,12 @@ This function waits for a trade in a live strategy `s` with a specific asset ins
 
 """
 function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
-    tt = asset_trades_task(s, ai)
+    tt = try
+        asset_trades_task(s, ai)
+    catch
+        @debug_backtrace
+        return 0
+    end
     if !(tt isa Task)
         @error "wait for trade: task not running (strategy stopped?)"
         return 0
