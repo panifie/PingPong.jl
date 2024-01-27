@@ -548,7 +548,7 @@ It keeps track of the number of orders and checks if any new order has been adde
 If the task is not running, it stops waiting and returns the time spent waiting.
 """
 function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
-    aot, aot_slept = wait_for_task(s, ai; waitfor)
+    aot_slept, aot = wait_for_task(s, ai; waitfor)
     @debug "wait for order: any" aot aot_slept
     ismissing(aot) && return aot_slept
     timeout = Millisecond(waitfor).value
@@ -568,7 +568,7 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
             aot = watch_orders!(s, ai)
             if !istaskrunning(aot)
                 @error "wait for order: failed to restart task"
-                break
+                return 0
             end
         end
     end
@@ -595,7 +595,10 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     end
     @debug "Wait for order: start" id = o.id timeout = timeout
     while slept < timeout
-        slept += waitfororder(s, ai; waitfor)
+        slept += let this_slept = waitfororder(s, ai; waitfor)
+            this_slept == 0 && return false
+            this_slept
+        end
         if !haskey(orders_byid, o.id)
             @ifdebug if isimmediate(o) && isempty(trades(o))
                 @warn "Wait for order: immediate order has no trades"
