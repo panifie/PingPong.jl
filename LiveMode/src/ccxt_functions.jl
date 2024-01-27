@@ -386,6 +386,9 @@ end
 _resp_to_vec(resp) =
     if isnothing(resp)
         []
+    elseif resp isa Exception
+        @debug "ccxt func error" exception = resp @caller
+        []
     else
         [resp...]
     end
