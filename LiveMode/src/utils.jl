@@ -108,7 +108,12 @@ istaskrunning() = task_local_storage(:running)
 Equivalent to `istaskrunning()` but should be used within other macros.
 """
 macro istaskrunning()
-    :(task_local_storage(:running, false))
+    quote
+        try
+            task_local_storage(:running)
+        catch
+        end
+    end
 end
 
 @doc """ Stops all tasks associated with a particular asset.
