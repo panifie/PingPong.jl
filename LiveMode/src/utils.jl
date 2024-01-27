@@ -450,7 +450,8 @@ function st.default!(s::Strategy{Live})
     if limit > 0
         live_sync_closed_orders!(s; limit)
     end
-    live_sync_strategy!(s)
+    eager = get(a, :eager, false)
+    live_sync_strategy!(s, force=eager)
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
