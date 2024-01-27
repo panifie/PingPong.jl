@@ -21,7 +21,7 @@ function _fetch_balance(
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:deribit, :gateio)}, qc, syms, args...; type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:deribit, :gateio, :hitbtc)}, qc, syms, args...; type=:swap, code=nothing, params=pydict(), kwargs...
 )
     params["code"] = @pystr code uppercase(string(@something code qc))
     if haskey(params, "type")
