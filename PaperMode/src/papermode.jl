@@ -26,7 +26,7 @@ const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 _maintf(s) = string(s.timeframe)
 _opttf(s) = string(attr(s, :timeframe, nothing))
 _timeframes(s) = join(string.(s.config.timeframes), " ")
-_cash_total(s) = cnum(st.current_total(s, lastprice))
+_cash_total(s) = cnum(st.current_total(s, lastprice, local_bal=true))
 _assets(s) =
     let str = join(getproperty.(st.assets(s), :raw), ", ")
         str[begin:min(length(str), displaysize()[2] - 1)]
@@ -40,14 +40,14 @@ $(TYPEDSIGNATURES)
 The function takes a strategy and a throttle as input and returns a string detailing the strategy's configuration including its name, mode, throttle, timeframes, cash, assets, and margin mode.
 """
 function header(s::Strategy, throttle)
-    "Starting strategy $(nameof(s)) in $(nameof(typeof(execmode(s)))) mode!
+    """Starting strategy $(nameof(s)) in $(nameof(typeof(execmode(s)))) mode!
 
         throttle: $throttle
         timeframes: $(_maintf(s)) (main), $(_maintf(s)) (optional), $(_timeframes(s)...) (extras)
         cash: $(cash(s)) [$(_cash_total(s))]
         assets: $(_assets(s))
         margin: $(marginmode(s))
-        "
+        """
 end
 @doc """
 Logs the current state of a given strategy.
@@ -157,10 +157,19 @@ function start!(
     @lock s begin
         attrs = s.attrs
         first_start = !haskey(attrs, :is_running)
-        if doreset && first_start # only set defaults on first run
-            reset!(s)
-        elseif first_start
-            default!(s)
+        # HACK: `default!` locks the strategy during syncing, so we unlock here to avoid deadlocks.
+        # This should not be required since the lock is reentrant.
+        # Does syncing use multiple threads? It should not..
+        unlock(s)
+        try
+            lazy = s[:lazy_start] = !doreset || first_start
+            if !lazy # only set defaults on first run
+                reset!(s)
+            elseif first_start
+                default!(s)
+            end
+        finally
+            lock(s)
         end
 
         if first_start
@@ -253,7 +262,7 @@ $(TYPEDSIGNATURES)
 
 This function returns the log file path for a given strategy. If the log file path is not set, it creates a new one based on the execution mode of the strategy.
 """
-function runlog(s, name=lowercase(string(execmode(s))))
+function runlog(s, name=lowercase(string(typeof(execmode(s)))))
     get!(s.attrs, :logfile, st.logpath(s; name))
 end
 
