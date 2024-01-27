@@ -5,7 +5,7 @@ using .Instances: value
 
 $(TYPEDSIGNATURES)
 
-Invoked after a trade event, it fetches the updated position data and syncs the local state. 
+Invoked after a trade event, it fetches the updated position data and syncs the local state.
 If the position update fails or is stale, warnings are logged.
 
 """
@@ -37,10 +37,12 @@ function Executors.aftertrade!(
                 )
             end
         end
-        if isnothing(update) && !isdust(ai, t.price)
-            @warn "after trade: position sync failed, risk of corrupted state" side = posside(
-                o
-            ) o.id t.date cash(ai)
+        if isnothing(update)
+            if !isdust(ai, t.price)
+                @warn "after trade: position sync failed, risk of corrupted state" side = posside(
+                    o
+                ) o.id t.date cash(ai)
+            end
         elseif update.date >= since
             @deassert islocked(ai)
             @debug "after trade: syncing with position" update.date update.closed[] contracts = resp_position_contracts(
