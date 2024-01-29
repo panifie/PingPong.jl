@@ -43,8 +43,10 @@ using .Instances:
     notional!,
     tier!
 using Base: negate
+import .Instances: posside
 
 _ispossym(py, sym, eid::EIDType) = pyeq(Bool, resp_position_symbol(py, eid), @pystr(sym))
+posside(s::Strategy, ai::MarginInstance) = @something posside(ai) get_position_side(s, ai)
 
 @doc """ Handles the response from a position fetch request.
 
@@ -187,7 +189,7 @@ function live_position(
     end
     if (force && wlocked) ||
        !(isnothing(since) || isnothing(pup))
-        @debug "live pos: force waiting"
+        @debug "live pos: force waiting" ai = raw(ai) side since force
         if waitforpos(s, ai, side; since, force, waitfor)
         else # try one last time to force fetch
             @debug "live pos: last force fetch"
@@ -520,7 +522,7 @@ If the position reaches the desired state within the time limit, the function re
 function waitforpos(
     s::LiveStrategy,
     ai,
-    bp::ByPos=posside(ai);
+    bp::ByPos=posside(s, ai);
     since::Option{DateTime}=nothing,
     waitfor=Second(5),
     force=true,
