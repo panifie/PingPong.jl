@@ -65,9 +65,9 @@ function get_float(resp::Py, k, def, args...; ai)
 end
 
 @doc "Test whether a Python object is a list."
-islist(v) = pyisinstance(v, pybuiltins.list)
+islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
 @doc "Test whether a Python object is a dictionary."
-isdict(v) = pyisinstance(v, pybuiltins.dict)
+isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
 
 @doc "Get the timestamp from a Python object, by accessing the first of key available."
 get_timestamp(py, keys=("lastUpdateTimestamp", "timestamp")) =
