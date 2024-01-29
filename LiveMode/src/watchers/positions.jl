@@ -227,7 +227,7 @@ $(TYPEDSIGNATURES)
 This function processes positions for a watcher `w` using the CCXT library. It goes through the positions stored in the watcher and updates their status based on the latest data from the exchange. If a symbol `sym` is provided, it processes only the positions for that symbol, updating their status based on the latest data for that symbol from the exchange.
 
 """
-function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
+function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     isempty(w.buffer) && return nothing
     data_date, data = last(w.buffer)
     long_dict = w.view.long
@@ -235,7 +235,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
     processed_syms = Set{Tuple{String,PositionSide}}()
-    @debug "watchers process: position" data _module=Watchers
+    @debug "watchers process: position" data _module = Watchers
     for resp in data
         isdict(resp) || continue
         sym = resp_position_symbol(resp, eid, String)
@@ -261,11 +261,11 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; sym=nothing)
     # do notify if we added at least one response, or removed at least one
     skip_notify = all(isempty(x for x in (processed_syms, long_dict, short_dict)))
     # Only update closed state when using plain `fetch*` functions.
-    if !w[:is_watch_func]
-        _setposflags!(data_date, long_dict, Long(), processed_syms; sym, eid)
-        _setposflags!(data_date, short_dict, Short(), processed_syms; sym, eid)
+    if !w[:is_watch_func] && isnothing(forced_sym)
+        _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym, eid)
+        _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym, eid)
     end
-    @debug "watchers process: notify" _module=Watchers
+    @debug "watchers process: notify" _module = Watchers
     skip_notify || safenotify(w.beacon.process)
 end
 
@@ -276,11 +276,10 @@ $(TYPEDSIGNATURES)
 This function updates the `PositionUpdate` status when *not* using `watch*` function. This is neccesary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions it is expected that position close updates are received as new events.
 
 """
-function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
-    skip_sym = isnothing(sym)
+function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
     set!(this_sym, pup) = begin
         prev_closed = pup.closed[]
-        if (this_sym, side) ∉ processed_syms && (skip_sym || this_sym != sym)
+        if (this_sym, side) ∉ processed_syms
             pup_prev = get(dict, this_sym, nothing)
             @deassert pup_prev === pup
             dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
@@ -297,14 +296,14 @@ function _setposflags!(data_date, dict, side, processed_syms; sym, eid)
         end
         safenotify(pup.notify)
     end
-    if isnothing(sym)
+    if isnothing(forced_sym)
         for (sym, pup) in dict
             set!(sym, pup)
         end
     else
-        pup = get(dict, sym, nothing)
+        pup = get(dict, forced_sym, nothing)
         if pup isa PositionUpdate7
-            set!(sym, pup)
+            set!(forced_sym, pup)
         end
     end
 end
