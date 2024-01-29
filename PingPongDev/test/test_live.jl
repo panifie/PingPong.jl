@@ -53,6 +53,7 @@ macro live_setup!()
 end
 
 function _live_load()
+    isdefined(Main, :PingPongDev) && return
     @eval begin
         using PingPongDev
         PingPongDev.PingPong.@environment!

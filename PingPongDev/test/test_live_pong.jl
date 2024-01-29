@@ -32,7 +32,7 @@ function _reset_remote_pos(s, ai)
     pos = position(ai)
     @test if !isnothing(pos) && isopen(pos)
         @info "TEST: PositionClose" posside(pos)
-        ect.pong!(s, ai, posside(pos), now(), ect.PositionClose(); waitfor=Day(1))
+        ect.pong!(s, ai, posside(pos), now(), ect.PositionClose(); waitfor=Second(3))
     else
         @info "TEST: CancelOrders" side = isnothing(pos) ? nothing : posside(pos)
         @test !isopen(ai)
@@ -48,7 +48,6 @@ function _reset_remote_pos(s, ai)
 end
 
 function test_live_pong_mg(s)
-    # lm.stop_all_tasks(s)
     ai = s[m"btc"]
     eid = exchangeid(ai)
     start!(s)
@@ -86,7 +85,7 @@ function test_live_pong_mg(s)
         s, ai
     )
     @test inst.timestamp(ai) >= since
-    @test cash(ai, Short()) == -0.001 == lm.live_contracts(s, ai, Short(), force=true)
+    @test cash(ai, Short()) == -0.001 == lm.live_contracts(s, ai, Short(), since=last(ai.history).date, force=true)
     @test iszero(cash(ai, Long()))
     @test isopen(ai, Short())
     @info "TEST: Position Close (2nd)"
@@ -139,14 +138,15 @@ function test_live_pong_mg(s)
     @test !isopen(ai)
     @test isempty(lm.active_orders(s, ai))
     @test ect.orderscount(s, ai) == 0
-    @test lm.live_contracts(s, ai, posside(ai)) == 0
+    @test lm.live_contracts(s, ai, force=true) == 0
 end
 
 function test_live_pong_nm_gtc(s)
     @test s isa lm.NoMarginStrategy
+    start!(s)
     ai = s[m"btc"]
     eid = exchangeid(ai)
-    lm.live_sync_strategy!(s, force=true)
+    lm.live_sync_strategy!(s)
     since = now()
     waitfor = Second(3)
     @test all(isfinite(cash(ai)) for ai in s.universe)
@@ -205,7 +205,10 @@ end
 
 function test_live_pong_nm_market(s)
     @test s isa st.NoMarginStrategy
-    lm.live_sync_strategy!(s)
+    start!(s)
+    @test lm.isrunning(s)
+    @test lm.hasattr(s, :trades_cache_ttl)
+    lm.live_sync_strategy!(s, force=true)
     ai = s[m"btc"]
     side = Buy
     prev_trades = length(ai.history)
@@ -306,6 +309,10 @@ function test_live_pong_nm_ioc(s)
 end
 
 function test_live_pong_nm_fok(s)
+    start!(s)
+    @test lm.hasattr(s, :trades_cache_ttl)
+    @test isrunning(s)
+    lm.live_sync_strategy!(s)
     _test_live_nm_fok_ioc(s, FOKOrder)
     ai = s[m"btc"]
     waitfor = Second(5)
@@ -324,7 +331,7 @@ function test_live_pong_nm_fok(s)
         @test waitfororder(s, ai, waitfor=Second(10))
     end
     @test length(lm.orders(s, ai, Sell)) == prev_orders
-    @test isnothing(t) || ismissing(t) && hasorders()
+    @test isnothing(t) || ismissing(t) && hasorders(s, ai)
     @test prev_cash == cash(ai)
     @test prev_comm == committed(ai)
     @test prev_quote == s.cash
@@ -332,10 +339,10 @@ function test_live_pong_nm_fok(s)
 end
 
 # NOTE: phemex testnet is disabled during weekends
-function test_live_pong(exchange=:deribit; debug=true)
+function test_live_pong(exchange=:phemex; debug=true)
     @eval _live_load()
     if debug
-        ENV["JULIA_DEBUG"] = "LiveMode"
+        ENV["JULIA_DEBUG"] = "LiveMode,Executors"
     end
     let cbs = st.STRATEGY_LOAD_CALLBACKS.live
         if lm.load_strategy_cache ∉ cbs
@@ -346,14 +353,15 @@ function test_live_pong(exchange=:deribit; debug=true)
 
         exchange = $(QuoteNode(exchange))
         s = live_strat(:ExampleMargin; exchange, initial_cash=1e8)
+        s[:sync_history_limit] = 0
         setglobal!(Main, :s, s)
         try
             @testset test_live_pong_mg(s)
         finally
-            @async lm.stop_all_tasks(s)
+            @async lm.stop!(s)
         end
-        return
         s = live_strat(:Example; exchange, initial_cash=1e8)
+        s[:sync_history_limit] = 0
         setglobal!(Main, :s, s)
         try
             @testset test_live_pong_nm_gtc(s)
@@ -361,10 +369,10 @@ function test_live_pong(exchange=:deribit; debug=true)
             @testset test_live_pong_nm_ioc(s)
             @testset test_live_pong_nm_fok(s)
         finally
+            @async lm.stop!(s)
             s[:sync_history_limit] = 0
             reset!(s)
             lm.save_strategy_cache(s, inmemory=true)
-            @async lm.stop_all_tasks(s)
         end
     end
 end
