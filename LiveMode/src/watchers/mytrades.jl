@@ -493,7 +493,7 @@ function _force_fetchtrades(s, ai, o)
         if trades_resp isa Exception
             @ifdebug ispyminor_error(trades_resp) ||
                      @debug "force fetch trades: error fetching trades" trades_resp
-        elseif islist(trades_resp)
+        elseif islist(trades_resp) || trades_resp isa Vector
             @debug "force fetch trades: trades task"
             trades_task = @something asset_trades_task(s, ai) watch_trades!(s, ai)
             sem = task_sem(trades_task)
