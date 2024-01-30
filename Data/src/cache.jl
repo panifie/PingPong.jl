@@ -58,7 +58,7 @@ function load_cache(k; raise=true, agemax=nothing, cache_path=nothing)
     key_path = joinpath(@something(cache_path, CACHE_PATH[]), k)
     if !ispath(key_path)
         if raise
-            throw(ArgumentError("Key $k does not exist."))
+            throw(ArgumentError("Path $key_path does not exist."))
         else
             return nothing
         end

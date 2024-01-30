@@ -20,7 +20,8 @@ read_ohlcv() = CSV.read(OHLCV_FILE_PATH, DataFrame)
 
 function stubscache_path()
     proj = Pkg.project()
-    joinpath(dirname(dirname(proj.path)), "PingPong", "test", "stubs")
+    @something get(ENV, "PINGPONG_STUBS_PATH", nothing) joinpath(dirname(proj.path), "test", "stubs")
+
 end
 
 function save_stubtrades(ai)
