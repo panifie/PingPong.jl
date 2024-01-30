@@ -67,11 +67,7 @@ function test_orderscount(s)
         date=row.timestamp,
     )
     ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
-    try
-        ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
-    catch e
-        @test occursin("not allowed", string(e))
-    end
+    @test_throws AssertionError ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
     ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date(2))
     @test length(collect(ect.orders(s, ai))) == 2
     @test length(collect(ect.orders(s, ai, ect.Buy))) == 2
@@ -120,10 +116,12 @@ end
 
 test_orders() = @testset "orders" begin
     @eval begin
-        using PingPongDev
-        using PingPongDev.PingPong
+        isdefined(Main, :PingPongDev) || begin
+            using PingPongDev
+            using PingPongDev.PingPong
+            PingPongDev.PingPong.@environment!
+        end
         using PingPongDev.PingPong.Engine.Simulations.Random
-        PingPongDev.PingPong.@environment!
         using .Misc: roundfloat
     end
     @info "TEST: sanitize"
