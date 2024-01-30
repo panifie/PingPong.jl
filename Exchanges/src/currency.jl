@@ -1,6 +1,6 @@
 using .Misc: MM, toprecision, DFT
 using .Python: pybuiltins, pyisinstance, pyfloat, pyint
-using .Instruments: AbstractCash, atleast!
+using .Instruments: AbstractCash, atleast!, Cash
 import Instruments: value, addzero!
 Instruments.@importcash!
 import Base: ==, +, -, ÷, /, *
@@ -154,6 +154,7 @@ Base.convert(::Type{T}, c::CurrencyCash) where {T<:Real} = convert(T, _cash(c))
 Base.isless(a::CurrencyCash, b::CurrencyCash) = isless(_cash(a), _cash(b))
 Base.isless(a::CurrencyCash, b::Number) = isless(promote(a, b)...)
 Base.isless(b::Number, a::CurrencyCash) = isless(promote(b, a)...)
+Base.isless(a::Cash, b::CurrencyCash) = isless(a, b.cash)
 
 Base.abs(c::CurrencyCash) = _toprec(c, abs(_cash(c)))
 Base.real(c::CurrencyCash) = _toprec(c, real(_cash(c)))
