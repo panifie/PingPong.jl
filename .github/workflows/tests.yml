@@ -63,6 +63,8 @@ jobs:
     - name: Process coverage
       if: always()
       uses: julia-actions/julia-processcoverage@v1
+      with:
+          directories: PingPongDev/src
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       if: always()
