@@ -116,11 +116,9 @@ end
 
 test_orders() = @testset "orders" begin
     @eval begin
-        isdefined(Main, :PingPongDev) || begin
-            using PingPongDev
-            using PingPongDev.PingPong
-            PingPongDev.PingPong.@environment!
-        end
+        using PingPongDev
+        using PingPongDev.PingPong
+        PingPongDev.PingPong.@environment!
         using PingPongDev.PingPong.Engine.Simulations.Random
         using .Misc: roundfloat
     end
