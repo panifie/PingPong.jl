@@ -53,10 +53,11 @@ macro live_setup!()
 end
 
 function _live_load()
-    isdefined(Main, :PingPongDev) && return
     @eval begin
-        using PingPongDev
-        PingPongDev.PingPong.@environment!
+        isdefined(Main, :PingPongDev) || begin
+            using PingPongDev
+            PingPongDev.PingPong.@environment!
+        end
         using .inst: MarginInstance, raw, cash, cash!
         using .Python:
             PyException,
@@ -71,7 +72,7 @@ function _live_load()
         using .Misc.Lang: @lget!, Option
         using .ect.OrderTypes: ByPos
         using .ect: committed, marginmode, update_leverage!, liqprice!, update_maintenance!
-        using .ect.Instruments: qc, bc
+        using .ect.Instruments: qc, bc, cash!
         using .ect.Instruments.Derivatives: sc
         using .ect.OrderTypes
         using PingPongDev
@@ -290,7 +291,7 @@ function test_live_position_sync(s)
         commits = true
         p = Short()
         resp = lm.fetch_positions(s, ai; side=p)[0]
-        @test pyisTrue(resp["unrealizedPnl"] == 1.4602989788032e-07)
+        @test lm.pyisTrue(resp["unrealizedPnl"] == 1.4602989788032e-07)
         update = lm._posupdate(now(), resp)::lm.PositionUpdate7
 
         # test if sync! returns a Position object with the correct attributes
@@ -309,7 +310,7 @@ function test_live_position_sync(s)
             1
         @test inst.committed(pos) == inst.committed(s, ai, inst.posside(p))
         @test pos.cash[] == -0.32
-        @test pyisTrue(pos.entryprice[] == resp.get(lm.Pos.entryPrice))
+        @test lm.pyisTrue(pos.entryprice[] == resp.get(lm.Pos.entryPrice))
 
         # test hedged mode mismatch
         resp[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
@@ -532,10 +533,8 @@ _test_live(debug=true) = begin
             @testset "live_order_trades" test_live_order_trades(s)
             @testset "live_openclosed_order" test_live_openclosed_orders(s)
         finally
-            s[:sync_history_limit] = 0
-            reset!(s)
-            lm.save_strategy_cache(s, inmemory=true)
             @async lm.stop_all_tasks(s)
+            lm.save_strategy_cache(s, inmemory=true)
         end
     end
 end
