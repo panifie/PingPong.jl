@@ -52,21 +52,23 @@ function _force_fetchbal(s; fallback_kwargs)
     if waslocked
         @debug "force fetch bal: waiting for fetch notify"
         wait(w)
-        _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
-        @debug "force fetch bal: waited"
-        return
+        if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
+            @debug "force fetch bal: waited"
+            return
+        end
     end
     @lock w begin
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
         bal = _handle_bal_resp(resp)
-        isnothing(bal) && return nothing
+        isnothing(bal) && return
         pushnew!(w, bal, time)
         @debug "force fetch bal: processing"
-        process!(w)
+        @async process!(w)
         @debug "force fetch bal: processed"
     end
+    safewait(w.beacon.process)
 end
 
 @doc """ Waits for a balance update.

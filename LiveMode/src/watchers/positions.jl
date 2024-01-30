@@ -115,7 +115,7 @@ function ccxt_positions_watcher(
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    is_watch_func = false # has(exc, :watchPositions)
+    is_watch_func = @lget! s.attrs :live_watch_positions has(exc, :watchPositions)
     _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
     _exc!(attrs, exc)
     watcher_type = Py

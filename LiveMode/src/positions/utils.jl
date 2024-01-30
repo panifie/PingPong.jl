@@ -110,8 +110,9 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     if waslocked
         @debug "force fetch pos: waiting notify" islocked(w) ai = raw(ai) isstopped(w)
         wait(w)
-        _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
-        return
+        if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
+            return
+        end
     end
 
     @debug "force fetch pos: locking" islocked(w) ai = raw(ai)
@@ -123,6 +124,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
             resp_position_contracts(pos[0], exchangeid(ai))
         catch
         end pos
+        isnothing(pos) && return
         pushnew!(
             w,
             if islist(pos)
@@ -133,8 +135,9 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
             time,
         )
         @debug "force fetch pos: processing"
-        process!(w; sym=raw(ai))
+        @async process!(w; sym=raw(ai))
     end
+    safewait(w.beacon.process)
 end
 
 _isstale(ai, pup, side, since) =
