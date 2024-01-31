@@ -116,7 +116,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     end
 
     @debug "force fetch pos: locking" islocked(w) ai = raw(ai)
-    @lock w begin
+    this_task = @lock w begin
         time = now()
         resp = fetch_positions(s, ai; side, fallback_kwargs...)
         pos = _handle_pos_resp(resp, ai, side)
@@ -137,7 +137,10 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
         @debug "force fetch pos: processing"
         @async process!(w; sym=raw(ai))
     end
-    safewait(w.beacon.process)
+    if istaskdone(this_task)
+    else
+        safewait(w.beacon.process)
+    end
 end
 
 _isstale(ai, pup, side, since) =

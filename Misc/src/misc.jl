@@ -16,6 +16,7 @@ include("config.jl")
 include("helpers.jl")
 include("parallel.jl")
 include("ttl.jl")
+include("tasks.jl")
 
 _doinit() = begin
     ENV["JULIA_NUM_THREADS"] = Sys.CPU_THREADS

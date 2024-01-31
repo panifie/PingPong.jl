@@ -178,7 +178,7 @@ function start!(
         elseif s[:is_running][]
             @error "start: strategy already running" s = nameof(s)
             t = attr(s, :run_task, nothing)
-            if !(istaskrunning(t))
+            if t isa Task && istaskstarted(t) && !istaskdone(t)
                 @error "start: strategy running but task is not found (or not running)" s = nameof(s)
             end
             return t

@@ -57,7 +57,7 @@ function _force_fetchbal(s; fallback_kwargs)
             return
         end
     end
-    @lock w begin
+    this_task = @lock w begin
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
@@ -65,10 +65,14 @@ function _force_fetchbal(s; fallback_kwargs)
         isnothing(bal) && return
         pushnew!(w, bal, time)
         @debug "force fetch bal: processing"
-        @async process!(w)
+        this_task = @async process!(w)
         @debug "force fetch bal: processed"
+        this_task
     end
-    safewait(w.beacon.process)
+    if istaskdone(this_task)
+    else
+        safewait(w.beacon.process)
+    end
 end
 
 @doc """ Waits for a balance update.
