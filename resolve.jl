@@ -67,3 +67,21 @@ function purge_compilecache(path="."; io=stdout)
         end
     end
 end
+
+@doc "List of directories to put into tests.yml julia process coverage action"
+function coverage_directories(sep=",")
+    names = projects_name(io=devnull)
+    buf = IOBuffer()
+    try
+        for name in sort!([n for n in names])
+            if name ∈ ("Zarr", "PingPongDev", "Cli", "PingPongInteractive", "Temporal")
+                continue
+            else
+                write(buf, joinpath(name, "src"), sep)
+            end
+        end
+        String(take!(buf))
+    finally
+        close(buf)
+    end
+end
