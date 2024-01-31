@@ -328,7 +328,7 @@ function test_live_pong_nm_fok(s)
     t = ect.pong!(s, ai, FOKOrder{Sell}; amount, price=sell_price, waitfor)
     @info "TEST: " t
     if ismissing(t)
-        @test waitfororder(s, ai, waitfor=Second(10))
+        @test lm.waitfororder(s, ai, waitfor=Second(10))
     end
     @test length(lm.orders(s, ai, Sell)) == prev_orders
     @test isnothing(t) || ismissing(t) && hasorders(s, ai)
