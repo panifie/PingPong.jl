@@ -6,7 +6,7 @@ This function checks if a task (`t`) is running. A task is considered running if
 
 """
 istaskrunning(t::Task) = istaskstarted(t) && !istaskdone(t)
-istaskrunning(t) = error("$t is not a task")
+istaskrunning(t) = false
 @doc """ Stops a task if it's running.
 
 $(TYPEDSIGNATURES)
