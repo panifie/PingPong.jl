@@ -67,11 +67,6 @@ test_map = [
     :tradesohlcv => [test_tradesohlcv],
     :watchers => [test_watchers],
     #
-    :backtest => [test_backtest],
-    :paper => [test_paper],
-    :live => [test_live],
-    :live_pong => [test_live_pong],
-    #
     :profits => [test_profits],
     :roi => [test_roi],
     :stoploss => [test_stoploss],
@@ -80,6 +75,11 @@ test_map = [
     :paprika => [test_paprika],
     :gecko => [test_coingecko],
     :funding => [test_funding],
+    #
+    :backtest => [test_backtest],
+    :paper => [test_paper],
+    :live => [test_live],
+    :live_pong => [test_live_pong],
 ]
 for (testname, tests) in test_map
     if TEST_ALL || lowercase(string(testname)) ∈ ARGS

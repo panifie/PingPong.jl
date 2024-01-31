@@ -2,8 +2,9 @@ using Test
 
 _test_cmc_1() = begin
     cmc = CoinMarketCap
-    config_path = joinpath(dirname(dirname(dirname(pathof(PingPong)))), "user", "secrets.toml")
-    cmc.setapikey!(false, config_path)
+    # config_path = joinpath(dirname(dirname(dirname(pathof(PingPong)))), "user", "secrets.toml")
+    # cmc.setapikey!(false, config_path)
+    cmc.setapikey!(true)
     data = cmc.listings(; sort=cmc.volume_24h)
     @test data isa Vector{Dict{String,Any}}
     vol1 = cmc.usdvol(data[1])

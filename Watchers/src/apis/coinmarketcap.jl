@@ -14,12 +14,12 @@ const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "applicati
 
 @doc """Sets coinmarketcap api key.
 
-- from env var `CMC_API_KEY`
+- from env var `PINGPONG_CMC_APIKEY`
 - or from config key $(API_KEY_CONFIG)
 """
 function setapikey!(from_env=false, config_path=joinpath(pwd(), "user", "secrets.toml"))
     apikey = if from_env
-        get(ENV, "CMC_API_KEY")
+        get(ENV, "PINGPONG_CMC_APIKEY")
     else
         cfg = Config(:default, config_path)
         @info cfg.attrs
