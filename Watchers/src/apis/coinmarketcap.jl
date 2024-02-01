@@ -19,7 +19,7 @@ const API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "applicati
 """
 function setapikey!(from_env=false, config_path=joinpath(pwd(), "user", "secrets.toml"))
     apikey = if from_env
-        get(ENV, "PINGPONG_CMC_APIKEY")
+        Base.get(ENV, "PINGPONG_CMC_APIKEY", "")
     else
         cfg = Config(:default, config_path)
         @info cfg.attrs

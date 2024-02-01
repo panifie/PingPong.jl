@@ -1,10 +1,13 @@
 using Test
 
-_test_cmc_1() = begin
+_test_cmc_1(fromenv=true) = begin
     cmc = CoinMarketCap
-    # config_path = joinpath(dirname(dirname(dirname(pathof(PingPong)))), "user", "secrets.toml")
-    # cmc.setapikey!(false, config_path)
-    cmc.setapikey!(true)
+    if fromenv
+        cmc.setapikey!(true)
+    else
+        config_path = joinpath(dirname(dirname(dirname(pathof(PingPong)))), "user", "secrets.toml")
+        cmc.setapikey!(false, config_path)
+    end
     data = cmc.listings(; sort=cmc.volume_24h)
     @test data isa Vector{Dict{String,Any}}
     vol1 = cmc.usdvol(data[1])
@@ -17,12 +20,12 @@ _test_cmc_1() = begin
     @test pc1 > pc2
 end
 
-test_cmc() = begin
+test_cmc(fromenv=true) = begin
     @eval begin
         using .PingPong: PingPong
         using .PingPong.Engine.LiveMode.Watchers.CoinMarketCap
     end
     @testset "coinmarketcap" begin
-        _test_cmc_1()
+        _test_cmc_1(fromenv)
     end
 end
