@@ -39,7 +39,7 @@ jobs:
         PINGPONG_PHEMEX_SANDBOX_APIKEY: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_APIKEY }}
         PINGPONG_PHEMEX_SANDBOX_SECRET: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_SECRET }}
         PINGPONG_PHEMEX_SANDBOX_PASSWORD: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_PASSWORD }}
-        PINGPONG_CMC_API_KEY: ${{ secrets.PINGPONG_CMC_APIKEY }}
+        PINGPONG_CMC_APIKEY: ${{ secrets.PINGPONG_CMC_APIKEY }}
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
     - name: Install dependencies
@@ -57,7 +57,7 @@ jobs:
         PINGPONG_PHEMEX_SANDBOX_APIKEY: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_APIKEY }}
         PINGPONG_PHEMEX_SANDBOX_SECRET: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_SECRET }}
         PINGPONG_PHEMEX_SANDBOX_PASSWORD: ${{ secrets.PINGPONG_PHEMEX_SANDBOX_PASSWORD }}
-        PINGPONG_CMC_API_KEY: ${{ secrets.PINGPONG_CMC_APIKEY }}
+        PINGPONG_CMC_APIKEY: ${{ secrets.PINGPONG_CMC_APIKEY }}
       run: |
         direnv allow .
         eval "$(direnv hook bash)"
