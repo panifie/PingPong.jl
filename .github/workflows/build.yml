@@ -50,16 +50,48 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           limit-access-to-actor: true
+      - name: Docker meta precomp
+        id: meta-precomp
+        uses: docker/metadata-action@v5
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            panifie/pingpong-precomp
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
       - name: Precomp
         uses: docker/build-push-action@v2
         id: precomp
         with:
           context: .
           push: true
-          tags: panifie/pingpong-precomp:latest
+          tags: ${{ steps.meta-precomp.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp
+      - name: Docker meta sysimage
+        id: meta-sysimage
+        uses: docker/metadata-action@v5
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            panifie/pingpong-sysimage
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
       - name: Sysimage
         uses: docker/build-push-action@v2
         id: sysimage
@@ -67,20 +99,52 @@ jobs:
           context: .
           build-args: "COMPILE_SCRIPT=${{ env.COMPILE_SCRIPT }}"
           push: true
-          tags: panifie/pingpong-sysimage:latest
+          tags: ${{ steps.meta-precomp.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-sysimage
+      - name: Docker meta precomp interactive
+        id: meta-precomp-interactive
+        uses: docker/metadata-action@v5
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            panifie/pingpong-precomp-interactive
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
       - name: Precomp Interactive
         uses: docker/build-push-action@v2
         id: precomp-interactive
         with:
           context: .
           push: true
-          tags: panifie/pingpong-precomp-interactive:latest
+          tags: ${{ steps.meta-precomp-interactive.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-precomp-interactive
+      - name: Docker meta sysimage interactive
+        id: meta-sysimage-interactive
+        uses: docker/metadata-action@v5
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            panifie/pingpong-sysimage-interactive
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
       - name: Sysimage Interactive
         uses: docker/build-push-action@v2
         id: sysimage-interactive
@@ -88,7 +152,7 @@ jobs:
           context: .
           build-args: "COMPILE_SCRIPT=${{ env.COMPILE_SCRIPT }}"
           push: true
-          tags: panifie/pingpong-sysimage-interactive:latest
+          tags: ${{ steps.meta-sysimage-interactive.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-sysimage-interactive
