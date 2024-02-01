@@ -79,7 +79,7 @@ test_map = [
     :backtest => [test_backtest],
     :paper => [test_paper],
     :live => [test_live],
-    :live_pong => [test_live_pong],
+    :live_pong => [() -> test_live_pong(sync=true)],
 ]
 for (testname, tests) in test_map
     if TEST_ALL || lowercase(string(testname)) ∈ ARGS

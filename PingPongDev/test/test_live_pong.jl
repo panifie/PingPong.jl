@@ -339,7 +339,7 @@ function test_live_pong_nm_fok(s)
 end
 
 # NOTE: phemex testnet is disabled during weekends
-function test_live_pong(exchange=:phemex; debug=true)
+function test_live_pong(exchange=:phemex; debug=true, sync=false)
     @eval _live_load()
     if debug
         ENV["JULIA_DEBUG"] = "LiveMode,Executors"
@@ -358,7 +358,10 @@ function test_live_pong(exchange=:phemex; debug=true)
         try
             @testset test_live_pong_mg(s)
         finally
-            @async lm.stop!(s)
+            t = @async lm.stop!(s)
+            if $sync
+                wait(t)
+            end
         end
         s = live_strat(:Example; exchange, initial_cash=1e8)
         s[:sync_history_limit] = 0
@@ -369,7 +372,10 @@ function test_live_pong(exchange=:phemex; debug=true)
             @testset test_live_pong_nm_ioc(s)
             @testset test_live_pong_nm_fok(s)
         finally
-            @async lm.stop!(s)
+            t = @async lm.stop!(s)
+            if $sync
+                wait(t)
+            end
             s[:sync_history_limit] = 0
             reset!(s)
             lm.save_strategy_cache(s, inmemory=true)
