@@ -61,7 +61,7 @@ jobs:
       run: |
         direnv allow .
         eval "$(direnv hook bash)"
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.test()'
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.test(coverage=true)'
     - name: Process coverage
       if: always()
       uses: julia-actions/julia-processcoverage@v1
