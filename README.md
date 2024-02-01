@@ -1,4 +1,4 @@
-[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml)
+[![Discord](https://img.shields.io/discord/1079307635934904370)](https://discord.gg/xDeBmSzDUr) [![build-status-docs](https://github.com/panifie/PingPong.jl/actions/workflows/docs.yml/badge.svg?branch=master)](https://panifie.github.io/PingPong.jl/) [![build-status-docker](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/build.yml) [![tests](https://github.com/panifie/PingPong.jl/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/panifie/PingPong.jl/actions/workflows/tests.yml)
 
 ![Ping Pong](./docs/pingponglogo-384.png)
 
