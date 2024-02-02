@@ -130,4 +130,6 @@ Read the :book: documentation ([link](https://panifie.github.io/PingPong.jl/)) t
 
 For questions and direct support you can join the :speech_balloon: discord chat ([link](https://discord.gg/xDeBmSzDUr))
 
+[PROJECT STATUS](https://github.com/panifie/PingPong.jl/issues/28)
+
 [^1]: Not to be confused with bisimulation :)
