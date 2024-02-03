@@ -284,7 +284,7 @@ function tgrun(
             end
         catch err
             if err isa InterruptException ||
-                err isa HTTP.RequestError && err.error isa InterruptException
+                err isa HTTP.HTTPError && err.error isa InterruptException
                 break
             else
                 @error err

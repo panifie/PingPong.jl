@@ -50,6 +50,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           limit-access-to-actor: true
+        timeout-minutes: 300
       - name: Docker meta precomp
         id: meta-precomp
         uses: docker/metadata-action@v5
