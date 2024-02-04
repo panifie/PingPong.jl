@@ -100,7 +100,7 @@ jobs:
           context: .
           build-args: "COMPILE_SCRIPT=${{ env.COMPILE_SCRIPT }}"
           push: true
-          tags: ${{ steps.meta-precomp.outputs.tags }}
+          tags: ${{ steps.meta-sysimage.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: pingpong-sysimage
