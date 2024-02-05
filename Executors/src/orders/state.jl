@@ -591,6 +591,7 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
     end
+    nothing
 end
 
 @doc """Performs cleanups after a trade (attempt).
