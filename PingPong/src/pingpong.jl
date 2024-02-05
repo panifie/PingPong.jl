@@ -159,7 +159,7 @@ It prepares the environment for working with simulation modes and statistics.
 macro optenv!()
     quote
         using PingPong.Engine.SimMode: SimMode as sm
-        using Stats: Stats as stats
+        using Optimization.Stats: Stats as stats
     end
 end
 

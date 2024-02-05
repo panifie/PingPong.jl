@@ -11,6 +11,7 @@ using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws
 using Stats.Statistics: median, mean
+using Stats: Stats
 using REPL.TerminalMenus
 using Pkg: Pkg
 using SimMode.Misc.DocStringExtensions
