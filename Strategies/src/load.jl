@@ -1,5 +1,6 @@
 using .Data.Cache: save_cache, load_cache
 using .Misc: user_dir, config_path
+using .Misc.Lang: @debug_backtrace
 
 @doc """ Raises an error when a strategy is not found at a given path.  """
 macro notfound(path)
@@ -277,7 +278,7 @@ function strategy!(mod::Module, cfg::Config)
     end
     if cfg.min_timeframe == tf"0s" # any zero tf should match
         cfg.min_timeframe = tf"1m" # default to 1 minute timeframe
-        tfs = cfg.min_timeframes
+        tfs = cfg.timeframes
         sort!(tfs)
         idx = searchsortedfirst(tfs, tf"1m")
         if length(tfs) < idx || tfs[idx] != tf"1m"
@@ -288,6 +289,7 @@ function strategy!(mod::Module, cfg::Config)
     @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) try
         default_load(mod, s_type, cfg)
     catch
+        @debug_backtrace
         nothing
     end bare_load(mod, s_type, cfg)
 end
