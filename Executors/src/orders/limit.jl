@@ -60,7 +60,9 @@ function limitorder(
     @price! ai price take stop
     @amount! ai amount
     comm = Ref(committment(type, ai, price, amount))
-    @debug "create limitorder:" ai = raw(ai) price amount is_comm = iscommittable(s, type, comm, ai)
+    @debug "create limitorder:" ai = raw(ai) price amount is_comm = iscommittable(
+        s, type, comm, ai
+    )
     if skipcommit || iscommittable(s, type, comm, ai)
         basicorder(ai, price, amount, comm, SanitizeOff(); date, type, kwargs...)
     end
@@ -119,7 +121,9 @@ $(TYPEDSIGNATURES)
 
 This function takes a strategy, a limit order of type LimitOrderType{S}, and an asset instance as arguments. It adds the limit order to the pending orders of the strategy. If `skipcommit` is set to false (default), the order is committed and held. Returns true if the order was successfully added, otherwise false.
 """
-function queue!(s::Strategy, o::Order{<:LimitOrderType{S}}, ai; skipcommit=false) where {S<:OrderSide}
+function queue!(
+    s::Strategy, o::Order{<:LimitOrderType{S}}, ai; skipcommit=false
+) where {S<:OrderSide}
     @debug "queue limitorder:" is_comm = iscommittable(s, o, ai)
     # This is already done in general by the function that creates the order
     skipcommit || iscommittable(s, o, ai) || return false

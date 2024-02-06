@@ -196,7 +196,7 @@ function trade!(
     @deassert !isdust(ai, o) committed(o), o
     # Fills the order
     fill!(s, ai, o, trade)
-    push!(ai.history, trade)
+    push!(trades(ai), trade)
     push!(trades(o), trade)
     # update asset cash and strategy cash
     cash!(s, ai, trade)

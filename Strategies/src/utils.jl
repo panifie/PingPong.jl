@@ -71,9 +71,9 @@ The default price function used is `lasttrade_price_func`, which returns the clo
 function current_total(s::NoMarginStrategy; price_func=lasttrade_price_func, kwargs...)
     worth = zero(DFT)
     for ai in s.holdings
-        worth += ai.cash * price_func(ai)
+        worth += cash(ai) * price_func(ai)
     end
-    worth + s.cash
+    worth + cash(s)
 end
 
 @doc """ Calculates the total value of a NoMarginStrategy with Paper.
@@ -90,9 +90,9 @@ function current_total(
 )
     worth = Ref(zero(DFT))
     @sync for ai in s.holdings
-        @async worth[] += ai.cash * price_func(ai)
+        @async worth[] += cash(ai) * price_func(ai)
     end
-    worth[] + s.cash
+    worth[] + cash(s)
 end
 
 @doc """ Calculates the total value of a MarginStrategy.
@@ -112,7 +112,7 @@ function current_total(s::MarginStrategy; price_func=lasttrade_price_func, kwarg
             worth += value(ai, p; current_price=price_func(ai))
         end
     end
-    worth + s.cash
+    worth + cash(s)
 end
 
 @doc """ Calculates the total value of a MarginStrategy with Paper.
