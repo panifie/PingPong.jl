@@ -568,7 +568,7 @@ $(TYPEDSIGNATURES)
 
 """
 function release!(s::MarginStrategy, ai, o::Order)
-    iszero(ai) && !hasorders(s, ai, positionside(o)) && delete!(s.holdings, ai)
+    iszero(ai, posside(o)) && !hasorders(s, ai, positionside(o)) && delete!(s.holdings, ai)
 end
 
 @doc """Releases an order from a no-margin strategy.
@@ -599,7 +599,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-aftertrade!(s, ai, o, _) = aftertrade!(s, ai, o)
+aftertrade!(s, ai, o, t) = aftertrade!(s, ai, o)
 
 @doc """Returns the amount of an order.
 
