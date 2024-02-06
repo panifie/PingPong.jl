@@ -123,9 +123,9 @@ test_margin_gtc(s) = begin
     s.attrs[:overrides] = margin_overrides(:gtc)
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyGTCOrder
-    @test Cash(:USDT, 0.992) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 1.058) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 0.148) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 588
+    @test st.trades_count(s) == 573
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -145,7 +145,7 @@ test_margin_fok(s) = begin
     @test first(_ai_trades(s)).order isa ect.AnyFOKOrder
     @test Cash(:USDT, 1276.0) ≈ s.cash atol = 1e1
     @test Cash(:USDT, 1275.0) ≈ s.cash_committed atol = 1e1
-    @test st.trades_count(s) == 2822
+    @test st.trades_count(s) == 2052
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -163,9 +163,9 @@ test_margin_ioc(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyIOCOrder
-    @test Cash(:USDT, 743.104) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 743.74) ≈ s.cash atol = 1e-3
     @test Cash(:USDT, 743.032) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 2070
+    @test st.trades_count(s) == 2050
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0

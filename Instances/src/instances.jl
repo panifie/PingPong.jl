@@ -247,7 +247,7 @@ $(TYPEDSIGNATURES)
 This function checks if a specified amount in base currency is considered zero with respect to an `AssetInstance`'s minimum limit. The amount is considered zero if it is less than the minimum limit minus a small epsilon value.
 
 """
-function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min + eps(DFT))
+function Base.iszero(ai::AssetInstance, v; atol=ai.limits.amount.min - eps(DFT))
     isapprox(v, zero(DFT); atol)
 end
 @doc """ Check if the asset cash for a position side is zero.
@@ -258,7 +258,7 @@ This function checks if the cash value of an `AssetInstance` for a specific `Pos
 
 """
 function Base.iszero(ai::AssetInstance, p::PositionSide)
-    isapprox(value(cash(ai, p)), zero(DFT); atol=ai.limits.amount.min + eps(DFT))
+    isapprox(value(cash(ai, p)), zero(DFT); atol=ai.limits.amount.min - eps(DFT))
 end
 @doc """ Check if the asset cash is zero.
 
