@@ -187,7 +187,14 @@ $(TYPEDSIGNATURES)
 - `kwargs` (optional): any additional keyword arguments are passed on to the underlying fetch operation.
 """
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
-    ticker!(pair, exc; kwargs...)["last"] |> pytofloat
+    let t = ticker!(pair, exc; kwargs...)
+        lp = t["last"]
+        if pyisnone(lp) || iszero(lp)
+            (pytofloat(t["ask"]) + pytofloat(t["bid"])) / 2
+        else
+            lp |> pytofloat
+        end
+    end
 end
 
 @doc "Precision of the (base, quote) currencies of the market.
