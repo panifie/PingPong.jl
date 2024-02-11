@@ -7,6 +7,7 @@ const THREADSAFE = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
 
 _timeframe(s) = attr(s, :timeframe, tf"1m")
+ind_timeframe(s) = attr(s, :ind_timeframe, tf"1m")
 _reset!(s) = begin
     attrs = s.attrs
     attrs[:buydiff] = 1.01
@@ -110,7 +111,7 @@ end
 
 function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats)
     if otsym == :gtc
-        (; price=1.02 * closeat(ai.ohlcv, ats))
+        (; price=1.02 * closeat(ohlcv(ai), ats))
     else
         ()
     end
@@ -118,7 +119,7 @@ end
 
 function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats)
     if otsym == :gtc
-        (; price=0.99 * closeat(ai.ohlcv, ats))
+        (; price=0.99 * closeat(ohlcv(ai), ats))
     else
         ()
     end
