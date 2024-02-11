@@ -4,6 +4,7 @@ using SimMode.Instruments: compactnum as cnum, Instruments
 using SimMode.Lang.Logging: SimpleLogger, with_logger, current_logger
 using SimMode.Lang: splitkws
 using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
+using SimMode.Misc: attr
 using Random: shuffle!
 
 using Printf: @sprintf
@@ -167,7 +168,7 @@ end
 @doc "Remove results that don't have all the `repeat`ed evalutaion."
 function remove_incomplete!(sess::OptSession)
     gd = groupby(sess.results, [keys(sess.params)...])
-    splits = sess.opt_config.splits
+    splits = attr(sess, :splits)
     completed = DataFrame(filter(g -> nrow(g) == splits, gd))
     empty!(sess.results)
     append!(sess.results, completed)
@@ -281,6 +282,7 @@ function gridsearch(
                                 best[] = obj
                             end
                         end
+                        # FIXME: when should_save is `true`, saving can cause segfaults
                         should_save && lock(sess.lock) do
                             if now() - saved_last[] > save_freq
                                 save_session(sess; from=from[], zi)
@@ -289,7 +291,7 @@ function gridsearch(
                             end
                         end
                     catch
-                    @error "" exception=(first(Base.catch_stack())...,)
+                        @error "" exception = (first(Base.catch_stack())...,)
                         stopping!()
                         logging && lock(grid_lock) do
                             @debug_backtrace
@@ -335,11 +337,11 @@ function filter_results(::Strategy, sess; cut=0.8, min_results=100)
         if nrow(df) > min_results
             sort!(df, [:cash, :obj, :trades])
             from_idx = trunc(Int, nrow(df) * (cut / 3))
-            best_cash = @view df[(end - from_idx):end, :]
+            best_cash = @view df[(end-from_idx):end, :]
             sort!(df, [:trades, :obj, :cash])
-            best_trades = @view df[(end - from_idx):end, :]
+            best_trades = @view df[(end-from_idx):end, :]
             sort!(df, [:obj, :cash, :trades])
-            best_obj = @view df[(end - from_idx):end, :]
+            best_obj = @view df[(end-from_idx):end, :]
             vcat(best_cash, best_trades, best_obj)
         else
             df
@@ -382,7 +384,7 @@ function progsearch(
             sess[] = this_sess
         end
     end
-    for offset in (init_offset + 1):rcount
+    for offset in (init_offset+1):rcount
         results = filter_results(s, sess[]; cut)
         grid_itr = gridfromresults(sess[], results)
         if length(grid_itr) < 3
