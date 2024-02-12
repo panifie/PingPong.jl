@@ -37,14 +37,36 @@ end
 @doc "Strategy assets instance."
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
-@doc "Strategy main exchange id."
-exchange(s::Union{<:S,Type{<:S}}) where {S<:Strategy} = getexchange!(Symbol(exchangeid(s)), sandbox=s.sandbox)
+@doc "Strategy exchange."
+exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)), sandbox=s.sandbox)
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
     E
 end
-Exchanges.issandbox(s::Strategy) = Exchanges.issandbox(exchange(s))
+Exchanges.getexchange!(s::Type{<:Strategy}) = getexchange!(Symbol(exchangeid(s)), sandbox=issandbox(s))
+Exchanges.issandbox(s::Strategy) = begin
+    ans = s.sandbox
+    @deassert ans == Exchanges.issandbox(exchange(s))
+    ans
+end
+Exchanges.issandbox(s::Type{<:Strategy}) =
+    let mod = getproperty(Main, nameof(s))
+        if hasproperty(mod, :SANDBOX)
+            prop = getproperty(mod, :SANDBOX)
+            if prop isa Bool
+                prop
+            elseif prop isa Ref{Bool}
+                prop[]
+            else
+                @error "strategy: expected `SANDBOX` to be a boolean ref" prop
+                execmode(s) != Paper()
+            end
+        else
+            @warn "strategy: `SANDBOX` property not found"
+            execmode(s) != Paper()
+        end
+    end
 cash(s::Strategy) = getfield(s, :cash)
 Instances.committed(s::Strategy) = getfield(s, :cash_committed)
 @doc "Cash that is not committed, and therefore free to use for new orders."

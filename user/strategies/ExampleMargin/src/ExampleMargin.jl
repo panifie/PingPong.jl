@@ -44,6 +44,7 @@ ping!(s::S, ::ResetStrategy) = begin
     skip_watcher || _tickers_watcher(s)
 end
 function ping!(t::Type{<:SC}, config, ::LoadStrategy)
+    SANDBOX[] = config.sandbox
     s = st.default_load(@__MODULE__, t, config)
     _reset!(s)
     _reset_pos!(s, synced=false)
@@ -79,10 +80,11 @@ function ping!(s::T, ts::DateTime, _) where {T<:SC}
     end
 end
 
-const ASSETS = Ref{Union{Nothing, Vector{String}}}(nothing)
+const ASSETS = Ref{Union{Nothing,Vector{String}}}(nothing)
 
 if_asset_available(s, assets=("ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT")) = begin
-    [a for a in assets if a in keys(exchange(s).markets)]
+    e = getexchange!(Symbol(exchangeid(s)), sandbox=SANDBOX[])
+    [a for a in assets if a in keys(e.markets)]
 end
 
 function ping!(s::Union{<:SC,Type{<:SC}}, ::StrategyMarkets)

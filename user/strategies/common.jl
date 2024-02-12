@@ -4,6 +4,7 @@ using PingPong.Engine.LiveMode.Watchers.WatchersImpls: ccxt_ohlcv_tickers_watche
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
 const THREADSAFE = Ref(true)
+const SANDBOX = Ref(true)
 const TradeResult = Union{Missing,Nothing,<:Trade,<:OrderError}
 
 _timeframe(s) = attr(s, :timeframe, tf"1m")
