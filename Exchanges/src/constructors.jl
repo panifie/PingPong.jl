@@ -183,7 +183,7 @@ function getexchange!(
         end,
     )
 end
-function getexchange!(x::ExchangeID, args...; kwargs...)
+function getexchange!(x::Union{ExchangeID,Type{<:ExchangeID}}, args...; kwargs...)
     getexchange!(Symbol(x), args...; kwargs...)
 end
 
