@@ -266,12 +266,13 @@ setflags!(args...; kwargs...) = nothing
 @doc "When serializing an exchange, serialize only its id."
 function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
     serialize_type(s, E, false)
-    serialize(s, exc.id)
+    serialize(s, (exc.id, issandbox(exc)))
 end
 
 @doc "When deserializing an exchange, use the deserialized id to construct the exchange."
 deserialize(s::AbstractSerializer, ::Type{<:Exchange}) = begin
-    deserialize(s) |> getexchange!
+    id, sandbox = deserialize(s)
+    getexchange!(id; sandbox)
 end
 
 @doc "Check if exchange has tickers list.
@@ -544,7 +545,7 @@ Base.time(exc::Exchange) = dt(_fetchnoerr(exc.py.fetchTime, Float64))
 @doc "Returns the matching *futures* exchange instance, if it exists, or the input exchange otherwise."
 function futures(exc::Exchange)
     futures_sym = get(futures_exchange, exc.id, exc.id)
-    futures_sym != exc.id ? getexchange!(futures_sym) : exc
+    futures_sym != exc.id ? getexchange!(futures_sym; sandbox=issandbox(exc)) : exc
 end
 
 const CCXT_REQUIRED_LOCAL4 = (
