@@ -189,7 +189,7 @@ $(TYPEDSIGNATURES)
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
     let t = ticker!(pair, exc; kwargs...)
         lp = t["last"]
-        if pyisnone(lp) || iszero(lp)
+        if !pytruth(lp)
             (pytofloat(t["ask"]) + pytofloat(t["bid"])) / 2
         else
             lp |> pytofloat
