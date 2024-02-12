@@ -1,3 +1,5 @@
+using .Exchanges: issandbox
+
 # NOTE: this constructor can't be revised, requires a restart
 @doc """Initializes a Strategy object in the Strategies module.
 
@@ -24,9 +26,13 @@ function Strategies.Strategy(
     config::Config,
     mode=config.mode,
     margin=config.margin,
-    sandbox=true,
+    sandbox=config.sandbox,
     timeframe=config.min_timeframe,
 )
+    setproperty!(config, :sandbox, sandbox)
+    setproperty!(config, :mode, mode)
+    setproperty!(config, :margin, margin)
+    setproperty!(config, :min_timeframe, timeframe)
     exc = getexchange!(config.exchange; sandbox)
     uni = if isempty(assets)
         AssetCollection()
