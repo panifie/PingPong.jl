@@ -2,7 +2,7 @@ using Test
 
 _test_cmc_1(fromenv=true) = begin
     cmc = CoinMarketCap
-    if fromenv
+    if fromenv && Base.get(ENV, "PINGPONG_CMC_APIKEY", "") != ""
         cmc.setapikey!(true)
     else
         config_path = joinpath(dirname(dirname(dirname(pathof(PingPong)))), "user", "secrets.toml")
