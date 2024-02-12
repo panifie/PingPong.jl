@@ -5,6 +5,9 @@
          (lsp-julia-default-environment . "PingPong")
          (eval . (progn
                    (setenv "JULIA_DEV" "1")
+                   ;; Use these when using a locally compiled image
+                   ;; (setenv "JULIA_CPU_TARGET" "native")
+                   ;; (setq julia-repl-switches (concat "--sysimage=" (my/concat-path (or (projectile-project-root) (pwd)) "PingPong.so ")))
                    (when (boundp 'envrc-auto-reload-paths)
                      (cl-pushnew (file-name-concat
                                   (locate-dominating-file (pwd) ".dir-locals.el") ".envrc")
