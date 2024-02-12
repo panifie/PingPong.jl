@@ -4,6 +4,7 @@ authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"
 
 [deps]
+Optimization = "01837fd2-c099-442f-ae89-75fa208aad36"
 PingPong = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 Watchers = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
