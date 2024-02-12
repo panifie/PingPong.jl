@@ -12,7 +12,7 @@ struct MultiStrategy1{M}
     function MultiStrategy1(
         src::Symbol, assets::Union{Dict,Iterable{String}}, config::Config
     )
-        exc = getexchange!(config.exchange)
+        exc = getexchange!(config.exchange, sandbox=config.sandbox)
         uni = AssetCollection(assets; exc)
         new{src}(uni, Dict(), Dict(), Dict(), config)
     end

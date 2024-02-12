@@ -466,7 +466,7 @@ The function can run in parallel if `parallel` is set to true. If `wait_task` is
 You can provide additional parameters using `kwargs`.
 """
 function fetch_ohlcv(
-    excs::Vector{Exchange}, timeframe; parallel=false, wait_task=false, kwargs...
+    excs::Vector{Exchange}, timeframe; sandbox=true, parallel=false, wait_task=false, kwargs...
 )
     # out_file = joinpath(DATA_PATH, "out.log")
     # err_file = joinpath(DATA_PATH, "err.log")
@@ -475,9 +475,9 @@ function fetch_ohlcv(
     parallel && _instantiate_workers(:PingPong; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
-        e_pl = s -> (ex = getexchange!(s); (ex, tickers(ex; as_vec=true)))
+        e_pl = s -> (ex = getexchange!(s; sandbox); (ex, tickers(ex; as_vec=true)))
     else
-        e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name))), s[2])
+        e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name)); sandbox), s[2])
     end
     t = @parallel parallel for s in excs
         ex, pl = e_pl(s)

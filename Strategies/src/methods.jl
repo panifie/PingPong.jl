@@ -38,7 +38,7 @@ end
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy main exchange id."
-exchange(s::Union{<:S,Type{<:S}}) where {S<:Strategy} = getexchange!(Symbol(exchangeid(s)))
+exchange(s::Union{<:S,Type{<:S}}) where {S<:Strategy} = getexchange!(Symbol(exchangeid(s)), sandbox=s.sandbox)
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
@@ -177,6 +177,8 @@ function Base.getproperty(s::Strategy, sym::Symbol)
         _config_attr(s, :leverage)
     elseif sym == :mode
         _config_attr(s, :mode)
+    elseif sym == :sandbox
+        _config_attr(s, :sandbox)
     else
         getfield(s, sym)
     end
@@ -262,7 +264,7 @@ function Base.similar(
     s::Strategy;
     mode=s.mode,
     timeframe=s.timeframe,
-    exc=Exchanges.getexchange!(s.exchange; sandbox=mode == Sim()),
+    exc=exchange(s),
 )
     s = Strategy(
         s.self,

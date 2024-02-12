@@ -521,7 +521,7 @@ function _load_benchmark(
                 if isnothing(idx)
                     load(
                         zi,
-                        getexchange!(s.exchange),
+                        exchange(s),
                         "$(uppercase(string(benchmark)))/$(nameof(s.cash))",
                         string(s.timeframe);
                         from=start_date,

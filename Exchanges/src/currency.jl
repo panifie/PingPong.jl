@@ -86,17 +86,18 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
     limits::MM{DFT}
     precision::T where {T<:Real}
     fees::DFT
+    sandbox::Bool
     @doc """Create a CurrencyCash object.
 
     $(TYPEDSIGNATURES)
     """
-    function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v)
+    function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v; sandbox=false)
         lock(currency_lock) do
-            exc = getexchange!(Symbol(id))
+            exc = getexchange!(Symbol(id); sandbox)
             c = cash_type(v)
             lpf = _lpf(exc, _cur(exc, nameof(c)))
             Instruments.cash!(c, toprecision(c.value, lpf.precision))
-            new{cash_type,id}(c, lpf...)
+            new{cash_type,id}(c, lpf..., issandbox(exc))
         end
     end
     function CurrencyCash(exc::Exchange, sym, v=0.0)
@@ -107,17 +108,17 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
             c = Cash(sym, v)
             lpf = _lpf(exc, cur)
             Instruments.cash!(c, toprecision(c.value, lpf.precision))
-            new{typeof(c),typeof(exc.id)}(c, lpf...)
+            new{typeof(c),typeof(exc.id)}(c, lpf..., issandbox(exc))
         end
     end
 end
 
-function CurrencyCash{C,E}(v) where {C<:Cash,E<:ExchangeID}
-    CurrencyCash(E, C, v)
+function CurrencyCash{C,E}(v; sandbox=false) where {C<:Cash,E<:ExchangeID}
+    CurrencyCash(E, C, v; sandbox)
 end
 
-function CurrencyCash(::CurrencyCash{C,E}, v) where {C<:Cash,E<:ExchangeID}
-    CurrencyCash(E, C, v)
+function CurrencyCash(c::CurrencyCash{C,E}, v) where {C<:Cash,E<:ExchangeID}
+    CurrencyCash(E, C, v; sandbox=c.sandbox)
 end
 
 @doc "The currency cash as a number."

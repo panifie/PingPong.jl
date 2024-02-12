@@ -20,10 +20,10 @@ $(TYPEDSIGNATURES)
 This function creates an AssetInstance using the provided strings for the asset (`s`), data type (`t`), exchange (`e`), and margin type (`m`).
 
 """
-function Instances.AssetInstance(s::S, t::S, e::S, m::S) where {S<:AbstractString}
+function Instances.AssetInstance(s::S, t::S, e::S, m::S; sandbox::Bool) where {S<:AbstractString}
     a = parse(AbstractAsset, s)
     tf = convert(TimeFrame, t)
-    exc = getexchange!(Symbol(e))
+    exc = getexchange!(Symbol(e); sandbox)
     margin = if m == "isolated"
         Isolated()
     elseif m == "cross"

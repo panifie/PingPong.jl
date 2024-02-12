@@ -29,7 +29,7 @@ end
 
 function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timeframe(s))
     if s isa Union{PaperStrategy,LiveStrategy}
-        exc = getexchange!(s.exchange; sandbox=false)
+        exc = getexchange!(exchangeid(s); sandbox=false)
         w = ccxt_ohlcv_tickers_watcher(
             exc;
             timeframe=tf,
