@@ -644,9 +644,9 @@ $(TYPEDSIGNATURES)
 
 The `update_ohlcv!` function updates the tail of an OHLCV DataFrame `df` with the most recent candles for a given `pair` from an exchange `exc` over a timeframe `tf`. The type of OHLCV data to update is determined by the `ohlcv_kind` parameter.
 """
-function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default)
+function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default, from=nothing)
     from = if isempty(df)
-        DateTime(0)
+        @something from DateTime(0)
     else
         iscontig, idx, last_date = contiguous_ts(
             df.timestamp, string(tf); raise=false, return_date=true
