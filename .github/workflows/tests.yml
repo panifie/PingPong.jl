@@ -1,5 +1,8 @@
 name: run-tests
 
+# NOTE: Tests shouldn't be run at the same time as the build workflows since
+# they query the same exchange point and can make tests fail
+
 on:
   workflow_dispatch:
     inputs:
