@@ -14,6 +14,7 @@ using Stats.Statistics: median, mean
 using Stats: Stats
 using REPL.TerminalMenus
 using Pkg: Pkg
+using Base.Threads: threadid
 using SimMode.Misc.DocStringExtensions
 import .st: ping!
 
@@ -23,7 +24,7 @@ const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
 
 $(FIELDS)
 
-This structure contains a single field `value` which is an atomic boolean. 
+This structure contains a single field `value` which is an atomic boolean.
 It is used to indicate whether the optimization process is currently running or not.
 """
 mutable struct OptRunning
@@ -115,12 +116,12 @@ function Base.show(io::IO, sess::OptSession)
     if length(sess.params) > 0
         w("\nParams: ")
         params = keys(sess.params)
-        w((string(k, ", ") for k in params[begin:(end - 1)])..., params[end])
+        w((string(k, ", ") for k in params[begin:(end-1)])..., params[end])
         w(" (", length(Iterators.product(values(sess.params)...)), ")")
     end
     w("\nConfig: ")
     config = collect(pairs(sess.attrs))
-    for (k, v) in config[begin:(end - 1)]
+    for (k, v) in config[begin:(end-1)]
         w(k, "(", v, "), ")
     end
     k, v = config[end]
@@ -171,7 +172,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if a zarr group exists for the given strategy name in the optimization group of the zarr instance. 
+This function checks if a zarr group exists for the given strategy name in the optimization group of the zarr instance.
 If it exists, the function returns the group; otherwise, it creates a new zarr group for the strategy.
 """
 function zgroup_strategy(zi, s_name::String)
@@ -223,8 +224,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes three arguments: `startstop`, `params_k`, and `code`. 
-These represent the start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters, respectively. 
+The function takes three arguments: `startstop`, `params_k`, and `code`.
+These represent the start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters, respectively.
 The function returns a `Regex` object that matches the string representation of an optimization session key.
 """
 function rgx_key(startstop, params_k, code)
@@ -248,9 +249,9 @@ _deserattrs(attrs, k) = convert(Vector{UInt8}, attrs[k]) |> todata
 
 $(TYPEDSIGNATURES)
 
-This function loads an optimization session from the provided zarr instance `zi` based on the given parameters. 
-The parameters include the strategy name, start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters. 
-The function returns the loaded session, either as a zarr array if `as_z` is `true`, or as an `OptSession` object otherwise. 
+This function loads an optimization session from the provided zarr instance `zi` based on the given parameters.
+The parameters include the strategy name, start and stop date of the backtesting context, the first letter of every parameter, and a hash of the parameters and attributes truncated to 4 characters.
+The function returns the loaded session, either as a zarr array if `as_z` is `true`, or as an `OptSession` object otherwise.
 If `results_only` is `true`, only the results DataFrame of the session is returned.
 """
 function load_session(
@@ -277,8 +278,8 @@ function load_session(
         if isempty(attrs)
             @error "ZArray should contain session attributes."
             if isnothing(remove_broken) &&
-                isinteractive() &&
-                Base.prompt("delete entry $(z.path)? [y]/n") == "n"
+               isinteractive() &&
+               Base.prompt("delete entry $(z.path)? [y]/n") == "n"
                 remove_broken = false
             else
                 remove_broken = true
@@ -355,8 +356,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes two arguments: `ctx` and `splits`. 
-`ctx` is the optimization context and `splits` is the number of splits for the optimization process. 
+The function takes two arguments: `ctx` and `splits`.
+`ctx` is the optimization context and `splits` is the number of splits for the optimization process.
 The function returns a named tuple with `small_step` and `big_step` which represent the step size for the optimization process.
 """
 function ctxsteps(ctx, splits)
@@ -371,8 +372,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` and an initial cash amount as arguments. 
-It calculates the objective score, the current total cash, the profit and loss ratio, and the number of trades. 
+The function takes a strategy `s` and an initial cash amount as arguments.
+It calculates the objective score, the current total cash, the profit and loss ratio, and the number of trades.
 The function returns these metrics as a named tuple.
 """
 metrics_func(s; initial_cash) = begin
@@ -388,8 +389,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes three arguments: `sess`, `small_step`, and `big_step`. 
-`sess` is the optimization session, `small_step` is the small step size for the optimization process, and `big_step` is the big step size for the optimization process. 
+The function takes three arguments: `sess`, `small_step`, and `big_step`.
+`sess` is the optimization session, `small_step` is the small step size for the optimization process, and `big_step` is the big step size for the optimization process.
 The function returns a function that performs a backtest for a given set of parameters and a given iteration number.
 """
 function define_backtest_func(sess, small_step, big_step)
@@ -434,15 +435,20 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution. 
+This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution.
 The garbage collector is re-enabled after the expression has been executed, regardless of whether the expression completed successfully or an error was thrown.
 """
 macro nogc(expr)
     ex = quote
         try
             $(gc_disable)()
+            Base.GC.enable(false)
             $expr
         finally
+            if threadid() == 1
+                Base.GC.gc(false)
+            end
+            Base.GC.enable(true)
             $(gc_enable)()
         end
     end
@@ -452,8 +458,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`. 
-`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective. 
+The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`.
+`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective.
 The function returns a function that performs a multi-threaded optimization for a given set of parameters.
 """
 function _multi_opt_func(splits, backtest_func, median_func, obj_type)
@@ -474,8 +480,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`. 
-`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective. 
+The function takes four arguments: `splits`, `backtest_func`, `median_func`, and `obj_type`.
+`splits` is the number of splits for the optimization process, `backtest_func` is the backtest function, `median_func` is the function to calculate the median, and `obj_type` is the type of the objective.
 The function returns a function that performs a single-threaded optimization for a given set of parameters.
 """
 function _single_opt_func(splits, backtest_func, median_func, args...)
@@ -488,8 +494,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a boolean argument `ismulti` which indicates if the optimization is multi-objective. 
-If `ismulti` is `true`, the function returns a function that calculates the median over all the repeated iterations. 
+The function takes a boolean argument `ismulti` which indicates if the optimization is multi-objective.
+If `ismulti` is `true`, the function returns a function that calculates the median over all the repeated iterations.
 Otherwise, it returns a function that calculates the median of a given array.
 """
 function define_median_func(ismulti)
@@ -504,8 +510,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes several arguments: `s`, `backtest_func`, `ismulti`, `splits`, `obj_type`, and `isthreaded`. 
-`s` is the strategy, `backtest_func` is the backtest function, `ismulti` indicates if the optimization is multi-objective, `splits` is the number of splits for the optimization process, `obj_type` is the type of the objective, and `isthreaded` indicates if the optimization is threaded. 
+The function takes several arguments: `s`, `backtest_func`, `ismulti`, `splits`, `obj_type`, and `isthreaded`.
+`s` is the strategy, `backtest_func` is the backtest function, `ismulti` indicates if the optimization is multi-objective, `splits` is the number of splits for the optimization process, `obj_type` is the type of the objective, and `isthreaded` indicates if the optimization is threaded.
 The function returns the appropriate optimization function based on these parameters.
 """
 function define_opt_func(
@@ -520,7 +526,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` as an argument. 
+The function takes a strategy `s` as an argument.
 It returns a tuple containing the type of the objective and the number of objectives.
 """
 function objectives(s)
@@ -533,7 +539,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes an optimization session `sess` and an optional index `idx` (defaulting to the last row of the results). 
+The function takes an optimization session `sess` and an optional index `idx` (defaulting to the last row of the results).
 It returns the parameters of the optimization session at the specified index as a named tuple.
 """
 function result_params(sess::OptSession, idx=nrow(sess.results))
@@ -546,8 +552,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` and an optional `name` (defaulting to the current timestamp). 
-It constructs a directory path based on the strategy's path, and ensures this directory exists. 
+The function takes a strategy `s` and an optional `name` (defaulting to the current timestamp).
+It constructs a directory path based on the strategy's path, and ensures this directory exists.
 Then, it returns the full path to the log file within this directory, along with the directory path itself.
 
 """
@@ -561,7 +567,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` as an argument. 
+The function takes a strategy `s` as an argument.
 It retrieves the directory path for the strategy's log files and returns the full paths to all log files within this directory.
 
 """
@@ -574,7 +580,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` as an argument. 
+The function takes a strategy `s` as an argument.
 It retrieves the directory path for the strategy's log files and removes all files within this directory.
 
 """
@@ -589,7 +595,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` and an optional index `idx` (defaulting to the last log file). 
+The function takes a strategy `s` and an optional index `idx` (defaulting to the last log file).
 It retrieves the directory path for the strategy's log files, selects the log file at the specified index, and prints its content.
 
 """
@@ -615,7 +621,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes an optimization session `sess` and optional functions `reduce_func` and `agg_func`. 
+The function takes an optimization session `sess` and optional functions `reduce_func` and `agg_func`.
 It groups the results by the session parameters, applies the `reduce_func` to each group, and then applies the `agg_func` to the reduced results.
 
 """
@@ -637,7 +643,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a strategy `s` as an argument. 
+The function takes a strategy `s` as an argument.
 It retrieves the directory path for the strategy's log files and returns the full paths to all log files within this directory.
 
 """
@@ -684,7 +690,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The function takes a parameters dictionary `params` as an argument. 
+The function takes a parameters dictionary `params` as an argument.
 It returns two arrays, `lower` and `upper`, containing the first and last values of each parameter range in the dictionary, respectively.
 
 """
@@ -700,7 +706,7 @@ end
 delete_sessions!(s::Strategy; kwargs...) = delete_sessions!(string(nameof(s)); kwargs...)
 @doc """ Loads the BayesianOptimization extension.
 
-The function checks if the BayesianOptimization package is installed in the current environment. 
+The function checks if the BayesianOptimization package is installed in the current environment.
 If not, it prompts the user to add it to the main environment.
 
 """
