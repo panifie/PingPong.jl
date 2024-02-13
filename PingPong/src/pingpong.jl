@@ -107,6 +107,7 @@ macro strategyenv!()
         using .Data: propagate_ohlcv!, stub!
         using .Data.DataStructures: CircularBuffer
         using .Misc: after, before, rangeafter, rangebefore, LittleDict
+        using .Misc: istaskrunning, start_task, stop_task
         using .inst: asset, ohlcv, ohlcv_dict, raw, lastprice, bc, qc
         using .inst: takerfees, makerfees, maxfees, minfees
         using .inst: ishedged, cash, committed, instance, isdust, nondust
@@ -118,6 +119,8 @@ macro strategyenv!()
         using .ect: NewTrade
         using .ect: WatchOHLCV, UpdateData, InitData
         using .ect: UpdateOrders, CancelOrders
+
+        using .pp.Engine.LiveMode: asset_tasks, strategy_tasks, @retry
 
         $(PingPong.Engine.Strategies).@interface
 

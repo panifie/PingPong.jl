@@ -205,8 +205,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with a specific asset `ai` in the strategy `s`. It returns a [`AssetTasks`](@ref) representing a collection of tasks associated with the asset.
 
 """
-function asset_tasks(s::Strategy, ai)
-    tasks = asset_tasks(s)
+function asset_tasks(s::Strategy, ai, tasks=asset_tasks(s))
     @lock s @lget! tasks ai (;
         lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
