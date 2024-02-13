@@ -26,7 +26,7 @@ const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
 _maintf(s) = string(s.timeframe)
 _opttf(s) = string(attr(s, :timeframe, nothing))
 _timeframes(s) = join(string.(s.config.timeframes), " ")
-_cash_total(s) = cnum(st.current_total(s, lastprice, local_bal=true))
+_cash_total(s) = cnum(st.current_total(s, lastprice; local_bal=true))
 _assets(s) =
     let str = join(getproperty.(st.assets(s), :raw), ", ")
         str[begin:min(length(str), displaysize()[2] - 1)]
@@ -179,9 +179,13 @@ function start!(
             @error "start: strategy already running" s = nameof(s)
             t = attr(s, :run_task, nothing)
             if t isa Task && istaskstarted(t) && !istaskdone(t)
-                @error "start: strategy running but task is not found (or not running)" s = nameof(s)
+                @error "start: strategy running but task is not found (or not running)" s = nameof(
+                    s
+                )
             end
             return t
+        else
+            s[:is_running][] = true
         end
         @deassert attr(s, :is_running)[]
 
