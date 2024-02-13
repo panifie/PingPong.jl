@@ -6,6 +6,7 @@ using Strategies.Misc
 using .Misc.TimeTicks
 using .Misc: Lang
 using .Misc.DocStringExtensions
+import .Misc: ping!, pong!
 
 include("context.jl")
 include("checks.jl")
@@ -20,8 +21,6 @@ include("orders/market.jl")
 include("positions/utils.jl")
 include("positions/state.jl")
 include("positions/info.jl")
-
-pong!(args...; kwargs...) = error("Not implemented")
 
 @doc "(DEPRECATED) order updates are done internally now."
 struct UpdateOrders <: ExecAction end # not impl

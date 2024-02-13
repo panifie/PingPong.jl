@@ -7,7 +7,7 @@ using .st.ExchangeTypes.Ccxt: ccxt_exchange
 using .st.TimeTicks
 using .st: AssetCollection
 import .st: ping!
-using .st.Misc: Sim, NoMargin, Paper
+using .st.Misc: Sim, NoMargin, Paper, pong!
 using .st.Instances: ByPos, BySide, Isolated, Long, Short, cash
 using .st: Buy, Sell
 using .st.OrderTypes: MarketOrder, ShortMarketOrder

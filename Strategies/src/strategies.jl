@@ -16,7 +16,7 @@ import .Data.DataStructures: lt
 using .Data: closelast
 using .Misc
 using .Misc: DFT, IsolatedMargin, TimeTicks, Lang
-import .Misc: reset!, Long, Short, attrs
+import .Misc: reset!, Long, Short, attrs, ping!, pong!
 using .TimeTicks
 using .Lang: @lget!
 using Pkg: Pkg
