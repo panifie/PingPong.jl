@@ -74,9 +74,9 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
                 end
                 sleep(throttle)
             end
-        catch e
+        catch
             e isa InterruptException && break
-            haskey(s.attrs, :logfile) && @logerror attr(s, :logfile)
+            @debug_backtrace
             backoff += throttle
             sleep(backoff)
         end

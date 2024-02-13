@@ -10,7 +10,7 @@ using .Executors.Misc
 using .Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
-using .Misc.Lang: @lget!, @ifdebug, @deassert, Option, @logerror, @debug_backtrace
+using .Misc.Lang: @lget!, @ifdebug, @deassert, Option, @writeerror, @debug_backtrace
 using .Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using .Executors.Strategies
 using .Instances: MarginInstance
@@ -123,12 +123,12 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                     is_running[] = false
                     rethrow(e)
                 end
-                @debug_backtrace
                 filter!(t -> istaskdone(t), log_tasks)
                 let lt = @async @lock log_lock try
-                        @logerror loghandle
+                        @writeerror loghandle
                     catch
                         @debug "Failed to log $(now())"
+                        @debug_backtrace
                     end
                     push!(log_tasks, lt)
                 end
