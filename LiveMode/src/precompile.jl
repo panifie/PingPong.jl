@@ -26,18 +26,31 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             @info "PRECOMP: start" exchange margin
             start!(s)
             @info "PRECOMP: stop" exchange margin
+            while !isrunning(s)
+                sleep(0.1)
+            end
             stop!(s)
+            for ai in s.universe
+                tasks = asset_tasks(s, ai)
+                reset_asset_tasks!(task)
+            end
             @info "PRECOMP: stopped" exchange margin
         end
         ot = OrderTypes
         @debug "PRECOMP: live mode pong" exchange margin
         start!(s)
         SimMode.@compile_pong
-
         start!(s)
+        while !isrunning(s)
+            sleep(0.1)
+        end
         @debug "PRECOMP: live mode reset" exchange margin
         @precomp @ignore begin
             stop!(s)
+            for ai in s.universe
+                tasks = asset_tasks(s, ai)
+                reset_asset_tasks!(task)
+            end
             reset!(s)
         end
         stop!(s)
@@ -51,6 +64,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         @error exception = e
     end
     @debug "PRECOMP: live mode closing"
+    Watchers._closeall()
     st.Instances.Exchanges.ExchangeTypes._closeall()
     st.Instances.Exchanges.Python.py_stop_loop()
 end

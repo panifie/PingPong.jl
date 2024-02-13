@@ -112,7 +112,8 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                 flushlog(loghandle)
                 ping_start = now()
                 ping!(s, now(), nothing)
-                sleep(clamp(now() - ping_start, Second(0), throttle))
+                elp = round(throttle - (now() - ping_start), Millisecond)
+                sleep(clamp(elp, Second(0), throttle))
             catch e
                 e isa InterruptException && begin
                     is_running[] = false
@@ -179,6 +180,7 @@ function start!(
             @error "start: strategy already running" s = nameof(s)
             t = attr(s, :run_task, nothing)
             if t isa Task && istaskstarted(t) && !istaskdone(t)
+            else
                 @error "start: strategy running but task is not found (or not running)" s = nameof(
                     s
                 )
@@ -239,7 +241,7 @@ $(TYPEDSIGNATURES)
 This function stops the execution of a strategy and logs the mode and elapsed time since the strategy started. If the strategy is running in the background, it waits for the task to finish.
 """
 function stop!(s::Strategy{<:Union{Paper,Live}})
-    @info "strategy: stopping"
+    @debug "stop: locking"
     task = @lock s begin
         running = attr(s, :is_running, nothing)
         task = attr(s, :run_task, nothing)

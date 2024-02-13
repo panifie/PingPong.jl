@@ -149,7 +149,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
         )
     end
     w.view.date[] = date
-    @debug "balance watcher update:" date get(bal, :BTC, nothing) _module=:Watchers
+    @debug "balance watcher update:" date get(bal, :BTC, nothing) _module = :Watchers
     safenotify(w.beacon.process)
 end
 
@@ -161,7 +161,7 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
-    @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
+    @lock s @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
 end
 
 @doc """ Stops the watcher for balance in a live strategy.

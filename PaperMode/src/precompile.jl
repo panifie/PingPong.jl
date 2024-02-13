@@ -22,6 +22,9 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         start!(s; doreset=true)
         stop!(s)
         let t = @async start!(s, foreground=true)
+            while !isrunning(s)
+                sleep(0.1)
+            end
             stop!(s)
             wait(t)
         end
@@ -33,5 +36,6 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
     start!(s)
     SimMode.@compile_pong
     @ignore stop!(s)
+    st.Instances.Exchanges.ExchangeTypes._closeall()
     st.Instances.Exchanges.Python.py_stop_loop()
 end

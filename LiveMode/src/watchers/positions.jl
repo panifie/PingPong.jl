@@ -143,11 +143,13 @@ $(TYPEDSIGNATURES)
 This function starts the watcher for positions in a live strategy `s`. The watcher checks and updates the positions at a specified interval.
 """
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
-    w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
-        s; interval, start=true
-    )
-    isstopped(w) && start!(w)
-    w
+    @lock s begin
+        w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
+            s; interval, start=true
+        )
+        isstopped(w) && start!(w)
+        w
+    end
 end
 
 @doc """ Stops the watcher for positions in a live strategy.

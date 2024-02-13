@@ -23,7 +23,7 @@ stop_task(t::Task) = begin
             end
             istaskdone(t)
         catch
-            @error "Running flag not set on task $t"
+            @error "Running flag not set on task $t" istaskdone(t) istaskstarted(t)
             false
         end
     else

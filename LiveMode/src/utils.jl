@@ -27,14 +27,18 @@ function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
         stop_task(task)
     end
     if reset
-        foreach(wait, values(tasks.byname))
-        foreach(wait, values(tasks.byorder))
-        empty!(tasks.byname)
-        empty!(tasks.byorder)
-        iszero(tasks.queue[]) || begin
-            @warn "Expected asset queue to be zero, found $(tasks.queue[]) (resetting)"
-            tasks.queue[] = 0
-        end
+        reset_asset_tasks!(tasks)
+    end
+end
+
+function reset_asset_tasks!(tasks)
+    foreach(wait, values(tasks.byname))
+    foreach(wait, values(tasks.byorder))
+    empty!(tasks.byname)
+    empty!(tasks.byorder)
+    iszero(tasks.queue[]) || begin
+        @warn "Expected asset queue to be zero, found $(tasks.queue[]) (resetting)"
+        tasks.queue[] = 0
     end
 end
 
@@ -111,7 +115,7 @@ function stop_all_tasks(s::LiveStrategy; reset=true)
         @async stop_all_asset_tasks(s; reset)
         @async stop_all_strategy_tasks(s; reset)
     end
-    @debug "tasks: stopped all" s = nameof(s)
+    @debug "strategy: stopped all tasks" s = nameof(s)
 end
 
 # wait_update(task::Task) = safewait(task.storage[:notify])
@@ -531,6 +535,8 @@ This function stops a live strategy `s`.
 function stop!(s::LiveStrategy; kwargs...)
     try
         stop_all_tasks(s)
+    catch
+        @debug_backtrace
     finally
         invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
     end
