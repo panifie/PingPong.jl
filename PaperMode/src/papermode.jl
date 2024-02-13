@@ -91,6 +91,11 @@ function flushlog_func(s::Strategy)
     maybeflush, log_lock
 end
 
+sleep_pad(from, throttle) = begin
+    elp = round(throttle - (now() - from), Millisecond)
+    sleep(clamp(elp, Second(0), throttle))
+end
+
 @doc """
 Executes the main loop of the strategy.
 
@@ -112,8 +117,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                 flushlog(loghandle)
                 ping_start = now()
                 ping!(s, now(), nothing)
-                elp = round(throttle - (now() - ping_start), Millisecond)
-                sleep(clamp(elp, Second(0), throttle))
+                sleep_pad(ping_start, throttle)
             catch e
                 e isa InterruptException && begin
                     is_running[] = false
@@ -128,7 +132,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                     end
                     push!(log_tasks, lt)
                 end
-                sleep(clamp(now() - ping_start, Second(0), throttle))
+                sleep_pad(ping_start, throttle)
             end
         end
     catch e
