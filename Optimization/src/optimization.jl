@@ -442,13 +442,13 @@ macro nogc(expr)
     ex = quote
         try
             $(gc_disable)()
-            Base.GC.enable(false)
+            # Base.GC.enable(false)
             $expr
         finally
-            if threadid() == 1
-                Base.GC.gc(false)
-            end
-            Base.GC.enable(true)
+            # if threadid() == 1
+            #     Base.GC.gc(false)
+            # end
+            # Base.GC.enable(true)
             $(gc_enable)()
         end
     end
