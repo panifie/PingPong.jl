@@ -1,7 +1,7 @@
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "0.2.0"
+version = "1.0.12"
 data_store = ""
 
 [deps]
