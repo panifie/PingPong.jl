@@ -662,7 +662,7 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default, from=n
             exc, pair, string(tf); from, to=now(), cleanup=true, ohlcv_kind
         )
         Data.DFUtils.addcols!(cleaned, df)
-        empty!(df)
+        copysubs!(df, empty, empty!)
         append!(df, cleaned)
     end
     df
@@ -682,7 +682,7 @@ function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)
         end
         let tmp = cleanup_ohlcv_data(tf_data, tf)
             addcols!(tmp, tf_data)
-            empty!(tf_data)
+            copysubs!(tf_data, empty, empty!)
             append!(tf_data, tmp)
         end
         update_ohlcv!(tf_data, pair, exc, tf)
