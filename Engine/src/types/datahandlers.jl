@@ -69,8 +69,7 @@ end
 function _load_smallest!(i, tfs, from_data, from_tf, exc, force=false)
     if size(from_data)[1] == 0 || force
         force && begin
-            copysubs!(from_data, empty)
-            empty!(from_data)
+            copysubs!(from_data, empty, empty!)
         end
         copysubs!(from_data)
         append!(from_data, load(zi, exc.name, i.asset.raw, string(from_tf)))
@@ -79,8 +78,7 @@ function _load_smallest!(i, tfs, from_data, from_tf, exc, force=false)
                 to_tf == from_tf && continue
                 if force
                     data = i.data[to_tf]
-                    copysubs!(data, empty)
-                    empty!(data)
+                    copysubs!(data, empty, empty!)
                 else
                     i.data[to_tf] = empty_ohlcv()
                 end

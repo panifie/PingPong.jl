@@ -46,7 +46,7 @@ function timeframe(df::D)::TimeFrame where {D<:AbstractDataFrame}
         end
     end
 end
-@doc "Sets the dataframe's timeframe metadata to the given `TimeFrame`. 
+@doc "Sets the dataframe's timeframe metadata to the given `TimeFrame`.
 
 Shouldn't be called directly, see [`timeframe!(::DataFrame)`](@ref)"
 function timeframe!(df::D, t::T) where {D<:AbstractDataFrame,T<:TimeFrame}
@@ -215,14 +215,20 @@ _copysub(arr::A) where {A<:SubArray} = Array(arr)
 @doc "Replaces subarrays with arrays.
 
 $(TYPEDSIGNATURES)"
-function copysubs!(df::D, copyfunc=_copysub) where {D<:AbstractDataFrame}
-    subs_mask = [x isa SubArray for x in eachcol(df)]
-    if any(subs_mask)
-        subs = @view df[:, subs_mask]
-        for p in propertynames(subs)
-            df[!, p] = _copysub(getproperty(subs, p))
+function copysubs!(
+    df::D, copyfunc=_copysub, elsefunc=Returns(nothing)
+) where {D<:AbstractDataFrame}
+    i = 1
+    mask = Vector{Bool}(undef, ncol(df))
+    for col in eachcol(df)
+        if (mask[i] = col isa SubArray)
+            df[!, i] = copyfunc(col)
+        else
+            elsefunc(col)
         end
+        i += 1
     end
+    mask
 end
 
 function _make_room(df, capacity, n)

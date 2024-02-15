@@ -9,7 +9,7 @@ using ..Misc: rangeafter, rangebetween
 using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
 
-@doc """ 
+@doc """
 Removes trailing 'Z' from a string and parses it into a DateTime object.
 
 """
@@ -18,7 +18,7 @@ _parsedatez(s::AbstractString) = begin
     Base.parse(DateTime, s)
 end
 
-@doc """ 
+@doc """
 Converts market data into a NamedTuple.
 
 $(TYPEDSIGNATURES)
@@ -39,7 +39,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The `collect_buffer_data` macro takes a buffer variable, key type, value type, and an optional push function. 
+The `collect_buffer_data` macro takes a buffer variable, key type, value type, and an optional push function.
 It escapses the provided parameters and initializes a dictionary with the key type and vector of the value type.
 The push function is used to populate the dictionary with data from the buffer.
 If no push function is provided, a default one is used which pushes the ticker data into the dictionary.
@@ -194,8 +194,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-The `_delete_ohlcv!` function removes OHLCV data of a specified symbol from the window. 
-If no symbol is provided, it defaults to the symbol of the window. 
+The `_delete_ohlcv!` function removes OHLCV data of a specified symbol from the window.
+If no symbol is provided, it defaults to the symbol of the window.
 It fetches the data associated with the symbol and the current time frame rate, and deletes it.
 
 """
@@ -245,7 +245,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-The `_fetch_error` function is used when data fetching for a given symbol fails. 
+The `_fetch_error` function is used when data fetching for a given symbol fails.
 It generates an error message detailing the symbol, exchange name, and the time frame for which data fetching failed, unless the `quiet` attribute of the window is set to `true`.
 
 """
@@ -263,11 +263,11 @@ _fromto(to, prd, cap, kept) = to - prd * (cap - kept) - 2prd
 
 $(TYPEDSIGNATURES)
 
-The `_from` function determines the starting date for appending data to a dataframe. 
+The `_from` function determines the starting date for appending data to a dataframe.
 It takes into account a target date, time frame rate, capacity, and the `:append` flag.
 The function ensures that the target date is not earlier than the last date in the dataframe.
 It then calculates the earliest date that can be included in the dataframe based on the capacity and the time frame rate.
-If the dataframe is empty, this earliest date is returned. 
+If the dataframe is empty, this earliest date is returned.
 Otherwise, the minimum between this date and the last date in the dataframe is returned.
 
 """
@@ -281,7 +281,7 @@ _from(df, to, tf, cap, ::Val{:prepend}) = _fromto(to, period(tf), cap, nrow(df))
 
 $(TYPEDSIGNATURES)
 
-The `_empty!!` function tries to empty a dataframe. 
+The `_empty!!` function tries to empty a dataframe.
 If calling the `empty!` function on the dataframe throws an error, it uses the `copysubs!` function with the `empty` argument to empty the dataframe.
 
 """
@@ -289,7 +289,7 @@ _empty!!(df::DataFrame) =
     try
         empty!(df)
     catch
-        copysubs!(df, empty)
+        copysubs!(df, empty, empty!)
     end
 
 @doc """ Fetches and appends or prepends data to a dataframe
@@ -319,8 +319,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
             try
                 empty!(df)
             catch
-                copysubs!(df, empty)
-                empty!(df)
+                copysubs!(df, empty, empty!)
             end
             rows = 0
         end
