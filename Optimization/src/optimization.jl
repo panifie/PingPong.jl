@@ -116,12 +116,12 @@ function Base.show(io::IO, sess::OptSession)
     if length(sess.params) > 0
         w("\nParams: ")
         params = keys(sess.params)
-        w((string(k, ", ") for k in params[begin:(end-1)])..., params[end])
+        w((string(k, ", ") for k in params[begin:(end - 1)])..., params[end])
         w(" (", length(Iterators.product(values(sess.params)...)), ")")
     end
     w("\nConfig: ")
     config = collect(pairs(sess.attrs))
-    for (k, v) in config[begin:(end-1)]
+    for (k, v) in config[begin:(end - 1)]
         w(k, "(", v, "), ")
     end
     k, v = config[end]
@@ -199,18 +199,6 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zinsta
     k, parts = session_key(sess)
     # ensure zgroup
     zgroup_strategy(zi, sess.s)
-    if from == 0
-        let z = load_data(zi, k; serialized=true, as_z=true)[1], attrs = z.attrs
-            attrs["name"] = parts.s_part
-            attrs["startstop"] = parts.ctx_part
-            attrs["params_k"] = parts.params_part
-            attrs["code"] = parts.config_part
-            attrs["ctx"] = tobytes(sess.ctx)
-            attrs["params"] = tobytes(sess.params)
-            attrs["attrs"] = tobytes(sess.attrs)
-            writeattrs(z.storage, z.path, z.attrs)
-        end
-    end
     save_data(
         zi,
         k,
@@ -218,6 +206,19 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zinsta
         chunk_size=(256, 2),
         serialize=true,
     )
+    # NOTE: set attributes *after* saving otherwise they do not persist
+    if from == 0
+        z = load_data(zi, k; serialized=true, as_z=true)[1]
+        attrs = z.attrs
+        attrs["name"] = parts.s_part
+        attrs["startstop"] = parts.ctx_part
+        attrs["params_k"] = parts.params_part
+        attrs["code"] = parts.config_part
+        attrs["ctx"] = tobytes(sess.ctx)
+        attrs["params"] = tobytes(sess.params)
+        attrs["attrs"] = tobytes(sess.attrs)
+        writeattrs(z.storage, z.path, z.attrs)
+    end
 end
 
 @doc """ Generates a regular expression for matching optimization session keys.
@@ -268,8 +269,12 @@ function load_session(
         load_data(zi, k; serialized=true, as_z=true)[1]
     end
     function results!(df, z)
-        for row in eachrow(z)
-            append!(df, todata(row[2]))
+        try
+            for row in eachrow(z)
+                append!(df, todata(row[2]))
+            end
+        catch
+            @debug_backtrace
         end
         df
     end
@@ -278,8 +283,8 @@ function load_session(
         if isempty(attrs)
             @error "ZArray should contain session attributes."
             if isnothing(remove_broken) &&
-               isinteractive() &&
-               Base.prompt("delete entry $(z.path)? [y]/n") == "n"
+                isinteractive() &&
+                Base.prompt("delete entry $(z.path)? [y]/n") == "n"
                 remove_broken = false
             else
                 remove_broken = true
@@ -713,22 +718,22 @@ If not, it prompts the user to add it to the main environment.
 function extbayes!()
     let prev = Pkg.project().path
         try
-            Pkg.activate("Optimization", io=devnull)
+            Pkg.activate("Optimization"; io=devnull)
             if isnothing(@eval Main Base.find_package("BayesianOptimization"))
                 if Base.prompt(
                     "BayesianOptimization package not found, add it to the main env? y/[n]"
                 ) == "y"
                     try
-                        Pkg.activate(io=devnull)
+                        Pkg.activate(; io=devnull)
                         Pkg.add("BayesianOptimization")
                     finally
-                        Pkg.activate("Optimization", io=devnull)
+                        Pkg.activate("Optimization"; io=devnull)
                     end
                 end
             end
             @eval Main using BayesianOptimization
         finally
-            Pkg.activate(prev, io=devnull)
+            Pkg.activate(prev; io=devnull)
         end
     end
 end
