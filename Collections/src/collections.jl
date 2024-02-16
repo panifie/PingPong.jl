@@ -181,7 +181,7 @@ The function returns a SortedDict where the keys are TimeFrame objects and the v
 
 """
 function flatten(ac::AssetCollection)::SortedDict{TimeFrame,Vector{DataFrame}}
-    out = SortedDict{TimeFrame,Vector{DataFrame}}
+    out = SortedDict{TimeFrame,Vector{DataFrame}}()
     @eachrow ac.data for (tf, df) in :instance.data
         push!(@lget!(out, tf, DataFrame[]), df)
     end

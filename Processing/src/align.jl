@@ -35,13 +35,13 @@ is_right_adjacent(target, step) = x -> x - step < target           # right - ste
 function trim_to!(df::AbstractDataFrame, to, tf, tail=false)
     if tail
         f = is_right_adjacent(to, tf.period)
-        rev_idx = findfirst(f, @view(df.timestamp[end:-1:1]))
+        rev_idx = @something findfirst(f, @view(df.timestamp[end:-1:1])) 1
         start = size(df)[1] - rev_idx + 1
         idx = start:size(df)[1]
         # @show rev_idx, idx, size(df), df.timestamp[end], to
     else
         f = is_left_adjacent(to, tf.period)
-        stop = findfirst(f, df.timestamp) - 1
+        stop = @something(findfirst(f, df.timestamp), 1) - 1
         idx = 1:stop
     end
     if length(idx) > 0
@@ -56,8 +56,10 @@ function _trim_1(data::AbstractDict{K,V}, tail::Bool) where {K,V}
         common = common_timestamp(ohlcvs, tf, common, tail)
     end
     # After we have found the common timestamp, trim the dataframes
-    for (tf, dfs) in data
-        trim_to!.(dfs, common, tf, tail)
+    foreach(data) do (tf, dfs)
+        foreach(dfs) do df
+            trim_to!(df, common, tf, tail)
+        end
     end
 end
 
