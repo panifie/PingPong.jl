@@ -35,26 +35,26 @@ function trade_str(trade)
     Order Date: $(trade.order.date)"""
 end
 
-@doc """ 
+@doc """
 Calculates the middle point of a triangle.
 
 $(TYPEDSIGNATURES)
 
-Given the positions of the vertices of a triangle, this function calculates the middle point. 
-If the y-coordinates of the first and third vertices are equal, it averages the first and last vertices. 
+Given the positions of the vertices of a triangle, this function calculates the middle point.
+If the y-coordinates of the first and third vertices are equal, it averages the first and last vertices.
 Otherwise, it averages the first and second vertices.
 """
 function triangle_middle(pos)
     pos[1][2] == pos[3][2] ? (pos[1] + pos[end]) / 2 : (pos[1] + pos[2]) / 2
 end
 
-@doc """ 
+@doc """
 Generates a tooltip for trade data.
 
 $(TYPEDSIGNATURES)
 
-This function generates a tooltip for a given set of trades. 
-The tooltip displays the trade details when a user hovers over a specific trade in a plot. 
+This function generates a tooltip for a given set of trades.
+The tooltip displays the trade details when a user hovers over a specific trade in a plot.
 The tooltip position is determined by the `tooltip_position!` function with `triangle_middle` as the position function.
 """
 function trades_tooltip_func(trades)
@@ -74,8 +74,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function creates a triangle for a given ReduceTrade. 
-It calculates the points of the triangle based on the given x and y coordinates and height. 
+This function creates a triangle for a given ReduceTrade.
+It calculates the points of the triangle based on the given x and y coordinates and height.
 The triangle is then added to the exits of the given flags.
 """
 function triangle(t::ReduceTrade, x, y, flags, height)
@@ -88,8 +88,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function creates a triangle for a given IncreaseTrade. 
-It calculates the points of the triangle based on the given x and y coordinates and height. 
+This function creates a triangle for a given IncreaseTrade.
+It calculates the points of the triangle based on the given x and y coordinates and height.
 The triangle is then added to the entries of the given flags.
 """
 function triangle(t::IncreaseTrade, x, y, flags, height)
@@ -102,7 +102,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function generates OHLCV (Open, High, Low, Close, Volume) data for a given set of trades within a specified timeframe. 
+This function generates OHLCV (Open, High, Low, Close, Volume) data for a given set of trades within a specified timeframe.
 It asserts that the trades history is not shorter than the specified 'from' and 'to' indices and that the trades date accuracy matches the strategy timeframe.
 """
 function trades_ohlcv(tf, ai, from, to)
@@ -121,7 +121,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if the number of rows in a dataframe exceeds a certain limit (100,000 by default). 
+This function checks if the number of rows in a dataframe exceeds a certain limit (100,000 by default).
 If the limit is exceeded and the `force` parameter is not set to `true`, it throws an `ArgumentError`.
 """
 function check_df(df, force=false)
@@ -138,8 +138,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function creates a trades axis for a given figure. 
-It hides the spines and decorations of the axis and deregisters interactions. 
+This function creates a trades axis for a given figure.
+It hides the spines and decorations of the axis and deregisters interactions.
 The axis is then added to the attributes of the figure.
 """
 function make_trades_ax(fig)
@@ -155,8 +155,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function prepares a figure for trade plotting. 
-It first calls the `ohlcv!` function to plot OHLCV data on the figure, then creates a trades axis using the `make_trades_ax` function. 
+This function prepares a figure for trade plotting.
+It first calls the `ohlcv!` function to plot OHLCV data on the figure, then creates a trades axis using the `make_trades_ax` function.
 The function returns the figure, the trades axis, and the price axis.
 """
 function trades_fig(df, fig=makefig(); tf=nothing)
@@ -170,8 +170,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function plots a subset of trades history of an asset instance. 
-It takes a `Strategy` and an `AssetInstance` as parameters and optionally a `Figure` and additional arguments. 
+This function plots a subset of trades history of an asset instance.
+It takes a `Strategy` and an `AssetInstance` as parameters and optionally a `Figure` and additional arguments.
 It returns the result of the base `tradesticks!` function.
 """
 function tradesticks(s::Strategy, fig::Figure=makefig(), args...; kwargs...)
@@ -188,8 +188,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function plots trades on a figure for a given asset instance. 
-It generates OHLCV data for trades, checks the size of the dataframe, prepares the figure for trade plotting, and creates triangles for IncreaseTrade and ReduceTrade. 
+This function plots trades on a figure for a given asset instance.
+It generates OHLCV data for trades, checks the size of the dataframe, prepares the figure for trade plotting, and creates triangles for IncreaseTrade and ReduceTrade.
 The function returns the figure.
 """
 function tradesticks!(
@@ -239,7 +239,7 @@ function tradesticks!(
     fig
 end
 
-@doc """ 
+@doc """
 Calculates the points of an ellipse.
 
 $(TYPEDSIGNATURES)
@@ -257,12 +257,12 @@ function getellipsepoints(cx, cy, rx, ry, θ)
     (x, y)
 end
 
-@doc """ 
+@doc """
 Generates points for an ellipse.
 
 $(TYPEDSIGNATURES)
 
-This function generates points for an ellipse given the center coordinates (cx, cy) and the radii (rx, ry). 
+This function generates points for an ellipse given the center coordinates (cx, cy) and the radii (rx, ry).
 The rotation angle θ is set to 0.0.
 """
 ellipsis(cx, cy, rx, ry) = begin
@@ -306,7 +306,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function calculates the edge of an ellipse. 
+This function calculates the edge of an ellipse.
 It adjusts the position based on whether the ellipse is positive or negative, and an optional offset factor.
 """
 function ellipsis_edge(ispos, ofs=0.2)
@@ -323,13 +323,13 @@ function ellipsis_edge(ispos, ofs=0.2)
     end
 end
 
-@doc """ 
+@doc """
 Generates a tooltip for aggregated trade data.
 
 $(TYPEDSIGNATURES)
 
-This function generates a tooltip for a given set of aggregated trades. 
-The tooltip displays the aggregated trade details when a user hovers over a specific trade in a plot. 
+This function generates a tooltip for a given set of aggregated trades.
+The tooltip displays the aggregated trade details when a user hovers over a specific trade in a plot.
 The tooltip position is determined by the `tooltip_position!` function with `ellipsis_middle` and `ellipsis_edge` as the position functions.
 """
 function balloons_tooltip_func(
@@ -352,8 +352,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function generates a tooltip for a given balance data. 
-The tooltip displays the balance details when a user hovers over a specific point in a plot. 
+This function generates a tooltip for a given balance data.
+The tooltip displays the balance details when a user hovers over a specific point in a plot.
 The tooltip position is determined by the `tooltip_position!` function.
 """
 function balance_tooltip_func(dates, balance)
@@ -385,7 +385,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function draws data when there is a single dataframe to draw over (a benchmark). 
+This function draws data when there is a single dataframe to draw over (a benchmark).
 It creates ellipses for each trade, with the size and color of the ellipse indicating the quote volume and trades count, respectively.
 """
 function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
@@ -444,13 +444,13 @@ function _draw_trades!(df::DataFrame, trades_df, trades_ax, ai=nothing)
     )
 end
 
-@doc """ 
+@doc """
 Generates a tooltip function for a given array and string function.
 
 $(TYPEDSIGNATURES)
 
-This function generates a tooltip function for a given array and string function. 
-The tooltip function displays the string function result when a user hovers over a specific point in a plot. 
+This function generates a tooltip function for a given array and string function.
+The tooltip function displays the string function result when a user hovers over a specific point in a plot.
 The tooltip position is determined by the mouse position.
 """
 function make_tooltip_func(arr, str_func)
@@ -472,8 +472,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function plots all trades for a single asset instance, aggregating data to the provided timeframe. 
-It generates OHLCV data for trades, checks the size of the dataframe, prepares the figure for trade plotting, and creates triangles for IncreaseTrade and ReduceTrade. 
+This function plots all trades for a single asset instance, aggregating data to the provided timeframe.
+It generates OHLCV data for trades, checks the size of the dataframe, prepares the figure for trade plotting, and creates triangles for IncreaseTrade and ReduceTrade.
 The function returns the figure.
 """
 function balloons(s::Strategy, ai::AssetInstance; tf=tf"1d", force=false)
@@ -502,8 +502,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function loads the benchmark data based on the input. 
-If the input is a dataframe, it uses it directly. 
+This function loads the benchmark data based on the input.
+If the input is a dataframe, it uses it directly.
 If the input is a symbol, it either plots every asset price overlapping each one if the symbol is `:all`, or loads ohlcv data from storage for a specific symbol.
 """
 function _load_benchmark(
@@ -545,7 +545,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function draws data when when benchmark is `:all`. 
+This function draws data when when benchmark is `:all`.
 It creates ellipses for each trade, with the size and color of the ellipse indicating the quote volume and trades count, respectively.
 """
 function _draw_trades!(
@@ -584,8 +584,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function generates a tooltip for a given price data. 
-The tooltip displays the price details when a user hovers over a specific point in a plot. 
+This function generates a tooltip for a given price data.
+The tooltip displays the price details when a user hovers over a specific point in a plot.
 The tooltip position is determined by the `tooltip_position!` function.
 """
 function price_tooltip_func(ohlcv, asset)
@@ -606,8 +606,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function draws price lines for all assets in a strategy on a given figure. 
-It creates a price axis for each asset and links them together. 
+This function draws price lines for all assets in a strategy on a given figure.
+It creates a price axis for each asset and links them together.
 The function returns the axes, price axis, dates, and colors.
 """
 function _pricelines!(s, fig; tf)
@@ -626,15 +626,19 @@ function _pricelines!(s, fig; tf)
         ai => (
             let r = ai.ohlcv[dates]
                 ohlcv = resample(r, tf, false, :ohlcv, false)
-                ai_min_date = first(r.timestamp)
-                if ai_min_date > min_date
-                    prep = [
-                        (; timestamp=t, zerorow(ohlcv; skip_cols=(:timestamp,))...) for
-                        t in min_date:period(tf):ai_min_date
-                    ]
-                    prepend!(ohlcv, prep)
+                norm = if !isempty(r)
+                    ai_min_date = first(r.timestamp)
+                    if ai_min_date > min_date
+                        prep = [
+                            (; timestamp=t, zerorow(ohlcv; skip_cols=(:timestamp,))...) for t in min_date:period(tf):ai_min_date
+                        ]
+                        prepend!(ohlcv, prep)
+                    end
+                    normalize(ohlcv.close; unit=true)
+                else
+                    ohlcv.close
                 end
-                (ax=axis!(fig), norm=normalize(ohlcv.close; unit=true), ohlcv)
+                (ax=axis!(fig), norm, ohlcv)
             end
         ) for ai in s.universe
     )
@@ -666,8 +670,8 @@ _nonzero(d) = count(x -> x - 1e-12 > 0, values(d))
 
 $(TYPEDSIGNATURES)
 
-This function draws balance data on a figure for a given strategy. 
-It creates a balance axis and links it with the price axis. 
+This function draws balance data on a figure for a given strategy.
+It creates a balance axis and links it with the price axis.
 The function returns the balance axis.
 """
 function _draw_balance!(s, fig, balance_df, ai_value_func, ai_color_func, ais=s.universe)
@@ -728,24 +732,24 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function removes trades from the trades history that exceed the maximum date. 
+This function removes trades from the trades history that exceed the maximum date.
 It continues to remove trades until the last trade's timestamp is not greater than the maximum date.
 """
 function remove_outofbounds!(trades, max_date)
-    while last(trades.timestamp) > max_date
+    while !isempty(trades) && last(trades.timestamp) > max_date
         pop!(trades)
         @debug "Removing trades that exceed max date ($max_date)" maxlog = 1
     end
     trades
 end
 
-@doc """ 
+@doc """
 Plots all trades for all strategy assets.
 
 $(TYPEDSIGNATURES)
 
-This function plots all trades for all strategy assets, aggregating data to the provided timeframe. 
-The `benchmark` parameter determines the data over which to plot trades. 
+This function plots all trades for all strategy assets, aggregating data to the provided timeframe.
+The `benchmark` parameter determines the data over which to plot trades.
 The function returns the figure.
 """
 function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
