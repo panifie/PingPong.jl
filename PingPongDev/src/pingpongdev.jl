@@ -29,10 +29,12 @@ function symnames(s=Main.s)
     String[lowercase(v) for v in (string.(getproperty.(st.assets(s), :bc)))]
 end
 
-function default_loader(load_func=scr.BinanceData.binanceload)
+function default_loader(load_func=nothing)
     @eval Main begin
         using Scrapers: Scrapers as scr
-        (pairs, qc) -> $load_func(pairs; quote_currency=qc)
+        let f = @something $(load_func) scr.BinanceData.binanceload
+            (pairs, qc) -> f(pairs; quote_currency=qc)
+        end
     end
 end
 
