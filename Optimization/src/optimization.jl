@@ -9,7 +9,7 @@ using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as
 using .Instances.Exchanges: exc, sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
-using SimMode.Lang: Option, splitkws
+using SimMode.Lang: Option, splitkws, @debug_backtrace
 using Stats.Statistics: median, mean
 using Stats: Stats
 using REPL.TerminalMenus
