@@ -1,18 +1,18 @@
-authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.0.16"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "1.0.19"
 data_store = ""
 
 [deps]
-Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"
-MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"
 Remote = "711acd30-27b5-475d-809f-796ffbe15f78"
-Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 
 [extras]
 Data = "934a4ae5-3fdb-4fa4-b6dd-2cd889d3d27b"
