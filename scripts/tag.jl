@@ -18,7 +18,8 @@ function tag_repo(; major=nothing, minor=nothing, patch=nothing)
     else
     end
     toml = TOML.parsefile(p.path)
-    toml["version"] = string(VersionNumber(major, minor, patch))
+    v_string = string(VersionNumber(major, minor, patch))
+    toml["version"] = v_string
     open(p.path, "w") do f
         TOML.print(f, toml)
     end
@@ -28,4 +29,6 @@ function tag_repo(; major=nothing, minor=nothing, patch=nothing)
     Pkg.resolve()
     Pkg.activate("PingPong")
     run(`git add PingPong/Project.toml PingPongDev/Manifest.toml PingPongInteractive/Manifest.toml`)
+    run(`git commit -m "v$v_string"`)
+    run(`git tag v$v_string`)
 end
