@@ -270,37 +270,33 @@ function gridsearch(
                     @pbupdate! sum(divrem(nrow(sess.results), splits))
                 end
                 function runner(cell)
-                    @nogc try
-                        lock(grid_lock) do
-                            Random.seed!(seed)
+                    @lock grid_lock Random.seed!(seed)
+                    obj = opt_func(cell)
+                    @lock grid_lock begin
+                        current_params[] = cell
+                        @pbupdate!
+                        if obj > best[]
+                            best[] = obj
                         end
-                        obj = opt_func(cell)
-                        lock(grid_lock) do
-                            current_params[] = cell
-                            @pbupdate!
-                            if obj > best[]
-                                best[] = obj
-                            end
-                        end
-                        # FIXME: when should_save is `true`, saving can cause segfaults
-                        should_save && lock(sess.lock) do
-                            if now() - saved_last[] > save_freq
-                                save_session(sess; from=from[], zi)
-                                from[] = nrow(sess.results) + 1
-                                saved_last[] = now()
-                            end
-                        end
-                    catch
-                        @error "" exception = (first(Base.catch_stack())...,)
-                        stopping!()
-                        logging && lock(grid_lock) do
-                            @debug_backtrace
+                    end
+                    should_save && @lock sess.lock begin
+                        if now() - saved_last[] > save_freq
+                            save_session(sess; from=from[], zi)
+                            from[] = nrow(sess.results) + 1
+                            saved_last[] = now()
                         end
                     end
                 end
-                Threads.@threads for cell in grid_itr
+                # TODO: use @nogc for other optimization methods
+                @nogc Threads.@threads for cell in grid_itr
                     if isrunning()
-                        runner(cell)
+                        try
+                            runner(cell)
+                        catch
+                            @error "" exception = (first(Base.catch_stack())...,)
+                            stopping!()
+                            logging && @lock grid_lock @debug_backtrace
+                        end
                     end
                 end
                 save_session(sess; from=from[], zi)
@@ -337,11 +333,11 @@ function filter_results(::Strategy, sess; cut=0.8, min_results=100)
         if nrow(df) > min_results
             sort!(df, [:cash, :obj, :trades])
             from_idx = trunc(Int, nrow(df) * (cut / 3))
-            best_cash = @view df[(end-from_idx):end, :]
+            best_cash = @view df[(end - from_idx):end, :]
             sort!(df, [:trades, :obj, :cash])
-            best_trades = @view df[(end-from_idx):end, :]
+            best_trades = @view df[(end - from_idx):end, :]
             sort!(df, [:obj, :cash, :trades])
-            best_obj = @view df[(end-from_idx):end, :]
+            best_obj = @view df[(end - from_idx):end, :]
             vcat(best_cash, best_trades, best_obj)
         else
             df
@@ -384,7 +380,7 @@ function progsearch(
             sess[] = this_sess
         end
     end
-    for offset in (init_offset+1):rcount
+    for offset in (init_offset + 1):rcount
         results = filter_results(s, sess[]; cut)
         grid_itr = gridfromresults(sess[], results)
         if length(grid_itr) < 3
