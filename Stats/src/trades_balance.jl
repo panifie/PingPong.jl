@@ -2,6 +2,7 @@ using .ect.Instances: NoMarginInstance, MarginInstance
 using .ect.OrderTypes: PositionSide
 using .ect.Executors.Checks: withfees
 
+
 @doc """ Replaces missing values in a vector with 0.0.
 
 $(SIGNATURES)
@@ -61,6 +62,7 @@ If `o` is missing, the function returns nothing.
 Otherwise, it calculates the `value` as the product of `amount` and `price`, and the `fees` based on the `value` and the maximum fees for `ai` and `o`.
 The function then returns the earned amount based on `o`, `entryprice`, `amount`, `leverage`, `price`, `value`, and `fees`.
 This essentially adds the earned amount to the base balance.
+TODO: add fees in base curr to balance calc
 """
 function _basebalance(o, ai, entryprice, amount, leverage, price, _, _)
     ismissing(o) && return nothing

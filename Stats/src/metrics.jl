@@ -4,14 +4,16 @@ using .st: trades_count
 
 const DAYS_IN_YEAR = 365
 @doc "All the metrics that supported."
-const METRICS = Set((:total, :sharpe, :sortino, :calmar, :drawdown, :expectancy, :cagr, :trades))
+const METRICS = Set((
+    :total, :sharpe, :sortino, :calmar, :drawdown, :expectancy, :cagr, :trades
+))
 
 @doc """ Generates code to calculate the cumulative total balance for a given set of trades over a given timeframe.
 
 $(SIGNATURES)
 
 This macro generates code that calculates the cumulative total balance for a given set of trades `s` over a given timeframe `tf`.
-It first gets a DataFrame of balances for `s` and `tf` using the `trades_balance` function. 
+It first gets a DataFrame of balances for `s` and `tf` using the `trades_balance` function.
 If this DataFrame is `nothing` (which means there are no trades), it immediately returns `-Inf`.
 Otherwise, it extracts the `cum_total` column from the DataFrame, which represents the cumulative total balance, and assigns this to `balance`.
 The generated code is then returned.
@@ -36,7 +38,7 @@ Please note that the first element of the return array would be `NaN` due to the
 """
 _returns_arr(arr) = begin
     n_series = length(arr)
-    diff(arr) ./ view(arr, 1:(n_series - 1))
+    diff(arr) ./ replace(v -> iszero(v) ? one(v) : v, view(arr, 1:(n_series - 1)))
 end
 
 @doc """ Annualizes a volatility value.
@@ -118,7 +120,7 @@ The ratio is the annual return divided by the maximum drawdown.
 
 """
 function _rawcalmar(returns; tf=tf"1d")
-    max_drawdown = maxdd(returns)
+    max_drawdown = maxdd(returns).dd
     annual_returns = mean(returns) * DAYS_IN_YEAR
     negate(annual_returns) / max_drawdown
 end
@@ -127,14 +129,30 @@ end
 
 $(TYPEDSIGNATURES)
 
-Calculates the maximum drawdown given an array of `returns`. 
+Calculates the maximum drawdown given an array of `returns`.
 The drawdown is the largest percentage drop in the cumulative product of 1 plus the returns.
 
 """
 function maxdd(returns)
-    length(returns) == 1 && return zero(DFT)
-    cum_returns = cumprod(1.0 .+ returns)
-    minimum(diff(cum_returns) ./ @view(cum_returns[1:(end - 1)]))
+    length(returns) <= 1 && return ZERO
+    @deassert all(x -> x >= -1.0 for x in returns)
+    cum_returns = log1p.(v == -1.0 ? -1.0 + eps() : v for v in returns)
+    cumsum!(cum_returns, cum_returns)
+    replace!(expm1, cum_returns)
+    ath = one(eltype(cum_returns))
+    dd = typemax(ath)
+    for n in eachindex(cum_returns)
+        bal = cum_returns[n]
+        if bal > ath
+            ath = bal
+        else
+            this_dd = bal / ath
+            if this_dd < dd
+                dd = this_dd
+            end
+        end
+    end
+    (; dd=-dd, ath, cum_returns)
 end
 
 @doc """ Computes the Calmar ratio for a given strategy.
@@ -219,7 +237,7 @@ function multi(
     balance = let df = trades_balance(s, tf)
         isnothing(df) &&
             return Dict(m => ifelse(normalize, 0.0, typemin(DFT)) for m in metrics)
-        df.cum_total
+        df.cum_balance
     end
     returns = _returns_arr(balance)
     if isempty(returns)
@@ -233,7 +251,7 @@ function multi(
         elseif m == :calmar
             _rawcalmar(returns)
         elseif m == :drawdown
-            maxdd(returns)
+            maxdd(returns).dd
         elseif m == :expectancy
             _rawexpectancy(returns)
         elseif m == :cagr

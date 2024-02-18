@@ -5,7 +5,7 @@ using .OrderTypes: LiquidationTrade, LongTrade, ShortTrade
 $(TYPEDSIGNATURES)
 
 Calculates the average duration between trades for an `AssetInstance` `ai`.
-The `raw` parameter determines whether the result should be in raw format (in milliseconds) or a compact time format. 
+The `raw` parameter determines whether the result should be in raw format (in milliseconds) or a compact time format.
 The function `f` is used to aggregate the durations and defaults to the mean.
 
 """
@@ -114,13 +114,48 @@ function trades_monthday(ai::AssetInstance; f=mean)
     f(w) |> trunc |> Int
 end
 
-@doc """ Computes various trade statistics for a strategy.
+macro cumbal()
+    ex = quote
+        returns = let
+            tf = first(keys(ohlcv_dict(ai)))
+            stats.trades_balance(ai; tf).cum_total
+        end
+    end
+    esc(ex)
+end
 
-$(TYPEDSIGNATURES)
+function trades_drawdown(ai::AssetInstance; cum_bal=@cumbal(), kwargs...)
+    length(cum_bal) == 1 && return zero(DFT)
+    ath = atl = first(cum_bal)
+    dd = typemax(eltype(cum_bal))
+    for v in cum_bal
+        if v > ath
+            ath = v
+        elseif v < atl
+            atl = v
+        end
+        aatl = abs(atl)
+        shifted_ath = aatl + abs(ath)
+        this_dd = aatl / shifted_ath
+        if aatl > zero(aatl) && this_dd < dd
+            dd = this_dd
+        end
+    end
+    (; dd=isfinite(dd) ? dd : 1.0 - 1.0, atl, ath)
+end
 
-Calculates and returns a comprehensive set of statistics for trades in a `Strategy` `s`. These statistics include, but are not limited to, average trade size, duration, leverage, hour, weekday, and day of the month.
+function trades_pnl(returns; f=stats.mean)
+    losses = (v for v in returns if isfinite(v) && v <= ZERO)
+    gains = (v for v in returns if isfinite(v) && v > ZERO)
+    NamedTuple((
+        Symbol(nameof(f), :_, :loss) => isempty(losses) ? ZERO : f(losses),
+        Symbol(nameof(f), :_, :profit) => isempty(gains) ? ZERO : f(gains),
+    ))
+end
+function trades_pnl(ai::AssetInstance; returns=_returns_arr(@cumbal()), kwargs...)
+    trades_pnl(returns; kwargs...)
+end
 
-"""
 function trades_stats(s::Strategy)
     res = DataFrame()
     for ai in s.universe
@@ -147,6 +182,16 @@ function trades_stats(s::Strategy)
         weekday = trades_weekday(ai; f=mean)
         monthday = trades_monthday(ai; f=mean)
 
+        cum_bal = @cumbal()
+        drawdown, atl, ATH = trades_drawdown(ai; cum_bal)
+        returns = _returns_arr(cum_bal)
+        avg_loss, avg_profit = trades_pnl(ai; returns, f=mean)
+        med_loss, med_profit = trades_pnl(ai; returns, f=median)
+        loss_ext, profit_ext = trades_pnl(ai; returns, f=extrema)
+        max_loss = loss_ext[1]
+        max_profit = profit_ext[2]
+        end_balance = cum_bal[end]
+
         push!(
             res,
             (;
@@ -169,17 +214,32 @@ function trades_stats(s::Strategy)
                 med_leverage,
                 min_leverage,
                 max_leverage,
+                drawdown,
+                ATH,
+                avg_loss,
+                avg_profit,
+                med_loss,
+                med_profit,
+                max_loss,
+                max_profit,
+                end_balance,
             );
             promote=false,
         )
         # upcast periods for pretty print
         if nrow(res) == 1
             for prop in (:avg, :med, :min, :max)
-               prop = Symbol("$(prop)_dur")
-               arr = getproperty(res, prop)
-               setproperty!(res, prop, convert(Vector{Period}, arr))
+                prop = Symbol("$(prop)_dur")
+                arr = getproperty(res, prop)
+                setproperty!(res, prop, convert(Vector{Period}, arr))
             end
         end
     end
     res
+end
+
+function trades_perf(s::Strategy; sortby=[:drawdown])
+    df = trades_stats(s)
+    perf = select(df, occursin.(r"asset|drawdown|ATH|loss|profit|end_balance", names(df)))
+    sort!(perf, sortby)
 end
