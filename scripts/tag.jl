@@ -1,4 +1,4 @@
-using Base.TOML
+using TOML
 
 function tag_repo(; major=nothing, minor=nothing, patch=nothing)
     Pkg.activate("PingPong")
