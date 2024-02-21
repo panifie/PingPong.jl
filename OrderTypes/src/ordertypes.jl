@@ -265,6 +265,7 @@ const AnyTradePos{P<:PositionSide} =
 @doc "Dispatch by `PositionSide` or by an `Order` or `Trade` with the same position side as parameter."
 const ByPos{P<:PositionSide} = Union{P,Type{P},AnyOrderPos{P},AnyTradePos{P}}
 
+# NOTE: Implementing this function for `ByPos` breaks backtesting, don't do it!
 orderside(::BySide{S}) where {S<:OrderSide} = S
 isside(what::ByPos{Long}, side::ByPos{Long}) = true
 isside(what::ByPos{Short}, side::ByPos{Short}) = true

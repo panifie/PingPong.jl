@@ -539,9 +539,12 @@ end
 @doc """
 Checks if an asset instance has a specific order in a strategy.
 
+!!! warning "Not for sim mode"
+    For speed reason we don't construct order ids (which are strings) in sim mode.
+
 $(TYPEDSIGNATURES)
 """
-hasorders(s::Strategy, ai, id::String) = begin
+hasorders(s::Strategy{<:Union{Paper,Live}}, ai, id::String) = begin
     for o in values(s, ai)
         o.id == id && return true
     end
