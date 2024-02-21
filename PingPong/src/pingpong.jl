@@ -102,6 +102,7 @@ macro strategyenv!()
         using .pp.Engine.Lang
 
         using .st: freecash, setattr!, attr
+        using .ect: orders
         using .pp.Engine.Exchanges: getexchange!, marketsid
         using .pc: resample, islast, iscomplete, isincomplete
         using .Data: propagate_ohlcv!, stub!
