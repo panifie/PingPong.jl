@@ -1,4 +1,5 @@
 using .OrderTypes: LiquidationTrade, LongTrade, ShortTrade
+using .Misc: ZERO
 
 @doc """ Computes the average duration of trades for an asset instance.
 
@@ -118,7 +119,7 @@ macro cumbal()
     ex = quote
         returns = let
             tf = first(keys(ohlcv_dict(ai)))
-            stats.trades_balance(ai; tf).cum_total
+            trades_balance(ai; tf).cum_total
         end
     end
     esc(ex)
@@ -144,7 +145,7 @@ function trades_drawdown(ai::AssetInstance; cum_bal=@cumbal(), kwargs...)
     (; dd=isfinite(dd) ? dd : 1.0 - 1.0, atl, ath)
 end
 
-function trades_pnl(returns; f=stats.mean)
+function trades_pnl(returns; f=mean)
     losses = (v for v in returns if isfinite(v) && v <= ZERO)
     gains = (v for v in returns if isfinite(v) && v > ZERO)
     NamedTuple((
