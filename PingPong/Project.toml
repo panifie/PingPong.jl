@@ -1,12 +1,13 @@
 name = "PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
-version = "1.0.20"
 data_store = ""
+version = "1.0.21"
 
 [deps]
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Engine = "2ee4d486-7c03-4138-87ff-17a01ae58543"

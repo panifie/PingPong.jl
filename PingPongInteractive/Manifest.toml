@@ -1423,10 +1423,10 @@ uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
 version = "0.6.1"
 
 [[deps.PingPong]]
-deps = ["Engine", "MacroTools", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
+deps = ["Engine", "MacroTools", "PackageCompiler", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
 path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.0.20"
+version = "1.0.21"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
