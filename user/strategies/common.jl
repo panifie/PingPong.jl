@@ -73,7 +73,7 @@ _overrides!(s) = begin
     s
 end
 
-getparam(s, params, sym) = params[attr(s, :params_index)[sym]]
+getparam(s, params, sym) = params[s[:params_index][sym]]
 
 _thisclose(s) = s.attrs[:this_close]::Option{Float64}
 _prevclose(s) = s.attrs[:prev_close]::Option{Float64}

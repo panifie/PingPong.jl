@@ -28,7 +28,7 @@ using Exchanges.Data:
     OHLCVTuple,
     ohlcvtuple
 import .Data: propagate_ohlcv!
-using .Data.DFUtils: lastdate, colnames, addcols!
+using .Data.DFUtils: lastdate, colnames, addcols!, copysubs!
 using .Data.DataStructures: SortedDict
 using .Data.Misc
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
