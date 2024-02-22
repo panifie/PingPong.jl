@@ -218,11 +218,6 @@ opposite(::Type{Sell}) = Buy
 function opposite(::Type{T}) where {S,T<:OrderType{S}}
     getfield(T.name.module, T.name.name){opposite(S)}
 end
-@doc """`Buy` as `Long` and `Sell` as `Short`"""
-sidetopos(::BySide{Buy}) = Long()
-sidetopos(::BySide{Sell}) = Short()
-postoside(::ByPos{Long}) = Buy
-postoside(::ByPos{Short}) = Sell
 @doc """Get the liquidation side of an order """
 liqside(::Union{Long,Type{Long}}) = Sell
 liqside(::Union{Short,Type{Short}}) = Buy
@@ -273,6 +268,11 @@ isside(what::ByPos{Long}, side::ByPos{Long}) = true
 isside(what::ByPos{Short}, side::ByPos{Short}) = true
 @doc "Test if the order side matches the given side"
 isside(args...) = false
+@doc """`Buy` as `Long` and `Sell` as `Short`"""
+sidetopos(::BySide{Buy}) = Long()
+sidetopos(::BySide{Sell}) = Short()
+postoside(::ByPos{Long}) = Buy
+postoside(::ByPos{Short}) = Sell
 
 export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
@@ -283,4 +283,4 @@ export IncreaseOrder,
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
 export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
-export liqside, sidetopos, postoside, opposite
+export liqside, sidetopos, opposite
