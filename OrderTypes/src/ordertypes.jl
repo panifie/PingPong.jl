@@ -219,8 +219,10 @@ function opposite(::Type{T}) where {S,T<:OrderType{S}}
     getfield(T.name.module, T.name.name){opposite(S)}
 end
 @doc """`Buy` as `Long` and `Sell` as `Short`"""
-sidetopos(::Type{Buy}) = Long
-sidetopos(::Type{Sell}) = Short
+sidetopos(::BySide{Buy}) = Long()
+sidetopos(::BySide{Sell}) = Short()
+postoside(::ByPos{Long}) = Buy
+postoside(::ByPos{Short}) = Sell
 @doc """Get the liquidation side of an order """
 liqside(::Union{Long,Type{Long}}) = Sell
 liqside(::Union{Short,Type{Short}}) = Buy
@@ -281,4 +283,4 @@ export IncreaseOrder,
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
 export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
-export liqside, sidetopos, opposite
+export liqside, sidetopos, postoside, opposite
