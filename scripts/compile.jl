@@ -1,5 +1,6 @@
 using Pkg: Pkg
 
+Pkg.activate(joinpath("user", "Load"))
 Pkg.add("PackageCompiler")
 using PackageCompiler
 
