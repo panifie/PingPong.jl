@@ -16,6 +16,7 @@ using .ect.Lang
 using .Statistics
 using .Statistics: median
 using .ect.Misc.DocStringExtensions
+using .ect.Misc: ZERO
 
 __revise_mode__ = :eval
 include("trades_resample.jl")

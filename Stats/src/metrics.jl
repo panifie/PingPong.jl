@@ -1,7 +1,6 @@
 using .Statistics: std
 using Base: negate
 using .st: trades_count
-using .Misc: ZERO
 
 const DAYS_IN_YEAR = 365
 @doc "All the metrics that supported."

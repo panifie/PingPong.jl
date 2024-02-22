@@ -1,5 +1,4 @@
 using .OrderTypes: LiquidationTrade, LongTrade, ShortTrade
-using .Misc: ZERO
 
 @doc """ Computes the average duration of trades for an asset instance.
 
