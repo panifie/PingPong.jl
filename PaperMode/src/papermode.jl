@@ -234,7 +234,7 @@ function elapsed(s::Strategy{<:Union{Paper,Live}})
         Millisecond(0),
         @coalesce(get(attrs, :is_stop, missing), now()) -
         @coalesce(get(attrs, :is_start, missing), now()),
-    )
+    ) |> compact
 end
 
 @doc """
