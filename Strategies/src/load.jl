@@ -190,7 +190,7 @@ function strategy!(src::Symbol, cfg::Config)
             try
                 let
                     using Pkg: Pkg
-                    $isproject && begin
+                    if $isproject
                         Pkg.activate($project_file; io=Base.devnull)
                         Pkg.instantiate(; io=Base.devnull)
                     end
@@ -202,7 +202,9 @@ function strategy!(src::Symbol, cfg::Config)
                     $src
                 end
             finally
-                $isproject && Pkg.activate($prev_proj; io=Base.devnull)
+                if $isproject
+                    Pkg.activate($prev_proj; io=Base.devnull)
+                end
             end
         end
     else
