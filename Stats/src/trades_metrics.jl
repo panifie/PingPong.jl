@@ -1,4 +1,5 @@
 using .OrderTypes: LiquidationTrade, LongTrade, ShortTrade
+using .Data: default_value
 
 @doc """ Computes the average duration of trades for an asset instance.
 
@@ -148,8 +149,8 @@ function trades_pnl(returns; f=mean)
     losses = (v for v in returns if isfinite(v) && v <= ZERO)
     gains = (v for v in returns if isfinite(v) && v > ZERO)
     NamedTuple((
-        Symbol(nameof(f), :_, :loss) => isempty(losses) ? ZERO : f(losses),
-        Symbol(nameof(f), :_, :profit) => isempty(gains) ? ZERO : f(gains),
+        Symbol(nameof(f), :_, :loss) => isempty(losses) ? default_value(f) : f(losses),
+        Symbol(nameof(f), :_, :profit) => isempty(gains) ? default_value(f) : f(gains),
     ))
 end
 function trades_pnl(ai::AssetInstance; returns=_returns_arr(@cumbal()), kwargs...)

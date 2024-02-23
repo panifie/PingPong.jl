@@ -57,7 +57,7 @@ function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
 end
 
 function delete!(store::AbstractStore, paths...; recursive=true)
-display("zarr_utils.jl:60")
+    display("zarr_utils.jl:60")
     delete!(store, paths...; recursive)
 end
 
@@ -125,7 +125,7 @@ function zdelete!(
             else
                 # Delete all entries where dates are less than `to`
                 to_idx = search_to(firstindex(selected))
-                tail_range = (to_idx + 1):lastindex(z, 1)
+                tail_range = (to_idx+1):lastindex(z, 1)
                 tail_len = length(tail_range)
                 if tail_len > 0
                     z[begin:tail_len, :] = view(z, tail_range, :)
@@ -143,7 +143,7 @@ function zdelete!(
             # and less than `to`
             from_idx = search_from()
             to_idx = search_to(from_idx)
-            right_range = (to_idx + 1):lastindex(z, 1)
+            right_range = (to_idx+1):lastindex(z, 1)
             # the last idx of the copied over data
             end_idx = from_idx + length(right_range) - 1
             if length(right_range) > 0
@@ -171,7 +171,7 @@ $(TYPEDSIGNATURES)
 
 This function returns the default value of the specified type t.
 """
-default_value(t::Type) = begin
+default_value(t::T) where {T<:Type} = begin
     if applicable(zero, t)
         zero(t)
     elseif applicable(empty, Tuple{t})
@@ -194,6 +194,8 @@ default_value(t::Type) = begin
         throw(ArgumentError("No default value for type: $t"))
     end
 end
+
+default_value(f::Function) = first(Base.return_types(f)) |> default_value
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray.
 
