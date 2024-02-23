@@ -286,12 +286,15 @@ function strategy!(mod::Module, cfg::Config)
         end
     end
     @assert nameof(s_type) isa Symbol "Source $src does not define a strategy name."
-    @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) try
+    s = @something invokelatest(mod.ping!, s_type, cfg, LoadStrategy()) try
         default_load(mod, s_type, cfg)
     catch
         @debug_backtrace
         nothing
     end bare_load(mod, s_type, cfg)
+    # ensure strategy is stopped on process termination
+    atexit(() -> stop!(s))
+    return s
 end
 
 @doc """ Returns the path to the strategy cache.
