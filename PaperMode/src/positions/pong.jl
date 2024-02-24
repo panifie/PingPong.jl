@@ -40,7 +40,7 @@ Additional keyword arguments can be passed.
 function pong!(
     s::IsolatedStrategy{Paper},
     ai,
-    t::Type{<:Order{<:LimitOrderType}};
+    t::Type{<:AnyLimitOrder};
     amount,
     date,
     kwargs...,
