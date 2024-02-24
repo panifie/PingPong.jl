@@ -25,10 +25,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns the price at a particular date for an order. It takes a strategy `s`, an order type, an asset `ai`, and a date as inputs. It also takes an optional `datefunc` parameter, which is a function to normalize the date. The `datefunc` takes the timeframe and the date as inputs and defaults to `available`.
+This function returns the price at a particular date for an order. It takes a strategy `s`, an order type, an asset `ai`, and a date as inputs.
 """
-function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date; datefunc=available)
-    st.closeat(ai, datefunc(s.timeframe, date))
+function priceat(s::Strategy{Sim}, ::Type{<:Order}, ai, date)
+    st.openat(ai, date)
 end
 priceat(s::Strategy{Sim}, ::T, args...) where {T<:Order} = priceat(s, T, args...)
 function priceat(s::MarginStrategy{Sim}, ::T, args...) where {T<:Order}

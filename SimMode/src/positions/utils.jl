@@ -53,7 +53,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
     ot = ForcedOrder{liqside(p),typeof(p)}
-    price = priceat(s, ot, ai, date; datefunc=Returns(date))
+    price = priceat(s, ot, ai, date)
     amount = abs(nondust(ai, price, p))
     if amount > 0.0
         @ifdebug prevcash = s.cash.value
