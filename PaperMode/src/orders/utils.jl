@@ -103,11 +103,11 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
-    @ifdebug prev = s.cash.value
+    prev_cash = s.cash.value
     ob_trade = trade!(
         s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false
     )
-    @debug "paper from ob:" s.cash.value - prev avg_price this_vol ob_trade.value
+    @debug "paper from ob:" s.cash.value - avg_price prev_cash this_vol ob_trade.value
     if isnothing(ob_trade) && o isa AnyFOKOrder
         @debug "paper from ob: fok order trade failed" o.price this_price amount this_vol
         cancel!(s, o, ai; err=OrderFailed((; o, obside)))
