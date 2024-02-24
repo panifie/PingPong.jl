@@ -110,10 +110,15 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     setattr!(s, missing, :is_stop)
     log_tasks = Task[]
     ping_start = DateTime(0)
+    prev_cash = s.cash.value
+    s_cash = s.cash
     try
         while is_running[]
             try
-                log(s)
+                if s_cash != prev_cash
+                    log(s)
+                    prev_cash = s_cash.value
+                end
                 flushlog(loghandle)
                 ping_start = now()
                 ping!(s, now(), nothing)
