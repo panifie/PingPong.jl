@@ -48,21 +48,9 @@ end
 
 function orderbook_side(ai, t::Type{<:Order})
     ob = orderbook(ai.exchange, raw(ai); limit=100)
-    getproperty(ob, ifelse(t <: AnyBuyOrder, :asks, :bids))
-end
-_obsidebypos(::Long) = :asks
-_obsidebypos(::Short) = :bids
-@doc """ Returns the appropriate side of the orderbook based on the order type.
-
-$(TYPEDSIGNATURES)
-
-The function fetches the orderbook for the given asset and exchange.
-It then returns the asks or bids from the orderbook depending on whether the order type is a AnyBuyOrder or not.
-
-"""
-function orderbook_side(ai, ::OrderTypes.ByPos{P}) where {P}
-    ob = orderbook(ai.exchange, raw(ai); limit=100)
-    getproperty(ob, _obsidebypos(P()))
+    side = ifelse(t <: AnyBuyOrder, :asks, :bids)
+    @debug "papermode: obside" t side
+    getproperty(ob, side)
 end
 
 @doc """ Simulates price and volume for an order from the live orderbook.
