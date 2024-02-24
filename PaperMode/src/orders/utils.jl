@@ -20,7 +20,7 @@ function _ticker_volume(ai)
     (Ref(apply(tf"1d", now())), Ref(0.0), Ref(_basevol(ai)))
 end
 
-_paper_liquidity(s, ai) = @lget! attr(s, :paper_liquidity) ai _ticker_volume(ai)
+_paper_liquidity(s, ai) = @lget! s[:paper_liquidity] ai _ticker_volume(ai)
 @doc """ Limits the volume of order execution to the daily limit of the asset.
 
 $(TYPEDSIGNATURES)
@@ -57,11 +57,11 @@ _obsidebypos(::Short) = :bids
 $(TYPEDSIGNATURES)
 
 The function fetches the orderbook for the given asset and exchange.
-It then returns the asks or bids from the orderbook depending on whether the order type is a BuyOrder or not.
+It then returns the asks or bids from the orderbook depending on whether the order type is a AnyBuyOrder or not.
 
 """
 function orderbook_side(ai, ::OrderTypes.ByPos{P}) where {P}
-    ob = orderbook(ai.exchange, ai.asset.raw; limit=100)
+    ob = orderbook(ai.exchange, raw(ai); limit=100)
     getproperty(ob, _obsidebypos(P()))
 end
 
@@ -77,23 +77,33 @@ The function updates the taken volume after each order.
 
 """
 function from_orderbook(obside, s, ai, o::Order; amount, date)
-    _, taken_vol, total_vol = attr(s, :paper_liquidity)[ai]
+    _, taken_vol, total_vol = s[:paper_liquidity][ai]
     n_prices = length(obside)
     @deassert n_prices > 0
     price_idx = max(1, trunc(Int, taken_vol[] * n_prices / total_vol[]))
     this_price, this_vol = obside[price_idx]
+    @debug "paper from ob: idx" this_price this_vol
     this_vol = min(amount, this_vol)
     islimit = o isa AnyLimitOrder
-    islimit && !_istriggered(o, this_price) && return this_price, zero(DFT), nothing
+    if islimit && !_istriggered(o, this_price)
+        @debug "paper from ob: limit order not triggered (queuing)" o.price this_price
+        return this_price, zero(DFT), nothing
+    end
     # calculate the vwap based on how much orderbook we sweep
     avg_price = this_price * this_vol
     while this_vol < amount
         price_idx += 1
-        price_idx > n_prices && break
+        if price_idx > n_prices
+            @debug "paper from ob: out of depth (!)" this_vol amount avg_price
+            break
+        end
         ob_price, ob_vol = obside[price_idx]
         # If it is a limit order terminate the loop as soon as avg_price
         # exceeds the limit order avg_price
-        islimit && !_istriggered(o, ob_price) && break
+        if islimit && !_istriggered(o, ob_price)
+            @debug "paper from ob: limit order partially filled" o.price this_price amount this_vol avg_price
+            break
+        end
         inc_vol = min(ob_vol, amount - this_vol)
         avg_price += ob_price * inc_vol
         this_vol += inc_vol
@@ -101,6 +111,7 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
     avg_price /= this_vol
     ob_trade = nothing::Union{Nothing,<:Trade}
     if o isa AnyFOKOrder && this_vol < amount
+        @debug "paper from ob: fok order no volume" o.price this_price amount this_vol
         cancel!(s, o, ai; err=NotEnoughLiquidity())
         return this_price, zero(DFT), nothing
     end
@@ -108,14 +119,16 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
     ob_trade = trade!(
         s, o, ai; date, price=avg_price, actual_amount=this_vol, slippage=false
     )
-    @ifdebug @debug "from orderbook:" s.cash.value - prev avg_price this_vol ob_trade.value
+    @debug "paper from ob:" s.cash.value - prev avg_price this_vol ob_trade.value
     if isnothing(ob_trade) && o isa AnyFOKOrder
-        cancel!(s, o, ai; err=OrderFailed("FOK order for $(ai.asset) failed $(o.date)."))
+        @debug "paper from ob: fok order trade failed" o.price this_price amount this_vol
+        cancel!(s, o, ai; err=OrderFailed((; o, obside)))
     end
     @assert o.amount ≈ this_vol ||
             o isa AnyLimitOrder ||
             # NOTE: this can fail only if orderbook hasn't enough vol
             sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
     taken_vol[] += this_vol
+    @debug "paper from ob: done" avg_price this_vol taken_vol[]
     return avg_price, this_vol, ob_trade
 end
