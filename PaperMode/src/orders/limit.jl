@@ -107,7 +107,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         obside = orderbook_side(ai, t)
         trade = if !isempty(obside)
             _, _, trade = from_orderbook(obside, s, ai, o; o.amount, date)
-            @debug "paper limit order: trade from orderbook" o.asset o.price o.amount trade.price trade.amount
+            @debug "paper limit order: trade from orderbook" o.asset o.price o.amount trade
             trade
         end
         # Queue GTC orders
