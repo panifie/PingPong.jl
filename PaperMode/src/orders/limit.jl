@@ -112,7 +112,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         end
         # Queue GTC orders
         if o isa AnyGTCOrder
-            @debug "paper limit order: queuing gtc order" o.asset o.price o.amount
+            @debug "paper limit order: queuing gtc order" o o.asset o.price o.amount
             paper_limitorder!(s, ai, o)
         elseif !isfilled(ai, o) && ordertype(o) <: ImmediateOrderType
             @debug "paper limit order: canceling" o.asset ordertype(o) o.price o.amount
@@ -122,7 +122,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         return trade
     catch
         @debug_backtrace
-        !isfilled(ai, o) && cancel!(s, o, ai; err=OrderFailed(e))
+        !isfilled(ai, o) && cancel!(s, o, ai; err=OrderFailed(o))
         return missing
     end
 end

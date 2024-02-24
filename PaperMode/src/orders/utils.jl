@@ -70,11 +70,11 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
     @deassert n_prices > 0
     price_idx = max(1, trunc(Int, taken_vol[] * n_prices / total_vol[]))
     this_price, this_vol = obside[price_idx]
-    @debug "paper from ob: idx" this_price this_vol
+    @debug "paper from ob: idx" price_idx this_price this_vol
     this_vol = min(amount, this_vol)
     islimit = o isa AnyLimitOrder
     if islimit && !_istriggered(o, this_price)
-        @debug "paper from ob: limit order not triggered (queuing)" o.price this_price
+        @debug "paper from ob: limit order not triggered" this_price o
         return this_price, zero(DFT), nothing
     end
     # calculate the vwap based on how much orderbook we sweep
