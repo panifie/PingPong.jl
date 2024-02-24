@@ -47,8 +47,8 @@ function volumecap!(s, ai; amount)
 end
 
 function orderbook_side(ai, t::Type{<:Order})
-    ob = orderbook(ai.exchange, ai.asset.raw; limit=100)
-    getproperty(ob, ifelse(t <: BuyOrder, :asks, :bids))
+    ob = orderbook(ai.exchange, raw(ai); limit=100)
+    getproperty(ob, ifelse(t <: AnyBuyOrder, :asks, :bids))
 end
 _obsidebypos(::Long) = :asks
 _obsidebypos(::Short) = :bids
