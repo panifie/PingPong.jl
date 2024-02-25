@@ -247,7 +247,7 @@ function balance(cl::TelegramClient, s; text, chat_id, kwargs...)
     io = IOBuffer()
     try
         write(io, "```")
-        pretty_table(io, df; tf=tf_markdown, nosubheader=true)
+        pretty_table(io, df; tf=tf_markdown)
         write(io, "```")
         sendMessage(cl; text=String(take!(io)), chat_id, parse_mode="markdown")
     finally
@@ -307,7 +307,7 @@ function assets(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
         io = IOBuffer()
         try
             if n_trades > 0
-                df = DataFrame(t for t in @view(ai_trades[(end - min(n_trades, 3)):end]))
+                df = DataFrame(t for t in @view(ai_trades[(end-min(n_trades, 3)):end]))
                 df[!, :side] = posside.(df.order)
                 df[!, :date] = [string(compact(now() - date), " ago") for date in df.date]
                 @debug "tg asset: " df
@@ -316,7 +316,6 @@ function assets(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
                     io,
                     @view df[:, [:amount, :price, :size, :side, :date]];
                     tf=tf_markdown,
-                    nosubheader=true,
                 )
                 write(io, "```\n")
             end
