@@ -138,7 +138,7 @@ function tgtask(cl, s, running::Ref{Bool}, offset::Ref{Int})
             chat_id = get(chat, :id, nothing)
             isnothing(chat_id) && return nothing
             from = get(message, :from, (;))
-            msg_user = get(from, :username, "")
+            msg_user = @coalesce get(from, :username, "") ""
             if msg_user != user
                 sendMessage(
                     cl;
