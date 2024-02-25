@@ -13,7 +13,7 @@ function set_active_position!(
     ts_long=position(ai, Long()).timestamp[],
     ts_short=position(ai, Short()).timestamp[],
     default_date=now(),
-)
+)::Option{Position}
     active_side = if iszero(cash_long)
         if !iszero(cash_short)
             Short()

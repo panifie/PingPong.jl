@@ -1,4 +1,4 @@
-using .Instances: AssetInstance
+using .Instances: AssetInstance, Position
 using .Exchanges: is_pair_active
 using .Data.DFUtils: firstdate, lastdate, dateindex, colnames, nrow, setcols!
 import .Instances: lastprice
