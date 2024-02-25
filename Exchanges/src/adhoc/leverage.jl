@@ -37,11 +37,11 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol;
     @sync begin
         @async pyfetch(exc.setPositionMode, hedged, symbol) # set hedged mode
         this_lev = _negative_lev_if_cross(mode_str, lev)
-        resp = @async pyfetch(exc.setLeverage, this_lev, symbol)
+        resp = pyfetch(exc.setLeverage, this_lev, symbol)
         if resp isa PyException
             return resp
         end
-        Bool(get(resp, "code", @pyconst("1")) == @pyconst("0"))
+        pyeq(Bool, get(resp, "code", @pyconst("1")), @pyconst("0"))
     end
 end
 
