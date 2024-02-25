@@ -5,6 +5,7 @@ using LiveMode: trades, raw, posside
 using LiveMode.Instances: MarginInstance, NoMarginInstance, HedgedInstance
 using LiveMode.Instances: DataFrame, committed, cash
 using LiveMode.Instances.Data: Not
+using .Misc.Lang: MatchString
 using PrettyTables: pretty_table, tf_markdown
 import Base: get
 
@@ -300,7 +301,7 @@ function assets(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
         return false
     else
         sym = text
-        ai = first(s.universe[sym].instance)
+        ai = s[MatchString(sym)]
         ai_trades = trades(ai)
         n_trades = length(ai_trades)
         io = IOBuffer()
