@@ -135,7 +135,7 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
             time,
         )
         @debug "force fetch pos: processing"
-        @async process!(w; sym=raw(ai))
+        @async process!(w; forced_sym=raw(ai))
     end
     if istaskdone(this_task)
     else
