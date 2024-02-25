@@ -248,7 +248,7 @@ function ccxt_positions_func!(a, exc)
             if !ismissing(out)
                 _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
             else
-                @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout
+                @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout @caller
                 pylist()
             end
         end

@@ -44,7 +44,7 @@ function _live_sync_position!(
 )
     let queue = asset_queue(s, ai)
         if queue[] > 1
-            @debug "sync pos: skipping position sync since events queue is congested ($(queue[]))"
+            @debug "sync pos: events queue is congested" queue[]
             return nothing
         end
     end

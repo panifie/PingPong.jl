@@ -1,3 +1,5 @@
+using .Lang: @debug_backtrace
+
 @doc """ Check if a task is running.
 
 $(TYPEDSIGNATURES)
@@ -29,6 +31,7 @@ stop_task(t::Task) = begin
             istaskdone(t)
         catch
             @error "Running flag not set on task $t" istaskdone(t) istaskstarted(t)
+            @debug_backtrace
             false
         end
     else
