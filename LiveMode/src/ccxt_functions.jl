@@ -241,8 +241,16 @@ function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
     timeout = get!(a, :throttle, Second(5))
     a[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), kwargs...) -> let out = positions_func(exc, ais; timeout, kwargs...)
-            _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
+        (ais; side=Hedged(), kwargs...) -> if isempty(ais)
+            pylist()
+        else
+            out = positions_func(exc, ais; timeout, kwargs...)
+            if !ismissing(out)
+                _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
+            else
+                @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout
+                pylist()
+            end
         end
     else
         fetch_func = exc.fetchPosition
