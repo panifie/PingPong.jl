@@ -32,8 +32,18 @@ function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
 end
 
 function reset_asset_tasks!(tasks)
-    foreach(wait, values(tasks.byname))
-    foreach(wait, values(tasks.byorder))
+    for (name, task) in tasks.byname
+        if istaskrunning(task)
+            @debug "waiting for asset task" name
+            wait(task)
+        end
+    end
+    for (order, task) in tasks.byorder
+        if istaskrunning(task)
+            @debug "waiting for asset task" order
+            wait(task)
+        end
+    end
     empty!(tasks.byname)
     empty!(tasks.byorder)
     iszero(tasks.queue[]) || begin
@@ -74,7 +84,12 @@ function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
         stop_task(task)
     end
     if reset
-        foreach(wait, values(tasks))
+        for (name, task) in tasks
+            if istaskrunning(task)
+                @debug "waiting for strategy task" account name
+                wait(task)
+            end
+        end
         empty!(tasks)
     end
 end
@@ -407,9 +422,13 @@ function get_position_side(s, ai::AssetInstance)
         sym = raw(ai)
         long, short = get_positions(s)
         pos = get(long, sym, nothing)
-        !isnothing(pos) && !pos.closed[] && return Long()
+        if !isnothing(pos) && !pos.closed[]
+            return Long()
+        end
         pos = get(short, sym, nothing)
-        !isnothing(pos) && !pos.closed[] && return Short()
+        if !isnothing(pos) && !pos.closed[]
+            return Short()
+        end
         @something posside(ai) if hasorders(s, ai)
             @debug "No position open for $sym, inferring from open orders"
             posside(first(orders(s, ai)).second)
