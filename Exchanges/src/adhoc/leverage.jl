@@ -31,7 +31,7 @@ _negative_lev_if_cross(mode_str, lev) =
         error("Margin mode $mode_str is not valid [supported: 'cross', 'isolated']")
     end
 
-function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol,
+function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol;
     hedged=false, settle=_settle_from_market(exc, symbol), lev=_lev_frompos(exc, symbol, settle)
 )
     @sync begin

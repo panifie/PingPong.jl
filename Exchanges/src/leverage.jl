@@ -143,7 +143,7 @@ Base.string(::Union{T,Type{T}}) where {T<:IsolatedMargin} = "isolated"
 Base.string(::Union{T,Type{T}}) where {T<:CrossMargin} = "cross"
 Base.string(::Union{T,Type{T}}) where {T<:NoMargin} = "nomargin"
 
-function dosetmargin(exc::Exchange, mode_str, symbol)
+function dosetmargin(exc::Exchange, mode_str, symbol; kwargs...)
     pyfetch(exc.setMarginMode, mode_str, symbol)
 end
 
