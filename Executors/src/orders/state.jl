@@ -84,7 +84,7 @@ function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     @deassert pricetime(o) ∉ keys(orders(s, ai, orderside(o)))
     # If we don't have cash for this asset, it should be released from holdings
-    release!(s, ai, o)
+    release!(s, ai)
 end
 
 @doc """Removes a single sell order from the order queue.
@@ -96,7 +96,7 @@ function Base.delete!(s::Strategy, ai, o::SellOrder)
     @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
-    release!(s, ai, o)
+    release!(s, ai)
 end
 
 @doc """Removes a single short buy order from the order queue.
@@ -109,7 +109,7 @@ function Base.delete!(s::Strategy, ai, o::ShortBuyOrder)
     @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, Buy), pricetime(o))
     # If we don't have cash for this asset, it should be released from holdings
-    release!(s, ai, o)
+    release!(s, ai)
 end
 
 @doc """Removes all buy/sell orders for an asset instance.
@@ -567,18 +567,12 @@ hold!(::Strategy, _, ::ReduceOrder) = nothing
 $(TYPEDSIGNATURES)
 
 """
-function release!(s::MarginStrategy, ai, o::Order)
-    iszero(ai, posside(o)) && !hasorders(s, ai, positionside(o)) && delete!(s.holdings, ai)
+function release!(s::Strategy, ai)
+    if iszero(ai) && !hasorders(s, ai)
+        delete!(s.holdings, ai)
+    end
 end
 
-@doc """Releases an order from a no-margin strategy.
-
-$(TYPEDSIGNATURES)
-
-"""
-function release!(s::NoMarginStrategy, ai, o::Order)
-    iszero(ai) && !hasorders(s, ai, orderside(o)) && delete!(s.holdings, ai)
-end
 @doc """Cancels an order with given error.
 
 $(TYPEDSIGNATURES)

@@ -288,7 +288,14 @@ end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, args...; kwargs...)
     @debug "sync pos: locking ai" ai = raw(ai)
-    @lock ai _live_sync_position!(s, ai, args...; kwargs...)
+    @lock ai begin
+        _live_sync_position!(s, ai, args...; kwargs...)
+        if isopen(ai) || hasorders(s, ai)
+            push!(s.holdings, ai)
+        else
+            delete!(s.holdings, ai)
+        end
+    end
 end
 
 function live_sync_position!(
