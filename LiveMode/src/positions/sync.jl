@@ -55,7 +55,7 @@ function _live_sync_position!(
     wasopen = isopen(pos) # by macro warn_unsynced
 
     # check hedged mode
-    resp_position_hedged(resp, eid) == ishedged(pos) || begin
+    if !resp_position_hedged(resp, eid) == ishedged(pos)
         @warn "sync pos: hedged mode mismatch" loc = ishedged(pos)
         @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "failed to set hedged mode on exchange"
     end
@@ -97,7 +97,9 @@ function _live_sync_position!(
 
     update.read[] && begin
         @debug "sync pos: update already read" ai = raw(ai) pside strict f = @caller
-        strict || return pos
+        if !strict
+            return pos
+        end
     end
 
     if update.closed[]

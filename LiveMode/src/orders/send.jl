@@ -68,9 +68,8 @@ function live_send_order(
     # might be used in a specialized function for problematic exchanges
     # @price! ai stop_loss stop_trigger price profit_trigger take_profit
     # @amount! ai amount
-    skipchecks ||
-        check_available_cash(s, ai, amount, price, t) ||
-        begin
+    if !skipchecks
+        if !check_available_cash(s, ai, amount, price, t)
             @warn "send order: not enough cash. out of sync?" this_cash = cash(
                 ai, posside(t)
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
@@ -78,6 +77,7 @@ function live_send_order(
             ) strat_comm = committed(s) order_cash = amount t
             return nothing
         end
+    end
     sym = raw(ai)
     exc = exchange(ai)
     side = _ccxtorderside(t)
