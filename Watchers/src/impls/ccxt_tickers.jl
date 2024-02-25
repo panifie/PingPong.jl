@@ -58,7 +58,7 @@ function ccxt_tickers_watcher(
     _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
-    wid = string(wid, "-", hash((exc.id, syms)))
+    wid = string(wid, "-", hash((exc.id, syms, issandbox(exc))))
     watcher(
         watcher_type,
         wid,
@@ -122,6 +122,12 @@ function _fetch!(w::Watcher, ::CcxtTickerVal)
 end
 
 function _init!(w::Watcher, ::CcxtTickerVal)
-    _key!(w, "ccxt_$(_exc(w).name)_tickers_$(join(snakecased.(_ids(w)), "_"))")
+    exc = _exc(w)
+    _key!(
+        w,
+        string(
+            "ccxt_", exc.name, issandbox(exc), "_tickers_", join(snakecased.(_ids(w)), "_")
+        ),
+    )
     default_init(w, nothing)
 end

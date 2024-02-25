@@ -54,7 +54,7 @@ function ccxt_ohlcv_tickers_watcher(
     a[:volume_divisor] = Day(1) / period(timeframe)
     ids = a[:ids]
     isnothing(logfile) || (a[:logfile] = logfile)
-    _key!(w, "ccxt_$(exc.name)_ohlcv_tickers_$(join(ids, "_"))")
+    _key!(w, string("ccxt_", exc.name, issandbox(exc), "_ohlcv_tickers_", join(ids, "_")))
     _pending!(w)
     w
 end

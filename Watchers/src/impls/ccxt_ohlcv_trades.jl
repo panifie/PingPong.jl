@@ -54,7 +54,7 @@ function ccxt_ohlcv_watcher(
     attrs[:default_view] = default_view
     attrs[:quiet] = quiet
     watcher_type = Vector{CcxtTrade}
-    wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, sym)))
+    wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, issandbox(exc), sym)))
     w = watcher(
         watcher_type,
         wid,
