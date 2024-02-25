@@ -223,7 +223,16 @@ This function checks if the position value of a given `AssetInstance` at a speci
 
 """
 function isdust(ai::AssetInstance, price, p::PositionSide)
-    abs(value(cash(ai, p)) * price) < ai.limits.cost.min
+    pos = position(ai, p)
+    if isnothing(pos)
+        return true
+    end
+    this_cash = cash(pos) |> value |> abs
+    if this_cash >= ai.limits.amount.min
+        return false
+    else
+        this_cash * price * leverage(pos) < ai.limits.cost.min
+    end
 end
 function isdust(ai::AssetInstance, price)
     isdust(ai, price, Long()) && isdust(ai, price, Short())
@@ -236,9 +245,13 @@ This function returns the asset cash of a `MarginInstance` rounded according to 
 
 """
 function nondust(ai::MarginInstance, price, p=posside(ai))
-    c = cash(ai, p)
+    pos = position(ai, p)
+    if isnothing(pos)
+        return zero(price)
+    end
+    c = cash(pos)
     amt = c.value
-    abs(amt * price) < ai.limits.cost.min ? zero(amt) : amt
+    abs(amt * price * leverage(pos)) < ai.limits.cost.min ? zero(amt) : amt
 end
 @doc """ Check if the amount is below the asset instance's minimum limit.
 

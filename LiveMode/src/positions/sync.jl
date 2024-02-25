@@ -140,7 +140,7 @@ function _live_sync_position!(
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
-        @debug "sync pos: amount is dust, reset" isopen(ai, p)
+        @debug "sync pos: amount is dust, reset" isopen(ai, p) cash(ai)
         return pos
     end
     @debug "sync pos: syncing" date = timestamp(pos) ai = raw(ai) side = pside
@@ -273,9 +273,11 @@ function _live_sync_position!(
     @assert leverage(pos) <= maxleverage(pos) higherwarn(
         "leverage", "max leverage", leverage(pos), maxleverage(pos)
     )
-    @assert pos.min_size <= notional(pos) higherwarn(
-        "min size", "notional", pos.min_size, notional(pos)
-    )
+    if pos.min_size <= notional(pos)
+        @assert abs(cash(pos)) >= ai.limits.amount.min higherwarn(
+            "min size", "notional", pos.min_size, notional(pos)
+        )
+    end
     timestamp!(pos, this_timestamp)
     @debug "sync pos: synced" date = this_timestamp amount = resp_position_contracts(
         update.resp, eid
