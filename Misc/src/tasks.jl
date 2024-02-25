@@ -1,4 +1,4 @@
-using .Lang: @debug_backtrace
+using .Lang: @debug_backtrace, safenotify
 
 @doc """ Check if a task is running.
 
