@@ -15,11 +15,16 @@ This function attempts to stop a running task `t`. It sets the task's running fl
 
 """
 stop_task(t::Task) = begin
-    t.storage[:running] = false
+    sto = t.storage
+    if !isnothing(sto)
+        sto[:running] = false
+    end
     if istaskrunning(t)
         try
-            let cond = get(t.storage, :notify, nothing)
-                isnothing(cond) || safenotify(cond)
+            if !isnothing(sto)
+                let cond = get(t.storage, :notify, nothing)
+                    isnothing(cond) || safenotify(cond)
+                end
             end
             istaskdone(t)
         catch
