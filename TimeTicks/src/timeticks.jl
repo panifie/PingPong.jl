@@ -319,7 +319,7 @@ timestamp = available(frame, date)  # returns the timestamp representing the sta
 ```
 """
 function available(frame::T, date::DateTime)::DateTime where {T<:TimeFrame}
-    apply(frame, date) - frame.period
+    apply(frame, date) - period(frame)
 end
 
 @doc """Compact a Period object s to a smaller unit of time if possible.

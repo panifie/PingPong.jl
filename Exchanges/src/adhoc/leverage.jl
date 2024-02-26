@@ -34,15 +34,14 @@ _negative_lev_if_cross(mode_str, lev) =
 function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol;
     hedged=false, settle=_settle_from_market(exc, symbol), lev=_lev_frompos(exc, symbol, settle)
 )
-    @sync begin
-        @async pyfetch(exc.setPositionMode, hedged, symbol) # set hedged mode
-        this_lev = _negative_lev_if_cross(mode_str, lev)
-        resp = pyfetch(exc.setLeverage, this_lev, symbol)
-        if resp isa PyException
-            return resp
-        end
-        pyeq(Bool, get(resp, "code", @pyconst("1")), @pyconst("0"))
+    task = pytask(exc.setPositionMode, hedged, symbol) # set hedged mode
+    this_lev = _negative_lev_if_cross(mode_str, lev)
+    resp = pyfetch(exc.setLeverage, this_lev, symbol)
+    if resp isa PyException
+        return resp
     end
+    wait(task)
+    pyeq(Bool, get(resp, "code", @pyconst("1")), @pyconst("0"))
 end
 
 function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;
