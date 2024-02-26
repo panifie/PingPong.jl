@@ -145,7 +145,7 @@ function update!(
     tf=s.timeframe,
 )
     ohlcv = @lget! ohlcv_dict(ai) tf Data.empty_ohlcv()
-    @debug "ohlcv update" objectid(ohlcv)
+    @debug "ohlcv update" _module = LogOHLCV objectid(ohlcv)
     last_update = @lget! updates cols typemin(DateTime)
     if !isempty(ohlcv)
         to_date = lastdate(ohlcv)
@@ -169,10 +169,10 @@ function update!(
                 @deassert !iszero(dateindex(ohlcv, last_update))
                 dateindex(ohlcv, from_date, :nonzero), length(from_date:period(tf):to_date)
             end
-            @debug "ohlcv update: " this_len exp_size
+            @debug "ohlcv update: " _module = LogOHLCV this_len exp_size
             updates[cols] = if this_len < exp_size
                 @warn "ohlcv update: size mismatch (missing entries)" this_len exp_size
-                @debug "ohlcv update: updated up to" last_new_date =
+                @debug "ohlcv update: updated up to" _module = LogOHLCV last_new_date =
                     from_date + period(tf) * this_len
                 idx = from_idx:(from_idx + this_len - 1)
                 setcols!(ohlcv, new_data, cols, idx)

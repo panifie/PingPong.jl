@@ -25,8 +25,8 @@ $(TYPEDSIGNATURES)
 
 The function compares the absolute value of free cash in the strategy to the absolute value of the required cash for the order, which is the product of the amount and price.
 """
-function check_available_cash(s, _, amount, price, ::Type{<:IncreaseOrder})
-    abs(freecash(s)) >= abs(amount) * price
+function check_available_cash(s, ai, amount, price, o::Type{<:IncreaseOrder})
+    abs(freecash(s)) >= abs(amount) * price / abs(leverage(ai, posside(o)))
 end
 
 @doc """ Checks if there is enough free cash to execute a reduce order.
@@ -74,7 +74,7 @@ function live_send_order(
                 ai, posside(t)
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
                 s
-            ) strat_comm = committed(s) order_cash = amount t
+            ) strat_comm = committed(s) order_cash = amount t lev = leverage(ai, posside(t))
             return nothing
         end
     end
@@ -109,7 +109,7 @@ function live_send_order(
     # start monitoring before sending the create request
     watch_trades!(s, ai)
     watch_orders!(s, ai)
-    @debug "send order: create" sym type price amount side params
+    @debug "send order: create" _module = LogSendOrder sym type price amount side params
     resp = create_order(s, sym, args...; side, type, price, amount, params)
     while resp isa Exception && retries > 0
         retries -= 1

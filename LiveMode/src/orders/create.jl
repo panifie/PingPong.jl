@@ -34,7 +34,7 @@ function create_live_order(
     try
         eid = exchangeid(ai)
         side = @something _orderside(resp, eid) orderside(t)
-        @debug "Creating order" status = resp_order_status(resp, eid) filled =
+        @debug "Creating order" _module = LogCreateOrder status = resp_order_status(resp, eid) filled =
             resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
         _ccxtisopen(resp, eid) ||
             resp_order_filled(resp, eid) > ZERO ||
@@ -81,7 +81,7 @@ function create_live_order(
         end
     catch
         @error "create order: parsing failed" resp
-        @debug_backtrace
+        @debug_backtrace LogCreateOrder
         return nothing
     end
     o = let f = construct_order_func(type)
@@ -96,19 +96,19 @@ function create_live_order(
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            @debug "create order: locking ai" ai = raw(ai) side = posside(t)
+            @debug "create order: locking ai" _module = LogCreateOrder ai = raw(ai) side = posside(t)
             o = @lock ai create()
         end
         o
     end
     if isnothing(o)
         @error "create order: failed to sync" id ai = raw(ai) s = nameof(s)
-        @debug "create order: failed sync response" resp
+        @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     end
-    @debug "create order: done" committed(o) o.amount ordertype(o)
+    @debug "create order: done" _module = LogCreateOrder committed(o) o.amount ordertype(o)
     return o
 end
 

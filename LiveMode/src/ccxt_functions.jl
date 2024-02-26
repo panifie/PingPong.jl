@@ -367,7 +367,7 @@ _find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
             end
         end
         if isemptish(ords)
-            @debug "live order trades: couldn't fetch trades (default to last day trades)" order = id ai = raw(ai) exc = nameof(exchange(ai)) since = _last_trade_date(ai)
+            @debug "live order trades: couldn't fetch trades (default to last day trades)" _module = LogCcxtFuncs order = id ai = raw(ai) exc = nameof(exchange(ai)) since = _last_trade_date(ai)
             _last_trade_date(ai)
         else
             o = if isdict(ords)
@@ -386,7 +386,7 @@ _find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
             end
         end
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogCcxtFuncs
         _last_trade_date(ai)
     end
 end

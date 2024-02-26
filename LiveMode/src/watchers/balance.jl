@@ -35,7 +35,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
                 @lock w _dopush!(w, v; if_func=isdict)
             end
         catch
-            @debug_backtrace
+            @debug_backtrace _module = LogWatchBalance
             sleep(1)
         end
     else
@@ -46,7 +46,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
             end
             sleep(interval)
         catch
-            @debug_backtrace
+            @debug_backtrace _module = LogWatchBalance
             sleep(interval)
         end
     end
@@ -156,7 +156,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
         )
     end
     w.view.date[] = date
-    @debug "balance watcher update:" date get(bal, :BTC, nothing) _module = :Watchers
+    @debug "balance watcher update:" _module = LogWatchBalance date get(bal, :BTC, nothing) _module = :Watchers
     safenotify(w.beacon.process)
 end
 

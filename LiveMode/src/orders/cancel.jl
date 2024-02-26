@@ -30,7 +30,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
             @warn "live cancel: failed" ai = raw(ai) resp
             false
         elseif isnothing(resp)
-            @debug "live cancel: response is nothing"
+            @debug "live cancel: response is nothing" _module = LogCancelOrder
             true
         elseif pyisinstance(resp, pybuiltins.dict)
             if pyeq(Bool, resp_code(resp, eid), @pyconst("0"))
@@ -47,7 +47,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         end
     catch
         @warn "live cancel: failed (exception)" ai = raw(ai)
-        @debug_backtrace
+        @debug_backtrace _module = LogCancelOrder
         return false
     end
     if done && confirm

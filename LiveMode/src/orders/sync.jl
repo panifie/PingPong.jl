@@ -72,7 +72,7 @@ function live_sync_open_orders!(
         cash_short = cash(ai, Short())
         comm_short = committed(ai, Short())
     end
-    @debug "sync orders: syncing" ai = raw(ai) islocked(ai) length(open_orders)
+    @debug "sync orders: syncing" _module = LogSyncOrder ai = raw(ai) islocked(ai) length(open_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
         strict && maxout!(s, ai)
@@ -99,22 +99,22 @@ function live_sync_open_orders!(
             if isfilled(ai, o)
                 isapprox(ai, _amount_from_trades(trades(o)), o.amount, Val(:amount)) ||
                     begin
-                        @debug "sync orders: replaying filled order with no trades"
+                        @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
                         replay_order!(s, o, ai; resp, exec=false)
                     end
-                @debug "sync orders: removing filled active order" o.id o.amount trades_amount = _amount_from_trades(
+                @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount = _amount_from_trades(
                     trades(o)
                 ) ai = raw(ai) s = nameof(s)
                 clear_order!(s, ai, o)
             else
-                @debug "sync orders: setting active order" o.id ai = raw(ai) s = nameof(s)
+                @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai = raw(ai) s = nameof(s)
                 push!(live_orders, o.id)
                 replay_order!(s, o, ai; resp, exec)
                 if isfilled(ai, o)
                     clear_order!(s, ai, o)
                 elseif filled_amount(o) > ZERO && o isa IncreaseOrder
                     @ifdebug if ai ∉ s.holdings
-                        @debug "sync orders: asset not in holdings" ai = raw(ai)
+                        @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai = raw(ai)
                     end
                     push!(s.holdings, ai)
                 end
@@ -123,7 +123,7 @@ function live_sync_open_orders!(
     end
     for o in values(s, ai, side)
         if o.id ∉ live_orders
-            @debug "sync orders: local order non open on exchange." o.id ai = raw(ai) exc = nameof(
+            @debug "sync orders: local order non open on exchange." _module = LogSyncOrder o.id ai = raw(ai) exc = nameof(
                 exchange(ai)
             )
             delete!(s, ai, o)
@@ -132,7 +132,7 @@ function live_sync_open_orders!(
     @sync for (id, state) in ao
         orderside(state.order) == side || continue
         if id ∉ live_orders
-            @debug "sync orders: tracked local order was not open on exchange" id ai = raw(
+            @debug "sync orders: tracked local order was not open on exchange" _module = LogSyncOrder id ai = raw(
                 ai
             ) exc = nameof(exchange(ai))
             @deassert id == state.order.id
@@ -145,7 +145,7 @@ function live_sync_open_orders!(
                         resp
                     end
                 catch
-                    @debug_backtrace
+                    @debug_backtrace _module = LogSyncOrder
                 end
                 if isdict(order_resp)
                     @deassert resp_order_id(order_resp, eid, String) == id
@@ -174,7 +174,7 @@ function live_sync_open_orders!(
         comm_short == committed(ai, Short()),
     ))
     strict && @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
-    @debug "sync orders: done" ai = raw(ai)
+    @debug "sync orders: done" _module = LogSyncOrder ai = raw(ai)
     nothing
 end
 
@@ -234,7 +234,7 @@ The flag 'insert' determines whether the trades are inserted to the asset trades
 """
 function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
-    @debug "replay order: activate" o.id
+    @debug "replay order: activate" _module = LogSyncOrder id = o.id
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
         if !iszero(filled_amount(o))
@@ -244,7 +244,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
         if !hasorders(s, ai, o.id)
             queue!(s, o, ai)
         end
-        @debug "replay order: order unfilled (returning)"
+        @debug "replay order: order unfilled (returning)" _module = LogSyncOrder
         return o
     end
     if ismissing(state)
@@ -282,11 +282,11 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     end
     new_trades = @view order_trades[(begin+local_count):end]
     if isempty(new_trades)
-        @debug "replay order: emulating trade"
+        @debug "replay order: emulating trade" _module = LogSyncOrder
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
         exec || isnothing(trade) || apply_trade!(s, ai, o, trade; insert)
     else
-        @debug "replay order: replaying trades"
+        @debug "replay order: replaying trades" _module = LogSyncOrder
         for trade_resp in new_trades
             if exec
                 trade!(
@@ -302,7 +302,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
                 )
             else
                 trade = maketrade(s, o, ai; resp=trade_resp)
-                @debug "replay order: applying new trade" trade.order.id
+                @debug "replay order: applying new trade" _module = LogSyncOrder trade.order.id
                 apply_trade!(s, ai, o, trade; insert)
             end
         end
@@ -434,7 +434,7 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         )
         return nothing
     end
-    @debug "sync closed orders: locking ai"
+    @debug "sync closed orders: locking ai" _module = LogSyncOrder ai = raw(ai)
     @lock ai begin
         default_pos = get_position_side(s, ai)
         i = 1

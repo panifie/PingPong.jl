@@ -34,13 +34,13 @@ end
 function reset_asset_tasks!(tasks)
     for (name, task) in tasks.byname
         if istaskrunning(task)
-            @debug "waiting for asset task" name
+            @debug "waiting for asset task" _module = LogTasks name
             wait(task)
         end
     end
     for (order, task) in tasks.byorder
         if istaskrunning(task)
-            @debug "waiting for asset task" order
+            @debug "waiting for asset task" _module = LogTasks order
             wait(task)
         end
     end
@@ -86,7 +86,7 @@ function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
     if reset
         for (name, task) in tasks
             if istaskrunning(task)
-                @debug "waiting for strategy task" account name
+                @debug "waiting for strategy task" _module = LogTasks account name
                 wait(task)
             end
         end
@@ -130,7 +130,7 @@ function stop_all_tasks(s::LiveStrategy; reset=true)
         @async stop_all_asset_tasks(s; reset)
         @async stop_all_strategy_tasks(s; reset)
     end
-    @debug "strategy: stopped all tasks" s = nameof(s)
+    @debug "strategy: stopped all tasks" _module = LogTasks s = nameof(s)
 end
 
 # wait_update(task::Task) = safewait(task.storage[:notify])
@@ -430,17 +430,17 @@ function get_position_side(s, ai::AssetInstance)
             return Short()
         end
         @something posside(ai) if hasorders(s, ai)
-            @debug "No position open for $sym, inferring from open orders"
+            @debug "No position open for $sym, inferring from open orders" _module = LogPos
             posside(first(orders(s, ai)).second)
         elseif length(trades(ai)) > 0
-            @debug "No position open for $sym, inferring from last trade"
+            @debug "No position open for $sym, inferring from last trade" _module = LogPos
             posside(last(trades(ai)))
         else
-            @debug "No position open for $sym, defaulting to long"
+            @debug "No position open for $sym, defaulting to long" _module = LogPos
             Long()
         end
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogPos
         Long()
     end
 end
@@ -555,7 +555,7 @@ function stop!(s::LiveStrategy; kwargs...)
     try
         stop_all_tasks(s)
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogTasks
     finally
         invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
     end
@@ -582,7 +582,7 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     else
         last(buffer(w))
     end
-    @debug "isupdated: " _module = Watchers prev_v last_v
+    @debug "isupdated: " _module = LogTasks prev_v last_v
     if !isempty(last_v.value) && last_v.time > last_time
         this_v = this_v_func()
         prev_nth = isnothing(prev_v)
@@ -603,3 +603,28 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
         return false
     end
 end
+
+# logmodules
+baremodule LogPos end
+baremodule LogPosClose end
+baremodule LogPosSync end
+baremodule LogPosFetch end
+baremodule LogPosWait end
+baremodule LogUniSync end
+baremodule LogCreateOrder end
+baremodule LogCancelOrder end
+baremodule LogSendOrder end
+baremodule LogSyncOrder end
+baremodule LogWaitOrder end
+baremodule LogTasks end
+baremodule LogCreateTrade end
+baremodule LogOHLCV end
+baremodule LogCcxtFuncs end
+baremodule LogBalance end
+baremodule LogWatchBalance end
+baremodule LogWatchOrder end
+baremodule LogWatchTrade end
+baremodule LogWatchPos end
+baremodule LogWait end
+baremodule LogWaitTrade end
+baremodule LogTradeFetch end

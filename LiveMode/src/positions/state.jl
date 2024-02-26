@@ -22,7 +22,7 @@ function Executors.aftertrade!(
         # are handled when a trade event would update the timestamp of an order
         # and a position
         since = t.date - Millisecond(1)
-        @debug "after trade: fetching position for updates $(raw(ai))" id = t.order.id
+        @debug "after trade: fetching position for updates $(raw(ai))" _module = LogCreateTrade id = t.order.id
         update = live_position(s, ai, posside(o); since, force=true)
         @ifdebug begin
             if isopen(position(ai, posside(o)))
@@ -32,7 +32,7 @@ function Executors.aftertrade!(
                     @error "after trade: entryprice below zero" entryprice(ai, o.price, o)
             end
             if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
-                @debug "after trade: position state closed" ai = raw(ai) ep = ai.lastpos[].entryprice[] isdust = isdust(
+                @debug "after trade: position state closed" _module = LogCreateTrade ai = raw(ai) ep = ai.lastpos[].entryprice[] isdust = isdust(
                     ai, ai.lastpos[].entryprice[]
                 )
             end
@@ -45,7 +45,7 @@ function Executors.aftertrade!(
             end
         elseif update.date >= since
             @deassert islocked(ai)
-            @debug "after trade: syncing with position" update.date update.closed[] contracts = resp_position_contracts(
+            @debug "after trade: syncing with position" _module = LogCreateTrade update.date update.closed[] contracts = resp_position_contracts(
                 update.resp, exchangeid(ai)
             )
             # NOTE: strict=true because the trade might have happened *after* a position
@@ -62,7 +62,7 @@ function Executors.aftertrade!(
                 @error "after trade: cash for short should be negative"
         end
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogCreateTrade
         @warn "after trade: failed" ai = raw(ai) s = nameof(s) exc = (exchange(ai))
     end
     t

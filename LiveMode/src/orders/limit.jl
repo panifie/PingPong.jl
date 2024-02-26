@@ -11,7 +11,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synce
     o = create_live_order(s, ai; t, amount, price, exc_kwargs=kwargs)
     isnothing(o) && return nothing
     order_trades = attr(o, :trades)
-    @debug "pong limit order: waiting" waitfor
+    @debug "pong limit order: waiting" _module = LogCreateOrder waitfor
     @timeout_start
     # if immediate should wait for the order to be closed
     if isimmediate(o)
@@ -23,7 +23,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synce
                 if haskey(s, ai, pricetime(o))
                     missing
                 else
-                    @debug "pong limit order: immediate order failed" o.id
+                    @debug "pong limit order: immediate order failed" _module = LogCreateOrder o.id
                 end
             else
                 last(order_trades)
@@ -37,12 +37,12 @@ function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synce
     elseif haskey(s, ai, o)
         synced && _force_fetchtrades(s, ai, o)
         if isempty(order_trades)
-            @debug "pong limit order: no trades yet" synced
+            @debug "pong limit order: no trades yet" _module = LogCreateOrder synced
             missing
         else
             last(order_trades)
         end
     else
-        @debug "pong limit order: cancelled or failed"
+        @debug "pong limit order: cancelled or failed" _module = LogCreateOrder
     end
 end

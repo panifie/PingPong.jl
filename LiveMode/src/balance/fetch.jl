@@ -92,7 +92,7 @@ function balance(exc::Exchange, args...; qc=Symbol(), type=Symbol(), status=Tota
         end
 
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogBalance
         @warn "Could not fetch balance from $(nameof(exc))"
     end
 end
@@ -141,7 +141,7 @@ function balance!(
 )
     b = let resp = _fetch_balance(exc, args...; type, kwargs...)
         if resp isa Exception
-            @debug resp
+            @debug resp _module = LogBalance
         else
             resp[@pystr(lowercase(string(status)))]
         end

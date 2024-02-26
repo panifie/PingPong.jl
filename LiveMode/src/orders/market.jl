@@ -12,7 +12,7 @@ function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
     )
     isnothing(o) && return nothing
     @deassert o isa AnyMarketOrder{orderside(t)} o
-    @debug "market order: created" id = o.id hasorders(s, ai, o.id)
+    @debug "market order: created" _module = LogCreateOrder id = o.id hasorders(s, ai, o.id)
     order_trades = trades(o)
     @timeout_start
 
@@ -25,7 +25,7 @@ function _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
         else
             synced && _force_fetchtrades(s, ai, o)
             if isempty(order_trades)
-                @debug "market order: no trades yet" synced
+                @debug "market order: no trades yet" _module = LogCreateOrder synced
                 missing
             else
                 last(order_trades)

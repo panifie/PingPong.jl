@@ -74,7 +74,7 @@ The function ensures that the trade and orders watchers are running for the asse
 
 """
 function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
-    @debug "orders: set active" o.id islocked(s)
+    @debug "orders: set active" _module = LogWatchOrder o.id islocked(s)
     state = @lget! active_orders(s, ai) o.id (;
         order=o,
         lock=ReentrantLock(),
@@ -84,7 +84,7 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     )
     watch_trades!(s, ai) # ensure trade watcher is running
     watch_orders!(s, ai) # ensure orders watcher is running
-    @debug "orders: state"
+    @debug "orders: state" _module = LogWatchOrder
     state
 end
 
@@ -149,15 +149,15 @@ function waitfor_closed(
         slept = 0
         timeout = Millisecond(waitfor).value
         success = true
-        @debug "wait ord close: waiting" ai = raw(ai) side = t
+        @debug "wait ord close: waiting" _module = LogWaitOrder ai = raw(ai) side = t
         while true
             isactive(s, ai; active, side=t) || begin
-                @debug "wait ord close: done" ai = raw(ai)
+                @debug "wait ord close: done" _module = LogWaitOrder ai = raw(ai)
                 break
             end
             slept < timeout || begin
                 success = false
-                @debug "wait ord close: timedout" ai = raw(ai) side = t waitfor f = @caller
+                @debug "wait ord close: timedout" _module = LogWaitOrder ai = raw(ai) side = t waitfor f = @caller
                 if synced
                     @warn "wait ord close: syncing"
                     live_sync_open_orders!(s, ai; side=t, strict=false, exec=true)
@@ -177,7 +177,7 @@ function waitfor_closed(
         end
         if success
             if orderscount(s, ai, t) > 0
-                @debug "wait ord close: syncing(2nd) f" orderscount(s, ai, t)
+                @debug "wait ord close: syncing(2nd) f" _module = LogWaitOrder ai = raw(ai) orderscount(s, ai, t)
                 live_sync_open_orders!(s, ai; side=t, strict=false, exec=true)
                 iszero(orderscount(s, ai, t))
             else
@@ -187,7 +187,7 @@ function waitfor_closed(
             false
         end
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogWaitOrder
         false
     end
 end

@@ -339,8 +339,7 @@ end
 
 $(TYPEDSIGNATURES)
 """
-macro debug_backtrace(msg="")
-    mod = __module__
+macro debug_backtrace(mod=__module__, msg="")
     file = string(__source__.file)
     line = __source__.line
     quote

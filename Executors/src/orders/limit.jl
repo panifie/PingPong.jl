@@ -60,7 +60,7 @@ function limitorder(
     @price! ai price take stop
     @amount! ai amount
     comm = Ref(committment(type, ai, price, amount))
-    @debug "create limitorder:" ai = raw(ai) price amount is_comm = iscommittable(
+    @debug "create limitorder:" ai = raw(ai) price amount comm[] is_comm = iscommittable(
         s, type, comm, ai
     )
     if skipcommit || iscommittable(s, type, comm, ai)

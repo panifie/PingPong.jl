@@ -144,12 +144,12 @@ function _feecost(
     fee_dict, ai, ::EIDType=exchangeid(ai); qc_py=@pystr(qc(ai)), bc_py=@pystr(bc(ai))
 )
     cur = get_py(fee_dict, "currency")
-    @debug "live fee cost" cur qc_py bc_py
+    @debug "live fee cost" _module = LogCreateTrade cur qc_py bc_py
     if pyeq(Bool, cur, qc_py)
-        @debug "live fee cost: quote currency" _getfee(fee_dict)
+        @debug "live fee cost: quote currency" _module = LogCreateTrade _getfee(fee_dict)
         (_getfee(fee_dict), ZERO)
     elseif pyeq(Bool, cur, bc_py)
-        @debug "live fee cost: base currency" _getfee(fee_dict)
+        @debug "live fee cost: base currency" _module = LogCreateTrade _getfee(fee_dict)
         (ZERO, _getfee(fee_dict))
     else
         (ZERO, ZERO)
@@ -243,7 +243,7 @@ function _tradefees(resp, side, ai; actual_amount, net_cost)
     eid = exchangeid(ai)
     v = resp_trade_fee(resp, eid)
     if pyisinstance(v, pybuiltins.dict)
-        @debug "live trade fees: " _feecost(v, ai, eid)
+        @debug "live trade fees: " _module = LogCreateTrade _feecost(v, ai, eid)
         return _feecost(v, ai, eid)
     end
     v = resp_trade_fees(resp, eid)
@@ -262,7 +262,7 @@ function _tradefees(resp, side, ai; actual_amount, net_cost)
             ai, side; fees_base, fees_quote, actual_amount, net_cost
         )
     end
-    @debug "live trade fees" fees_quote fees_base
+    @debug "live trade fees" _module = LogCreateTrade fees_quote fees_base
     return (fees_quote, fees_base)
 end
 
@@ -401,7 +401,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     _check_price(s, ai, actual_price, o; resp) || return nothing
     check_limits(actual_price, ai, :price)
     if actual_amount <= ZERO
-        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost."
+        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = net_cost / actual_price
         _check_amount(s, ai, actual_amount; resp) || return nothing
@@ -417,6 +417,6 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)
 
-    @debug "Constructing trade" cash = cash(ai, posside(o)) ai = raw(ai) s = nameof(s)
+    @debug "Constructing trade" _module = LogCreateTrade cash = cash(ai, posside(o)) ai = raw(ai) s = nameof(s)
     @maketrade
 end

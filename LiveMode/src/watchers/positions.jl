@@ -79,7 +79,7 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
                 @lock w _dopush!(w, v)
             end
         catch
-            @debug_backtrace
+            @debug_backtrace _module = LogWatchPos
             sleep(1)
         end
     else
@@ -92,7 +92,7 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
             end
             sleep(interval)
         catch
-            @debug_backtrace
+            @debug_backtrace _module = LogWatchPos
             sleep(1)
         end
     end
@@ -190,7 +190,7 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
         end
         true
     catch
-        @debug_backtrace
+        @debug_backtrace _module = LogWatchPos
         false
     end
 end
@@ -237,7 +237,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     islist(data) || return nothing
     eid = typeof(exchangeid(_exc(w)))
     processed_syms = Set{Tuple{String,PositionSide}}()
-    @debug "watchers process: position" data _module = Watchers
+    @debug "watchers process: position" data _module = LogWatchPos
     for resp in data
         if !isdict(resp) || resp_event_type(resp, eid) != PositionUpdate
             continue
@@ -269,7 +269,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
         _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym, eid)
         _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym, eid)
     end
-    @debug "watchers process: notify" _module = Watchers
+    @debug "watchers process: notify" _module = LogWatchPos
     skip_notify || safenotify(w.beacon.process)
 end
 

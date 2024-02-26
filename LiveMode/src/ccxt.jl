@@ -212,7 +212,7 @@ end
 
 @doc "Tests if a ccxt order object is synced by comparing filled amount and trades."
 function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
-    @debug "is order synced:" filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
+    @debug "is order synced:" _module = LogSyncOrder filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
     order_filled = resp_order_filled(resp, eid)
     v = isapprox(ai, filled_amount(o), order_filled, Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
@@ -226,7 +226,7 @@ function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
             false
         end
     end
-    @debug "is order synced:" v
+    @debug "is order synced:" _module = LogSyncOrder v
     return v
 end
 

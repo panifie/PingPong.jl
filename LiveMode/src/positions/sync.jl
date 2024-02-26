@@ -44,7 +44,7 @@ function _live_sync_position!(
 )
     let queue = asset_queue(s, ai)
         if queue[] > 1
-            @debug "sync pos: events queue is congested" queue[]
+            @debug "sync pos: events queue is congested" _module = LogPosSync queue[]
             return nothing
         end
     end
@@ -87,7 +87,7 @@ function _live_sync_position!(
                         end
                     end
                 else
-                    @debug "sync pos: resetting opposite position" ai = raw(ai) oppos
+                    @debug "sync pos: resetting opposite position" _module = LogPosSync ai = raw(ai) oppos
                     reset!(position(ai, oppos))
                 end
 
@@ -96,7 +96,7 @@ function _live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" ai = raw(ai) pside strict f = @caller
+        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside strict f = @caller
         if !strict
             return pos
         end
@@ -111,13 +111,13 @@ function _live_sync_position!(
         update.read[] = true
         reset!(pos) # if not full reset at least cash/committed
         timestamp!(pos, update.date)
-        @debug "sync pos: closed flag set, reset"
+        @debug "sync pos: closed flag set, reset" _module = LogPosSync ai = raw(ai)
         return pos
     end
 
     this_timestamp = update.date
     if this_timestamp < timestamp(pos)
-        @debug "sync pos: position timestamp not newer" timestamp(pos) this_timestamp strict f = @caller
+        @debug "sync pos: position timestamp not newer" _module = LogPosSync timestamp(pos) this_timestamp strict f = @caller
         return pos
     end
 
@@ -132,7 +132,7 @@ function _live_sync_position!(
 
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
-        @debug "sync pos: amount" rv posside(pos)
+        @debug "sync pos: amount" _module = LogPosSync rv posside(pos)
         isapprox(ai, cash(pos), rv, Val(:amount)) ||
             @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
         cash!(pos, rv)
@@ -142,10 +142,10 @@ function _live_sync_position!(
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
-        @debug "sync pos: amount is dust, reset" isopen(ai, p) cash(ai)
+        @debug "sync pos: amount is dust, reset" _module = LogPosSync isopen(ai, p) cash(ai)
         return pos
     end
-    @debug "sync pos: syncing" date = timestamp(pos) ai = raw(ai) side = pside
+    @debug "sync pos: syncing" _module = LogPosSync date = timestamp(pos) ai = raw(ai) side = pside
     pos.status[] = PositionOpen()
     let lap = ai.lastpos
         if isnothing(lap[]) || timestamp(ai, opposite(pside)) <= this_timestamp
@@ -168,7 +168,7 @@ function _live_sync_position!(
         pos_price
     end
     commits && let comm = committed(s, ai, pside)
-        @debug "sync pos: local committment" comm ai = raw(ai) side = pside
+        @debug "sync pos: local committment" _module = LogPosSync comm ai = raw(ai) side = pside
         isapprox(committed(pos).value, comm) || commit!(pos, comm)
     end
 
@@ -281,7 +281,7 @@ function _live_sync_position!(
         )
     end
     timestamp!(pos, this_timestamp)
-    @debug "sync pos: synced" date = this_timestamp amount = resp_position_contracts(
+    @debug "sync pos: synced" _module = LogPosSync date = this_timestamp amount = resp_position_contracts(
         update.resp, eid
     ) ai = raw(ai) posside(ai) cash(ai) isopen(ai, Long()) isopen(ai, Short()) f = @caller
     update.read[] = true
@@ -289,7 +289,7 @@ function _live_sync_position!(
 end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, args...; kwargs...)
-    @debug "sync pos: locking ai" ai = raw(ai)
+    @debug "sync pos: locking ai" _module = LogPosSync ai = raw(ai)
     @lock ai begin
         _live_sync_position!(s, ai, args...; kwargs...)
         if isopen(ai) || hasorders(s, ai)
@@ -375,7 +375,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
     if force # wait for position watcher
         let w = positions_watcher(s)
             while isempty(w.buffer)
-                @debug "sync uni cash: waiting for position data"
+                @debug "sync uni cash: waiting for position data" _module = LogUniSync
                 wait(w) || break
             end
         end
@@ -383,13 +383,13 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
     long, short = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        @debug "sync universe cash:" ai = raw(ai) get(dict, raw(ai), nothing)
+        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) get(dict, raw(ai), nothing)
         pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force, synced=force) missing
         if ismissing(pup)
-            @debug "sync uni: resetting position (no update)" ai = raw(ai) side
+            @debug "sync uni: resetting position (no update)" _module = LogUniSync ai = raw(ai) side
             reset!(ai, side)
         else
-            @debug "sync uni: sync pos" ai = raw(ai) side
+            @debug "sync uni: sync pos" _module = LogUniSync ai = raw(ai) side
             live_sync_position!(s, ai, side, pup; strict, kwargs...)
         end
     end

@@ -23,12 +23,12 @@ For any other type of response, it logs an unhandled response message and return
 """
 function _handle_bal_resp(resp)
     if resp isa PyException
-        @debug "force fetch bal: error" resp
+        @debug "force fetch bal: error" _module = LogBalance resp
         return nothing
     elseif isdict(resp)
         return resp
     else
-        @debug "force fetch bal: unhandled response" resp
+        @debug "force fetch bal: unhandled response" _module = LogBalance resp
         return nothing
     end
 end
@@ -44,16 +44,16 @@ The function accepts additional parameters `fallback_kwargs` for the balance fet
 """
 function _force_fetchbal(s; fallback_kwargs)
     w = balance_watcher(s)
-    @debug "force fetch bal: locking w" islocked(w) f = @caller
+    @debug "force fetch bal: locking w" _module = LogBalance islocked(w) f = @caller
     waslocked = islocked(w)
     last_time = lastdate(w)
     prev_bal = get_balance(s)
 
     if waslocked
-        @debug "force fetch bal: waiting for fetch notify"
+        @debug "force fetch bal: waiting for fetch notify" _module = LogBalance
         wait(w)
         if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
-            @debug "force fetch bal: waited"
+            @debug "force fetch bal: waited" _module = LogBalance
             return
         end
     end
@@ -64,9 +64,9 @@ function _force_fetchbal(s; fallback_kwargs)
         bal = _handle_bal_resp(resp)
         isnothing(bal) && return
         pushnew!(w, bal, time)
-        @debug "force fetch bal: processing"
+        @debug "force fetch bal: processing" _module = LogBalance
         this_task = @async process!(w)
-        @debug "force fetch bal: processed"
+        @debug "force fetch bal: processed" _module = LogBalance
         this_task
     end
     if istaskdone(this_task)
@@ -102,7 +102,7 @@ function waitforbal(
             bal = get_balance(s, ai)
             isnothing(bal) || break
             slept < timeout || begin
-                @debug "wait bal: timedout (balance not found)" ai = raw(ai) f = @caller
+                @debug "wait bal: timedout (balance not found)" _module = LogBalance ai = raw(ai) f = @caller
                 return false
             end
             sleep(minsleep)
@@ -113,7 +113,7 @@ function waitforbal(
 
     prev_timestamp = @something bal.date[] DateTime(0)
     prev_since = @something since typemin(DateTime)
-    @debug "wait bal" prev_timestamp since
+    @debug "wait bal" _module = LogBalance prev_timestamp since
     if prev_timestamp >= prev_since
         return true
     end
@@ -122,17 +122,17 @@ function waitforbal(
     w = balance_watcher(s)
     cond = w.beacon.process
     buf = buffer(w)
-    @debug "wait bal: waiting" timeout = timeout
+    @debug "wait bal: waiting" _module = LogBalance timeout = timeout
     while true
         slept += waitforcond(cond, timeout - slept)
         if length(buf) > 0
             this_timestamp = last(buf).time
         end
         if this_timestamp >= prev_timestamp >= prev_since
-            @debug "wait bal: up to date " prev_timestamp this_timestamp
+            @debug "wait bal: up to date " _module = LogBalance prev_timestamp this_timestamp
             return true
         else
-            @debug "wait bal:" time_left = Millisecond(timeout - slept) prev_timestamp ai = raw(
+            @debug "wait bal:" _module = LogBalance time_left = Millisecond(timeout - slept) prev_timestamp ai = raw(
                 ai
             )
         end
