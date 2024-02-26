@@ -1,5 +1,6 @@
 using .Lang: @ifdebug
 using .Python: @pystr, @pyconst
+using .Python.PythonCall: pyisint
 using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
 using .Misc.Mocking: Mocking, @mock
@@ -342,3 +343,26 @@ resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
 resp_ticker_price(resp, ::EIDType, k) = get_py(resp, k)
+resp_event_type(resp, eid::EIDType)::T where {T<:Type{<:ot.ExchangeEvent}} = begin
+    if haskey(resp, @pyconst("clientOrderId"))
+        if iszero(resp_order_amount(resp, eid))
+            ot.ExchangeEvent
+        else
+            ot.Order
+        end
+    elseif haskey(resp, @pyconst("order"))
+        ot.Trade
+    elseif haskey(resp, @pyconst("contracts"))
+        ot.PositionUpdate
+    elseif haskey(resp, @pyconst("total")) &&
+           haskey(resp, @pyconst("free")) &&
+           haskey(resp, @pyconst("used"))
+        ot.Balance
+    elseif islist(resp) &&
+           !isempty(resp) && let v = first(resp)
+               pyisint(first(v)) &&
+                   length(v) == 6
+           end
+        ot.OHLCV
+    end
+end

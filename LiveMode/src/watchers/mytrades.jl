@@ -245,7 +245,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
         isprocessed_trade_update(s, ai, resp) && return nothing
         record_trade_update!(s, ai, resp)
         @debug "handle trade: new event" order = id n_keys = length(resp)
-        if isempty(id)
+        if isempty(id) || resp_event_type(resp, eid) != Trade
             @warn "handle trade: missing order id"
             return nothing
         else

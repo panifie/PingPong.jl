@@ -381,7 +381,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
         isprocessed_order_update(s, ai, resp) && return nothing
         record_order_update!(s, ai, resp)
         @debug "handle ord: this event" id = id status = resp_order_status(resp, eid)
-        if isempty(id)
+        if isempty(id) || resp_event_type(resp, eid) != Order
             @warn "handle ord: missing order id"
             return nothing
         else

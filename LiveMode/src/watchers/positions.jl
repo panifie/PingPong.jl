@@ -239,7 +239,9 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     processed_syms = Set{Tuple{String,PositionSide}}()
     @debug "watchers process: position" data _module = Watchers
     for resp in data
-        isdict(resp) || continue
+        if !isdict(resp) || resp_event_type(resp, eid) != PositionUpdate
+            continue
+        end
         sym = resp_position_symbol(resp, eid, String)
         side = posside_fromccxt(resp, eid, default_side_func=Returns(_last_updated_position(long_dict, short_dict, sym)))
         side_dict = ifelse(islong(side), long_dict, short_dict)

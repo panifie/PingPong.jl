@@ -133,12 +133,19 @@ This function processes balance for a watcher `w` using the CCXT library. It goe
 
 """
 function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
-    isempty(w.buffer) && return nothing
+    if isempty(w.buffer)
+        return nothing
+    end
     _, update = last(w.buffer)
     bal = w.view.balance
-    isdict(update) || return nothing
-    date = @something pytodate(update, typeof(exchangeid(_exc(w)))) now()
-    date == w.view.date[] && return nothing
+    eid = typeof(exchangeid(_exc(w)))
+    if !(isdict(update) && resp_event_type(update, eid) == ot.Balance)
+        return nothing
+    end
+    date = @something pytodate(update, eid) now()
+    if date == w.view.date[]
+        return nothing
+    end
     for (sym, sym_bal) in update.items()
         (isdict(sym_bal) && haskey(sym_bal, @pyconst("free"))) || continue
         k = Symbol(sym)

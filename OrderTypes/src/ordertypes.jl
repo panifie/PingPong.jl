@@ -246,6 +246,8 @@ trades(args...; kwargs...) = error("not implemented")
 
 include("trades.jl")
 include("positions.jl")
+include("balance.jl")
+include("ohlcv.jl")
 include("errors.jl")
 include("print.jl")
 
@@ -282,5 +284,6 @@ export IncreaseOrder,
     ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
+export Balance, OHLCV
 export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
 export liqside, sidetopos, opposite
