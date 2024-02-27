@@ -24,9 +24,9 @@ $(TYPEDSIGNATURES)
 - `v`: a Real number representing the new leverage value.
 - `sym`: a string representing the symbol to update the leverage for.
 "
-function leverage!(exc::Exchange, v, sym)
+function leverage!(exc::Exchange, v, sym; timeout=Second(5))
     lev = leverage_value(exc, v, sym)
-    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), lev, sym)
+    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), timeout, lev, sym)
     if isnothing(resp)
         @warn "exchanges: set leverage timedout" sym lev = v exc = nameof(exc)
         false
