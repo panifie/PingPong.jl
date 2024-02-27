@@ -226,6 +226,12 @@ function positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
     )
 end
 
+function watch_positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
+    _execfunc_timeout(
+        exc.watchPositions, _syms(ais), args...; timeout, kwargs...
+    )
+end
+
 function _matching_asset(resp, eid, ais)
     sym = resp_position_symbol(resp, eid, String)
     for ai in ais
@@ -241,7 +247,7 @@ function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
     timeout = get!(a, :throttle, Second(5))
     a[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), kwargs...) -> if isempty(ais)
+        (ais; side=Hedged(), timeout=timeout, kwargs...) -> if isempty(ais)
             pylist()
         else
             out = positions_func(exc, ais; timeout, kwargs...)
@@ -254,9 +260,9 @@ function ccxt_positions_func!(a, exc)
         end
     else
         fetch_func = exc.fetchPosition
-        (ais; side=Hedged(), kwargs...) -> let out = pylist()
+        (ais; side=Hedged(), timeout=timeout, kwargs...) -> let out = pylist()
             @sync for ai in ais
-                @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout)
+                @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout, kwargs...)
                     last_side = _last_posside(ai)
                     p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
                     if isside(p_side, side)
