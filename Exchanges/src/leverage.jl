@@ -15,6 +15,7 @@ function _handle_leverage(e::Exchange, resp)
     end
 end
 
+leverage_value(::Exchange, val, sym) = string(val)
 @doc "Update the leverage for a specific symbol.
 
 $(TYPEDSIGNATURES)
@@ -23,8 +24,9 @@ $(TYPEDSIGNATURES)
 - `v`: a Real number representing the new leverage value.
 - `sym`: a string representing the symbol to update the leverage for.
 "
-function leverage!(exc::Exchange, v, sym::AbstractString)
-    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), string(v), sym)
+function leverage!(exc::Exchange, v, sym)
+    lev = leverage_value(exc, v, sym)
+    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), Second(3), lev, sym)
     if isnothing(resp)
         @warn "exchanges: set leverage timedout" sym lev = v exc = nameof(exc)
         false

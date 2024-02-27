@@ -65,3 +65,5 @@ function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;
         end
     end
 end
+
+leverage_value(::Exchange{ExchangeID{:phemex}}, val, sym) = val
