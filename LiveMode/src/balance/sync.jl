@@ -10,33 +10,23 @@ function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
     bal = live_balance(s)
     tot_cash = bal.balance.total
-    used_cash = bal.balance.used
     bc = nameof(s.cash)
     function dowarn(msg)
-        @warn "strategy cash: sync failed" msg s = nameof(s) cur = bc exc = nameof(
-            exchange(s)
-        )
     end
 
     c = if isnothing(tot_cash)
-        dowarn("total cash")
+        @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(
+            exchange(s)
+        )
         ZERO
     else
         tot_cash
     end
-    isapprox(s.cash.value, c; rtol=1e-4) ||
+    if !isapprox(s.cash.value, c; rtol=1e-4)
         @warn "strategy cash: total unsynced" loc = cash(s).value rem = c
+    end
     cash!(s.cash, c)
 
-    cc = if isnothing(used_cash)
-        dowarn("committed cash")
-        ZERO
-    else
-        used_cash
-    end
-    isapprox(s.cash_committed.value, cc; rtol=1e-4) ||
-        @warn "strategy cash: committment unsynced" loc = committed(s) rem = cc
-    cash!(s.cash_committed, cc)
     nothing
 end
 
