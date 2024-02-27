@@ -107,6 +107,7 @@ function Base.getindex(ac::AssetCollection, i::MatchString, col=Colon())
     end
 end
 Base.getindex(ac::AssetCollection, i, i2, i3) = ac[i, i2][i3]
+Base.get(ac::AssetCollection, i, val) = get(ac.data.instance, i, val)
 
 # TODO: this should use a macro...
 @doc "Dispatch based on either base, quote currency, or exchange."
