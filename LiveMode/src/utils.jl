@@ -265,12 +265,12 @@ $(TYPEDSIGNATURES)
 This macro retries executing an expression `expr` for a specified number of times `count`. If `count` is not provided, it defaults to 3. This is useful in cases where an operation might fail temporarily and could succeed if retried.
 
 """
-macro retry(expr, count=3)
+macro retry(expr, count=3, check=isa, value=Exception)
     ex = quote
         att = 0
         while true
             resp = $(expr)
-            if resp isa Exception
+            if $check(resp, $value)
                 att += 1
                 att > $(count) && return resp
             else
