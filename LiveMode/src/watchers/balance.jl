@@ -76,7 +76,7 @@ function ccxt_balance_watcher(
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))
-    watcher(
+    w = watcher(
         watcher_type,
         wid,
         CcxtBalanceVal();
@@ -89,6 +89,10 @@ function ccxt_balance_watcher(
         fetch_interval=interval,
         attrs,
     )
+    if isstopped(w)
+        start!(w)
+    end
+    w
 end
 
 _balance_task!(w) = begin

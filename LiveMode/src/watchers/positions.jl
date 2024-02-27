@@ -147,7 +147,9 @@ function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
         w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
             s; interval, start=true
         )
-        isstopped(w) && start!(w)
+        if isstopped(w)
+            start!(w)
+        end
         w
     end
 end
