@@ -292,7 +292,7 @@ function test_live_position_sync(s)
         p = Short()
         resp = lm.fetch_positions(s, ai; side=p)[0]
         @test lm.pyisTrue(resp["unrealizedPnl"] == 1.4602989788032e-07)
-        update = lm._posupdate(now(), resp)::lm.PositionUpdate7
+        update = lm._posupdate(now(), resp)::lm.PositionTuple
 
         # test if sync! returns a Position object with the correct attributes
         @lock lm.positions_watcher(s) nothing
@@ -338,7 +338,7 @@ function test_live_pnl(s)
         p = Short()
         lp = lm.fetch_positions(s, ai; side=p)[0]
         @test !isnothing(lp)
-        update = lm.PositionUpdate7(lm._posupdate(now(), lp))
+        update = lm.PositionTuple(lm._posupdate(now(), lp))
         pos = lm.live_sync_position!(s, ai, p, update; commits=false)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 

@@ -33,7 +33,7 @@ function _live_sync_position!(
     s::LiveStrategy,
     ai::MarginInstance,
     p::Option{ByPos},
-    update::PositionUpdate7;
+    update::PositionTuple;
     amount=resp_position_contracts(update.resp, exchangeid(ai)),
     ep_in=resp_position_entryprice(update.resp, exchangeid(ai)),
     commits=true,

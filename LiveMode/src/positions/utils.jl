@@ -173,7 +173,7 @@ function live_position(
     waitfor=Second(5),
     drift=Millisecond(5)
 )
-    pup = get_positions(s, ai, side)::Option{PositionUpdate7}
+    pup = get_positions(s, ai, side)::Option{PositionTuple}
 
     @ifdebug force && @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
         positions_watcher(s)

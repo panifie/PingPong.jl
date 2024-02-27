@@ -12,14 +12,14 @@ const CcxtPositionsVal = Val{:ccxt_positions}
 
 $(FIELDS)
 
-This named tuple `PositionUpdate7` has fields for date (`:date`), notification condition (`:notify`), read status (`:read`), closed status (`:closed`), and Python response (`:resp`), which are used to manage and monitor the updates of a position.
+This named tuple `PositionTuple` has fields for date (`:date`), notification condition (`:notify`), read status (`:read`), closed status (`:closed`), and Python response (`:resp`), which are used to manage and monitor the updates of a position.
 
 """
-const PositionUpdate7 = NamedTuple{
+const PositionTuple = NamedTuple{
     (:date, :notify, :read, :closed, :resp),
     Tuple{DateTime,Base.Threads.Condition,Ref{Bool},Ref{Bool},Py},
 }
-const PositionsDict2 = Dict{String,PositionUpdate7}
+const PositionsDict2 = Dict{String,PositionTuple}
 
 @doc """ Guesses the settlement for a given margin strategy.
 
@@ -201,12 +201,12 @@ function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
 end
 
 function _posupdate(date, resp)
-    PositionUpdate7((;
+    PositionTuple((;
         date, notify=Base.Threads.Condition(), read=Ref(false), closed=Ref(false), resp
     ))
 end
 function _posupdate(prev, date, resp)
-    PositionUpdate7((; date, prev.notify, prev.read, prev.closed, resp))
+    PositionTuple((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
 function _last_updated_position(long_dict, short_dict, sym)
@@ -308,7 +308,7 @@ function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
         end
     else
         pup = get(dict, forced_sym, nothing)
-        if pup isa PositionUpdate7
+        if pup isa PositionTuple
             set!(forced_sym, pup)
         end
     end

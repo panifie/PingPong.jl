@@ -12,7 +12,7 @@ function live_pnl(
     s::LiveStrategy,
     ai,
     p::ByPos;
-    update::Option{PositionUpdate7}=nothing,
+    update::Option{PositionTuple}=nothing,
     synced=true,
     verbose=true,
     kwargs...,
