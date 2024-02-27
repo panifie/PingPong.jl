@@ -283,19 +283,21 @@ This function updates the `PositionUpdate` status when *not* using `watch*` func
 function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
     set!(this_sym, pup) = begin
         prev_closed = pup.closed[]
-        if (this_sym, side) ∉ processed_syms
+        # in case forced_sym is set, the response only returned the requested position
+        # hence this assumption does not apply
+        if isnothing(forced_sym) && (this_sym, side) ∉ processed_syms
             pup_prev = get(dict, this_sym, nothing)
-            @deassert pup_prev === pup
+            @assert pup_prev === pup
             dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
             pup.closed[] = true
-            # NOTE: this might fix some race conditions (when a position is updated right after)
-            # the new update might have a lower timestamp and would skip sync (from `live_position_sync!`). Therefore
-            # we only reset `read` state on the first time we check that a position is closed.
-            if prev_closed != pup.closed[]
-                pup.read[] = false
-            end
         else
             pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
+            pup.read[] = false
+        end
+        # NOTE: this might fix some race conditions (when a position is updated right after).
+        # The new update might have a lower timestamp and would skip sync (from `live_position_sync!`).
+        # Therefore we reset the `read` state between position status updates.
+        if prev_closed != pup.closed[]
             pup.read[] = false
         end
         safenotify(pup.notify)
