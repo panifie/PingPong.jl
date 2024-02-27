@@ -77,6 +77,9 @@ function live_sync_open_orders!(
         default_pos = get_position_side(s, ai)
         strict && maxout!(s, ai)
         for resp in open_orders
+            if resp_event_type(resp, eid) != ot.Order
+                continue
+            end
             id = resp_order_id(resp, eid, String)
             o = (@something let state = get(ao, id, nothing)
                 if state isa LiveOrderState
@@ -440,6 +443,9 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         i = 1
         limit = attr(s, :sync_history_limit)
         @sync for resp in closed_orders
+            if resp_event_type(resp, eid) != ot.Order
+                continue
+            end
             i > limit && break
             i += 1
             @async begin

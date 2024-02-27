@@ -244,8 +244,11 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
     try
         eid = exchangeid(ai)
         id = resp_trade_order(resp, eid, String)
-        isprocessed_order(s, ai, id) && return nothing
-        isprocessed_trade_update(s, ai, resp) && return nothing
+        if resp_event_type(resp, eid) != ot.Trade ||
+           isprocessed_order(s, ai, id) ||
+           isprocessed_trade_update(s, ai, resp)
+            return nothing
+        end
         record_trade_update!(s, ai, resp)
         @debug "handle trade: new event" _module = LogWatchTrade order = id n_keys = length(resp)
         if isempty(id) || resp_event_type(resp, eid) != Trade
