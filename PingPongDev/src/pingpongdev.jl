@@ -38,39 +38,39 @@ function default_loader(load_func=nothing)
     end
 end
 
-function dostub!(pairs=symnames(); loader=default_loader())
+function dostub!(pairs=symnames(); s=s, loader=default_loader())
     isempty(pairs) && return nothing
     @eval Main let
         GC.gc()
-        qc = string(nameof(s.cash))
+        qc = string(nameof($s.cash))
         data = $loader($pairs, qc)
-        egn.stub!(s.universe, data)
+        egn.stub!($s.universe, data)
     end
 end
 
-function loadstrat!(strat=:Example; stub=true, mode=Sim(), kwargs...)
+function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
     @eval Main begin
         GC.enable(false)
         try
-            global s, ai
-            if isdefined(Main, :s) && s isa st.Strategy{<:Union{Paper,Live}}
+            global $bind, ai
+            if isdefined(Main, $(QuoteNode(bind))) && $bind isa st.Strategy{<:Union{Paper,Live}}
                 try
                     exs.ExchangeTypes._closeall()
-                    @async lm.stop_all_tasks(s)
+                    @async lm.stop_all_tasks($bind)
                 catch this_err
                     @warn this_err
                 end
             end
-            s = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
-            st.issim(s) &&
-                fill!(s.universe, s.timeframe, s.config.timeframes[(begin + 1):end]...)
-            execmode(s) == Sim() && $stub && dostub!()
-            st.default!(s)
+            $bind = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
+            st.issim($bind) &&
+                fill!($bind.universe, $bind.timeframe, $bind.config.timeframes[(begin + 1):end]...)
+            execmode($bind) == Sim() && $stub && dostub!(; $bind)
+            st.default!($bind)
             ai = try
-                first(s.universe)
+                first($bind.universe)
             catch
             end
-            s
+            $bind
         finally
             GC.enable(true)
             GC.gc()
