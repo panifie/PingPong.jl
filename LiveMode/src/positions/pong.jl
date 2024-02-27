@@ -30,8 +30,8 @@ function Executors.pong!(
         val = _lev_value(lev)
         since = now()
         # First update on exchange
-        if leverage!(exchange(ai), val, raw(ai))
-            if synced
+        if leverage!(exchange(ai), val, raw(ai); timeout=throttle(s))
+            if synced && isopen(ai, pos)
                 # then sync position
                 live_sync_position!(s, ai, pos; force=false, since)
             end
