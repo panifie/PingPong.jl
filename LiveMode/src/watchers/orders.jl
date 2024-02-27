@@ -382,7 +382,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
         record_order_update!(s, ai, resp)
         @debug "handle ord: this event" _module = LogWatchOrder id = id status = resp_order_status(resp, eid)
         if isempty(id) || resp_event_type(resp, eid) != Order
-            @warn "handle ord: missing order id"
+            @debug "handle ord: missing order id" _module = LogWatchOrder
             return nothing
         else
             # TODO: we could replace the queue with the handler_tasks vector

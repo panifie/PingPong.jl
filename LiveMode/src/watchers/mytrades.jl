@@ -106,7 +106,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
                             throw(updates)
                         elseif updates isa Exception
                             @ifdebug ispyminor_error(updates) ||
-                                @debug "Error fetching trades (using watch: $(iswatch))" _module = LogWatchTrade updates
+                                     @debug "Error fetching trades (using watch: $(iswatch))" _module = LogWatchTrade updates
                             sleep(1)
                         else
                             !islist(updates) && (updates = pylist(updates))
@@ -249,7 +249,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
         record_trade_update!(s, ai, resp)
         @debug "handle trade: new event" _module = LogWatchTrade order = id n_keys = length(resp)
         if isempty(id) || resp_event_type(resp, eid) != Trade
-            @warn "handle trade: missing order id"
+            @debug "handle trade: missing order id" _module = LogWatchTrade
             return nothing
         else
             # remember events order
@@ -497,7 +497,7 @@ function _force_fetchtrades(s, ai, o)
         trades_resp = fetch_order_trades(s, ai, o.id)
         if trades_resp isa Exception
             @ifdebug ispyminor_error(trades_resp) ||
-                @debug "force fetch trades: error fetching trades" _module = LogTradeFetch trades_resp
+                     @debug "force fetch trades: error fetching trades" _module = LogTradeFetch trades_resp
         elseif islist(trades_resp) || trades_resp isa Vector
             @debug "force fetch trades: trades task" _module = LogTradeFetch
             trades_task = @something asset_trades_task(s, ai) watch_trades!(s, ai)
