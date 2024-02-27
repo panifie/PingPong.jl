@@ -76,7 +76,7 @@ function ccxt_balance_watcher(
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))
-    w = watcher(
+    watcher(
         watcher_type,
         wid,
         CcxtBalanceVal();
@@ -89,10 +89,6 @@ function ccxt_balance_watcher(
         fetch_interval=interval,
         attrs,
     )
-    if isstopped(w)
-        start!(w)
-    end
-    w
 end
 
 _balance_task!(w) = begin
@@ -172,7 +168,12 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
-    @lock s @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
+    @lock s @lget! attrs(s) :live_balance_watcher let w = ccxt_balance_watcher(s; interval, start=true)
+        if isstopped(w)
+            start!(w)
+        end
+        w
+    end
 end
 
 @doc """ Stops the watcher for balance in a live strategy.
