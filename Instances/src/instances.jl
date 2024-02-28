@@ -2,7 +2,7 @@ using Exchanges
 using OrderTypes
 
 import Exchanges.ExchangeTypes: exchangeid, exchange, exc
-using Exchanges: CurrencyCash, Data
+using Exchanges: CurrencyCash, Data, TICKERS_CACHE10, markettype, @tickers!
 using OrderTypes: ByPos, AssetEvent, positionside, Instruments
 using .Data: load, zi, empty_ohlcv, DataFrame, DataStructures
 using .Data.DFUtils: daterange, timeframe
@@ -18,7 +18,7 @@ import .Misc: approxzero, gtxzero, ltxzero, marginmode, load!
 using .TimeTicks
 import .TimeTicks: timeframe
 using .DataStructures: SortedDict
-using .Lang: Option, @deassert
+using .Lang: Option, @deassert, @lget!
 import Base: position, isopen
 import Exchanges: lastprice, leverage!
 import OrderTypes: trades
@@ -949,7 +949,10 @@ This function returns the last known price for an `AssetInstance`. Additional ar
 
 """
 function lastprice(ai::AssetInstance, args...; kwargs...)
-    lastprice(raw(ai), ai.exchange, args...; kwargs...)
+    exc = ai.exchange
+    tickers = @tickers! markettype(exc, marginmode(ai)) false TICKERS_CACHE10
+    tick = @something get(tickers, raw(ai), nothing) lastprice(ai, Val(:history))
+    lastprice(exc, tick)
 end
 @doc """ Get the last price from the history for an `AssetInstance`.
 

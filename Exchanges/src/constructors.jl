@@ -20,12 +20,17 @@ using .Misc:
     DATA_PATH, dt, futures_exchange, exchange_keys, Misc, NoMargin, LittleDict, isoffline
 using .Misc.OrderedCollections: OrderedSet
 using .Misc.TimeToLive
+using .TimeToLive: ConcurrentDict
 using .Misc.TimeTicks
 using .Misc.Lang: @lget!
 using .Misc.DocStringExtensions
 
+# exchangeid, markettype
 @doc "The cache for tickers which lasts for 100 minutes by exchange pair."
-const TICKERS_CACHE = safettl(Tuple{String,Symbol}, Dict, Minute(100))
+const TICKERS_CACHE100 = safettl(Tuple{Symbol,Symbol}, Dict, Minute(100))
+const TICKERS_CACHE10 = safettl(Tuple{Symbol,Symbol}, Dict, Second(10))
+@doc "Lock held when fetching tickers (list)."
+const TICKERSLIST_LOCK_DICT = ConcurrentDict(Dict{Tuple{Symbol,Symbol},ReentrantLock}())
 
 @doc "Define an exchange variable set to its matching exchange instance.
 
@@ -328,7 +333,7 @@ The `@tickers!` macro takes the following parameters:
 - `force` (optional, default is false): a boolean that indicates whether to force the data fetch, even if the data is already present.
 
 """
-macro tickers!(type=nothing, force=false, cache=:TICKERS_CACHE)
+macro tickers!(type=nothing, force=false, cache=TICKERS_CACHE100)
     exc = esc(:exc)
     tickers = esc(:tickers)
     type = type ∈ MARKET_TYPES ? QuoteNode(type) : esc(type)
@@ -336,29 +341,32 @@ macro tickers!(type=nothing, force=false, cache=:TICKERS_CACHE)
     quote
         local $tickers
         tp = @something($type, markettype($exc), missing)
-        nm = $(exc).name
+        nm = nameof($(exc))
         k = (nm, tp)
-        if ismissing(tp)
-            @warn "tickers: no market type found (offline?)" type = tp $exc.id
-            $tickers = Dict{String,Dict{String,Any}}()
-        elseif $force || k ∉ keys($cache)
-            @assert hastickers($exc) "Exchange doesn't provide tickers list."
-            $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
-                $tickers = pyconvert(
-                    Dict{String,Dict{String,Any}},
-                    let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
-                        if v isa PyException
-                            pyfetch($(exc).fetchTickers)
-                        elseif v isa Exception
-                            throw(v)
-                        else
-                            v
-                        end
-                    end,
-                )
+        l = @lget! $(TICKERSLIST_LOCK_DICT) k ReentrantLock()
+        @lock l begin
+            if ismissing(tp)
+                @warn "tickers: no market type found (offline?)" type = tp $exc.id
+                $tickers = Dict{String,Dict{String,Any}}()
+            elseif $force || !haskey($cache, k)
+                @assert hastickers($exc) "Exchange doesn't provide tickers list."
+                $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
+                    $tickers = pyconvert(
+                        Dict{String,Dict{String,Any}},
+                        let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
+                            if v isa PyException
+                                pyfetch($(exc).fetchTickers)
+                            elseif v isa Exception
+                                throw(v)
+                            else
+                                v
+                            end
+                        end,
+                    )
+                end
+            else
+                $tickers = $cache[k]
             end
-        else
-            $tickers = $cache[k]
         end
     end
 end

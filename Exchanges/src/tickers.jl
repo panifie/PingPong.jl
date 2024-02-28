@@ -1,6 +1,7 @@
-using .Misc.Lang: @get, @multiget, @lget!, Option
+using .Misc.Lang: @get, @multiget, @lget!, Option, safenotify, safewait
 using .Misc: config, NoMargin, DFT
 using .Misc.ConcurrentCollections: ConcurrentDict
+using .Misc: waitforcond
 using Instruments: isfiatquote, spotpair
 using .Python: @pystr, @pyconst, pyfetch_timeout, pylist, pytruth
 using ExchangeTypes: decimal_to_size
@@ -160,20 +161,29 @@ The `ticker!` function takes the following parameters:
 function ticker!(
     pair, exc::Exchange; timeout=Second(3), func=_tickerfunc(exc), delay=Second(1)
 )
-    lock(@lget!(tickersLockDict, pair, ReentrantLock())) do
-        @lget! tickersCache10Sec pair let v = nothing::Option{Py}
-            while true
-                v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
-                if v isa PyException
-                    @error "Fetch ticker error: $v" offline = isoffline() func pair
-                    v = pylist()
-                    isoffline() && break
-                else
-                    break
+    l = @lget!(tickersLockDict, pair, ReentrantLock())
+    waitforcond(l.cond_wait, timeout)
+    if islocked(l)
+        waitforcond(l.cond_wait, timeout)
+        return @get tickersCache10Sec pair pylist()
+    else
+        @lock l begin
+            @lget! tickersCache10Sec pair begin
+                v = nothing::Option{Py}
+                while true
+                    v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
+                    if v isa PyException
+                        @error "Fetch ticker error: $v" offline = isoffline() func pair
+                        v = pylist()
+                        isoffline() && break
+                    else
+                        break
+                    end
+                    sleep(delay)
                 end
-                sleep(delay)
+                safenotify(l.cond_wait)
+                v
             end
-            v
         end
     end
 end
@@ -187,10 +197,41 @@ $(TYPEDSIGNATURES)
 - `kwargs` (optional): any additional keyword arguments are passed on to the underlying fetch operation.
 """
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
-    let t = ticker!(pair, exc; kwargs...)
-        lp = t["last"]
+    tick = ticker!(pair, exc; kwargs...)
+    lastprice(exc, tick)
+end
+
+function lastprice(exc::Exchange, tick)
+    if !pytruth(tick)
+        @warn "exchanges: failed to fetch ticker" get(tick, "symbol", "") nameof(exc)
+        ZERO
+    else
+        lp = tick["last"]
         if !pytruth(lp)
-            (pytofloat(t["ask"]) + pytofloat(t["bid"])) / 2
+            ask = tick["ask"]
+            bid = tick["bid"]
+            if pytruth(ask) && pytruth(bid)
+                (pytofloat(ask) + pytofloat(bid)) / 2
+            else
+                close = tick["close"]
+                if pytruth(close)
+                    pytofloat(close)
+                else
+                    vwap = tick["vwap"]
+                    if pytruth(vwap)
+                        pytofloat(vwap)
+                    else
+                        high = tick["high"]
+                        low = tick["low"]
+                        if pytruth(high) && pytruth(low)
+                            (pytofloat(high) + pytofloat(low)) / 2
+                        else
+                            @warn "lastprice failed" nameof(exc) get(tick, "symbol", "")
+                            ZERO
+                        end
+                    end
+                end
+            end
         else
             lp |> pytofloat
         end

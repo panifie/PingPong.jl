@@ -1,5 +1,5 @@
 import .Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
-using .Data.DFUtils: firstdate
+using .Data.DFUtils: firstdate, lastdate
 using .Instances: pnl, position, margin
 using .Instruments
 using .Instruments: @importcash!, AbstractCash
@@ -52,9 +52,9 @@ end
 @doc "The asset close price of the candle where the last trade was performed."
 lasttrade_price_func(ai) =
     if isempty(ohlcv(ai))
-        NaN
+        ZERO
     else
-        closeat(ai, max(firstdate(ai), lasttrade_date(ai)))
+        closeat(ai, min(lastdate(ai), max(firstdate(ai), lasttrade_date(ai))))
     end
 
 current_total(s, price_func; kwargs...) = current_total(s; price_func, kwargs...)
@@ -68,7 +68,7 @@ The value of each holding is calculated using a provided price function.
 The default price function used is `lasttrade_price_func`, which returns the closing price of the last trade.
 
 """
-function current_total(s::NoMarginStrategy; price_func=lasttrade_price_func, kwargs...)
+function current_total(s::NoMarginStrategy{Sim}; price_func=lasttrade_price_func, kwargs...)
     worth = zero(DFT)
     for ai in s.holdings
         worth += cash(ai) * price_func(ai)
@@ -104,12 +104,13 @@ The value of each holding is calculated using a provided price function.
 The default price function used is `lasttrade_price_func`, which returns the closing price of the last trade.
 
 """
-function current_total(s::MarginStrategy; price_func=lasttrade_price_func, kwargs...)
+function current_total(s::MarginStrategy{Sim}; price_func=lasttrade_price_func, kwargs...)
     worth = zero(DFT)
     for ai in s.holdings
         for p in (Long, Short)
-            isopen(ai, p) || continue
-            worth += value(ai, p; current_price=price_func(ai))
+            if isopen(ai, p)
+                worth += value(ai, p; current_price=price_func(ai))
+            end
         end
     end
     worth + cash(s)
@@ -124,13 +125,14 @@ The value of each holding is calculated using a provided price function.
 The default price function used is `lasttrade_price_func`, which returns the closing price of the last trade.
 
 """
-function current_total(s::MarginStrategy{Paper}, price_func=lasttrade_price_func)
+function current_total(s::MarginStrategy{Paper}, price_func=lasttrade_price_func; kwargs...)
     worth = Ref(zero(DFT))
     @sync for ai in s.holdings
         @async let current_price = price_func(ai)
             for p in (Long, Short)
-                isopen(ai, p) || continue
-                worth[] += value(ai, p; current_price)
+                if isopen(ai, p)
+                    worth[] += value(ai, p; current_price)
+                end
             end
         end
     end
@@ -141,12 +143,12 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns the date of the last trade for an `AssetInstance`. 
+This function returns the date of the last trade for an `AssetInstance`.
 If the history of the asset instance is empty, it returns the timestamp of the last candle.
 
 """
-function lasttrade_date(ai)
-    isempty(ai.history) ? ohlcv(ai).timestamp[end] : last(ai.history).date
+function lasttrade_date(ai, def=ohlcv(ai).timestamp[end])
+    isempty(ai.history) ? def : last(ai.history).date
 end
 
 
@@ -154,7 +156,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns a function that, when called, gives the date of the last trade for a `Strategy`. 
+This function returns a function that, when called, gives the date of the last trade for a `Strategy`.
 If there is no last trade, it returns the `last` function.
 
 """
@@ -167,7 +169,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns the first and last trade of any asset in the strategy universe for a given `Strategy`. 
+This function returns the first and last trade of any asset in the strategy universe for a given `Strategy`.
 If there are no trades, it returns `nothing`.
 
 """
@@ -192,7 +194,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns the dates of the first and last trade of any asset in the strategy universe for a given `Strategy`. 
+This function returns the dates of the first and last trade of any asset in the strategy universe for a given `Strategy`.
 
 """
 function tradesedge(::Type{DateTime}, s::Strategy)
@@ -204,7 +206,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns the recorded trading period from the trades history present in the strategy. 
+This function returns the recorded trading period from the trades history present in the strategy.
 It calculates the period by subtracting the start date from the stop date.
 
 """
@@ -217,7 +219,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function returns a `DateRange` that spans the historical time period of the trades recorded by the strategy. 
+This function returns a `DateRange` that spans the historical time period of the trades recorded by the strategy.
 It calculates the range by adding the start and stop pads to the edges of the trades.
 
 """
@@ -232,7 +234,7 @@ _sizehint!(c, d, k, f=length) = Base.sizehint!(c, _setmax!(d, k, f(c)))
 
 $(TYPEDSIGNATURES)
 
-This function keeps track of the maximum allocated containers size for strategy and asset instances in the universe. 
+This function keeps track of the maximum allocated containers size for strategy and asset instances in the universe.
 It updates the sizes of various containers based on the current state of the strategy.
 
 """

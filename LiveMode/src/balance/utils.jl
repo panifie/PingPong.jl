@@ -1,6 +1,8 @@
 using .Executors.Instruments: AbstractCash
 using .Lang: @get
 import .st: current_total
+using .Exchanges: @tickers!, markettype
+import .Exchanges: lastprice
 
 # FIXME: this should be handled by a `ccxt_balancetype` function
 _balance_type(s::NoMarginStrategy) = :spot
@@ -232,17 +234,23 @@ function st.current_total(
     end
     @sync for ai in s.universe
         @async let v = if local_bal
-                amt = abs(_getval(cash(ai, Long()))) + abs(_getval(cash(ai, Short())))
-                something(
-                    try
-                        price_func(ai)
-                    catch
-                        zero(tot)
-                    end,
-                    zero(s_tot),
-                ) * amt
+                current_price = try
+                    price_func(ai)
+                catch
+                    @debug_backtrace
+                    if isopen(ai, Long())
+                        entryprice(ai, Long())
+                    elseif isopen(ai, Short())
+                        entryprice(ai, Short())
+                    else
+                        zero(s_tot)
+                    end
+                end
+                value(ai, Long(); current_price) + value(ai, Short(); current_price)
             else
-                abs(live_notional(s, ai, Long())) + abs(live_notional(s, ai, Short()))
+                long_nt = abs(live_notional(s, ai, Long()))
+                short_nt = abs(live_notional(s, ai, Short()))
+                long_nt - long_nt * maxfees(ai) + short_nt - short_nt * maxfees(ai)
             end
             tot[] += v
         end
@@ -270,7 +278,9 @@ function st.current_total(
         try
             price_func(ai)
         catch
-            zero(tot)
+            @warn "current total: price func failed" exc = nameof(exchange(s)) price_func
+            @debug_backtrace
+            zero(tot[])
         end
     @sync for ai in s.universe
         @async let v = if local_bal

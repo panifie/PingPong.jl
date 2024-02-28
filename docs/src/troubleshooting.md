@@ -16,7 +16,7 @@ julia --project=./PingPong
 ```
 
 - **Python-Dependent Precompilation:** Precompiling code that relies on Python, such as exchange functions, may lead to segmentation faults. To prevent this:
-  - Clear global caches, like `TICKERS_CACHE`, before precompilation. Ensure global constants are empty, as their contents are serialized during precompilation.
+  - Clear global caches, like `TICKERS_CACHE100`, before precompilation. Ensure global constants are empty, as their contents are serialized during precompilation.
   - Avoid using macros that directly insert Python objects, such as `@py`, in precompilable functions.
   
 - **Persistent Precompilation Skipping:** If a package consistently skips precompilation, check if `JULIA_NOPRECOMP` environment variable includes dependencies of the package.
