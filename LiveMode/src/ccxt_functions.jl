@@ -246,31 +246,39 @@ end
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
     timeout = get!(a, :throttle, Second(5))
+    l, cache = _positions_resp_cache(a)
     a[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), timeout=timeout, kwargs...) -> if isempty(ais)
-            pylist()
-        else
-            out = positions_func(exc, ais; timeout, kwargs...)
-            if !ismissing(out)
-                _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
-            else
-                @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout @caller
+        (ais; side=Hedged(), timeout=timeout, kwargs...) -> begin
+            syms = ((raw(ai) for ai in ais)..., side)
+            out = @get cache syms @lock l @lget! cache syms if isempty(ais)
                 pylist()
+            else
+                out = positions_func(exc, ais; timeout, kwargs...)
+                if !ismissing(out)
+                    _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
+                else
+                    @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout @caller
+                    pylist()
+                end
             end
         end
     else
-        fetch_func = exc.fetchPosition
-        (ais; side=Hedged(), timeout=timeout, kwargs...) -> let out = pylist()
-            @sync for ai in ais
-                @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout, kwargs...)
-                    last_side = _last_posside(ai)
-                    p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
-                    if isside(p_side, side)
-                        out.append(p)
+        fetch_func = first(exc, :fetchPositionWs, :fetchPosition)
+        (ais; side=Hedged(), timeout=timeout, kwargs...) -> begin
+            syms = ((raw(ai) for ai in ais)..., side)
+            @get cache syms @lock l @lget! cache syms @sync begin
+                out = pylist()
+                for ai in ais
+                    @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout, kwargs...)
+                        last_side = _last_posside(ai)
+                        p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
+                        if isside(p_side, side)
+                            out.append(p)
+                        end
                     end
                 end
+                out
             end
-            out
         end
     end
 end
@@ -392,7 +400,7 @@ _find_since(a, ai, id; o_func, o_id_func, o_closed_func) = begin
             end
         end
     catch
-        @debug_backtrace _module = LogCcxtFuncs
+        @debug_backtrace LogCcxtFuncs
         _last_trade_date(ai)
     end
 end

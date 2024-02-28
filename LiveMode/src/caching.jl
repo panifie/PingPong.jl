@@ -47,6 +47,11 @@ function _order_byid_resp_cache(a, ai)
     @lget! cache ai ttl_resp_dict(a[:order_byid_ttl], String)
 end
 
+function _positions_resp_cache(a)
+    lock = ReentrantLock()
+    @lget! a :positions_cache (; lock, data=Dict{Any,ttl_dict_type(a[:positions_ttl], Any)}())
+end
+
 function save_strategy_cache(s; inmemory=false, cache_path=nothing)
     cache = Dict()
     for k in (:trades_cache, :open_orders_cache, :closed_orders_cache, :orders_cache, :order_byid_cache)
