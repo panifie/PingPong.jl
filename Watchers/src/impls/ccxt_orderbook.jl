@@ -48,6 +48,7 @@ function ccxt_orderbook_watcher(exc::Exchange, sym; level=L1, interval=Second(1)
     _sym!(attrs, sym)
     _exc!(attrs, exc)
     _tfr!(attrs, timeframe)
+    attrs[:oblevel] = level
     _ob_func(attrs, OrderBookLevel(level))
     watcher_type = DataFrame
     wid = string(CcxtOrderBookVal.parameters[1], "-", hash((exc.id, sym, level)))
@@ -170,6 +171,14 @@ function _flush!(w::Watcher, ::CcxtOrderBookVal)
         save_data(zi[], _key(w), toflush; serialize=false, type=Float64)
         _lastflushed!(w, w.buffer[end].time)
     end
+end
+
+function _start!(w::Watcher, ::CcxtOrderBookVal)
+    attrs = w.attrs
+    eid = echangeid(_exc(w))
+    exc = getexchange!(eid)
+    _exc!(attrs, exc)
+    _ob_func(attrs, OrderBookLevel(attrs[:oblevel]))
 end
 
 const OBCHUNKS = (100, 5) # chunks of the z array

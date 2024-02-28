@@ -231,6 +231,7 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
 end
 
 function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
+    _reset_tickers_func!(w)
     _pending!(w)
     _chill!(w)
 end
@@ -245,7 +246,9 @@ If the symbol is not being tracked by the watcher or if the data for the symbol 
 """
 function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
     sym ∉ _ids(w) && error("Trying to load $sym, but watcher is not tracking it.")
-    _isloaded(w, sym) && return nothing
+    if _isloaded(w, sym)
+        return nothing
+    end
     tf = _tfr(w)
     @lock _symlock(w, sym) begin
         df = @lget! w.view sym empty_ohlcv()
@@ -282,7 +285,9 @@ If the buffer or view of the watcher is empty, the function returns nothing.
 
 """
 function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
-    (isempty(w.buffer) || isempty(w.view)) && return nothing
+    if (isempty(w.buffer) || isempty(w.view))
+        return nothing
+    end
     syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
     @sync for sym in syms
         @async @logerror w _load!(w, _val(w), sym)

@@ -121,6 +121,19 @@ function _fetch!(w::Watcher, ::CcxtTickerVal)
     end
 end
 
+function _reset_tickers_func!(w::Watcher)
+    attrs = w.attrs
+    eid = echangeid(_exc(w))
+    exc = getexchange!(eid)
+    _exc!(attrs, exc)
+    sym = _sym(attrs)
+    _tfunc!(w.attrs, exc, "Ticker", sym)
+end
+
+function _start!(w::Watcher, ::CcxtTickerVal)
+    _reset_tickers_func!(w)
+end
+
 function _init!(w::Watcher, ::CcxtTickerVal)
     exc = _exc(w)
     _key!(

@@ -126,6 +126,12 @@ It then checks the continuity of the data in the dataframe.
 
 """
 function _start!(w::Watcher, ::CcxtOHLCVVal)
+    attrs = w.attrs
+    eid = echangeid(_exc(w))
+    exc = getexchange!(eid)
+    _exc!(attrs, exc)
+    _tfunc!(attrs, "Trades")
+
     _pending!(w)
     empty!(_trades(w))
     df = w.view
