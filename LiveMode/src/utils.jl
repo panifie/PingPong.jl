@@ -4,7 +4,7 @@ using .SimMode: _simmode_defaults!
 using .Lang: @lget!, Option
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
-using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, pycoro_running
+using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, pycoro_running, waitforcond
 using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
 import .Instances: timestamp

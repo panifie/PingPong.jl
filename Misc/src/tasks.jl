@@ -1,4 +1,4 @@
-using .Lang: @debug_backtrace, safenotify
+using .Lang: @debug_backtrace, safenotify, safewait
 
 @doc """ Check if a task is running.
 
@@ -112,3 +112,59 @@ The task flag is passed to `pyfetch/pytask` as a tuple.
 pycoro_running(flag) = (flag,)
 pycoro_running() = pycoro_running(TaskFlag())
 Base.getindex(t::TaskFlag) = t.f()
+
+@doc """ Waits for a condition function to return true for a specified time.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a condition function `cond` to return true. It keeps checking the condition for a specified `time`.
+"""
+function waitforcond(cond::Function, time)
+    timeout = Millisecond(time).value
+    waiting = Ref(true)
+    slept = Ref(1)
+    try
+        while waiting[] && slept[] < timeout
+            cond() && break
+            sleep(0.1)
+            slept[] += 100
+        end
+    catch
+        @debug_backtrace _module = LogWait
+        slept[] = timeout
+    finally
+        waiting[] = false
+    end
+    return slept[]
+end
+
+@doc """ Waits for a certain condition for a specified time.
+
+$(TYPEDSIGNATURES)
+
+This function waits for a certain condition `cond` to be met within a specified `time`. The condition `cond` is a function that returns a boolean value. The function continuously checks the condition until it's true or until the specified `time` has passed.
+
+"""
+function waitforcond(cond, time)
+    timeout = max(Millisecond(time).value, 100)
+    waiting = Ref(true)
+    slept = Ref(1)
+    try
+        @async begin
+            while waiting[] && slept[] < timeout
+                sleep(0.1)
+                slept[] += 100
+            end
+            slept[] >= timeout && safenotify(cond)
+        end
+        safewait(cond)
+    catch
+        @debug_backtrace _module = LogWait
+        slept[] = timeout
+    finally
+        waiting[] = false
+    end
+    return slept[]
+end
+
+export waitforcond, start_task, stop_task, istaskrunning, @istaskrunning
