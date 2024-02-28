@@ -187,7 +187,7 @@ function waitfor_closed(
             false
         end
     catch
-        @debug_backtrace _module = LogWaitOrder
+        @debug_backtrace LogWaitOrder
         false
     end
 end

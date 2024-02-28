@@ -148,7 +148,7 @@ function live_sync_open_orders!(
                         resp
                     end
                 catch
-                    @debug_backtrace _module = LogSyncOrder
+                    @debug_backtrace LogSyncOrder
                 end
                 if isdict(order_resp)
                     @deassert resp_order_id(order_resp, eid, String) == id

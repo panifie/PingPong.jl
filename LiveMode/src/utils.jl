@@ -1,13 +1,38 @@
 using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
-using .Lang: @lget!, Option
+using .Lang: @lget!, Option, @get
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, pycoro_running, waitforcond
 using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
 import .Instances: timestamp
+
+# logmodules
+baremodule LogPos end
+baremodule LogPosClose end
+baremodule LogPosSync end
+baremodule LogPosFetch end
+baremodule LogPosWait end
+baremodule LogUniSync end
+baremodule LogCreateOrder end
+baremodule LogCancelOrder end
+baremodule LogSendOrder end
+baremodule LogSyncOrder end
+baremodule LogWaitOrder end
+baremodule LogTasks end
+baremodule LogCreateTrade end
+baremodule LogOHLCV end
+baremodule LogCcxtFuncs end
+baremodule LogBalance end
+baremodule LogWatchBalance end
+baremodule LogWatchOrder end
+baremodule LogWatchTrade end
+baremodule LogWatchPos end
+baremodule LogWait end
+baremodule LogWaitTrade end
+baremodule LogTradeFetch end
 
 ## TASKS
 
@@ -355,6 +380,8 @@ function st.default!(s::Strategy{Live})
     get!(a, :closed_orders_ttl, throttle_per_asset)
     # How long to cache orders (dicts) responses for
     get!(a, :order_byid_ttl, throttle_per_asset)
+    # How long to cache position updates (lists)
+    get!(a, :positions_ttl, Second(3))
 
     asset_tasks(s)
     strategy_tasks(s)
@@ -440,7 +467,7 @@ function get_position_side(s, ai::AssetInstance)
             Long()
         end
     catch
-        @debug_backtrace _module = LogPos
+        @debug_backtrace LogPos
         Long()
     end
 end
@@ -555,7 +582,7 @@ function stop!(s::LiveStrategy; kwargs...)
     try
         stop_all_tasks(s)
     catch
-        @debug_backtrace _module = LogTasks
+        @debug_backtrace LogTasks
     finally
         invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
     end
@@ -603,28 +630,3 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
         return false
     end
 end
-
-# logmodules
-baremodule LogPos end
-baremodule LogPosClose end
-baremodule LogPosSync end
-baremodule LogPosFetch end
-baremodule LogPosWait end
-baremodule LogUniSync end
-baremodule LogCreateOrder end
-baremodule LogCancelOrder end
-baremodule LogSendOrder end
-baremodule LogSyncOrder end
-baremodule LogWaitOrder end
-baremodule LogTasks end
-baremodule LogCreateTrade end
-baremodule LogOHLCV end
-baremodule LogCcxtFuncs end
-baremodule LogBalance end
-baremodule LogWatchBalance end
-baremodule LogWatchOrder end
-baremodule LogWatchTrade end
-baremodule LogWatchPos end
-baremodule LogWait end
-baremodule LogWaitTrade end
-baremodule LogTradeFetch end

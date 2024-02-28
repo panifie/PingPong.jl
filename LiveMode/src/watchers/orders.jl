@@ -93,7 +93,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
                         rethrow(e)
                     else
                         @debug "watch orders: error (task termination?)" _module = LogWatchOrder raw(ai) istaskrunning() current_task().storage[:running]
-                        @debug_backtrace _module = LogWatchOrder
+                        @debug_backtrace LogWatchOrder
                     end
                     sleep(1)
                 end
@@ -429,7 +429,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
         end
     catch e
         @ifdebug isdefined(Main, :e) && (Main.e[] = e)
-        @debug_backtrace _module = LogWatchOrder
+        @debug_backtrace LogWatchOrder
         ispyminor_error(e) || @error e
     end
 end

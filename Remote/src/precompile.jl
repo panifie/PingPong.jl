@@ -3,7 +3,7 @@ using .Misc.Lang: @preset, @precomp, @ignore
 @preset let
     using Telegram.HTTP
     function closeconn_layer(handler)
-        return function(req; kw...)
+        return function (req; kw...)
             HTTP.setheader(req, "Connection" => "close")
             return handler(req; kw...)
         end

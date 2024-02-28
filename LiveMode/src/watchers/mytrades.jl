@@ -122,7 +122,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
                     if e isa InterruptException
                         rethrow(e)
                     else
-                        @debug_backtrace _module = LogWatchTrade
+                        @debug_backtrace LogWatchTrade
                         @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)." _module = LogWatchTrade e
                     end
                     sleep(1)
@@ -160,7 +160,7 @@ function ispyexception(e, pyexception)
         hasproperty(e, :args) &&
             (length(e.args) > 0 && pyisinstance(e.args[1], pyexception))
     catch
-        @debug_backtrace _module = LogCcxtFuncs
+        @debug_backtrace LogCcxtFuncs
         @ifdebug isdefined(Main, :e) && Main.e isa Ref{Any} && (Main.e[] = e)
         @error "Can't check exception of type $(typeof(e))"
         false
@@ -336,7 +336,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
         end
     catch e
         @ifdebug isdefined(Main, :e) && (Main.e[] = e)
-        @debug_backtrace _module = LogWatchTrade
+        @debug_backtrace LogWatchTrade
         ispyminor_error(e) || @error e
     end
 end
@@ -364,7 +364,7 @@ function waitfortrade(s::LiveStrategy, ai; waitfor=Second(1))
     tt = try
         asset_trades_task(s, ai)
     catch
-        @debug_backtrace _module = LogWaitTrade
+        @debug_backtrace LogWaitTrade
         return 0
     end
     if !(tt isa Task)

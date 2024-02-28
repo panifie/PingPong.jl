@@ -92,7 +92,7 @@ function balance(exc::Exchange, args...; qc=Symbol(), type=Symbol(), status=Tota
         end
 
     catch
-        @debug_backtrace _module = LogBalance
+        @debug_backtrace LogBalance
         @warn "Could not fetch balance from $(nameof(exc))"
     end
 end

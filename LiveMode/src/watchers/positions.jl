@@ -92,7 +92,7 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
             end
             sleep(interval)
         catch
-            @debug_backtrace _module = LogWatchPos
+            @debug_backtrace LogWatchPos
             sleep(1)
         end
     end
@@ -192,7 +192,7 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
         end
         true
     catch
-        @debug_backtrace _module = LogWatchPos
+        @debug_backtrace LogWatchPos
         false
     end
 end
@@ -241,7 +241,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     processed_syms = Set{Tuple{String,PositionSide}}()
     @debug "watchers process: position" data _module = LogWatchPos
     for resp in data
-        if !isdict(resp) || resp_event_type(resp, eid) != PositionUpdate
+        if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionUpdate
+            @debug "watchers process: not a position update" resp
             continue
         end
         sym = resp_position_symbol(resp, eid, String)
@@ -261,6 +262,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
         elseif pup_prev.date < date
             _posupdate(pup_prev, date, resp)
         end
+        @debug "watchers: position processed" sym side
         push!(processed_syms, (sym, side))
         isnothing(pup) || (side_dict[sym] = pup)
     end

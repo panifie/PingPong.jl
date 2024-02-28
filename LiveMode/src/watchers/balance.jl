@@ -35,7 +35,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
                 @lock w _dopush!(w, v; if_func=isdict)
             end
         catch
-            @debug_backtrace _module = LogWatchBalance
+            @debug_backtrace LogWatchBalance
             sleep(1)
         end
     else
@@ -46,7 +46,7 @@ function _w_fetch_balance_func(s, interval; kwargs)
             end
             sleep(interval)
         catch
-            @debug_backtrace _module = LogWatchBalance
+            @debug_backtrace LogWatchBalance
             sleep(interval)
         end
     end

@@ -62,7 +62,7 @@ function Executors.aftertrade!(
                 @error "after trade: cash for short should be negative"
         end
     catch
-        @debug_backtrace _module = LogCreateTrade
+        @debug_backtrace LogCreateTrade
         @warn "after trade: failed" ai = raw(ai) s = nameof(s) exc = (exchange(ai))
     end
     t

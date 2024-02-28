@@ -47,7 +47,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
         end
     catch
         @warn "live cancel: failed (exception)" ai = raw(ai)
-        @debug_backtrace _module = LogCancelOrder
+        @debug_backtrace LogCancelOrder
         return false
     end
     if done && confirm
