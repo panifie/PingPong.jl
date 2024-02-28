@@ -160,7 +160,7 @@ function waitfor_closed(
                 @debug "wait ord close: timedout" _module = LogWaitOrder ai = raw(ai) side = t waitfor f = @caller
                 if synced
                     @warn "wait ord close: syncing"
-                    live_sync_open_orders!(s, ai; side=t, strict=false, exec=true)
+                    live_sync_open_orders!(s, ai; side=t, overwrite=false, exec=true)
                     success = if isactive(s, ai; side=t)
                         @error "wait ord close: orders still active" side = t n = orderscount(
                             s, ai, t
@@ -178,7 +178,7 @@ function waitfor_closed(
         if success
             if orderscount(s, ai, t) > 0
                 @debug "wait ord close: syncing(2nd) f" _module = LogWaitOrder ai = raw(ai) orderscount(s, ai, t)
-                live_sync_open_orders!(s, ai; side=t, strict=false, exec=true)
+                live_sync_open_orders!(s, ai; side=t, overwrite=false, exec=true)
                 iszero(orderscount(s, ai, t))
             else
                 true

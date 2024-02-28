@@ -1,7 +1,7 @@
 using PaperMode
 using PaperMode.Executors
 using .Executors: Strategies as st
-using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMarginInstance
+using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMarginInstance, HedgedInstance
 using .Instances
 using .Exchanges
 using .Exchanges: Python

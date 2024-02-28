@@ -38,7 +38,7 @@ function _live_sync_position!(
     ep_in=resp_position_entryprice(update.resp, exchangeid(ai)),
     commits=true,
     skipchecks=false,
-    strict=false,
+    overwrite=false,
     forced_side=false,
     waitfor=Second(5),
 )
@@ -96,8 +96,8 @@ function _live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside strict f = @caller
-        if !strict
+        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite f = @caller
+        if !overwrite
             return pos
         end
     end
@@ -117,7 +117,7 @@ function _live_sync_position!(
 
     this_timestamp = update.date
     if this_timestamp < timestamp(pos)
-        @debug "sync pos: position timestamp not newer" _module = LogPosSync timestamp(pos) this_timestamp strict f = @caller
+        @debug "sync pos: position timestamp not newer" _module = LogPosSync timestamp(pos) this_timestamp overwrite f = @caller
         return pos
     end
 
@@ -317,10 +317,14 @@ function live_sync_position!(
     end
 end
 
-function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
+function live_sync_position!(s::LiveStrategy, ai::HedgedInstance; kwargs...)
     @sync for pos in (Long, Short)
         @async live_sync_position!(s, ai, pos; kwargs...)
     end
+end
+
+function live_sync_position!(s::LiveStrategy, ai::MarginInstance; kwargs...)
+    live_sync_position!(s, ai, get_position_side(s, ai); kwargs...)
 end
 
 @doc """ Synchronizes the cash position in a live trading strategy.
@@ -371,7 +375,7 @@ The function uses a helper function `dosync` to perform the synchronization for 
 The synchronization process is performed concurrently for efficiency.
 
 """
-function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=false, kwargs...)
+function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=true, force=false, kwargs...)
     if force # wait for position watcher
         let w = positions_watcher(s)
             while isempty(w.buffer)
@@ -390,15 +394,23 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; strict=true, force=fa
             reset!(ai, side)
         else
             @debug "sync uni: sync pos" _module = LogUniSync ai = raw(ai) side
-            live_sync_position!(s, ai, side, pup; strict, kwargs...)
+            live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
         end
     end
-    @sync for ai in s.universe
-        @async begin
-            @sync begin
-                @async @lock ai dosync(ai, Long(), long)
-                @async @lock ai dosync(ai, Short(), short)
+    if force
+        @sync for ai in s.universe
+            @async begin
+                @sync begin
+                    @async @lock ai dosync(ai, Long(), long)
+                    @async @lock ai dosync(ai, Short(), short)
+                end
+                set_active_position!(ai; default_date)
             end
+        end
+    else
+        for ai in s.universe
+            dosync(ai, Long(), long)
+            dosync(ai, Short(), short)
             set_active_position!(ai; default_date)
         end
     end

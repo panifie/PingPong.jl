@@ -41,14 +41,14 @@ This function syncs the live open orders with the trading strategy and asset ins
 It fetches open orders, replay them, and updates the order tracking.
 This function also handles checking and updating of cash commitments for the strategy and asset instance.
 
-- `strict`: A boolean flag indicating whether to strictly sync orders (default is `true`).
+- `overwrite`: A boolean flag indicating whether to overwrite strategy state (default is `true`).
 - `exec`: A boolean flag indicating whether to execute the orders during syncing (default is `false`).
 - `create_kwargs`: A dictionary of keyword arguments for creating an order (default is `(;)`).
 - `side`: The side of the order (default is `Both`).
 
 """
 function live_sync_open_orders!(
-    s::LiveStrategy, ai; strict=true, exec=false, create_kwargs=(;), side=Both
+    s::LiveStrategy, ai; overwrite=true, exec=false, create_kwargs=(;), side=Both
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
@@ -75,7 +75,7 @@ function live_sync_open_orders!(
     @debug "sync orders: syncing" _module = LogSyncOrder ai = raw(ai) islocked(ai) length(open_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
-        strict && maxout!(s, ai)
+        overwrite && maxout!(s, ai)
         for resp in open_orders
             if resp_event_type(resp, eid) != ot.Order
                 continue
@@ -95,7 +95,7 @@ function live_sync_open_orders!(
                 price=missing,
                 amount=missing,
                 synced=false,
-                skipcommit=(!strict),
+                skipcommit=(!overwrite),
                 withoutkws(:skipcommit; kwargs=create_kwargs)...,
             ) missing)::Union{Nothing,<:Order,Missing}
             ismissing(o) && continue
@@ -170,13 +170,15 @@ function live_sync_open_orders!(
         watch_orders!(s, ai) # ensure orders watcher is running
     end
     # @ifdebug @debug "" cash_long cash_short comm_long comm_short
-    @ifdebug @assert strict || all((
+    @ifdebug @assert overwrite || all((
         cash_long == cash(ai, Long()),
         comm_long == committed(ai, Long()),
         cash_short == cash(ai, Short()),
         comm_short == committed(ai, Short()),
     ))
-    strict && @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
+    if overwrite
+        @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
+    end
     @debug "sync orders: done" _module = LogSyncOrder ai = raw(ai)
     nothing
 end

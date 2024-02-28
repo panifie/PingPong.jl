@@ -207,7 +207,7 @@ function pong!(
             @debug "pong pos close: timedout" _module = LogLivePosClose pos = P ai = raw(ai)
         end
         live_sync_position!(
-            s, ai, P(); since, strict=true, waitfor=@timeout_now
+            s, ai, P(); since, overwrite=true, waitfor=@timeout_now
         )
         if @lock ai isopen(ai, pos)
             @debug "pong pos close:" _module = LogLivePosClose timestamp(ai, pos) >= since timestamp(ai, pos) ==

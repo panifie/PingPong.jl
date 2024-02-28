@@ -48,9 +48,9 @@ function Executors.aftertrade!(
             @debug "after trade: syncing with position" _module = LogCreateTrade update.date update.closed[] contracts = resp_position_contracts(
                 update.resp, exchangeid(ai)
             )
-            # NOTE: strict=true because the trade might have happened *after* a position
+            # NOTE: overwrite=true because the trade might have happened *after* a position
             # had already been synced (read=true)
-            live_sync_position!(s, ai, o, update; strict=true)
+            live_sync_position!(s, ai, o, update; overwrite=true)
         else
             @warn "after trade: stale position update" update.date since
         end
