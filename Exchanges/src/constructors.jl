@@ -25,7 +25,7 @@ using .Misc.Lang: @lget!
 using .Misc.DocStringExtensions
 
 @doc "The cache for tickers which lasts for 100 minutes by exchange pair."
-const tickers_cache = safettl(Tuple{String,Symbol}, Dict, Minute(100))
+const TICKERS_CACHE = safettl(Tuple{String,Symbol}, Dict, Minute(100))
 
 @doc "Define an exchange variable set to its matching exchange instance.
 
@@ -297,9 +297,9 @@ _lasttype(types) = begin
     end
 end
 @doc "Any of $MARKET_TYPES"
-function markettype(exc)
+function markettype(exc, margin=Misc.config.margin)
     types = exc.types
-    if Misc.config.margin == NoMargin()
+    if margin == NoMargin()
         if :spot ∈ types
             :spot
         else
@@ -328,10 +328,11 @@ The `@tickers!` macro takes the following parameters:
 - `force` (optional, default is false): a boolean that indicates whether to force the data fetch, even if the data is already present.
 
 """
-macro tickers!(type=nothing, force=false)
+macro tickers!(type=nothing, force=false, cache=:TICKERS_CACHE)
     exc = esc(:exc)
     tickers = esc(:tickers)
     type = type ∈ MARKET_TYPES ? QuoteNode(type) : esc(type)
+    cache = esc(cache)
     quote
         local $tickers
         tp = @something($type, markettype($exc), missing)
@@ -340,9 +341,9 @@ macro tickers!(type=nothing, force=false)
         if ismissing(tp)
             @warn "tickers: no market type found (offline?)" type = tp $exc.id
             $tickers = Dict{String,Dict{String,Any}}()
-        elseif $force || k ∉ keys(tickers_cache)
+        elseif $force || k ∉ keys($cache)
             @assert hastickers($exc) "Exchange doesn't provide tickers list."
-            tickers_cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
+            $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
                 $tickers = pyconvert(
                     Dict{String,Dict{String,Any}},
                     let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
@@ -357,7 +358,7 @@ macro tickers!(type=nothing, force=false)
                 )
             end
         else
-            $tickers = tickers_cache[k]
+            $tickers = $cache[k]
         end
     end
 end

@@ -3,7 +3,7 @@ import .Python: pytofloat
 
 @doc "Clears all Python-dependent caches."
 function emptycaches!()
-    empty!(tickers_cache)
+    empty!(TICKERS_CACHE)
     empty!(tickersCache10Sec)
     empty!(marketsCache1Min)
     empty!(activeCache1Min)
