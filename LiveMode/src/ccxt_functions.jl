@@ -238,6 +238,18 @@ function watch_positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
     )
 end
 
+function watch_balance_func(exc::Exchange, args...; timeout, kwargs...)
+    _execfunc_timeout(
+        exc.watchBalance, args...; timeout, kwargs...
+    )
+end
+
+function fetch_balance_func(exc::Exchange, args...; timeout, kwargs...)
+    _execfunc_timeout(
+        first(exc, :fetchBalanceWs, :fetchBalance), args...; timeout, kwargs...
+    )
+end
+
 function _matching_asset(resp, eid, ais)
     sym = resp_position_symbol(resp, eid, String)
     for ai in ais

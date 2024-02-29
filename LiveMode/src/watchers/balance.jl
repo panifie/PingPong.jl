@@ -22,32 +22,36 @@ function _w_fetch_balance_func(s, interval; kwargs)
     if has(exc, :watchBalance)
         f = exc.watchBalance
         init = Ref(true)
-        (w) -> try
-            if init[]
-                @lock w begin
-                    v = _execfunc_timeout(fetch_f; timeout, params, rest...)
-                    _dopush!(w, v; if_func=isdict)
+        (w) -> begin
+            start = now()
+            try
+                if init[]
+                    @lock w begin
+                        v = watch_balance_func(exc; timeout, params, reset...)
+                        _dopush!(w, v; if_func=isdict)
+                    end
+                    init[] = false
+                else
+                    v = fetch_balance_func(exc; params, rest...)
+                    @lock w _dopush!(w, v; if_func=isdict)
                 end
-                init[] = false
-                sleep(interval)
-            else
-                v = _execfunc(f; params, rest...)
-                @lock w _dopush!(w, v; if_func=isdict)
+            catch
+                @debug_backtrace LogWatchBalance
             end
-        catch
-            @debug_backtrace LogWatchBalance
-            sleep(1)
+            sleep_pad(start, interval)
         end
     else
-        (w) -> try
-            @lock w begin
-                v = _execfunc_timeout(fetch_f; timeout, params, rest...)
-                _dopush!(w, v; if_func=isdict)
+        (w) -> begin
+            start = now()
+            try
+                @lock w begin
+                    v = fetch_balance_func(exc; timeout, params, rest...)
+                    _dopush!(w, v; if_func=isdict)
+                end
+            catch
+                @debug_backtrace LogWatchBalance
             end
-            sleep(interval)
-        catch
-            @debug_backtrace LogWatchBalance
-            sleep(interval)
+            sleep_pad(start, interval)
         end
     end
 end
