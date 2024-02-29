@@ -1,5 +1,6 @@
 using LRUCache: LRUCache
 using .Misc.TimeToLive: safettl
+using .Exchanges.Ccxt: py_except_name
 
 _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
 
@@ -263,6 +264,7 @@ end
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
+    a[:positions_pre_timeout] = pre_timeout = Ref(Second(0))
     a[:positions_base_timeout] = base_timeout = Ref(Second(0))
     l, cache = _positions_resp_cache(a)
     a[:live_positions_func] = if has(exc, :fetchPositions)
@@ -272,10 +274,19 @@ function ccxt_positions_func!(a, exc)
                 pylist()
             else
                 timeout += base_timeout[]
+                sleep(pre_timeout[])
                 out = positions_func(exc, ais; timeout, kwargs...)
-                if out isa Exception || ismissing(out)
-                    @warn "ccxt: fetch positions failed" out eid side
-                    base_timeout[] += round(timeout, Second, RoundUp)
+                if ismissing(out)
+                    @warn "ccxt: fetch positions timed out" out eid side base_timeout[]
+                    base_timeout[] += if timeout > Second(0)
+                        round(timeout, Second, RoundUp)
+                    else
+                        Second(1)
+                    end
+                    pylist()
+                elseif out isa Exception
+                    @warn "ccxt: fetch positions error" out eid side
+                    pre_timeout[] += Second(1)
                     pylist()
                 else
                     _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
@@ -290,10 +301,20 @@ function ccxt_positions_func!(a, exc)
                 out = pylist()
                 timeout += base_timeout[]
                 for ai in ais
-                    @async let p = position_func(exc, ai; timeout, kwargs...)
-                        if p isa Exception || ismissing(p)
-                            @warn "ccxt: fetch positions failed" out eid side maxlog = 1
-                            base_timeout[] += round(timeout, Second, RoundUp)
+                    @async begin
+                        sleep(pre_timeout[])
+                        p = position_func(exc, ai; timeout, kwargs...)
+                        if ismissing(p)
+                            @warn "ccxt: fetch positions timedout" out eid side base_timeout[] maxlog = 1
+                            @info round(timeout, Second, RoundUp)
+                            base_timeout[] += if timeout > Second(0)
+                                round(timeout, Second, RoundUp)
+                            else
+                                Second(1)
+                            end
+                        elseif p isa Exception
+                            @warn "ccxt: fetch positions error" out eid side
+                            pre_timeout[] += Second(1)
                         else
                             last_side = _last_posside(ai)
                             p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
