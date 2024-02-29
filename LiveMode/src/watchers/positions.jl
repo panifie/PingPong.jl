@@ -62,7 +62,6 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
     if is_watch_func
-        f = exc.watchPositions
         init = Ref(true)
         (w) -> begin
             start = now()

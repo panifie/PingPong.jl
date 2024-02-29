@@ -215,7 +215,7 @@ function pong!(
             pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
             @debug "pong pos close: still open (local) position" _module = LogLivePosClose since position(ai, pos) data =
                 try
-                    resp = fetch_positions(s, ai)[0]
+                    resp = first(fetch_positions(s, ai))
                     this_pup = live_position(
                         s, ai, P(); since, waitfor=@timeout_now
                     )

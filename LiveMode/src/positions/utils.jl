@@ -118,17 +118,18 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     @debug "force fetch pos: locking" _module = LogPosFetch islocked(w) ai = raw(ai)
     this_task = @lock w begin
         time = now()
-        resp = fetch_positions(s, ai; side, fallback_kwargs...)
-        pos = _handle_pos_resp(resp, ai, side)
+        resp = let resp = fetch_positions(s, ai; side, fallback_kwargs...)
+            _handle_pos_resp(resp, ai, side)
+        end
         @debug "force fetch pos:" _module = LogPosFetch amount = try
-            resp_position_contracts(pos[0], exchangeid(ai))
+            resp_position_contracts(first(resp), exchangeid(ai))
         catch
-        end pos
-        isnothing(pos) && return
-        v = if islist(pos)
-            pos
+        end
+        isnothing(resp) && return
+        v = if islist(resp)
+            resp
         else
-            pylist((pos,))
+            pylist((resp,))
         end
         pushnew!(w, v)
         @debug "force fetch pos: processing" _module = LogPosFetch
