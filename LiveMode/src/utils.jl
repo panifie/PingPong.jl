@@ -308,49 +308,49 @@ macro retry(expr, count=3, check=isa, value=Exception)
 end
 
 @doc """ Retrieves orders of an asset (open and closed). """
-fetch_orders(s, args...; kwargs...) = @retry attr(s, :live_orders_func)(args...; kwargs...)
+fetch_orders(s, args...; kwargs...) = @retry s[:live_orders_func](args...; kwargs...)
 @doc """ Retrieves open orders of an asset. """
 function fetch_open_orders(s, args...; kwargs...)
-    @retry attr(s, :live_open_orders_func)(args...; kwargs...)
+    @retry s[:live_open_orders_func](args...; kwargs...)
 end
 @doc """ Retrieves closed orders of an asset. """
 function fetch_closed_orders(s, args...; kwargs...)
-    @retry attr(s, :live_closed_orders_func)(args...; kwargs...)
+    @retry s[:live_closed_orders_func](args...; kwargs...)
 end
 function fetch_positions(s, ai::AssetInstance, args...; kwargs...)
     fetch_positions(s, (ai,), args...; kwargs...)
 end
 @doc """ Retrieves positions of an asset. """
 function fetch_positions(s, args...; kwargs...)
-    @retry attr(s, :live_positions_func)(args...; kwargs...)
+    @retry s[:live_positions_func](args...; kwargs...)
 end
 @doc """ Retrieves all asset positions for a strategy. """
 fetch_positions(s; kwargs...) = fetch_positions(s, ((ai for ai in s.universe)...,); kwargs...)
 @doc """ Cancels orders of an asset by order identifier. """
-cancel_orders(s, args...; kwargs...) = @retry attr(s, :live_cancel_func)(args...; kwargs...)
+cancel_orders(s, args...; kwargs...) = @retry s[:live_cancel_func](args...; kwargs...)
 @doc """ Cancels all orders of an asset. """
 function cancel_all_orders(s, args...; kwargs...)
-    @retry attr(s, :live_cancel_all_func)(args...; kwargs...)
+    @retry s[:live_cancel_all_func](args...; kwargs...)
 end
 @doc """ Creates an order. """
 function create_order(s, args...; kwargs...)
-    @retry attr(s, :live_send_order_func)(args...; kwargs...)
+    @retry s[:live_send_order_func](args...; kwargs...)
 end
 @doc """ Retrieves trades of an asset. """
 function fetch_my_trades(s, args...; kwargs...)
-    @retry attr(s, :live_my_trades_func)(args...; kwargs...)
+    @retry s[:live_my_trades_func](args...; kwargs...)
 end
 @doc """ Retrieves order trades of an asset. """
 function fetch_order_trades(s, args...; kwargs...)
-    @retry attr(s, :live_order_trades_func)(args...; kwargs...)
+    @retry s[:live_order_trades_func](args...; kwargs...)
 end
 @doc """ Retrieves candles of an asset. """
 function fetch_candles(s, args...; kwargs...)
-    @retry attr(s, :live_fetch_candles_func)(args...; kwargs...)
+    @retry s[:live_fetch_candles_func](args...; kwargs...)
 end
 @doc """ Retrieves The orderbook L2 of an asset. """
 function fetch_l2ob(s, args...; kwargs...)
-    @retry attr(s, :live_fetch_l2ob_func)(args...; kwargs...)
+    @retry s[:live_fetch_l2ob_func](args...; kwargs...)
 end
 
 @doc """ Sets default values for a live strategy.

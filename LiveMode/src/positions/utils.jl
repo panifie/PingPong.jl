@@ -125,15 +125,12 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
         catch
         end pos
         isnothing(pos) && return
-        pushnew!(
-            w,
-            if islist(pos)
-                pos
-            else
-                pylist((pos,))
-            end,
-            time,
-        )
+        v = if islist(pos)
+            pos
+        else
+            pylist((pos,))
+        end
+        pushnew!(w, v)
         @debug "force fetch pos: processing" _module = LogPosFetch
         @async process!(w; forced_sym=raw(ai))
     end
@@ -440,7 +437,7 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; defaul
     ccxt_side = resp_position_side(update, eid)
     if pyisnone(ccxt_side)
         if isnothing(p)
-            @debug  "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
+            @debug "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
             _ccxtpnlside(update, eid)
         else
             posside(p)
