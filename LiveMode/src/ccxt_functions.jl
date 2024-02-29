@@ -251,7 +251,7 @@ end
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
-    base_timeout = Ref(Second(0))
+    a[:positions_base_timeout] = base_timeout = Ref(Second(0))
     l, cache = _positions_resp_cache(a)
     a[:live_positions_func] = if has(exc, :fetchPositions)
         (ais; side=Hedged(), timeout=base_timeout[], kwargs...) -> begin
@@ -263,7 +263,7 @@ function ccxt_positions_func!(a, exc)
                 out = positions_func(exc, ais; timeout, kwargs...)
                 if out isa Exception || ismissing(out)
                     @warn "ccxt: fetch positions failed" out eid side
-                    base_timeout[] += Second(1)
+                    base_timeout[] += round(timeout, Second, RoundUp)
                     pylist()
                 else
                     _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
@@ -281,7 +281,7 @@ function ccxt_positions_func!(a, exc)
                     @async let p = position_func(exc, ai; timeout, kwargs...)
                         if p isa Exception || ismissing(p)
                             @warn "ccxt: fetch positions failed" out eid side maxlog = 1
-                            base_timeout[] += Second(1)
+                            base_timeout[] += round(timeout, Second, RoundUp)
                         else
                             last_side = _last_posside(ai)
                             p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
