@@ -342,6 +342,8 @@ $(TYPEDSIGNATURES)
 macro debug_backtrace(mod=__module__, msg="")
     file = string(__source__.file)
     line = __source__.line
+    mod = esc(mod)
+    msg = esc(msg)
     quote
         @debug $msg _module = $mod _file = $file _line = $line exception = (
             first(Base.catch_stack())...,
