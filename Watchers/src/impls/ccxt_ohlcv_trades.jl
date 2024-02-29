@@ -127,7 +127,7 @@ It then checks the continuity of the data in the dataframe.
 """
 function _start!(w::Watcher, ::CcxtOHLCVVal)
     attrs = w.attrs
-    eid = echangeid(_exc(w))
+    eid = exchangeid(_exc(w))
     exc = getexchange!(eid)
     _exc!(attrs, exc)
     _tfunc!(attrs, "Trades")

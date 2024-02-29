@@ -175,7 +175,7 @@ end
 
 function _start!(w::Watcher, ::CcxtOrderBookVal)
     attrs = w.attrs
-    eid = echangeid(_exc(w))
+    eid = exchangeid(_exc(w))
     exc = getexchange!(eid)
     _exc!(attrs, exc)
     _ob_func(attrs, OrderBookLevel(attrs[:oblevel]))

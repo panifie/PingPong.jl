@@ -123,10 +123,10 @@ end
 
 function _reset_tickers_func!(w::Watcher)
     attrs = w.attrs
-    eid = echangeid(_exc(w))
+    eid = exchangeid(_exc(w))
     exc = getexchange!(eid)
     _exc!(attrs, exc)
-    sym = _sym(attrs)
+    sym = _sym(w)
     _tfunc!(w.attrs, exc, "Ticker", sym)
 end
 
