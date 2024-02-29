@@ -10,8 +10,8 @@ function somevalue(dict, keys...)
     end
 end
 
-ttl_dict_type(ttl::Period, kt=DateTime) = TTL{kt,Union{Missing,Vector{Any}},ConcurrentDict,typeof(ttl)}
-ttl_resp_dict(ttl::Period, kt=DateTime) = safettl(kt, Union{Missing,Vector{Any}}, ttl)
+ttl_dict_type(ttl::Period, kt=DateTime, vt=Vector{Any}) = TTL{kt,Union{Missing,vt},ConcurrentDict,typeof(ttl)}
+ttl_resp_dict(ttl::Period, kt=DateTime, vt=Vector{Any}) = safettl(kt, Union{Missing,vt}, ttl)
 
 function _trades_resp_cache(a, ai)
     # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
@@ -49,7 +49,7 @@ end
 
 function _positions_resp_cache(a)
     lock = ReentrantLock()
-    @lget! a :positions_cache (; lock, data=Dict{Any,ttl_dict_type(a[:positions_ttl], Any)}())
+    @lget! a :positions_cache (; lock, data=ttl_resp_dict(a[:positions_ttl], Any, Any))
 end
 
 function save_strategy_cache(s; inmemory=false, cache_path=nothing)
