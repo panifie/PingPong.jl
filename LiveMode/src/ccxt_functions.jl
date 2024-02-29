@@ -251,31 +251,35 @@ end
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
-    timeout = get!(a, :throttle, Second(5))
+    timeout = Ref(get!(a, :throttle, Second(5)))
     l, cache = _positions_resp_cache(a)
     a[:live_positions_func] = if has(exc, :fetchPositions)
-        (ais; side=Hedged(), timeout=timeout, kwargs...) -> begin
+        (ais; side=Hedged(), timeout=timeout[], kwargs...) -> begin
             syms = ((raw(ai) for ai in ais)..., side)
             out = @get cache syms @lock l @lget! cache syms if isempty(ais)
                 pylist()
             else
-                out = positions_func(exc, ais; timeout, kwargs...)
-                if !ismissing(out)
+                out = positions_func(exc, ais; timeout=timeout[], kwargs...)
+                if out isa Exception
+                    @warn "ccxt: fetch positions failed" out eid side
+                    pylist()
+                elseif !ismissing(out)
                     _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
+                    out
                 else
-                    @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout @caller
+                    @warn "ccxt: fetch positions failed(missing)" get(ais, 1, missing) eid side timeout[] @caller
+                    timeout[] += Second(1)
                     pylist()
                 end
             end
         end
     else
-        fetch_func = first(exc, :fetchPositionWs, :fetchPosition)
-        (ais; side=Hedged(), timeout=timeout, kwargs...) -> begin
+        (ais; side=Hedged(), timeout=timeout[], kwargs...) -> begin
             syms = ((raw(ai) for ai in ais)..., side)
             @get cache syms @lock l @lget! cache syms @sync begin
                 out = pylist()
                 for ai in ais
-                    @async let p = _execfunc_timeout(fetch_func, raw(ai); timeout, kwargs...)
+                    @async let p = position_func(exc, ai; timeout=timeout[], kwargs...)
                         last_side = _last_posside(ai)
                         p_side = posside_fromccxt(p, eid; default_side_func=(p) -> last_side)
                         if isside(p_side, side)
