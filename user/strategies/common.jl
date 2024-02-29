@@ -1,5 +1,6 @@
 using PingPong.Engine.Lang: @ifdebug, safewait, safenotify
-using PingPong.Engine.LiveMode.Watchers.WatchersImpls: ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
+using PingPong.Engine.LiveMode.Watchers.WatchersImpls:
+    ccxt_ohlcv_tickers_watcher, start!, load!, isstopped
 
 __revise_mode__ = :eval
 const CACHE = Dict{Symbol,Any}()
@@ -45,22 +46,26 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
         for ai in s.universe
             wv[ai.asset.raw] = ai.ohlcv
         end
-        @sync for sym in marketsid(s)
-            @async load!(w, sym)
-        end
-        w[:process_func] = () -> while true
-            safewait(w.beacon.process)
-            isstopped(w) && break
+        w[:process_func] = () -> while isstarted(w)
             for ai in s.universe
                 try
                     propagate_ohlcv!(ai.data)
                 catch
                 end
             end
+            safewait(w.beacon.process)
         end
         w[:process_task] = @async w[:process_func]()
         w[:quiet] = true
-        start!(w)
+        @async begin
+            try
+                @sync for sym in marketsid(s)
+                    @async load!(w, sym)
+                end
+            catch
+            end
+            start!(w)
+        end
         s[k] = w
     end
 end
