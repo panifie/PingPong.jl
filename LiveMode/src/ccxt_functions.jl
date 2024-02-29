@@ -226,6 +226,12 @@ function positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
     )
 end
 
+function position_func(exc::Exchange, ai, args...; timeout, kwargs...)
+    _execfunc_timeout(
+        first(exc, :fetchPositionWs, :fetchPosition), raw(ai), args...; timeout, kwargs...
+    )
+end
+
 function watch_positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
     _execfunc_timeout(
         exc.watchPositions, _syms(ais), args...; timeout, kwargs...
