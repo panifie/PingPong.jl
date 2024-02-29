@@ -2,6 +2,7 @@ using Watchers
 using Watchers: default_init
 using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
 @watcher_interface!
+using .PaperMode: sleep_pad
 using .Exchanges: check_timeout
 using .Lang: splitkws, safenotify, safewait
 
@@ -60,40 +61,39 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     params, rest = split_params(kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
-    fetch_f = first(exc, :fetchPositionsWs, :fetchPositions)
     if is_watch_func
         f = exc.watchPositions
         init = Ref(true)
-        (w) -> try # TODO: implement `init[]` like the balance watcher
-            if init[]
-                @lock w begin
-                    v = _execfunc_timeout(fetch_f; timeout, params, rest...)
-                    if islist(v)
+        (w) -> begin
+            start = now()
+            try
+                if init[]
+                    @lock w begin
+                        v = fetch_positions(s; timeout, params, rest...)
                         _dopush!(w, v)
                     end
+                    init[] = false
+                else
+                    v = watch_positions_func(exc, (ai for ai in s.universe); timeout, params, rest...)
+                    @lock w _dopush!(w, v)
                 end
-                init[] = false
-                sleep(interval)
-            else
-                v = _execfunc(f; params, rest...)
-                @lock w _dopush!(w, v)
+            catch
+                @debug_backtrace LogWatchPos
             end
-        catch
-            @debug_backtrace _module = LogWatchPos
-            sleep(1)
+            sleep_pad(start, interval)
         end
     else
-        (w) -> try
-            @lock w begin
-                v = fetch_positions(s, (); params, rest...)
-                if islist(v)
+        (w) -> begin
+            start = now()
+            try
+                @lock w begin
+                    v = fetch_positions(s; params, rest...)
                     _dopush!(w, v)
                 end
+            catch
+                @debug_backtrace LiveMode.LogWatchPos
             end
-            sleep(interval)
-        catch
-            @debug_backtrace LogWatchPos
-            sleep(1)
+            sleep_pad(start, interval)
         end
     end
 end
@@ -114,13 +114,16 @@ function ccxt_positions_watcher(
 )
     exc = st.exchange(s)
     check_timeout(exc, interval)
-    attrs = Dict{Symbol,Any}()
     is_watch_func = @lget! s.attrs :live_watch_positions has(exc, :watchPositions)
+    attrs = Dict{Symbol,Any}()
+    attrs[:s] = s
+    attrs[:kwargs] = kwargs
+    attrs[:interval] = interval
+    attrs[:is_watch_func] = is_watch_func
     _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
     _exc!(attrs, exc)
     watcher_type = Py
     wid = string(wid, "-", hash((exc.id, nameof(s))))
-    attrs[:is_watch_func] = is_watch_func
     watcher(
         watcher_type,
         wid,
@@ -175,6 +178,7 @@ _position_task!(w) = begin
             try
                 f(w)
             catch
+                @debug_backtrace LogWatchPos
             end
             safenotify(w.beacon.fetch)
         end
@@ -183,6 +187,10 @@ end
 
 _position_task(w) = @lget! attrs(w) :position_task _position_task!(w)
 
+function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
+    _tfunc!(w.attrs, _w_fetch_positions_func(w[:s], w[:interval]; is_watch_func=w[:is_watch_func], kwargs=w[:kwargs]))
+
+end
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     try
         task = _position_task(w)
