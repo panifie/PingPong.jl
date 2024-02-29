@@ -118,7 +118,7 @@ function _cancel_orders(ai, side, ids, orders_f, cancel_f)
     end
 end
 
-_syms(ais) = ((raw(ai) for ai in ais)...,)
+_syms(ais) = pylist(raw(ai) for ai in ais)
 @doc """ Filters positions based on exchange ID type and side.
 
 $(TYPEDSIGNATURES)
