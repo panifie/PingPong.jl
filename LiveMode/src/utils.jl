@@ -180,14 +180,13 @@ const AssetTasks = NamedTuple{
 const StrategyTasks = NamedTuple{
     (:lock, :queue, :tasks),Tuple{ReentrantLock,Ref{Int},TasksDict}
 }
-@doc """ Retrieves order tasks of an asset.
 
-$(TYPEDSIGNATURES)
+@doc """ Retrieves the task associated with an order. """
+function order_task(s::LiveStrategy, ai, k; tasks=nothing)
+    tup = asset_tasks(s, ai; tasks)
+    @lock tup.lock get(tup.byorder, k, nothing)
+end
 
-This function retrieves the order tasks associated with an asset `ai` in the strategy `s`.
-
-"""
-order_tasks(s::Strategy, ai) = asset_tasks(s, ai).byorder
 @doc """ Retrieves the task queue of an asset.
 
 $(TYPEDSIGNATURES)
@@ -195,16 +194,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the task queue associated with an asset `ai` in the strategy `s`.
 
 """
-asset_queue(s::Strategy, ai) = asset_tasks(s, ai).queue
-@doc """ Retrieves or initializes a semaphore for a task.
-
-$(TYPEDSIGNATURES)
-
-This function retrieves or initializes a semaphore for a task `task`. If the semaphore doesn't exist, it initializes a new one with an empty queue and a condition variable.
-
-"""
-task_sem(task) = @lget! task.storage :sem (cond=Threads.Condition(), queue=Int[])
-task_sem() = task_sem(current_task())
+asset_queue(s::LiveStrategy, ai; tasks=nothing) = @something(tasks, asset_tasks(s, ai)).queue
 @doc """ Retrieves tasks associated with all assets.
 
 $(TYPEDSIGNATURES)
@@ -212,7 +202,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with all assets in the strategy `s`. It returns a dictionary mapping asset identifiers to their respective tasks.
 
 """
-function asset_tasks(s::Strategy)
+function asset_tasks(s::LiveStrategy)
     @lock s @lget! attrs(s) :live_asset_tasks begin
         tasks = Dict{AssetInstance,AssetTasks}()
         finalizer((_) -> stop_all_asset_tasks(s), tasks)
@@ -225,11 +215,42 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with a specific asset `ai` in the strategy `s`. It returns a [`AssetTasks`](@ref) representing a collection of tasks associated with the asset.
 
 """
-function asset_tasks(s::Strategy, ai, tasks=asset_tasks(s))
-    @lock s @lget! tasks ai (;
+function asset_tasks(s::LiveStrategy, ai; tasks=nothing)
+    @lock s @lget! @something(tasks, asset_tasks(s)) ai (;
         lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
 end
+function asset_task(s::LiveStrategy, ai, k; tasks=nothing)
+    tup = @something tasks asset_tasks(s, ai; tasks)
+    @lock tup.lock begin
+        get(tup.byname, k, nothing)
+    end
+end
+
+function _set_task!(s::LiveStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol)
+    if istaskrunning(t)
+        tasks = @something tasks asset_tasks(s, ai)
+        @lock tasks.lock begin
+            inc!(tasks.queue)
+            try
+                getproperty(tasks, kind)[k] = t
+            finally
+                dec!(tasks.queue)
+            end
+        end
+    else
+        @warn "strat: refusing to set non running task" k
+    end
+end
+
+function set_asset_task!(s::LiveStrategy, ai, t::Task, k; tasks=nothing)
+    _set_task!(s, ai, t, k, tasks; kind=:byname)
+end
+
+function set_order_task!(s::LiveStrategy, ai, t::Task, k; tasks=nothing)
+    _set_task!(s, ai, t, k, tasks; kind=:byorder)
+end
+
 @doc """ Retrieves tasks associated with a strategy.
 
 $(TYPEDSIGNATURES)
@@ -237,9 +258,9 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s`. It returns a dictionary mapping account identifiers to their respective [`StrategyTasks`](@ref).
 
 """
-function strategy_tasks(s::Strategy)
+function strategy_tasks(s::LiveStrategy)
     @lock s begin
-        tasks = Dict{String,TasksDict}()
+        tasks = Dict{String,StrategyTasks}()
         @lget! attrs(s) :live_strategy_tasks finalizer(
             (_) -> stop_all_strategy_tasks(s), tasks
         )
@@ -252,9 +273,32 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s` for a specific `account`. It returns the account [`StrategyTasks`](@ref].
 
 """
-function strategy_tasks(s::Strategy, account)
+function strategy_tasks(s::LiveStrategy, account)
     tasks = strategy_tasks(s)
     @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
+end
+
+function set_strategy_task!(s::LiveStrategy, account, task::Task, k::Symbol; tasks=nothing)
+    if istaskrunning(task)
+        tuple = @something tasks strategy_tasks(s, account)
+        tuple.queue[] += 1
+        try
+            @lock tuple.lock begin
+                tuple.tasks[k] = task
+            end
+        finally
+            tuple.queue[] -= 1
+        end
+    else
+        @warn "strat: refusing to set non running task" k task
+    end
+end
+
+function strategy_task(s::LiveStrategy, account, k; tasks=nothing)
+    tup = @something tasks strategy_tasks(s, account)
+    @lock tup.lock begin
+        get(tup.tasks, k, nothing)
+    end
 end
 
 ## WRAPPERS
@@ -336,7 +380,7 @@ $(TYPEDSIGNATURES)
 This function sets default values for a live strategy `s`. These defaults include setting up task queues, setting up assets, setting default parameters, among others.
 
 """
-function st.default!(s::Strategy{Live})
+function st.default!(s::LiveStrategy)
     a = attrs(s)
     _simmode_defaults!(s, a)
     reset_logs(s)
@@ -367,7 +411,8 @@ function st.default!(s::Strategy{Live})
         live_sync_closed_orders!(s; limit)
     end
     eager = get(a, :eager, false)
-    live_sync_strategy!(s, force=eager)
+    first_start = !haskey(a, :is_running)
+    live_sync_strategy!(s, force=eager, overwrite=first_start)
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
@@ -377,7 +422,7 @@ $(TYPEDSIGNATURES)
 This function creates exchange-specific closure functions for a live strategy `s`. These closures encapsulate the context of the strategy and the specific exchange at the time of their creation.
 
 """
-function exc_live_funcs!(s::Strategy{Live})
+function exc_live_funcs!(s::LiveStrategy)
     a = attrs(s)
     exc = exchange(s)
     ccxt_orders_func!(a, exc)
