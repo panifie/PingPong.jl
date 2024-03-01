@@ -8,31 +8,72 @@ using .Lang: splitkws, withoutkws, safenotify, safewait
 
 const CcxtBalanceVal = Val{:ccxt_balance_val}
 
+@doc """ Sets up a watcher for CCXT balance.
+
+$(TYPEDSIGNATURES)
+
+This function sets up a watcher for balance in the CCXT library. The watcher keeps track of the balance and updates it as necessary.
+"""
+function ccxt_balance_watcher(
+    s::Strategy;
+    interval=Second(1),
+    wid="ccxt_balance",
+    buffer_capacity=10,
+    start=true,
+    params=LittleDict{Any,Any}(),
+    kwargs...,
+)
+    exc = st.exchange(s)
+    check_timeout(exc, interval)
+    attrs = Dict{Symbol,Any}()
+    params[@pyconst("type")] = lowercase(string(_balance_type(s)))
+    _exc!(attrs, exc)
+    attrs[:strategy] = s
+    attrs[:is_watch_func] = @lget! s.attrs :is_watch_balance has(exc, :watchBalance)
+    attrs[:func_kwargs] = (; params, kwargs...)
+    attrs[:interval] = interval
+    _tfunc!(attrs, _w_fetch_balance_func(s, attrs))
+    watcher_type = Py
+    wid = string(wid, "-", hash((exc.id, nameof(s))))
+    watcher(
+        watcher_type,
+        wid,
+        CcxtBalanceVal();
+        start,
+        load=false,
+        flush=false,
+        process=true,
+        buffer_capacity,
+        view_capacity=1,
+        fetch_interval=interval,
+        attrs,
+    )
+end
+
 @doc """ Wraps a fetch balance function with a specified interval.
 
 $(TYPEDSIGNATURES)
 
 This function wraps a fetch balance function `s` with a specified `interval`. Additional keyword arguments `kwargs` are passed to the fetch balance function.
 """
-function _w_fetch_balance_func(s, interval; kwargs)
+function _w_fetch_balance_func(s, attrs)
     exc = exchange(s)
     timeout = throttle(s)
-    params, rest = _ccxt_balance_args(s, kwargs)
-    fetch_f = first(exc, :fetchBalanceWs, :fetchBalance)
-    if has(exc, :watchBalance)
-        f = exc.watchBalance
+    interval = attrs[:interval]
+    params, rest = _ccxt_balance_args(s,  attrs[:func_kwargs])
+    if attrs[:is_watch_func]
         init = Ref(true)
         (w) -> begin
             start = now()
             try
                 if init[]
                     @lock w begin
-                        v = watch_balance_func(exc; timeout, params, reset...)
+                        v = fetch_balance_func(exc; timeout, params, reset...)
                         _dopush!(w, v; if_func=isdict)
                     end
                     init[] = false
                 else
-                    v = fetch_balance_func(exc; params, rest...)
+                    v = watch_balance_func(exc; params, rest...)
                     @lock w _dopush!(w, v; if_func=isdict)
                 end
             catch
@@ -54,45 +95,6 @@ function _w_fetch_balance_func(s, interval; kwargs)
             sleep_pad(start, interval)
         end
     end
-end
-
-@doc """ Sets up a watcher for CCXT balance.
-
-$(TYPEDSIGNATURES)
-
-This function sets up a watcher for balance in the CCXT library. The watcher keeps track of the balance and updates it as necessary.
-"""
-function ccxt_balance_watcher(
-    s::Strategy;
-    interval=Second(1),
-    wid="ccxt_balance",
-    buffer_capacity=10,
-    start=true,
-    params=LittleDict{Any,Any}(),
-    kwargs...,
-)
-    exc = st.exchange(s)
-    check_timeout(exc, interval)
-    attrs = Dict{Symbol,Any}()
-    params[@pyconst("type")] = lowercase(string(_balance_type(s)))
-    func_kwargs = (; params, kwargs...)
-    _tfunc!(attrs, _w_fetch_balance_func(s, interval; kwargs=func_kwargs))
-    _exc!(attrs, exc)
-    watcher_type = Py
-    wid = string(wid, "-", hash((exc.id, nameof(s))))
-    watcher(
-        watcher_type,
-        wid,
-        CcxtBalanceVal();
-        start,
-        load=false,
-        flush=false,
-        process=true,
-        buffer_capacity,
-        view_capacity=1,
-        fetch_interval=interval,
-        attrs,
-    )
 end
 
 _balance_task!(w) = begin
@@ -222,6 +224,12 @@ balance_watcher(s) = s[:live_balance_watcher]
 
 # function _process!(w::Watcher, ::CcxtBalanceVal) end
 
-# function _start!(w::Watcher, ::CcxtBalanceVal) end
+function _start!(w::Watcher, ::CcxtBalanceVal)
+    attrs = w.attrs
+    s = attrs[:strategy]
+    exc = exchange(s)
+    _exc!(attrs, exc)
+    _tfunc!(attrs, _w_fetch_balance_func(s, attrs))
+end
 
 # function _stop!(w::Watcher, ::CcxtBalanceVal) end
