@@ -167,4 +167,38 @@ function waitforcond(cond, time)
     return slept[]
 end
 
-export waitforcond, start_task, stop_task, istaskrunning, @istaskrunning
+@doc """ Retrieves or initializes a semaphore for a task.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves or initializes a semaphore for a task `task`. If the semaphore doesn't exist, it initializes a new one with an empty queue and a condition variable.
+
+"""
+task_sem(task) = @lget! task.storage :sem (cond=Threads.Condition(), queue=Int[])
+task_sem() = task_sem(current_task())
+
+# wait_update(task::Task) = safewait(task.storage[:notify])
+# update!(t::Task, k, v) =
+#     let sto = t.storage
+#         sto[:state][k] = v
+#         safenotify(sto[:notify])
+#         v
+#     end
+
+@doc """ Starts a task with a given state and code block.
+
+$(TYPEDSIGNATURES)
+
+This macro initializes and starts a task with a given `state` and `code` block. It creates a task with the provided `code`, initializes it with the `state`, and schedules the task for running.
+
+"""
+macro start_task(state, code)
+    expr = quote
+        let t = @task $code
+            start_task(t, $state)
+        end
+    end
+    esc(expr)
+end
+
+export waitforcond, start_task, stop_task, istaskrunning, @istaskrunning, @start_task

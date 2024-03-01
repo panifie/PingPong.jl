@@ -4,7 +4,7 @@ using .SimMode: _simmode_defaults!
 using .Lang: @lget!, Option, @get
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
-using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, pycoro_running, waitforcond
+using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, pycoro_running, waitforcond, @start_task, task_sem
 using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
 import .Instances: timestamp
@@ -156,30 +156,6 @@ function stop_all_tasks(s::LiveStrategy; reset=true)
         @async stop_all_strategy_tasks(s; reset)
     end
     @debug "strategy: stopped all tasks" _module = LogTasks s = nameof(s)
-end
-
-# wait_update(task::Task) = safewait(task.storage[:notify])
-# update!(t::Task, k, v) =
-#     let sto = t.storage
-#         sto[:state][k] = v
-#         safenotify(sto[:notify])
-#         v
-#     end
-
-@doc """ Starts a task with a given state and code block.
-
-$(TYPEDSIGNATURES)
-
-This macro initializes and starts a task with a given `state` and `code` block. It creates a task with the provided `code`, initializes it with the `state`, and schedules the task for running.
-
-"""
-macro start_task(state, code)
-    expr = quote
-        let t = @task $code
-            start_task(t, $state)
-        end
-    end
-    esc(expr)
 end
 
 # const AssetOrder = Tuple{Order,AssetInstance}
