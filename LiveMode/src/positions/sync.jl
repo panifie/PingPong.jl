@@ -59,7 +59,7 @@ function _live_sync_position!(
         @warn "sync pos: hedged mode mismatch" loc = ishedged(pos)
         @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "failed to set hedged mode on exchange"
     end
-    skipchecks || begin
+    if !skipchecks
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
             let oppos = opposite(pside),
                 live_pup = let lp(force) = live_position(s, ai, oppos; since=update.date, force)
@@ -133,8 +133,9 @@ function _live_sync_position!(
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
         @debug "sync pos: amount" _module = LogPosSync rv posside(pos)
-        isapprox(ai, cash(pos), rv, Val(:amount)) ||
+        if !isapprox(ai, cash(pos), rv, Val(:amount))
             @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
+        end
         cash!(pos, rv)
     end
     # If the respd amount is "dust" the position should be considered closed, and to be reset
@@ -158,8 +159,9 @@ function _live_sync_position!(
     # price is always positive
     ep = pytofloat(ep_in)
     ep = if ep > zero(DFT)
-        isapprox(entryprice(pos), ep; rtol=1e-3) ||
+        if !isapprox(entryprice(pos), ep; rtol=1e-3)
             @warn_unsynced "entryprice" entryprice(pos) ep
+        end
         entryprice!(pos, ep)
         ep
     else
@@ -169,13 +171,16 @@ function _live_sync_position!(
     end
     commits && let comm = committed(s, ai, pside)
         @debug "sync pos: local committment" _module = LogPosSync comm ai = raw(ai) side = pside
-        isapprox(committed(pos).value, comm) || commit!(pos, comm)
+        if !isapprox(committed(pos).value, comm)
+            commit!(pos, comm)
+        end
     end
 
     lev = resp_position_leverage(resp, eid)
     if lev > zero(DFT)
-        isapprox(leverage(pos), lev; atol=1e-2) ||
+        if !isapprox(leverage(pos), lev; atol=1e-2)
             @warn_unsynced "leverage" leverage(pos) lev
+        end
         leverage!(pos, lev)
     else
         dowarn("leverage", lev)
@@ -184,8 +189,9 @@ function _live_sync_position!(
     ntl = let v = resp_position_notional(resp, eid)
         if v > zero(DFT)
             ntl = notional(pos)
-            isapprox(ntl, v; rtol=0.05) ||
+            if !isapprox(ntl, v; rtol=0.05)
                 @warn_unsynced "notional" ntl v "error too high"
+            end
             notional!(pos, v)
             v
         else
@@ -211,8 +217,9 @@ function _live_sync_position!(
     # NOTE: Also don't warn about liquidation price because same as notional
     liqprice_set =
         lqp > zero(DFT) && begin
-            isapprox(liqprice(pos), lqp; rtol=0.05) ||
+            if !isapprox(liqprice(pos), lqp; rtol=0.05)
                 @warn_unsynced "liqprice" liqprice(pos) lqp "error too high"
+            end
             liqprice!(pos, lqp)
             true
         end
@@ -222,19 +229,22 @@ function _live_sync_position!(
     adt = max(zero(DFT), coll - (mrg + 2(mrg * maxfees(ai))))
     mrg_set =
         mrg > zero(DFT) && begin
-            isapprox(mrg, margin(pos); rtol=1e-2) ||
+            if !isapprox(mrg, margin(pos); rtol=1e-2)
                 @warn_unsynced "initial margin" margin(pos) mrg
+            end
             initial!(pos, mrg)
-            isapprox(adt, additional(pos); rtol=1e-2) ||
+            if !isapprox(adt, additional(pos); rtol=1e-2)
                 @warn_unsynced "additional margin" additional(pos) adt
+            end
             additional!(pos, adt)
             true
         end
     mm = resp_position_maintenance_margin(resp, eid)
     mm_set =
         mm > zero(DFT) && begin
-            isapprox(mm, maintenance(pos); rtol=0.05) ||
+            if !isapprox(mm, maintenance(pos); rtol=0.05)
                 @warn_unsynced "maintenance margin" maintenance(pos) mm
+            end
             maintenance!(pos, mm)
             true
         end
@@ -245,7 +255,7 @@ function _live_sync_position!(
         additional!(pos, max(zero(DFT), coll - margin(pos)))
     end
 
-    liqprice_set || begin
+    if !liqprice_set
         liqprice!(
             pos,
             liqprice(
@@ -253,8 +263,12 @@ function _live_sync_position!(
             ),
         )
     end
-    mrg_set || _margin!()
-    mm_set || update_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
+    if !mrg_set
+        _margin!()
+    end
+    if !mm_set
+        update_maintenance!(pos; mmr=_ccxtmmr(resp, pos, eid))
+    end
     function higherwarn(whata, whatb, a, b)
         "sync pos: ($(raw(ai))) $whata ($(a)) can't be higher than $whatb ($(b))"
     end
@@ -375,12 +389,14 @@ The function uses a helper function `dosync` to perform the synchronization for 
 The synchronization process is performed concurrently for efficiency.
 
 """
-function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=true, force=false, kwargs...)
+function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, force=false, kwargs...)
     if force # wait for position watcher
         let w = positions_watcher(s)
             while isempty(w.buffer)
                 @debug "sync uni cash: waiting for position data" _module = LogUniSync
-                wait(w) || break
+                if !wait(w)
+                    break
+                end
             end
         end
     end

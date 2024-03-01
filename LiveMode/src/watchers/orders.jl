@@ -24,10 +24,14 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @debug "watch orders: locking" ai = raw(ai) islocked(s) _module = LogWatchOrder
     @lock tasks.lock begin
-        isrunning(s) || return
+        if !isrunning(s)
+            @warn "orders: refusing to watch. Strategy not running" ai
+        end
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)
-            istaskrunning(task) && return task
+            if istaskrunning(task)
+                return task
+            end
         end
         exc = exchange(ai)
         orders_byid = active_orders(s, ai)
@@ -145,7 +149,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the orders task for a given asset instance `ai` from the live strategy `s`. The orders task is responsible for watching and updating orders for the asset instance.
 
 """
-asset_orders_task(s, ai) = @lget! asset_tasks(s, ai).byname :orders_task watch_orders!(s, ai)
+asset_orders_task(s, ai) = @something asset_task(s, ai, :orders_task) watch_orders!(s, ai)
 asset_orders_stop_task(tasks) = get(tasks, :orders_stop_task, nothing)
 @doc """ Retrieves the orders stop task for a given asset instance.
 
@@ -531,8 +535,10 @@ function wait_for_task(s, ai; waitfor)
     slept = 0
     timeout = Millisecond(waitfor).value
     while slept < timeout
-        aot = @something asset_orders_task(s, ai) watch_orders!(s, ai) missing
-        ismissing(aot) || break
+        aot = @something asset_orders_task(s, ai) missing
+        if !ismissing(aot)
+            break
+        end
         sleep(Millisecond(100))
         slept += 100
     end
