@@ -6,13 +6,11 @@ This function synchronizes the cash balance of a live strategy with the actual c
 It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
 
 """
-function live_sync_strategy_cash!(s::LiveStrategy; kwargs...)
+function live_sync_strategy_cash!(s::LiveStrategy, kind=:free; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
     bal = live_balance(s)
-    tot_cash = bal.balance.total
+    tot_cash = getproperty(bal.balance, kind)
     bc = nameof(s.cash)
-    function dowarn(msg)
-    end
 
     c = if isnothing(tot_cash)
         @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(
@@ -46,11 +44,14 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
         @debug "Locking ai" _module = LogBalance ai = raw(ai)
         @async @lock ai begin
             bal_ai = get_balance(s, ai; bal, loop_kwargs...)
-            if isnothing(bal_ai)
-            else
-                this_bal = bal_ai.balance
-                cash!(ai, this_bal.total)
-                cash!(committed(ai), this_bal.used)
+            if !isnothing(bal_ai)
+                if bal_ai.date[] != DateTime(0) || !isfinite(cash(ai))
+                    this_bal = bal_ai.balance
+                    cash!(ai, this_bal.free)
+                    # FIXME: used cash can't be assummed to only account for open orders.
+                    # It might consider (cross) margin as well (same problem as positions)
+                    # cash!(committed(ai), this_bal.used)
+                end
             end
         end
     end
