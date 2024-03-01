@@ -22,6 +22,48 @@ const PositionTuple = NamedTuple{
 }
 const PositionsDict2 = Dict{String,PositionTuple}
 
+
+@doc """ Sets up a watcher for CCXT positions.
+
+$(TYPEDSIGNATURES)
+
+This function sets up a watcher for positions in the CCXT library. The watcher keeps track of the positions and updates them as necessary.
+"""
+function ccxt_positions_watcher(
+    s::Strategy;
+    interval=Second(5),
+    wid="ccxt_positions",
+    buffer_capacity=10,
+    start=true,
+    kwargs...,
+)
+    exc = st.exchange(s)
+    check_timeout(exc, interval)
+    is_watch_func = @lget! s.attrs :is_watch_positions has(exc, :watchPositions)
+    attrs = Dict{Symbol,Any}()
+    attrs[:strategy] = s
+    attrs[:kwargs] = kwargs
+    attrs[:interval] = interval
+    attrs[:is_watch_func] = is_watch_func
+    _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
+    _exc!(attrs, exc)
+    watcher_type = Py
+    wid = string(wid, "-", hash((exc.id, nameof(s))))
+    watcher(
+        watcher_type,
+        wid,
+        CcxtPositionsVal();
+        start,
+        load=false,
+        flush=false,
+        process=true,
+        buffer_capacity,
+        view_capacity=1,
+        fetch_interval=interval,
+        attrs,
+    )
+end
+
 @doc """ Guesses the settlement for a given margin strategy.
 
 $(TYPEDSIGNATURES)
@@ -97,45 +139,16 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     end
 end
 
-@doc """ Sets up a watcher for CCXT positions.
-
-$(TYPEDSIGNATURES)
-
-This function sets up a watcher for positions in the CCXT library. The watcher keeps track of the positions and updates them as necessary.
-"""
-function ccxt_positions_watcher(
-    s::Strategy;
-    interval=Second(5),
-    wid="ccxt_positions",
-    buffer_capacity=10,
-    start=true,
-    kwargs...,
-)
-    exc = st.exchange(s)
-    check_timeout(exc, interval)
-    is_watch_func = @lget! s.attrs :live_watch_positions has(exc, :watchPositions)
-    attrs = Dict{Symbol,Any}()
-    attrs[:s] = s
-    attrs[:kwargs] = kwargs
-    attrs[:interval] = interval
-    attrs[:is_watch_func] = is_watch_func
-    _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
-    _exc!(attrs, exc)
-    watcher_type = Py
-    wid = string(wid, "-", hash((exc.id, nameof(s))))
-    watcher(
-        watcher_type,
-        wid,
-        CcxtPositionsVal();
-        start,
-        load=false,
-        flush=false,
-        process=true,
-        buffer_capacity,
-        view_capacity=1,
-        fetch_interval=interval,
-        attrs,
-    )
+function sync_positions_task!(s, w; force=false)
+    if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_positions))
+        t = @async begin
+            while isstarted(w)
+                safewait(w.beacon.process)
+                live_sync_universe_cash!(s)
+            end
+        end
+        set_strategy_task!(s, "main", t, :sync_positions)
+    end
 end
 
 @doc """ Starts the watcher for positions in a live strategy.
@@ -170,7 +183,7 @@ function stop_watch_positions!(s::LiveStrategy)
     end
 end
 
-_position_task!(w) = begin
+_positions_task!(w) = begin
     f = _tfunc(w)
     @async begin
         while isstarted(w)
@@ -184,18 +197,28 @@ _position_task!(w) = begin
     end
 end
 
-_position_task(w) = @lget! attrs(w) :position_task _position_task!(w)
+_positions_task(w) = @lget! attrs(w) :positions_task _positions_task!(w)
 
 function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
-    _tfunc!(w.attrs, _w_fetch_positions_func(w[:s], w[:interval]; is_watch_func=w[:is_watch_func], kwargs=w[:kwargs]))
+    attrs = w.attrs
+    s = attrs[:strategy]
+    _exc!(attrs, exchange(s))
+    _tfunc!(attrs,
+        _w_fetch_positions_func(s, attrs[:interval]; is_watch_func=attrs[:is_watch_func], kwargs=w[:kwargs])
+    )
 
 end
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     try
-        task = _position_task(w)
-        if !istaskstarted(task) || istaskdone(task)
-            new_task = _position_task!(w)
-            setattr!(w, new_task, :position_task)
+        fetch_task = _positions_task(w)
+        if !istaskrunning(fetch_task)
+            new_task = _positions_task!(w)
+            setattr!(w, new_task, :positions_task)
+        end
+        s = w[:strategy]
+        sync_task = strategy_task(s, attr(s, :account, "main"), :sync_positions)
+        if !istaskrunning(sync_task)
+            sync_positions_task!(s, w)
         end
         true
     catch

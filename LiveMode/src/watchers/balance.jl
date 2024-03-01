@@ -111,13 +111,13 @@ end
 _balance_task(w) = @lget! attrs(w) :balance_task _balance_task!(w)
 
 function Watchers._fetch!(w::Watcher, ::CcxtBalanceVal)
-    btask = _balance_task(w)
-    if !istaskrunning(btask)
+    fetch_task = _balance_task(w)
+    if !istaskrunning(fetch_task)
         _balance_task!(w)
     end
     s = w[:strategy]
-    ptask = strategy_task(s, attr(s, :account, "main"), :sync_cash)
-    if !istaskrunning(ptask)
+    sync_task = strategy_task(s, attr(s, :account, "main"), :sync_cash)
+    if !istaskrunning(sync_task)
         sync_balance_task!(s, w)
     end
     return true
@@ -178,6 +178,9 @@ function sync_balance_task!(s, w; force=false)
             while isstarted(w)
                 safewait(w.beacon.process)
                 live_sync_strategy_cash!(s, kind)
+                if s isa NoMarginStrategy
+                    live_sync_universe_cash!(s)
+                end
             end
         end
         set_strategy_task!(s, "main", t, :sync_cash)
