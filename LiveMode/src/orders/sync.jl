@@ -48,7 +48,7 @@ This function also handles checking and updating of cash commitments for the str
 
 """
 function live_sync_open_orders!(
-    s::LiveStrategy, ai; overwrite=true, exec=false, create_kwargs=(;), side=Both
+    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=Both
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
@@ -75,7 +75,9 @@ function live_sync_open_orders!(
     @debug "sync orders: syncing" _module = LogSyncOrder ai = raw(ai) islocked(ai) length(open_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
-        overwrite && maxout!(s, ai)
+        if overwrite
+            maxout!(s, ai)
+        end
         for resp in open_orders
             if resp_event_type(resp, eid) != ot.Order
                 continue

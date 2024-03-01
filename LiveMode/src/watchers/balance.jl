@@ -109,9 +109,14 @@ end
 _balance_task(w) = @lget! attrs(w) :balance_task _balance_task!(w)
 
 function Watchers._fetch!(w::Watcher, ::CcxtBalanceVal)
-    task = _balance_task(w)
-    if !istaskstarted(task) || istaskdone(task)
+    btask = _balance_task(w)
+    if !istaskrunning(btask)
         _balance_task!(w)
+    end
+    s = w[:strategy]
+    ptask = strategy_task(s, attr(s, :account, "main"), :sync_cash)
+    if !istaskrunning(ptask)
+        sync_balance_task!(s, w)
     end
     return true
 end
@@ -162,6 +167,19 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     w.view.date[] = date
     @debug "balance watcher update:" _module = LogWatchBalance date get(bal, :BTC, nothing) _module = :Watchers
     safenotify(w.beacon.process)
+end
+
+function sync_balance_task!(s, w; force=false)
+    if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_cash))
+        t = @async begin
+            kind = attr(s, :balance_kind, :free)
+            while isstarted(w)
+                safewait(w.beacon.process)
+                live_sync_strategy_cash!(s, kind)
+            end
+        end
+        set_strategy_task!(s, "main", t, :sync_cash)
+    end
 end
 
 @doc """ Starts a watcher for balance in a live strategy.

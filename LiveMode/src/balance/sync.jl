@@ -9,16 +9,16 @@ It checks the total and used cash balances, and updates the strategy's cash and 
 function live_sync_strategy_cash!(s::LiveStrategy, kind=:free; kwargs...)
     _, this_kwargs = splitkws(:status; kwargs)
     bal = live_balance(s)
-    tot_cash = getproperty(bal.balance, kind)
+    avl_cash = getproperty(bal.balance, kind)
     bc = nameof(s.cash)
 
-    c = if isnothing(tot_cash)
+    c = if isnothing(avl_cash)
         @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(
             exchange(s)
         )
         ZERO
     else
-        tot_cash
+        avl_cash
     end
     if !isapprox(s.cash.value, c; rtol=1e-4)
         @warn "strategy cash: total unsynced" loc = cash(s).value rem = c
