@@ -60,7 +60,7 @@ function _w_fetch_balance_func(s, attrs)
     exc = exchange(s)
     timeout = throttle(s)
     interval = attrs[:interval]
-    params, rest = _ccxt_balance_args(s,  attrs[:func_kwargs])
+    params, rest = _ccxt_balance_args(s, attrs[:func_kwargs])
     if attrs[:is_watch_func]
         init = Ref(true)
         (w) -> begin
@@ -173,15 +173,23 @@ end
 
 function sync_balance_task!(s, w; force=false)
     if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_cash))
-        t = @async begin
+        t = @start_task IdDict() begin
             kind = attr(s, :balance_kind, :free)
             while isstarted(w)
                 safewait(w.beacon.process)
+                if istaskrunning()
+                    break
+                end
                 live_sync_strategy_cash!(s, kind)
                 if s isa NoMarginStrategy
                     live_sync_universe_cash!(s)
                 end
             end
+        end
+        t.storage[:stop_callbacks] = [() -> safenotify(w.beacon.process)]
+        # wait a little for task to start
+        while !(istaskstarted(t)) && !istaskdone(t)
+            sleep(0.001)
         end
         set_strategy_task!(s, "main", t, :sync_cash)
     end
@@ -196,7 +204,7 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
     @lock s @lget! attrs(s) :live_balance_watcher let w = ccxt_balance_watcher(s; interval, start=true)
-        if isstopped(w)
+        if isstopped(w) && !attr(s, :stopping, false)
             start!(w)
         end
         w
@@ -235,4 +243,3 @@ function _start!(w::Watcher, ::CcxtBalanceVal)
     _tfunc!(attrs, _w_fetch_balance_func(s, attrs))
 end
 
-# function _stop!(w::Watcher, ::CcxtBalanceVal) end

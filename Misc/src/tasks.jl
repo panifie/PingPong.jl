@@ -24,8 +24,12 @@ stop_task(t::Task) = begin
     if istaskrunning(t)
         try
             if !isnothing(sto)
-                let cond = get(t.storage, :notify, nothing)
+                let cond = get(sto, :notify, nothing)
                     isnothing(cond) || safenotify(cond)
+                end
+                stop_callbacks = get(sto, :stop_callbacks, Function[])
+                for cb in stop_callbacks
+                    cb()
                 end
             end
             istaskdone(t)

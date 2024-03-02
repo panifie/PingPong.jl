@@ -141,11 +141,19 @@ end
 
 function sync_positions_task!(s, w; force=false)
     if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_positions))
-        t = @async begin
+        t = @start_task IdDict() begin
             while isstarted(w)
                 safewait(w.beacon.process)
+                if !@istaskrunning()
+                    break
+                end
                 live_sync_universe_cash!(s)
             end
+        end
+        t.storage[:stop_callbacks] = [() -> safenotify(w.beacon.process)]
+        # wait a little for task to start
+        while !(istaskstarted(t)) && !istaskdone(t)
+            sleep(0.001)
         end
         set_strategy_task!(s, "main", t, :sync_positions)
     end
@@ -162,7 +170,7 @@ function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
         w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
             s; interval, start=true
         )
-        if isstopped(w)
+        if isstopped(w) && !attr(s, :stopping, false)
             start!(w)
         end
         w
@@ -217,7 +225,7 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
         end
         s = w[:strategy]
         sync_task = strategy_task(s, attr(s, :account, "main"), :sync_positions)
-        if !istaskrunning(sync_task)
+        if !istaskrunning(sync_task) && isstarted(w)
             sync_positions_task!(s, w)
         end
         true
@@ -303,7 +311,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
         _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym, eid)
         _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym, eid)
     end
-    @debug "watchers process: notify" _module = LogWatchPos
+    @debug "watchers process: notify" _module = LogWatchPos skip_notify
     skip_notify || safenotify(w.beacon.process)
 end
 
@@ -359,7 +367,3 @@ positions_watcher(s) = s[:live_positions_watcher]
 # function _load!(w::Watcher, ::ThisVal) end
 
 # function _process!(w::Watcher, ::ThisVal) end
-
-# function _start!(w::Watcher, ::ThisVal) end
-
-# function _stop!(w::Watcher, ::ThisVal) end

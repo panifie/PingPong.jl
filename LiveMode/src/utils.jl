@@ -94,6 +94,7 @@ function stop_all_asset_tasks(s::LiveStrategy; reset=false, kwargs...)
             stop_asset_tasks(s, ai; kwargs...)
         end
     end
+    @debug "strat: all asset tasks stopped" s = nameof(s)
 end
 
 @doc """ Stops all tasks associated with a strategy.
@@ -105,17 +106,17 @@ This function stops all tasks associated with a strategy `s` for a specific `acc
 """
 function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
     tasks = strategy_tasks(s, account)
-    for task in values(tasks)
+    for task in values(tasks.tasks)
         stop_task(task)
     end
     if reset
-        for (name, task) in tasks
+        for (name, task) in tasks.tasks
             if istaskrunning(task)
                 @debug "waiting for strategy task" _module = LogTasks account name
                 wait(task)
             end
         end
-        empty!(tasks)
+        empty!(tasks.tasks)
     end
 end
 
@@ -137,6 +138,7 @@ function stop_all_strategy_tasks(s::LiveStrategy; reset=false, kwargs...)
             stop_strategy_tasks(s, acc; kwargs...)
         end
     end
+    @debug "strat: all strategy tasks stopped" s = nameof(s)
     empty!(accounts)
 end
 
@@ -290,7 +292,7 @@ function set_strategy_task!(s::LiveStrategy, account, task::Task, k::Symbol; tas
             tuple.queue[] -= 1
         end
     else
-        @warn "strat: refusing to set non running task" k task
+        @warn "strat: refusing to set non running task" k task istaskrunning(task) task.result
     end
 end
 
@@ -601,11 +603,13 @@ This function stops a live strategy `s`.
 """
 function stop!(s::LiveStrategy; kwargs...)
     try
+        s[:stopping] = true
         stop_all_tasks(s)
     catch
         @debug_backtrace LogTasks
     finally
         invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
+        s[:stopping] = false
     end
 end
 
