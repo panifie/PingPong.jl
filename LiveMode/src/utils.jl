@@ -421,7 +421,7 @@ function st.default!(s::LiveStrategy)
 
     asset_tasks(s)
     strategy_tasks(s)
-    exc_live_funcs!(s)
+    set_exc_funcs!(s)
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
@@ -438,7 +438,7 @@ $(TYPEDSIGNATURES)
 This function creates exchange-specific closure functions for a live strategy `s`. These closures encapsulate the context of the strategy and the specific exchange at the time of their creation.
 
 """
-function exc_live_funcs!(s::LiveStrategy)
+function set_exc_funcs!(s::LiveStrategy)
     a = attrs(s)
     exc = exchange(s)
     ccxt_orders_func!(a, exc)
@@ -454,8 +454,8 @@ function exc_live_funcs!(s::LiveStrategy)
     ccxt_fetch_l2ob_func!(a, exc)
 end
 
-if exc_live_funcs! ∉ st.STRATEGY_LOAD_CALLBACKS.live
-    push!(st.STRATEGY_LOAD_CALLBACKS.live, exc_live_funcs!)
+if set_exc_funcs! ∉ st.STRATEGY_LOAD_CALLBACKS.live
+    push!(st.STRATEGY_LOAD_CALLBACKS.live, set_exc_funcs!)
 end
 
 # GETTERS

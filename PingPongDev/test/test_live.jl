@@ -81,7 +81,7 @@ end
 
 function live_strat(name; kwargs...)
     s = backtest_strat(name; config_attrs=(; skip_watcher=true), mode=Live(), kwargs...)
-    lm.exc_live_funcs!(s)
+    lm.set_exc_funcs!(s)
     s
 end
 
@@ -230,20 +230,20 @@ function test_live_cancel_all_orders(s)
     disabled[] = (:cancelAllOrdersWs, :cancelAllOrders)
     @live_setup!
     Mocking.apply([patch1, patch2]) do
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
         lm.cancel_all_orders(s, ai)
         @test length(resps[1]) == 2
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
         @test string(resps[1][2][1]) == raw(ai) #
         empty!(resps)
         disabled[] = ()
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
         lm.cancel_all_orders(s, ai)
         @test length(resps[1][1]) == 1
         @test string(resps[1][1][1]) == raw(ai)
         @test isempty(resps[1][2])
     end
-    lm.exc_live_funcs!(s)
+    lm.set_exc_funcs!(s)
 end
 
 function test_live_position(s)
@@ -422,11 +422,11 @@ function test_live_my_trades(s)
             @test pyisinstance(trades, pybuiltins.list)
             @test length(trades) == 2
             disabled[] = (:fetchMyTrades)
-            lm.exc_live_funcs!(s)
+            lm.set_exc_funcs!(s)
             @test_throws MethodError lm.live_my_trades(s, ai; since)
         end
     finally
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
     end
 end
 
@@ -436,7 +436,7 @@ _pyjson(filename) =
     end
 
 function test_live_order_trades(s)
-    lm.exc_live_funcs!(s)
+    lm.set_exc_funcs!(s)
     patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if occursin("trades", string(f.__name__))
             _pyjson("mytrades.json")
@@ -463,7 +463,7 @@ function test_live_order_trades(s)
 end
 
 function test_live_openclosed_orders(s)
-    lm.exc_live_funcs!(s)
+    lm.set_exc_funcs!(s)
     patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
         if occursin("order", string(f.__name__))
             _pyjson("fetch_orders.json")
@@ -486,20 +486,20 @@ function test_live_openclosed_orders(s)
         @test length(orders) == 15 # no check is done when query is direct from exchange
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
         disabled[] = (:fetchOpenOrders,)
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
         orders = lm.fetch_open_orders(s, ai)
         @test length(orders) == 1
         @test all(pyeq(Bool, o["status"], @pyconst("open")) for o in orders)
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
 
         disabled[] = ()
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
         @test has(exchange(ai), :fetchClosedOrders)
         orders = lm.fetch_closed_orders(s, ai)
         @test length(orders) == 30 # no check is done when query is direct from exchange
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
         disabled[] = (:fetchClosedOrders,)
-        lm.exc_live_funcs!(s)
+        lm.set_exc_funcs!(s)
         orders = lm.fetch_closed_orders(s, ai)
         @test length(orders) == 14
         @test all(pyne(Bool, o["status"], @pyconst("open")) for o in orders)
