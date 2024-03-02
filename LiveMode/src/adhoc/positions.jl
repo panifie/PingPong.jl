@@ -6,7 +6,9 @@ function positions_func(exc::Exchange{ExchangeID{:deribit}}, ais; timeout, kwarg
     resp = pyfetch_timeout(first(exc, :fetchPositionsWs, :fetchPositions), Returns(nothing), timeout, ; kwargs...)
     syms = Set(raw(ai) for ai in ais)
     if islist(resp)
-        _pyfilter!(resp, (p) -> string(p.get("symbol")) ∈ syms)
+        filterfrom!(resp) do p
+            string(p.get("symbol")) ∈ syms
+        end
     end
     return resp
 end

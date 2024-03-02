@@ -329,11 +329,25 @@ macro retry(expr, count=3, check=isa, value=Exception)
     esc(ex)
 end
 
+@doc "Filter out items from a list starting from give `idx`."
+filterfrom!(pred::Function, out; idx=0) = begin
+    n = idx
+    while n < length(out)
+        o = out[n]
+        if pred(o)
+            delete!(out, n)
+        else
+            n += 1
+        end
+    end
+    out
+end
+
 @doc """ Retrieves orders of an asset (open and closed). """
 fetch_orders(s, args...; kwargs...) = @retry s[:live_orders_func](args...; kwargs...)
 @doc """ Retrieves open orders of an asset. """
-function fetch_open_orders(s, args...; kwargs...)
-    @retry s[:live_open_orders_func](args...; kwargs...)
+function fetch_open_orders(s, ai=nothing, args...; kwargs...)
+    @retry s[:live_open_orders_func](ai, args...; kwargs...)
 end
 @doc """ Retrieves closed orders of an asset. """
 function fetch_closed_orders(s, args...; kwargs...)

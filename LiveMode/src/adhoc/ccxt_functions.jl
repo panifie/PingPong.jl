@@ -43,7 +43,7 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
                 if isnothing(ans)
                     return pylist()
                 else
-                    _pyfilter!(ans, _phemex_ispending)
+                    filterfrom!(_phemex_ispending, ans)
                 end
             end
         else
@@ -54,7 +54,10 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
                     (@async _fetch_orders(ai, open_orders_func; eid, kwargs...)),
                     (@async _fetch_orders(ai, orders_func; eid, kwargs...))
                 end
-                cancelled_ords = _pyfilter!(@something(fetch(ot), pylist()), _phemex_ispending)
+                cancelled_ords = filterfrom!(
+                    _phemex_ispending,
+                    @something(fetch(ot), pylist())
+                )
                 closed_ords = @something fetch(ct) pylist()
                 closed_ords.extend(cancelled_ords)
                 closed_ords
