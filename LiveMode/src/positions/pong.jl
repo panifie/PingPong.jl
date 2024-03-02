@@ -226,7 +226,6 @@ function pong!(
                         else
                             (; pup.date, pup.closed, pup.read)
                         end,
-                        open_orders=fetch_open_orders(s, ai),
                         live_pos=(;
                             timestamp=resp_position_timestamp(this_pup.resp, eid),
                             amount=resp_position_contracts(this_pup.resp, eid),

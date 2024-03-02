@@ -317,7 +317,7 @@ function re_activate_order!(s, ai, id; eid, resp)
         @error "reactivate ord: could not re-create order, cancelling from exchange" id exc = nameof(
             exchange(ai)
         )
-        live_cancel(s, ai; ids=(id,), confirm=false, all=false)
+        live_cancel(s, ai; ids=(id,), confirm=false)
         if o isa Order && hasorders(s, ai, o.id)
             cancel!(
                 s,

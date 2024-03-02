@@ -2,20 +2,21 @@
 
 $(TYPEDSIGNATURES)
 
-The function cancels either all live orders or specified ones based on the side (buy/sell). 
-It can optionally confirm if the cancellation was successful. 
+The function cancels either all live orders or specified ones based on the side (buy/sell).
+It can optionally confirm if the cancellation was successful.
 If the confirmation fails or if any error occurs during the process, a warning is issued and the function returns false.
 
 """
-function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=nothing)
+function live_cancel(s, ai; ids=(), side=Both, confirm=false, since=nothing)
     eid = exchangeid(ai)
+    all = isempty(ids)
     (func, kwargs) = if side === Both && all
         (cancel_all_orders, (;))
     else
         (
             cancel_orders,
             (;
-                ids=if isempty(ids)
+                ids=if all
                     (resp_order_id(resp, eid) for resp in fetch_open_orders(s, ai; side))
                 else
                     ids
@@ -52,7 +53,9 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, all=false, since=n
     end
     if done && confirm
         open_orders = fetch_open_orders(
-            s, ai; since=isnothing(since) ? nothing : TimeTicks.dtstamp(since)
+            s, ai; since=if !isnothing(since)
+                dtstamp(since)
+            end
         )
         if side === Both
             isempty(open_orders) || begin
