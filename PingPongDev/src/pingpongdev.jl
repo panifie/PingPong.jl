@@ -2,6 +2,7 @@ using Reexport
 @reexport using PingPong
 using PingPong.Engine: Strategies as st, Engine as egn
 using PingPong: @environment!
+using PingPong.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 using Random
 using Stubs
 
@@ -51,6 +52,7 @@ end
 function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
     @eval Main begin
         GC.enable(false)
+        gc_disable()
         try
             global $bind, ai
             if isdefined(Main, $(QuoteNode(bind))) && $bind isa st.Strategy{<:Union{Paper,Live}}
@@ -72,6 +74,7 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
             end
             $bind
         finally
+            gc_enable()
             GC.enable(true)
             GC.gc()
         end
