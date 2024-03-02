@@ -536,6 +536,10 @@ function hasorders(s::Strategy, ai::AssetInstance)
     (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
 end
 
+function hasorders(s::Strategy, ai::AssetInstance, ::Type{Both})
+    hasorders(s, ai)
+end
+
 @doc """
 Checks if an asset instance has a specific order in a strategy.
 
@@ -633,7 +637,7 @@ function _check_trade(t::BuyTrade, ai)
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
     @deassert gtxzero(ai, committed(t.order), Val(:price)) ||
-              ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
+        ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
 end
 
 @doc """
@@ -683,7 +687,7 @@ $(TYPEDSIGNATURES)
 """
 function _check_cash(ai::AssetInstance, ::Long)
     @deassert gtxzero(ai, committed(ai, Long()), Val(:amount)) ||
-              ordertype(last(ai.history)) <: MarketOrderType committed(ai, Long()).value
+        ordertype(last(ai.history)) <: MarketOrderType committed(ai, Long()).value
     @deassert cash(ai, Long()) |> gtxzero
 end
 
