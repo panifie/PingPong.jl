@@ -29,41 +29,35 @@ _phemex_ispending(o) =
     let status = get_py(get_py(o, "info"), "execStatus")
         pyeq(Bool, Python.pytype(status), pybuiltins.str) && occursin("Pending", string(status))
     end
-_func_syms(open) = begin
-    oc = open ? "open" : "closed"
-    cap = open ? "Open" : "Closed"
-    func_sym = Symbol("fetch", cap, "Orders")
-    func_sym_ws = Symbol("fetch", cap, "OrdersWs")
-    func_key = Symbol("live_", oc, "_orders_func")
-    (; func_sym, func_sym_ws, func_key)
-end
 
 @doc "Sets up the [`fetch_open_orders`](@ref) or [`fetch_closed_orders`](@ref) closure for the ccxt exchange instance. (phemex)"
 function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true)
-    func_sym, func_sym_ws, func_key = _func_syms(open)
-    a[func_key] = if has(exc, func_sym)
-        let f = first(exc, func_sym_ws, func_sym)
-            if open
-                (ai; kwargs...) -> let ans = _fetch_orders(ai, f; kwargs...)
-                    @debug "open/closed orders phemex: " ans
-                    if isnothing(ans)
-                        return pylist()
-                    else
-                        _pyfilter!(ans, _phemex_ispending)
-                    end
+    names = _func_syms(open)
+    orders_func = first(exc, names.ws, names.fetch)
+    eid = typeof(exchangeid(exc))
+    a[names.key] = if !isnothing(orders_func)
+        if open
+            (ai; kwargs...) -> begin
+                ans = _fetch_orders(ai, orders_func; eid, kwargs...)
+                @debug "open/closed orders phemex: " ans
+                if isnothing(ans)
+                    return pylist()
+                else
+                    _pyfilter!(ans, _phemex_ispending)
                 end
-            else
-                open_f = first(exc, values(_func_syms(true))[1:2]...)
-                (ai; kwargs...) -> begin
-                    ot, ct = @sync begin
-                        (@async _fetch_orders(ai, open_f; kwargs...)),
-                        (@async _fetch_orders(ai, f; kwargs...))
-                    end
-                    cancelled_ords = _pyfilter!(@something(fetch(ot), pylist()), _phemex_ispending)
-                    closed_ords = @something fetch(ct) pylist()
-                    closed_ords.extend(cancelled_ords)
-                    closed_ords
+            end
+        else
+            open_names = _func_syms(true)
+            open_orders_func = first(exc, open_names.ws, open_names.fetch)
+            (ai; kwargs...) -> begin
+                ot, ct = @sync begin
+                    (@async _fetch_orders(ai, open_orders_func; eid, kwargs...)),
+                    (@async _fetch_orders(ai, orders_func; eid, kwargs...))
                 end
+                cancelled_ords = _pyfilter!(@something(fetch(ot), pylist()), _phemex_ispending)
+                closed_ords = @something fetch(ct) pylist()
+                closed_ords.extend(cancelled_ords)
+                closed_ords
             end
         end
     else

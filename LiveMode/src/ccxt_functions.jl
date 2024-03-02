@@ -142,9 +142,8 @@ $(TYPEDSIGNATURES)
 This function fetches orders for a given asset instance `ai` using the provided `fetch_func`. The `side` parameter (default is `Both`) and `ids` parameter (default is an empty tuple) allow filtering of the fetched orders. Additional keyword arguments `kwargs...` are passed to the fetch function.
 
 """
-function _fetch_orders(ai, fetch_func; side=Both, ids=(), kwargs...)
-    symbol = raw(ai)
-    eid = exchangeid(ai)
+function _fetch_orders(ai, fetch_func; eid, side=Both, ids=(), kwargs...)
+    symbol = isnothing(ai) ? nothing : raw(ai)
     resp = _execfunc(fetch_func; symbol, kwargs...)
     notside = let sides = if side === Both # NOTE: strict equality
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
@@ -179,10 +178,15 @@ end
 function ccxt_orders_func!(a, exc)
     # NOTE: these function are not similar since the single fetchOrder functions
     # fetch by id, while fetchOrders might not find the order (if it is too old)
-    has_fallback = has(exc, :fetchOpenOrders) && has(exc, :fetchClosedOrders)
-    a[:live_orders_func] = if has(exc, :fetchOrders)
-        f = first(exc, :fetchOrdersWs, :fetchOrders)
-        (ai; kwargs...) -> let resp = _fetch_orders(ai, f; kwargs...)
+    open_orders_func = first(exc, :fetchOpenOrdersWs, :fetchOpenOrders)
+    closed_orders_func = first(exc, :fetchClosedOrdersWs, :fetchClosedOrders)
+    has_fallback = !(isnothing(open_orders_func) || isnothing(closed_orders_func))
+    fetch_orders_func = first(exc, :fetchOrdersWs, :fetchOrders)
+    fetch_order_func = first(exc, :fetchOrderWs, :fetchOrder)
+    eid = typeof(exchangeid(exc))
+    a[:live_orders_func] = if !isnothing(fetch_orders_func)
+        (ai; kwargs...) -> begin
+            resp = _fetch_orders(ai, fetch_orders_func; eid, kwargs...)
             if isemptish(resp)
                 out = pylist()
                 if has_fallback
@@ -196,12 +200,11 @@ function ccxt_orders_func!(a, exc)
                 resp
             end
         end
-    elseif has(exc, :fetchOrder)
-        f = first(exc, :fetchOrderWs, :fetchOrder)
+    elseif !isnothing(fetch_order_func)
         (ai; ids, side=Both, kwargs...) -> let out = pylist()
             sym = raw(ai)
             @sync for id in ids
-                @async let resp = _execfunc(f, id, sym; kwargs...)
+                @async let resp = _execfunc(fetch_order_func, id, sym; kwargs...)
                     if !isemptish(resp)
                         out.append(resp)
                     end
@@ -261,6 +264,24 @@ function _matching_asset(resp, eid, ais)
     return nothing
 end
 
+function handle_list_resp(eid::EIDType, resp, timeout, pre_timeout, base_timeout)
+    if ismissing(resp)
+        @warn "ccxt: request timed out" resp eid base_timeout[]
+        base_timeout[] += if timeout > Second(0)
+            round(timeout, Second, RoundUp)
+        else
+            Second(1)
+        end
+        pylist()
+    elseif resp isa Exception
+        @warn "ccxt: request error" resp eid
+        pre_timeout[] += Second(1)
+        pylist()
+    else
+        resp
+    end
+end
+
 @doc "Sets up the [`fetch_positions`](@ref) for the ccxt exchange instance."
 function ccxt_positions_func!(a, exc)
     eid = typeof(exc.id)
@@ -276,22 +297,8 @@ function ccxt_positions_func!(a, exc)
                 timeout += base_timeout[]
                 sleep(pre_timeout[])
                 out = positions_func(exc, ais; timeout, kwargs...)
-                if ismissing(out)
-                    @warn "ccxt: fetch positions timed out" out eid side base_timeout[]
-                    base_timeout[] += if timeout > Second(0)
-                        round(timeout, Second, RoundUp)
-                    else
-                        Second(1)
-                    end
-                    pylist()
-                elseif out isa Exception
-                    @warn "ccxt: fetch positions error" out eid side
-                    pre_timeout[] += Second(1)
-                    pylist()
-                else
-                    _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
-                    out
-                end
+                out = handle_list_resp(eid, out, timeout, pre_timeout, base_timeout)
+                _filter_positions(out, eid, side, default_side_func=(resp) -> _last_posside(_matching_asset(resp, eid, ais)))
             end
         end
     else
@@ -369,26 +376,33 @@ function ccxt_cancel_all_orders_func!(a, exc)
     end
 end
 
+_func_syms(open) = begin
+    oc = open ? :open : :closed
+    cap = open ? :Open : :Closed
+    fetch = Symbol(:fetch, cap, :Orders)
+    ws = Symbol(:fetch, cap, :OrdersWs)
+    key = Symbol(:live_, oc, :_orders_func)
+    (; oc, fetch, ws, key)
+end
+
 @doc "Sets up the [`fetch_open_orders`](@ref) or [`fetch_closed_orders`](@ref) closure for the ccxt exchange instance."
 function ccxt_open_orders_func!(a, exc; open=true)
-    oc = open ? "open" : "closed"
-    cap = open ? "Open" : "Closed"
-    func_sym = Symbol("fetch", cap, "Orders")
-    func_sym_ws = Symbol("fetch", cap, "OrdersWs")
-    a[Symbol("live_", oc, "_orders_func")] = if has(exc, func_sym)
-        let f = first(exc, func_sym_ws, func_sym)
-            (ai; kwargs...) -> _fetch_orders(ai, f; kwargs...)
-        end
+    names = _func_syms(open)
+    orders_func = first(exc, names.ws, names.fetch)
+    eid = typeof(exchangeid(exc))
+    a[names.key] = if !isnothing(orders_func)
+        (ai; kwargs...) -> _fetch_orders(ai, orders_func; eid, kwargs...)
     else
         fetch_func = get(a, :live_orders_func, nothing)
-        @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(oc)_orders_func`"
-        eid = typeof(exchangeid(exc))
+        @assert !isnothing(fetch_func) "`live_orders_func` must be set before `live_$(names.oc)_orders_func`"
         pred_func = o -> pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
         status_pred_func = open ? pred_func : !pred_func
         (ai; kwargs...) -> let out = pylist()
             all_orders = fetch_func(ai; kwargs...)
             for o in all_orders
-                status_pred_func(o) && out.append(o)
+                if status_pred_func(o)
+                    out.append(o)
+                end
             end
             out
         end
