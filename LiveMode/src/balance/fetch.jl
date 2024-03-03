@@ -55,6 +55,8 @@ function _fetch_balance(exc, args...; kwargs...)
     pyfetch(_exc_balance_func(exc), args...; kwargs...)
 end
 
+_fetch_balance(exc, qc; kwargs...) = _fetch_balance(exc, qc, (); kwargs...)
+
 @doc """ Updates or retrieves the balance dictionary for a given exchange.
 
 $(TYPEDSIGNATURES)
@@ -120,7 +122,7 @@ function balance(
     @lget! d (Symbol(k), status, type) begin
         b = balance(exc, args...; qc, type, status, kwargs...)
         if b isa Py
-            pyconvert(DFT, get_py(b, k, ZERO))
+            pytofloat(get_py(b, k, ZERO))
         else
             return nothing
         end
@@ -139,6 +141,14 @@ This is useful when you need to ensure that the most recent balance is used.
 function balance!(
     exc::Exchange, args...; raw=false, type=Symbol(), status=TotalBalance, kwargs...
 )
+    # ensure we pass at least 2 args to keep func sig stable for dispatch
+    args = if length(args) == 0
+        (Symbol(), ())
+    elseif length(args) == 1
+        (args[1], ())
+    else
+        args
+    end
     b = let resp = _fetch_balance(exc, args...; type, kwargs...)
         if resp isa Exception
             @debug resp _module = LogBalance
@@ -181,9 +191,10 @@ function balance!(
         k = _pystrsym(sym)
         v = pyconvert(DFT, get(b, Symbol(k), ZERO))
         d[(Symbol(k), status, type)] = v
-        pyconvert(DFT, v)
+        pytofloat(v)
 
     catch
+        @debug_backtrace LogBalance
         @warn "Could not fetch balance from $(nameof(exc))"
     end
 end
