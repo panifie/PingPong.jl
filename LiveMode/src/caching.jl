@@ -1,8 +1,7 @@
 using LRUCache: LRUCache
 using .Misc.TimeToLive: ConcurrentDict
 
-_last_trade_date(ai) = isempty(trades(ai)) ? now() - Day(1) : last(trades(ai)).date
-
+_last_trade_date(ai) = st.lasttrade_date(ai, now() - Day(1))
 function somevalue(dict, keys...)
     for k in keys
         v = get(dict, k, nothing)
@@ -38,8 +37,8 @@ function _closed_orders_resp_cache(a, ai)
 end
 
 function _orders_resp_cache(a, ai)
-    cache = @lget! a :orders_cache Dict{AssetInstance,ttl_dict_type(a[:orders_ttl], Any)}()
-    @lget! cache ai ttl_resp_dict(a[:orders_ttl], Any)
+    cache = @lget! a :orders_cache Dict{AssetInstance,ttl_dict_type(a[:orders_cache_ttl], Any)}()
+    @lget! cache ai ttl_resp_dict(a[:orders_cache_ttl], Any)
 end
 
 function _order_byid_resp_cache(a, ai)
@@ -50,6 +49,18 @@ end
 function _positions_resp_cache(a)
     lock = ReentrantLock()
     @lget! a :positions_cache (; lock, data=ttl_resp_dict(a[:positions_ttl], Any, Any))
+end
+
+function _func_cache(a)
+    @lget! a :fetchall_cache (ReentrantLock(),
+        Dict{Function,
+            Tuple{ReentrantLock,
+                ttl_dict_type(a[:orders_cache_ttl], DateTime, Any)}}()
+    )
+end
+function _func_cache(a, func)
+    l, cache = _func_cache(a)
+    @lock l @lget! cache func (ReentrantLock(), ttl_resp_dict(a[:func_cache_ttl], DateTime, Any))
 end
 
 function save_strategy_cache(s; inmemory=false, cache_path=nothing)

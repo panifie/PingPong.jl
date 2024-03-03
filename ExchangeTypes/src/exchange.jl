@@ -69,7 +69,7 @@ Exchange() = Exchange(pybuiltins.None)
 @doc """ Instantiates a new `Exchange` wrapper for the provided `x` Python object.
 
 This constructs a `CcxtExchange` struct with the provided Python object.
-It extracts the exchange ID, name, and other metadata. 
+It extracts the exchange ID, name, and other metadata.
 It runs any registered hook functions for that exchange.
 It sets a finalizer to close the exchange when garbage collected.
 
@@ -132,15 +132,15 @@ function Base.propertynames(e::E) where {E<:Exchange}
     (fieldnames(E)..., propertynames(e.py)...)
 end
 
-_has(exc::Exchange, syms::Vararg{Symbol}) =
-    let h = getfield(exc, :has)
-        any(s -> get(h, s, false), syms)
-    end
+_has(exc::Exchange, syms::Vararg{Symbol}) = begin
+    h = getfield(exc, :has)
+    any(s -> get(h, s, false), syms)
+end
 
-_has(exc::Exchange, s::Symbol) =
-    let h = getfield(exc, :has)
-        get(h, s, false)
-    end
+_has(exc::Exchange, s::Symbol) = begin
+    h = getfield(exc, :has)
+    get(h, s, false)
+end
 _mockable_has(args...; kwargs...) = _has(args...; kwargs...)
 has(args...; kwargs...) = @mock _mockable_has(args...; kwargs...)
 function has(exc, what::Tuple{Vararg{Symbol}}; kwargs...)

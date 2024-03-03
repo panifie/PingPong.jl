@@ -409,7 +409,7 @@ function st.default!(s::LiveStrategy)
     # The number of days to look back for an order previous trades
     get!(a, :max_order_lookback, Day(3))
     # How long to cache orders (lists) responses for
-    get!(a, :orders_ttl, throttle_per_asset)
+    get!(a, :orders_cache_ttl, throttle_per_asset)
     # How long to cache open orders (lists) responses for
     get!(a, :open_orders_ttl, throttle_per_asset)
     # How long to cache closed orders (lists) responses for
@@ -418,6 +418,8 @@ function st.default!(s::LiveStrategy)
     get!(a, :order_byid_ttl, throttle_per_asset)
     # How long to cache position updates (lists)
     get!(a, :positions_ttl, Second(3))
+    # How long to cache fetch all orders/trades calls
+    get!(a, :func_cache_ttl, Second(3))
 
     asset_tasks(s)
     strategy_tasks(s)
