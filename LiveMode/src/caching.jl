@@ -53,7 +53,7 @@ end
 
 function _func_cache(a)
     @lget! a :fetchall_cache (ReentrantLock(),
-        Dict{Function,
+        Dict{Symbol,
             Tuple{ReentrantLock,
                 ttl_dict_type(a[:orders_cache_ttl], DateTime, Any)}}()
     )

@@ -186,10 +186,10 @@ by the function being called, otherwise make the call with the asset instance as
 
 """
 function _tryfetchall(a, func, ai, args...; kwargs...)
-    disable_all = @lget! a :live_disable_all Dict{Function,Bool}()
+    disable_all = @lget! a :live_disable_all Dict{Symbol,Bool}()
     # if the disable_all flag is set skip this call
     if !get(disable_all, func, false)
-        func_lock, func_cache = _func_cache(a, func)
+        func_lock, func_cache = _func_cache(a, nameof(func))
         since = (@something get(kwargs, :since, DateTime(0)) DateTime(0)) |> dt
         resp_all = @lock func_lock @lget! func_cache since begin
             func(nothing, args...; kwargs...)
@@ -209,7 +209,7 @@ function _tryfetchall(a, func, ai, args...; kwargs...)
                 @error "fetch all failed" exception = resp_all
             end
             @debug "fetch all: disabling" func = nameof(func)
-            disable_all[func] = true
+            disable_all[nameof(func)] = true
         end
     end
     func(ai, args...; kwargs...)
@@ -306,15 +306,14 @@ function watch_positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
 end
 
 function watch_balance_func(exc::Exchange, args...; timeout, kwargs...)
-    _execfunc_timeout(
+    v = _execfunc_timeout(
         exc.watchBalance, args...; timeout, kwargs...
     )
+    _parse_balance(exc, v)
 end
 
 function fetch_balance_func(exc::Exchange, args...; timeout, kwargs...)
-    _execfunc_timeout(
-        first(exc, :fetchBalanceWs, :fetchBalance), args...; timeout, kwargs...
-    )
+    _fetch_balance(exc, args...; timeout, kwargs...)
 end
 
 function _matching_asset(resp, eid, ais)
