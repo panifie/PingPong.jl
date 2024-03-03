@@ -68,7 +68,7 @@ function _w_fetch_balance_func(s, attrs)
             try
                 if init[]
                     @lock w begin
-                        v = fetch_balance_func(exc; timeout, params, reset...)
+                        v = fetch_balance_func(exc; timeout, params, rest...)
                         _dopush!(w, v; if_func=isdict)
                     end
                     init[] = false
