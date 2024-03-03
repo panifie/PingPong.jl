@@ -52,7 +52,7 @@ end
 function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
     @eval Main begin
         GC.enable(false)
-        gc_disable()
+        $gc_disable()
         try
             global $bind, ai
             if isdefined(Main, $(QuoteNode(bind))) && $bind isa st.Strategy{<:Union{Paper,Live}}
@@ -74,7 +74,7 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
             end
             $bind
         finally
-            gc_enable()
+            $gc_enable()
             GC.enable(true)
             GC.gc()
         end
