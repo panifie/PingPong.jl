@@ -154,14 +154,16 @@ This function fetches orders for a given asset instance `ai` using the provided 
 function _fetch_orders(ai, this_func; eid, side=Both, ids=(), kwargs...)
     symbol = isnothing(ai) ? nothing : raw(ai)
     resp = _execfunc(this_func; symbol, kwargs...)
+    if resp isa Exception
+        @error "ccxt fetch orders" raw(ai) resp
+        return nothing
+    end
     notside = let sides = if side === Both # NOTE: strict equality
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
             (_ccxtorderside(side),)
         end |> pytuple
-        (o) -> let s = resp_order_side(o, eid)
-            @py s ∉ sides
-        end
+        (o) -> (sd = resp_order_side(o, eid); @py sd ∉ sides)
     end
     should_skip = if isempty(ids)
         if side === Both
@@ -170,13 +172,13 @@ function _fetch_orders(ai, this_func; eid, side=Both, ids=(), kwargs...)
             notside
         end
     else
-        let ids_set = Set(eltype(ids) == String ? ids : (string(id) for id in ids))
+        let ids_set = Set(if eltype(ids) == String
+                ids
+            else
+                (string(id) for id in ids)
+            end)
             (o) -> (resp_order_id(o, eid, String) ∉ ids_set || notside(o))
         end
-    end
-    if resp isa Exception
-        @error "ccxt fetch orders" raw(ai) resp
-        return nothing
     end
     filterfrom!(should_skip, resp)
 end
@@ -441,9 +443,11 @@ function ccxt_oc_orders_func!(a, exc; open=true)
     a[names.key] = if !isnothing(orders_func)
         ccxt_oc_func(ai; kwargs...) = _fetch_orders(ai, orders_func; eid, kwargs...)
         if open
-            ccxt_open_orders(ai, args...; kwargs...) = _tryfetchall(a, ccxt_oc_func, ai; kwargs...)
+            this_func = ccxt_open_orders_func(args...; kwargs...) = ccxt_oc_func(args...; kwargs...)
+            ccxt_open_orders(ai, args...; kwargs...) = _tryfetchall(a, this_func, ai; kwargs...)
         else
-            ccxt_closed_orders(ai, args...; kwargs...) = _tryfetchall(a, ccxt_oc_func, ai; kwargs...)
+            this_func = ccxt_closed_orders_func(args...; kwargs...) = ccxt_oc_func(args...; kwargs...)
+            ccxt_closed_orders(ai, args...; kwargs...) = _tryfetchall(a, this_func, ai; kwargs...)
         end
     else
         orders_func = get(a, :live_orders_func, nothing)
@@ -639,7 +643,7 @@ end
 
 @doc "Sets up the [`fetch_candles`](@ref) closure for the ccxt exchange instance."
 function ccxt_fetch_candles_func!(a, exc)
-    ohlcv_func = first(exc, :fetcOHLCVWs, :fetchOHLCV)
+    ohlcv_func = first(exc, :fetchOHLCVWs, :fetchOHLCV)
     a[:live_fetch_candles_func] = if !isnothing(ohlcv_func)
         ccxt_fetch_candles(args...; kwargs...) = _execfunc(ohlcv_func, args...; kwargs...)
     else
