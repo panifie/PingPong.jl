@@ -172,10 +172,10 @@ function start!(
         # Does syncing use multiple threads? It should not..
         unlock(s)
         try
-            lazy = s[:lazy_start] = !doreset || first_start
-            if !lazy # only set defaults on first run
+            if doreset
                 reset!(s)
             elseif first_start
+                # only set defaults on first run
                 default!(s)
             end
         finally
