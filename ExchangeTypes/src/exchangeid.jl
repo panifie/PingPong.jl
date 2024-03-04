@@ -68,3 +68,5 @@ import Base.==
 exchangeid(sym::Symbol) = ExchangeID(sym)
 @doc "Return the given ExchangeID instance."
 exchangeid(id::ExchangeID) = id
+@doc "Union type of many exchange ids (from `Symbol` arguments)"
+eids(ids...) = Union{((ExchangeID{i}) for i in ids)...}

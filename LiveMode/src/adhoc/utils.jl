@@ -1,6 +1,6 @@
 using .Executors.Instruments.Derivatives: Derivative
-
-eids(ids...) = Union{((ExchangeID{i}) for i in ids)...}
+using .Exchanges.ExchangeTypes: eids
+import Base.first
 
 _tif_value(v) = @pystr if v == "PO"
         "PostOnly"
