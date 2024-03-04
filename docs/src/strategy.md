@@ -146,3 +146,5 @@ Remove user config entry MyNewStrategy? [n]/y: y
 ## Strategy examples
 Strategy examples can be found in the `user/strategies` folder, some strategies are single files like `Example.jl` while strategies like `BollingerBands` or `ExampleMargin` are project based.
 
+## Resizeable universe
+The universe (`s.universe`) is backed by a `DataFrame` (`s.universe.data`). It is possible to add and remove assets from the universe during runtime, (although not extensively tested).
