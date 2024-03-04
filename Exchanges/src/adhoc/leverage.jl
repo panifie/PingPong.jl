@@ -31,6 +31,7 @@ _negative_lev_if_cross(mode_str, lev) =
         error("Margin mode $mode_str is not valid [supported: 'cross', 'isolated']")
     end
 
+
 function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol;
     hedged=false, settle=_settle_from_market(exc, symbol), lev=_lev_frompos(exc, symbol, settle)
 )
@@ -41,7 +42,7 @@ function dosetmargin(exc::Exchange{ExchangeID{:phemex}}, mode_str, symbol;
         return resp
     end
     wait(task)
-    pyeq(Bool, get(resp, "code", @pyconst("1")), @pyconst("0"))
+    resptobool(exc, resp)
 end
 
 function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;

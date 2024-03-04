@@ -146,7 +146,8 @@ Base.string(::Union{T,Type{T}}) where {T<:CrossMargin} = "cross"
 Base.string(::Union{T,Type{T}}) where {T<:NoMargin} = "nomargin"
 
 function dosetmargin(exc::Exchange, mode_str, symbol; kwargs...)
-    pyfetch(exc.setMarginMode, mode_str, symbol)
+    resp = pyfetch(exc.setMarginMode, mode_str, symbol)
+    resptobool(exc, resp)
 end
 
 @doc "Update margin mode for a specific symbol on the exchange.

@@ -6,6 +6,7 @@ include("utils.jl")
 include("accounts.jl")
 include("leverage.jl")
 include("trades.jl")
+include("adhoc/utils.jl")
 include("adhoc/leverage.jl")
 include("adhoc/constructors.jl")
 

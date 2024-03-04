@@ -39,6 +39,28 @@ function check_available_cash(_, ai, amount, _, o::Type{<:ReduceOrder})
     abs(freecash(ai, posside(o))) >= abs(amount)
 end
 
+@doc """ Ensure margin mode on exchange matches asset margin mode.
+
+
+"""
+function ensure_marginmode(s::LiveStrategy, ai)
+    exc = exchange(ai)
+    mm = marginmode(ai)
+    last_mm = get(s[:live_margin_mode], ai, missing)
+    if ismissing(last_mm) || last_mm != mm
+        @debug "margin mode: updating" mm last_mm exc = nameof(exc)
+        hedged = ishedged(ai)
+        remote_mode = Symbol(string(typeof(mm)))
+        return if marginmode!(exc, remote_mode, raw(ai); hedged)
+            s[:live_margin_mode][ai] = mm
+            true
+        else
+            false
+        end
+    end
+    true
+end
+
 @doc """ Sends a live order and performs checks for sufficient cash and order features.
 
 $(TYPEDSIGNATURES)
@@ -75,6 +97,10 @@ function live_send_order(
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
                 s
             ) strat_comm = committed(s) order_cash = amount t lev = leverage(ai, posside(t))
+            return nothing
+        end
+        if !ensure_marginmode(s, ai)
+            @warn "send order: margin mode mismatch" this_mm = marginmode(ai) exc = nameof(exchange(ai))
             return nothing
         end
     end

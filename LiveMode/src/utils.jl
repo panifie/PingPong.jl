@@ -423,7 +423,13 @@ function st.default!(s::LiveStrategy)
 
     asset_tasks(s)
     strategy_tasks(s)
+    # functions that throw an error on first run are disabled (e.g. *Ws functions)
+    a[:disabled_funcs] = Dict{Symbol, Bool}()
     set_exc_funcs!(s)
+    # if `true` watchers will start even if strategy is stopped
+    a[:live_force_watch] = false
+    # Dict indicating the latest (remotely) set margin mode for an asset
+    a[:live_margin_mode] = Dict{AssetInstance, Union{Missing,MarginMode}}()
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
