@@ -64,8 +64,8 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
             (f, iswatch) = if has(exc, :watchMyTrades)
                 let sym = raw(ai), func = exc.watchMyTrades
                     (
-                        (flag, coro_running) -> if flag[]
-                            pyfetch(func, sym; coro_running, exc_kwargs...)
+                        (flag) -> if flag[]
+                            pyfetch(func, sym; exc_kwargs...)
                         end,
                         true,
                     )
@@ -95,13 +95,12 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
             queue = tasks.queue
             flag = TaskFlag()
             cond = task_local_storage(:notify)
-            coro_running = pycoro_running(flag)
             sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
             handler_tasks = Task[]
             while @istaskrunning()
                 try
                     while @istaskrunning()
-                        updates = f(flag, coro_running)
+                        updates = f(flag)
                         if updates isa InterruptException
                             throw(updates)
                         elseif updates isa Exception

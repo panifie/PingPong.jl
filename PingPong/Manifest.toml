@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.1"
+julia_version = "1.10.2"
 manifest_format = "2.0"
 project_hash = "977e9c514d236f7fd919925477ad5b1891b2466b"
 
@@ -634,7 +634,7 @@ uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
 version = "0.1.2"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "DocStringExtensions", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["CondaPkg", "Dates", "DocStringExtensions", "Lang", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

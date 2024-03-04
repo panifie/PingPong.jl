@@ -1,6 +1,7 @@
 using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert, pyisTrue
 using Dates: Period, Second
+using Lang: safenotify, safewait
 using Mocking: @mock, Mocking
 
 @doc """ Checks if python async state (event loop) is initialized.
@@ -136,7 +137,7 @@ end
 # FIXME: This doesn't work if we pass =args...; kwargs...`
 macro pyfetch(code)
     @assert code.head == :call
-    Expr(:call, :pyfetch, esc(code.args[1]), :(Val(:fut)), esc.(code.args[2:end])...)
+    Expr(:call, :pyfetch, esc(code.args[1]), esc.(code.args[2:end])...)
 end
 
 @doc """ Schedules a Python coroutine to run on the event loop.
@@ -144,9 +145,13 @@ end
 $(TYPEDSIGNATURES)
 """
 function pyschedule(coro::Py)
-    if pyisinstance(coro, Python.gpa.pycoro_type)
-        gpa.pyloop.create_task(coro)
-    end
+    gpa.pyloop.create_task(
+        if pyisinstance(coro, Python.gpa.pycoro_type)
+            coro
+        else
+            coro()
+        end,
+    )
 end
 
 @doc """ Checks if a Python future is done.
@@ -162,64 +167,53 @@ end
 $(TYPEDSIGNATURES)
 """
 pywait_fut(fut::Py) = begin
-    while !_isfutdone(fut)
-        sleep(0.01)
-    end
-end
-
-pywait_fut(fut::Py, running) = begin
-    while !_isfutdone(fut)
-        running[] || begin
-            try
-                pycancel(fut)
-            catch
+    if !_isfutdone(fut)
+        try
+            this_task = current_task()
+            cond = this_task.donenotify
+            this_task.storage = (ispytask=true, notify=cond)
+            safewait(cond)
+            # Manually cancel
+            if !Python._isfutdone(fut)
+                Python.pycancel(fut)
+                safewait(cond)
+                return nothing
             end
-            break
-        end
-        sleep(0.01)
-    end
-end
-
-@doc """ Creates a Julia task from a Python coroutine and runs it asynchronously.
-
-$(TYPEDSIGNATURES)
-"""
-function pytask(coro::Py, ::Val{:coro}; coro_running=())
-    let fut = pyschedule(coro)
-        @async begin
-            pywait_fut(fut, coro_running...)
-            fut.result()
+        catch
+            if !_isfutdone(fut)
+                Python.pycancel(fut)
+            end
+            rethrow()
         end
     end
+    fut.result()
 end
 
 @doc """ Creates a Julia task from a Python coroutine and returns the Python future and the Julia task.
 
 $(TYPEDSIGNATURES)
 """
-function pytask(coro::Py, ::Val{:fut}; coro_running=())::Tuple{Py,Union{Py,Task}}
+function pytask(coro::Py)
     fut = pyschedule(coro)
-    (fut, @async if _isfutdone(fut)
-        fut.result()
-    else
-        (pywait_fut(fut, coro_running...); fut.result())
+    task = @async pywait_fut(fut)
+    fut.add_done_callback((_) -> begin
+        sto = task.storage
+        if !isnothing(sto)
+            cond = get(sto, :notify, missing)
+            if !ismissing(cond)
+                safenotify(cond)
+            end
+        end
     end)
+    task
 end
 
 @doc """ Creates a Julia task from a Python function call and runs it asynchronously.
 
 $(TYPEDSIGNATURES)
 """
-function pytask(f::Py, args...; coro_running=(), kwargs...)
-    pytask(f(args...; kwargs...), Val(:coro); coro_running)
-end
-
-@doc """ Creates a Julia task from a Python function call and returns the Python future and the Julia task.
-
-$(TYPEDSIGNATURES)
-"""
-function pytask(f::Py, ::Val{:sched}, args...; coro_running=(), kwargs...)
-    pytask(f(args...; kwargs...), Val(:fut); coro_running)
+function pytask(f::Py, args...; kwargs...)
+    pytask(f(args...; kwargs...))
 end
 
 @doc """ Cancels a Python future.
@@ -230,21 +224,36 @@ function pycancel(fut::Py)
     pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(fut.cancel))
 end
 
+function pycancel(task::Task)
+    sto = task.storage
+    if !isnothing(sto)
+        if get(sto, :ispytask, false)
+            safenotify(sto[:notify])
+            fetch(task)
+        else
+            error("This task is not from python.")
+        end
+    else
+        error("This task is not from python.")
+    end
+end
+
 @doc """ Fetches the result of a Python function call synchronously.
 
 $(TYPEDSIGNATURES)
 """
-function _pyfetch(f::Py, args...; coro_running=(), kwargs...)
-    let (fut, task) = pytask(f(args...; kwargs...), Val(:fut); coro_running)
-        try
-            fetch(task)
-        catch e
-            if e isa TaskFailedException
-                task.result
-            else
-                istaskdone(task) || (pycancel(fut); wait(task))
-                rethrow(e)
+function _pyfetch(f::Py, args...; kwargs...)
+    task = pytask(f(args...; kwargs...))
+    try
+        fetch(task)
+    catch e
+        if e isa TaskFailedException
+            task.result
+        else
+            if !istaskdone(task)
+                pycancel(task)
             end
+            rethrow(e)
         end
     end
 end
@@ -253,19 +262,9 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function _pyfetch(f::Py, ::Val{:try}, args...; coro_running=(), kwargs...)
+function _pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     try
-        fut, task = pytask(f, Val(:sched), args...; coro_running, kwargs...)
-        try
-            fetch(task)
-        catch e
-            if e isa TaskFailedException
-                task.result
-            else
-                istaskdone(task) || (pycancel(fut); wait(task))
-                rethrow(e)
-            end
-        end
+        _pyfetch(f, args...; kwargs...)
     catch e
         e
     end
@@ -275,7 +274,7 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function _pyfetch(f::Function, args...; coro_running=(), kwargs...)
+function _pyfetch(f::Function, args...; kwargs...)
     fetch(@async(f(args...; kwargs...)))
 end
 _mockable_pyfetch(args...; kwargs...) = _pyfetch(args...; kwargs...)
@@ -286,23 +285,27 @@ pyfetch(args...; kwargs...) = @mock _mockable_pyfetch(args...; kwargs...)
 $(TYPEDSIGNATURES)
 """
 function _pyfetch_timeout(
-    f1::Py, f2::Union{Function,Py}, timeout::Period, args...; coro_running=(), kwargs...
+    f1::Py, f2::Union{Function,Py}, timeout::Period, args...; kwargs...
 )
-    coro = gpa.pyaio.wait_for(f1(args...; kwargs...); timeout=Second(timeout).value)
-    (fut, task) = pytask(coro, Val(:fut); coro_running)
+    pytimeout = round(timeout, Second, RoundUp).value
+    coro = gpa.pyaio.wait_for(f1(args...; kwargs...); timeout=pytimeout)
+    task = pytask(coro)
     try
         fetch(task)
     catch e
         if e isa TaskFailedException
-            if e.task.result isa PyException &&
-                !pyisinstance(e.task.result, pybuiltins.TimeoutError)
-                e.task.result
+            result = e.task.result
+            if pyisinstance(result, pybuiltins.TimeoutError)
+                pyfetch(f2, args...; kwargs...)
             else
-                pyfetch(f2, args...; coro_running, kwargs...)
+                result
             end
         else
-            istaskdone(task) || (pycancel(fut); wait(task))
             rethrow(e)
+        end
+    finally
+        if !istaskdone(task)
+            pycancel(task)
         end
     end
 end

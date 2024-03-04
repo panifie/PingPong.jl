@@ -153,12 +153,12 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                 end
             else
                 () -> begin
-                    out = Dict{eltype(inputs),Union{Tuple{Py,Task},Py}}()
+                    out = Dict{eltype(inputs),Union{Task,Py}}()
                     try
                         for i in inputs
-                            out[i] = pytask(f(i), Val(:fut); kwargs...)
+                            out[i] = pytask(f(i); kwargs...)
                         end
-                        for (i, (_, task)) in out
+                        for (i, task) in out
                             out[i] = fetch(task)
                         end
                         out

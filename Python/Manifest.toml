@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.1"
+julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "d66aebc4a079cf190fbb04dfa2c4c5c017c7cc46"
+project_hash = "addb48dcf3d13cf38ed02036280675452c97d168"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -52,6 +52,10 @@ version = "1.0.0"
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
+[[deps.Distributed]]
+deps = ["Random", "Serialization", "Sockets"]
+uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
 git-tree-sha1 = "2fb1e02f2b635d0845df5d7c167fec4dd739b00d"
@@ -97,6 +101,12 @@ version = "1.14.0"
 
     [deps.JSON3.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+
+[[deps.Lang]]
+deps = ["Distributed", "DocStringExtensions", "Logging", "PrecompileTools", "Preferences"]
+path = "../Lang"
+uuid = "29573954-25fe-4a2f-9b4b-dcb25d092053"
+version = "0.1.0"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]

@@ -24,8 +24,9 @@ stop_task(t::Task) = begin
     if istaskrunning(t)
         try
             if !isnothing(sto)
-                let cond = get(sto, :notify, nothing)
-                    isnothing(cond) || safenotify(cond)
+                cond = get(sto, :notify, nothing)
+                if !isnothing(cond)
+                    safenotify(cond)
                 end
                 stop_callbacks = get(sto, :stop_callbacks, Function[])
                 for cb in stop_callbacks
@@ -108,13 +109,6 @@ TaskFlag() =
     let sto = task_local_storage()
         TaskFlag(() -> sto[:running])
     end
-@doc """ Used to send a cancel request to the python coroutine.
-
-The python coroutine will be cancelled if the task `getindex` returns `true`.
-The task flag is passed to `pyfetch/pytask` as a tuple.
-"""
-pycoro_running(flag) = (flag,)
-pycoro_running() = pycoro_running(TaskFlag())
 Base.getindex(t::TaskFlag) = t.f()
 
 @doc """ Waits for a condition function to return true for a specified time.

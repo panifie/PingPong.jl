@@ -40,8 +40,8 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             (f, iswatch) = if has(exc, :watchOrders)
                 let sym = raw(ai), func = exc.watchOrders
                     (
-                        (flag, coro_running) -> if flag[]
-                            pyfetch(func, sym; coro_running, exc_kwargs...)
+                        (flag) -> if flag[]
+                            pyfetch(func, sym; exc_kwargs...)
                         end,
                         true,
                     )
@@ -67,14 +67,13 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
             end
             queue = tasks.queue
             flag = TaskFlag()
-            coro_running = pycoro_running(flag)
             cond = task_local_storage(:notify)
             sem = task_sem()
             handler_tasks = Task[]
             while @istaskrunning()
                 try
                     while @istaskrunning()
-                        updates = f(flag, coro_running)
+                        updates = f(flag)
                         stop_delay[] = Second(60)
                         if updates isa InterruptException
                             throw(updates)
