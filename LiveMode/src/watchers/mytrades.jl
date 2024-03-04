@@ -41,7 +41,7 @@ $(TYPEDSIGNATURES)
 This function starts tasks in a live strategy `s` that watch the exchange for trades for an asset instance `ai`. It constantly checks and updates the trades based on the latest data from the exchange.
 
 """
-function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
+function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
     @debug "watch trades: get tasks" _module = LogWatchTrade ai = raw(ai) islocked(s) @caller
     tasks = asset_tasks(s, ai)
     @debug "watch trades: locking" _module = LogWatchTrade ai = raw(ai)
@@ -53,7 +53,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(), force=false)
                 return task
             end
         end
-        if force || !isrunning(s)
+        if !isrunning(s) && !s[:live_force_watch]
             @debug "watch trades: strategy stopped" _module = LogWatchTrade ai = raw(ai)
             return nothing
         end
