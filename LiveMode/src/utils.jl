@@ -45,7 +45,7 @@ This function stops all tasks associated with an asset `ai` in the strategy `s`.
 """
 function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
     tasks = asset_tasks(s, ai)
-    for task in values(tasks.byname)
+    for (name, task) in tasks.byname
         stop_task(task)
     end
     for task in values(tasks.byorder)
@@ -60,12 +60,14 @@ function reset_asset_tasks!(tasks)
     for (name, task) in tasks.byname
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks name
+            Base.throwto(task, InterruptException())
             wait(task)
         end
     end
     for (order, task) in tasks.byorder
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks order
+            Base.throwto(task, InterruptException())
             wait(task)
         end
     end
@@ -424,12 +426,12 @@ function st.default!(s::LiveStrategy)
     asset_tasks(s)
     strategy_tasks(s)
     # functions that throw an error on first run are disabled (e.g. *Ws functions)
-    a[:disabled_funcs] = Dict{Symbol, Bool}()
+    a[:disabled_funcs] = Dict{Symbol,Bool}()
     set_exc_funcs!(s)
     # if `true` watchers will start even if strategy is stopped
     a[:live_force_watch] = false
     # Dict indicating the latest (remotely) set margin mode for an asset
-    a[:live_margin_mode] = Dict{AssetInstance, Union{Missing,MarginMode}}()
+    a[:live_margin_mode] = Dict{AssetInstance,Union{Missing,MarginMode}}()
 
     if limit > 0
         live_sync_closed_orders!(s; limit)

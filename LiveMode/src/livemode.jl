@@ -4,7 +4,7 @@ using .Executors: Strategies as st
 using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMarginInstance, HedgedInstance
 using .Instances
 using .Exchanges
-using .Exchanges: Python
+using .Exchanges: Python, gettimeout
 using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy, throttle
 using PaperMode.OrderTypes
 using PaperMode.Misc

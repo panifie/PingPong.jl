@@ -1,5 +1,4 @@
 using .Lang: splitkws, @get
-using .Exchanges: gettimeout
 
 _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N} = :unified
 _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = :unified

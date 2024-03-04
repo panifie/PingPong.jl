@@ -33,6 +33,7 @@ using .Misc.Lang: @preset, @precomp, @ignore
         @ignore assets(cl, s; isinput=true, text, chat_id)
         @ignore config(cl, s; isinput=true, text, chat_id)
         logs(cl, s; isinput=true, text, chat_id)
+
         # can't be precompiled because rely on multiple getUpdates
         # set(cl, s; text, chat_id)
         # get(cl, s; text, chat_id)

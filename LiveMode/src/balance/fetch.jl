@@ -51,8 +51,8 @@ function fetch_balance(s::LiveStrategy, args...; type=_balance_type(s), kwargs..
     _fetch_balance(exchange(s), qc, syms, args...; type, kwargs...)
 end
 
-function _fetch_balance(exc, args...; kwargs...)
-    pyfetch(_exc_balance_func(exc), args...; kwargs...)
+function _fetch_balance(exc, args...; timeout=gettimeout(exc), kwargs...)
+    _execfunc_timeout(_exc_balance_func(exc), args...; timeout, kwargs...)
 end
 
 _fetch_balance(exc, qc; kwargs...) = _fetch_balance(exc, qc, (); kwargs...)
