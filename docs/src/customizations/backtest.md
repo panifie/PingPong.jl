@@ -17,6 +17,7 @@ Should you decide to implement HFT backtesting, consider the following two appro
 
 #### Tick-Based Approach
 - A more complex method requires developing a new execution mode, which could be named `TickSimMode`. This involves adapting the `backtest!` function to handle tick data. While order creation logic may remain largely unchanged, functions like `volumeat(ai, date)` or `openat, closeat`, which currently fetch candle data, need to be modified. These functions should be tailored to compute the trade's actual price and volume from the tick data. This is analogous to customizing functions such as `limitorder_ifprice!` to work with tick data.
+- If you have access to full trades history, then you can reconstruct the orderbook (not implemented), and then the execution logic of `PaperMode` can be repurposed for the tick based backtester because it already operates with orderbook data.
 
 \```example
 // Example of setting up a 1-second OHLCV backtest
