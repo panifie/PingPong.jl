@@ -1,4 +1,4 @@
-using .Python: pyschedule, pywait_fut, Python, pyisinstance, pygetattr, @pystr
+using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr
 using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
 using Mocking: @mock, Mocking
@@ -48,13 +48,13 @@ function close_exc(exc::CcxtExchange)
         if !pyisnull(e) && pyhasattr(e, "close")
             co = e.close()
             if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
-                fut = pyschedule(co)
+                task = pytask(co)
                 # block during precomp
                 if ccall(:jl_generating_output, Cint, ()) == 1
-                    pywait_fut(fut)
+                    wait(task)
                 else
                     @async try
-                        pywait_fut(fut)
+                        wait(task)
                     catch
                     end
                 end
