@@ -33,7 +33,7 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         version: ${{ env.JULIA_VERSION }}
-        include-all-prereleases: true
+        include-all-prereleases: false
     - name: Setup tmate session
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
@@ -51,7 +51,7 @@ jobs:
         sudo apt-get install -y xauth direnv
         direnv allow .
         eval "$(direnv hook bash)"
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.update(); Pkg.resolve(); Pkg.instantiate(); using PingPongDev;'
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.resolve(); Pkg.update(); Pkg.instantiate(); using PingPongDev;'
     - name: Run tests # coverage is generated only on success
       env:
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
