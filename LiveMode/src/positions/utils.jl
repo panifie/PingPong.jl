@@ -414,8 +414,15 @@ function _ccxtpnlside(update, eid::EIDType; def=Long())
     liqprice = resp_position_liqprice(update, eid)
     eprice = resp_position_entryprice(update, eid)
     @debug "ccxt pnl side" _module = LogCcxtFuncs unpnl liqprice eprice
-    if eprice == ZERO
-        def
+    if iszero(eprice) || iszero(liqprice)
+        contracts = resp_position_contracts(update, eid)
+        if contracts < ZERO
+            Short()
+        elseif contracts > ZERO
+            Long()
+        else
+            def
+        end
     elseif unpnl >= ZERO && liqprice < eprice
         Long()
     else
