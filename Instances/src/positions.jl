@@ -166,10 +166,12 @@ islong(::Position{Long}) = true
 islong(::Position{Short}) = false
 islong(::Union{Type{Long},Long}) = true
 islong(::Union{Type{Short},Short}) = false
+islong(::Missing) = false
 isshort(::Position{Short}) = true
 isshort(::Position{Long}) = false
 isshort(::Union{Type{Short},Short}) = true
 isshort(::Union{Type{Long},Long}) = false
+isshort(::Missing) = false
 Misc.marginmode(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode} = M()
 function ishedged(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode}
     @mock ishedged(M())
