@@ -34,7 +34,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, since=nothing)
             @debug "live cancel: response is nothing" _module = LogCancelOrder @caller
             true
         elseif pyisinstance(resp, pybuiltins.dict)
-            if pyeq(Bool, resp_code(resp, eid), @pyconst("0"))
+            if resptobool(exchange(ai), resp)
                 true
             else
                 @warn "live cancel: failed (wrong status code)" ai = raw(ai) resp
