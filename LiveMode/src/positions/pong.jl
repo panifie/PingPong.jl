@@ -102,7 +102,7 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    trade = _live_limit_order(s, ai, t; amount, price, waitfor, synced, kwargs)
+    trade = _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
     if synced && trade isa Trade
         live_sync_position!(
             s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
@@ -132,7 +132,7 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    trade = _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
+    trade = _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
         live_sync_position!(
             s, ai, posside(trade); since=trade.date, waitfor=@timeout_now

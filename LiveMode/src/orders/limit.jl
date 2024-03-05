@@ -7,8 +7,8 @@ It handles immediate orders differently, in such cases it waits for the order to
 If an order fails or is cancelled, the function returns the relevant status.
 
 """
-function _live_limit_order(s::LiveStrategy, ai, t; amount, price, waitfor, synced, kwargs)
-    o = create_live_order(s, ai; t, amount, price, exc_kwargs=kwargs)
+function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, price, waitfor, synced, kwargs)
+    o = create_live_order(s, ai; skipchecks, t, amount, price, exc_kwargs=kwargs)
     isnothing(o) && return nothing
     order_trades = attr(o, :trades)
     @debug "pong limit order: waiting" _module = LogCreateOrder waitfor

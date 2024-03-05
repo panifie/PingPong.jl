@@ -17,10 +17,11 @@ function pong!(
     price=lastprice(s, ai, t),
     waitfor=Second(5),
     synced=true,
+    skipchecks=false,
     kwargs...,
 )::Union{<:Trade,Nothing,Missing}
     @timeout_start
-    trade = _live_limit_order(s, ai, t; amount, price, waitfor, synced, kwargs)
+    trade = _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
     if synced && trade isa Trade
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
@@ -43,10 +44,11 @@ function pong!(
     amount,
     waitfor=Second(5),
     synced=true,
+    skipchecks=false,
     kwargs...,
 )
     @timeout_start
-    trade = _live_market_order(s, ai, t; amount, synced, waitfor, kwargs)
+    trade = _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
         waitfororder(s, ai, trade.order; waitfor=@timeout_now)
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
