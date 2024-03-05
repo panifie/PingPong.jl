@@ -41,14 +41,14 @@ $(TYPEDSIGNATURES)
 
 The function `pong!` cancels all orders for a specific asset instance `ai`.
 It iterates over the orders of the asset and cancels each one using `cancel!`.
-Parameters include a strategy `s`, an asset instance `ai`, and a type `t` which defaults to `Both`.
+Parameters include a strategy `s`, an asset instance `ai`, and a type `t` which defaults to `BuyOrSell`.
 Additional arguments can be passed through `kwargs...`.
 """
 function pong!(
     s::Strategy{<:Union{Paper,Sim}},
     ai::AssetInstance,
     ::CancelOrders;
-    t::Type{O}=Both,
+    t::Type{O}=BuyOrSell,
     kwargs...,
 ) where {O<:OrderSide}
     for tup in orders(s, ai, t)

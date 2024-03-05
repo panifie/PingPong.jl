@@ -154,6 +154,7 @@ function _live_sync_position!(
         end
     end
     function dowarn(what, val)
+        @debug what resp _module = LogPosSync
         @warn "sync pos: unable to sync $what from $(nameof(exchange(ai))), got $val"
     end
     # price is always positive

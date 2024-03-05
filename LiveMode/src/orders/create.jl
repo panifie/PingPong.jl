@@ -26,7 +26,7 @@ function create_live_order(
     skipcommit=false,
     kwargs...,
 )
-    isnothing(resp) && begin
+    if isnothing(resp)
         @warn "create order: empty response ($(raw(ai)))"
         return nothing
     end
@@ -86,7 +86,7 @@ function create_live_order(
     end
     o = let f = construct_order_func(type)
         function create()
-            @debug "create order: local" ai = raw(ai) id amount date type price loss profit
+            @debug "create order: local" _module = LogCreateOrder ai = raw(ai) id amount date type price loss profit
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
         o = create()
@@ -127,11 +127,12 @@ function create_live_order(
     amount,
     price=lastprice(s, ai, t),
     exc_kwargs=(),
+    skipchecks=false,
     kwargs...,
 )
     @debug "create order: " ai = raw(ai) t price amount @caller
     resp = live_send_order(
-        s, ai, t, args...; amount, price, withoutkws(:date; kwargs=exc_kwargs)...
+        s, ai, t, args...; skipchecks, amount, price, withoutkws(:date; kwargs=exc_kwargs)...
     )
     create_live_order(s, resp, ai; amount, price, t, kwargs...)
 end

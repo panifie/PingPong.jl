@@ -7,10 +7,10 @@ It can optionally confirm if the cancellation was successful.
 If the confirmation fails or if any error occurs during the process, a warning is issued and the function returns false.
 
 """
-function live_cancel(s, ai; ids=(), side=Both, confirm=false, since=nothing)
+function live_cancel(s, ai; ids=(), side=BuyOrSell, confirm=false, since=nothing)
     eid = exchangeid(ai)
     all = isempty(ids)
-    (func, kwargs) = if side === Both && all
+    (func, kwargs) = if side === BuyOrSell && all
         (cancel_all_orders, (;))
     else
         (
@@ -57,7 +57,7 @@ function live_cancel(s, ai; ids=(), side=Both, confirm=false, since=nothing)
                 dtstamp(since)
             end
         )
-        if side === Both
+        if side === BuyOrSell
             isempty(open_orders) || begin
                 @warn "live cancel: confirm failed (both sides)"
                 return false

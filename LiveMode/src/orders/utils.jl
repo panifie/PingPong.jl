@@ -142,7 +142,7 @@ If orders remain open after the sync attempt, it signals an error.
 
 """
 function waitfor_closed(
-    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=Both, synced=true
+    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
 )
     try
         active = active_orders(s, ai)
@@ -196,11 +196,11 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function determines if there are active orders for a specific side (Buy/Sell/Both)
+This function determines if there are active orders for a specific side (Buy/Sell/BuyOrSell)
 for a given asset in a live strategy.
 
 """
-function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=Both)
+function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=BuyOrSell)
     for state in values(active)
         orderside(state.order) == side && return true
     end

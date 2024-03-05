@@ -69,7 +69,7 @@ function pong!(
     s::Strategy{Live},
     ai::AssetInstance,
     ::CancelOrders;
-    t::Type{<:OrderSide}=Both,
+    t::Type{<:OrderSide}=BuyOrSell,
     waitfor=Second(10),
     confirm=false,
     synced=true,

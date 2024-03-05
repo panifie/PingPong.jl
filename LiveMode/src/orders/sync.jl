@@ -44,11 +44,11 @@ This function also handles checking and updating of cash commitments for the str
 - `overwrite`: A boolean flag indicating whether to overwrite strategy state (default is `true`).
 - `exec`: A boolean flag indicating whether to execute the orders during syncing (default is `false`).
 - `create_kwargs`: A dictionary of keyword arguments for creating an order (default is `(;)`).
-- `side`: The side of the order (default is `Both`).
+- `side`: The side of the order (default is `BuyOrSell`).
 
 """
 function live_sync_open_orders!(
-    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=Both
+    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=BuyOrSell
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
@@ -197,7 +197,7 @@ function findorder(
     ai;
     resp=nothing,
     id=resp_order_id(resp, exchangeid(ai), String),
-    side=_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=Both)
+    side=_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=BuyOrSell)
 )
     if !isempty(id)
         for o in values(s, ai, side)
@@ -430,7 +430,7 @@ If it is, it asserts that the order has trades, and if it isn't, it replays the 
 Afterwards, the order is deleted from the active orders.
 
 """
-function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=Both, kwargs...)
+function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=BuyOrSell, kwargs...)
     eid = exchangeid(ai)
     closed_orders = @lget! _closed_orders_resp_cache(s.attrs, ai) LATEST_RESP_KEY let resp = fetch_closed_orders(s, ai; side, kwargs...)
         isnothing(resp) ? [] : [resp...]

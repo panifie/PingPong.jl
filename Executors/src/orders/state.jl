@@ -126,7 +126,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-Base.delete!(s::Strategy, ai, ::Type{Both}) = begin
+Base.delete!(s::Strategy, ai, ::Type{BuyOrSell}) = begin
     delete!(s, ai, Buy)
     delete!(s, ai, Sell)
 end
@@ -136,7 +136,7 @@ end
 $(TYPEDSIGNATURES)
 
 """
-Base.delete!(s::Strategy, ai) = delete!(s, ai, Both)
+Base.delete!(s::Strategy, ai) = delete!(s, ai, BuyOrSell)
 
 @doc """Inserts an order into the order dict of the asset instance. Orders should be identifiable by a unique (price, date) tuple.
 

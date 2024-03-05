@@ -23,7 +23,7 @@ abstract type Buy <: OrderSide end
 @doc """ Abstract type representing the sell side of an order """
 abstract type Sell <: OrderSide end
 @doc """ Abstract type representing both sides of an order """
-abstract type Both <: OrderSide end
+abstract type BuyOrSell <: OrderSide end
 
 @doc """ Abstract type representing the type of an order """
 abstract type OrderType{S<:OrderSide} end
@@ -195,8 +195,8 @@ end
 @deforders false GTC PostOnly FOK IOC Market
 @deforders true Limit
 
-==(v1::Type{<:OrderSide}, v2::Type{Both}) = true
-==(v1::Type{Both}, v2::Type{<:OrderSide}) = true
+==(v1::Type{<:OrderSide}, v2::Type{BuyOrSell}) = true
+==(v1::Type{BuyOrSell}, v2::Type{<:OrderSide}) = true
 @doc """Get the `OrderType` of an order """
 ordertype(::Order{T}) where {T<:OrderType} = T
 ordertype(::Type{<:Order{T}}) where {T<:OrderType} = T
@@ -276,7 +276,7 @@ sidetopos(::BySide{Sell}) = Short()
 postoside(::ByPos{Long}) = Buy
 postoside(::ByPos{Short}) = Sell
 
-export Order, OrderType, OrderSide, BySide, Buy, Sell, Both, Trade, ByPos
+export Order, OrderType, OrderSide, BySide, Buy, Sell, BuyOrSell, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder

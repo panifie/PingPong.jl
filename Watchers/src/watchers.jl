@@ -180,7 +180,7 @@ It also ensures that the `_fetch!` function is applicable for the watcher.
 
 
 !!! warning "asyncio vs threads"
-    Both `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
+    BuyOrSell `_fetch!` and `_flush!` callbacks assume non-blocking asyncio like behaviour. If instead your functions require \
     high computation, pass `threads=true`, you will have to ensure thread safety.
 """
 function _watcher(

@@ -36,10 +36,10 @@ function _reset_remote_pos(s, ai)
     else
         @info "TEST: CancelOrders" side = isnothing(pos) ? nothing : posside(pos)
         @test !isopen(ai)
-        if ect.pong!(s, ai, ect.CancelOrders(); t=Both)
+        if ect.pong!(s, ai, ect.CancelOrders(); t=BuyOrSell)
             true
         else
-            lm.waitfor_closed(s, ai, Second(3); t=Both)
+            lm.waitfor_closed(s, ai, Second(3); t=BuyOrSell)
         end
     end
     @test !isopen(ai)
@@ -157,7 +157,7 @@ function test_live_pong_nm_gtc(s)
     end
     @test s.cash > ZERO
     if lm.hasorders(s, ai)
-        @test ect.pong!(s, ai, ect.CancelOrders(); t=Both)
+        @test ect.pong!(s, ai, ect.CancelOrders(); t=BuyOrSell)
     end
     lp = lastprice(ai)
     price = lp + lp * 0.02
@@ -199,7 +199,7 @@ function test_live_pong_nm_gtc(s)
     @test ect.pong!(s, ai, ect.CancelOrders(); t=Buy)
     @test lm.orderscount(s, ai, Buy) == 0
     @test lm.orderscount(s, ai, Sell) == 1
-    @test ect.pong!(s, ai, ect.CancelOrders(); t=Both)
+    @test ect.pong!(s, ai, ect.CancelOrders(); t=BuyOrSell)
     @test lm.orderscount(s, ai) == 0
 end
 

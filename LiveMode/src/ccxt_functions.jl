@@ -148,17 +148,17 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function fetches orders for a given asset instance `ai` using the provided `mytrades_func`. The `side` parameter (default is `Both`) and `ids` parameter (default is an empty tuple) allow filtering of the fetched orders. Additional keyword arguments `kwargs...` are passed to the fetch function.
+This function fetches orders for a given asset instance `ai` using the provided `mytrades_func`. The `side` parameter (default is `BuyOrSell`) and `ids` parameter (default is an empty tuple) allow filtering of the fetched orders. Additional keyword arguments `kwargs...` are passed to the fetch function.
 
 """
-function _fetch_orders(ai, this_func; eid, side=Both, ids=(), kwargs...)
+function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), kwargs...)
     symbol = isnothing(ai) ? nothing : raw(ai)
     resp = _execfunc(this_func; symbol, kwargs...)
     if resp isa Exception
         @error "ccxt fetch orders" raw(ai) resp
         return nothing
     end
-    notside = let sides = if side === Both # NOTE: strict equality
+    notside = let sides = if side === BuyOrSell # NOTE: strict equality
             (_ccxtorderside(Buy), _ccxtorderside(Sell))
         else
             (_ccxtorderside(side),)
@@ -166,7 +166,7 @@ function _fetch_orders(ai, this_func; eid, side=Both, ids=(), kwargs...)
         (o) -> (sd = resp_order_side(o, eid); @py sd ∉ sides)
     end
     should_skip = if isempty(ids)
-        if side === Both
+        if side === BuyOrSell
             Returns(false)
         else
             notside
@@ -265,7 +265,7 @@ function ccxt_orders_func!(a, exc)
             end
         end
     elseif !isnothing(fetch_single_func)
-        function ccxt_orders_single(ai; ids, side=Both, kwargs...)
+        function ccxt_orders_single(ai; ids, side=BuyOrSell, kwargs...)
             out = pylist()
             sym = raw(ai)
             @sync for id in ids

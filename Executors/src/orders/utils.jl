@@ -262,7 +262,7 @@ Returns all orders for an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orders(s, ai, ::Type{Both}) = orders(s, ai)
+orders(s, ai, ::Type{BuyOrSell}) = orders(s, ai)
 
 @doc """
 Returns all buy orders for a strategy.
@@ -317,7 +317,7 @@ Returns the first order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function Base.first(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+function Base.first(s::Strategy{M,S,E}, ai, bs::BySide=BuyOrSell) where {M,S,E}
     values(s, ai, bs) |> first
 end
 
@@ -326,7 +326,7 @@ Returns the first index for an order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function Base.firstindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+function Base.firstindex(s::Strategy{M,S,E}, ai, bs::BySide=BuyOrSell) where {M,S,E}
     keys(s, ai, bs) |> first
 end
 
@@ -335,7 +335,7 @@ Returns the last order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function Base.last(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+function Base.last(s::Strategy{M,S,E}, ai, bs::BySide=BuyOrSell) where {M,S,E}
     ans = missing
     for v in values(s, ai, bs)
         ans = v
@@ -349,7 +349,7 @@ Returns the last index for an order for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function Base.lastindex(s::Strategy{M,S,E}, ai, bs::BySide=Both) where {M,S,E}
+function Base.lastindex(s::Strategy{M,S,E}, ai, bs::BySide=BuyOrSell) where {M,S,E}
     ans = missing
     for k in keys(s, ai, bs)
         ans = k
@@ -428,7 +428,7 @@ Returns the count of orders for an asset in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orderscount(s::Strategy, ai::AssetInstance, ::Type{Both}) = orderscount(s, ai)
+orderscount(s::Strategy, ai::AssetInstance, ::Type{BuyOrSell}) = orderscount(s, ai)
 
 @doc """
 Returns the count of buy orders for an asset in a strategy.
@@ -536,7 +536,7 @@ function hasorders(s::Strategy, ai::AssetInstance)
     (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
 end
 
-function hasorders(s::Strategy, ai::AssetInstance, ::Type{Both})
+function hasorders(s::Strategy, ai::AssetInstance, ::Type{BuyOrSell})
     hasorders(s, ai)
 end
 
@@ -588,7 +588,7 @@ Checks if a strategy has a specific order for an asset by price and time.
 
 $(TYPEDSIGNATURES)
 """
-function Base.haskey(s::Strategy, ai, pt::PriceTime, ::BySide{Both})
+function Base.haskey(s::Strategy, ai, pt::PriceTime, ::BySide{BuyOrSell})
     haskey(sideorders(s, ai, Buy), pt) || haskey(sideorders(s, ai, Sell), pt)
 end
 
@@ -597,7 +597,7 @@ Checks if a strategy has a specific order for an asset by price and time.
 
 $(TYPEDSIGNATURES)
 """
-Base.haskey(s::Strategy, ai, pt::PriceTime) = haskey(s, ai, pt, Both)
+Base.haskey(s::Strategy, ai, pt::PriceTime) = haskey(s, ai, pt, BuyOrSell)
 
 @doc """
 Checks if a strategy has buy orders.

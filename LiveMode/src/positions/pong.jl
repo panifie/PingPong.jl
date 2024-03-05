@@ -165,7 +165,9 @@ function pong!(
 ) where {P<:PositionSide}
     pos = P()
     @timeout_start
-    pong!(s, ai, CancelOrders(); t=Both, synced=false, waitfor=@timeout_now)
+    if hasorders(s, ai, P)
+        pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=false, waitfor=@timeout_now)
+    end
     update = live_position(s, ai, pos)
     if isnothing(update)
         @warn "pong pos close: no position update (resetting)" ai = raw(ai) side = P
