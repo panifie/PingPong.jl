@@ -2,7 +2,7 @@ using .Python: pyin
 
 function resptobool(::Exchange, resp)
     if haskey(resp, "code")
-        pyeq(Bool, resp["code"], @pyconst("0"))
+        @py resp["code"] in (0, 200, "0", "200")
     elseif haskey(resp, "msg")
         @py "success" in resp["msg"]
     else
@@ -13,7 +13,7 @@ end
 
 function resptobool(::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, resp)
     if haskey(resp, "code")
-        @py resp["code"] in ("0", "1", "-4046")
+        @py resp["code"] in (0, 200, -4046)
     elseif haskey(resp, "msg")
         @py "success" in resp["msg"]
     else
