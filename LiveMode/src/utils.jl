@@ -106,7 +106,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with a strategy `s` for a specific `account`. If the `reset` flag is set, it also clears the task queues and resets the task queue lengths for the account.
 
 """
-function stop_strategy_tasks(s::LiveStrategy, account; reset=false)
+function stop_strategy_tasks(s::LiveStrategy, account=current_account(s); reset=false)
     tasks = strategy_tasks(s, account)
     for task in values(tasks.tasks)
         stop_task(task)
@@ -130,7 +130,7 @@ This function stops all tasks associated with strategy `s`. If the `reset` flag 
 
 """
 function stop_all_strategy_tasks(s::LiveStrategy; reset=false, kwargs...)
-    accounts = strategy_tasks(s)
+    accounts = all_strategy_tasks(s)
     if reset
         @sync for acc in keys(accounts)
             @async stop_strategy_tasks(s, acc; reset, kwargs...)
@@ -262,7 +262,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s`. It returns a dictionary mapping account identifiers to their respective [`StrategyTasks`](@ref).
 
 """
-function strategy_tasks(s::LiveStrategy)
+function all_strategy_tasks(s::LiveStrategy)
     @lock s begin
         tasks = Dict{String,StrategyTasks}()
         @lget! attrs(s) :live_strategy_tasks finalizer(
@@ -277,12 +277,12 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s` for a specific `account`. It returns the account [`StrategyTasks`](@ref].
 
 """
-function strategy_tasks(s::LiveStrategy, account)
-    tasks = strategy_tasks(s)
+function strategy_tasks(s::LiveStrategy, account=current_account(s))
+    tasks = all_strategy_tasks(s)
     @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
 end
 
-function set_strategy_task!(s::LiveStrategy, account, task::Task, k::Symbol; tasks=nothing)
+function set_strategy_task!(s::LiveStrategy, task::Task, k::Symbol; account=current_account(s), tasks=nothing)
     if istaskrunning(task)
         tuple = @something tasks strategy_tasks(s, account)
         tuple.queue[] += 1
@@ -298,7 +298,7 @@ function set_strategy_task!(s::LiveStrategy, account, task::Task, k::Symbol; tas
     end
 end
 
-function strategy_task(s::LiveStrategy, account, k; tasks=nothing)
+function strategy_task(s::LiveStrategy, k; account=current_account(s), tasks=nothing)
     tup = @something tasks strategy_tasks(s, account)
     @lock tup.lock begin
         get(tup.tasks, k, nothing)
@@ -494,13 +494,14 @@ This function retrieves the position side of an asset with best effort.
 function get_position_side(s, ai::AssetInstance)
     try
         sym = raw(ai)
-        long, short = get_positions(s)
-        pos = get(long, sym, nothing)
-        if !isnothing(pos) && !pos.closed[]
+        long, short, last = get_positions(s)
+        long_pos = get(long, sym, missing)
+        last_pos = get(last, sym, missing)
+        if !ismissing(long_pos) && !long_pos.closed[] && islong(last_pos)
             return Long()
         end
-        pos = get(short, sym, nothing)
-        if !isnothing(pos) && !pos.closed[]
+        short_pos = get(short, sym, missing)
+        if !ismissing(short_pos) && !short_pos.closed[] && isshort(last_pos)
             return Short()
         end
         @something posside(ai) if hasorders(s, ai)

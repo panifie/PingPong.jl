@@ -44,6 +44,8 @@ function exchangeid(
 ) where {E<:ExchangeID}
     E
 end
+Exchanges.accounts(s::Strategy) = Exchanges.accounts(exchange(s))
+Exchanges.current_account(s::Strategy) = Exchanges.current_account(exchange(s))
 Exchanges.getexchange!(s::Type{<:Strategy}) = getexchange!(Symbol(exchangeid(s)), sandbox=issandbox(s))
 Exchanges.issandbox(s::Strategy) = begin
     ans = s.sandbox
