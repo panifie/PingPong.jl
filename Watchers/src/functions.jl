@@ -63,8 +63,10 @@ end
 @doc "Executes the watcher `_process!` function (defaults to [`default_process`](@ref))."
 function process!(w::Watcher, args...; kwargs...)
     @logerror w begin
-        _process!(w, _val(w), args...; kwargs...)
-        safenotify(w.beacon.process)
+        @lock _buffer_lock(w) begin
+            _process!(w, _val(w), args...; kwargs...)
+            safenotify(w.beacon.process)
+        end
     end
 end
 @doc "Executes the watcher `_load!` function (defaults to [`default_loader`](@ref))."
