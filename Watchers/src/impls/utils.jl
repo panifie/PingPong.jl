@@ -125,7 +125,7 @@ _nextdate(tf) = _curdate(tf) + tf
 _dateidx(tf, from, to) = max(1, (to - from) ÷ period(tf))
 _lastflushed!(w::Watcher, v) = setattr!(w, v, :last_flushed)
 _lastflushed(w::Watcher) = attr(w, :last_flushed)
-_lastprocessed!(w::Watcher, v) = setattr(w, v, :last_processed)
+_lastprocessed!(w::Watcher, v) = setattr!(w, v, :last_processed)
 _lastprocessed(w::Watcher) = attr(w, :last_processed)
 
 struct Warmed end

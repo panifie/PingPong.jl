@@ -21,7 +21,8 @@ The function takes a watcher, a value, and an optional time as arguments. If the
 function pushnew!(w::Watcher, value, time=nothing)
     # NOTE: use object inequality to avoid non determinsm
     if !isnothing(value) && (isempty(w.buffer) || Bool(value != w.buffer[end].value))
-        push!(w.buffer, (time=@something(time, now()), value))
+        v = (time=@something(time, now()), value)
+        push!(w.buffer, v)
     end
 end
 
@@ -46,7 +47,12 @@ function default_flusher(w::Watcher, key; reset=false, buf=w.buffer)
     if most_recent.time > last_flushed.time
         recent_slice = after(buf, last_flushed; by=x -> x.time)
         save_data(
-            zinstance(), key, recent_slice; serialize=_isserialized(w), overwrite=true, reset
+            zinstance(),
+            key,
+            recent_slice;
+            serialize=_isserialized(w),
+            overwrite=true,
+            reset,
         )
         setattr!(w, most_recent, :last_flushed)
     end
