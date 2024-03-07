@@ -48,16 +48,19 @@ This function also handles checking and updating of cash commitments for the str
 
 """
 function live_sync_open_orders!(
-    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=BuyOrSell
+    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=BuyOrSell, raise=true
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
     open_orders = fetch_open_orders(s, ai; side)
     if isnothing(open_orders)
-        @error "sync orders: couldn't fetch open orders, skipping sync" ai = raw(ai) s = nameof(
-            s
-        )
-        return nothing
+        msg = "sync orders: couldn't fetch open orders, skipping sync"
+        if raise
+            error(msg)
+        else
+            @error msg ai = raw(ai) s = nameof(s)
+            return nothing
+        end
     end
     # Pre-delete local orders not open on exc to fix commit calculation
     let exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
@@ -135,7 +138,9 @@ function live_sync_open_orders!(
         end
     end
     @sync for (id, state) in ao
-        orderside(state.order) == side || continue
+        if orderside(state.order) != side
+            continue
+        end
         if id ∉ live_orders
             @debug "sync orders: tracked local order was not open on exchange" _module = LogSyncOrder id ai = raw(
                 ai
