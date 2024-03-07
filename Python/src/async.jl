@@ -12,6 +12,10 @@ function isinitialized_async(pa::PythonAsync)
     !pyisnull(pa.pyaio)
 end
 
+function setrunning!(flag::Bool, pa::PythonAsync=gpa)
+    pa.globs["running"] = pa.task_running[] = flag
+end
+
 @doc """ Copies a python async structures.
 
 $(TYPEDSIGNATURES)
@@ -25,7 +29,7 @@ function Base.copyto!(pa_to::PythonAsync, pa_from::PythonAsync)
                 elseif f == :task
                     isassigned(v) && (pa_to.task[] = v[])
                 elseif f == :task_running
-                    continue
+                    getfield(pa_to, f)[] = v[]
                 else
                     error()
                 end
@@ -70,7 +74,7 @@ function py_start_loop(pa::PythonAsync=gpa)
     @assert !pyisnull(pyaio)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     if isassigned(pa.task) && !istaskdone(pa.task[])
-        gpa.task_running[] = false
+        setrunning!(false, pa)
         try
             wait(pa.task[])
         catch
@@ -80,12 +84,12 @@ function py_start_loop(pa::PythonAsync=gpa)
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
     start_task() = pa.task[] = @async while true
         try
-            gpa.task_running[] = true
+            setrunning!(true, pa)
             pyisnull(pa.start_func) || pa.start_func(Python)
         catch e
             @debug e
         finally
-            gpa.task_running[] = false
+            setrunning!(false, pa)
             pyisnull(pyloop) || pyloop.stop()
         end
         sleep(1)
@@ -108,7 +112,7 @@ function py_start_loop(pa::PythonAsync=gpa)
 end
 
 function py_stop_loop(pa::PythonAsync=gpa)
-    pa.task_running[] = false
+    setrunning!(false, pa)
     try
         wait(pa.task[])
     catch
@@ -123,6 +127,7 @@ function pyloop_stop_fn()
     fn() = begin
         !isassigned(gpa.task) || istaskdone(gpa.task[]) && return nothing
         gpa.task_running[] = false
+        setrunning!(false, gpa)
         pyisnull(gpa.pyloop) || py_stop_loop(gpa)
     end
     fn
@@ -359,12 +364,12 @@ function async_start_runner_func!(pa)
     from juliacall import Main
     jlsleep = getattr(Main, "sleep")
     pysleep = asyncio.sleep
+    running = False
     async def main(Python):
-        running = Python._pyisrunning
         pa = Python._get_ref()
         Python._set_loop(pa, asyncio.get_running_loop())
         try:
-            while running():
+            while running:
                 await pysleep(1e-3)
                 jlsleep(1e-1)
         finally:
@@ -387,4 +392,67 @@ function async_start_runner_func!(pa)
     pycopy!(pa.globs, globs)
 end
 
+TRACKED_HANDLERS = Symbol[]
+
+function stream_handler(f_pull, f_push)
+    @assert _pyisrunning()
+    n = length(TRACKED_HANDLERS) + 1
+    pull_name = Symbol(:handler_pull, n)
+    push_name = Symbol(:handler_push, n)
+    flag_name = Symbol(:handler_flag, n)
+    gpa.globs[string(pull_name)] = f_pull
+    gpa.globs[string(push_name)] = f_push
+    gpa.globs[string(flag_name)] = false
+    push!(TRACKED_HANDLERS, pull_name)
+    code = """
+    async def handler_loop_$n():
+        while $flag_name:
+            try:
+                v = await $pull_name()
+                $push_name(v)
+            except Exception as e:
+                $push_name(e)
+    """
+    func = first(
+        pyexec(NamedTuple{(Symbol(:handler_loop_, n),),Tuple{Py}}, code, gpa.globs)
+    )
+    (; func, id=n, task=Ref{Task}())
+end
+
+function set_stream_flag!(v::Bool, id::Int)
+    flag_str = string(:handler_flag, id)
+    gpa.globs[flag_str] = v
+end
+
+function is_handler_running(handler)
+    if isassigned(handler.task)
+        task = handler.task[]
+        !istaskdone(task)
+    else
+        false
+    end
+end
+
+function start_handler!(handler)
+    if is_handler_running(handler)
+        false
+    else
+        set_stream_flag!(true, handler.id)
+        handler.task[] = pytask(handler.func())
+        true
+    end
+end
+
+function stop_handler!(handler)
+    if is_handler_running(handler)
+        set_stream_flag!(false, handler.id)
+        task = handler.task[]
+        if !istaskdone(task)
+            pycancel(task)
+        end
+    end
+    true
+end
+
 export pytask, pyfetch, pycancel, @pytask, @pyfetch, pyfetch_timeout
+export stream_handler, start_handler!, stop_handler!
