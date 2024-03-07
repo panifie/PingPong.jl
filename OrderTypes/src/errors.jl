@@ -1,5 +1,5 @@
 @doc "Abstract type for order errors."
-abstract type OrderError end
+abstract type OrderError <: Exception end
 @doc "There wasn't enough cash to setup the order."
 @kwdef struct NotEnoughCash{T<:Real} <: OrderError
     required::T
@@ -39,3 +39,6 @@ end
     liqdate::DateTime
     p::PositionSide
 end
+
+@doc "Abstract type for syncing errors (live)."
+abstract type SyncError <: Exception end
