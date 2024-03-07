@@ -1,6 +1,7 @@
 using LRUCache: LRUCache
 using .Misc.TimeToLive: safettl
 using .Exchanges.Ccxt: py_except_name
+using .Exchanges.Python: stream_handler, start_handler!, stop_handler!
 
 _skipkwargs(; kwargs...) = ((k => v for (k, v) in pairs(kwargs) if !isnothing(v))...,)
 
@@ -301,15 +302,14 @@ function position_func(exc::Exchange, ai, args...; timeout, kwargs...)
     )
 end
 
-function watch_positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
-    _execfunc_timeout(
-        exc.watchPositions, _syms(ais), args...; timeout, kwargs...
-    )
+function watch_positions_handler(exc::Exchange, ais, args...; f_push, kwargs...)
+    corogen() = exc.watchPositions(_syms(ais), args...; kwargs...)
+    stream_handler(corogen, f_push)
 end
 
-function watch_balance_func(exc::Exchange, args...; timeout, kwargs...)
-    v = _execfunc_timeout(
-        exc.watchBalance, args...; timeout, kwargs...
+function watch_balance_func(exc::Exchange, args...; kwargs...)
+    v = _execfunc(
+        exc.watchBalance, args...; kwargs...
     )
     _parse_balance(exc, v)
 end

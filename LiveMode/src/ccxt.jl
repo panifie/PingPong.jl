@@ -1,6 +1,6 @@
 using .Lang: @ifdebug
 using .Python: @pystr, @pyconst
-using .Python.PythonCall: pyisint
+using .Python.PythonCall: pyisint, PyDict
 using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
 using .Misc.Mocking: Mocking, @mock
@@ -14,11 +14,11 @@ _execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
 @doc "Converts a Python object to a string."
 pytostring(v) = pytruth(v) ? string(v) : ""
 @doc "Get the value of a Python container by key."
-get_py(v::Py, k) = get(v, @pystr(k), pybuiltins.None)
+get_py(v::Union{Py,PyDict}, k) = get(v, @pystr(k), pybuiltins.None)
 @doc "Get the value of a Python container by key, with a default value."
-get_py(v::Py, k, def) = get(v, @pystr(k), def)
+get_py(v::Union{Py,PyDict}, k, def) = get(v, @pystr(k), def)
 @doc "Get the value of a Python container by multiple keys."
-get_py(v::Py, def, keys::Vararg{String}) = begin
+get_py(v::Union{Py,PyDict}, def, keys::Vararg{String}) = begin
     for k in keys
         ans = get_py(v, k)
         pyisnone(ans) || (return ans)
@@ -27,13 +27,13 @@ get_py(v::Py, def, keys::Vararg{String}) = begin
 end
 
 @doc "Get value of key as a string."
-get_string(v::Py, k) = get_py(v, k) |> pytostring
+get_string(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytostring
 @doc "Get value of key as a float."
-get_float(v::Py, k) = get_py(v, k) |> pytofloat
+get_float(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytofloat
 @doc "Get value of key as a boolean."
-get_bool(v::Py, k) = get_py(v, k) |> pytruth
+get_bool(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytruth
 
-_option_float(o::Py, k; nonzero=false) =
+_option_float(o::Union{Py,PyDict}, k; nonzero=false) =
     let v = get_py(o, k)
         if pyisinstance(v, pybuiltins.float)
             ans = pytofloat(v)
@@ -51,7 +51,7 @@ $(TYPEDSIGNATURES)
 This function retrieves a float value from a Python response `resp` for a given key `k`. If the key isn't found, it returns a default value `def`. If the key is found and the retrieved value isn't approximately equal to `def`, it logs a warning and returns the retrieved value.
 
 """
-function get_float(resp::Py, k, def, args...; ai)
+function get_float(resp::Union{Py,PyDict}, k, def, args...; ai)
     v = _option_float(resp, k)
     if isnothing(v)
         def
@@ -78,9 +78,9 @@ get_timestamp(py, keys=("lastUpdateTimestamp", "timestamp")) =
     end
 
 _tryasdate(py) = tryparse(DateTime, rstrip(string(py), 'Z'))
-pytodate(py::Py) = pytodate(py, "lastUpdateTimestamp", "timestamp")
+pytodate(py::Union{Py,PyDict}) = pytodate(py, "lastUpdateTimestamp", "timestamp")
 @doc "Convert a Python object to a date."
-function pytodate(py::Py, keys...)
+function pytodate(py::Union{Py,PyDict}, keys...)
     let v = get_timestamp(py, keys)
         if pyisinstance(v, pybuiltins.str)
             _tryasdate(v)
@@ -91,9 +91,9 @@ function pytodate(py::Py, keys...)
         end
     end
 end
-pytodate(py::Py, ::EIDType, args...; kwargs...) = pytodate(py, args...; kwargs...)
+pytodate(py::Union{Py,PyDict}, ::EIDType, args...; kwargs...) = pytodate(py, args...; kwargs...)
 @doc "Convert a Python object to a date, defaulting to `now()`."
-get_time(v::Py, keys...) = @something pytodate(v, keys...) now()
+get_time(v::Union{Py,PyDict}, keys...) = @something pytodate(v, keys...) now()
 
 _pystrsym(v::String) = @pystr(uppercase(v))
 _pystrsym(v::Symbol) = @pystr(uppercase(string(v)))
@@ -160,7 +160,7 @@ ordertype_fromtif(o::Py, eid::EIDType) =
     end
 
 @doc "Convert a ccxt order side to a PingPong order side."
-_orderside(o::Py, eid) =
+_orderside(o::Union{Py,PyDict}, eid) =
     let v = resp_order_side(o, eid)
         if pyeq(Bool, v, @pyconst("buy"))
             Buy
@@ -170,7 +170,7 @@ _orderside(o::Py, eid) =
     end
 
 @doc "Get the order id from a ccxt order object as a string."
-_orderid(o::Py, eid::EIDType) =
+_orderid(o::Union{Py,PyDict}, eid::EIDType) =
     let v = resp_order_id(o, eid)
         if pyisinstance(v, pybuiltins.str)
             return string(v)
@@ -205,13 +205,13 @@ time_in_force_value(::Exchange, v) = v
 time_in_force_key(::Exchange) = "timeInForce"
 
 @doc "Tests if a ccxt order object is filled."
-function _ccxtisfilled(resp::Py, ::EIDType)
+function _ccxtisfilled(resp::Union{Py,PyDict}, ::EIDType)
     get_float(resp, "filled") == get_float(resp, "amount") &&
         iszero(get_float(resp, "remaining"))
 end
 
 @doc "Tests if a ccxt order object is synced by comparing filled amount and trades."
-function isorder_synced(o, ai, resp::Py, eid::EIDType=exchangeid(ai))
+function isorder_synced(o, ai, resp::Union{Py,PyDict}, eid::EIDType=exchangeid(ai))
     @debug "is order synced:" _module = LogSyncOrder filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
     order_filled = resp_order_filled(resp, eid)
     v = isapprox(ai, filled_amount(o), order_filled, Val(:amount)) ||
