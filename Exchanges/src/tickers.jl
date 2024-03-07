@@ -165,7 +165,7 @@ function ticker!(
     waitforcond(l.cond_wait, timeout)
     if islocked(l)
         waitforcond(l.cond_wait, timeout)
-        return @get tickersCache10Sec pair pylist()
+        return @get tickersCache10Sec pair pydict()
     else
         @lock l begin
             @lget! tickersCache10Sec pair begin
@@ -203,7 +203,11 @@ end
 
 function lastprice(exc::Exchange, tick)
     if !pytruth(tick)
-        @warn "exchanges: failed to fetch ticker" get(tick, "symbol", "") nameof(exc)
+        sym = try
+            get(tick, "symbol", "")
+        catch
+        end
+        @warn "exchanges: failed to fetch ticker" sym nameof(exc)
         ZERO
     else
         lp = tick["last"]
