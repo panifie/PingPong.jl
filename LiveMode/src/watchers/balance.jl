@@ -1,6 +1,6 @@
 using Watchers
 using Watchers: default_init
-using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
+using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched, _lastprocessed!, _lastprocessed
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Exchanges.Python: @py
@@ -73,6 +73,7 @@ function _w_fetch_balance_func(s, attrs)
                     end
                     init[] = false
                 else
+                    # NOTE: Watch functions shouldn't timeout. Force cancel can cause updates to be lost
                     v = watch_balance_func(exc; params, rest...)
                     @lock w _dopush!(w, v; if_func=isdict)
                 end
@@ -116,7 +117,7 @@ function Watchers._fetch!(w::Watcher, ::CcxtBalanceVal)
         _balance_task!(w)
     end
     s = w[:strategy]
-    sync_task = strategy_task(s, attr(s, :account, "main"), :sync_cash)
+    sync_task = strategy_task(s, :sync_cash)
     if !istaskrunning(sync_task)
         sync_balance_task!(s, w)
     end
@@ -134,6 +135,7 @@ function _init!(w::Watcher, ::CcxtBalanceVal)
     dataview = (; date=Ref(DateTime(0)), balance=BalanceDict1())
     default_init(w, dataview, false)
     _lastfetched!(w, DateTime(0))
+    _lastprocessed!(w, DateTime(0))
 end
 
 @doc """ Processes balance for a watcher using the CCXT library.
@@ -147,14 +149,16 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
     if isempty(w.buffer)
         return nothing
     end
-    _, update = last(w.buffer)
+    update_date, update = last(w.buffer)
     bal = w.view.balance
     eid = typeof(exchangeid(_exc(w)))
-    if !(isdict(update) && resp_event_type(update, eid) == ot.Balance)
+    if update_date == _lastprocessed(w) ||
+       (!(isdict(update) && resp_event_type(update, eid) == ot.Balance))
         return nothing
     end
     date = @something pytodate(update, eid) now()
     if date == w.view.date[]
+        _lastprocessed!(w, update_date)
         return nothing
     end
     for (sym, sym_bal) in update.items()
@@ -167,12 +171,13 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal)
         )
     end
     w.view.date[] = date
+    _lastprocessed!(w, update_date)
     @debug "balance watcher update:" _module = LogWatchBalance date get(bal, :BTC, nothing) _module = :Watchers
     safenotify(w.beacon.process)
 end
 
 function sync_balance_task!(s, w; force=false)
-    if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_cash))
+    if force || isnothing(strategy_task(s, :sync_cash))
         t = @start_task IdDict() begin
             kind = attr(s, :balance_kind, :free)
             while isstarted(w)
@@ -191,7 +196,7 @@ function sync_balance_task!(s, w; force=false)
         while !(istaskstarted(t)) && !istaskdone(t)
             sleep(0.001)
         end
-        set_strategy_task!(s, "main", t, :sync_cash)
+        set_strategy_task!(s, t, :sync_cash)
     end
 end
 
@@ -222,6 +227,7 @@ function stop_watch_balance!(s::LiveStrategy)
     w = get(s.attrs, :live_balance_watcher, nothing)
     if w isa Watcher && isstarted(w)
         stop!(w)
+        stop_task(strategy_task(s, :sync_cash))
     end
 end
 
@@ -242,4 +248,3 @@ function _start!(w::Watcher, ::CcxtBalanceVal)
     _exc!(attrs, exc)
     _tfunc!(attrs, _w_fetch_balance_func(s, attrs))
 end
-

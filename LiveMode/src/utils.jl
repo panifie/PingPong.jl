@@ -30,6 +30,7 @@ baremodule LogWatchBalance end
 baremodule LogWatchOrder end
 baremodule LogWatchTrade end
 baremodule LogWatchPos end
+baremodule LogWatchPosProcess end
 baremodule LogWait end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
@@ -430,6 +431,8 @@ function st.default!(s::LiveStrategy)
     set_exc_funcs!(s)
     # if `true` watchers will start even if strategy is stopped
     a[:live_force_watch] = false
+    # The number of entries in watchers channels buffers
+    a[:live_buffer_size] = 1000
     # Dict indicating the latest (remotely) set margin mode for an asset
     a[:live_margin_mode] = Dict{AssetInstance,Union{Missing,MarginMode}}()
 

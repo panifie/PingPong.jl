@@ -3,7 +3,7 @@ using Watchers: default_init
 using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
 @watcher_interface!
 using .PaperMode: sleep_pad
-using .Exchanges: check_timeout
+using .Exchanges: check_timeout, current_account
 using .Lang: splitkws, safenotify, safewait
 
 const CcxtPositionsVal = Val{:ccxt_positions}
@@ -47,7 +47,7 @@ function ccxt_positions_watcher(
     attrs[:is_watch_func] = is_watch_func
     _tfunc!(attrs, _w_fetch_positions_func(s, interval; is_watch_func, kwargs))
     _exc!(attrs, exc)
-    watcher_type = Py
+    watcher_type = Union{Py,PyList}
     wid = string(wid, "-", hash((exc.id, nameof(s))))
     watcher(
         watcher_type,
@@ -79,9 +79,13 @@ function guess_settle(s::MarginStrategy)
 end
 
 _dopush!(w, v; if_func=islist) =
-    if if_func(v)
-        pushnew!(w, v)
-        _lastfetched!(w, now())
+    try
+        if if_func(v)
+            pushnew!(w, v, now())
+            _lastfetched!(w, now())
+        end
+    catch
+        @debug_backtrace LogWatchPos
     end
 
 function split_params(kwargs)
@@ -105,6 +109,8 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     @lget! params "settle" guess_settle(s)
     if is_watch_func
         init = Ref(true)
+        buffer_size = attr(s, :live_buffer_size, 1000)
+        channel = Channel{Any}(buffer_size)
         (w) -> begin
             start = now()
             try
@@ -114,9 +120,32 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
                         _dopush!(w, v)
                     end
                     init[] = false
+                    f_push = (v) -> put!(channel, v)
+                    handler = w[:positions_handler] = watch_positions_handler(
+                        exc, (ai for ai in s.universe); f_push, params, rest...
+                    )
+                    start_handler!(handler)
+                    bind(channel, handler.task[])
+                end
+                v = try
+                    take!(channel)
+                catch e
+                    if e isa InvalidStateException
+                        return nothing
+                    else
+                        rethrow(e)
+                    end
+                end
+                if v isa Exception
+                    @info "positions watcher: EXCEPTION" exception = v
                 else
-                    v = watch_positions_func(exc, (ai for ai in s.universe); timeout, params, rest...)
-                    @lock w _dopush!(w, v)
+                    @ifdebug begin
+                        getup(prop=:time) = get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
+                        getval(k="datetime"; src=getup(:value)) = get(get(src, 1, pydict()), k, nothing)
+                    end
+                    @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = getup() new_time = getval(src=v) n = length(getup(:value))
+                    @lock w _dopush!(w, pylist(v))
+                    @debug "positions watcher: PUSHED" _module = LogWatchPos getup(:time) getval("contracts", src=v)
                 end
             catch
                 @debug_backtrace LogWatchPos
@@ -140,13 +169,14 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
 end
 
 function sync_positions_task!(s, w; force=false)
-    if force || isnothing(strategy_task(s, attr(s, :account, "main"), :sync_positions))
+    if force || !istaskrunning(strategy_task(s, :sync_positions))
         t = @start_task IdDict() begin
             while isstarted(w)
                 safewait(w.beacon.process)
                 if !@istaskrunning()
                     break
                 end
+                # NOTE: this is a little spammy (follows watcher throttle)
                 live_sync_universe_cash!(s)
             end
         end
@@ -155,7 +185,7 @@ function sync_positions_task!(s, w; force=false)
         while !(istaskstarted(t)) && !istaskdone(t)
             sleep(0.001)
         end
-        set_strategy_task!(s, "main", t, :sync_positions)
+        set_strategy_task!(s, t, :sync_positions)
     end
 end
 
@@ -216,6 +246,17 @@ function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
     )
 
 end
+function Watchers._stop!(w::Watcher, ::CcxtPositionsVal)
+    s = w[:strategy]
+    task = strategy_task(s, :sync_positions)
+    if task isa Task
+        stop_task(task)
+    end
+    handler = attr(w, :positions_handler, nothing)
+    if !isnothing(handler)
+        stop_handler!(handler)
+    end
+end
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     try
         fetch_task = _positions_task(w)
@@ -224,7 +265,7 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
             setattr!(w, new_task, :positions_task)
         end
         s = w[:strategy]
-        sync_task = strategy_task(s, attr(s, :account, "main"), :sync_positions)
+        sync_task = strategy_task(s, :sync_positions)
         if !istaskrunning(sync_task) && isstarted(w)
             sync_positions_task!(s, w)
         end
@@ -236,8 +277,13 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
 end
 
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
-    default_init(w, (; long=PositionsDict2(), short=PositionsDict2()), false)
+    default_init(w, (; long=PositionsDict2(),
+            short=PositionsDict2(),
+            last=Dict{String,PositionSide}()
+        ),
+        false)
     _lastfetched!(w, DateTime(0))
+    _lastprocessed!(w, DateTime(0))
 end
 
 function _posupdate(date, resp)
@@ -246,6 +292,7 @@ function _posupdate(date, resp)
     ))
 end
 function _posupdate(prev, date, resp)
+    prev.read[] = false
     PositionTuple((; date, prev.notify, prev.read, prev.closed, resp))
 end
 _deletek(py, k=@pyconst("info")) = haskey(py, k) && py.pop(k)
@@ -270,49 +317,75 @@ This function processes positions for a watcher `w` using the CCXT library. It g
 
 """
 function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
-    isempty(w.buffer) && return nothing
+    if isempty(w.buffer)
+        return nothing
+    end
     data_date, data = last(w.buffer)
+    eid = typeof(exchangeid(_exc(w)))
+    if data_date == _lastprocessed(w)
+        @debug "watchers process: already processed" _module = LogWatchPosProcess data_date
+        return nothing
+    elseif !islist(data)
+        @debug "watchers process: data is not a list (or dict)" _module = LogWatchPosProcess typeof(data)
+        _lastprocessed!(w, data_date)
+        return nothing
+    end
     long_dict = w.view.long
     short_dict = w.view.short
-    islist(data) || return nothing
-    eid = typeof(exchangeid(_exc(w)))
+    last_dict = w.view.last
     processed_syms = Set{Tuple{String,PositionSide}}()
-    @debug "watchers process: position" data _module = LogWatchPos
-    for resp in data
+    @debug "watchers process: position" _module = LogWatchPosProcess
+    @sync for resp in data
         if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionUpdate
-            @debug "watchers process: not a position update" resp
+            @debug "watchers process: not a position update" resp _module = LogWatchPosProcess
             continue
         end
         sym = resp_position_symbol(resp, eid, String)
-        side = posside_fromccxt(resp, eid, default_side_func=Returns(_last_updated_position(long_dict, short_dict, sym)))
+        default_side_func = Returns(_last_updated_position(long_dict, short_dict, sym))
+        side = posside_fromccxt(resp, eid; default_side_func)
         side_dict = ifelse(islong(side), long_dict, short_dict)
         pup_prev = get(side_dict, sym, nothing)
-        date = let this_date = @something pytodate(resp, eid) data_date
-            prev_date = isnothing(pup_prev) ? DateTime(0) : pup_prev.date
-            if this_date == prev_date
-                data_date
-            else
-                this_date
+        prev_date, cond = if isnothing(pup_prev)
+            DateTime(0), Threads.Condition()
+        else
+            pup_prev.date, pup_prev.notify
+        end
+        this_date = @something pytodate(resp, eid) data_date
+        # NOTE: this is an equality, becase a newer update can still have a *lower* date
+        # than the most recent update date because of fetching delays
+        @assert this_date >= prev_date
+        is_stale = this_date == prev_date
+        # this ensure even if there are no updates we know
+        # the date of the last fetch run
+        @async @lock cond begin
+            pup = if isnothing(pup_prev)
+                _posupdate(this_date, resp)
+            elseif !is_stale
+                _posupdate(pup_prev, this_date, resp)
+            end
+            @debug "watchers: position processed" _module = LogWatchPosProcess sym side is_stale
+            if !isnothing(pup)
+                push!(processed_syms, (sym, side))
+                @info "UNREAD" contracts = resp_position_contracts(pup.resp, eid)
+                pup.read[] = false
+                pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
+                last_dict[sym] = side
+                @info "NEW pup date" pup.date
+                side_dict[sym] = pup
             end
         end
-        pup = if isnothing(pup_prev)
-            _posupdate(date, resp)
-        elseif pup_prev.date < date
-            _posupdate(pup_prev, date, resp)
-        end
-        @debug "watchers: position processed" sym side
-        push!(processed_syms, (sym, side))
-        isnothing(pup) || (side_dict[sym] = pup)
     end
-    # do notify if we added at least one response, or removed at least one
-    skip_notify = all(isempty(x for x in (processed_syms, long_dict, short_dict)))
-    # Only update closed state when using plain `fetch*` functions.
-    if !w[:is_watch_func] && isnothing(forced_sym)
+    skip_notify = isempty(processed_syms)
+    if !w[:is_watch_func]
         _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym, eid)
         _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym, eid)
     end
-    @debug "watchers process: notify" _module = LogWatchPos skip_notify
-    skip_notify || safenotify(w.beacon.process)
+    @debug "watchers process: notify" _module = LogWatchPosProcess skip_notify
+    # notify if we added at least one response, or removed at least one
+    if !isempty(processed_syms)
+        _lastprocessed!(w, data_date)
+        safenotify(w.beacon.process)
+    end
 end
 
 @doc """ Updates position flags for a symbol in a dictionary.
@@ -323,7 +396,7 @@ This function updates the `PositionUpdate` status when *not* using `watch*` func
 
 """
 function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
-    set!(this_sym, pup) = begin
+    set!(this_sym, pup) = @lock pup.notify begin
         prev_closed = pup.closed[]
         # in case forced_sym is set, the response only returned the requested position
         # hence this assumption does not apply
@@ -332,9 +405,6 @@ function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
             @assert pup_prev === pup
             dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
             pup.closed[] = true
-        else
-            pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
-            pup.read[] = false
         end
         # NOTE: this might fix some race conditions (when a position is updated right after).
         # The new update might have a lower timestamp and would skip sync (from `live_position_sync!`).
@@ -345,8 +415,8 @@ function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
         safenotify(pup.notify)
     end
     if isnothing(forced_sym)
-        for (sym, pup) in dict
-            set!(sym, pup)
+        @sync for (sym, pup) in dict
+            @async set!(sym, pup)
         end
     else
         pup = get(dict, forced_sym, nothing)
