@@ -28,6 +28,9 @@ It also checks for conditions like whether the position is open or closed, and i
 If the position is closed, it resets the position. If the position is open, it updates the timestamp of the position.
 `forced_side` auto closes the opposite position side when `true.
 
+!!! warn
+    This functions should be called with the `update` lock held.
+
 """
 function _live_sync_position!(
     s::LiveStrategy,
@@ -96,7 +99,7 @@ function _live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite f = @caller
+        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite # resp f = @caller
         if !overwrite
             return pos
         end
@@ -143,7 +146,7 @@ function _live_sync_position!(
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
-        @debug "sync pos: amount is dust, reset" _module = LogPosSync isopen(ai, p) cash(ai)
+        @debug "sync pos: amount is dust, reset" _module = LogPosSync isopen(ai, p) cash(ai) resp
         return pos
     end
     @debug "sync pos: syncing" _module = LogPosSync date = timestamp(pos) ai = raw(ai) side = pside
@@ -303,10 +306,10 @@ function _live_sync_position!(
     return pos
 end
 
-function live_sync_position!(s::LiveStrategy, ai::MarginInstance, args...; kwargs...)
+function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
     @debug "sync pos: locking ai" _module = LogPosSync ai = raw(ai)
-    @lock ai begin
-        _live_sync_position!(s, ai, args...; kwargs...)
+    @lock ai @lock update.notify begin
+        _live_sync_position!(s, ai, pos, update; kwargs...)
         if isopen(ai) || hasorders(s, ai)
             push!(s.holdings, ai)
         else
@@ -401,7 +404,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
             end
         end
     end
-    long, short = get_positions(s)
+    long, short, _ = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
         @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) get(dict, raw(ai), nothing)
@@ -418,8 +421,15 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
         @sync for ai in s.universe
             @async begin
                 @sync begin
-                    @async @lock ai dosync(ai, Long(), long)
-                    @async @lock ai dosync(ai, Short(), short)
+                    if ishedged(ai)
+                        @async @lock ai dosync(ai, Long(), long)
+                        @async @lock ai dosync(ai, Short(), short)
+                    else
+                        @async @lock ai begin
+                            dosync(ai, Long(), long)
+                            dosync(ai, Short(), short)
+                        end
+                    end
                 end
                 set_active_position!(ai; default_date)
             end

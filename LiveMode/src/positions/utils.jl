@@ -443,13 +443,10 @@ If the side can't be parsed, a function `default_side_func` can be passed as arg
 """
 function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; default_side_func=Returns(nothing))
     ccxt_side = resp_position_side(update, eid)
+    def_side = isnothing(p) ? Long() : posside(p)
     if pyisnone(ccxt_side)
-        if isnothing(p)
-            @debug "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
-            _ccxtpnlside(update, eid)
-        else
-            posside(p)
-        end
+        @debug "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
+        _ccxtpnlside(update, eid, def=def_side)
     else
         let side_str = ccxt_side.lower()
             if pyeq(Bool, side_str, @pyconst("short"))
@@ -460,8 +457,8 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; defaul
                 @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" _module = LogCcxtFuncs side_str resp_position_contracts(
                     update, eid
                 ) f = @caller
-                def_side = default_side_func(update)
-                side::PositionSide = @something def_side _ccxtpnlside(update, eid)
+                def_side = @something default_side_func(update) def_side
+                side::PositionSide = _ccxtpnlside(update, eid, def=def_side)
                 @debug "ccxt posside: inferred" _module = LogCcxtFuncs def_side side
                 side
             end
