@@ -374,8 +374,9 @@ function async_start_runner_func!(pa)
                 jlsleep(1e-1)
         finally:
             loop = asyncio.get_running_loop()
-            loop.close()
-            loop.stop()
+            if loop.is_running():
+                loop.close()
+                loop.stop()
     """
     # main_func = pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
     globs = pydict()
@@ -405,13 +406,19 @@ function stream_handler(f_pull, f_push)
     gpa.globs[string(flag_name)] = false
     push!(TRACKED_HANDLERS, pull_name)
     code = """
+    pysleep = asyncio.sleep
     async def handler_loop_$n():
+        backoff = 0
         while $flag_name:
             try:
                 v = await $pull_name()
                 $push_name(v)
             except Exception as e:
-                $push_name(e)
+                try:
+                    $push_name(e)
+                except:
+                    print(e)
+                    pass
     """
     func = first(
         pyexec(NamedTuple{(Symbol(:handler_loop_, n),),Tuple{Py}}, code, gpa.globs)
