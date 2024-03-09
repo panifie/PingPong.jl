@@ -499,13 +499,13 @@ function get_position_side(s, ai::AssetInstance)
     try
         sym = raw(ai)
         long, short, last = get_positions(s)
-        long_pos = get(long, sym, missing)
         last_pos = get(last, sym, missing)
-        if !ismissing(long_pos) && !long_pos.closed[] && islong(last_pos)
+        long_pos = get(long, sym, missing)
+        if islong(last_pos) && !ismissing(long_pos) && !long_pos.closed[]
             return Long()
         end
         short_pos = get(short, sym, missing)
-        if !ismissing(short_pos) && !short_pos.closed[] && isshort(last_pos)
+        if isshort(last_pos) && !ismissing(short_pos) && !short_pos.closed[]
             return Short()
         end
         @something posside(ai) if hasorders(s, ai)
