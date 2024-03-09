@@ -158,6 +158,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the current position for a specific asset and side (buy/sell) through the `get_positions` function.
 If the function is forced to fetch, or if the data is outdated, it will fetch the position again using the `_force_fetchpos` function.
 It waits for the position update to occur and then returns the position update.
+Prefer to use `since` argument, only use `force` to ensure that the latest update is fetched.
 
 """
 function live_position(
@@ -202,7 +203,7 @@ function live_position(
         pup = get_positions(s, ai, side)
         if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
             @error "live pos: last force fetch failed" date =
-                isnothing(pup) ? nothing : pup.date since force # pup.read[] pup.closed[] f = @caller
+                isnothing(pup) ? nothing : pup.date since force
             return nothing
         end
     end
