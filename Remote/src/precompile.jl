@@ -39,7 +39,13 @@ using .Misc.Lang: @preset, @precomp, @ignore
         # get(cl, s; text, chat_id)
         tgstop!(s)
     end
-    stop!(s)
+    ENV["JULIA_DEBUG"] = "LogTasks,Watchers"
+    t = @async stop!(s)
+    start = now()
+    while !istaskdone(t)
+        sleep(0.1)
+        now() - start > Second(3) && break
+    end
     empty!(TASK_STATE) # NOTE: Required to avod spurious errors
     HTTP.Connections.closeall()
     LiveMode.ExchangeTypes._closeall()
