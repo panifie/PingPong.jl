@@ -393,18 +393,19 @@ function async_start_runner_func!(pa)
     pycopy!(pa.globs, globs)
 end
 
-TRACKED_HANDLERS = Symbol[]
+const HANDLERS = Set{Symbol}()
+const HANDLERS_IDCOUNTER = Ref(0)
 
 function stream_handler(f_pull, f_push)
     @assert _pyisrunning()
-    n = length(TRACKED_HANDLERS) + 1
+    n = HANDLERS_IDCOUNTER[] += 1
     pull_name = Symbol(:handler_pull, n)
     push_name = Symbol(:handler_push, n)
     flag_name = Symbol(:handler_flag, n)
     gpa.globs[string(pull_name)] = f_pull
     gpa.globs[string(push_name)] = f_push
     gpa.globs[string(flag_name)] = false
-    push!(TRACKED_HANDLERS, pull_name)
+    push!(HANDLERS, pull_name)
     code = """
     pysleep = asyncio.sleep
     async def handler_loop_$n():
@@ -457,6 +458,16 @@ function stop_handler!(handler)
         if !istaskdone(task)
             pycancel(task)
         end
+    end
+    n = handler.id
+    pull_name = Symbol(:handler_pull, n)
+    push_name = Symbol(:handler_push, n)
+    flag_name = Symbol(:handler_flag, n)
+    gpa.globs.pop(string(pull_name), nothing)
+    gpa.globs.pop(string(push_name), nothing)
+    gpa.globs.pop(string(flag_name), nothing)
+    filter!(HANDLERS) do name
+        name != pull_name
     end
     true
 end
