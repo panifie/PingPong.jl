@@ -25,7 +25,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     @debug "watch orders: locking" ai = raw(ai) islocked(s) _module = LogWatchOrder
     @lock tasks.lock begin
         if !isrunning(s) && !s[:live_force_watch]
-            @warn "orders: refusing to watch. Strategy not running" ai
+            @debug "orders: refusing to watch. Strategy not running" _module = LogWatchOrder ai
         end
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)

@@ -245,7 +245,7 @@ function _set_task!(s::LiveStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol
             end
         end
     else
-        @warn "strat: refusing to set non running task" k
+        @debug "strat: refusing to set non running task" _module = LogTasks k
     end
 end
 
