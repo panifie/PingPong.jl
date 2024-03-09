@@ -30,6 +30,7 @@ baremodule LogWatchBalance end
 baremodule LogWatchOrder end
 baremodule LogWatchTrade end
 baremodule LogWatchPos end
+baremodule LogWatchPos2 end
 baremodule LogWatchPosProcess end
 baremodule LogWait end
 baremodule LogWaitTrade end
@@ -440,9 +441,8 @@ function st.default!(s::LiveStrategy)
     if limit > 0
         live_sync_closed_orders!(s; limit)
     end
-    eager = get(a, :eager, false)
     first_start = !haskey(a, :is_running)
-    live_sync_strategy!(s, force=eager, overwrite=first_start)
+    live_sync_open_orders!(s, overwrite=first_start)
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
