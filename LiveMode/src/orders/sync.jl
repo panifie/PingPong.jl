@@ -184,7 +184,9 @@ function live_sync_open_orders!(
         comm_short == committed(ai, Short()),
     ))
     if overwrite
-        @warn "sync orders: strategy and assets cash need to be re-synced." maxlog = 1
+        @debug "sync orders: resyncing strategy balances." maxlog = 1
+        live_sync_cash!(s, ai, overwrite=true)
+        live_sync_strategy_cash!(s, overwrite=true)
     end
     @debug "sync orders: done" _module = LogSyncOrder ai = raw(ai)
     nothing
@@ -446,6 +448,7 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         )
         return nothing
     end
+    order_kwargs = withoutkws(:skipcommit; kwargs=create_kwargs)
     @debug "sync closed orders: locking ai" _module = LogSyncOrder ai = raw(ai)
     @lock ai begin
         default_pos = get_position_side(s, ai)
@@ -469,10 +472,9 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
                     synced=false,
                     skipcommit=true,
                     activate=false,
-                    withoutkws(:skipcommit; kwargs=create_kwargs)...,
+                    order_kwargs...
                 ) missing)::Union{Order,Missing}
-                if ismissing(o)
-                else
+                if !ismissing(o)
                     @deassert resp_order_status(resp, eid, String) ∈
                               ("closed", "open", "canceled") resp_order_status(resp, eid, String)
                     @ifdebug trades_count = length(ai.history)
