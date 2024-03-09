@@ -360,26 +360,23 @@ The function locks the asset instance during the update to prevent race conditio
 function live_sync_cash!(
     s::MarginStrategy{Live},
     ai,
-    bp::ByPos=@something(posside(ai), get_position_side(s, ai));
+    bp::ByPos=get_position_side(s, ai);
     since=nothing,
     waitfor=Second(5),
     force=false,
+    synced=true,
+    overwrite=true,
+    side=posside(bp),
+    pup=nothing,
     kwargs...,
 )
-    side = posside(bp)
-    pup = live_position(s, ai, side; since, force, waitfor)
-    @lock ai if isnothing(pup)
-        @warn "sync cash: resetting (both) position cash (not found)" ai = raw(ai)
-        reset!(ai, bp)
-    elseif pup.closed[]
-        @info "sync cash: resetting position cash (closed)" ai = raw(ai) side
-        reset!(ai, side)
-    elseif isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
-        live_sync_position!(s, ai, side, pup; kwargs...)
+    pup = @something pup live_position(s, ai, side; since, force, synced, waitfor) missing
+    @lock ai if pup isa PositionTuple
+        @deassert isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
+        live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
     else
-        @error "Could not update position cash" last_updated = timestamp(ai, side) since pup.date ai = raw(
-            ai
-        ) side pup.closed[] pup.read[]
+        @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(ai) side
+        reset!(ai, bp)
     end
     position(ai, bp)
 end
