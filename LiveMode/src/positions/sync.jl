@@ -84,6 +84,8 @@ function _live_sync_position!(
                             if isopen(oppos_pos)
                                 return pos
                             end
+                        elseif live_pup.date > update.date
+                            update.closed[] = true
                         else
                             return pos
                         end
