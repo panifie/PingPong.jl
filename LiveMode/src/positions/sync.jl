@@ -396,7 +396,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
         let w = positions_watcher(s)
             while isempty(w.buffer)
                 @debug "sync uni cash: waiting for position data" _module = LogUniSync
-                if !wait(w)
+                if !wait(w, :process)
                     break
                 end
             end
