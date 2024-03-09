@@ -126,6 +126,8 @@ end
 
 @doc """ A named tuple of total, free, and used balances. """
 const BalanceTuple = NamedTuple{(:total, :free, :used),NTuple{3,DFT}}
+@doc """ A snapshot of total, free, and used balances. """
+const BalanceSnapshot = NamedTuple{(:date, :balance),Tuple{DateTime,BalanceTuple}}
 @doc """ A dictionary of balances. """
 const BalanceDict1 = Dict{Symbol,BalanceTuple}
 @doc """ A snapshot of balances. """

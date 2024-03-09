@@ -43,16 +43,7 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     @sync for ai in s.universe
         @debug "Locking ai" _module = LogBalance ai = raw(ai)
         @async @lock ai begin
-            bal_ai = get_balance(s, ai; bal, loop_kwargs...)
-            if !isnothing(bal_ai)
-                if bal_ai.date[] != DateTime(0) || !isfinite(cash(ai))
-                    this_bal = bal_ai.balance
-                    cash!(ai, this_bal.free)
-                    # FIXME: used cash can't be assummed to only account for open orders.
-                    # It might consider (cross) margin as well (same problem as positions)
-                    # cash!(committed(ai), this_bal.used)
-                end
-            end
+            live_sync_cash!(s, ai, loop_kwargs...)
         end
     end
 end
@@ -68,17 +59,25 @@ If no balance information is found for the asset, its cash and committed cash va
 
 """
 function live_sync_cash!(
-    s::NoMarginStrategy{Live}, ai; since=nothing, waitfor=Second(5), force=false, drift=Millisecond(5), kwargs...
+    s::NoMarginStrategy{Live}, ai;
+    since=nothing,
+    waitfor=Second(5),
+    force=false,
+    drift=Millisecond(5),
+    bal=live_balance(s, ai; since, waitfor, force)
 )
-    bal = live_balance(s, ai; since, waitfor, force, kwargs...)
-    @lock ai if isnothing(bal)
-        @warn "Resetting asset cash (not found)" ai = raw(ai)
+    @lock ai if bal isa BalanceSnapshot
+        @assert isnothing(since) || bal.date >= since - drift
+        if bal.date[] != DateTime(0) || !isfinite(cash(ai))
+            this_bal = bal.balance
+            cash!(ai, this_bal.free)
+            # FIXME: used cash can't be assummed to only account for open orders.
+            # It might consider (cross) margin as well (same problem as positions)
+            # cash!(committed(ai), this_bal.used)
+        end
+    else
+        @debug "Resetting asset cash (not found)" ai = raw(ai)
         cash!(ai, ZERO)
         cash!(committed(ai), ZERO)
-    elseif isnothing(since) || bal.date >= since - drift
-        cash!(ai, bal.balance.total)
-        cash!(committed(ai), bal.balance.used)
-    else
-        @error "Could not update asset cash" since bal.date ai = raw(ai) @caller
     end
 end
