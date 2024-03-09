@@ -372,7 +372,7 @@ function live_sync_cash!(
 )
     pup = @something pup live_position(s, ai, side; since, force, synced, waitfor) missing
     @lock ai if pup isa PositionTuple
-        @deassert isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
+        @assert isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
         live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
     else
         @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(ai) side
@@ -405,15 +405,9 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
     long, short, _ = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
-        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) get(dict, raw(ai), nothing)
-        pup = @something get(dict, raw(ai), nothing) live_position(s, ai, side; force, synced=force) missing
-        if ismissing(pup)
-            @debug "sync uni: resetting position (no update)" _module = LogUniSync ai = raw(ai) side
-            reset!(ai, side)
-        else
-            @debug "sync uni: sync pos" _module = LogUniSync ai = raw(ai) side
-            live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
-        end
+        pup = get(dict, raw(ai), nothing)
+        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) isnothing(pup) overwrite force
+        live_sync_cash!(s, ai, side; pup, overwrite, force, synced=force, kwargs...)
     end
     if force
         @sync for ai in s.universe
