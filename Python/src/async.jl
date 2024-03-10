@@ -395,6 +395,15 @@ end
 
 const HANDLERS = Set{Symbol}()
 const HANDLERS_IDCOUNTER = Ref(0)
+mutable struct StreamHandler
+    const func::Union{Function,Py}
+    const id::Int
+    task::Union{Nothing,Task}
+    StreamHandler(args...) = begin
+        h = new(args...)
+        finalizer(stop_handler!, h)
+    end
+end
 
 function stream_handler(f_pull, f_push)
     @assert _pyisrunning()
@@ -424,7 +433,7 @@ function stream_handler(f_pull, f_push)
     func = first(
         pyexec(NamedTuple{(Symbol(:handler_loop_, n),),Tuple{Py}}, code, gpa.globs)
     )
-    (; func, id=n, task=Ref{Task}())
+    StreamHandler(func, n, nothing)
 end
 
 function set_stream_flag!(v::Bool, id::Int)
@@ -433,9 +442,8 @@ function set_stream_flag!(v::Bool, id::Int)
 end
 
 function is_handler_running(handler)
-    if isassigned(handler.task)
-        task = handler.task[]
-        !istaskdone(task)
+    if !isnothing(handler.task)
+        !istaskdone(handler.task)
     else
         false
     end
@@ -446,7 +454,7 @@ function start_handler!(handler)
         false
     else
         set_stream_flag!(true, handler.id)
-        handler.task[] = pytask(handler.func())
+        handler.task = pytask(handler.func())
         true
     end
 end
@@ -454,7 +462,7 @@ end
 function stop_handler!(handler)
     if is_handler_running(handler)
         set_stream_flag!(false, handler.id)
-        task = handler.task[]
+        task = handler.task
         if !istaskdone(task)
             pycancel(task)
         end
