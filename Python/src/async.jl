@@ -225,16 +225,18 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function pycancel(fut::Py)
+function pycancel(fut::Py, ::Bool=true)
     pyisnull(fut) || !pyisnull(gpa.pyloop.call_soon_threadsafe(fut.cancel))
 end
 
-function pycancel(task::Task)
+function pycancel(task::Task, dofetch::Bool=true)
     sto = task.storage
     if !isnothing(sto)
         if get(sto, :ispytask, false)
             safenotify(sto[:notify])
-            fetch(task)
+            if dofetch
+                fetch(task)
+            end
         else
             error("This task is not from python.")
         end
@@ -464,7 +466,7 @@ function stop_handler!(handler)
         set_stream_flag!(false, handler.id)
         task = handler.task
         if !istaskdone(task)
-            pycancel(task)
+            pycancel(task, false)
         end
     end
     n = handler.id
