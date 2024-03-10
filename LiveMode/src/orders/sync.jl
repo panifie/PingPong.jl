@@ -184,8 +184,13 @@ function live_sync_open_orders!(
         comm_short == committed(ai, Short()),
     ))
     if overwrite
-        @debug "sync orders: resyncing strategy balances." maxlog = 1
-        live_sync_cash!(s, ai, overwrite=true)
+        @debug "sync orders: resyncing strategy balances." maxlog = 1 _module = LogSyncOrder
+        if ai isa MarginInstance
+            live_sync_cash!(s, ai, Long(), overwrite=true)
+            live_sync_cash!(s, ai, Short(), overwrite=true)
+        else
+            live_sync_cash!(s, ai, overwrite=true)
+        end
         live_sync_strategy_cash!(s, overwrite=true)
     end
     @debug "sync orders: done" _module = LogSyncOrder ai = raw(ai)
