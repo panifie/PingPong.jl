@@ -22,7 +22,6 @@ const PositionTuple = NamedTuple{
 }
 const PositionsDict2 = Dict{String,PositionTuple}
 
-
 @doc """ Sets up a watcher for CCXT positions.
 
 $(TYPEDSIGNATURES)
@@ -56,7 +55,7 @@ function ccxt_positions_watcher(
         start,
         load=false,
         flush=false,
-        process=true,
+        process=false,
         buffer_capacity,
         view_capacity=1,
         fetch_interval=interval,
@@ -110,82 +109,73 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
     if is_watch_func
         init = Ref(true)
         buffer_size = attr(s, :live_buffer_size, 1000)
-        channel = Channel{Any}(buffer_size)
-        (w) -> begin
-            start = now()
-            try
-                if init[]
-                    @lock w begin
-                        v = fetch_positions(s; timeout, params, rest...)
-                        _dopush!(w, v)
-                    end
-                    init[] = false
-                    f_push = (v) -> put!(channel, v)
-                    handler = w[:positions_handler] = watch_positions_handler(
-                        exc, (ai for ai in s.universe); f_push, params, rest...
-                    )
-                    start_handler!(handler)
-                    bind(channel, handler.task[])
-                end
-                v = try
-                    take!(channel)
-                catch e
-                    if e isa InvalidStateException
-                        return nothing
-                    else
-                        rethrow(e)
-                    end
-                end
-                if v isa Exception
-                    @info "positions watcher: EXCEPTION" exception = v
-                else
-                    @ifdebug begin
-                        getup(prop=:time) = get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
-                        getval(k="datetime"; src=getup(:value)) = get(get(src, 1, pydict()), k, nothing)
-                    end
-                    @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = getup() new_time = getval(src=v) n = length(getup(:value))
-                    @lock w _dopush!(w, pylist(v))
-                    @debug "positions watcher: PUSHED" _module = LogWatchPos getup(:time) getval("contracts", src=v)
-                end
-            catch
-                @debug_backtrace LogWatchPos
+        s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
+        tasks = Task[]
+        function init_watch_func(w)
+            @lock w begin
+                v = fetch_positions(s; timeout, params, rest...)
+                _dopush!(w, v)
             end
-            sleep_pad(start, interval)
+            init[] = false
+            f_push(v) = put!(channel[], v)
+            h =
+                w[:positions_handler] = watch_positions_handler(
+                    exc, (ai for ai in s.universe); f_push, params, rest...
+                )
+            w[:process_tasks] = tasks
+            start_handler!(h)
+            bind(channel[], h.task)
+        end
+        function watch_positions_func(w)
+            if init[]
+                init_watch_func(w)
+            end
+            v = if isopen(channel[])
+                take!(channel[])
+            else
+                channel[] = Channel{Any}(buffer_size)
+                init_watch_func(w)
+                if !isopen(channel[])
+                    @error "Positions handler can't be started"
+                    sleep(interval)
+                else
+                    take!(channel[])
+                end
+            end
+            if v isa Exception
+                @info "positions watcher: EXCEPTION" exception = v
+            else
+                @ifdebug begin
+                    function getup(prop=:time)
+                        get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
+                    end
+                    function getval(k="datetime"; src=getup(:value))
+                        get(get(src, 1, pydict()), k, nothing)
+                    end
+                end
+                @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = getup() new_time = getval(;
+                    src=v
+                ) n = length(getup(:value))
+                @lock w _dopush!(w, pylist(v))
+                if !isready(channel[])
+                    push!(tasks, @async process!(w))
+                end
+                filter!(t -> !istaskdone(t), tasks)
+                @debug "positions watcher: PUSHED" _module = LogWatchPos getup(:time) getval(
+                    "contracts", src=v
+                )
+            end
+            return true
         end
     else
-        (w) -> begin
+        fetch_positions_func(w) = begin
             start = now()
-            try
-                @lock w begin
-                    v = fetch_positions(s; params, rest...)
-                    _dopush!(w, v)
-                end
-            catch
-                @debug_backtrace LiveMode.LogWatchPos
+            @lock w begin
+                v = fetch_positions(s; params, rest...)
+                _dopush!(w, v)
             end
             sleep_pad(start, interval)
         end
-    end
-end
-
-function sync_positions_task!(s, w; force=false)
-    if force || !istaskrunning(strategy_task(s, :sync_positions))
-        t = @start_task IdDict() begin
-            while isstarted(w)
-                safewait(w.beacon.process)
-                if !@istaskrunning()
-                    break
-                end
-                # NOTE: this is a little spammy (follows watcher throttle)
-                live_sync_universe_cash!(s)
-            end
-        end
-        t.storage[:stop_callbacks] = [() -> safenotify(w.beacon.process)]
-        # wait a little for task to start
-        while !(istaskstarted(t)) && !istaskdone(t)
-            sleep(0.001)
-        end
-        set_strategy_task!(s, t, :sync_positions)
     end
 end
 
@@ -200,7 +190,7 @@ function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
         w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
             s; interval, start=true
         )
-        if isstopped(w) && !attr(s, :stopping, false)
+        @lock w if isstopped(w) && !attr(s, :stopping, false)
             start!(w)
         end
         w
@@ -216,21 +206,27 @@ This function stops the watcher that is tracking and updating positions for a li
 """
 function stop_watch_positions!(s::LiveStrategy)
     w = get(s.attrs, :live_positions_watcher, nothing)
-    if w isa Watcher && isstarted(w)
-        stop!(w)
+    if w isa Watcher
+        @lock w if isstarted(w)
+            stop!(w)
+        end
     end
 end
 
 _positions_task!(w) = begin
     f = _tfunc(w)
-    @async begin
+    w[:positions_task] = @async begin
         while isstarted(w)
             try
                 f(w)
-            catch
-                @debug_backtrace LogWatchPos
+                safenotify(w.beacon.fetch)
+            catch e
+                if e isa InterruptException
+                    break
+                else
+                    @debug_backtrace LogWatchPos2
+                end
             end
-            safenotify(w.beacon.fetch)
         end
     end
 end
@@ -241,33 +237,30 @@ function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
     attrs = w.attrs
     s = attrs[:strategy]
     _exc!(attrs, exchange(s))
-    _tfunc!(attrs,
-        _w_fetch_positions_func(s, attrs[:interval]; is_watch_func=attrs[:is_watch_func], kwargs=w[:kwargs])
+    _tfunc!(
+        attrs,
+        _w_fetch_positions_func(
+            s, attrs[:interval]; is_watch_func=attrs[:is_watch_func], kwargs=w[:kwargs]
+        ),
     )
-
 end
 function Watchers._stop!(w::Watcher, ::CcxtPositionsVal)
     s = w[:strategy]
-    task = strategy_task(s, :sync_positions)
-    if task isa Task
-        stop_task(task)
-    end
     handler = attr(w, :positions_handler, nothing)
     if !isnothing(handler)
         stop_handler!(handler)
     end
+    channel = attr(s, :positions_channel, nothing)
+    if channel isa Ref{Channel} && isopen(channel[])
+        close(channel[])
+    end
+    nothing
 end
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     try
         fetch_task = _positions_task(w)
         if !istaskrunning(fetch_task)
-            new_task = _positions_task!(w)
-            setattr!(w, new_task, :positions_task)
-        end
-        s = w[:strategy]
-        sync_task = strategy_task(s, :sync_positions)
-        if !istaskrunning(sync_task) && isstarted(w)
-            sync_positions_task!(s, w)
+            _positions_task!(w)
         end
         true
     catch
@@ -277,11 +270,11 @@ function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
 end
 
 function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
-    default_init(w, (; long=PositionsDict2(),
-            short=PositionsDict2(),
-            last=Dict{String,PositionSide}()
-        ),
-        false)
+    default_init(
+        w,
+        (; long=PositionsDict2(), short=PositionsDict2(), last=Dict{String,PositionSide}()),
+        false,
+    )
     _lastfetched!(w, DateTime(0))
     _lastprocessed!(w, DateTime(0))
 end
@@ -309,6 +302,7 @@ function _last_updated_position(long_dict, short_dict, sym)
         Short()
     end
 end
+
 @doc """ Processes positions for a watcher using the CCXT library.
 
 $(TYPEDSIGNATURES)
@@ -320,13 +314,16 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     if isempty(w.buffer)
         return nothing
     end
-    data_date, data = last(w.buffer)
     eid = typeof(exchangeid(_exc(w)))
+    data_date, data = last(w.buffer)
     if data_date == _lastprocessed(w)
         @debug "watchers process: already processed" _module = LogWatchPosProcess data_date
         return nothing
-    elseif !islist(data)
-        @debug "watchers process: data is not a list (or dict)" _module = LogWatchPosProcess typeof(data)
+    end
+    if !islist(data) || isempty(data)
+        @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
+            data
+        )
         _lastprocessed!(w, data_date)
         return nothing
     end
@@ -337,7 +334,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
     @debug "watchers process: position" _module = LogWatchPosProcess
     @sync for resp in data
         if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionUpdate
-            @debug "watchers process: not a position update" resp _module = LogWatchPosProcess
+            @debug "watchers process: not a position update" resp _module =
+                LogWatchPosProcess
             continue
         end
         sym = resp_position_symbol(resp, eid, String)
@@ -366,24 +364,27 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; forced_sym=nothing)
             @debug "watchers: position processed" _module = LogWatchPosProcess sym side is_stale
             if !isnothing(pup)
                 push!(processed_syms, (sym, side))
-                @info "UNREAD" contracts = resp_position_contracts(pup.resp, eid)
+                @debug "watchers: UNREAD" _module = LogWatchPosProcess contracts = resp_position_contracts(
+                    pup.resp, eid
+                ) pup.date
                 pup.read[] = false
                 pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
                 last_dict[sym] = side
-                @info "NEW pup date" pup.date
                 side_dict[sym] = pup
+                safenotify(pup.notify)
             end
         end
     end
-    skip_notify = isempty(processed_syms)
     if !w[:is_watch_func]
-        _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym, eid)
-        _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym, eid)
+        _setposflags!(data_date, long_dict, Long(), processed_syms; forced_sym)
+        _setposflags!(data_date, short_dict, Short(), processed_syms; forced_sym)
     end
-    @debug "watchers process: notify" _module = LogWatchPosProcess skip_notify
+    @debug "watchers process: notify" _module = LogWatchPosProcess
     # notify if we added at least one response, or removed at least one
     if !isempty(processed_syms)
         _lastprocessed!(w, data_date)
+        s = w[:strategy]
+        live_sync_universe_cash!(s)
         safenotify(w.beacon.process)
     end
 end
@@ -395,24 +396,29 @@ $(TYPEDSIGNATURES)
 This function updates the `PositionUpdate` status when *not* using `watch*` function. This is neccesary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions it is expected that position close updates are received as new events.
 
 """
-function _setposflags!(data_date, dict, side, processed_syms; forced_sym, eid)
-    set!(this_sym, pup) = @lock pup.notify begin
-        prev_closed = pup.closed[]
-        # in case forced_sym is set, the response only returned the requested position
-        # hence this assumption does not apply
-        if isnothing(forced_sym) && (this_sym, side) ∉ processed_syms
-            pup_prev = get(dict, this_sym, nothing)
-            @assert pup_prev === pup
-            dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
-            pup.closed[] = true
+function _setposflags!(data_date, dict, side, processed_syms; forced_sym)
+    function set!(this_sym, pup)
+        @lock pup.notify begin
+            prev_closed = pup.closed[]
+            # in case forced_sym is set, the response only returned the requested position
+            # hence this assumption does not apply
+            if isnothing(forced_sym) && (this_sym, side) ∉ processed_syms
+                pup_prev = get(dict, this_sym, nothing)
+                @assert pup_prev === pup
+                dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
+                pup.closed[] = true
+            end
+            # NOTE: this might fix some race conditions (when a position is updated right after).
+            # The new update might have a lower timestamp and would skip sync (from `live_position_sync!`).
+            # Therefore we reset the `read` state between position status updates.
+            if prev_closed != pup.closed[]
+                prev_read = pup.read[]
+                if prev_read
+                    pup.read[] = false
+                    safenotify(pup.notify)
+                end
+            end
         end
-        # NOTE: this might fix some race conditions (when a position is updated right after).
-        # The new update might have a lower timestamp and would skip sync (from `live_position_sync!`).
-        # Therefore we reset the `read` state between position status updates.
-        if prev_closed != pup.closed[]
-            pup.read[] = false
-        end
-        safenotify(pup.notify)
     end
     if isnothing(forced_sym)
         @sync for (sym, pup) in dict
