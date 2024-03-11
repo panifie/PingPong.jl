@@ -127,8 +127,7 @@ function _live_sync_position!(
 
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
-        if pyisnone(mm) || pyeq(Bool, mm, _ccxtmarginmode(pos))
-        else
+        if !pyisnone(mm) && pyne(Bool, mm, _ccxtmarginmode(pos))
             @warn "sync pos: position margin mode mismatch" ai = raw(ai) loc = marginmode(pos) rem = mm
             @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "sync pos: failed to set margin mode on exchange"
         end
@@ -409,27 +408,19 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
         @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) isnothing(pup) overwrite force
         live_sync_cash!(s, ai, side; pup, overwrite, force, synced=force, kwargs...)
     end
-    if force
-        @sync for ai in s.universe
-            @async begin
-                @sync begin
-                    if ishedged(ai)
-                        @async @lock ai dosync(ai, Long(), long)
-                        @async @lock ai dosync(ai, Short(), short)
-                    else
-                        @async @lock ai begin
-                            dosync(ai, Long(), long)
-                            dosync(ai, Short(), short)
-                        end
+    @sync for ai in s.universe
+        @async begin
+            @sync begin
+                if ishedged(ai)
+                    @async @lock ai dosync(ai, Long(), long)
+                    @async @lock ai dosync(ai, Short(), short)
+                else
+                    @lock ai begin
+                        dosync(ai, Long(), long)
+                        dosync(ai, Short(), short)
                     end
                 end
-                set_active_position!(ai; default_date)
             end
-        end
-    else
-        for ai in s.universe
-            dosync(ai, Long(), long)
-            dosync(ai, Short(), short)
             set_active_position!(ai; default_date)
         end
     end
