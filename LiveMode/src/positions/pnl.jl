@@ -42,7 +42,6 @@ function live_pnl(
                 sync = true
             end
             if synced || sync
-                @debug "live pnl: locking ai " _module = LogPos ai = raw(ai) side = pside
                 live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))

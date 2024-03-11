@@ -218,9 +218,8 @@ function update_order!(s, ai, eid; resp, state)
         state.update_hash[] = this_hash
         # only emulate trade if trade watcher task
         # is not running
-        if hasmytrades(exchange(ai))
-        else
-            @debug "update ord: locking ai" _module = LogWatchOrder ai = raw(ai) side = posside(state.order) id =
+        if !hasmytrades(exchange(ai))
+            @debug "update ord: emulate trade" _module = LogWatchOrder ai = raw(ai) side = posside(state.order) id =
                 state.order.id
             @lock ai if isopen(ai, state.order)
                 t = emulate_trade!(s, state.order, ai; state.average_price, resp)

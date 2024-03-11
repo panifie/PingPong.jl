@@ -454,7 +454,7 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
         return nothing
     end
     order_kwargs = withoutkws(:skipcommit; kwargs=create_kwargs)
-    @debug "sync closed orders: locking ai" _module = LogSyncOrder ai = raw(ai)
+    @debug "sync closed orders: iterating" _module = LogSyncOrder ai = raw(ai) n_closed = length(closed_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
         i = 1

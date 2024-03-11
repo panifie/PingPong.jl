@@ -269,7 +269,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                 while first(sem.queue) != n
                                     safewait(sem.cond)
                                 end
-                                @debug "handle trade: locking ai" _module = LogWatchTrade ai = raw(ai) id
+                                @debug "handle trade: exec trade" _module = LogWatchTrade ai = raw(ai) id
                                 t = @lock ai begin
                                     @debug "handle trade: before trade exec" _module = LogWatchTrade open =
                                         if ismissing(state)

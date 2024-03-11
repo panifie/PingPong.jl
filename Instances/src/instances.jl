@@ -18,7 +18,7 @@ import .Misc: approxzero, gtxzero, ltxzero, marginmode, load!
 using .TimeTicks
 import .TimeTicks: timeframe
 using .DataStructures: SortedDict
-using .Lang: Option, @deassert, @lget!
+using .Lang: Option, @deassert, @lget!, @caller
 import Base: position, isopen
 import Exchanges: lastprice, leverage!
 import OrderTypes: trades
@@ -172,9 +172,16 @@ Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
-Base.lock(ai::AssetInstance) = lock(getfield(ai, :lock))
+Base.lock(ai::AssetInstance) = begin
+    @debug "locking $(raw(ai))" f = @caller 14
+    lock(getfield(ai, :lock))
+    @debug "locked $(raw(ai))" f = @caller 14
+end
 Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
-Base.unlock(ai::AssetInstance) = unlock(getfield(ai, :lock))
+Base.unlock(ai::AssetInstance) = begin
+    unlock(getfield(ai, :lock))
+    @debug "unlocked $(raw(ai))" f = @caller 14
+end
 Base.islocked(ai::AssetInstance) = islocked(getfield(ai, :lock))
 @doc " Get the cash value of a `AssetInstance`. "
 Base.float(ai::AssetInstance) = nothing

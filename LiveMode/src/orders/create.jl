@@ -96,7 +96,7 @@ function create_live_order(
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
             end
-            @debug "create order: locking ai" _module = LogCreateOrder ai = raw(ai) side = posside(t)
+            @debug "create order: constructing" _module = LogCreateOrder ai = raw(ai) side = posside(t)
             o = @lock ai create()
         end
         o

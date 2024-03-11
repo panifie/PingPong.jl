@@ -145,7 +145,7 @@ function _w_fetch_positions_func(s, interval; is_watch_func, kwargs)
             if v isa Exception
                 @info "positions watcher: EXCEPTION" exception = v
             else
-                @ifdebug begin
+                @ifdebug LogWatchPos begin
                     function getup(prop=:time)
                         get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
                     end
