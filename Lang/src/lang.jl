@@ -186,8 +186,14 @@ $(TYPEDSIGNATURES)
 
 If the current module is in debug mode, execute `a`, otherwise execute `b`.
 """
-macro ifdebug(a, b=nothing)
-    name = string(__module__)
+macro ifdebug(m, a=nothing, b=nothing)
+    name = string(
+        if m isa Symbol
+            m
+        else
+            __module__
+        end,
+    )
     esc(_isdebug(name) ? a : b)
 end
 
@@ -195,7 +201,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-If the current module is in debug mode, it asserts the given condition. Optionally, it can include a custom error message msg. 
+If the current module is in debug mode, it asserts the given condition. Optionally, it can include a custom error message msg.
 """
 macro deassert(condition, msg=nothing)
     name = string(__module__)
