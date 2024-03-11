@@ -4,7 +4,17 @@ using .SimMode: _simmode_defaults!
 using .Lang: @lget!, Option, @get
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
-using .Misc: LittleDict, istaskrunning, @istaskrunning, init_task, start_task, stop_task, TaskFlag, waitforcond, @start_task, task_sem
+using .Misc:
+    LittleDict,
+    istaskrunning,
+    @istaskrunning,
+    init_task,
+    start_task,
+    stop_task,
+    TaskFlag,
+    waitforcond,
+    @start_task,
+    task_sem
 using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
 import .Instances: timestamp
@@ -201,7 +211,8 @@ $(TYPEDSIGNATURES)
 This function retrieves the task queue associated with an asset `ai` in the strategy `s`.
 
 """
-asset_queue(s::LiveStrategy, ai; tasks=nothing) = @something(tasks, asset_tasks(s, ai)).queue
+asset_queue(s::LiveStrategy, ai; tasks=nothing) =
+    @something(tasks, asset_tasks(s, ai)).queue
 @doc """ Retrieves tasks associated with all assets.
 
 $(TYPEDSIGNATURES)
@@ -210,10 +221,7 @@ This function retrieves tasks associated with all assets in the strategy `s`. It
 
 """
 function asset_tasks(s::LiveStrategy)
-    @lock s @lget! attrs(s) :live_asset_tasks begin
-        tasks = Dict{AssetInstance,AssetTasks}()
-        finalizer((_) -> stop_all_asset_tasks(s), tasks)
-    end
+    @lock s @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
 end
 @doc """ Retrieves tasks associated with a specific asset.
 
@@ -267,10 +275,7 @@ This function retrieves tasks associated with the strategy `s`. It returns a dic
 """
 function all_strategy_tasks(s::LiveStrategy)
     @lock s begin
-        tasks = Dict{String,StrategyTasks}()
-        @lget! attrs(s) :live_strategy_tasks finalizer(
-            (_) -> stop_all_strategy_tasks(s), tasks
-        )
+        @lget! attrs(s) :live_strategy_tasks Dict{String,StrategyTasks}()
     end
 end
 @doc """ Retrieves tasks associated with a strategy for a specific account.
@@ -285,7 +290,9 @@ function strategy_tasks(s::LiveStrategy, account=current_account(s))
     @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
 end
 
-function set_strategy_task!(s::LiveStrategy, task::Task, k::Symbol; account=current_account(s), tasks=nothing)
+function set_strategy_task!(
+    s::LiveStrategy, task::Task, k::Symbol; account=current_account(s), tasks=nothing
+)
     if istaskrunning(task)
         tuple = @something tasks strategy_tasks(s, account)
         tuple.queue[] += 1
@@ -301,9 +308,13 @@ function set_strategy_task!(s::LiveStrategy, task::Task, k::Symbol; account=curr
     end
 end
 
-function strategy_task(s::LiveStrategy, k; account=current_account(s), tasks=nothing)
+function strategy_task(
+    s::LiveStrategy, k; account=current_account(s), tasks=nothing, dolock=true
+)
     tup = @something tasks strategy_tasks(s, account)
-    @lock tup.lock begin
+    if dolock
+        @lock tup.lock get(tup.tasks, k, nothing)
+    else
         get(tup.tasks, k, nothing)
     end
 end
@@ -366,7 +377,8 @@ function fetch_positions(s, args...; kwargs...)
     @retry s[:live_positions_func](args...; kwargs...)
 end
 @doc """ Retrieves all asset positions for a strategy. """
-fetch_positions(s; kwargs...) = fetch_positions(s, ((ai for ai in s.universe)...,); kwargs...)
+fetch_positions(s; kwargs...) =
+    fetch_positions(s, ((ai for ai in s.universe)...,); kwargs...)
 @doc """ Cancels orders of an asset by order identifier. """
 cancel_orders(s, args...; kwargs...) = @retry s[:live_cancel_func](args...; kwargs...)
 @doc """ Cancels all orders of an asset. """
@@ -410,7 +422,11 @@ function st.default!(s::LiveStrategy)
     throttle_per_asset = throttle * nrow(s.universe.data)
     limit = get!(a, :sync_history_limit, 100)
     # The number of trades (lists) responses to cache
-    get!(a, :trades_cache_ttl, round(Int, 1000 / Second(throttle).value) |> Second |> Millisecond)
+    get!(
+        a,
+        :trades_cache_ttl,
+        round(Int, 1000 / Second(throttle).value) |> Second |> Millisecond,
+    )
     # The number of days to look back for an order previous trades
     get!(a, :max_order_lookback, Day(3))
     # How long to cache orders (lists) responses for
@@ -442,7 +458,7 @@ function st.default!(s::LiveStrategy)
         live_sync_closed_orders!(s; limit)
     end
     first_start = !haskey(a, :is_running)
-    live_sync_open_orders!(s, overwrite=first_start)
+    live_sync_open_orders!(s; overwrite=first_start)
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
@@ -550,7 +566,7 @@ This function retrieves the balance associated with a strategy `s`. It achieves 
 
 """
 get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
-get_balance(s, sym; fallback_kwargs=(;), bal=get_balance(s)) = begin
+function get_balance(s, sym; fallback_kwargs=(;), bal=get_balance(s))
     if isnothing(bal) || sym ∉ keys(bal.balance)
         if nameof(s.cash) == sym || st.inuniverse(sym, s)
             _force_fetchbal(s; fallback_kwargs)
@@ -571,8 +587,12 @@ get_balance(s, sym, type; kwargs...) = begin
     end
 end
 get_balance(s, ::Nothing, ::Nothing) = get_balance(s, nothing)
-get_balance(s, ai::AssetInstance, tp::Option{Symbol}=nothing; kwargs...) = get_balance(s, bc(ai), tp; kwargs...)
-get_balance(s, ::Nothing, args...; kwargs...) = get_balance(s, nameof(s.cash), args...; kwargs...)
+function get_balance(s, ai::AssetInstance, tp::Option{Symbol}=nothing; kwargs...)
+    get_balance(s, bc(ai), tp; kwargs...)
+end
+function get_balance(s, ::Nothing, args...; kwargs...)
+    get_balance(s, nameof(s.cash), args...; kwargs...)
+end
 
 @doc """ Retrieves the timestamp for a specific asset instance in a strategy.
 
@@ -668,8 +688,7 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
         this_v = this_v_func()
         prev_nth = isnothing(prev_v)
         this_nth = isnothing(this_v)
-        return if (!this_nth && prev_nth) ||
-                  (this_nth && !prev_nth)
+        return if (!this_nth && prev_nth) || (this_nth && !prev_nth)
             true
         elseif (!this_nth && !prev_nth) && _asdate(this_v.date) > _asdate(prev_v.date)
             true
