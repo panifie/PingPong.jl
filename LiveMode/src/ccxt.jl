@@ -340,6 +340,14 @@ resp_position_markprice(resp, ::EIDType)::DFT = get_float(resp, Pos.markPrice)
 resp_position_hedged(resp, ::EIDType)::Bool = get_bool(resp, Pos.hedged)
 resp_position_timestamp(resp, ::EIDType)::DateTime = get_time(resp)
 resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
+resp_position_margin_mode(resp, eid::EIDType, ::Val{:parsed}) = begin
+    v = resp_position_margin_mode(resp, eid)
+    if pyisnone(v)
+        nothing
+    else
+        marginmode(v)
+    end
+end
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
 resp_ticker_price(resp, ::EIDType, k) = get_py(resp, k)
