@@ -70,10 +70,7 @@ macro lget!(dict, k, expr)
     expr = esc(expr)
     k = esc(k)
     quote
-        @coalesce get($dict, $k, missing) let v = $expr
-            $dict[$k] = v
-            v
-        end
+        @coalesce get($dict, $k, missing) $dict[$k] = $expr
     end
 end
 
