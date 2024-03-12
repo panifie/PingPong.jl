@@ -630,7 +630,7 @@ This macro starts a timeout. If a `start` argument is provided, it sets the star
 
 """
 macro timeout_start(start=nothing)
-    esc(:(timeout_date = @something($start, now()) + waitfor))
+    esc(:(timeout_date = $(@something start now()) + waitfor))
 end
 @doc """ Retrieves the current timeout.
 
