@@ -100,7 +100,8 @@ It then processes the response using the `_handle_pos_resp` function.
 The position is then stored in the position watcher and processed.
 
 """
-function _force_fetchpos(s, ai, side; fallback_kwargs)
+function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fallback_kwargs)
+    @timeout_start
     w = positions_watcher(s)
     @debug "force fetch pos: checking" _module = LogPosFetch islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
@@ -116,28 +117,22 @@ function _force_fetchpos(s, ai, side; fallback_kwargs)
     end
 
     @debug "force fetch pos: locking" _module = LogPosFetch islocked(w) ai = raw(ai)
-    this_task = @lock w begin
-        time = now()
-        resp = let resp = fetch_positions(s, ai; side, fallback_kwargs...)
-            _handle_pos_resp(resp, ai, side)
+    @lock w begin
+        timeout = @timeout_now()
+        if timeout > Second(0)
+            resp = let resp = fetch_positions(s, ai; side, timeout, fallback_kwargs...)
+                _handle_pos_resp(resp, ai, side)
+            end
+            if !isnothing(resp)
+                @debug "force fetch pos:" _module = LogPosFetch amount = try
+                    resp_position_contracts(first(resp), exchangeid(ai))
+                catch
+                end
+                pushnew!(w, pylist(resp))
+                @debug "force fetch pos: processing" _module = LogPosFetch
+                process!(w; forced_sym=raw(ai))
+            end
         end
-        @debug "force fetch pos:" _module = LogPosFetch amount = try
-            resp_position_contracts(first(resp), exchangeid(ai))
-        catch
-        end
-        isnothing(resp) && return
-        v = if islist(resp)
-            resp
-        else
-            pylist((resp,))
-        end
-        pushnew!(w, v)
-        @debug "force fetch pos: processing" _module = LogPosFetch
-        @async process!(w; forced_sym=raw(ai))
-    end
-    if istaskdone(this_task)
-    else
-        safewait(w.beacon.process)
     end
 end
 
@@ -172,7 +167,9 @@ function live_position(
     waitfor=Second(5),
     drift=Millisecond(5)
 )
+    @timeout_start
     pup = get_positions(s, ai, side)::Option{PositionTuple}
+    last_ff = DateTime(0)
 
     @ifdebug force && @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
         positions_watcher(s)
@@ -189,16 +186,18 @@ function live_position(
        (isempty(buffer(w)) &&
         _isstale(ai, pup, side, since))
         @debug "live pos: force syncing" _module = LogPosFetch
-        _force_fetchpos(s, ai, side; fallback_kwargs)
+        _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
+        last_ff = now()
         pup = get_positions(s, ai, side)
     end
     if (force && wlocked) ||
        !(isnothing(since) || isnothing(pup))
         @debug "live pos: force waiting" _module = LogPosFetch ai = raw(ai) side since force
-        if waitforpos(s, ai, side; since, force, waitfor)
-        else # try one last time to force fetch
+        if !waitforpos(s, ai, side; since, force, waitfor=@timeout_now) &&
+           now() > last_ff + drift # avoid force fetching again if we just ran force_fetch
+            # try one last time to force fetch
             @debug "live pos: last force fetch" _module = LogPosFetch
-            _force_fetchpos(s, ai, side; fallback_kwargs)
+            _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
         end
         pup = get_positions(s, ai, side)
         if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
