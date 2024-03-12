@@ -43,6 +43,14 @@ const CrossHedged = CrossMargin{Hedged}
 const WithMargin = Union{Cross,Isolated}
 @doc "Returns the margin mode of the arguments."
 marginmode(args...; kwargs...) = NoMargin()
+marginmode(v::String) =
+    if v == "isolated"
+        IsolatedMargin
+    elseif v == "cross"
+        CrossMargin
+    else
+        error("unsupported margin mode $v")
+    end
 
 @doc "Position side is one of `Long`, `Short`."
 abstract type PositionSide end
