@@ -393,7 +393,8 @@ function _ccxtposprice(ai, update)
     if lp <= zero(DFT)
         lp = resp_position_markprice(update, eid)
         if lp <= zero(DFT)
-            lastprice(ai)
+            date = resp_position_timestamp(update, eid)
+            lastprice(ai, date)
         else
             lp
         end

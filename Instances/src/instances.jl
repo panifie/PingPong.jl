@@ -977,6 +977,17 @@ function lastprice(ai::AssetInstance, ::Val{:history})
     end
 end
 
+function lastprice(ai::AssetInstance, date::DateTime)
+    h = trades(ai)
+    if length(h) > 0
+        trade = last(h)
+        if date >= trade.date
+            return trade.price
+        end
+    end
+    lastprice(ai)
+end
+
 @doc """ Get the timeframe for an `AssetInstance`.
 
 $(TYPEDSIGNATURES)

@@ -9,8 +9,10 @@ The warning includes the provided message, position details, and the instance an
 macro warn_unsynced(what, loc, rem, msg="unsynced")
     ex = quote
         (
-            wasopen &&
-            @warn "Position $($msg) ($($what)) local: $($loc), remote: $($rem) $this_timestamp ($(raw(ai))@$(nameof(s)))"
+            if wasopen
+                @warn "Position $($msg) ($($what)) local: $($loc), remote: $($rem) $this_timestamp ($(raw(ai))@$(nameof(s)))"
+
+            end
         )
     end
     esc(ex)
@@ -64,12 +66,13 @@ function _live_sync_position!(
     end
     if !skipchecks
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
+            @debug "sync pos: handling double position" _module = LogPosSync ai = raw(ai)
             let oppos = opposite(pside),
                 live_pup = let lp(force) = live_position(s, ai, oppos; since=update.date, force)
-                    @something lp(false) lp(true)
+                    @something lp(false) lp(true) missing
                 end
 
-                if !isnothing(live_pup)
+                if !ismissing(live_pup)
                     live_pos = live_pup.resp
                     amount = resp_position_contracts(live_pos, eid)
                     if amount > ZERO
@@ -199,19 +202,10 @@ function _live_sync_position!(
             notional!(pos, v)
             v
         else
-            let a = ai.asset
-                spot_sym = "$(bc(a))/$(sc(a))"
-                price = try
-                    # try to use the price of the settlement cur
-                    lastprice(spot_sym, exchange(ai))
-                catch
-                    # or fallback to price of quote cur
-                    pos_price
-                end
-                v = price * cash(pos)
-                notional!(pos, v)
-                notional(pos)
-            end
+            price = pos_price
+            v = price * cash(pos)
+            notional!(pos, v)
+            notional(pos)
         end
     end
     @assert ntl > ZERO "sync pos: notional can't be zero"
@@ -307,7 +301,7 @@ function _live_sync_position!(
 end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
-    @debug "sync pos: locking ai" _module = LogPosSync ai = raw(ai)
+    @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai)
     @lock ai @lock update.notify begin
         _live_sync_position!(s, ai, pos, update; kwargs...)
         if isopen(ai) || hasorders(s, ai)
