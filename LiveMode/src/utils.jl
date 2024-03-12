@@ -677,7 +677,19 @@ end
 
 _asdate(v::DateTime) = v
 _asdate(v::Ref{DateTime}) = v[]
+
+@doc """
+Determines if the Watcher `w` has received an update since `last_time`.
+
+$(TYPEDSIGNATURES)
+
+If it has not received an update since `last_time`, returns `false`.
+Otherwise, calls `this_v_func()` and compares the result to `prev_v`
+and returns `true` if the watcher has received an update since `last_time`.
+
+"""
 function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
+
     last_v = if isempty(buffer(w))
         return false
     else
