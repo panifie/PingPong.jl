@@ -128,7 +128,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                     is_running[] = false
                     rethrow(e)
                 end
-                filter!(t -> istaskdone(t), log_tasks)
+                filter!(istaskdone, log_tasks)
                 let lt = @async @lock log_lock try
                         @writeerror loghandle
                     catch
