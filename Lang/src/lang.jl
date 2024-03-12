@@ -92,7 +92,7 @@ macro multiget(dict, args...)
     end
     expr = esc(args[end])
     result = :(@something)
-    for k in args[begin:(end - 1)]
+    for k in args[begin:(end-1)]
         push!(result.args, :(get($dict, $(esc(k)), nothing)))
     end
     push!(result.args, expr)
@@ -234,17 +234,9 @@ function ifkey!(op, a, k, val)
 end
 
 @doc "Notify a condition with locks."
-safenotify(cond, args...; kwargs...) = begin
-    lock(cond) do
-        notify(cond, args...; kwargs...)
-    end
-end
+safenotify(cond, args...; kwargs...) = @lock cond notify(cond, args...; kwargs...)
 @doc "Wait a condition with locks."
-safewait(cond) = begin
-    lock(cond) do
-        wait(cond)
-    end
-end
+safewait(cond) = @lock cond wait(cond)
 @doc "Same as `@lock` but with `acquire` and `release`."
 macro acquire(cond, code)
     quote
@@ -377,7 +369,7 @@ macro caller(n=4)
     quote
         let funcs = stacktrace() |> $_dedup_funcs
             if length(funcs) > 2
-                join(reverse!(@view(funcs[(begin + 1):min(length(funcs), $n)])), " > ")
+                join(reverse!(@view(funcs[(begin+1):min(length(funcs), $n)])), " > ")
             else
                 ""
             end
