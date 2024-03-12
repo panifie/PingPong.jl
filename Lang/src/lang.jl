@@ -188,6 +188,8 @@ macro ifdebug(m, a=nothing, b=nothing)
         if m isa Symbol
             m
         else
+            b = a
+            a = m
             __module__
         end,
     )
@@ -200,12 +202,19 @@ $(TYPEDSIGNATURES)
 
 If the current module is in debug mode, it asserts the given condition. Optionally, it can include a custom error message msg.
 """
-macro deassert(condition, msg=nothing)
-    name = string(__module__)
+macro deassert(mod, condition=nothing, msg=nothing)
+    name = string(
+        if mod isa Symbol
+            mod
+        else
+            msg = condition
+            condition = mod
+            __module__
+        end,
+    )
     if _isdebug(name)
         if isnothing(msg)
             quote
-                # @assert $(esc(condition))
                 @assert $(esc(condition)) $(string(condition))
             end
         else
