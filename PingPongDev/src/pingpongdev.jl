@@ -2,7 +2,8 @@ using Reexport
 @reexport using PingPong
 using PingPong.Engine: Strategies as st, Engine as egn
 using PingPong: @environment!
-using PingPong.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
+using PingPong.Exchanges.Python: Python
+using .Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 using Random
 using Stubs
 
@@ -104,7 +105,7 @@ Requires strategy to be reloaded.
 resetenv!() = begin
     @eval begin
         @environment!
-        using Python
+        using .Python
     end
     try
         Python.py_start_loop()
