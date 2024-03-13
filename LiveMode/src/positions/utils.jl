@@ -100,11 +100,11 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
     end
 
     @debug "force fetch pos: locking" _module = LogPosFetch islocked(w) ai = raw(ai)
-    @lock w begin
+    fetched = @lock w begin
         timeout = @timeout_now()
         if timeout > Second(0)
             # NOTE: Force fetching doesn't guarantee the latest result, there still a TTL cache here
-            resp = let resp = fetch_positions(s, ai; side, timeout, fallback_kwargs...)
+            resp = let resp = fetch_positions(s; side, timeout, fallback_kwargs...)
                 _handle_pos_resp(resp, ai, side)
             end
             if !isnothing(resp)
@@ -114,11 +114,18 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
                 end
                 pushnew!(w, resp)
                 @debug "force fetch pos: processing" _module = LogPosFetch
-                process!(w, fetched=true)
-                @debug "force fetch pos: done" _module = LogPosFetch
+                true
+            else
+                false
             end
+        else
+            false
         end
+    end::Bool
+    if fetched
+        process!(w, fetched=true)
     end
+    @debug "force fetch pos: done" _module = LogPosFetch
 end
 
 _isstale(ai, pup, side, since) =
@@ -156,9 +163,11 @@ function live_position(
     pup = get_positions(s, ai, side)::Option{PositionTuple}
     last_ff = DateTime(0)
 
-    @ifdebug force && @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
-        positions_watcher(s)
-    ) maxlog = 1
+    if force
+        @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
+            positions_watcher(s)
+        ) maxlog = 1
+    end
     w = positions_watcher(s)
     @debug "live pos: locking w" _module = LogPosFetch
     wlocked = islocked(w)
