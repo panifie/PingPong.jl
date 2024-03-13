@@ -330,7 +330,7 @@ end
 
 function handle_list_resp(eid::EIDType, resp, timeout, pre_timeout, base_timeout)
     if ismissing(resp)
-        @warn "ccxt: request timed out" resp eid base_timeout[] @caller 14
+        @warn "ccxt: request timed out" resp eid base_timeout[] f = @caller 14
         base_timeout[] += if timeout > Second(0)
             round(timeout, Second, RoundUp)
         else
@@ -359,7 +359,7 @@ function ccxt_positions_func!(a, exc)
             out = @get cache syms @lock l @lget! cache syms if isempty(ais)
                 pylist()
             else
-                timeout += base_timeout[]
+                timeout = promote(timeout, base_timeout[]) |> sum
                 sleep(pre_timeout[])
                 out = positions_func(exc, ais; timeout, kwargs...)
                 out = handle_list_resp(eid, out, timeout, pre_timeout, base_timeout)
