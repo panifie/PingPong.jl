@@ -68,36 +68,47 @@ function _live_sync_position!(
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
             @debug "sync pos: handling double position" _module = LogPosSync ai = raw(ai)
             let oppos = opposite(pside),
-                live_pup = let lp(force) = live_position(s, ai, oppos; since=update.date, force)
-                    @something lp(false) lp(true) missing
-                end
+                oppos_pos = position(ai, oppos)
 
-                if !ismissing(live_pup)
+                live_pup = live_position(s, ai, oppos, since=if forced_side
+                    update.date
+                end)
+                if !isnothing(live_pup)
                     live_pos = live_pup.resp
-                    amount = resp_position_contracts(live_pos, eid)
-                    if amount > ZERO
+                    oppos_amount = resp_position_contracts(live_pos, eid)
+                    if oppos_amount > ZERO
                         if wasopen
                             @warn "sync pos: double position open in oneway mode." oppos cash(
                                 ai, oppos
                             ) raw(ai) nameof(s) f = @caller
                         end
                         if forced_side
-                            pong!(s, ai, oppos, now(), PositionClose(); amount, waitfor)
+                            pong!(s, ai, oppos, now(), PositionClose(); amount=oppos_amount, waitfor)
                             oppos_pos = position(ai, oppos)
                             if isopen(oppos_pos)
+                                @warn "sync pos: refusing sync since opposite side is still open" ai = raw(ai) pside amount oppos oppos_amount
                                 return pos
                             end
                         elseif live_pup.date > update.date
                             update.closed[] = true
-                        else
+                            update.read[] = true
+                            reset!(pos)
+                            timestamp!(pos, update.date)
+                            live_sync_position!(s, ai, oppos, live_pup)
                             return pos
                         end
                     end
+                    if isopen(oppos_pos)
+                        reset!(oppos_pos)
+                    end
+                    live_pup.closed[] = true
+                    live_pup.read[] = true
+                    timestamp!(oppos_pos, live_pup.date)
                 else
                     @debug "sync pos: resetting opposite position" _module = LogPosSync ai = raw(ai) oppos
-                    reset!(position(ai, oppos))
+                    reset!(oppos_pos)
+                    timestamp!(oppos_pos, update.date)
                 end
-
             end
         end
     end
@@ -138,18 +149,18 @@ function _live_sync_position!(
 
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
-        @debug "sync pos: amount" _module = LogPosSync rv posside(pos)
+        @debug "sync pos: amount" _module = LogPosSync resp_amount = amount rv posside(pos)
         if !isapprox(ai, cash(pos), rv, Val(:amount))
             @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
         end
         cash!(pos, rv)
     end
-    # If the respd amount is "dust" the position should be considered closed, and to be reset
+    # If the resp amount is "dust" the position should be considered closed, and to be reset
     pos_price = _ccxtposprice(ai, resp)
     if isdust(ai, pos_price, pside)
         update.read[] = true
         reset!(pos)
-        @debug "sync pos: amount is dust, reset" _module = LogPosSync isopen(ai, p) cash(ai) resp
+        @debug "sync pos: amount is dust, reset" _module = LogPosSync pside isopen(ai, p) cash(ai, pside) resp
         return pos
     end
     @debug "sync pos: syncing" _module = LogPosSync date = timestamp(pos) ai = raw(ai) side = pside
@@ -176,10 +187,12 @@ function _live_sync_position!(
         dowarn("entry price", ep)
         pos_price
     end
-    commits && let comm = committed(s, ai, pside)
-        @debug "sync pos: local committment" _module = LogPosSync comm ai = raw(ai) side = pside
-        if !isapprox(committed(pos).value, comm)
-            commit!(pos, comm)
+    if commits
+        let comm = committed(s, ai, pside)
+            @debug "sync pos: local committment" _module = LogPosSync comm ai = raw(ai) side = pside
+            if !isapprox(committed(pos).value, comm)
+                commit!(pos, comm)
+            end
         end
     end
 
@@ -400,7 +413,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
     function dosync(ai, side, dict)
         pup = get(dict, raw(ai), nothing)
         @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) isnothing(pup) overwrite force
-        live_sync_cash!(s, ai, side; pup, overwrite, force, synced=force, kwargs...)
+        live_sync_cash!(s, ai, side; pup, overwrite, force, kwargs...)
     end
     @sync for ai in s.universe
         @async begin

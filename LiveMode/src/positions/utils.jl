@@ -64,27 +64,9 @@ function _handle_pos_resp(resp, ai, side)
         @debug "force fetch pos: error $sym($side)" _module = LogPosFetch resp
         return nothing
     elseif islist(resp)
-        if isempty(resp)
-            @debug "force fetch pos: returned an empty list $sym($side)" _module = LogPosFetch
-            return resp
-        else
-            for this in resp
-                this_side = _ccxtposside(this, eid; def=_last_posside(ai))
-                @debug "force fetch pos: list el" _module = LogPosFetch resp_position_timestamp(this, eid) resp_position_contracts(
-                    this, eid
-                ) side this_side issym = _ispossym(this, sym, eid) ai = raw(ai)
-                if this_side == side && _ispossym(this, sym, eid)
-                    @deassert !isnothing(this) && isdict(this)
-                    return this
-                end
-            end
-            @ifdebug if isopen(ai)
-                @debug "force fetch pos: did not find the requested symbol $sym($side)" _module = LogPosFetch resp
-            end
-            return nothing
-        end
-    elseif isdict(resp) && _ccxtposside(resp, eid) == side && _ispossym(resp, sym, eid)
         return resp
+    elseif isdict(resp) && _ccxtposside(resp, eid) == side && _ispossym(resp, sym, eid)
+        return pylist((resp,))
     else
         @debug "force fetch pos: unhandled response $sym($side)" _module = LogPosFetch resp
         return nothing
@@ -102,6 +84,7 @@ The position is then stored in the position watcher and processed.
 """
 function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fallback_kwargs)
     @timeout_start
+
     w = positions_watcher(s)
     @debug "force fetch pos: checking" _module = LogPosFetch islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
@@ -120,6 +103,7 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
     @lock w begin
         timeout = @timeout_now()
         if timeout > Second(0)
+            # NOTE: Force fetching doesn't guarantee the latest result, there still a TTL cache here
             resp = let resp = fetch_positions(s, ai; side, timeout, fallback_kwargs...)
                 _handle_pos_resp(resp, ai, side)
             end
@@ -128,9 +112,10 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
                     resp_position_contracts(first(resp), exchangeid(ai))
                 catch
                 end
-                pushnew!(w, pylist(resp))
+                pushnew!(w, resp)
                 @debug "force fetch pos: processing" _module = LogPosFetch
-                process!(w; forced_sym=raw(ai))
+                process!(w, fetched=true)
+                @debug "force fetch pos: done" _module = LogPosFetch
             end
         end
     end
@@ -164,7 +149,7 @@ function live_position(
     since=nothing,
     force=false,
     synced=true,
-    waitfor=Second(5),
+    waitfor=Second(10),
     drift=Millisecond(5)
 )
     @timeout_start
@@ -186,7 +171,7 @@ function live_position(
        (isempty(buffer(w)) &&
         _isstale(ai, pup, side, since))
         @debug "live pos: force syncing" _module = LogPosFetch
-        _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
+        _force_fetchpos(s, ai, side; waitfor=@timeout_now(), fallback_kwargs)
         last_ff = now()
         pup = get_positions(s, ai, side)
     end
@@ -194,7 +179,7 @@ function live_position(
        !(isnothing(since) || isnothing(pup))
         @debug "live pos: force waiting" _module = LogPosFetch ai = raw(ai) side since force
         if !waitforpos(s, ai, side; since, force, waitfor=@timeout_now) &&
-           now() > last_ff + drift # avoid force fetching again if we just ran force_fetch
+           !force && now() > last_ff + drift # avoid force fetching again if we just ran force_fetch
             # try one last time to force fetch
             @debug "live pos: last force fetch" _module = LogPosFetch
             _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
@@ -363,18 +348,25 @@ If the side is neither "sell" nor "buy", it issues a warning and defaults to the
 
 """
 function _ccxtposside(::MarginStrategy{Live}, v::Py, eid::EIDType; def=Long())
-    let side = resp_order_side(v, eid)
-        if pyeq(Bool, side, @pyconst("sell"))
-            Short()
-        elseif pyeq(Bool, side, @pyconst("buy"))
-            Long()
-        else
-            @warn "Side value not found, defaulting to $def" resp = v
-            def
-        end
+    side = resp_order_side(v, eid)
+    if pyeq(Bool, side, @pyconst("sell"))
+        Short()
+    elseif pyeq(Bool, side, @pyconst("buy"))
+        Long()
+    else
+        @warn "Side value not found, defaulting to $def" resp = v
+        def
     end
 end
 _ccxtposside(::NoMarginStrategy{Live}, args...; kwargs...) = Long()
+_ccxtposside(v::String) =
+    if v == "long"
+        Long()
+    elseif v == "short"
+        Short()
+    else
+        error("wrong position side value $v")
+    end
 
 @doc """ Returns the price of a position.
 

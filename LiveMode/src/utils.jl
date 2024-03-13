@@ -1,7 +1,7 @@
 using PaperMode.OrderTypes
 using PaperMode: reset_logs, SimMode
 using .SimMode: _simmode_defaults!
-using .Lang: @lget!, Option, @get
+using .Lang: @lget!, Option, @get, MatchString
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
 using .TimeTicks: dtstamp
 using .Misc:
@@ -453,6 +453,9 @@ function st.default!(s::LiveStrategy)
     a[:live_buffer_size] = 1000
     # Dict indicating the latest (remotely) set margin mode for an asset
     a[:live_margin_mode] = Dict{AssetInstance,Union{Missing,MarginMode}}()
+    if s isa MarginStrategy
+        a[:positions_base_timeout] = Ref(Second(5))
+    end
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
@@ -501,10 +504,10 @@ get_positions(s) = attr(watch_positions!(s; interval=st.throttle(s)), :view)
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_positions(s, ai, bp::ByPos) = get(get_positions(s, bp), raw(ai), nothing)
-function get_positions(s, ai, ::Nothing)
-    get(get_positions(s, get_position_side(s, ai)), raw(ai), nothing)
+function get_positions(s, ai, side=get_position_side(s, ai))
+    pside = @something posside(side) get_position_side(s, ai)
+    get(get_positions(s, pside), raw(ai), nothing)
 end
-get_positions(s, ai::AssetInstance) = get_positions(s, ai, posside(ai))
 @doc """ Retrieves the position side of an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -630,7 +633,7 @@ This macro starts a timeout. If a `start` argument is provided, it sets the star
 
 """
 macro timeout_start(start=nothing)
-    esc(:(timeout_date = $(@something start now()) + waitfor))
+    esc(:(timeout_date = @something $start now() + waitfor))
 end
 @doc """ Retrieves the current timeout.
 
@@ -713,5 +716,12 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
         end
     else
         return false
+    end
+end
+
+function asset_bysym(s::Strategy, sym)
+    @lock s begin
+        dict_bysim = @lget! attrs(s) :assets_bysym Dict{String,AssetInstance}()
+        @lget! dict_bysim sym s[MatchString(sym)]
     end
 end
