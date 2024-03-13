@@ -97,4 +97,21 @@ if isdefined(Main, :Revise)
         end
 end
 
-export backtest_strat, loadstrat!, symnames, default_loader, dostub!, @environment!
+""" Required when interrupting a function in the repl (CTRL-C) and causes the python event loop to terminate.
+
+Requires strategy to be reloaded.
+"""
+resetenv!() = begin
+    @eval begin
+        @environment!
+        using Python
+    end
+    try
+        Python.py_start_loop()
+    catch
+    end
+    exs.ExchangeTypes._closeall()
+    Watchers._closeall()
+end
+
+export backtest_strat, loadstrat!, symnames, default_loader, dostub!, @environment!, resetenv!
