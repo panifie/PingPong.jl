@@ -430,7 +430,7 @@ function stream_handler(f_pull, f_push)
                     $push_name(e)
                 except:
                     print(e)
-                    pass
+                    await pysleep(1)
     """
     func = first(
         pyexec(NamedTuple{(Symbol(:handler_loop_, n),),Tuple{Py}}, code, gpa.globs)
