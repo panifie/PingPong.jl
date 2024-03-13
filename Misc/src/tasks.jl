@@ -44,6 +44,27 @@ stop_task(t::Task) = begin
     end
 end
 
+function kill_task(t)
+    interrupt_task = @async Base.throwto(t, InterruptException())
+    if !istaskdone(interrupt_task)
+        sleep(0)
+        Base.throwto(interrupt_task, InterruptException())
+    end
+    istaskdone(t)
+end
+
+function Base.unlock(l::ReentrantLock, ::Val{:force})
+    if islocked(l)
+        t = l.locked_by
+        if istaskrunning(t)
+            kill_task(t)
+            if islocked(l)
+                error("unlock failed")
+            end
+        end
+    end
+end
+
 @doc """ Initializes and starts a task with a given state.
 
 $(TYPEDSIGNATURES)
