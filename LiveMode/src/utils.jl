@@ -211,8 +211,15 @@ $(TYPEDSIGNATURES)
 This function retrieves the task queue associated with an asset `ai` in the strategy `s`.
 
 """
-asset_queue(s::LiveStrategy, ai; tasks=nothing) =
-    @something(tasks, asset_tasks(s, ai)).queue
+asset_queue(s::LiveStrategy, ai; tasks=nothing) = begin
+    at = @something tasks asset_tasks(s, ai)
+    at.queue
+end
+
+
+function _unsafe_asset_tasks(s::LiveStrategy)
+    @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
+end
 @doc """ Retrieves tasks associated with all assets.
 
 $(TYPEDSIGNATURES)
@@ -220,9 +227,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with all assets in the strategy `s`. It returns a dictionary mapping asset identifiers to their respective tasks.
 
 """
-function asset_tasks(s::LiveStrategy)
-    @lock s @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
-end
+asset_tasks(s::LiveStrategy) = @lock s _unsafe_asset_tasks(s)
 @doc """ Retrieves tasks associated with a specific asset.
 
 $(TYPEDSIGNATURES)
@@ -231,7 +236,7 @@ This function retrieves tasks associated with a specific asset `ai` in the strat
 
 """
 function asset_tasks(s::LiveStrategy, ai; tasks=nothing)
-    @lock s @lget! @something(tasks, asset_tasks(s)) ai (;
+    @lock s @lget! @something(tasks, _unsafe_asset_tasks(s)) ai (;
         lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
 end
@@ -309,14 +314,10 @@ function set_strategy_task!(
 end
 
 function strategy_task(
-    s::LiveStrategy, k; account=current_account(s), tasks=nothing, dolock=true
+    s::LiveStrategy, k; account=current_account(s), tasks=nothing
 )
     tup = @something tasks strategy_tasks(s, account)
-    if dolock
-        @lock tup.lock get(tup.tasks, k, nothing)
-    else
-        get(tup.tasks, k, nothing)
-    end
+    @lock tup.lock get(tup.tasks, k, nothing)
 end
 
 ## WRAPPERS

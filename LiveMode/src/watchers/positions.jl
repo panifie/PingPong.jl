@@ -44,7 +44,7 @@ function ccxt_positions_watcher(
     attrs[:kwargs] = kwargs
     attrs[:interval] = interval
     attrs[:iswatch] = iswatch
-    _tfunc!(attrs, _w_fetch_positions_func(s, interval; iswatch, kwargs))
+    _tfunc!(attrs, _w_positions_func(s, interval; iswatch, kwargs))
     _exc!(attrs, exc)
     watcher_type = Union{Py,PyList}
     wid = string(wid, "-", hash((exc.id, nameof(s))))
@@ -101,16 +101,16 @@ $(TYPEDSIGNATURES)
 
 This function wraps a fetch positions function `s` with a specified `interval`. Additional keyword arguments `kwargs` are passed to the fetch positions function.
 """
-function _w_fetch_positions_func(s, interval; iswatch, kwargs)
+function _w_positions_func(s, interval; iswatch, kwargs)
     exc = exchange(s)
     params, rest = split_params(kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
+    tasks = Task[]
     if iswatch
         init = Ref(true)
         buffer_size = attr(s, :live_buffer_size, 1000)
         s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
-        tasks = Task[]
         function process_pos!(w, v)
             @lock w _dopush!(w, pylist(v))
             if !isready(channel[])
@@ -174,9 +174,11 @@ function _w_fetch_positions_func(s, interval; iswatch, kwargs)
         fetch_positions_func(w) = begin
             start = now()
             @lock w begin
-                v = fetch_positions(s; params, rest...)
+                v = fetch_positions(s; timeout, params, rest...)
                 _dopush!(w, v)
             end
+            push!(tasks, @async process!(w))
+            filter!(!istaskdone, tasks)
             sleep_pad(start, interval)
         end
     end
@@ -242,7 +244,7 @@ function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
     _exc!(attrs, exchange(s))
     _tfunc!(
         attrs,
-        _w_fetch_positions_func(
+        _w_positions_func(
             s, attrs[:interval]; iswatch=attrs[:iswatch], kwargs=w[:kwargs]
         ),
     )
@@ -323,19 +325,20 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         @debug "watchers process: already processed" _module = LogWatchPosProcess data_date
         return nothing
     end
-    if !islist(data) || isempty(data)
-        @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
-            data
-        )
-        _lastprocessed!(w, data_date)
-        return nothing
-    end
     s = w[:strategy]
     long_dict = w.view.long
     short_dict = w.view.short
     last_dict = w.view.last
     processed_syms = Set{Tuple{String,PositionSide}}()
     iswatch = w[:iswatch]
+    # In case of fetching we must still call `_setposflags!`
+    if !islist(data) || (iswatch && isempty(data))
+        @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
+            data
+        )
+        _lastprocessed!(w, data_date)
+        return nothing
+    end
     @debug "watchers process: position" _module = LogWatchPosProcess
     @sync for resp in data
         if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionUpdate
@@ -346,6 +349,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         sym = resp_position_symbol(resp, eid, String)
         default_side_func = Returns(_last_updated_position(long_dict, short_dict, sym))
         side = posside_fromccxt(resp, eid; default_side_func)
+        push!(processed_syms, (sym, side))
         side_dict = ifelse(islong(side), long_dict, short_dict)
         pup_prev = get(side_dict, sym, nothing)
         prev_date, cond = if isnothing(pup_prev)
@@ -356,7 +360,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         prev_side = get(last_dict, sym, side)
         this_date = @something pytodate(resp, eid) data_date
         # FIXME: Can a new update have a lower date?
-        if this_date < prev_date && side == prev_side
+        if this_date <= prev_date && side == prev_side
             @warn "watchers: received stale position update" sym side prev_side
             continue
         end
@@ -371,7 +375,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
             end
             @debug "watchers: position processed" _module = LogWatchPosProcess sym side is_stale
             if !isnothing(pup)
-                push!(processed_syms, (sym, side))
                 @debug "watchers: UNREAD" _module = LogWatchPosProcess contracts = resp_position_contracts(
                     pup.resp, eid
                 ) pup.date
@@ -399,12 +402,13 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     end
     _lastprocessed!(w, data_date)
     if !iswatch || fetched
-        _setposflags!(data_date, long_dict, Long(), processed_syms)
-        _setposflags!(data_date, short_dict, Short(), processed_syms)
-        live_sync_universe_cash!(s)
+        n_closed = _setposflags!(data_date, long_dict, Long(), processed_syms)
+        n_closed += _setposflags!(data_date, short_dict, Short(), processed_syms)
+        if !isempty(processed_syms) || n_closed > 0
+            live_sync_universe_cash!(s)
+        end
     end
-    @debug "watchers process: notify" _module = LogWatchPosProcess
-    safenotify(w.beacon.process)
+    @debug "watchers process: done" _module = LogWatchPosProcess
 end
 
 @doc """ Updates position flags for a symbol in a dictionary.
@@ -415,30 +419,15 @@ This function updates the `PositionUpdate` status when *not* using `watch*` func
 
 """
 function _setposflags!(data_date, dict, side, processed_syms)
-    function set!(this_sym, pup)
-        @lock pup.notify begin
-            prev_closed = pup.closed[]
-            if (this_sym, side) ∉ processed_syms
-                pup_prev = get(dict, this_sym, nothing)
-                @assert pup_prev === pup
-                dict[this_sym] = _posupdate(pup_prev, data_date, pup_prev.resp)
-                pup.closed[] = true
-            end
-            # NOTE: this might fix some race conditions (when a position is updated right after).
-            # The new update might have a lower timestamp and would skip sync (from `live_position_sync!`).
-            # Therefore we reset the `read` state between position status updates.
-            if prev_closed != pup.closed[]
-                prev_read = pup.read[]
-                if prev_read
-                    pup.read[] = false
-                    safenotify(pup.notify)
-                end
-            end
+    n_closed = Ref(0)
+    @sync for (sym, pup) in dict
+        @async @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
+            dict[sym] = _posupdate(pup, data_date, pup.resp)
+            pup.closed[] = true
+            n_closed[] += 1
         end
     end
-    @sync for (sym, pup) in dict
-        @async set!(sym, pup)
-    end
+    return n_closed[]
 end
 
 function _setunread!(w)

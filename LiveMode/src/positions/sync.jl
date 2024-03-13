@@ -47,6 +47,7 @@ function _live_sync_position!(
     forced_side=false,
     waitfor=Second(5),
 )
+    @debug "sync pos: checking queue" islocked(s) islocked(ai)
     let queue = asset_queue(s, ai)
         if queue[] > 1
             @debug "sync pos: events queue is congested" _module = LogPosSync queue[]
@@ -58,6 +59,7 @@ function _live_sync_position!(
     pside = posside_fromccxt(resp, eid, p)
     pos = position(ai, pside)
     wasopen = isopen(pos) # by macro warn_unsynced
+    @debug "sync pos: vars" wasopen pside skipchecks overwrite
 
     # check hedged mode
     if !resp_position_hedged(resp, eid) == ishedged(pos)
@@ -66,17 +68,19 @@ function _live_sync_position!(
     end
     if !skipchecks
         if !ishedged(pos) && isopen(opposite(ai, pside)) && !update.closed[]
-            @debug "sync pos: handling double position" _module = LogPosSync ai = raw(ai)
+            @debug "sync pos: handling double position" _module = LogPosSync ai = raw(ai) pside
             let oppos = opposite(pside),
                 oppos_pos = position(ai, oppos)
 
-                live_pup = live_position(s, ai, oppos, since=if forced_side
+                oppos_pup = live_position(s, ai, oppos, since=if forced_side
                     update.date
                 end)
-                if !isnothing(live_pup)
-                    live_pos = live_pup.resp
+                if !isnothing(oppos_pup)
+                    live_pos = oppos_pup.resp
                     oppos_amount = resp_position_contracts(live_pos, eid)
-                    if oppos_amount > ZERO
+                    if !oppos_pup.closed[] &&
+                       !oppos_pup.read[] &&
+                       oppos_amount > ZERO
                         if wasopen
                             @warn "sync pos: double position open in oneway mode." oppos cash(
                                 ai, oppos
@@ -89,21 +93,23 @@ function _live_sync_position!(
                                 @warn "sync pos: refusing sync since opposite side is still open" ai = raw(ai) pside amount oppos oppos_amount
                                 return pos
                             end
-                        elseif live_pup.date > update.date
+                        elseif oppos_pup.date > update.date
+                            @debug "sync pos: resetting this side since oppos is newer" _module = LogPosSync pside oppos amount oppos_amount
                             update.closed[] = true
                             update.read[] = true
                             reset!(pos)
                             timestamp!(pos, update.date)
-                            live_sync_position!(s, ai, oppos, live_pup)
+                            live_sync_position!(s, ai, oppos, oppos_pup)
                             return pos
                         end
                     end
                     if isopen(oppos_pos)
+                        @debug "sync pos: resetting oppos pos"
                         reset!(oppos_pos)
                     end
-                    live_pup.closed[] = true
-                    live_pup.read[] = true
-                    timestamp!(oppos_pos, live_pup.date)
+                    oppos_pup.closed[] = true
+                    oppos_pup.read[] = true
+                    timestamp!(oppos_pos, oppos_pup.date)
                 else
                     @debug "sync pos: resetting opposite position" _module = LogPosSync ai = raw(ai) oppos
                     reset!(oppos_pos)
@@ -129,7 +135,7 @@ function _live_sync_position!(
         update.read[] = true
         reset!(pos) # if not full reset at least cash/committed
         timestamp!(pos, update.date)
-        @debug "sync pos: closed flag set, reset" _module = LogPosSync ai = raw(ai)
+        @debug "sync pos: closed flag set, reset" _module = LogPosSync ai = raw(ai) pside
         return pos
     end
 
@@ -314,7 +320,7 @@ function _live_sync_position!(
 end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
-    @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai)
+    @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai) islocked(ai) islocked(s) islocked(update.notify)
     @lock ai @lock update.notify begin
         _live_sync_position!(s, ai, pos, update; kwargs...)
         if isopen(ai) || hasorders(s, ai)
@@ -377,12 +383,12 @@ function live_sync_cash!(
     kwargs...,
 )
     pup = @something pup live_position(s, ai, side; since, force, synced, waitfor) missing
-    @lock ai if pup isa PositionTuple
+    if pup isa PositionTuple
         @assert isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
         live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
     else
         @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(ai) side
-        reset!(ai, bp)
+        @lock ai reset!(ai, bp)
     end
     position(ai, bp)
 end
