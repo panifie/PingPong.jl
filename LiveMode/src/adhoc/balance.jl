@@ -2,6 +2,7 @@ using .Lang: splitkws, @get
 
 _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N} = :unified
 _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = :unified
+_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:binanceusdm},<:WithMargin}) where {N} = :future
 
 function _fetch_balance(exc::Exchange{ExchangeID{:bybit}}, qc, syms, args...; timeout=gettimeout(exc), type="unified", params=pydict(), kwargs...)
     # assume bybit UTA
@@ -73,12 +74,9 @@ function _parse_balance(exc::Exchange{<:eids(:binanceusdm)}, v)
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:binanceusdm)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:binanceusdm)}, qc, syms, args...; timeout=gettimeout(exc), type=:future, code=nothing, params=pydict(), kwargs...
 )
-    params["code"] = @pystr code uppercase(string(@something code qc))
-    if haskey(params, "type")
-        delete!(params, "type")
-    end
+    @lget! params "type" lowercase(string(type))
     resp = _execfunc_timeout(
         _exc_balance_func(exc); timeout, params, kwargs...
     )
