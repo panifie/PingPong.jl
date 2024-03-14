@@ -308,11 +308,9 @@ function watch_positions_handler(exc::Exchange, ais, args...; f_push, kwargs...)
 end
 
 function watch_balance_handler(exc::Exchange, args...; f_push, kwargs...)
-    corogen() = begin
-        v = exc.watchBalance(args...; kwargs...)
-        _parse_balance(exc, v)
-    end
-    stream_handler(corogen, f_push)
+    corogen() = exc.watchBalance(args...; kwargs...)
+    parse_and_push(v) = _parse_balance(exc, v) |> f_push
+    stream_handler(corogen, parse_and_push)
 end
 
 function fetch_balance_func(exc::Exchange, args...; timeout, kwargs...)
