@@ -50,12 +50,25 @@ for sym in (openat, highat, lowat, closeat, volumeat)
 end
 
 @doc "The asset close price of the candle where the last trade was performed."
-lasttrade_price_func(ai) =
-    if isempty(ohlcv(ai))
+lasttrade_price_func(ai) = begin
+    h = ai.history
+    data = ohlcv(ai)
+    if isempty(data) && isempty(h)
         ZERO
+    elseif isempty(h)
+        data.close[end]
+    elseif isempty(data)
+        h[end].price
     else
-        closeat(ai, min(lastdate(ai), max(firstdate(ai), lasttrade_date(ai))))
+        trade_date = lasttrade_date(ai)
+        price_date = min(lastdate(data), max(firstdate(data),), trade_date)
+        if price_date >= trade_date
+            closeat(ai, price_date)
+        else
+            h[end].price
+        end
     end
+end
 
 current_total(s, price_func; kwargs...) = current_total(s; price_func, kwargs...)
 
