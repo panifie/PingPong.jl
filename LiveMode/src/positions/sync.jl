@@ -203,14 +203,17 @@ function _live_sync_position!(
     end
 
     lev = resp_position_leverage(resp, eid)
+    prev_lev = let v = leverage(pos)
+        v < one(v) ? one(DFT) : v
+    end
     if lev > zero(DFT)
-        if !isapprox(leverage(pos), lev; atol=1e-2)
+        if !isapprox(prev_lev, lev; atol=1e-2)
             @warn_unsynced "leverage" leverage(pos) lev
         end
         leverage!(pos, lev)
     else
         dowarn("leverage", lev)
-        lev = one(DFT)
+        lev = prev_lev
     end
     ntl = let v = resp_position_notional(resp, eid)
         if v > zero(DFT)

@@ -6,9 +6,8 @@ This function synchronizes the cash balance of a live strategy with the actual c
 It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
 
 """
-function live_sync_strategy_cash!(s::LiveStrategy, kind=:free; kwargs...)
-    _, this_kwargs = splitkws(:status; kwargs)
-    bal = live_balance(s)
+function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; bal=nothing, overwrite=false, kwargs...)
+    bal = @something bal live_balance(s; kwargs...)
     avl_cash = getproperty(bal.balance, kind)
     bc = nameof(s.cash)
 

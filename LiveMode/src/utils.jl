@@ -37,11 +37,13 @@ baremodule LogOHLCV end
 baremodule LogCcxtFuncs end
 baremodule LogBalance end
 baremodule LogWatchBalance end
+baremodule LogWatchBalProcess end
 baremodule LogWatchOrder end
 baremodule LogWatchTrade end
 baremodule LogWatchPos end
 baremodule LogWatchPos2 end
 baremodule LogWatchPosProcess end
+baremodule LogPush end
 baremodule LogWait end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
@@ -454,9 +456,9 @@ function st.default!(s::LiveStrategy)
     a[:live_buffer_size] = 1000
     # Dict indicating the latest (remotely) set margin mode for an asset
     a[:live_margin_mode] = Dict{AssetInstance,Union{Missing,MarginMode}}()
-    if s isa MarginStrategy
-        a[:positions_base_timeout] = Ref(Second(5))
-    end
+    s isa MarginStrategy ? a[:positions_base_timeout] = Ref(Second(5)) : nothing
+    # The balance to sync in live mode (total, free, used)
+    a[:live_balance_kind] = s isa MarginStrategy ? :free : :total
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
@@ -722,7 +724,11 @@ end
 
 function asset_bysym(s::Strategy, sym)
     @lock s begin
-        dict_bysim = @lget! attrs(s) :assets_bysym Dict{String,AssetInstance}()
-        @lget! dict_bysim sym s[MatchString(sym)]
+        dict_bysim = @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
+        @lget! dict_bysim sym let v = s[MatchString(sym)]
+            if v isa AssetInstance
+                v
+            end
+        end
     end
 end

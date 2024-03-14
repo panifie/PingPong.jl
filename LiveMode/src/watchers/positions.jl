@@ -84,7 +84,7 @@ _dopush!(w, v; if_func=islist) =
             _lastfetched!(w, now())
         end
     catch
-        @debug_backtrace LogWatchPos
+        @debug_backtrace LogPush
     end
 
 function split_params(kwargs)
@@ -151,7 +151,7 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 end
             end
             if v isa Exception
-                @info "positions watcher: EXCEPTION" exception = v
+                @error "positions watcher: EXCEPTION" exception = v
                 sleep(1)
             else
                 @ifdebug LogWatchPos begin
@@ -327,7 +327,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     if !islist(data)
         @debug "watchers process: wrong data type" _module = LogWatchPosProcess data_date typeof(data)
         _lastprocessed!(w, data_date)
-        _lastcount!(w, data)
+        _lastcount!(w, ())
         return nothing
     end
     if data_date == _lastprocessed(w) && length(data) == _lastcount(w)
@@ -371,7 +371,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         this_date = @something pytodate(resp, eid) data_date
         # FIXME: Can a new update have a lower date?
         if this_date <= prev_date && side == prev_side
-            @warn "watchers: received stale position update" sym side prev_side
+            @warn "watchers: received stale position update" sym side prev_side maxlog=1
             continue
         end
         is_stale = this_date == prev_date

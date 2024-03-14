@@ -59,22 +59,23 @@ function _force_fetchbal(s; fallback_kwargs)
             return
         end
     end
-    this_task = @lock w begin
+    fetched = @lock w begin
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
         bal = _handle_bal_resp(resp)
-        isnothing(bal) && return
-        pushnew!(w, bal, time)
-        @debug "force fetch bal: processing" _module = LogBalance
-        this_task = @async process!(w)
-        @debug "force fetch bal: processed" _module = LogBalance
-        this_task
+        if !isnothing(bal)
+            pushnew!(w, bal, time)
+            @debug "force fetch bal: processing" _module = LogBalance
+            true
+        else
+            false
+        end
+    end::Bool
+    if fetched
+        process!(w)
     end
-    if istaskdone(this_task)
-    else
-        safewait(w.beacon.process)
-    end
+    @debug "force fetch bal: done" _module = LogBalance
 end
 
 @doc """ Waits for a balance update.
@@ -250,7 +251,8 @@ function st.current_total(
             else
                 long_nt = abs(live_notional(s, ai, Long()))
                 short_nt = abs(live_notional(s, ai, Short()))
-                long_nt - long_nt * maxfees(ai) + short_nt - short_nt * maxfees(ai)
+                (long_nt - long_nt * maxfees(ai)) / leverage(ai, Long()) +
+                (short_nt - short_nt * maxfees(ai)) / leverage(ai, Short())
             end
             tot[] += v
         end
