@@ -166,6 +166,23 @@ _key(w::Watcher) = attr(w, :key)
 _view!(w, v) = setattr!(w, v, :view)
 _view(w) = attr(w, :view)
 
+_dopush!(w, v; if_func=islist) =
+    try
+        if if_func(v)
+            pushnew!(w, v, now())
+            _lastfetched!(w, now())
+        end
+    catch
+        @debug_backtrace
+    end
+
+iswatchfunc(func::Function) = startswith(string(nameof(func)), "watch")
+iswatchfunc(func::Py) = startswith(string(func.__name__), "watch")
+@doc "Test whether a Python object is a list."
+islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
+@doc "Test whether a Python object is a dictionary."
+isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
+
 @doc """ Returns the available data within the given window
 
 $(TYPEDSIGNATURES)
@@ -182,7 +199,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end - maxlen + 1):end, :])
+    available = @view(z[(end-maxlen+1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -465,4 +482,85 @@ function _flushfrom!(w)
         check=@ifdebug(check_all_flag, :none)
     )
     _lastflushed!(w, _lastdate(w.view))
+end
+
+function handler_task!(w, ; corogen_func, init_func, wrapper_func=pylist)
+    name = nameof(handler_func)
+    exc = _exc(w)
+    interval = w.interval.fetch
+    buffer_size = max(w.capacity.buffer, w.capacity.view)
+    init = Ref(true)
+    tasks = w[:process_tasks] = Task[]
+    channel = w[:channel]Ref(Channel{Any}(buffer_size))
+    function process_val!(w, v)
+        if !isnothing(v)
+            @lock w _dopush!(w, wrapper_func(v))
+        end
+        if !isready(channel[])
+            push!(tasks, @async process!(w))
+        end
+        filter!(!istaskdone, tasks)
+    end
+    function init_watch_func(w)
+        let v = @lock w init_func()
+            process_val!(w, v)
+        end
+        init[] = false
+        f_push(v) = put!(channel[], v)
+        h = w[:handler] = stream_handler!(corogen_func(w), f_push)
+        start_handler!(h)
+        bind(channel[], h.task)
+    end
+    function watch_func(w)
+        if init[]
+            init_watch_func(w)
+        end
+        v = if isopen(channel[])
+            take!(channel[])
+        else
+            channel[] = Channel{Any}(buffer_size)
+            init_watch_func(w)
+            if !isopen(channel[])
+                @error "Positions handler can't be started"
+                sleep(interval)
+            else
+                take!(channel[])
+            end
+        end
+        if v isa Exception
+            @error "$name watcher: EXCEPTION" exception = v
+            sleep(1)
+        else
+            process_val!(w, v)
+        end
+        return true
+    end
+    w[:handler_task] = @async begin
+        while isstarted(w)
+            try
+                watch_func(w)
+                safenotify(w.beacon.fetch)
+            catch e
+                if e isa InterruptException
+                    break
+                else
+                    @debug_backtrace
+                end
+            end
+        end
+    end
+end
+
+handler_task(w) = w[:handler_task]
+
+function stop_handler_task!(w)
+    handler = attr(w, :handler, nothing)
+    if !isnothing(handler)
+        stop_handler!(handler)
+    end
+    channel = attr(w, :channel, nothing)
+    if channel isa Ref{Channel} && isopen(channel[])
+        close(channel[])
+    end
+    nothing
 end

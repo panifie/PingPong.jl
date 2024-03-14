@@ -17,6 +17,7 @@ using .Misc:
     task_sem
 using .SimMode.Instances.Data: nrow
 using Watchers: Watcher
+using Watchers.WatchersImpls: islist, isdict, _dopush!
 import .Instances: timestamp
 
 # logmodules

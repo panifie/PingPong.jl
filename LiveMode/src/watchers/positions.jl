@@ -77,16 +77,6 @@ function guess_settle(s::MarginStrategy)
     end
 end
 
-_dopush!(w, v; if_func=islist) =
-    try
-        if if_func(v)
-            pushnew!(w, v, now())
-            _lastfetched!(w, now())
-        end
-    catch
-        @debug_backtrace LogPush
-    end
-
 function split_params(kwargs)
     if kwargs isa NamedTuple && haskey(kwargs, :params)
         kwargs[:params], length(kwargs) == 1 ? (;) : withoutkws(:params; kwargs)
