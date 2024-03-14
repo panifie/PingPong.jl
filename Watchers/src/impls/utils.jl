@@ -127,6 +127,8 @@ _lastflushed!(w::Watcher, v) = setattr!(w, v, :last_flushed)
 _lastflushed(w::Watcher) = attr(w, :last_flushed)
 _lastprocessed!(w::Watcher, v) = setattr!(w, v, :last_processed)
 _lastprocessed(w::Watcher) = attr(w, :last_processed)
+_lastcount!(w::Watcher, v, f=length) = setattr!(w, f(v), :last_count)
+_lastcount(w::Watcher) = attr(w, :last_count)
 
 struct Warmed end
 struct Pending end
