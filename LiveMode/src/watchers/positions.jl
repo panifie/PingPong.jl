@@ -112,7 +112,9 @@ function _w_positions_func(s, interval; iswatch, kwargs)
         buffer_size = attr(s, :live_buffer_size, 1000)
         s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
         function process_pos!(w, v)
-            @lock w _dopush!(w, pylist(v))
+            if !isnothing(v)
+                @lock w _dopush!(w, pylist(v))
+            end
             if !isready(channel[])
                 push!(tasks, @async process!(w))
             end
@@ -282,6 +284,7 @@ function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
     )
     _lastfetched!(w, DateTime(0))
     _lastprocessed!(w, DateTime(0))
+    _lastcount!(w, ())
 end
 
 function _posupdate(date, resp)
@@ -321,7 +324,13 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     end
     eid = typeof(exchangeid(_exc(w)))
     data_date, data = last(w.buffer)
-    if data_date == _lastprocessed(w)
+    if !islist(data)
+        @debug "watchers process: wrong data type" _module = LogWatchPosProcess data_date typeof(data)
+        _lastprocessed!(w, data_date)
+        _lastcount!(w, data)
+        return nothing
+    end
+    if data_date == _lastprocessed(w) && length(data) == _lastcount(w)
         @debug "watchers process: already processed" _module = LogWatchPosProcess data_date
         return nothing
     end
@@ -332,11 +341,12 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     processed_syms = Set{Tuple{String,PositionSide}}()
     iswatch = w[:iswatch]
     # In case of fetching we must still call `_setposflags!`
-    if !islist(data) || (iswatch && isempty(data))
+    if iswatch && isempty(data)
         @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
             data
         )
         _lastprocessed!(w, data_date)
+        _lastcount!(w, data)
         return nothing
     end
     @debug "watchers process: position" _module = LogWatchPosProcess
@@ -401,6 +411,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         end
     end
     _lastprocessed!(w, data_date)
+    _lastcount!(w, data)
     if !iswatch || fetched
         n_closed = _setposflags!(data_date, long_dict, Long(), processed_syms)
         n_closed += _setposflags!(data_date, short_dict, Short(), processed_syms)

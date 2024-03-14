@@ -1,9 +1,11 @@
 function positions_func(exc::Exchange{ExchangeID{:bybit}}, ais; timeout, kwargs...)
-    pyfetch_timeout(first(exc, :fetchPositionsWs, :fetchPositions), Returns(nothing), timeout, PyList(raw(ai) for ai in ais); kwargs...)
+    f = first(exc, :fetchPositionsWs, :fetchPositions)
+    _execfunc_timeout(f, PyList(raw(ai) for ai in ais); timeout, kwargs...)
 end
 
 function positions_func(exc::Exchange{ExchangeID{:deribit}}, ais; timeout, kwargs...)
-    resp = pyfetch_timeout(first(exc, :fetchPositionsWs, :fetchPositions), Returns(nothing), timeout, ; kwargs...)
+    f = first(exc, :fetchPositionsWs, :fetchPositions)
+    resp = _execfunc_timeout(f; timeout, kwargs...)
     syms = Set(raw(ai) for ai in ais)
     if islist(resp)
         filterfrom!(resp) do p

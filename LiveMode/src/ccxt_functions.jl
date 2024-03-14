@@ -336,11 +336,11 @@ function handle_list_resp(eid::EIDType, resp, timeout, pre_timeout, base_timeout
         else
             Second(1)
         end
-        pylist()
+        nothing
     elseif resp isa Exception
         @warn "ccxt: request error" resp eid
         pre_timeout[] += Second(1)
-        pylist()
+        nothing
     else
         resp
     end
@@ -357,14 +357,16 @@ function ccxt_positions_func!(a, exc)
         function ccxt_positions_multi(ais; side=Hedged(), timeout=base_timeout[], kwargs...)
             syms = ((raw(ai) for ai in ais)..., side)
             out = @get cache syms @lock l @lget! cache syms if isempty(ais)
-                pylist()
+                nothing
             else
                 timeout = promote(timeout, base_timeout[]) |> sum
                 sleep(pre_timeout[])
                 out = positions_func(exc, ais; timeout, kwargs...)
                 out = handle_list_resp(eid, out, timeout, pre_timeout, base_timeout)
-                default_side_func(resp) = _last_posside(_matching_asset(resp, eid, ais))
-                _filter_positions(out, eid, side; default_side_func)
+                if !isnothing(out)
+                    default_side_func(resp) = _last_posside(_matching_asset(resp, eid, ais))
+                    _filter_positions(out, eid, side; default_side_func)
+                end
             end
         end
     else
@@ -378,11 +380,13 @@ function ccxt_positions_func!(a, exc)
                         sleep(pre_timeout[])
                         p = position_func(exc, ai; timeout, kwargs...)
                         p = handle_list_resp(eid, p, timeout, pre_timeout, base_timeout)
-                        last_side = _last_posside(ai)
-                        default_side_func(_) = last_side
-                        p_side = posside_fromccxt(p, eid; default_side_func)
-                        if isside(p_side, side)
-                            out.append(p)
+                        if !isnothing(p)
+                            last_side = _last_posside(ai)
+                            default_side_func(_) = last_side
+                            p_side = posside_fromccxt(p, eid; default_side_func)
+                            if isside(p_side, side)
+                                out.append(p)
+                            end
                         end
                     end
                 end
