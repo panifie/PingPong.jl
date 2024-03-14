@@ -151,7 +151,7 @@ If new trades are fetched, they are appended to the trades buffer. If fetching f
 """
 function _fetch_trades_loop(w)
     backoff = ms(0)
-    while !isnothing(w._timer) && isopen(w._timer)
+    while isstarted(w)
         pytrades = @logerror w pyfetch(_tfunc(w), _sym(w))
         if pytrades isa Exception
             backoff += ms(500)
@@ -231,7 +231,17 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     else
         _resolve(w, w.view, temp.ohlcv)
     end
-    keepat!(_trades(w), (temp.stop + 1):lastindex(_trades(w)))
+    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
     _warmed!(w, _status(w))
     @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end
+
+# function _w_ohlcv_trades_func!(w)
+#     corogen_func(w) = begin
+#         func = _tfunc(w)
+#         @assert iswatchfunc(func)
+#         corogen() = func(_sym(w))
+#     end
+#     init_func() = nothing
+#     handler_task!(w; corogen_func, init_func)
+# end

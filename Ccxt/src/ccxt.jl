@@ -87,18 +87,8 @@ include("exchange_funcs.jl")
 @doc "Choose correct ccxt function according to what the exchange supports."
 function _multifunc(exc, suffix, hasinputs=false)
     py = exc.py
-    fname = "watch" * suffix * "s"
-    if issupported(exc, fname)
-        getproperty(py, fname), :multi
-    elseif begin
-        fname = "watch" * suffix
-        hasinputs && issupported(exc, fname)
-    end
-        getproperty(py, fname), :single
-    elseif begin
-        fname = "fetch" * suffix * "sWs"
-        issupported(exc, fname)
-    end || begin
+    fname = "fetch" * suffix * "sWs"
+    if issupported(exc, fname) || begin
         fname = "fetch" * suffix * "s"
         issupported(exc, fname)
     end
@@ -135,7 +125,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
         f, kind = _multifunc(exc, suffix, hasinputs)
         if hasinputs
             if kind == :multi
-                () -> begin
+                function multi_func()
                     args = isempty(inputs) ? () : (inputs,)
                     data = pyfetch(f, args...; kwargs...)
                     if pyisinstance(data, pybuiltins.list)
@@ -152,7 +142,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                     end
                 end
             else
-                () -> begin
+                function single_func()
                     out = Dict{eltype(inputs),Union{Task,Py}}()
                     try
                         for i in inputs
@@ -174,7 +164,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                 end
             end
         else
-            () -> pyfetch(f; kwargs...)
+            default_func() = pyfetch(f; kwargs...)
         end
     end
 end
