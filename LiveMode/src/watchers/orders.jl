@@ -430,7 +430,7 @@ function handle_order!(s, ai, orders_byid, resp, sem)
             end
         end
     catch e
-        @ifdebug isdefined(Main, :e) && (Main.e[] = e)
+        @ifdebug LogWatchOrder isdefined(Main, :e) && (Main.e[] = e)
         @debug_backtrace LogWatchOrder
         ispyminor_error(e) || @error e
     end
