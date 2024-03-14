@@ -258,7 +258,13 @@ function live_notional(s::LiveStrategy, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
         ZERO
     else
-        abs(resp_position_notional(pup.resp, exchangeid(ai)))
+        eid = exchangeid(ai)
+        ntl = resp_position_notional(pup.resp, eid)
+        if iszero(ntl) && timestamp(ai) >= get_time(pup.resp, eid)
+            notional(ai, get_position_side(s, ai))
+        else
+            ntl
+        end |> abs
     end
 end
 
