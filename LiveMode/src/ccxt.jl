@@ -25,6 +25,12 @@ get_py(v::Union{Py,PyDict}, def, keys::Vararg{String}) = begin
     end
     return def
 end
+macro get_py(v, k, def)
+    e = quote
+        @get $v @pystr($k) $def
+    end
+    esc(e)
+end
 
 @doc "Get value of key as a string."
 get_string(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytostring
