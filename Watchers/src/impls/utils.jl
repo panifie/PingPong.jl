@@ -346,7 +346,7 @@ function _fetchto!(w, df, sym, tf, op=Val(:append); to, from=nothing)
     from = @something from _from(df, to, tf, w.capacity.view, op)
     diff = (to - from)
     if diff > prd || (diff == prd && to < _curdate(tf)) # the second case would fetch only the last incomplete candle
-        candles = _fetch_candles(w, from, to, sym; tf=isempty(df) ? tf : timeframe!(df))
+        candles = _fetch_candles(w, from, to, sym; tf=nrow(df) < 2 ? tf : timeframe!(df))
         from_to_range = rangebetween(candles.timestamp, from, to)
         isempty(from_to_range) && _fetch_error(w, from, to, sym)
         @debug "watchers fetchto!: " to _lastdate(candles) from _firstdate(candles) length(
