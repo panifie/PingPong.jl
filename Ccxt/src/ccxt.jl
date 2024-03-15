@@ -164,7 +164,8 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                 end
             end
         else
-            default_func() = pyfetch(f; kwargs...)
+            args = isempty(inputs) ? () : (inputs,)
+            default_func() = pyfetch(f, args...; kwargs...)
         end
     end
 end
