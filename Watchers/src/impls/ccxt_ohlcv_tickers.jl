@@ -41,7 +41,7 @@ function ccxt_ohlcv_tickers_watcher(
         wid=CcxtOHLCVTickerVal.parameters[1],
         start=false,
         load=false,
-        process=true,
+        process=false,
         kwargs...,
     )
 
@@ -82,7 +82,10 @@ The `TempCandle` struct holds the timestamp, open, high, low, close, and volume 
     end
 end
 
-_symlock(w, sym) = attr(w, :sym_locks)[sym]
+_symlock(w, sym) = begin
+    locks = w[:sym_locks]
+    @lget! locks sym ReentrantLock()
+end
 _loaded!(w, sym, v=true) = attr(w, :loaded)[sym] = v
 _isloaded(w, sym) = get(attr(w, :loaded), sym, false)
 @doc """ Initializes the watcher for the OHLCV ticker.
@@ -222,10 +225,10 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     @warmup! w
     @ispending(w) && return nothing
     isempty(w.buffer) && return nothing
-    last_fetch = last(w.buffer)
-    @sync for (sym, ticker) in last_fetch.value
+    data_date, data = last(w.buffer)
+    @sync for (sym, ticker) in data
         @async @lock _symlock(w, sym) @logerror w _update_sym_ohlcv(
-            w, ticker, last_fetch.time
+            w, ticker, data_date
         )
     end
 end
@@ -235,6 +238,8 @@ function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
     _pending!(w)
     _chill!(w)
 end
+
+_stop!(w::Watcher, ::CcxtOHLCVTickerVal) = _stop!(w, CcxtTickerVal())
 
 @doc """ Loads the OHLCV data for a specific symbol.
 

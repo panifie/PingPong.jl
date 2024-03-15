@@ -50,11 +50,14 @@ function ccxt_tickers_watcher(
     buffer_capacity=100,
     view_capacity=1000,
     flush=true,
+    iswatch=nothing,
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
+    if !isnothing(iswatch)
+        attrs[:iswatch] = iswatch::Bool
+    end
     _sym!(attrs, syms)
-    _tfunc!(attrs, exc, "Ticker", syms)
     _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
@@ -90,13 +93,32 @@ wpyconvert(::Type{F}, py::Py) where {F<:AbstractFloat} = begin
         pyconvert(F, py)
     end
 end
-wpyconvert(::Type{Union{Nothing,DateTime}}, py::Py) =
+wpyconvert(::Type{<:Union{Nothing,DateTime}}, py::Py) =
     if pyisnone(py)
         nothing
     else
         dt(pyconvert(Int, py))
     end
 wpyconvert(::Type{T}, v::Symbol) where {T} = T(v)
+
+_parse_ticker_snapshot(snap) = begin
+    result = Dict{String,CcxtTicker}()
+    if !(snap isa Py)
+        try
+            snap = pydict(snap)
+        catch
+            @error "watcher: failed to parse ticker snapshot" snap
+            return result
+        end
+    end
+    if !isempty(snap)
+        for py_ticker in snap.values()
+            ticker = fromdict(CcxtTicker, String, py_ticker, wpyconvert, wpyconvert)
+            result[ticker.symbol] = ticker
+        end
+    end
+    result
+end
 
 @doc """ Fetches trades and updates the watcher's trades buffer
 
@@ -106,33 +128,48 @@ This function fetches trades for the watcher's symbol and time frame, and update
 If new trades are fetched, they are appended to the trades buffer and the last fetched timestamp is updated.
 
 """
-function _fetch!(w::Watcher, ::CcxtTickerVal)
-    data = attr(w, :tfunc)() |> PyDict
-    if length(data) > 0
-        result = Dict{String,CcxtTicker}()
-        for py_ticker in values(data)
-            ticker = fromdict(CcxtTicker, String, py_ticker, wpyconvert, wpyconvert)
-            result[ticker.symbol] = ticker
-        end
-        pushnew!(w, result)
-        true
-    else
-        false
-    end
-end
+_fetch!(w::Watcher, ::CcxtTickerVal) = _tfunc(w)()
 
 function _reset_tickers_func!(w::Watcher)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
     exc = getexchange!(eid)
     _exc!(attrs, exc)
-    sym = _sym(w)
-    _tfunc!(w.attrs, exc, "Ticker", sym)
+    # don't pass empty args to imply all symbols
+    args = isempty(_sym(w)) ? () : (_sym(w),)
+    watch_func = first(exc, :watchTickersForSymbols, :watchTickers)
+    fetch_func = choosefunc(exc, "Ticker", args...)
+    iswatch = @lget! attrs :iswatch !isnothing(watch_func)
+    if iswatch
+        corogen_func(_) = coro_func() = watch_func(args...)
+        init_func() = fetch_func()
+        handler_task!(w; init_func, corogen_func, wrapper_func=_parse_ticker_snapshot, if_func=!isempty)
+        _tfunc!(attrs, () -> check_task!(w))
+    else
+        tickers_func() = begin
+            tasks = @lget! attrs :process_tasks Task[]
+            fetched = @lock w begin
+                resp = fetch_func()
+                result = _parse_ticker_snapshot(resp)
+                if !isempty(result)
+                    pushnew!(w, result)
+                    true
+                else
+                    false
+                end
+            end
+            if fetched
+                push!(tasks, @async process!(w))
+                filter!(!istaskdone, tasks)
+            end
+            return fetched
+        end
+        _tfunc!(attrs, tickers_func)
+    end
 end
 
-function _start!(w::Watcher, ::CcxtTickerVal)
-    _reset_tickers_func!(w)
-end
+_start!(w::Watcher, ::CcxtTickerVal) = _reset_tickers_func!(w)
+_stop!(w::Watcher, ::CcxtTickerVal) = stop_handler_task!(w)
 
 function _init!(w::Watcher, ::CcxtTickerVal)
     exc = _exc(w)

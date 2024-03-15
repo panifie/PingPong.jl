@@ -2,9 +2,10 @@ using ..Data: df!, _contiguous_ts, nrow, save_ohlcv, zi, check_all_flag, snakeca
 using ..Data.DFUtils: firstdate, lastdate, copysubs!, addcols!
 using ..Data.DataFramesMeta
 using ..Fetch.Exchanges: Exchange
-using ..Fetch.Exchanges.Ccxt: _multifunc
+using ..Fetch.Exchanges.Ccxt: _multifunc, Py
 using ..Fetch: fetch_candles
 using ..Lang
+using ..Lang: safenotify, safewait
 using ..Misc: rangeafter, rangebetween
 using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
@@ -101,9 +102,7 @@ _exc(attrs) = attrs[:exc]
 _exc(w::Watcher) = _exc(attrs(w))
 _exc!(attrs, exc) = attrs[:exc] = exc
 _exc!(w::Watcher, exc) = _exc!(attrs(w), exc)
-_tfunc!(attrs, suffix, k) = attrs[k] = _multifunc(_exc(attrs), suffix, true)[1]
 _tfunc!(attrs, suffix) = attrs[:tfunc] = _multifunc(_exc(attrs), suffix, true)[1]
-_tfunc!(attrs, exc::Exchange, args...) = attrs[:tfunc] = choosefunc(exc, args...)
 _tfunc!(attrs, f::Function) = attrs[:tfunc] = f
 _tfunc(w::Watcher) = attr(w, :tfunc)
 _sym(w::Watcher) = attr(w, :sym)
@@ -484,21 +483,20 @@ function _flushfrom!(w)
     _lastflushed!(w, _lastdate(w.view))
 end
 
-function handler_task!(w, ; corogen_func, init_func, wrapper_func=pylist)
-    name = nameof(handler_func)
-    exc = _exc(w)
+function handler_task!(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
     interval = w.interval.fetch
     buffer_size = max(w.capacity.buffer, w.capacity.view)
     init = Ref(true)
     tasks = w[:process_tasks] = Task[]
-    channel = w[:channel]Ref(Channel{Any}(buffer_size))
+    channel = w[:channel] = Ref(Channel{Any}(buffer_size))
+    w[:init_func] = init_func
+    w[:corogen_func] = corogen_func
+    w[:wrapper_func] = wrapper_func
     function process_val!(w, v)
         if !isnothing(v)
-            @lock w _dopush!(w, wrapper_func(v))
+            @lock w _dopush!(w, wrapper_func(v); if_func)
         end
-        if !isready(channel[])
-            push!(tasks, @async process!(w))
-        end
+        push!(tasks, @async process!(w))
         filter!(!istaskdone, tasks)
     end
     function init_watch_func(w)
@@ -507,7 +505,7 @@ function handler_task!(w, ; corogen_func, init_func, wrapper_func=pylist)
         end
         init[] = false
         f_push(v) = put!(channel[], v)
-        h = w[:handler] = stream_handler!(corogen_func(w), f_push)
+        h = w[:handler] = stream_handler(corogen_func(w), f_push)
         start_handler!(h)
         bind(channel[], h.task)
     end
@@ -528,7 +526,7 @@ function handler_task!(w, ; corogen_func, init_func, wrapper_func=pylist)
             end
         end
         if v isa Exception
-            @error "$name watcher: EXCEPTION" exception = v
+            @error "watcher: $(w.name)" exception = v
             sleep(1)
         else
             process_val!(w, v)
@@ -552,6 +550,24 @@ function handler_task!(w, ; corogen_func, init_func, wrapper_func=pylist)
 end
 
 handler_task(w) = w[:handler_task]
+function check_task!(w)
+    try
+        task = handler_task(w)
+        if !istaskrunning(task)
+            handler_task!(w;
+                init_func=w[:init_func],
+                corogen_func=w[:corogen_func],
+                wrapper_func=w[:wrapper_func]
+            )
+            istaskrunning(handler_task(w))
+        else
+            true
+        end
+    catch
+        @debug_backtrace
+        false
+    end
+end
 
 function stop_handler_task!(w)
     handler = attr(w, :handler, nothing)
