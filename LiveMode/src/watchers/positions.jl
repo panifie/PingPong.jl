@@ -361,7 +361,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         this_date = @something pytodate(resp, eid) data_date
         # FIXME: Can a new update have a lower date?
         if this_date <= prev_date && side == prev_side
-            @warn "watchers: received stale position update" sym side prev_side maxlog=1
+            @warn "watchers: received stale position update" sym side prev_side maxlog = 1
             continue
         end
         is_stale = this_date == prev_date

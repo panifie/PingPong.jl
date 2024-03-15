@@ -235,7 +235,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end - 40):end]))
+        write(out, @view(tps[(end-40):end]))
     else
         write(out, tps)
     end
