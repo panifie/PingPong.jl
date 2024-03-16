@@ -3,7 +3,7 @@ using Misc: DATA_PATH, Misc
 using Misc.ConcurrentCollections: ConcurrentDict
 using Misc.Lang: @lget!, Option
 using Misc.DocStringExtensions
-using Python: pynew, pyisnone
+using Python: pynew, pyisnone, islist, isdict
 using Python.PythonCall: pyisnull, pycopy!, pybuiltins
 using Python: py_except_name
 
@@ -109,6 +109,21 @@ A dictionary for storing function wrappers with their unique identifiers.
 """
 const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
 
+function _out_as_input(inputs, data; elkey=nothing)
+    if islist(data)
+        if length(data) == length(inputs)
+            Dict(i => v for (v, i) in zip(data, inputs))
+        else
+            @assert !isnothing(elkey) "Functions returned a list, but element key not provided."
+            Dict(v[elkey] => v for v in data)
+        end
+    elseif isdict(data)
+        Dict(i => data[i] for i in inputs)
+    else
+        Dict(i => data for i in inputs)
+    end
+end
+
 # NOTE: watch_tickers([...]) returns empty sometimes...
 # so call without args, and select the input
 @doc """ Chooses a function based on the provided parameters and executes it.
@@ -128,18 +143,7 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                 function multi_func()
                     args = isempty(inputs) ? () : (inputs,)
                     data = pyfetch(f, args...; kwargs...)
-                    if pyisinstance(data, pybuiltins.list)
-                        if length(data) == length(inputs)
-                            Dict(i => v for (v, i) in zip(data, inputs))
-                        else
-                            @assert !isnothing(elkey) "Functions returned a list, but element key not provided."
-                            Dict(v[elkey] => v for v in data)
-                        end
-                    elseif pyisinstance(data, pybuiltins.dict)
-                        Dict(i => data[i] for i in inputs)
-                    else
-                        Dict(i => data for i in inputs)
-                    end
+                    _out_as_input(inputs, data; elkey)
                 end
             else
                 function single_func()
@@ -151,16 +155,16 @@ function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs..
                         for (i, task) in out
                             out[i] = fetch(task)
                         end
-                        out
                     catch e
                         @sync for v in values(out)
-                            v isa Tuple || continue
-                            (fut, task) = v
-                            istaskdone(task) || (pycancel(fut); (@async wait(task)))
+                            if v isa Task && !istaskdone(v)
+                                pycancel(v)
+                            end
                         end
                         e isa PyException && rethrow(e)
-                        filter!(p -> p.second isa Tuple, out)
+                        filter!(p -> p isa Task, out)
                     end
+                    _out_as_input(inputs, out; elkey)
                 end
             end
         else

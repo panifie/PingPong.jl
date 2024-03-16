@@ -92,4 +92,9 @@ pydicthash(d) =
         return h
     end
 
-export @pystr, pytofloat, pyisnonzero, pydicthash
+@doc "Test whether a Python object is a list."
+islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
+@doc "Test whether a Python object is a dictionary."
+isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
+
+export @pystr, pytofloat, pyisnonzero, pydicthash, islist, isdict

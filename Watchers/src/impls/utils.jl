@@ -3,6 +3,7 @@ using ..Data.DFUtils: firstdate, lastdate, copysubs!, addcols!
 using ..Data.DataFramesMeta
 using ..Fetch.Exchanges: Exchange
 using ..Fetch.Exchanges.Ccxt: _multifunc, Py
+using ..Fetch.Exchanges.Python: islist, isdict
 using ..Fetch: fetch_candles
 using ..Lang
 using ..Lang: safenotify, safewait
@@ -177,10 +178,6 @@ _dopush!(w, v; if_func=islist) =
 
 iswatchfunc(func::Function) = startswith(string(nameof(func)), "watch")
 iswatchfunc(func::Py) = startswith(string(func.__name__), "watch")
-@doc "Test whether a Python object is a list."
-islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
-@doc "Test whether a Python object is a dictionary."
-isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
 
 @doc """ Returns the available data within the given window
 
