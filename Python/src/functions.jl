@@ -1,4 +1,5 @@
 using PythonCall: pystr, Py, PyException, pyisstr, pyisnone, pyfloat
+using PythonCall.GC: GC as PyGC
 import PythonCall: PyDict
 
 @doc """
@@ -96,5 +97,29 @@ pydicthash(d) =
 islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
 @doc "Test whether a Python object is a dictionary."
 isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
+
+@doc """ Disables pythoncall gc calls during the execution of an expression.
+
+$(TYPEDSIGNATURES)
+
+This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution.
+The garbage collector is re-enabled after the expression has been executed, regardless of whether the expression completed successfully or an error was thrown.
+"""
+macro nogc(expr)
+    ex = quote
+        try
+            $(PyGC.disable)()
+            # Base.GC.enable(false)
+            $expr
+        finally
+            # if threadid() == 1
+            #     Base.GC.gc(false)
+            # end
+            # Base.GC.enable(true)
+            $(PyGC.enable)()
+        end
+    end
+    esc(ex)
+end
 
 export @pystr, pytofloat, pyisnonzero, pydicthash, islist, isdict

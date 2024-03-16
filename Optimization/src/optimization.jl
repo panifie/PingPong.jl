@@ -5,7 +5,7 @@ using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
 using .Instances.Data: zinstance, za
 using .Instances.Data.Zarr: getattrs, writeattrs
-using .Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
+using .Instances.Exchanges.Python: @nogc
 using .Instances.Exchanges: exc, sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
@@ -436,29 +436,6 @@ function define_backtest_func(sess, small_step, big_step)
     end
 end
 
-@doc """ Disables pythoncall gc calls during the execution of an expression.
-
-$(TYPEDSIGNATURES)
-
-This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution.
-The garbage collector is re-enabled after the expression has been executed, regardless of whether the expression completed successfully or an error was thrown.
-"""
-macro nogc(expr)
-    ex = quote
-        try
-            $(gc_disable)()
-            # Base.GC.enable(false)
-            $expr
-        finally
-            # if threadid() == 1
-            #     Base.GC.gc(false)
-            # end
-            # Base.GC.enable(true)
-            $(gc_enable)()
-        end
-    end
-    esc(ex)
-end
 @doc """ Multi-threaded optimization function.
 
 $(TYPEDSIGNATURES)
