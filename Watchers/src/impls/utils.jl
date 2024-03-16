@@ -170,7 +170,7 @@ _dopush!(w, v; if_func=islist) =
     try
         if if_func(v)
             pushnew!(w, v, now())
-            _lastfetched!(w, now())
+            _lastpushed!(w, now())
         end
     catch
         @debug_backtrace
@@ -448,10 +448,13 @@ function _append_ohlcv!(w, ohlcv_dst, ohlcv_src, left, next)
     @ifdebug @assert _lastdate(ohlcv_dst) == left
     @ifdebug @assert left + _tfr(w) == next
     from_range = rangeafter(ohlcv_src.timestamp, left)
-    if length(from_range) > 0 && _firstdate(ohlcv_src) == next
-        @debug "Appending trades from $(_firstdate(ohlcv_src, from_range)) to $(_lastdate(ohlcv_src))"
-        appendmax!(ohlcv_dst, view(ohlcv_src, from_range, :), w.capacity.view)
-        _check_contig(w, w.view)
+    if length(from_range) > 0
+        src_view = view(ohlcv_src, from_range, :)
+        if src_view.timestamp[begin] == next
+            @debug "Appending trades from $(_firstdate(ohlcv_src, from_range)) to $(_lastdate(ohlcv_src))"
+            appendmax!(ohlcv_dst, src_view, w.capacity.view)
+            _check_contig(w, w.view)
+        end
     end
 end
 
