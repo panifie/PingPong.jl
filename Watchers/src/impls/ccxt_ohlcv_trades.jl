@@ -4,6 +4,9 @@ using ..Misc: Iterable
 using ..Fetch.Processing.TradesOHLCV
 using ..Fetch.Processing: trail!
 using ..Fetch.Python
+using ..Misc: sleep_pad
+using .Python: @nogc
+using .Lang: @get
 
 const CcxtOHLCVVal = Val{:ccxt_ohlcv}
 
@@ -15,8 +18,8 @@ Python.pyconvert(::Type{TradeRole}, py::Py) = TradeRole(py)
 trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, v)
 _trades(w::Watcher) = attr(w, :trades)
 _trades!(w) = setattr!(w, CcxtTrade[], :trades)
-_lastfetched(w) = attr(w, :last_fetched)
-_lastfetched!(w, v) = setattr!(w, v, :last_fetched)
+_lastpushed(w) = attr(w, :last_pushed)
+_lastpushed!(w, v) = setattr!(w, v, :last_pushed)
 
 @doc """ Create a `Watcher` instance that tracks ohlcv for an exchange (ccxt).
 
@@ -44,15 +47,18 @@ function ccxt_ohlcv_watcher(
     default_view=nothing,
     quiet=true,
     start=false,
+    iswatch=nothing
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
     _sym!(attrs, sym)
     _exc!(attrs, exc)
-    _tfunc!(attrs, "Trades")
     _tfr!(attrs, timeframe)
     attrs[:default_view] = default_view
     attrs[:quiet] = quiet
+    if !isnothing(iswatch)
+        attrs[:iswatch] = iswatch
+    end
     watcher_type = Vector{CcxtTrade}
     wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, issandbox(exc), sym)))
     w = watcher(
@@ -61,7 +67,7 @@ function ccxt_ohlcv_watcher(
         CcxtOHLCVVal();
         start=false,
         flush=true,
-        process=true,
+        process=false,
         buffer_capacity=1,
         fetch_interval=interval,
         fetch_timeout=2interval,
@@ -103,19 +109,12 @@ function _init!(w::Watcher, ::CcxtOHLCVVal)
     _trades!(w)
     _key!(w, "ccxt_$(_exc(w).name)_ohlcv_$(_sym(w))")
     _pending!(w)
-    _lastfetched!(w, DateTime(0))
+    _lastpushed!(w, DateTime(0))
     _lastflushed!(w, DateTime(0))
 end
 
 _load!(w::Watcher, ::CcxtOHLCVVal) = _fastforward(w)
 
-_tradestask(w) = attr(w, :trades_task, nothing)
-_tradestask!(w) = begin
-    task = _tradestask(w)
-    if isnothing(task) || istaskfailed(task) || istaskdone(task)
-        setattr!(w, @async(_fetch_trades_loop(w)), :trades_task)
-    end
-end
 @doc """ Starts the watcher and fetches data
 
 $(TYPEDSIGNATURES)
@@ -127,44 +126,72 @@ It then checks the continuity of the data in the dataframe.
 """
 function _start!(w::Watcher, ::CcxtOHLCVVal)
     attrs = w.attrs
+    attrs[:backoff] = ms(0)
     eid = exchangeid(_exc(w))
     exc = getexchange!(eid)
     _exc!(attrs, exc)
-    _tfunc!(attrs, "Trades")
+
+    # TODO: Make watcher multi symbol compatible
+    watch_func = first(exc, :watchTrades)
+    sym = _sym(w)
+    @assert sym isa AbstractString
+    fetch_func = choosefunc(exc, "Trades", sym)
+    iswatch = @lget! attrs :iswatch !isnothing(watch_func)
 
     _pending!(w)
     empty!(_trades(w))
     df = w.view
-    _fetchto!(w, df, _sym(w), _tfr(w); to=_curdate(_tfr(w)), from=if !isempty(df)
+    @nogc _fetchto!(w, df, _sym(w), _tfr(w); to=_curdate(_tfr(w)), from=if !isempty(df)
         lastdate(df)
     end)
     _check_contig(w, w.view)
+
+    if iswatch
+        corogen_func(_) = coro_func() = watch_func(_sym(w))
+        init_func() = fetch_func()
+        wrapper_func(v) = _parse_trades(w, v)
+        handler_task!(w; init_func, corogen_func, wrapper_func, if_func=!isempty)
+        _tfunc!(attrs, () -> check_task!(w))
+    else
+        trades_func() = begin
+            tasks = @lget! attrs :process_tasks Task[]
+            fetched = @lock w begin
+                resp = fetch_func()
+                v = _parse_trades(w, resp)
+                !isnothing(v) && !isempty(v)
+            end
+            if fetched
+                push!(tasks, @async process!(w))
+                filter!(!istaskdone, tasks)
+            end
+        end
+        _tfunc!(attrs, trades_func)
+    end
 end
 
-@doc """ Continuously fetches trades and updates the watcher's trades buffer
-
-$(TYPEDSIGNATURES)
-
-This function continuously fetches trades for the watcher's symbol and time frame, and updates the watcher's trades buffer.
-If new trades are fetched, they are appended to the trades buffer. If fetching fails, the function waits for a certain period before trying again. The waiting period increases with each failed attempt.
-
-"""
-function _fetch_trades_loop(w)
-    backoff = ms(0)
-    while isstarted(w)
-        pytrades = @logerror w pyfetch(_tfunc(w), _sym(w))
-        if pytrades isa Exception
-            backoff += ms(500)
-            @debug "ohlcv trades watcher: error" pytrades
-            sleep(backoff)
-            continue
+function _parse_trades(w, pytrades)
+    this_trades = if isdict(pytrades)
+        @get pytrades _sym(w) pydict()
+    elseif islist(pytrades)
+        pylist(pytrades)
+    end
+    if isnothing(this_trades)
+        w[:backoff] += ms(500)
+        @debug "ohlcv trades watcher: error" pytrades
+        sleep(w[:backoff])
+        return nothing
+    end
+    @nogc if length(pytrades) > 0
+        new_trades = [
+            fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in this_trades
+        ]
+        append!(_trades(w), new_trades)
+        last_date = last(new_trades).timestamp
+        _lastpushed!(w, last_date)
+        if !w[:iswatch]
+            @lock w pushnew!(w, _trades(w))
         end
-        if length(pytrades) > 0
-            new_trades = [
-                fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in pytrades
-            ]
-            append!(_trades(w), new_trades)
-        end
+        return new_trades
     end
 end
 
@@ -177,14 +204,8 @@ If new trades are fetched, they are appended to the trades buffer and the last f
 
 """
 function _fetch!(w::Watcher, ::CcxtOHLCVVal)
-    _tradestask!(w)
-    isempty(_trades(w)) && return true
-    trade = _lasttrade(w)
-    if trade.timestamp != _lastfetched(w)
-        pushnew!(w, _trades(w))
-        _lastfetched!(w, trade.timestamp)
-    end
-    true
+    _tfunc(w)()
+    return isempty(_trades(w))
 end
 
 _flush!(w::Watcher, ::CcxtOHLCVVal) = _flushfrom!(w)
@@ -203,9 +224,10 @@ This function checks the status of the watcher. If the status is pending, it ret
 """
 function _empty_candles(w, ::Warmed)
     tf = _tfr(w)
-    right = length(_trades(w)) == 0 ? _curdate(tf) : apply(tf, _firsttrade(w).timestamp)
+    raw_right = isempty(_trades(w)) ? w.last_fetch : _firsttrade(w).timestamp
     left = apply(tf, _lastdate(w.view))
-    trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
+    right = apply(tf, raw_right)
+    @nogc trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
 end
 
 @doc """ Processes the watcher data and updates the dataframe
@@ -224,24 +246,19 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     # On startup, the first trades that we receive are likely incomplete
     # So we have to discard them, and only consider trades after the first (normalized) timestamp
     # Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
-    temp = trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
-    isnothing(temp) && return nothing
-    if isempty(w.view)
+    temp = let temp = @nogc trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
+        isnothing(temp) && return nothing
+        ohlcv = cleanup_ohlcv_data(temp.ohlcv, _tfr(w))
+        (; ohlcv, temp.start, temp.stop)
+    end
+    @nogc if isempty(w.view)
         appendmax!(w.view, temp.ohlcv, w.capacity.view)
     else
         _resolve(w, w.view, temp.ohlcv)
     end
-    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
+    @nogc keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
     _warmed!(w, _status(w))
     @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end
 
-# function _w_ohlcv_trades_func!(w)
-#     corogen_func(w) = begin
-#         func = _tfunc(w)
-#         @assert iswatchfunc(func)
-#         corogen() = func(_sym(w))
-#     end
-#     init_func() = nothing
-#     handler_task!(w; corogen_func, init_func)
-# end
+_stop!(w::Watcher, ::CcxtOHLCVVal) = stop_handler_task!(w)
