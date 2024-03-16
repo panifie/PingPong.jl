@@ -1,6 +1,6 @@
 using Watchers
 using Watchers: default_init
-using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched, _lastprocessed!, _lastprocessed, _lastcount!, _lastcount
+using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastpushed!, _lastpushed, _lastprocessed!, _lastprocessed, _lastcount!, _lastcount
 @watcher_interface!
 using .Exchanges: check_timeout
 using .Exchanges.Python: @py
@@ -174,7 +174,7 @@ const BalanceView2 = NamedTuple{(:date, :balance),Tuple{Ref{DateTime},BalanceDic
 function _init!(w::Watcher, ::CcxtBalanceVal)
     dataview = (; date=Ref(DateTime(0)), balance=BalanceDict1())
     default_init(w, dataview, false)
-    _lastfetched!(w, DateTime(0))
+    _lastpushed!(w, DateTime(0))
     _lastprocessed!(w, DateTime(0))
     _lastcount!(w, ())
 end

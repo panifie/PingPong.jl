@@ -1,6 +1,6 @@
 using Watchers
 using Watchers: default_init
-using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastfetched!, _lastfetched
+using Watchers.WatchersImpls: _tfunc!, _tfunc, _exc!, _exc, _lastpushed!, _lastpushed
 @watcher_interface!
 using .PaperMode: sleep_pad
 using .Exchanges: check_timeout, current_account
@@ -272,7 +272,7 @@ function Watchers._init!(w::Watcher, ::CcxtPositionsVal)
         (; long=PositionsDict2(), short=PositionsDict2(), last=Dict{String,PositionSide}()),
         false,
     )
-    _lastfetched!(w, DateTime(0))
+    _lastpushed!(w, DateTime(0))
     _lastprocessed!(w, DateTime(0))
     _lastcount!(w, ())
 end
