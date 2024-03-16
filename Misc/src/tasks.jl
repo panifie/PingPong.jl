@@ -220,4 +220,9 @@ macro start_task(state, code)
     esc(expr)
 end
 
-export waitforcond, start_task, stop_task, istaskrunning, @istaskrunning, @start_task
+sleep_pad(from, throttle) = begin
+    elp = round(throttle - (now() - from), Millisecond)
+    sleep(clamp(elp, Second(0), throttle))
+end
+
+export waitforcond, start_task, stop_task, istaskrunning, @istaskrunning, @start_task, sleep_pad

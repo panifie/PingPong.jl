@@ -18,7 +18,7 @@ using .Instances.Exchanges: CcxtTrade
 using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
 import .Executors: pong!
-import .Misc: start!, stop!, isrunning
+import .Misc: start!, stop!, isrunning, sleep_pad
 
 @doc "A constant `TradesCache` that is a dictionary mapping `AssetInstance` to a circular buffer of `CcxtTrade`."
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
@@ -89,11 +89,6 @@ function flushlog_func(s::Strategy)
             end
         end
     maybeflush, log_lock
-end
-
-sleep_pad(from, throttle) = begin
-    elp = round(throttle - (now() - from), Millisecond)
-    sleep(clamp(elp, Second(0), throttle))
 end
 
 @doc """
