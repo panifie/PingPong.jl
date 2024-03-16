@@ -133,7 +133,17 @@ function Base.close(w::Watcher; doflush=true)
     end
 end
 @doc "Empty the watcher buffer."
-Base.empty!(w::Watcher) = empty!(buffer(w))
+Base.empty!(w::Watcher) = begin
+    empty!(buffer(w))
+    view = attr(w, :view, nothing)
+    try
+        empty!(view)
+    catch e
+        if !(e isa MethodError)
+            rethrow(w)
+        end
+    end
+end
 Base.getproperty(w::Watcher, p::Symbol) = begin
     if p == :view
         Base.get(w)
