@@ -232,10 +232,24 @@ function copysubs!(
 end
 
 function _make_room(df, capacity, n)
-    diff = capacity - nrow(df)
-    copysubs!(df)
-    if diff < n
-        deleteat!(df, firstindex(df, 1):abs(diff - n))
+    if n < 0
+        throw(ArgumentError("n must be non-negative"))
+    end
+    if capacity < 0
+        throw(ArgumentError("capacity must be non-negative"))
+    end
+    current_rows = nrow(df)
+    # Ensure we only delete rows if appending `n` more rows would exceed `capacity`
+    if current_rows + n > capacity
+        copysubs!(df)
+        rows_to_remove = current_rows + n - capacity
+        # Ensure we do not attempt to delete more rows than exist
+        if rows_to_remove > current_rows
+            empty!(df)
+        else
+            # Delete rows from the beginning of the dataframe
+            deleteat!(df, 1:rows_to_remove)
+        end
     end
 end
 
