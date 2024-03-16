@@ -1,5 +1,5 @@
 using .Executors.Instruments.Derivatives: Derivative
-using .Exchanges.ExchangeTypes: eids
+using .Exchanges.ExchangeTypes: eids, Ccxt
 import Base.first
 
 _tif_value(v) = @pystr if v == "PO"
@@ -18,7 +18,8 @@ time_in_force_key(::Exchange{<:eids(:phemex, :bybit)}, ::AbstractAsset) = @pycon
 time_in_force_value(::Exchange{<:eids(:phemex)}, ::Option{<:AbstractAsset}, v) = _tif_value(v)
 time_in_force_value(::Exchange, _, v) = v
 
-first(exc::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, syms::Vararg{Symbol}) = begin
+const _BINANCE_EXC = Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}
+first(exc::_BINANCE_EXC, syms::Vararg{Union{Symbol,String}}) = begin
     fs = first(syms) |> string
     if endswith(fs, "Ws")
         invoke(first, Tuple{Exchange,Vararg{Symbol}}, exc, syms[2:end]...)
@@ -26,3 +27,5 @@ first(exc::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, syms::Vararg{
         invoke(first, Tuple{Exchange,Vararg{Symbol}}, exc, syms...)
     end
 end
+
+Ccxt.issupported(exc::_BINANCE_EXC, k) = !isnothing(first(exc, Symbol(k)))
