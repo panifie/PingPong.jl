@@ -19,12 +19,13 @@ This function tries to fetch data for a given watcher. It locks the watcher, upd
 """
 function _tryfetch(w)::Bool
     result = @lock w begin
-        w.last_fetch = now()
-        try
+        res = try
             _fetch!(w, _val(w))
         catch e
             e
         end::Union{Bool,Exception}
+        w.last_fetch = now()
+        res
     end
     if w._stop
         try
