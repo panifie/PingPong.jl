@@ -8,6 +8,150 @@ using .SimMode: @maketrade
 # This could be improved by batching new tasks called within a short amount time
 # and use the `...ForSymbols` functions from ccxt.
 
+"""
+Initialize necessary tasks and variables for watching orders.
+"""
+function initialize_watch_tasks!(s::LiveStrategy, ai)
+    exc = exchange(ai)
+    orders_byid = active_orders(s, ai)
+    stop_delay = Ref(Second(60))
+    return exc, orders_byid, stop_delay
+end
+
+"""
+Defines the functions used for watching orders based on the exchange capabilities.
+"""
+function define_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
+    watch_func = first(exc, :watchOrders)
+    sym = raw(ai)
+    if !isnothing(watch_func)
+        init_handler() = begin
+            channel = Channel{Any}(s[:live_buffer_size])
+            coro_func() = watch_func(sym; exc_kwargs...)
+            f_push(v) = put!(channel, v)
+            h = stream_handler(coro_func, channel)
+            start_handler!(h)
+            bind(channel, h.task)
+            task_local_storage(:handler, h)
+            task_local_storage(:channel, channel)
+        end
+        get_from_channel() = begin
+            channel = get(@something(current_task().storage, (;)), :channel, nothing)
+            if isnothing(channel) || !isopen(channel)
+                init_handler()
+            else
+
+            end
+            channel = task_local_storage(:channel)
+            if isopen(channel)
+                take!(channel)
+            else
+                @error "Order handler can't open channel"
+            end
+        end
+    else
+        _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
+        since = Ref(now())
+        since_start = since[]
+        eid = exchangeid(ai)
+        get_from_call() = begin
+            since[] == since_start || sleep(1)
+            resp = fetch_orders(
+                s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+            )
+            if islist(resp) && !isempty(resp)
+                since[] = @something pytodate(resp[-1], eid) now()
+            end
+            resp
+        end
+    end
+end
+
+"""
+Manages the order updates by continuously fetching and processing new orders.
+"""
+function manage_order_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func)
+    sem = task_sem()
+    process_tasks = Task[]
+    while @istaskrunning()
+        try
+            updates = loop_func()
+            stop_delay[] = Second(60)
+            process_updates!(s, ai, orders_byid, updates, sem, process_tasks)
+        catch e
+            handle_order_updates_errors!(e, ai)
+        end
+    end
+end
+
+"""
+Processes updates for orders, including fetching new orders and updating existing ones.
+"""
+function process_updates!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks)
+    if updates isa Exception
+        if updates isa InterruptException
+            throw(updates)
+        else
+            @ifdebug ispyminor_error(updates) ||
+                     @debug "watch orders: fetching error" _module = LogWatchOrder updates
+            sleep(1)
+        end
+    else
+        for resp in pylist(updates)
+            t = @async process_order!(s, ai, orders_byid, resp, sem)
+            push!(process_tasks, t)
+        end
+        # NOTE: use `!istaskdone` because recent tasks
+        # might not yet have been scheduled
+        filter!(!istaskdone, process_tasks)
+    end
+end
+
+"""
+Handles errors that occur during the order watching process.
+"""
+function handle_order_updates_errors!(e, ai)
+    if e isa InterruptException
+        rethrow(e)
+    else
+        @debug "watch orders: error (task termination?)" _module = LogWatchOrder raw(ai) istaskrunning() current_task().storage[:running]
+        @debug_backtrace LogWatchOrder
+    end
+    sleep(1)
+end
+
+"""
+Monitors conditions for stopping the watch tasks and performs cleanup.
+"""
+function monitor_stop_conditions!(s::LiveStrategy, ai, task, stop_delay, tasks)
+    task_local_storage(:sleep, 10)
+    task_local_storage(:running, true)
+    cond = task.storage[:notify]
+    while @istaskrunning()
+        safewait(cond)
+        @istaskrunning() || break
+        sleep(stop_delay[])
+        stop_delay[] = Second(0)
+        if orderscount(s, ai) == 0 && !isactive(s, ai)
+            task_local_storage(:running, false)
+            try
+                @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" _module = LogWatchOrder current_task()
+                @lock tasks.lock begin
+                    stop_watch_orders!(s, ai)
+                    # also stop the trades task if running
+                    if hasmytrades(exchange(ai))
+                        @debug "Stopping trades watcher for $(raw(ai))@($(nameof(s)))" _module = LogWatchTrade
+                        stop_watch_trades!(s, ai)
+                    end
+                end
+            finally
+                break
+            end
+        end
+    end
+end
+
+
 @doc """ Watches and manages orders for a live strategy with an asset instance.
 
 $(TYPEDSIGNATURES)
@@ -24,119 +168,21 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
     tasks = asset_tasks(s, ai)
     @debug "watch orders: locking" ai = raw(ai) islocked(s) _module = LogWatchOrder
     @lock tasks.lock begin
-        if !isrunning(s) && !s[:live_force_watch]
-            @debug "orders: refusing to watch. Strategy not running" _module = LogWatchOrder ai
-        end
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)
             if istaskrunning(task)
                 return task
             end
         end
-        exc = exchange(ai)
-        orders_byid = active_orders(s, ai)
-        stop_delay = Ref(Second(60))
-        task = @start_task orders_byid begin
-            (f, iswatch) = if has(exc, :watchOrders)
-                let sym = raw(ai), func = exc.watchOrders
-                    (
-                        (flag) -> if flag[]
-                            pyfetch(func, sym; exc_kwargs...)
-                        end,
-                        true,
-                    )
-                end
-            else
-                _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-                since = Ref(now())
-                since_start = since[]
-                eid = exchangeid(ai)
-                (
-                    (_, _) -> begin
-                        since[] == since_start || sleep(1)
-                        resp = fetch_orders(
-                            s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
-                        )
-                        if !isnothing(resp) && islist(resp) && length(resp) > 0
-                            since[] = @something pytodate(resp[-1], eid) now()
-                        end
-                        resp
-                    end,
-                    false,
-                )
-            end
-            queue = tasks.queue
-            flag = TaskFlag()
-            cond = task_local_storage(:notify)
-            sem = task_sem()
-            handler_tasks = Task[]
-            while @istaskrunning()
-                try
-                    while @istaskrunning()
-                        updates = f(flag)
-                        stop_delay[] = Second(60)
-                        if updates isa InterruptException
-                            throw(updates)
-                        elseif updates isa Exception
-                            @ifdebug ispyminor_error(updates) ||
-                                     @debug "watch orders: fetching error" _module = LogWatchOrder updates iswatch
-                            sleep(1)
-                        else
-                            !islist(updates) && (updates = pylist(updates))
-                            for resp in updates
-                                ht = @async handle_order!(s, ai, orders_byid, resp, sem)
-                                push!(handler_tasks, ht)
-                            end
-                            safenotify(cond)
-                        end
-                        filter!(istaskrunning, handler_tasks)
-                    end
-                catch e
-                    if e isa InterruptException
-                        rethrow(e)
-                    else
-                        @debug "watch orders: error (task termination?)" _module = LogWatchOrder raw(ai) istaskrunning() current_task().storage[:running]
-                        @debug_backtrace LogWatchOrder
-                    end
-                    sleep(1)
-                end
-            end
-        end
-        cond = task.storage[:notify]
-        stop_task = @async begin
-            task_local_storage(:sleep, 10)
-            task_local_storage(:running, true)
-            while @istaskrunning()
-                safewait(cond)
-                @istaskrunning() || break
-                sleep(stop_delay[])
-                stop_delay[] = Second(0)
-                # if there are no more orders, stop the monitoring tasks
-                if orderscount(s, ai) == 0 && !isactive(s, ai)
-                    task_local_storage(:running, false)
-                    try
-                        @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" _module = LogWatchOrder current_task()
-                        @lock tasks.lock begin
-                            stop_watch_orders!(s, ai)
-                            # also stop the trades task if running
-                            if hasmytrades(exchange(ai))
-                                @debug "Stopping trades watcher for $(raw(ai))@($(nameof(s)))" _module = LogWatchTrade
-                                stop_watch_trades!(s, ai)
-                            end
-                        end
-                    finally
-                        break
-                    end
-                end
-            end
-        end
-        try
-            tasks.byname[:orders_task] = task
-            tasks.byname[:orders_stop_task] = stop_task
-            task
-        catch
-            task
-        end
+        # Call the top-level functions
+        exc, orders_byid, stop_delay = initialize_watch_tasks!(s, ai)
+        loop_func = define_loop_funct(s, ai, exc; exc_kwargs)
+        task = @start_task orders_byid manage_order_updates!(s, ai, orders_byid, stop_delay, loop_func)
+        stop_task = @async monitor_stop_conditions!(s, ai, task, stop_delay, tasks)
+
+        tasks.byname[:orders_task] = task
+        tasks.byname[:orders_stop_task] = stop_task
+        return task
     end
 end
 
@@ -375,7 +421,7 @@ $(TYPEDSIGNATURES)
 The function extracts an order id from the `resp` object and based on the status of the order, it either updates, re-activates, or cancels the order.
 It uses a semaphore to ensure the order of events is respected.
 """
-function handle_order!(s, ai, orders_byid, resp, sem)
+function process_order!(s, ai, orders_byid, resp, sem)
     try
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
