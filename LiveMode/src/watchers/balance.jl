@@ -103,7 +103,7 @@ function _w_balance_func(s, attrs)
                 end
             end
             if v isa Exception
-                @error "balance watcher: EXCEPTION" exception = v
+                @error "balance watcher: unexpected value" exception = v
                 sleep(1)
             else
                 process_bal!(w, pydict(v))

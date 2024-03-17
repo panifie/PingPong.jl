@@ -141,7 +141,7 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 end
             end
             if v isa Exception
-                @error "positions watcher: EXCEPTION" exception = v
+                @error "positions watcher: unexpected value" exception = v
                 sleep(1)
             else
                 @ifdebug LogWatchPos begin
