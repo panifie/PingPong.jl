@@ -21,7 +21,11 @@ function marketorder(
     kwargs...,
 )
     @price! ai take stop
-    @amount! ai amount
+    if type <: ReduceOnlyOrder
+        amount = min(ai.limits.amount.max, amount)
+    else
+        @amount! ai amount
+    end
     comm = Ref(committment(type, ai, price, amount))
     @debug "create market order:" ai = raw(ai) price amount cash(ai) comm type is_comm = iscommittable(s, type, comm, ai)
     if skipcommit || iscommittable(s, type, comm, ai)

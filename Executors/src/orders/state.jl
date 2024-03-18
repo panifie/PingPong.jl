@@ -1,6 +1,6 @@
 using .Lang: @deassert, @lget!, Option, @ifdebug
 using .OrderTypes: ExchangeID
-import .OrderTypes: commit!, positionside, LiquidationType, trades
+import .OrderTypes: commit!, positionside, LiquidationType, ReduceOnlyOrder, trades
 using Strategies: Strategies as st, NoMarginStrategy, MarginStrategy, IsolatedStrategy
 using .Instances: notional, pnl, Instances
 import .Instances: committed
@@ -50,27 +50,28 @@ function basicorder(
         @debug "basic order: prices not monotonic" ai = raw(ai) loss price profit type
         return nothing
     end
-    if !iscost(ai, amount, loss, price, profit)
+    is_reduce_only = type <: ReduceOnlyOrder
+    # Allow reduce only orders below minimum cost
+    if !iscost(ai, amount, loss, price, profit) && !is_reduce_only
         @debug "basic order: invalid cost" ai = raw(ai) amount loss price profit type
         return nothing
     end
     @deassert if type <: IncreaseOrder
         committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
     else
-        abs(committed[]) >= ai.limits.amount.min
+        abs(committed[]) >= ai.limits.amount.min || is_reduce_only
     end "Order committment too low\n$(committed[]), $(ai.asset) $date"
-    let unfilled = Ref(unfillment(type, amount))
-        @deassert type <: AnyBuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
-        OrderTypes.Order(
-            ai,
-            type;
-            date,
-            price,
-            amount,
-            id,
-            attrs=basic_order_state(profit, loss, committed, unfilled),
-        )
-    end
+    unfilled = Ref(unfillment(type, amount))
+    @deassert type <: AnyBuyOrder ? unfilled[] < ZERO : unfilled[] > ZERO
+    OrderTypes.Order(
+        ai,
+        type;
+        date,
+        price,
+        amount,
+        id,
+        attrs=basic_order_state(profit, loss, committed, unfilled),
+    )
 end
 
 @doc """Removes a single order from the order queue.
@@ -170,8 +171,8 @@ $(TYPEDSIGNATURES)
 """
 function _check_committment(o)
     @deassert attr(o, :committed)[] |> gtxzero ||
-        ordertype(o) <: MarketOrderType ||
-        o isa IncreaseLimitOrder o
+              ordertype(o) <: MarketOrderType ||
+              o isa IncreaseLimitOrder o
 end
 
 @doc """Checks if the unfilled amount for a limit sell order is positive.
@@ -314,7 +315,11 @@ $(TYPEDSIGNATURES)
 """
 function Instances.isdust(ai::AssetInstance, o::Order)
     unf = abs(unfilled(o))
-    unf < ai.limits.amount.min || unf * o.price < ai.limits.cost.min || unf < ai.fees.min
+    unf < ai.limits.amount.min || unf * o.price < ai.limits.cost.min || unf < ai.limits.amount.min * ai.fees.min
+end
+
+function Instances.isdust(ai::AssetInstance, o::ReduceOnlyOrder)
+    false
 end
 
 @doc """Checks if an order is filled.
@@ -516,9 +521,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(s::Strategy, o::IncreaseOrder, ai)
     @deassert committed(o) > 0.0
-    let c = st.freecash(s), comm = committed(o)
-        c >= comm || isapprox(c, comm)
-    end
+    c = st.freecash(s), comm = committed(o)
+    c >= comm || isapprox(c, comm)
 end
 
 @doc """Checks if a sell order can be committed to an asset instance.
@@ -528,9 +532,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(::Strategy, o::SellOrder, ai)
     @deassert committed(o) > 0.0
-    let c = Instances.freecash(ai, Long()), comm = committed(o)
-        c >= comm || isapprox(c, comm)
-    end
+    c = Instances.freecash(ai, Long()), comm = committed(o)
+    c >= comm || isapprox(c, comm)
 end
 
 @doc """Checks if a short buy order can be committed to an asset instance.
@@ -540,9 +543,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     @deassert committed(o) < 0.0
-    let c = Instances.freecash(ai, Short()), comm = committed(o)
-        c <= comm || isapprox(c, comm)
-    end
+    c = Instances.freecash(ai, Short()), comm = committed(o)
+    c <= comm || isapprox(c, comm)
 end
 
 @doc """Holds an increase order in a strategy.

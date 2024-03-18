@@ -145,7 +145,7 @@ function _with_slippage(
     date,
 )
     @deassert o.price == priceat(s, o, ai, date) ||
-        o isa Union{LiquidationOrder,ForcedOrder}
+        o isa Union{LiquidationOrder,ReduceOnlyOrder}
     volume = volumeat(ai, date)
     volume_skew = _volumeskew(actual_amount, volume)
     price_skew = _priceskew(ai, date)

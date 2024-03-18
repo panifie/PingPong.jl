@@ -44,7 +44,7 @@ abstract type MarketOrderType{S} <: OrderType{S} end
 @doc """ Abstract type representing liquidation orders """
 abstract type LiquidationType{S} <: MarketOrderType{S} end
 @doc """ Abstract type representing forced orders """
-abstract type ForcedType{S} <: MarketOrderType{S} end
+abstract type ForcedOrderType{S} <: MarketOrderType{S} end
 
 @doc """An Order is a container for trades, tied to an asset and an exchange.
 Its execution depends on the order implementation.
@@ -85,10 +85,10 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function constructs an Order object with the given parameters. 
-The Order object represents a trade order tied to an asset and an exchange. 
-The execution of the order depends on the order implementation. 
-The function takes in parameters for the asset, exchange, order type, position side, price, date, amount, attributes, and an optional id. 
+This function constructs an Order object with the given parameters.
+The Order object represents a trade order tied to an asset and an exchange.
+The execution of the order depends on the order implementation.
+The function takes in parameters for the asset, exchange, order type, position side, price, date, amount, attributes, and an optional id.
 
 """
 function Order(
@@ -150,7 +150,7 @@ const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 const LiquidationOrder{S,P} =
     Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
 @doc "A Market Order type called when manually closing a position (to sell the holdings)."
-const ForcedOrder{S,P} = Order{ForcedType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
+const ReduceOnlyOrder = Union{Order{ForcedOrderType{Sell},A,E,Long},Order{ForcedOrderType{Buy},A,E,Short}} where {A<:AbstractAsset,E<:ExchangeID}
 
 @doc """ Defines various order types in the trading system
 

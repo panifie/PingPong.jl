@@ -182,7 +182,11 @@ function trade!(
 )
     @deassert abs(committed(o)) > 0.0
     @ifdebug _afterorder()
-    @amount! ai actual_amount
+    if o isa ReduceOnlyOrder
+        actual_amount = min(actual_amount, ai.limits.amount.max)
+    else
+        @amount! ai actual_amount
+    end
     actual_price = slippage ? with_slippage(s, o, ai; date, price, actual_amount) : price
     @price! ai actual_price
     trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees, kwargs...)

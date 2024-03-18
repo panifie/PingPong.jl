@@ -13,6 +13,10 @@ function live_send_order(
     kwargs...,
 ) where {N}
     @price! ai stop_loss stop_trigger price profit_trigger take_profit
-    @amount! ai amount
-    invoke(live_send_order, Tuple{LiveStrategy, AssetInstance, UnionAll}, s, ai, t, args...; amount, price, stop_trigger, profit_trigger, stop_loss, take_profit, kwargs...)
+    if t <: ReduceOnlyOrder
+        amount = min(ai.limits.amount.max, amount)
+    else
+        @amount! ai amount
+    end
+    invoke(live_send_order, Tuple{LiveStrategy,AssetInstance,UnionAll}, s, ai, t, args...; amount, price, stop_trigger, profit_trigger, stop_loss, take_profit, kwargs...)
 end

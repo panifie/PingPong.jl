@@ -1,5 +1,5 @@
 using .OrderTypes.ExchangeTypes: ExchangeID
-using .OrderTypes: PositionSide, PositionTrade, LiquidationType, ForcedOrder
+using .OrderTypes: PositionSide, PositionTrade, LiquidationType, ReduceOnlyOrder
 using .Strategies.Instruments.Derivatives: Derivative
 using Executors.Instances: leverage_tiers, tier, position
 import Executors.Instances: Position, MarginInstance
@@ -52,7 +52,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
         cancel!(s, o, ai; err=OrderCancelled(o))
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
-    ot = ForcedOrder{liqside(p),typeof(p)}
+    ot = ReduceOnlyOrder{liqside(p),typeof(p)}
     price = priceat(s, ot, ai, date)
     amount = abs(nondust(ai, price, p))
     if amount > 0.0

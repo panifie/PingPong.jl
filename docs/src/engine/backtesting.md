@@ -89,9 +89,9 @@ Market order types include:
 
 - MarketOrder: This order is executed at the best available price in the market.
 - LiquidationOrder: This order is similar to a MarketOrder, but its execution price might differ from the candle price.
-- ForcedOrder: This is a market order that is automatically triggered when manually closing a position.
+- ReduceOnlyOrder: This is a market order that is automatically triggered when manually closing a position.
 
-All of these behave in the same way, except for the LiquidationOrder. For example, a ForcedOrder is triggered when manually closing a position, as shown below:
+All of these behave in the same way, except for the LiquidationOrder. For example, a ReduceOnlyOrder is triggered when manually closing a position, as shown below:
 
 ```julia
 pong!(s, ai, Long(), now(), PositionClose())
