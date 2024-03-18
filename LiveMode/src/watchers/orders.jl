@@ -338,12 +338,20 @@ function update_order!(s, ai, eid; resp, state)
     @debug "update ord: handled" _module = LogWatchOrder id = state.order.id f = @caller 7
 end
 
-_default_ordertype(s, ai::MarginInstance) = begin
-    if islong(ai)
-        MarketOrder{Buy}
+_default_ordertype2(islong::Bool, oside::OrderSide) =
+    if islong
+        MarketOrder{oside}
     else
-        ShortMarketOrder{Sell}
+        ShortMarketOrder{opposite(oside)}
     end
+_default_ordertype(s, ai::MarginInstance, resp) = begin
+    flag = islong(ai)
+    oside = if resp_order_reduceonly(resp, exchangeid(ai))
+        ifelse(flag, Sell, Buy)
+    else
+        ifelse(flag, Buy, Sell)
+    end
+    _default_ordertype(flag, oside)
 end
 _default_ordertype(s, ai::NoMarginInstance) = MarketOrder{cash(ai) > ZERO ? Sell : Buy}
 
@@ -388,7 +396,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             s,
             resp,
             ai;
-            t=_default_ordertype(s, ai),
+            t=_default_ordertype(s, ai, resp),
             price=missing,
             amount=missing,
             synced=false,

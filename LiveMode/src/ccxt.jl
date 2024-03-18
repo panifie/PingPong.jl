@@ -117,7 +117,11 @@ _ccxtmarginmode(v) = marginmode(v) |> _ccxtmarginmode
 ordertype_fromccxt(resp, eid::EIDType) =
     let v = resp_order_type(resp, eid)
         if pyeq(Bool, v, @pyconst "market")
-            ot.MarketOrderType
+            if resp_order_reduceonly(resp, eid)
+                ot.ForcedOrderType
+            else
+                ot.MarketOrderType
+            end
         elseif pyeq(Bool, v, @pyconst "limit")
             ordertype_fromtif(resp, eid)
         else
@@ -319,6 +323,7 @@ resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
 resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice", nonzero=true)
 resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice", nonzero=true)
 resp_order_info(resp, ::EIDType) = get_py(resp, "info")
+resp_order_reduceonly(resp, ::EIDType) = pytruth(get_py(resp, "reduceOnly"))
 
 resp_position_symbol(resp, ::EIDType) = get_py(resp, Pos.symbol)
 function resp_position_symbol(resp, ::EIDType, ::Type{String})

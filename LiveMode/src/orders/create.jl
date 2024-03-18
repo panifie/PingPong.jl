@@ -2,7 +2,7 @@ using .Executors: AnyLimitOrder
 using .PaperMode: create_sim_limit_order
 using .PaperMode.SimMode: construct_order_func
 using .Executors.Instruments: AbstractAsset
-using .OrderTypes: ordertype, MarketOrderType, GTCOrderType
+using .OrderTypes: ordertype, MarketOrderType, GTCOrderType, ForcedOrderType
 using .Lang: filterkws
 
 @doc """ Creates a live order.
@@ -34,15 +34,16 @@ function create_live_order(
     try
         eid = exchangeid(ai)
         side = @something _orderside(resp, eid) orderside(t)
-        @debug "Creating order" _module = LogCreateOrder status = resp_order_status(resp, eid) filled =
-            resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid)
-        _ccxtisopen(resp, eid) ||
-            resp_order_filled(resp, eid) > ZERO ||
-            !isempty(resp_order_id(resp, eid)) ||
-            begin
-                @warn "create order: not open, not partially fillled, id is empty, refusing construction."
+        @debug "create order: parsing" _module = LogCreateOrder status = resp_order_status(resp, eid) filled = resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
+        let isopen = _ccxtisopen(resp, eid),
+            hasfill = resp_order_filled(resp, eid) > ZERO,
+            hasid = !isempty(resp_order_id(resp, eid))
+
+            if !isopen && !hasfill && !hasid
+                @warn "create order: refusing" isopen hasfill hasid
                 return nothing
             end
+        end
         this_order_type(ot) = begin
             pos = @something posside(t) posside(ai) Long()
             Order{ot{side},<:AbstractAsset,<:ExchangeID,typeof(pos)}
@@ -102,7 +103,7 @@ function create_live_order(
         o
     end
     if isnothing(o)
-        @error "create order: failed to sync" id ai = raw(ai) s = nameof(s)
+        @error "create order: failed to sync" id ai = raw(ai) s = nameof(s) type
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate

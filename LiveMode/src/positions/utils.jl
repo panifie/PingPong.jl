@@ -364,10 +364,11 @@ If the side is neither "sell" nor "buy", it issues a warning and defaults to the
 """
 function _ccxtposside(::MarginStrategy{Live}, v::Py, eid::EIDType; def=Long())
     side = resp_order_side(v, eid)
+    is_reduce_only = resp_order_reduceonly(v, eid)
     if pyeq(Bool, side, @pyconst("sell"))
-        Short()
+        ifelse(is_reduce_only, Long(), Short())
     elseif pyeq(Bool, side, @pyconst("buy"))
-        Long()
+        ifelse(is_reduce_only, Short(), Long())
     else
         @warn "Side value not found, defaulting to $def" resp = v
         def
