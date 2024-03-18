@@ -521,7 +521,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(s::Strategy, o::IncreaseOrder, ai)
     @deassert committed(o) > 0.0
-    c = st.freecash(s), comm = committed(o)
+    c = st.freecash(s)
+    comm = committed(o)
     c >= comm || isapprox(c, comm)
 end
 
@@ -532,7 +533,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(::Strategy, o::SellOrder, ai)
     @deassert committed(o) > 0.0
-    c = Instances.freecash(ai, Long()), comm = committed(o)
+    c = Instances.freecash(ai, Long())
+    comm = committed(o)
     c >= comm || isapprox(c, comm)
 end
 
@@ -543,7 +545,8 @@ $(TYPEDSIGNATURES)
 """
 function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     @deassert committed(o) < 0.0
-    c = Instances.freecash(ai, Short()), comm = committed(o)
+    c = Instances.freecash(ai, Short())
+    comm = committed(o)
     c <= comm || isapprox(c, comm)
 end
 
