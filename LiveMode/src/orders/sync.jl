@@ -103,29 +103,21 @@ function live_sync_open_orders!(
                 skipcommit=(!overwrite),
                 withoutkws(:skipcommit; kwargs=create_kwargs)...,
             ) missing)::Union{Nothing,<:Order,Missing}
-            ismissing(o) && continue
-            if isfilled(ai, o)
-                isapprox(ai, _amount_from_trades(trades(o)), o.amount, Val(:amount)) ||
-                    begin
-                        @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
-                        replay_order!(s, o, ai; resp, exec=false)
-                    end
-                @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount = _amount_from_trades(
-                    trades(o)
-                ) ai = raw(ai) s = nameof(s)
-                clear_order!(s, ai, o)
+            if ismissing(o)
+                continue
+            elseif isfilled(ai, o)
+                trades_amount = amount_from_trades(trades(o)), o.amount, Val(:amount)
+                if !isapprox(ai, trades_amount)
+                    @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
+                    replay_order!(s, o, ai; resp, exec=false)
+                else
+                    @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount ai = raw(ai) s = nameof(s)
+                    clear_order!(s, ai, o)
+                end
             else
                 @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai = raw(ai) s = nameof(s)
                 push!(live_orders, o.id)
                 replay_order!(s, o, ai; resp, exec)
-                if isfilled(ai, o)
-                    clear_order!(s, ai, o)
-                elseif filled_amount(o) > ZERO && o isa IncreaseOrder
-                    @ifdebug if ai ∉ s.holdings
-                        @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai = raw(ai)
-                    end
-                    push!(s.holdings, ai)
-                end
             end
         end
     end
@@ -303,7 +295,9 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     if isempty(new_trades)
         @debug "replay order: emulating trade" _module = LogSyncOrder
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
-        exec || isnothing(trade) || apply_trade!(s, ai, o, trade; insert)
+        if !exec && !isnothing(trade)
+            apply_trade!(s, ai, o, trade; insert)
+        end
     else
         @debug "replay order: replaying trades" _module = LogSyncOrder
         for trade_resp in new_trades
@@ -325,6 +319,14 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
                 apply_trade!(s, ai, o, trade; insert)
             end
         end
+    end
+    if isfilled(ai, o)
+        clear_order!(s, ai, o)
+    elseif filled_amount(o) > ZERO && o isa IncreaseOrder
+        @ifdebug if ai ∉ s.holdings
+            @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai = raw(ai)
+        end
+        push!(s.holdings, ai)
     end
     o
 end
@@ -463,7 +465,9 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
             if resp_event_type(resp, eid) != ot.Order
                 continue
             end
-            i > limit && break
+            if i > limit
+                break
+            end
             i += 1
             @async begin
                 id = resp_order_id(resp, eid, String)
@@ -483,9 +487,10 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=B
                     @deassert resp_order_status(resp, eid, String) ∈
                               ("closed", "open", "canceled") resp_order_status(resp, eid, String)
                     @ifdebug trades_count = length(ai.history)
-                    if isfilled(ai, o)
-                        @deassert !isempty(trades(o))
-                    else
+                    if isempty(trades(o))
+                        if isopen(ai, o)
+                            reset!(o, ai)
+                        end
                         replay_order!(s, o, ai; resp, exec=false)
                         @deassert length(ai.history) > trades_count
                     end

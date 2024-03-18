@@ -499,7 +499,7 @@ If the filled amount has changed, it computes the new average price and checks i
 It then emulates the trade and updates the order state.
 """
 function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price), exec=true)
-    isopen(ai, o) || begin
+    if !isopen(ai, o)
         @error "emu trade: closed order ($(o.id))"
         return nothing
     end
@@ -547,8 +547,10 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     end
     _check_price(s, ai, actual_price, o; resp) || return nothing
     check_limits(actual_price, ai, :price) || return nothing
-    check_limits(net_cost, ai, :cost) || return nothing
-    check_limits(actual_amount, ai, :amount) || return nothing
+    if !is_reduce_only
+        check_limits(net_cost, ai, :cost) || return nothing
+        check_limits(actual_amount, ai, :amount) || return nothing
+    end
 
     @debug "emu trade: emulating" _module = LogCreateTrade id = o.id
     _warn_cash(s, ai, o; actual_amount)
