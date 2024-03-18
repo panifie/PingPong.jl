@@ -23,7 +23,7 @@ function Executors.aftertrade!(
         # and a position
         since = t.date - Millisecond(1)
         @debug "after trade: fetching position for updates $(raw(ai))" _module = LogCreateTrade id = t.order.id
-        update = live_position(s, ai, posside(o); since, force=true)
+        update = live_position(s, ai, posside(o); since, force=false)
         @ifdebug begin
             if isopen(position(ai, posside(o)))
                 liqprice(ai, o) >= 0 ||

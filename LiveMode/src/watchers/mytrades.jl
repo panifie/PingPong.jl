@@ -53,88 +53,123 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
                 return task
             end
         end
-        if !isrunning(s) && !s[:live_force_watch]
-            @debug "watch trades: strategy stopped" _module = LogWatchTrade ai = raw(ai)
+        exc, orders_byid, stop_delay = initialize_watch_trades_tasks!(s, ai)
+        if !hasmytrades(exc)
+            @error "watch trades: trades monitoring is not supported" exc ai = raw(ai)
             return nothing
         end
-        exc = exchange(ai)
-        hasmytrades(exc) || return nothing
-        orders_byid = active_orders(s, ai)
-        task = @start_task orders_byid begin
-            (f, iswatch) = if has(exc, :watchMyTrades)
-                let sym = raw(ai), func = exc.watchMyTrades
-                    (
-                        (flag) -> if flag[]
-                            pyfetch(func, sym; exc_kwargs...)
-                        end,
-                        true,
-                    )
-                end
+        loop_func = define_trades_loop_funct(s, ai, exc; exc_kwargs)
+        task = @start_task orders_byid manage_trade_updates!(s, ai, orders_byid, stop_delay, loop_func)
+
+        tasks.byname[:trades_task] = task
+        return task
+    end
+end
+
+function initialize_watch_trades_tasks!(s::LiveStrategy, ai)
+    exc = exchange(ai)
+    orders_byid = active_orders(s, ai)
+    stop_delay = Ref(Second(60))
+    return exc, orders_byid, stop_delay
+end
+
+function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
+    watch_func = first(exc, :watchMyTrades)
+    sym = raw(ai)
+    if !isnothing(watch_func)
+        init_handler() = begin
+            channel = Channel{Any}(s[:live_buffer_size])
+            coro_func() = watch_func(sym; exc_kwargs...)
+            f_push(v) = put!(channel, v)
+            h = stream_handler(coro_func, f_push)
+            start_handler!(h)
+            bind(channel, h.task)
+            task_local_storage(:handler, h)
+            task_local_storage(:channel, channel)
+        end
+        get_from_channel() = begin
+            channel = get(@something(current_task().storage, (;)), :channel, nothing)
+            if isnothing(channel) || !isopen(channel)
+                init_handler()
             else
-                _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-                last_date = isempty(ai.history) ? now() : last(ai.history).date
-                since = Ref(last_date)
-                startup = Ref(true)
-                eid = exchangeid(ai)
-                (
-                    (_, _) -> begin
-                        startup[] || sleep(1)
-                        updates = fetch_my_trades(
-                            s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
-                        )
-                        if !isnothing(updates) && islist(updates) && length(updates) > 0
-                            since[] = resp_trade_timestamp(updates[-1], eid, DateTime)
-                        elseif startup[]
-                            startup[] = false
-                        end
-                        updates
-                    end,
-                    false,
-                )
+
             end
-            queue = tasks.queue
-            flag = TaskFlag()
-            cond = task_local_storage(:notify)
-            sem = @lget! task_local_storage() :sem (cond=Threads.Condition(), queue=Int[])
-            handler_tasks = Task[]
-            while @istaskrunning()
-                try
-                    while @istaskrunning()
-                        updates = f(flag)
-                        if updates isa InterruptException
-                            throw(updates)
-                        elseif updates isa Exception
-                            @ifdebug ispyminor_error(updates) ||
-                                     @debug "Error fetching trades (using watch: $(iswatch))" _module = LogWatchTrade updates
-                            sleep(1)
-                        else
-                            !islist(updates) && (updates = pylist(updates))
-                            for resp in updates
-                                ht = @async handle_trade!(s, ai, orders_byid, resp, sem)
-                                push!(handler_tasks, ht)
-                            end
-                            safenotify(cond)
-                        end
-                        filter!(istaskrunning, handler_tasks)
-                    end
-                catch e
-                    if e isa InterruptException
-                        rethrow(e)
-                    else
-                        @debug_backtrace LogWatchTrade
-                        @debug "trades watching for $(raw(ai)) resulted in an error (possibly a task termination through running flag)." _module = LogWatchTrade e
-                    end
-                    sleep(1)
-                end
+            channel = task_local_storage(:channel)
+            if isopen(channel)
+                take!(channel)
+            else
+                @error "Order handler can't open channel"
             end
         end
-        try
-            tasks.byname[:trades_task] = task
-            task
-        catch
-            task
+    else
+        _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
+        last_date = isempty(ai.history) ? now() : last(ai.history).date
+        since = Ref(last_date)
+        startup = Ref(true)
+        eid = exchangeid(ai)
+        get_from_call() = begin
+            if !startup[]
+                sleep(1)
+            end
+            updates = fetch_my_trades(
+                s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+            )
+            if islist(updates) && !isempty(updates)
+                since[] = resp_trade_timestamp(updates[-1], eid, DateTime)
+            elseif startup[]
+                startup[] = false
+            end
+            updates
         end
     end
+end
+
+function manage_trade_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func)
+    sem = task_sem()
+    process_tasks = Task[]
+    try
+        while @istaskrunning()
+            try
+                updates = loop_func()
+                process_trades!(s, ai, orders_byid, updates, sem, process_tasks)
+            catch e
+                handle_trade_updates_errors!(e, ai)
+            end
+        end
+    finally
+        h = task_local_storage(:handler, nothing)
+        if !isnothing(h)
+            stop_handler!(h)
+        end
+    end
+end
+
+function process_trades!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks)
+    if updates isa Exception
+        if updates isa InterruptException
+            throw(updates)
+        else
+            @ifdebug ispyminor_error(updates) ||
+                     @debug "watch trades: fetching error" _module = LogWatchTrade updates
+            sleep(1)
+        end
+    else
+        for resp in pylist(updates)
+            t = @async handle_trade!(s, ai, orders_byid, resp, sem)
+            push!(process_tasks, t)
+        end
+        filter!(!istaskdone, process_tasks)
+    end
+end
+
+function handle_trade_updates_errors!(e, ai)
+    if e isa InterruptException || e isa InvalidStateException
+        rethrow(e)
+    else
+        @debug "watch trades: error (task termination?)" _module = LogWatchTrade raw(ai) istaskrunning() current_task().storage[:running]
+        @debug_backtrace LogWatchTrade
+    end
+    sleep(1)
 end
 
 asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
@@ -260,7 +295,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             try
                 let state = get_order_state(orders_byid, id)
                     if state isa LiveOrderState
-                        @debug "handle trade: locking state" _module = LogWatchTrade id resp
+                        @debug "handle trade: locking state" _module = LogWatchTrade id resp islocked(state.lock)
                         @lock state.lock begin
                             this_hash = trade_hash(resp, eid)
                             this_hash ∈ state.trade_hashes || begin
@@ -410,21 +445,25 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5), force=tr
         end
     @debug "wait for trade:" _module = LogWaitTrade id = o.id timeout = timeout current_trades = this_count
     while true
-        slept < timeout || begin
+        if slept >= timeout
             @debug "wait for trade: timedout" _module = LogWaitTrade id = o.id f = @caller 7
             return _force()
         end
-        isactive(s, ai, o; pt, active) || begin
+        if !isactive(s, ai, o; pt, active)
             @debug "wait for trade: order not present" _module = LogWaitTrade id = o.id f = @caller
             return _force()
         end
         @debug "wait for trade: " _module = LogWaitTrade isfilled(ai, o) length(order_trades)
         slept += let time = waitfortrade(s, ai; waitfor=timeout - slept)
-            iszero(time) && break
+            if iszero(time)
+                break
+            end
             time
         end
         this_count = length(order_trades)
-        this_count > prev_count && return true
+        if this_count > prev_count
+            return true
+        end
     end
     this_count > prev_count
 end

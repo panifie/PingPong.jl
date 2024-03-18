@@ -367,7 +367,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         is_stale = this_date == prev_date
         # this ensure even if there are no updates we know
         # the date of the last fetch run
-        @async @lock cond begin
+        ai = asset_bysym(s, sym)
+        @async @lock ai @lock cond begin
             pup = if isnothing(pup_prev)
                 _posupdate(this_date, resp)
             elseif !is_stale
@@ -388,15 +389,15 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
                     @deassert LogWatchPosProcess resp_position_side(pup_prev.resp, eid) |> _ccxtposside == prev_side
                     pup_prev.closed[] = true
                     if iswatch && !fetched
-                        live_sync_cash!(s, asset_bysym(s, sym), prev_side; pup=pup_prev)
+                        live_sync_cash!(s, ai, prev_side; pup=pup_prev)
                     end
                 end
                 last_dict[sym] = side
                 side_dict[sym] = pup
                 if iswatch && !fetched
-                    live_sync_cash!(s, asset_bysym(s, sym), side; pup)
+                    live_sync_cash!(s, ai, side; pup)
                 end
-                safenotify(pup.notify)
+                safenotify(cond)
             end
         end
     end

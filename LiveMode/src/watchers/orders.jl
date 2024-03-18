@@ -2,6 +2,7 @@ import .PaperMode: SimMode
 using .Executors: filled_amount, orderscount, orders
 using .Executors: isfilled as isorder_filled
 using .Instances: ltxzero, gtxzero
+using .OrderTypes: ReduceOnlyOrder
 using .SimMode: @maketrade
 
 # TODO: `watch_orders!` and `watch_trades!` currently operate on one symbol only.
@@ -29,7 +30,7 @@ function define_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
             channel = Channel{Any}(s[:live_buffer_size])
             coro_func() = watch_func(sym; exc_kwargs...)
             f_push(v) = put!(channel, v)
-            h = stream_handler(coro_func, channel)
+            h = stream_handler(coro_func, f_push)
             start_handler!(h)
             bind(channel, h.task)
             task_local_storage(:handler, h)
@@ -73,13 +74,20 @@ Manages the order updates by continuously fetching and processing new orders.
 function manage_order_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func)
     sem = task_sem()
     process_tasks = Task[]
-    while @istaskrunning()
-        try
-            updates = loop_func()
-            stop_delay[] = Second(60)
-            process_updates!(s, ai, orders_byid, updates, sem, process_tasks)
-        catch e
-            handle_order_updates_errors!(e, ai)
+    try
+        while @istaskrunning()
+            try
+                updates = loop_func()
+                stop_delay[] = Second(60)
+                process_updates!(s, ai, orders_byid, updates, sem, process_tasks)
+            catch e
+                handle_order_updates_errors!(e, ai)
+            end
+        end
+    finally
+        h = task_local_storage(:handler, nothing)
+        if !isnothing(h)
+            stop_handler!(h)
         end
     end
 end
@@ -111,7 +119,7 @@ end
 Handles errors that occur during the order watching process.
 """
 function handle_order_updates_errors!(e, ai)
-    if e isa InterruptException
+    if e isa InterruptException || e isa InvalidStateException
         rethrow(e)
     else
         @debug "watch orders: error (task termination?)" _module = LogWatchOrder raw(ai) istaskrunning() current_task().storage[:running]
@@ -225,8 +233,8 @@ end
 
 @doc """ Stops the orders watcher for an asset instance. """
 function stop_watch_orders!(s::LiveStrategy, ai)
-    asset_orders_stop_task(s, ai) |> stop_task
     asset_orders_task(s, ai) |> stop_task
+    asset_orders_stop_task(s, ai) |> stop_task
 end
 
 @doc """ Generates a unique enough hash for an order, preferably based on the last update, or the order info otherwise. """
@@ -433,9 +441,11 @@ function process_order!(s, ai, orders_byid, resp, sem)
     try
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
-        isprocessed_order(s, ai, id) && return nothing
-        isprocessed_order_update(s, ai, resp) && return nothing
-        record_order_update!(s, ai, resp)
+        @lock ai begin
+            isprocessed_order(s, ai, id) && return nothing
+            isprocessed_order_update(s, ai, resp) && return nothing
+            record_order_update!(s, ai, resp)
+        end
         @debug "handle ord: this event" _module = LogWatchOrder id = id status = resp_order_status(resp, eid)
         if isempty(id) || resp_event_type(resp, eid) != Order
             @debug "handle ord: missing order id" _module = LogWatchOrder
@@ -509,10 +519,11 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     check_id(ai, o, resp, eid; getter=resp_order_id) || return nothing
     side = _ccxt_sidetype(resp, eid; o)
     _check_side(side, o) || return nothing
+    is_reduce_only = o isa ReduceOnlyOrder
     new_filled = resp_order_filled(resp, eid)
     prev_filled = filled_amount(o)
     actual_amount = new_filled - prev_filled
-    actual_amount < ai.limits.amount.min && begin
+    if !is_reduce_only && actual_amount < ai.limits.amount.min
         @debug "emu trade: fill status unchanged" _module = LogCreateTrade o.id prev_filled new_filled actual_amount
         return nothing
     end
@@ -535,7 +546,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
             else
                 prev_cost = average_price[] * prev_filled
                 net_cost = this_cost - prev_cost
-                if net_cost < ai.limits.cost.min
+                if net_cost < ai.limits.cost.min && !is_reduce_only
                     @error "emu trade: net cost below min" ai = raw(ai) net_cost
                     (ZERO, ZERO)
                 else

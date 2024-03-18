@@ -324,12 +324,15 @@ end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
     @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai) islocked(ai) islocked(s) islocked(update.notify)
-    @lock ai @lock update.notify begin
-        _live_sync_position!(s, ai, pos, update; kwargs...)
-        if isopen(ai) || hasorders(s, ai)
-            push!(s.holdings, ai)
-        else
-            delete!(s.holdings, ai)
+    # NOTE: Orders matters to avoid deadlocks
+    @lock ai begin
+        @lock update.notify begin
+            _live_sync_position!(s, ai, pos, update; kwargs...)
+            if isopen(ai) || hasorders(s, ai)
+                push!(s.holdings, ai)
+            else
+                delete!(s.holdings, ai)
+            end
         end
     end
 end

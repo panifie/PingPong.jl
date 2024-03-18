@@ -13,6 +13,18 @@ const LiveOrderState = NamedTuple{
 @doc "A dictionary mapping asset strings to their corresponding live order states."
 const AssetOrdersDict = LittleDict{String,LiveOrderState}
 
+function Base.lock(state::LiveOrderState)
+    lock(state.lock)
+end
+
+function Base.lock(func::Function, state::LiveOrderState)
+    lock(func, state.lock)
+end
+
+function Base.unlock(state::LiveOrderState)
+    unlock(state.lock)
+end
+
 @doc """ Retrieves active orders for a live strategy.
 
 $(TYPEDSIGNATURES)
@@ -91,6 +103,7 @@ end
 @doc "Remove order from the set of active orders."
 function clear_order!(s::LiveStrategy, ai, o::Order)
     ao = active_orders(s, ai)
+    @debug "orders: disactivating" _module = LogSyncOrder o.id
     delete!(ao, o.id)
     record_order!(s, ai, o)
 end
