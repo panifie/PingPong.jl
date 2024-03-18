@@ -345,7 +345,7 @@ pyfetch_timeout(args...; kwargs...) = @mock _pyfetch_timeout(args...; kwargs...)
 #     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 # end
 
-_pyisrunning() = gpa.task_running[]
+_pyisrunning() = !pyisnull(gpa.pyloop) && pyisTrue(gpa.pyloop.is_running())
 
 _set_loop(pa, loop) = pycopy!(pa.pyloop, loop)
 _get_ref() =
