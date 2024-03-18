@@ -99,14 +99,18 @@ Returns a dictionary of recent orders ids for a given asset instance.
 
 """
 function recent_orders(s::LiveStrategy, ai)
-    lro = @lget! attrs(s) :live_recent_orders Dict{AssetInstance,RecentOrdersDict}()
-    @lget! lro ai RecentOrdersDict(maxsize=100)
+    @lock s begin
+        lro = @lget! attrs(s) :live_recent_orders Dict{AssetInstance,RecentOrdersDict}()
+        @lget! lro ai RecentOrdersDict(maxsize=100)
+    end
 end
 
 @doc "An lru cache of recently processed trades hashes."
 const RecentUpdatesDict = LRUCache.LRU{UInt64,Nothing}
 
 function recent_trade_update(s::LiveStrategy, ai)
-    lrt = @lget! attrs(s) :live_recent_trades_update Dict{AssetInstance,RecentUpdatesDict}()
-    @lget! lrt ai RecentUpdatesDict(maxsize=100)
+    @lock s begin
+        lrt = @lget! attrs(s) :live_recent_trades_update Dict{AssetInstance,RecentUpdatesDict}()
+        @lget! lrt ai RecentUpdatesDict(maxsize=100)
+    end
 end
