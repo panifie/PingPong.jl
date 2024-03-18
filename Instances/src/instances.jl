@@ -23,6 +23,8 @@ import Base: position, isopen
 import Exchanges: lastprice, leverage!
 import OrderTypes: trades
 
+baremodule InstancesLock end
+
 @doc """Defines the abstract type for an instance.
 
 The `AbstractInstance` type is a generic abstract type for an instance. It is parameterized by two types: `A`, which must be a subtype of `AbstractAsset`, and `E`, which must be a subtype of `ExchangeID`.
@@ -173,14 +175,14 @@ Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 Base.lock(ai::AssetInstance) = begin
-    @debug "locking $(raw(ai))" f = @caller 14
+    @debug "locking $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
     lock(getfield(ai, :lock))
-    @debug "locked $(raw(ai))" f = @caller 14
+    @debug "locked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
 end
 Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
 Base.unlock(ai::AssetInstance) = begin
     unlock(getfield(ai, :lock))
-    @debug "unlocked $(raw(ai))" f = @caller 14
+    @debug "unlocked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
 end
 Base.islocked(ai::AssetInstance) = islocked(getfield(ai, :lock))
 @doc " Get the cash value of a `AssetInstance`. "
