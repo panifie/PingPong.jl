@@ -190,9 +190,10 @@ by the function being called, otherwise make the call with the asset instance as
 """
 function _tryfetchall(a, func, ai, args...; kwargs...)
     disable_all = @lget! a :live_disable_all Dict{Symbol,Bool}()
+    func_name = nameof(func)
     # if the disable_all flag is set skip this call
-    if !get(disable_all, func, false)
-        func_lock, func_cache = _func_cache(a, nameof(func))
+    if !get(disable_all, func_name, false)
+        func_lock, func_cache = _func_cache(a, func_name)
         since = (@something get(kwargs, :since, DateTime(0)) DateTime(0)) |> dt
         resp_all = @lock func_lock @lget! func_cache since begin
             func(nothing, args...; kwargs...)
@@ -209,10 +210,10 @@ function _tryfetchall(a, func, ai, args...; kwargs...)
         else
             if resp_all isa Exception
                 !occursin("symbol", string(resp_all))
-                @error "fetch all failed" exception = resp_all
+                @error "fetch all failed" exception = resp_all f = @caller 14
             end
-            @debug "fetch all: disabling" func = nameof(func)
-            disable_all[nameof(func)] = true
+            @debug "fetch all: disabling" func_name
+            disable_all[func_name] = true
         end
     end
     func(ai, args...; kwargs...)
