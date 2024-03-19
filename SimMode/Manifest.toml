@@ -599,7 +599,7 @@ uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
 
 [[deps.Python]]
-deps = ["CondaPkg", "Dates", "DocStringExtensions", "Lang", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["Dates", "DocStringExtensions", "Lang", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

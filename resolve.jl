@@ -27,10 +27,11 @@ function _update_project(path, fullpath; precomp, inst, doupdate, io=stdout)
     projpath = dirname(joinpath(path, fullpath))
     Pkg.activate(projpath; io)
     Pkg.resolve(; io)
+    prev_offline_status = Pkg.OFFLINE_MODE[]
     doupdate && begin
         Pkg.offline(false)
         Pkg.update()
-        Pkg.offline(true)
+        Pkg.offline(prev_offline_status)
     end
     precomp && Pkg.precompile(; io)
     inst && Pkg.instantiate(; io)
