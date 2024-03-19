@@ -76,7 +76,7 @@ end
 function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
     watch_func = first(exc, :watchMyTrades)
     sym = raw(ai)
-    if !isnothing(watch_func)
+    if !isnothing(watch_func) && s[:is_watch_mytrades]
         init_handler() = begin
             channel = Channel{Any}(s[:live_buffer_size])
             coro_func() = watch_func(sym; exc_kwargs...)

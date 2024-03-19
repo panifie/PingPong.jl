@@ -25,7 +25,7 @@ Defines the functions used for watching orders based on the exchange capabilitie
 function define_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
     watch_func = first(exc, :watchOrders)
     sym = raw(ai)
-    if !isnothing(watch_func)
+    if !isnothing(watch_func) && s[:is_watch_orders]
         init_handler() = begin
             channel = Channel{Any}(s[:live_buffer_size])
             coro_func() = watch_func(sym; exc_kwargs...)
@@ -343,7 +343,7 @@ function update_order!(s, ai, eid; resp, state)
             end
         end
     end
-    @debug "update ord: handled" _module = LogWatchOrder id = state.order.id f = @caller 7
+    @debug "update ord: handled" _module = LogWatchOrder id = state.order.id filed = filled_amount(state.order) f = @caller 7
 end
 
 _default_ordertype2(islong::Bool, oside::OrderSide) =

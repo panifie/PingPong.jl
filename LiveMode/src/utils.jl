@@ -458,6 +458,11 @@ function st.default!(s::LiveStrategy)
     s isa MarginStrategy ? a[:positions_base_timeout] = Ref(Second(5)) : nothing
     # The balance to sync in live mode (total, free, used)
     a[:live_balance_kind] = s isa MarginStrategy ? :free : :total
+    # Use watch functions (if available)
+    get!(a, :is_watch_positions, true)
+    get!(a, :is_watch_orders, true)
+    get!(a, :is_watch_mytrades, true)
+    get!(a, :is_watch_tickers, true)
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
