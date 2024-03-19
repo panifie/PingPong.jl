@@ -1,5 +1,5 @@
 using PythonCall:
-    Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert, pyisTrue
+    Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert
 using Dates: Period, Second
 using Lang: safenotify, safewait
 using Mocking: @mock, Mocking

@@ -10,7 +10,8 @@ using .Python:
     pyconvert,
     pyeq
 using Watchers: buffer
-using .Python.PythonCall: pyisTrue, pyeq, Py, pyisnone
+using .Python: pyisTrue, pyisnone, Py
+using .Python.PythonCall: pyeq
 using .Misc.Lang: @lget!, Option, @caller
 using .Executors.OrderTypes: ByPos
 using .Executors: committed, marginmode, update_leverage!, liqprice!, update_maintenance!

@@ -1,4 +1,5 @@
-using PythonCall: pynew, PyNULL, pyisbool, Py
+using PythonCall: pynew, PyNULL, Py
+using PythonCall.Core: pyisbool, pyisTrue
 
 @doc "This constant indicates whether the Python runtime has been initialized. It is used to delay initialization until the first Python call."
 const _INITIALIZED = Ref(false)

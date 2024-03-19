@@ -1,6 +1,6 @@
 using .Lang: @ifdebug
-using .Python: @pystr, @pyconst
-using .Python.PythonCall: pyisint, PyDict
+using .Python: @pystr, @pyconst, PyDict
+using .Python.PythonCall.Core: pyisint
 using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
 using .Misc.Mocking: Mocking, @mock

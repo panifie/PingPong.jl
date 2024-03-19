@@ -1,4 +1,5 @@
-using PythonCall: pystr, Py, PyException, pyisstr, pyisnone, pyfloat
+using PythonCall: pystr, Py, PyException, pyfloat
+using PythonCall.Core: pyisstr, pyisnone
 using PythonCall.GC: GC as PyGC
 import PythonCall: PyDict
 
