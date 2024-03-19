@@ -75,14 +75,12 @@ function reset_asset_tasks!(tasks)
     for (name, task) in tasks.byname
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks name
-            Base.throwto(task, InterruptException())
             wait(task)
         end
     end
     for (order, task) in tasks.byorder
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks order
-            Base.throwto(task, InterruptException())
             wait(task)
         end
     end
