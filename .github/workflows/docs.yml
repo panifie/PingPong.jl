@@ -23,7 +23,7 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         version: '1'
-        include-all-prereleases: true
+        include-all-prereleases: false
     - uses: actions/cache@v3
       id: julia-cache
       if: always()
