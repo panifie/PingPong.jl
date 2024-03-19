@@ -68,3 +68,13 @@ function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;
 end
 
 leverage_value(::Exchange{ExchangeID{:phemex}}, val, sym) = val
+leverage_value(::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, val, sym) = round(Int, float(val))
+
+function _handle_leverage(e::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, resp)
+    if resp isa PyException
+        @debug resp
+        false
+    else
+        haskey(resp, "leverage")
+    end
+end
