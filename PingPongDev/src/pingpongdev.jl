@@ -56,7 +56,8 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
         $gc_disable()
         try
             global $bind, ai
-            if isdefined(Main, $(QuoteNode(bind))) && $bind isa st.Strategy{<:Union{Paper,Live}}
+            if isdefined(Main, $(QuoteNode(bind))) &&
+                $bind isa st.Strategy{<:Union{Paper,Live}}
                 try
                     exs.ExchangeTypes._closeall()
                     @async lm.stop_all_tasks($bind)
@@ -65,8 +66,11 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
                 end
             end
             $bind = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
-            st.issim($bind) &&
-                fill!($bind.universe, $bind.timeframe, $bind.config.timeframes[(begin + 1):end]...)
+            st.issim($bind) && fill!(
+                $bind.universe,
+                $bind.timeframe,
+                $bind.config.timeframes[(begin + 1):end]...,
+            )
             execmode($bind) == Sim() && $stub && dostub!(; $bind)
             st.default!($bind)
             ai = try
@@ -115,4 +119,12 @@ resetenv!() = begin
     Watchers._closeall()
 end
 
-export backtest_strat, loadstrat!, symnames, default_loader, dostub!, @environment!, resetenv!
+togglewatch!(s, enable=true) = begin
+    for name in (:positions, :orders, :mytrades, :tickers)
+        s[Symbol(:is_watch_, name)] = enable
+    end
+    lm.stop_all_tasks(s)
+end
+
+export backtest_strat, loadstrat!, symnames, default_loader
+export @environment!, dostub!, resetenv!, togglewatch!
