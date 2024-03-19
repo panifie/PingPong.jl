@@ -19,6 +19,7 @@ ENV JULIA_LOAD_PATH=:/pingpong
 ENV JULIA_CONDAPKG_ENV=/pingpong/.conda
 # avoids progressbar spam
 ENV CI=true
+COPY --chown=ppuser:ppuser ./Lang/ /pingpong/Lang/
 COPY --chown=ppuser:ppuser ./Python/*.toml /pingpong/Python/
 # Instantiate python env since CondaPkg is pulled from master
 ARG CACHE=1
@@ -26,7 +27,7 @@ RUN $JULIA_CMD --project=/pingpong/Python -e "import Pkg; Pkg.instantiate()"
 COPY --chown=ppuser:ppuser ./Python /pingpong/Python
 RUN $JULIA_CMD --project=/pingpong/Python -e "using Python"
 
-FROM python1 as precompile1
+from python1 as precompile1
 COPY --chown=ppuser:ppuser ./PingPong/*.toml /pingpong/PingPong/
 ENV JULIA_PROJECT=/pingpong/PingPong
 ENV JULIA_NOPRECOMP=""
