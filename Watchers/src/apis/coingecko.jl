@@ -40,7 +40,7 @@ const RETRY = Ref(false)
 @doc "Allows only 1 query every $(RATE_LIMIT[]) seconds."
 ratelimit() = sleep(max(Second(0), (last_query[] - now()) + RATE_LIMIT[]))
 
-function get(path, query=nothing)
+function get(path, query=nothing, inc=500)
     ratelimit()
     resp = try
         HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS)
@@ -51,8 +51,9 @@ function get(path, query=nothing)
     if hasproperty(resp, :status)
         STATUS[] = resp.status
         if resp.status == 429 && RETRY[]
-            sleep(RATE_LIMIT[])
-            return get(path, query)
+            @warn "coingecko: 429" path
+            sleep(RATE_LIMIT[] + Millisecond(inc))
+            return get(path, query, inc * 2)
         else
             @assert resp.status == 200 resp
         end
