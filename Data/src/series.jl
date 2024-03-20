@@ -216,7 +216,7 @@ function _wrap_load_data(zi::ZarrInstance, key; sz=nothing, serialized=false, kw
     catch e
         if typeof(e) ∈ (MethodError, ArgumentError)
             @error "load data error: " exception = e
-            delete!(zi.store, key, recursive=true) # ensure path does not exist
+            delete!(zi.store, key; recursive=true) # ensure path does not exist
             type = serialized ? Vector{UInt8} : get(kwargs, :type, Float64)
             emptyz = zcreate(
                 type,
@@ -300,10 +300,19 @@ function _load_data(
     out = if serialized
         buf = IOBuffer()
         try
-            [
-                (; time=todata(buf, data[n, 1]), value=todata(buf, data[n, 2])) for
-                n in firstindex(data, 1):size(data, 1)
-            ]
+            first_time = todata(buf, data[begin, 1])
+            first_val = todata(buf, data[begin, 2])
+            first_el = (; time=first_time, value=first_val)
+            this_type = typeof(first_el)
+            def_val = default_value(this_type)
+            out = Vector{this_type}(undef, size(data, 1))
+            out[begin] = first_el
+            foreach(Iterators.drop(firstindex(data, 1):size(data, 1), 1)) do n
+                (;
+                    time=todata(buf, data[n, 1]),
+                    value=@something(todata(buf, data[n, 2]), def_val)
+                )
+            end
         finally
             close(buf)
         end

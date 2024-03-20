@@ -48,5 +48,7 @@ todata(buf::IOBuffer, bytes) = begin
     truncate(buf, 0)
     write(buf, bytes)
     seekstart(buf)
-    deserialize(buf)
+    if buf.size > 0
+        deserialize(buf)
+    end
 end

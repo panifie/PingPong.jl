@@ -182,6 +182,8 @@ default_value(t::T) where {T<:Type} = begin
         '\0'
     elseif istypeorval(Tuple, t)
         ((default_value(ft) for ft in fieldtypes(t))...,)
+    elseif istypeorval(NamedTuple, t)
+        NamedTuple(k => default_value(ft) for (k, ft) in zip(fieldnames(t), fieldtypes(t)))
     elseif istypeorval(DateTime, t)
         DateTime(0)
     elseif t isa Function
