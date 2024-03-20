@@ -2,7 +2,7 @@ using .Python: PyException, pyisTrue, pygetitem, pyeq, @py, pyfetch_timeout
 using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
-using .Misc: IsolatedMargin, CrossMargin
+using .Misc: IsolatedMargin, CrossMargin, Long, Short
 
 # TODO: export to livemode
 resp_code(resp, ::Type{<:ExchangeID}) = pygetitem(resp, @pyconst("code"), @pyconst(""))
@@ -11,7 +11,7 @@ function _handle_leverage(e::Exchange, resp)
         @debug resp
         occursin("not modified", string(resp))
     else
-        pyeq(Bool, resp_code(resp, typeof(e.id)), @pyconst("0"))
+        resptobool(e, resp)
     end
 end
 
@@ -24,14 +24,26 @@ $(TYPEDSIGNATURES)
 - `v`: a Real number representing the new leverage value.
 - `sym`: a string representing the symbol to update the leverage for.
 "
-function leverage!(exc::Exchange, v, sym; timeout=Second(5))
+function leverage!(exc::Exchange, v, sym; side=Long(), timeout=Second(5))
     lev = leverage_value(exc, v, sym)
     resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), timeout, lev, sym)
     if isnothing(resp)
         @warn "exchanges: set leverage timedout" sym lev = v exc = nameof(exc)
         false
     else
-        _handle_leverage(exc, resp)
+        success = _handle_leverage(exc, resp)
+        if !success
+            resp_lev = pyfetch_timeout(exc.fetchLeverage, Returns(nothing), timeout, sym)
+            if isnothing(resp_lev)
+                false
+            else
+                side_key = ifelse(side == Long(), "longLeverage", "shortLeverage")
+                resp_val = pytofloat(get(resp_lev, side_key, one(DFT)))
+                pytofloat(lev) == resp_val
+            end
+        else
+            true
+        end
     end
 end
 
