@@ -153,8 +153,7 @@ This function fetches orders for a given asset instance `ai` using the provided 
 
 """
 function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), kwargs...)
-    symbol = isnothing(ai) ? nothing : raw(ai)
-    resp = _execfunc(this_func; symbol, kwargs...)
+    resp = _execfunc(this_func, ai)
     if resp isa Exception
         @error "ccxt fetch orders" raw(ai) resp
         return nothing
@@ -178,7 +177,7 @@ function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), kwargs...)
             else
                 (string(id) for id in ids)
             end)
-            (o) -> (resp_order_id(o, eid, String) ∉ ids_set || notside(o))
+            should_skip(o) = resp_order_id(o, eid, String) ∉ ids_set || notside(o)
         end
     end
     filterfrom!(should_skip, resp)
@@ -238,7 +237,12 @@ function ccxt_orders_func!(a, exc)
     fetch_single_func = first(exc, :fetchOrderWs, :fetchOrder)
     eid = typeof(exchangeid(exc))
     a[:live_orders_func] = if !isnothing(fetch_multi_func)
-        orders_multi(ai; kwargs...) = _fetch_orders(ai, fetch_multi_func; eid, kwargs...)
+        fetch_orders_multi(ai, args...; kwargs...) = begin
+            sym = ai isa AssetInstance ? raw(ai) : nothing
+            _execfunc(fetch_multi_func, sym, args...; kwargs...)
+        end
+        orders_multi_fetcher(ai, args...; kwargs...) = _tryfetchall(a, fetch_orders_multi, ai, args...; kwargs...)
+        orders_multi(ai; kwargs...) = _fetch_orders(ai, orders_multi_fetcher; eid, kwargs...)
         function orders_multi_fallback(ai; kwargs...)
             out = pylist()
             @sync begin
@@ -254,11 +258,15 @@ function ccxt_orders_func!(a, exc)
                         out.extend(v)
                     end
                 end
+
             end
-            out
+            out_unique = unique!([out...]) do o
+                resp_order_id(o, exchangeid(ai))
+            end |> pylist
+            _fetch_orders(ai, Returns(out_unique); eid=exchangeid(ai), kwargs...)
         end
         function ccxt_orders_multi(ai; kwargs...)
-            resp = _tryfetchall(a, orders_multi, ai; kwargs...)
+            resp = orders_multi(ai; kwargs...)
             if isemptish(resp) && has_fallback
                 # This already uses fetchall internally
                 orders_multi_fallback(ai; kwargs...)
@@ -445,7 +453,8 @@ function ccxt_oc_orders_func!(a, exc; open=true)
     orders_func = first(exc, names.ws, names.fetch)
     eid = typeof(exchangeid(exc))
     a[names.key] = if !isnothing(orders_func)
-        ccxt_oc_func(ai; kwargs...) = _fetch_orders(ai, orders_func; eid, kwargs...)
+        ccxt_all_orders_func(ai) = _execfunc(orders_func, raw(ai))
+        ccxt_oc_func(ai; kwargs...) = _fetch_orders(ai, ccxt_all_orders_func; eid, kwargs...)
         if open
             this_func = ccxt_open_orders_func(args...; kwargs...) = ccxt_oc_func(args...; kwargs...)
             ccxt_open_orders(ai, args...; kwargs...) = _tryfetchall(a, this_func, ai; kwargs...)

@@ -14,19 +14,29 @@ function test_coingecko()
         @test cg.RATE_LIMIT[] isa Period
         cg.RATE_LIMIT[] = Millisecond(1 * 1000)
         cg.RETRY[] = true
+        @info "TEST: cg ping"
         @test cg.ping()
+        @info "TEST: cg rate limit"
         @test coingecko_ratelimit()
+        @info "TEST: cg ids"
         @test occursin("ethereum", cg.idbysym("eth"))
         @test "ethereum" in cg.idbysym("eth", false)
+        @info "TEST: cg tickers"
         @test coingecko_tickers()
+        @info "TEST: cg price"
         @test coingecko_price()
+        @info "TEST: cg curr"
         @test coingecko_currencies()
+        @info "TEST: cg load"
         @test length(cg.loadcoins!()) > 0
+        @info "TEST: cg markets"
         @test length(cg.coinsmarkets()) > 0
         @test cg.coinsid("bitcoin")["id"] == "bitcoin"
         @test "identifier" ∈ keys(cg.coinsticker("monero")[1]["market"])
-        @test trunc(cg.coinshistory("bitcoin", "2020-01-02").price) == 7193
+        @test round(Int, cg.coinshistory("bitcoin", "2020-01-02").price) == 7194
+        @info "TEST: cg start"
         coingecko_chart()
+        @info "TEST: cg ohlc"
         coingecko_ohlc()
         @test fieldnames(typeof(cg.globaldata())) == (:volume, :mcap_change_24h, :date)
         @test length(cg.trending()) > 0

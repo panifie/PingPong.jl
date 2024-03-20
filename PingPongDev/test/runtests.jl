@@ -18,6 +18,8 @@ if NO_TMP
 end
 # Skip heavy precomp during tests
 ENV["JULIA_PRECOMP"] = ""
+# Tests rely on output consistency
+ENV["JULIA_DEBUG"] = ""
 using PingPongDev
 using PingPongDev.PingPong.Engine.Instances.Exchanges.Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 PROJECT_PATH = pathof(PingPongDev) |> dirname |> dirname

@@ -36,7 +36,9 @@ function _test_watchers_1()
     if wi.cg.STATUS[] == 200
         @test length(w.buffer) > 0
         @test now() - (last(w.buffer).time) < Minute(12)
-        _test_save("cg_ticker_btc_eth", w)
+        k = "cg_ticker_btc_eth"
+        delete!(Data.zi[].store, k)
+        _test_save(k, w)
     else
         @warn "TEST: coingecko error" wi.cg.STATUS[]
     end
@@ -49,6 +51,7 @@ function _test_watchers_2()
     if wi.cg.STATUS[] == 200
         @test last(w).value isa Dict{wi.Derivative,wi.CgSymDerivative}
         k = "cg_binance_futures_derivatives"
+        delete!(Data.zi[].store, k)
         _test_save(k, w)
     end
 end

@@ -12,12 +12,10 @@ test_zarrinstance() = begin
     zi
 end
 
-
 function test_save_json(zi=nothing, key="coingecko/markets/all")
     @eval begin
         using PingPongDev.Misc.JSON
         using Mmap
-        da = Data
     end
     filepath = joinpath(PROJECT_PATH, "test/stubs/cg_markets.json")
     data = JSON.parsefile(filepath)
@@ -25,9 +23,7 @@ function test_save_json(zi=nothing, key="coingecko/markets/all")
         zi = zinstance()
     end
     sz = (length(data), 2)
-    za, existing = da._get_zarray(
-        zi, key, sz; type=String, overwrite=true, reset=true
-    )
+    za, existing = da._get_zarray(zi, key, sz; type=String, overwrite=true, reset=true)
     resize!(za, sz)
     @test za.metadata.chunks == (length(data), 2)
     @test existing isa Bool
@@ -40,12 +36,10 @@ function test_save_json(zi=nothing, key="coingecko/markets/all")
     end
 end
 
-test_zarray_save(zi) = begin
+function test_zarray_save(zi)
     sz = (123, 3)
     k = string(rand())
-    z, existing = da._get_zarray(
-        zi, k, sz; type=String, overwrite=true, reset=true
-    )
+    z, existing = da._get_zarray(zi, k, sz; type=String, overwrite=true, reset=true)
     try
         @test !existing
         @test z isa ZArray
@@ -63,9 +57,13 @@ end
 test_data() = @testset "data" failfast = FAILFAST begin
     @eval begin
         using .PingPong.Engine.Data
-        da = Data
+        if !isdefined(@__MODULE__, :da)
+            da = Data
+        end
         using .Data.Zarr
-        za = Zarr
+        if !isdefined(@__MODULE__, :za)
+            za = Zarr
+        end
     end
     zi = test_zarrinstance()
     test_zarray_save(zi)

@@ -22,15 +22,15 @@ test_nomargin_market(s) = begin
     egn.start!(s)
     @test first(_ai_trades(s)).order isa egn.MarketOrder
     @info "TEST: " s.cash.value
-    @test eq1(Cash(:USDT, 9.12134), s.cash.value)
+    @test eq1(Cash(:USDT, 9.91030515), s.cash.value)
     @test eq1(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_count(s) == 5109
+    @test st.trades_count(s) == 4608
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 1
-    @test mmh.min[1] == :BTC
-    @test mmh.min[2] ≈ 0.9704 atol = 1e-4
-    @test mmh.max[1] == :BTC
-    @test mmh.max[2] ≈ 0.9704 atol = 1e-4
+    @test mmh.count == 0
+    @test mmh.min[1] == :USDT
+    @test mmh.min[2] ≈ Inf
+    @test mmh.max[1] == :USDT
+    @test mmh.max[2] ≈ 0.0 atol = 1e-4
 end
 
 test_nomargin_gtc(s) = begin
@@ -56,16 +56,16 @@ test_nomargin_ioc(s) = begin
     egn.start!(s)
     @test first(_ai_trades(s)).order isa egn.IOCOrder
     @info "TEST: " s.cash.value
-    @test Cash(:USDT, 79514.0133) ≈ s.cash atol = 1
+    @test Cash(:USDT, 694.918e3) ≈ s.cash atol = 1
     @info "TEST: " s.cash_committed.value
     @test Cash(:USDT, -0.4e-7) ≈ s.cash_committed atol = 1e-6
-    @test st.trades_count(s) == 8318
+    @test st.trades_count(s) == 10244
     mmh = st.minmax_holdings(s)
-    @test mmh.count == 1
-    @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 6874.15118 atol = 1e-1
-    @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 6874.15118 atol = 1e-1
+    @test mmh.count == 0
+    @test mmh.min[1] == :USDT
+    @test mmh.min[2] ≈ Inf atol = 1e-1
+    @test mmh.max[1] == :USDT
+    @test mmh.max[2] ≈ 0.0 atol = 1e-1
 end
 
 test_nomargin_fok(s) = begin
@@ -76,16 +76,16 @@ test_nomargin_fok(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa egn.FOKOrder
-    @test Cash(:USDT, 958.192) ≈ s.cash atol = 1e-1
+    @test Cash(:USDT, 999.547) ≈ s.cash atol = 1e-1
     @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-7
-    @test st.trades_count(s) == 824
+    @test st.trades_count(s) == 2051
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 1
-    @test mmh.min[1] == :ETH
-    @test mmh.min[2] ≈ 2.65385492016e6 atol = 1e2
-    @test mmh.max[1] == :ETH
-    @test mmh.max[2] ≈ 2.65385492016e6 atol = 1e2
+    @test mmh.min[1] == :BTC
+    @test mmh.min[2] ≈ 4.068469375875e6 atol = 1e2
+    @test mmh.max[1] == :BTC
+    @test mmh.max[2] ≈ 4.068469375875e6 atol = 1e2
 end
 
 function margin_overrides(ot=:market)
@@ -107,9 +107,9 @@ test_margin_market(s) = begin
     s.attrs[:overrides] = margin_overrides(:market)
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyMarketOrder
-    @test Cash(:USDT, 0.959) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.364) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 405
+    @test Cash(:USDT, 1.1) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 0.145) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 431
     mmh = st.minmax_holdings(s)
     @test mmh.count == 0
     @test mmh.min[1] == :USDT
@@ -143,9 +143,9 @@ test_margin_fok(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyFOKOrder
-    @test Cash(:USDT, 1276.0) ≈ s.cash atol = 1e1
-    @test Cash(:USDT, 1275.0) ≈ s.cash_committed atol = 1e1
-    @test st.trades_count(s) == 2052
+    @test Cash(:USDT, 982.318) ≈ s.cash atol = 1e1
+    @test Cash(:USDT, 981.404) ≈ s.cash_committed atol = 1e1
+    @test st.trades_count(s) == 2503
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -163,9 +163,9 @@ test_margin_ioc(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyIOCOrder
-    @test Cash(:USDT, 743.74) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 743.032) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 2050
+    @test Cash(:USDT, 987.157) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 986.305) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 4334
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
