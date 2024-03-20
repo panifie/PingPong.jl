@@ -98,7 +98,9 @@ For Good Till Cancelled (GTC) orders, it queues them for execution using the `pa
 function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
     if volumecap!(s, ai; amount)
     else
-        @debug "paper limit order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(s, ai)
+        @debug "paper limit order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(
+            s, ai
+        )
         return nothing
     end
     o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
@@ -114,6 +116,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         if o isa AnyGTCOrder
             @debug "paper limit order: queuing gtc order" o o.asset o.price o.amount
             paper_limitorder!(s, ai, o)
+            return @something trade missing
         elseif !isfilled(ai, o) && ordertype(o) <: ImmediateOrderType
             @debug "paper limit order: canceling" o.asset ordertype(o) o.price o.amount
             cancel!(s, o, ai; err=OrderCancelled(o))

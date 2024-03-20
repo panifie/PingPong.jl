@@ -97,7 +97,7 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         this_vol += inc_vol
     end
     avg_price /= this_vol
-    ob_trade = nothing::Union{Nothing,<:Trade}
+    ob_trade::Union{Nothing,<:Trade} = nothing
     if o isa AnyFOKOrder && this_vol < amount
         @debug "paper from ob: fok order no volume" o.price this_price amount this_vol
         cancel!(s, o, ai; err=NotEnoughLiquidity())
@@ -113,9 +113,9 @@ function from_orderbook(obside, s, ai, o::Order; amount, date)
         cancel!(s, o, ai; err=OrderFailed((; o, obside)))
     end
     @assert o.amount ≈ this_vol ||
-            o isa AnyLimitOrder ||
-            # NOTE: this can fail only if orderbook hasn't enough vol
-            sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
+        o isa AnyLimitOrder ||
+        # NOTE: this can fail only if orderbook hasn't enough vol
+        sum(entry[2] for entry in obside) < o.amount (o.amount, this_vol)
     taken_vol[] += this_vol
     @debug "paper from ob: done" avg_price this_vol taken_vol[]
     return avg_price, this_vol, ob_trade
