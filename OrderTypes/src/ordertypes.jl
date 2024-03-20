@@ -147,10 +147,11 @@ const IncreaseOrder{A,E} = Union{BuyOrder{A,E},ShortSellOrder{A,E}}
 @doc "An order that decreases the size of a position."
 const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "A Market Order type that liquidates a position."
-const LiquidationOrder{S,P} =
-    Order{LiquidationType{S},A,E,P} where {A<:AbstractAsset,E<:ExchangeID}
+const LiquidationOrder{S,P,A<:AbstractAsset,E<:ExchangeID} = Order{LiquidationType{S},A,E,P}
 @doc "A Market Order type called when manually closing a position (to sell the holdings)."
-const ReduceOnlyOrder = Union{Order{ForcedOrderType{Sell},A,E,Long},Order{ForcedOrderType{Buy},A,E,Short}} where {A<:AbstractAsset,E<:ExchangeID}
+const LongReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{ForcedOrderType{Sell},A,E,Long}
+const ShortReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{ForcedOrderType{Buy},A,E,Short}
+const ReduceOnlyOrder = Union{LongReduceOnlyOrder,ShortReduceOnlyOrder}
 
 @doc """ Defines various order types in the trading system
 
@@ -276,12 +277,19 @@ sidetopos(::BySide{Sell}) = Short()
 postoside(::ByPos{Long}) = Buy
 postoside(::ByPos{Short}) = Sell
 
+ReduceOnlyOrder(::ByPos{Long}) = LongReduceOnlyOrder
+ReduceOnlyOrder(::ByPos{Long}, A) = LongReduceOnlyOrder{A}
+ReduceOnlyOrder(::ByPos{Long}, A, E) = LongReduceOnlyOrder{A,E}
+ReduceOnlyOrder(::ByPos{Short}) = ShortReduceOnlyOrder
+ReduceOnlyOrder(::ByPos{Short}, A) = ShortReduceOnlyOrder{A}
+ReduceOnlyOrder(::ByPos{Short}, A, E) = ShortReduceOnlyOrder{A,E}
+
 export Order, OrderType, OrderSide, BySide, Buy, Sell, BuyOrSell, Trade, ByPos
 export BuyOrder, SellOrder, BuyTrade, SellTrade, AnyBuyOrder, AnySellOrder
 export ShortBuyTrade, ShortSellTrade
 export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
-export IncreaseOrder,
-    ReduceOrder, IncreaseTrade, ReduceTrade, LiquidationOrder, AnyImmediateOrder
+export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, AnyImmediateOrder
+export LiquidationOrder, ReduceOnlyOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCancelled, LiquidationOverride
 export Balance, OHLCV

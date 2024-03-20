@@ -52,7 +52,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
         cancel!(s, o, ai; err=OrderCancelled(o))
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
-    ot = ReduceOnlyOrder{liqside(p),typeof(p)}
+    ot = ReduceOnlyOrder(p)
     price = priceat(s, ot, ai, date)
     amount = abs(nondust(ai, price, p))
     if amount > 0.0
