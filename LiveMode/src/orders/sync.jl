@@ -443,6 +443,8 @@ If an order can be found or created, the function checks if the order is filled.
 If it is, it asserts that the order has trades, and if it isn't, it replays the order.
 Afterwards, the order is deleted from the active orders.
 
+!!! warning "Leverage information not available"
+    It is not possible to correctly sync the trade history of an asset because the leverage and margin information of the asset at the time of each trade is not available from the exchange. As a result, the leverage of all trades replayed from closed orders is currently set to 1.0.
 """
 function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=BuyOrSell, kwargs...)
     eid = exchangeid(ai)
