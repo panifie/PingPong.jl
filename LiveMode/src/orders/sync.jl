@@ -106,8 +106,8 @@ function live_sync_open_orders!(
             if ismissing(o)
                 continue
             elseif isfilled(ai, o)
-                trades_amount = amount_from_trades(trades(o)), o.amount, Val(:amount)
-                if !isapprox(ai, trades_amount)
+                trades_amount = _amount_from_trades(trades(o))
+                if !isapprox(ai, trades_amount, o.amount, Val(:amount))
                     @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
                     replay_order!(s, o, ai; resp, exec=false)
                 else
