@@ -165,11 +165,14 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     else
         fetch_positions_func(w) = begin
             start = now()
-            v = @lock w fetch_positions(s; timeout, params, rest...)
-            _dopush!(w, v)
-            push!(tasks, @async process!(w))
-            filter!(!istaskdone, tasks)
-            sleep_pad(start, interval)
+            try
+                v = @lock w fetch_positions(s; timeout, params, rest...)
+                _dopush!(w, v)
+                push!(tasks, @async process!(w))
+                filter!(!istaskdone, tasks)
+            finally
+                sleep_pad(start, interval)
+            end
         end
     end
 end

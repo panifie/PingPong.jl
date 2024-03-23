@@ -111,11 +111,14 @@ function _w_balance_func(s, attrs)
     else
         fetch_balance_func(w) = begin
             start = now()
-            v = @lock w fetch_balance(s; timeout, params, rest...)
-            _dopush!(w, v; if_func=isdict)
-            push!(tasks, @async process!(w))
-            filter!(!istaskdone, tasks)
-            sleep_pad(start, interval)
+            try
+                v = @lock w fetch_balance(s; timeout, params, rest...)
+                _dopush!(w, v; if_func=isdict)
+                push!(tasks, @async process!(w))
+                filter!(!istaskdone, tasks)
+            finally
+                sleep_pad(start, interval)
+            end
         end
     end
 end
