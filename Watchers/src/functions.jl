@@ -1,7 +1,7 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
 import .Misc: start!, stop!, load!
 import .Data.DFUtils: lastdate
-using .Lang: @ifdebug
+using .Lang: @ifdebug, @caller
 
 baremodule LogWatchLocks end
 baremodule TraceWatchLocks end
@@ -198,37 +198,39 @@ Base.islocked(w::Watcher) = islocked(_fetch_lock(w))
 Base.islocked(w::Watcher, ::Val{:buffer}) = islocked(_buffer_lock(w))
 @doc "Lock the fetch lock and execute `f`."
 Base.lock(f, w::Watcher) = begin
-    @debug "watchers: locking fetch" _module = LogWatchLocks w = w.name
+    @debug "watchers: locking fetch" _module = LogWatchLocks w = w.name f = @caller
     lock(f, _fetch_lock(w))
-    @debug "watchers: unlocked fetch" _module = LogWatchLocks w = w.name
+    @debug "watchers: unlocked fetch" _module = LogWatchLocks w = w.name f = @caller
 end
 @doc "Lock the buffer lock and execute `f`."
 Base.lock(f, w::Watcher, ::Val{:buffer}) = begin
-    @debug "watchers: locking buffer" _module = LogWatchLocks w = w.name
+    @debug "watchers: locking buffer" _module = LogWatchLocks w = w.name f = @caller
     lock(f, _buffer_lock(w))
-    @debug "watchers: unlocked buffer" _module = LogWatchLocks w = w.name
+    @debug "watchers: unlocked buffer" _module = LogWatchLocks w = w.name f = @caller
 end
 @doc "Lock the fetch lock."
 Base.lock(w::Watcher) = begin
-    @debug "watchers: locking fetch" _module = LogWatchLocks w = w.name
+    @debug "watchers: locking fetch" _module = LogWatchLocks w = w.name f = @caller
     lock(_fetch_lock(w))
+    @debug "watchers: locked fetch" _module = LogWatchLocks w = w.name f = @caller
     @ifdebug TraceWatchLocks push!(_LOCK_TRACE, stacktrace())
 end
 @doc "Lock the buffer lock."
 Base.lock(w::Watcher, ::Val{:buffer}) = begin
-    @debug "watchers: locking buffer" _module = LogWatchLocks w = w.name
+    @debug "watchers: locking buffer" _module = LogWatchLocks w = w.name f = @caller
     lock(_buffer_lock(w))
+    @debug "watchers: locked buffer" _module = LogWatchLocks w = w.name f = @caller
     @ifdebug TraceWatchLocks push!(_LOCK_TRACE, stacktrace())
 end
 @doc "Unlock the fetch lock."
 Base.unlock(w::Watcher) = begin
     unlock(_fetch_lock(w))
-    @debug "watchers: unlocked fetch" _module = LogWatchLocks w = w.name
+    @debug "watchers: unlocked fetch" _module = LogWatchLocks w = w.name f = @caller
 end
 @doc "Unlock the buffer lock."
 Base.unlock(w::Watcher, ::Val{:buffer}) = begin
     unlock(_buffer_lock(w))
-    @debug "watchers: unlocked buffer" _module = LogWatchLocks w = w.name
+    @debug "watchers: unlocked buffer" _module = LogWatchLocks w = w.name f = @caller
 end
 function Base.wait(w::Watcher, b=:fetch)
     if isstopped(w)
