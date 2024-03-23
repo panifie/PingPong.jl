@@ -103,7 +103,7 @@ function _w_positions_func(s, interval; iswatch, kwargs)
         s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
         function process_pos!(w, v)
             if !isnothing(v)
-                @lock w _dopush!(w, pylist(v))
+                _dopush!(w, pylist(v))
             end
             if !isready(channel[])
                 push!(tasks, @async process!(w))
@@ -165,10 +165,8 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     else
         fetch_positions_func(w) = begin
             start = now()
-            @lock w begin
-                v = fetch_positions(s; timeout, params, rest...)
-                _dopush!(w, v)
-            end
+            v = @lock w fetch_positions(s; timeout, params, rest...)
+            _dopush!(w, v)
             push!(tasks, @async process!(w))
             filter!(!istaskdone, tasks)
             sleep_pad(start, interval)
@@ -404,8 +402,8 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     _lastprocessed!(w, data_date)
     _lastcount!(w, data)
     if !iswatch || fetched
-        n_closed = _setposflags!(data_date, long_dict, Long(), processed_syms)
-        n_closed += _setposflags!(data_date, short_dict, Short(), processed_syms)
+        n_closed = _setposflags!(s, data_date, long_dict, Long(), processed_syms)
+        n_closed += _setposflags!(s, data_date, short_dict, Short(), processed_syms)
         if !isempty(processed_syms) || n_closed > 0
             live_sync_universe_cash!(s)
         end
@@ -420,10 +418,13 @@ $(TYPEDSIGNATURES)
 This function updates the `PositionUpdate` status when *not* using `watch*` function. This is neccesary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions it is expected that position close updates are received as new events.
 
 """
-function _setposflags!(data_date, dict, side, processed_syms)
+function _setposflags!(s, data_date, dict, side, processed_syms)
     n_closed = Ref(0)
     @sync for (sym, pup) in dict
-        @async @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
+        @info "positions.jl:426"
+        ai = asset_bysym(s, sym)
+        @async @lock ai @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
+            @info "positions.jl:428"
             dict[sym] = _posupdate(pup, data_date, pup.resp)
             pup.closed[] = true
             n_closed[] += 1

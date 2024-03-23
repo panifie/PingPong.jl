@@ -54,26 +54,23 @@ function _force_fetchbal(s; fallback_kwargs)
     if waslocked
         @debug "force fetch bal: waiting for fetch notify" _module = LogBalance
         wait(w)
+        @debug "force fetch bal: checking if updated" _module = LogBalance
         if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
             @debug "force fetch bal: waited" _module = LogBalance
             return
         end
     end
-    fetched = @lock w begin
+    bal, time = @lock w begin
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
-        bal = _handle_bal_resp(resp)
-        if !isnothing(bal)
-            pushnew!(w, bal, time)
-            @debug "force fetch bal: processing" _module = LogBalance
-            true
-        else
-            false
-        end
-    end::Bool
-    if fetched
+        _handle_bal_resp(resp), time
+    end
+    if !isnothing(bal)
+        @assert bal isa Py
+        pushnew!(w, bal, time)
         process!(w)
+        @debug "force fetch bal: processing" _module = LogBalance
     end
     @debug "force fetch bal: done" _module = LogBalance
 end

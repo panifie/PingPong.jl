@@ -95,36 +95,30 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
     if waslocked
         @debug "force fetch pos: waiting notify" _module = LogPosFetch islocked(w) ai = raw(ai) isstopped(w)
         wait(w)
+        @debug "force fetch pos: checking if updated"
         if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
             return
         end
     end
 
     @debug "force fetch pos: locking" _module = LogPosFetch islocked(w) ai = raw(ai)
-    fetched = @lock w begin
+    resp = @lock w begin
         timeout = @timeout_now()
         if timeout > Second(0)
             # NOTE: Force fetching doesn't guarantee the latest result, there still a TTL cache here
-            resp = let resp = fetch_positions(s; side, timeout, fallback_kwargs...)
+            let resp = fetch_positions(s; side, timeout, fallback_kwargs...)
                 _handle_pos_resp(resp, ai, side)
             end
-            if !isnothing(resp)
-                @debug "force fetch pos:" _module = LogPosFetch amount = try
-                    resp_position_contracts(first(resp), exchangeid(ai))
-                catch
-                end
-                pushnew!(w, resp)
-                @debug "force fetch pos: processing" _module = LogPosFetch
-                true
-            else
-                false
-            end
-        else
-            false
         end
-    end::Bool
-    if fetched
+    end
+    if !isnothing(resp)
+        @debug "force fetch pos:" _module = LogPosFetch amount = try
+            resp_position_contracts(first(resp), exchangeid(ai))
+        catch
+        end
+        pushnew!(w, resp)
         process!(w, fetched=true)
+        @debug "force fetch pos: processing" _module = LogPosFetch
     end
     @debug "force fetch pos: done" _module = LogPosFetch
 end
@@ -176,7 +170,7 @@ function live_position(
         @debug "live pos: waiting for fetch notify" _module = LogPosFetch ai = raw(ai) isrunning(s) isstarted(w) f = @caller
         wait(w)
     end
-    @debug "live pos: " _module = LogPosFetch wlocked force _isstale(ai, pup, side, since)
+    @debug "live pos: after notify" _module = LogPosFetch wlocked force _isstale(ai, pup, side, since)
     if (force && !wlocked) ||
        (isempty(buffer(w)) &&
         _isstale(ai, pup, side, since))

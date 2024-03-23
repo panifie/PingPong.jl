@@ -68,7 +68,7 @@ function _w_balance_func(s, attrs)
         s[:balance_channel] = channel = Ref(Channel{Any}(buffer_size))
         function process_bal!(w, v)
             if !isnothing(v)
-                @lock w _dopush!(w, v; if_func=isdict)
+                _dopush!(w, v; if_func=isdict)
             end
             if !isready(channel[])
                 push!(tasks, @async process!(w))
@@ -76,9 +76,8 @@ function _w_balance_func(s, attrs)
             filter!(!istaskdone, tasks)
         end
         function init_watch_func(w)
-            let v = @lock w fetch_balance(s; timeout, params, rest...)
-                process_bal!(w, v)
-            end
+            v = @lock w fetch_balance(s; timeout, params, rest...)
+            process_bal!(w, v)
             init[] = false
             f_push(v) = put!(channel[], v)
             h = w[:balance_handler] = watch_balance_handler(exc; f_push, params, rest...)
@@ -112,10 +111,8 @@ function _w_balance_func(s, attrs)
     else
         fetch_balance_func(w) = begin
             start = now()
-            @lock w begin
-                v = fetch_balance(s; timeout, params, rest...)
-                _dopush!(w, v; if_func=isdict)
-            end
+            v = @lock w fetch_balance(s; timeout, params, rest...)
+            _dopush!(w, v; if_func=isdict)
             push!(tasks, @async process!(w))
             filter!(!istaskdone, tasks)
             sleep_pad(start, interval)

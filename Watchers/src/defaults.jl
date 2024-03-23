@@ -9,7 +9,7 @@ function pushstart!(w::Watcher, vec)
     time = now()
     start_offset = min(w.buffer.capacity, size(vec, 1))
     pushval(x) = push!(w.buffer, (; time, value=x.value))
-    foreach(pushval, @view(vec[(end - start_offset + 1):end]))
+    foreach(pushval, @view(vec[(end-start_offset+1):end]))
 end
 
 @doc """ Pushes a new value to the watcher buffer if it is different from the last one.
@@ -20,7 +20,7 @@ The function takes a watcher, a value, and an optional time as arguments. If the
 """
 function pushnew!(w::Watcher, value, time=nothing)
     # NOTE: use object inequality to avoid non determinsm
-    if !isnothing(value) && (isempty(w.buffer) || Bool(value != w.buffer[end].value))
+    @lock _buffer_lock(w) if !isnothing(value) && (isempty(w.buffer) || Bool(value != w.buffer[end].value))
         v = (time=@something(time, now()), value)
         push!(w.buffer, v)
     end
@@ -187,11 +187,11 @@ function _deleteat!(w::Watcher, ::Val; from=nothing, to=nothing, kwargs...)
         end
     elseif isnothing(to)
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx + 1):lastindex(w.buffer, 1))
+        deleteat!(w.buffer, (from_idx+1):lastindex(w.buffer, 1))
     else
         from_idx = searchsortedfirst(w.buffer, (; time=from); by=x -> x.time)
         to_idx = searchsortedlast(w.buffer, (; time=to); by=x -> x.time)
-        deleteat!(w.buffer, (from_idx + 1):to_idx)
+        deleteat!(w.buffer, (from_idx+1):to_idx)
     end
 end
 
