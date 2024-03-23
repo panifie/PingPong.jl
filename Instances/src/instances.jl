@@ -199,8 +199,10 @@ posside(ai::MarginInstance) =
     let pos = position(ai)
         isnothing(pos) ? nothing : posside(pos)
     end
+_ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
+# NOTE: wrap the function here to quickly overlay methods
 @doc "Check if the margin mode is hedged."
-ishedged(::Union{T,Type{T}}) where {T<:MarginMode{H}} where {H} = H == Hedged
+ishedged(args...; kwargs...) = _ishedged(args...; kwargs...)
 @doc "Check if the `AssetInstance` is hedged."
 ishedged(ai::AssetInstance) = marginmode(ai) |> ishedged
 @doc "Check if the `AssetInstance` is open."

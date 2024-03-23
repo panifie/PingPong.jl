@@ -6,7 +6,6 @@ using TimeTicks: Lang
 using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
 using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
-using Mocking: Mocking
 
 include("defs.jl")
 include("lists.jl")

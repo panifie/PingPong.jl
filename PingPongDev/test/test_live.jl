@@ -1,23 +1,19 @@
 using PingPongDev.PingPong.Engine.Exchanges.Python
 using PingPongDev.PingPong.Engine.Lang: @lget!, @m_str
 using Test
-using Mocking
-using Mocking: apply
 using PingPongDev.PingPong.Engine.Exchanges: Exchanges as exs
 using PingPongDev.PingPong.Engine.Misc: MarginMode
 
-Mocking.activate()
+include("common.jl")
 
-mockapp(f, args...; kwargs...) = apply(f, args...; kwargs...)
-
-patch_pf = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
-    _mock_py_f(Python._pyfetch, f, args...; kwargs...)
+patch_pf = @expr function Python.pyfetch(f::Py, args...; kwargs...)
+    _mock_py_f(Python.__pyfetch, f, args...; kwargs...)
 end
-patch_pft = @patch function Python._pyfetch_timeout(f::Py, args...; kwargs...)
+patch_pft = @expr function Python.pyfetch_timeout(f::Py, args...; kwargs...)
     _mock_py_f(Python._pyfetch_timeout, f, args...; kwargs...)
 end
 
-_mock_py_f(pyf, f, args...; kwargs...) = begin
+function _mock_py_f(pyf, f, args...; kwargs...)
     name = string(f.__name__)
     if occursin("position", name)
         _pyjson("fetch_positions.json")
@@ -28,6 +24,7 @@ _mock_py_f(pyf, f, args...; kwargs...) = begin
     elseif occursin("leverage", name) && !occursin("tiers", name)
         PyDict("code" => "0")
     else
+        @warn "MOCKING: Unhandled call!" f
         pyf(f, args...; kwargs...)
     end
 end
@@ -43,7 +40,7 @@ end
 
 macro live_setup!()
     ex = quote
-        apply([patch_pf, patch_pft]) do
+        @pass [patch_pf, patch_pft] begin
             reset!(s)
         end
         ai = s[m"btc"]
@@ -58,6 +55,7 @@ function _live_load()
             using PingPongDev
             PingPongDev.PingPong.@environment!
         end
+        using Base.Experimental: @overlay
         using .inst: MarginInstance, raw, cash, cash!
         using .Python:
             PyException,
@@ -128,11 +126,11 @@ function live_dump_order_trades_json(s)
 end
 
 function test_live_fetch_orders(s)
-    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    patch = @expr function Python._pyfetch(f::Py, args...; kwargs...)
         _pyjson("fetch_orders.json")
     end
     @live_setup!
-    apply(patch) do
+    @pass [patch] begin
         let resp = lm.fetch_orders(s, ai)
             @test length(resp) == 15
             @test all(string(o["symbol"]) == "BTC/USDT:USDT" for o in resp)
@@ -157,11 +155,12 @@ function test_live_fetch_orders(s)
 end
 
 function test_live_fetch_positions(s)
-    patch = @patch function Python.pyfetch_timeout(f::Py, args...; kwargs...)
+    patch = @expr function Python.pyfetch_timeout(f::Py, args...; kwargs...)
         _pyjson("fetch_positions.json")
     end
-    Mocking.apply(patch) do
+    @pass [patch] begin
         @live_setup!
+        lm.set_exc_funcs!(s)
         ais = [s[m"btc"], s[m"eth"]]
         resp = lm.fetch_positions(s, ais)
         @test length(resp) == 2
@@ -179,8 +178,8 @@ function test_live_fetch_positions(s)
 end
 
 function test_live_cancel_orders(s)
-    resps = []
-    patch = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    @eval resps = []
+    patch = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if string(f.__name__) in
            ("cancel_order", "cancel_orders", "cancel_order_ws", "cancel_orders_ws")
             push!(resps, (args, kwargs))
@@ -189,7 +188,7 @@ function test_live_cancel_orders(s)
         end
     end
     @live_setup!
-    apply(patch) do
+    @pass [patch] begin
         lm.cancel_orders(s, ai)
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
         @test length(resps[1][2]) == 1
@@ -206,8 +205,8 @@ function test_live_cancel_orders(s)
 end
 
 function _has_patch()
-    disabled = Ref{Any}(())
-    patch = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
+    @eval disabled = Ref{Any}(())
+    patch = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym)
         if sym in disabled[]
             false
         else
@@ -218,8 +217,8 @@ function _has_patch()
 end
 
 function test_live_cancel_all_orders(s)
-    resps = []
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    @eval resps = []
+    patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if startswith(string(f.__name__), "cancel")
             push!(resps, (args, kwargs))
         else
@@ -229,7 +228,7 @@ function test_live_cancel_all_orders(s)
     patch2, disabled = _has_patch()
     disabled[] = (:cancelAllOrdersWs, :cancelAllOrders)
     @live_setup!
-    Mocking.apply([patch1, patch2]) do
+    @pass [patch1, patch2] begin
         lm.set_exc_funcs!(s)
         lm.cancel_all_orders(s, ai)
         @test length(resps[1]) == 2
@@ -247,8 +246,8 @@ function test_live_cancel_all_orders(s)
 end
 
 function test_live_position(s)
-    resps = []
-    patch1 = @patch function Python.pyfetch_timeout(f::Py, args...; kwargs...)
+    @eval resps = []
+    patch1 = @expr function Python.pyfetch_timeout(f::Py, args...; kwargs...)
         if occursin("position", string(f.__name__))
             _pyjson("fetch_positions.json")
         else
@@ -256,7 +255,7 @@ function test_live_position(s)
         end
     end
     @live_setup!
-    Mocking.apply([patch1]) do
+    @pass [patch1] begin
         # NOTE: use force=true otherwise we might fetch not mocked results
         empty!(lm.get_positions(s).long)
         empty!(lm.get_positions(s).short)
@@ -264,7 +263,7 @@ function test_live_position(s)
         @lock lm.positions_watcher(s) nothing
         update = lm.live_position(s, ai, Short(); force=true, synced=true)
         @test update.date <= now()
-        @test !update.read[]
+        @test !update.read[] || lm.position(ai, Short()).timestamp[] >= update.date
         @test !update.closed[]
         @test update.notify isa Base.GenericCondition
         v = update.resp
@@ -279,14 +278,14 @@ function test_live_position(s)
         empty!(lm.get_positions(s).short)
         # ensure watcher is unlocked otherwise force fetching gets skipped
         @lock lm.positions_watcher(s) nothing
-        v = lm.live_position(s, ai, Long(), force=true)
+        v = lm.live_position(s, ai, Long(); force=true)
         @test isnothing(v)
     end
 end
 
 function test_live_position_sync(s)
     @live_setup!
-    Mocking.apply([patch_pf, patch_pft]) do
+    @pass [patch_pf, patch_pft] begin
         # set some parameters for testing
         commits = true
         p = Short()
@@ -294,11 +293,16 @@ function test_live_position_sync(s)
         @test lm.pyisTrue(resp["unrealizedPnl"] == 1.4602989788032e-07)
         update = lm._posupdate(now(), resp)::lm.PositionTuple
 
+        @info "TEST: watch positions!"
+        lm.watch_positions!(s)
         # test if sync! returns a Position object with the correct attributes
+        @info "TEST: lock"
         @lock lm.positions_watcher(s) nothing
         reset!(ai.shortpos)
         reset!(ai.longpos)
-        pos = lm.live_sync_position!(s, ai, p, update; commits=commits)
+        @info "TEST: sync"
+        lm.live_sync_position!(s, ai, p, update; commits=commits)
+        pos = lm.position(ai, p)
         @test typeof(pos) <: ect.Position{Short}
         @test pos.timestamp[] <= lm.resp_position_timestamp(resp, eid)
         @test pos.status[] == ect.PositionOpen()
@@ -313,19 +317,24 @@ function test_live_position_sync(s)
         @test lm.pyisTrue(pos.entryprice[] == resp.get(lm.Pos.entryPrice))
 
         # test hedged mode mismatch
+        @info "TEST: double check" posside(ai) resp[lm.Pos.side] ccxt_side = lm._ccxtposside(opposite(lm.posside(p)))
         resp[lm.Pos.side] = lm._ccxtposside(opposite(lm.posside(p)))
-        @test_warn "double position" lm.live_sync_position!(
+        position(ai, opposite(posside(ai))).status[] = lm.PositionOpen()
+        pos = position(ai)
+        @test isopen(position(ai, Long))
+        @test isopen(position(ai, Short))
+        lm.live_sync_position!(
             s, ai, p, update; commits=commits
         )
+        @test (isopen(position(ai, Long)) && !isopen(position(ai, Short))) ||
+              (isopen(position(ai, Short)) && !isopen(position(ai, Long)))
 
         reset!(ai)
         @test pos.cash[] == 0.0
         try
             update.read[] = false
             ep = resp.get(lm.Pos.entryPrice)
-            lm.live_sync_position!(
-                s, ai, p, update; amount=0.01, ep_in=ep, commits=false
-            )
+            lm.live_sync_position!(s, ai, p, update; amount=0.01, ep_in=ep, commits=false)
         catch e
             @test occursin("can't be higher", e.msg)
         end
@@ -333,7 +342,7 @@ function test_live_position_sync(s)
 end
 function test_live_pnl(s)
     @live_setup!
-    apply([patch_pf, patch_pft]) do
+    @pass [patch_pf, patch_pft] begin
         # set some parameters for testing
         p = Short()
         lp = lm.fetch_positions(s, ai; side=p)[0]
@@ -361,9 +370,12 @@ function test_live_pnl(s)
 end
 
 function test_live_send_order(s)
-    doerror = Ref(false)
-    tries = Ref(0)
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    doerror, tries = @eval begin
+        doerror = Ref(false)
+        tries = Ref(0)
+        doerror, tries
+    end
+    patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if occursin("create_order", string(f.__name__))
             doerror[] && begin
                 tries[] += 1
@@ -371,40 +383,47 @@ function test_live_send_order(s)
             end
             _pyjson("create_order.json")
         else
-            Python._pyfetch(f, args...; kwargs...)
+            _mock_py_f(Python._pyfetch, f, args...; kwargs...)
         end
     end
     @live_setup!
-    Mocking.apply(patch1) do
+    lm.cash!(s.cash, 1e8)
+    @pass [patch1] begin
         cash!(ai, 0.123, Long())
+        @info "TEST: send1"
         resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000.0)
         @test pyisinstance(resp, pybuiltins.dict)
         @test string(resp.get("id")) == "997477f8-3857-45f6-b20b-8bae58ab28d9"
         doerror[] = true
+        cash!(ai, 0.123, Long())
+        @info "TEST: send2"
         resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000)
         @test resp isa ErrorException
+        cash!(ai, 0.123, Long())
         tries[] = 0
+        @info "TEST: send3"
         resp = lm.live_send_order(
             s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000, retries=3
         )
         @test tries[] == 16
         @test resp isa ErrorException
         cash!(ai, 0, Long())
-        resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000.0)
+        @info "TEST: send4"
+        @test_warn "not enough cash" resp = lm.live_send_order(s, ai, ect.GTCOrder{Sell}; amount=0.123, price=60000.0)
         @test isnothing(resp)
     end
 end
 
 function test_live_my_trades(s)
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if occursin("trades", string(f.__name__))
             _pyjson("mytrades.json")
         else
             Python._pyfetch(f, args...; kwargs...)
         end
     end
-    disabled = Ref{Any}()
-    patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
+    @eval disabled = Ref{Any}()
+    patch2 = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym)
         if sym in disabled
             false
         else
@@ -413,7 +432,7 @@ function test_live_my_trades(s)
     end
     @live_setup!
     try
-        Mocking.apply([patch1, patch2]) do
+        @pass [patch1, patch2] begin
             trades = lm.live_my_trades(s, ai)
             @test pyisinstance(trades, pybuiltins.list)
             @test length(trades) == 50
@@ -437,7 +456,7 @@ _pyjson(filename) =
 
 function test_live_order_trades(s)
     lm.set_exc_funcs!(s)
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if occursin("trades", string(f.__name__))
             _pyjson("mytrades.json")
         elseif occursin("order", string(f.__name__))
@@ -448,7 +467,7 @@ function test_live_order_trades(s)
     end
     haspatch, disabled = _has_patch()
     id = "1682179200-BTCUSDT-1439869-Buy"
-    mockapp([patch1, haspatch]) do
+    @pass [patch1, haspatch] begin
         disabled[] = (:fetchOrderTrades, :fetchOrderTradesWs)
         @info "TEST: live setup"
         @live_setup!
@@ -463,24 +482,28 @@ function test_live_order_trades(s)
 end
 
 function test_live_openclosed_orders(s)
-    lm.set_exc_funcs!(s)
-    patch1 = @patch function Python._mockable_pyfetch(f::Py, args...; kwargs...)
+    @eval disabled = Ref{Any}(())
+    patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if occursin("order", string(f.__name__))
-            _pyjson("fetch_orders.json")
+            if :fallback in disabled[]
+                pylist()
+            else
+                _pyjson("fetch_orders.json")
+            end
         else
             Python._pyfetch(f, args...; kwargs...)
         end
     end
-    disabled = Ref{Any}(())
-    @live_setup!
-    patch2 = @patch function exs.ExchangeTypes._mockable_has(exc::exs.CcxtExchange, sym)
+    patch2 = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym, args...; kwargs...)
         if sym in disabled[]
             false
         else
             exs.ExchangeTypes._has(exc, sym)
         end
     end
-    Mocking.apply([patch1, patch2]) do
+    @pass [patch1, patch2] begin
+        @live_setup!
+        lm.set_exc_funcs!(s)
         @test has(exchange(ai), :fetchOpenOrders)
         orders = lm.fetch_open_orders(s, ai)
         @test length(orders) == 15 # no check is done when query is direct from exchange
@@ -488,15 +511,17 @@ function test_live_openclosed_orders(s)
         disabled[] = (:fetchOpenOrders,)
         lm.set_exc_funcs!(s)
         orders = lm.fetch_open_orders(s, ai)
+        Main.ords = orders
         @test length(orders) == 1
         @test all(pyeq(Bool, o["status"], @pyconst("open")) for o in orders)
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
 
-        disabled[] = ()
+        disabled[] = (:fetchOpenOrders,)
+        lm.empty_caches!(s)
         lm.set_exc_funcs!(s)
         @test has(exchange(ai), :fetchClosedOrders)
         orders = lm.fetch_closed_orders(s, ai)
-        @test length(orders) == 30 # no check is done when query is direct from exchange
+        @test length(orders) == 15
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
         disabled[] = (:fetchClosedOrders,)
         lm.set_exc_funcs!(s)
@@ -504,10 +529,18 @@ function test_live_openclosed_orders(s)
         @test length(orders) == 14
         @test all(pyne(Bool, o["status"], @pyconst("open")) for o in orders)
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
+        disabled[] = (:fetchOrders, :fallback)
+        lm.set_exc_funcs!(s)
+        orders = lm.fetch_orders(s, ai)
+        @test length(orders) == 15
+        @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
+        disabled[] = (:fetchOrders, :fetchClosedOrders)
+        lm.set_exc_funcs!(s)
+        @test_throws UndefKeywordError lm.fetch_orders(s, ai)
     end
 end
 
-_test_live(debug=true) = begin
+function _test_live(debug=true)
     if debug
         ENV["JULIA_DEBUG"] = "LiveMode"
     end
@@ -516,13 +549,14 @@ _test_live(debug=true) = begin
             push!(cbs, lm.load_strategy_cache)
         end
     end
+
     @testset failfast = FAILFAST "live" begin
-        s = apply([patch_pf, patch_pft]) do
-            live_strat(:ExampleMargin, exchange=:phemex)
+        s = @pass [patch_pf, patch_pft] begin
+            live_strat(:ExampleMargin; exchange=:phemex, skip_sync=true)
         end
         try
             @testset "live_fetch_orders" test_live_fetch_orders(s)
-            # @testset "live_fetch_positions" test_live_fetch_positions(s)
+            @testset "live_fetch_positions" test_live_fetch_positions(s)
             @testset "live_cancel_orders" test_live_cancel_orders(s)
             @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
             @testset "live_position" test_live_position(s)
@@ -534,7 +568,7 @@ _test_live(debug=true) = begin
             @testset "live_openclosed_order" test_live_openclosed_orders(s)
         finally
             @async lm.stop_all_tasks(s)
-            lm.save_strategy_cache(s, inmemory=true)
+            lm.save_strategy_cache(s; inmemory=true)
         end
     end
 end

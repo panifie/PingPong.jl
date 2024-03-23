@@ -6,7 +6,6 @@ import Exchanges: maxleverage, tier
 using .Lang: @ifdebug
 using Base: negate
 import OrderTypes: isshort, islong, commit!
-using .Misc.Mocking: @mock, Mocking
 import .Misc: marginmode
 import .Instruments: cash!
 
@@ -174,7 +173,7 @@ isshort(::Union{Type{Long},Long}) = false
 isshort(::Missing) = false
 Misc.marginmode(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode} = M()
 function ishedged(::Position{<:PositionSide,<:ExchangeID,M}) where {M<:MarginMode}
-    @mock ishedged(M())
+    ishedged(M())
 end
 @doc """ Retrieves the leverage tier for a given position and size.
 

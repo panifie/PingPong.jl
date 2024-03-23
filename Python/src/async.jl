@@ -2,7 +2,6 @@ using PythonCall:
     Py, pynew, pydict, pyimport, pyexec, pycopy!, pyisnull, pybuiltins, pyconvert
 using Dates: Period, Second
 using Lang: safenotify, safewait
-using Mocking: @mock, Mocking
 
 @doc """ Checks if python async state (event loop) is initialized.
 
@@ -249,7 +248,7 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function _pyfetch(f::Py, args...; kwargs...)
+function __pyfetch(f::Py, args...; kwargs...)
     task = pytask(f(args...; kwargs...))
     try
         fetch(task)
@@ -269,12 +268,20 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function _pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
+function __pyfetch(f::Py, ::Val{:try}, args...; kwargs...)
     try
-        _pyfetch(f, args...; kwargs...)
+        __pyfetch(f, args...; kwargs...)
     catch e
         e
     end
+end
+
+function __pyfetch(f::Function, args...; kwargs...)
+    fetch(@async(f(args...; kwargs...)))
+end
+# NOTE: wrap the function here to quickly overlay methods
+function _pyfetch(args...; kwargs...)
+    __pyfetch(args...; kwargs...)
 end
 
 @doc """ Fetches the result of a Julia function call synchronously.
@@ -284,8 +291,8 @@ $(TYPEDSIGNATURES)
 function _pyfetch(f::Function, args...; kwargs...)
     fetch(@async(f(args...; kwargs...)))
 end
-_mockable_pyfetch(args...; kwargs...) = _pyfetch(args...; kwargs...)
-pyfetch(args...; kwargs...) = @mock _mockable_pyfetch(args...; kwargs...)
+# NOTE: wrap the function here to quickly overlay methods
+pyfetch(args...; kwargs...) = _pyfetch(args...; kwargs...)
 
 @doc """ Fetches the result of a Python function call synchronously with a timeout. If the timeout is reached, it calls another function and returns its result.
 
@@ -317,7 +324,8 @@ function _pyfetch_timeout(
     end
 end
 
-pyfetch_timeout(args...; kwargs...) = @mock _pyfetch_timeout(args...; kwargs...)
+# NOTE: wrap the function here to quickly overlay methods
+pyfetch_timeout(args...; kwargs...) = _pyfetch_timeout(args...; kwargs...)
 
 # function isrunning_func(running)
 #     @pyexec (running) => """

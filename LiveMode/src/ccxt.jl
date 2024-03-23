@@ -3,13 +3,12 @@ using .Python: @pystr, @pyconst, PyDict
 using .Python.PythonCall.Core: pyisint
 using .OrderTypes
 using .Misc: IsolatedMargin, CrossMargin, NoMargin
-using .Misc.Mocking: Mocking, @mock
 const ot = OrderTypes
 
-_execfunc(f::Py, args...; kwargs...) = @mock pyfetch(f, args...; kwargs...)
-_execfunc_timeout(f::Py, args...; timeout, kwargs...) = @mock pyfetch_timeout(f, Returns(missing), timeout, args...; kwargs...)
+_execfunc(f::Py, args...; kwargs...) = pyfetch(f, args...; kwargs...)
+_execfunc_timeout(f::Py, args...; timeout, kwargs...) = pyfetch_timeout(f, Returns(missing), timeout, args...; kwargs...)
 # Native functions shouldn't require a timeout
-_execfunc(f::Function, args...; kwargs...) = @mock f(args...; kwargs...)
+_execfunc(f::Function, args...; kwargs...) = f(args...; kwargs...)
 
 @doc "Converts a Python object to a string."
 pytostring(v) = pytruth(v) ? string(v) : ""

@@ -1,7 +1,6 @@
 using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr
 using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
-using Mocking: @mock, Mocking
 using OrderedCollections: OrderedSet
 
 @doc "Same as ccxt precision mode enums."
@@ -141,11 +140,11 @@ _has(exc::Exchange, s::Symbol) = begin
     h = getfield(exc, :has)
     get(h, s, false)
 end
-_mockable_has(args...; kwargs...) = _has(args...; kwargs...)
-has(args...; kwargs...) = @mock _mockable_has(args...; kwargs...)
-function has(exc, what::Tuple{Vararg{Symbol}}; kwargs...)
-    all((@mock _mockable_has(exc, v; kwargs...)) for v in what)
-end
+# NOTE: wrap the function here to quickly overlay methods
+has(args...; kwargs...) = _has(args...; kwargs...)
+_has_all(exc, what; kwargs...) = all((_has(exc, v; kwargs...)) for v in what)
+# NOTE: wrap the function here to quickly overlay methods
+has(exc, what::Tuple{Vararg{Symbol}}; kwargs...) = _has_all(exc, what; kwargs...)
 
 @doc """Return the first available property from a variable number of Symbol arguments in the given Exchange.
 
