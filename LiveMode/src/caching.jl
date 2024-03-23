@@ -1,6 +1,10 @@
 using LRUCache: LRUCache
 using .Misc.TimeToLive: ConcurrentDict
 
+function cache_keys()
+    (:trades_cache, :open_orders_cache, :closed_orders_cache, :orders_cache, :order_byid_cache, :positions_cache, :fetchall_cache, :live_recent_orders, :live_recent_trades_update)
+end
+
 _last_trade_date(ai) = st.lasttrade_date(ai, now() - Day(1))
 function somevalue(dict, keys...)
     for k in keys
@@ -58,6 +62,7 @@ function _func_cache(a)
                 ttl_dict_type(a[:orders_cache_ttl], DateTime, Any)}}()
     )
 end
+
 function _func_cache(a, func)
     l, cache = _func_cache(a)
     @lock l @lget! cache func (ReentrantLock(), ttl_resp_dict(a[:func_cache_ttl], DateTime, Any))
@@ -65,7 +70,7 @@ end
 
 function save_strategy_cache(s; inmemory=false, cache_path=nothing)
     cache = Dict()
-    for k in (:trades_cache, :open_orders_cache, :closed_orders_cache, :orders_cache, :order_byid_cache)
+    for k in cache_keys()
         if k in keys(s)
             cache[k] = s[k]
         end
@@ -112,5 +117,18 @@ function recent_trade_update(s::LiveStrategy, ai)
     @lock s begin
         lrt = @lget! attrs(s) :live_recent_trades_update Dict{AssetInstance,RecentUpdatesDict}()
         @lget! lrt ai RecentUpdatesDict(maxsize=100)
+    end
+end
+
+function empty_caches!(s::LiveStrategy)
+    a = s.attrs
+    for k in cache_keys()
+        if haskey(a, k)
+            if k in (:positions_cache, :fetchall_cache)
+                empty!(a[k][2])
+            else
+                empty!(a[k])
+            end
+        end
     end
 end
