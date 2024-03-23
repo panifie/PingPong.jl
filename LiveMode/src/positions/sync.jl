@@ -431,13 +431,11 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
         @async begin
             @sync begin
                 if ishedged(ai)
-                    @async @lock ai dosync(ai, Long(), long)
-                    @async @lock ai dosync(ai, Short(), short)
+                    @async dosync(ai, Long(), long)
+                    @async dosync(ai, Short(), short)
                 else
-                    @lock ai begin
-                        dosync(ai, Long(), long)
-                        dosync(ai, Short(), short)
-                    end
+                    dosync(ai, Long(), long)
+                    dosync(ai, Short(), short)
                 end
             end
             set_active_position!(ai; default_date)

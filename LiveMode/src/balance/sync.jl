@@ -40,9 +40,7 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     bal = live_balance(s; kwargs...)
     loop_kwargs = filterkws(:fallback_kwargs; kwargs)
     @sync for ai in s.universe
-        @async @lock ai begin
-            live_sync_cash!(s, ai, loop_kwargs...)
-        end
+        @async live_sync_cash!(s, ai; bal, loop_kwargs...)
     end
 end
 
