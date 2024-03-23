@@ -1,5 +1,6 @@
 using Instances
 using Instances.Exchanges.ExchangeTypes
+using Instances.Exchanges: getexchange!
 using Instances: OrderTypes, Data, Instruments
 using Instances: NoMarginInstance, MarginInstance
 
@@ -19,6 +20,7 @@ using .Lang: @lget!, MatchString
 using Base.Enums: namemap
 using .Misc: OrderedDict, OrderedCollections
 using .Misc.DocStringExtensions
+import .Misc: reset!
 
 @doc """A type representing a collection of asset instances.
 
@@ -89,13 +91,13 @@ end
 
 using .Instruments: isbase, isquote
 function Base.getindex(ac::AssetCollection, i::ExchangeID, col=Colon())
-    @view ac.data[ac.data.exchange .== i, col]
+    @view ac.data[ac.data.exchange.==i, col]
 end
 function Base.getindex(ac::AssetCollection, i::AbstractAsset, col=Colon())
-    @view ac.data[ac.data.asset .== i, col]
+    @view ac.data[ac.data.asset.==i, col]
 end
 function Base.getindex(ac::AssetCollection, i::AbstractString, col=Colon())
-    @view ac.data[ac.data.asset .== i, col]
+    @view ac.data[ac.data.asset.==i, col]
 end
 function Base.getindex(ac::AssetCollection, i::MatchString, col=Colon())
     v = @view ac.data[startswith.(getproperty.(ac.data.asset, :raw), uppercase(i.s)), :]
@@ -241,6 +243,15 @@ iscashable(c::AbstractCash, ac::AssetCollection) = begin
         end
     end
     return true
+end
+
+reset!(ac::AssetCollection) = begin
+    ais = ac.data.instance
+    foreach(eachindex(ais)) do idx
+        ai = ais[idx]
+        eid = exchangeid(ai)
+        ais[idx] = similar(ai, exc=getexchange!(eid))
+    end
 end
 
 export AssetCollection, flatten, iscashable

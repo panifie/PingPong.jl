@@ -498,9 +498,9 @@ This function returns a similar `AssetInstance` to the one provided, but resets 
 
 """
 function Base.similar(
-    ai::AssetInstance; limits=ai.limits, precision=ai.precision, fees=ai.fees
+    ai::AssetInstance; exc=ai.exchange, limits=ai.limits, precision=ai.precision, fees=ai.fees
 )
-    AssetInstance(ai.asset, ai.data, ai.exchange, marginmode(ai); limits, precision, fees)
+    AssetInstance(ai.asset, ai.data, exc, marginmode(ai); limits, precision, fees)
 end
 
 @doc "Get the asset instance cash."
