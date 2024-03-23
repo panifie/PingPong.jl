@@ -1,9 +1,9 @@
 using .Python: pyin
 
 function resptobool(::Exchange, resp)
-    if haskey(resp, "code")
+    if pyisTrue(@py haskey(resp, "code"))
         @py resp["code"] in (0, 200, "0", "200")
-    elseif haskey(resp, "msg")
+    elseif pyisTrue(@py haskey(resp, "msg"))
         @py "success" in resp["msg"]
     else
         @error "no matching key in response (default to false)" resp
