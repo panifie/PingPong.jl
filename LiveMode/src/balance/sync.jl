@@ -64,7 +64,7 @@ function live_sync_cash!(
 )
     @lock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift
-        if bal.date[] != DateTime(0) || !isfinite(cash(ai))
+        if bal.date != DateTime(0) || !isfinite(cash(ai))
             this_bal = bal.balance
             cash!(ai, this_bal.free)
             # FIXME: used cash can't be assummed to only account for open orders.

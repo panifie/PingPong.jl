@@ -574,7 +574,7 @@ zerobal() = (; total=ZERO, free=ZERO, used=ZERO)
 The date represents the time the balance was fetched.
 """
 function zerobal_tuple()
-    (; date=Ref(DateTime(0)), balance=zerobal())
+    (; date=DateTime(0), balance=zerobal())
 end
 _balance_bytype(_, ::Nothing) = nothing
 _balance_bytype(::Nothing, ::Symbol) = nothing
