@@ -151,6 +151,7 @@ Base.string(::Isolated) = "Isolated Margin"
 Base.string(::Cross) = "Cross Margin"
 Base.string(::NoMargin) = "No Margin"
 
+@nospecialize
 function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
     exc = exchange(s)
     write(out, "Name: $(nameof(s)) ($(s |> execmode |> typeof |> nameof)) ")
@@ -198,3 +199,4 @@ function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
     t = nameof(s.cash)
     write(out, "$(t): $(tot) (Total)")
 end
+@specialize
