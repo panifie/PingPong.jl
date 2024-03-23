@@ -959,11 +959,20 @@ $(TYPEDSIGNATURES)
 This function returns the last known price for an `AssetInstance`. Additional arguments and keyword arguments can be provided to adjust the way the last price is calculated, if necessary.
 
 """
-function lastprice(ai::AssetInstance, args...; kwargs...)
+function lastprice(ai::AssetInstance, args...; hist=false, kwargs...)
     exc = ai.exchange
     tickers = @tickers! markettype(exc, marginmode(ai)) false TICKERS_CACHE10
-    tick = @something get(tickers, raw(ai), nothing) lastprice(ai, Val(:history))
-    lastprice(exc, tick)
+    tick = get(tickers, raw(ai), nothing)
+    this_args = if isnothing(tick)
+        if hist
+            (ai, Val(:history))
+        else
+            (raw(ai), exc)
+        end
+    else
+        (exc, tick)
+    end
+    lastprice(this_args...)
 end
 @doc """ Get the last price from the history for an `AssetInstance`.
 
@@ -977,7 +986,7 @@ function lastprice(ai::AssetInstance, ::Val{:history})
     if length(v) > 0
         last(v).price
     else
-        lastprice(ai)
+        lastprice(ai, hist=true)
     end
 end
 
