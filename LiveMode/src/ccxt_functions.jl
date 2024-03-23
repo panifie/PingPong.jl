@@ -198,14 +198,15 @@ function _tryfetchall(a, func, ai, args...; kwargs...)
             func(nothing, args...; kwargs...)
         end
         if islist(resp_all)
+            ans = pylist(resp_all)
             if ai isa AssetInstance
                 this_sym = @pystr(raw(ai))
                 eid = exchangeid(ai)
-                filterfrom!(resp_all) do o
+                filterfrom!(ans) do o
                     pyne(Bool, resp_order_symbol(o, eid), this_sym)
                 end
             end
-            return resp_all
+            return ans
         else
             if resp_all isa Exception
                 !occursin("symbol", string(resp_all))
