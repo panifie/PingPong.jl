@@ -421,6 +421,14 @@ function st.default!(s::LiveStrategy)
     _simmode_defaults!(s, a)
     reset_logs(s)
 
+    skip_sync = if get(a, :skip_sync, false)
+        a[:sync_history_limit] = 0
+        @lget! a :is_running Ref(false)
+        true
+    else
+        false
+    end
+
     throttle = get!(a, :throttle, Second(5))
     throttle_per_asset = throttle * nrow(s.universe.data)
     limit = get!(a, :sync_history_limit, 100)
@@ -469,7 +477,9 @@ function st.default!(s::LiveStrategy)
         live_sync_closed_orders!(s; limit)
     end
     first_start = !haskey(a, :is_running)
-    live_sync_open_orders!(s; overwrite=first_start)
+    if !skip_sync
+        live_sync_open_orders!(s; overwrite=first_start)
+    end
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
