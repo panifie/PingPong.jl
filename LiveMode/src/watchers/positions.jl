@@ -424,10 +424,8 @@ This function updates the `PositionUpdate` status when *not* using `watch*` func
 function _setposflags!(s, data_date, dict, side, processed_syms)
     n_closed = Ref(0)
     @sync for (sym, pup) in dict
-        @info "positions.jl:426"
         ai = asset_bysym(s, sym)
         @async @lock ai @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
-            @info "positions.jl:428"
             dict[sym] = _posupdate(pup, data_date, pup.resp)
             pup.closed[] = true
             n_closed[] += 1
