@@ -19,7 +19,7 @@ function ccxt_balance_watcher(
     interval=Second(1),
     wid="ccxt_balance",
     buffer_capacity=10,
-    start=true,
+    start=false,
     params=LittleDict{Any,Any}(),
     kwargs...,
 )
@@ -273,8 +273,8 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s))
     @lock s begin
-        w = @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval, start=true)
-        @lock w if isstopped(w) && !attr(s, :stopping, false)
+        w = @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval)
+        @lock w if isstopped(w) && !attr(s, :stopped, false)
             start!(w)
         end
         w
@@ -291,9 +291,11 @@ This function stops the watcher that is tracking and updating balance for a live
 function stop_watch_balance!(s::LiveStrategy)
     w = get(s.attrs, :live_balance_watcher, nothing)
     if w isa Watcher
-        @lock w if isstarted(w)
+        @debug "live: stopping balance watcher" _module = LogWatchBalance islocked(w)
+        if isstarted(w)
             stop!(w)
         end
+        @debug "live: balance watcher stopped" _module = LogWatchBalance
     end
 end
 

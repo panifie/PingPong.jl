@@ -33,7 +33,7 @@ function ccxt_positions_watcher(
     interval=Second(5),
     wid="ccxt_positions",
     buffer_capacity=10,
-    start=true,
+    start=false,
     kwargs...,
 )
     exc = st.exchange(s)
@@ -185,10 +185,8 @@ This function starts the watcher for positions in a live strategy `s`. The watch
 """
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
     @lock s begin
-        w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(
-            s; interval, start=true
-        )
-        @lock w if isstopped(w) && !attr(s, :stopping, false)
+        w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(s; interval)
+        @lock w if isstopped(w) && !attr(s, :stopped, false)
             start!(w)
         end
         w
@@ -205,9 +203,11 @@ This function stops the watcher that is tracking and updating positions for a li
 function stop_watch_positions!(s::LiveStrategy)
     w = get(s.attrs, :live_positions_watcher, nothing)
     if w isa Watcher
-        @lock w if isstarted(w)
+        @debug "live: stopping positions watcher" _module = LogWatchPos
+        if isstarted(w)
             stop!(w)
         end
+        @debug "live: positions watcher stopped" _module = LogWatchPos
     end
 end
 

@@ -673,13 +673,14 @@ This function stops a live strategy `s`.
 """
 function stop!(s::LiveStrategy; kwargs...)
     try
-        s[:stopping] = true
+        invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
+    catch
+        @debug_backtrace LogTasks
+    end
+    try
         stop_all_tasks(s)
     catch
         @debug_backtrace LogTasks
-    finally
-        invoke(stop!, Tuple{Strategy{<:Union{Paper,Live}}}, s; kwargs...)
-        s[:stopping] = false
     end
 end
 

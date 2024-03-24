@@ -91,15 +91,13 @@ end
 
 @doc "`_timer` is an optional Timer object used to schedule fetch operations for a watcher."
 function _timer!(w)
-    let t = w._timer
-        isnothing(t) || close(t)
+    if !isnothing(w._timer)
+        close(w._timer)
     end
-    w._timer = Timer(
-        # NOTE: the callback for the timer requires 1 arg (the timer itself)
-        (_) -> _schedule_fetch(w, w.interval.timeout, w._exec.threads),
-        0;
-        interval=convert(Second, w.interval.fetch).value,
-    )
+    # NOTE: the callback for the timer requires 1 arg (the timer itself)
+    timer_fetch_callback(_) = _schedule_fetch(w, w.interval.timeout, w._exec.threads)
+    interval = round(w.interval.fetch, Second, RoundUp).value
+    w._timer = Timer(timer_fetch_callback, 0; interval)
 end
 
 @doc """ Checks the appropriateness of the flush interval

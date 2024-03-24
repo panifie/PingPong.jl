@@ -158,6 +158,7 @@ function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
     local startinfo, flushlog, log_lock
+    s[:stopped] = false
     @debug "start: locking"
     @lock s begin
         attrs = s.attrs
@@ -245,22 +246,21 @@ $(TYPEDSIGNATURES)
 This function stops the execution of a strategy and logs the mode and elapsed time since the strategy started. If the strategy is running in the background, it waits for the task to finish.
 """
 function stop!(s::Strategy{<:Union{Paper,Live}})
+    s[:stopped] = true
     @debug "stop: locking"
-    task = @lock s begin
-        running = attr(s, :is_running, nothing)
-        task = attr(s, :run_task, nothing)
-        if isnothing(running)
-            @assert isnothing(task) || istaskdone(task)
-            return nothing
-        else
-            @assert running[] || isnothing(task) || istaskdone(task)
+    @lock s begin
+        running = attr(s, :is_running, missing)
+        task = attr(s, :run_task, missing)
+        if running isa Ref{Bool}
+            running[] = false
         end
-        running[] = false
-        task
-    end
-    @info "strategy: stopping" mode = execmode(s) elapsed(s)
-    if task isa Task && !istaskdone(task)
-        wait(task)
+        if task isa Task
+            waitforcond(task.donenotify, throttle(s))
+            if !istaskdone(task)
+                @warn "strategy: hanging task, killing"
+                Threads.@spawn kill_task(task)
+            end
+        end
     end
     @info "strategy: stopped" mode = execmode(s) elapsed(s)
 end
