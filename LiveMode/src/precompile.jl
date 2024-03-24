@@ -1,7 +1,7 @@
 using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
 
 @preset let
-    ENV["JULIA_DEBUG"] = "LiveMode"
+    ENV["JULIA_DEBUG"] = "LiveMode" # "LogBalance,LogWatchBalance,LogWatchLocks,TraceWatchLocks"
     st.Instances.Exchanges.Python.py_start_loop()
     run_funcs(exchange, margin) = begin
         s = st.strategy(st.BareStrat; mode=Live(), exchange, margin)
@@ -24,25 +24,37 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         @debug "PRECOMP: live mode start stop" exchange margin
         @precomp begin
             @info "PRECOMP: start" exchange margin
-            start!(s)
+            try
+                start!(s)
+                while !isrunning(s)
+                    sleep(0.1)
+                end
+            catch e
+                @error "PRECOMP: strategy start failed" exception = e
+            end
             @info "PRECOMP: stop" exchange margin
-            while !isrunning(s)
-                sleep(0.1)
-            end
             stop!(s)
-            for ai in s.universe
-                tasks = asset_tasks(s, ai)
-                reset_asset_tasks!(task)
-            end
+            # for ai in s.universe
+            #     tasks = asset_tasks(s, ai)
+            #     reset_asset_tasks!(task)
+            # end
             @info "PRECOMP: stopped" exchange margin
         end
         ot = OrderTypes
         @debug "PRECOMP: live mode pong" exchange margin
-        start!(s)
+        try
+            start!(s)
+        catch e
+            @error "PRECOMP: strategy start failed" exception = e
+        end
         SimMode.@compile_pong
-        start!(s)
-        while !isrunning(s)
-            sleep(0.1)
+        try
+            start!(s)
+            while !isrunning(s)
+                sleep(0.1)
+            end
+        catch e
+            @error "PRECOMP: strategy start failed" exception = e
         end
         @debug "PRECOMP: live mode reset" exchange margin
         @precomp @ignore begin
