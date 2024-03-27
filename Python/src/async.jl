@@ -12,7 +12,7 @@ function isinitialized_async(pa::PythonAsync)
 end
 
 function setrunning!(flag::Bool, pa::PythonAsync=gpa)
-    pa.globs["running"] = pa.task_running[] = flag
+    pa.globs["running"] = flag
 end
 
 @doc """ Copies a python async structures.
@@ -74,6 +74,7 @@ function py_start_loop(pa::PythonAsync=gpa)
     @assert pyisnull(pyloop) || !Bool(pyloop.is_running())
     if isassigned(pa.task) && !istaskdone(pa.task[])
         setrunning!(false, pa)
+        pa.task_running[] = false
         try
             wait(pa.task[])
         catch
@@ -81,17 +82,38 @@ function py_start_loop(pa::PythonAsync=gpa)
     end
 
     pyisnull(pycoro_type) && pycopy!(pycoro_type, pyimport("types").CoroutineType)
-    start_task() = pa.task[] = @async while true
-        try
-            setrunning!(true, pa)
-            pyisnull(pa.start_func) || pa.start_func(Python)
-        catch e
-            @debug e
-        finally
-            setrunning!(false, pa)
-            pyisnull(pyloop) || pyloop.stop()
+    function start_task()
+        pa.task[] = @async begin
+            # NOTE: It's the global struct
+            gpa.task_running[] = true
+            while true
+                try
+                    # NOTE: It's the global struct
+                    if gpa.task_running[]
+                        setrunning!(true, pa)
+                        pyisnull(pa.start_func) || pa.start_func(Python)
+                    else
+                        break
+                    end
+                catch e
+                    if e isa InterruptException
+                        break
+                    else
+                        @debug "python: async loop stop" exception = e
+                    end
+                finally
+                    setrunning!(false, pa)
+                    if _pyisrunning(pyloop)
+                        try
+                            pyloop.stop()
+                        finally
+                            pyloop.close()
+                        end
+                    end
+                end
+                sleep(1)
+            end
         end
-        sleep(1)
     end
 
     start_task()
@@ -112,6 +134,7 @@ end
 
 function py_stop_loop(pa::PythonAsync=gpa)
     setrunning!(false, pa)
+    pa.task_running[] = false
     try
         wait(pa.task[])
     catch
@@ -353,7 +376,7 @@ pyfetch_timeout(args...; kwargs...) = _pyfetch_timeout(args...; kwargs...)
 #     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
 # end
 
-_pyisrunning() = !pyisnull(gpa.pyloop) && pyisTrue(gpa.pyloop.is_running())
+_pyisrunning(loop=gpa.pyloop) = !pyisnull(loop) && pyisTrue(loop.is_running())
 
 _set_loop(pa, loop) = pycopy!(pa.pyloop, loop)
 _get_ref() =
@@ -378,15 +401,9 @@ function async_start_runner_func!(pa)
     async def main(Python):
         pa = Python._get_ref()
         Python._set_loop(pa, asyncio.get_running_loop())
-        try:
-            while running:
-                await pysleep(1e-3)
-                jlsleep(1e-1)
-        finally:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                loop.close()
-                loop.stop()
+        while running:
+            await pysleep(1e-3)
+            jlsleep(1e-1)
     """
     # main_func = pyexec(NamedTuple{(:main,),Tuple{Py}}, code, pydict()).main
     globs = pydict()
