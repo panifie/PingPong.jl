@@ -59,7 +59,7 @@ function _live_sync_position!(
     pside = posside_fromccxt(resp, eid, p)
     pos = position(ai, pside)
     wasopen = isopen(pos) # by macro warn_unsynced
-    @debug "sync pos: vars" wasopen pside skipchecks overwrite
+    @debug "sync pos: vars" _module = LogPosSync cash = cash(pos) sym = raw(ai) wasopen pside skipchecks overwrite
 
     # check hedged mode
     if !resp_position_hedged(resp, eid) == ishedged(pos)
@@ -424,7 +424,7 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
     default_date = now()
     function dosync(ai, side, dict)
         pup = get(dict, raw(ai), nothing)
-        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) isnothing(pup) overwrite force
+        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) side isnothing(pup) overwrite force
         live_sync_cash!(s, ai, side; pup, overwrite, force, kwargs...)
     end
     @sync for ai in s.universe

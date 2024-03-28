@@ -333,7 +333,7 @@ function update_order!(s, ai, eid; resp, state)
                     err=OrderFailed(resp_order_status(resp, eid, String)),
                 )
             end
-            @debug "update ord: de activating order" _module = LogWatchOrder id = state.order.id ai = raw(ai)
+            @debug "update ord: de activating order" _module = LogWatchOrder id = state.order.id ai = raw(ai) order_filled
             clear_order!(s, ai, state.order)
             @ifdebug if hasorders(s, ai, state.order.id)
                 @warn "update ord: order should already have been removed from local state, \
