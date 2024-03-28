@@ -10,7 +10,7 @@ The `overwrite` parameter controls whether to ignore the `read` state of an upda
 function live_sync_strategy!(s::LiveStrategy; overwrite=false, force=false)
     live_sync_open_orders!(s; overwrite) # NOTE: before cash
     @sync begin
-        @async live_sync_strategy_cash!(s; force)
-        @async live_sync_universe_cash!(s; force)
+        @async live_sync_strategy_cash!(s; overwrite, force)
+        @async live_sync_universe_cash!(s; overwrite, force)
     end
 end
