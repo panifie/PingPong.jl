@@ -342,23 +342,22 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                         end
                     else
                         # NOTE: give id directly since the _resp is for a trade and not an order
-                        let o = findorder(s, ai; resp, id)
-                            if o isa Order
-                                if isfilled(ai, o) && length(trades(o)) > 0
-                                    amount = resp_trade_amount(resp, eid)
-                                    last_amount = last(trades(o)).amount
-                                    @warn "handle trade: no matching active order, possibly a late trade" emulated =
-                                        last_amount exchange = amount
-                                else
-                                    @error "handle trade: expected live order state since order was not filled" id ai = raw(
-                                        ai
-                                    ) s = nameof(s)
-                                end
+                        o = findorder(s, ai; resp, id)
+                        if o isa Order
+                            if isfilled(ai, o) && length(trades(o)) > 0
+                                amount = resp_trade_amount(resp, eid)
+                                last_amount = last(trades(o)).amount
+                                @warn "handle trade: no matching active order, possibly a late trade" emulated =
+                                    last_amount exchange = amount
                             else
-                                @warn "handle trade: no matching order nor state" id ai = raw(
+                                @error "handle trade: expected live order state since order was not filled" id ai = raw(
                                     ai
-                                ) resp_order_type(resp, eid) s = nameof(s)
+                                ) s = nameof(s)
                             end
+                        else
+                            @warn "handle trade: no matching order nor state" id ai = raw(
+                                ai
+                            ) resp_order_type(resp, eid) s = nameof(s)
                         end
                     end
                 end
