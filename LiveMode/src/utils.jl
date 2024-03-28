@@ -522,9 +522,22 @@ get_positions(s) = attr(watch_positions!(s; interval=st.throttle(s)), :view)
 get_positions(s, ::ByPos{Long}) = get_positions(s).long
 get_positions(s, ::ByPos{Short}) = get_positions(s).short
 get_positions(s, ai, bp::ByPos) = get(get_positions(s, bp), raw(ai), nothing)
-function get_positions(s, ai, side=get_position_side(s, ai))
-    pside = @something posside(side) get_position_side(s, ai)
-    get(get_positions(s, pside), raw(ai), nothing)
+function get_positions(s, ai, side=nothing)
+    this_side = isnothing(side) ? get_position_side(s, ai) : side
+    get(get_positions(s, posside(this_side)), raw(ai), nothing)
+end
+
+function posside_fallbacks(s::Strategy, ai)
+    if hasorders(s, ai)
+        @debug "No position open for $(raw(ai)), inferring from open orders" _module = LogPos
+        posside(first(orders(s, ai)).second)
+    elseif length(trades(ai)) > 0
+        @debug "No position open for $(raw(ai)), inferring from last trade" _module = LogPos
+        posside(last(trades(ai)))
+    else
+        @debug "No position open for $(raw(ai)), defaulting to long" _module = LogPos
+        Long()
+    end
 end
 @doc """ Retrieves the position side of an asset instance in a strategy.
 
@@ -545,75 +558,13 @@ function get_position_side(s, ai::AssetInstance)
         if isshort(last_pos) && !ismissing(short_pos) && !short_pos.closed[]
             return Short()
         end
-        @something posside(ai) if hasorders(s, ai)
-            @debug "No position open for $sym, inferring from open orders" _module = LogPos
-            posside(first(orders(s, ai)).second)
-        elseif length(trades(ai)) > 0
-            @debug "No position open for $sym, inferring from last trade" _module = LogPos
-            posside(last(trades(ai)))
-        else
-            @debug "No position open for $sym, defaulting to long" _module = LogPos
-            Long()
-        end
+        @something posside(ai) posside_fallbacks(s, ai)
     catch
         @debug_backtrace LogPos
         Long()
     end
 end
 get_position_side(::NoMarginStrategy{Live}, ::AssetInstance) = Long()
-@doc """ Provides a zeroed-out balance.
-
-$(TYPEDSIGNATURES)
-
-The zero balance for an asset instance.
-
-"""
-zerobal() = (; total=ZERO, free=ZERO, used=ZERO)
-@doc """ Creates a new balance tuple.
-
-The date represents the time the balance was fetched.
-"""
-function zerobal_tuple()
-    (; date=DateTime(0), balance=zerobal())
-end
-_balance_bytype(_, ::Nothing) = nothing
-_balance_bytype(::Nothing, ::Symbol) = nothing
-_balance_bytype(v, sym) = getproperty(v, sym)
-@doc """ Retrieves the balance of a strategy.
-
-$(TYPEDSIGNATURES)
-
-This function retrieves the balance associated with a strategy `s`. It achieves this by watching the balance with a specified interval and returning the view of the balance.
-
-"""
-get_balance(s) = watch_balance!(s; interval=st.throttle(s)).view
-function get_balance(s, sym; fallback_kwargs=(;), bal=get_balance(s))
-    if isnothing(bal) || sym ∉ keys(bal.balance)
-        if nameof(s.cash) == sym || st.inuniverse(sym, s)
-            _force_fetchbal(s; fallback_kwargs)
-            bal = get_balance(s)
-        else
-            return zerobal_tuple()
-        end
-    end
-    (; date=bal.date[], balance=@lget!(bal.balance, sym, zerobal()))
-end
-get_balance(s, sym, type; kwargs...) = begin
-    @deassert type ∈ (:used, :total, :free, nothing)
-    tup = get_balance(s, sym; kwargs...)
-    if isnothing(type)
-        tup
-    else
-        _balance_bytype(tup, type)
-    end
-end
-get_balance(s, ::Nothing, ::Nothing) = get_balance(s, nothing)
-function get_balance(s, ai::AssetInstance, tp::Option{Symbol}=nothing; kwargs...)
-    get_balance(s, bc(ai), tp; kwargs...)
-end
-function get_balance(s, ::Nothing, args...; kwargs...)
-    get_balance(s, nameof(s.cash), args...; kwargs...)
-end
 
 @doc """ Retrieves the timestamp for a specific asset instance in a strategy.
 
@@ -740,8 +691,9 @@ end
 
 function asset_bysym(s::Strategy, sym)
     @lock s begin
+        k = string(sym)
         dict_bysim = @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
-        @lget! dict_bysim sym let v = s[MatchString(sym)]
+        @lget! dict_bysim k let v = s[MatchString(k)]
             if v isa AssetInstance
                 v
             end
