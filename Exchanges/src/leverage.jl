@@ -3,6 +3,7 @@ using Data: Cache, tobytes, todata
 using Data.DataStructures: SortedDict
 using Instruments: splitpair
 using .Misc: IsolatedMargin, CrossMargin, Long, Short
+import .Misc.marginmode
 
 # TODO: export to livemode
 resp_code(resp, ::Type{<:ExchangeID}) = pygetitem(resp, @pyconst("code"), @pyconst(""))
@@ -173,12 +174,16 @@ function marginmode!(exc::Exchange, mode, symbol; hedged=false, kwargs...)
     mode_str = string(mode)
     if mode_str in ("isolated", "cross")
         exc.options["defaultMarginMode"] = mode_str
-        ans = dosetmargin(exc, mode_str, symbol; hedged, kwargs...)
-        if ans isa Bool
-            return ans
+        if !isempty(symbol)
+            ans = dosetmargin(exc, mode_str, symbol; hedged, kwargs...)
+            if ans isa Bool
+                return ans
+            else
+                @error "failed to set margin mode" exc = nameof(exc) err = ans
+                return false
+            end
         else
-            @error "failed to set margin mode" exc = nameof(exc) err = ans
-            return false
+            return true
         end
     elseif mode_str == "nomargin"
         return true
