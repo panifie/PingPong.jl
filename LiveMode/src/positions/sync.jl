@@ -140,7 +140,7 @@ function _live_sync_position!(
     end
 
     this_timestamp = update.date
-    if this_timestamp < timestamp(pos)
+    if this_timestamp < timestamp(pos) && !overwrite
         @debug "sync pos: position timestamp not newer" _module = LogPosSync timestamp(pos) this_timestamp overwrite f = @caller
         return pos
     end
