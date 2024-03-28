@@ -76,7 +76,7 @@ function pong!(
     ids=(),
 )
     @timeout_start
-    if hasorders(s, ai, t) && !confirm
+    if !hasorders(s, ai, t) && !confirm
         @debug "pong cancel orders: no local open orders"
         return true
     end
