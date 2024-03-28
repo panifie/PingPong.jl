@@ -348,6 +348,11 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
             continue
         end
         sym = resp_position_symbol(resp, eid, String)
+        ai = asset_bysym(s, sym)
+        if isnothing(ai)
+            @warn "watchers process: no matching asset for symbol" sym
+            continue
+        end
         default_side_func = Returns(_last_updated_position(long_dict, short_dict, sym))
         side = posside_fromccxt(resp, eid; default_side_func)
         push!(processed_syms, (sym, side))
@@ -368,7 +373,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         is_stale = this_date == prev_date
         # this ensure even if there are no updates we know
         # the date of the last fetch run
-        ai = asset_bysym(s, sym)
         @async @lock ai @lock cond begin
             pup = if isnothing(pup_prev)
                 _posupdate(this_date, resp)

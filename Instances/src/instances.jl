@@ -245,8 +245,16 @@ function isdust(ai::AssetInstance, price, p::PositionSide)
         this_cash * price * leverage(pos) < ai.limits.cost.min
     end
 end
-function isdust(ai::AssetInstance, price)
+function isdust(ai::MarginInstance, price)
     isdust(ai, price, Long()) && isdust(ai, price, Short())
+end
+function isdust(ai::NoMarginInstance, price::Number)
+    this_cash = cash(ai) |> value |> abs
+    if this_cash >= ai.limits.amount.min
+        return false
+    else
+        this_cash * price < ai.limits.cost.min
+    end
 end
 @doc """ Get the asset cash rounded to precision.
 
