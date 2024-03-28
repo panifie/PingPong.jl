@@ -123,7 +123,8 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
         sellorders = Dict{ExchangeAsset{eid},SortedDict{PriceTime,ExchangeSellOrder{eid}}}()
         name = nameof(self)
         # set exchange
-        exc.options["defaultMarginMode"] = margin isa IsolatedMargin ? "isolated" : "cross"
+        mm = margin isa IsolatedMargin ? "isolated" : "cross"
+        marginmode!(exc, mm, "")
         setattr!(config, exc, :exc)
         new{typeof(mode),name,eid,typeof(margin),config.qc}(
             self,
