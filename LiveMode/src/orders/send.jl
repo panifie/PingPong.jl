@@ -61,6 +61,7 @@ function ensure_marginmode(s::LiveStrategy, ai)
     true
 end
 
+# TODO: split into multiple functions according to order type
 @doc """ Sends a live order and performs checks for sufficient cash and order features.
 
 $(TYPEDSIGNATURES)
@@ -74,21 +75,26 @@ function live_send_order(
     ai,
     t=GTCOrder{Buy},
     args...;
+    retries=0,
+    skipchecks=false,
     amount,
     price=lastprice(s, ai, t),
-    retries=0,
     post_only=false,
     reduce_only=false,
-    stop_trigger=nothing,
-    profit_trigger=nothing,
+    stop_price=nothing,
+    profit_price=nothing,
     stop_loss::Option{TriggerOrderTuple}=nothing,
     take_profit::Option{TriggerOrderTuple}=nothing,
-    skipchecks=false,
+    trigger_price=nothing,
+    trigger_direction=nothing,
+    trailing_percent=nothing, # 1.0 == 1/100
+    trailing_amount=nothing, # in quote currency
+    trailing_trigger_price=nothing, # `price` is used if not set
     kwargs...,
 )
     # NOTE: this should not be needed, but some exchanges can be buggy
     # might be used in a specialized function for problematic exchanges
-    # @price! ai stop_loss stop_trigger price profit_trigger take_profit
+    # @price! ai stop_loss stop_price price profit_price take_profit
     # @amount! ai amount
     if !skipchecks
         if !check_available_cash(s, ai, amount, price, t)
@@ -100,7 +106,9 @@ function live_send_order(
             return nothing
         end
         if !ensure_marginmode(s, ai)
-            @warn "send order: margin mode mismatch" this_mm = marginmode(ai) exc = nameof(exchange(ai))
+            @warn "send order: margin mode mismatch" this_mm = marginmode(ai) exc = nameof(
+                exchange(ai)
+            )
             return nothing
         end
     end
@@ -116,21 +124,97 @@ function live_send_order(
     function supportmsg(feat)
         @warn "send order: not supported" feat exc = nameof(exc)
     end
-    get!(params, @pyconst("postOnly"), post_only) &&
-        (has(exc, :createPostOnlyOrder) || supportmsg("Post Only"))
-    get!(params, @pyconst("reduceOnly"), reduce_only) &&
-        (has(exc, :createReduceOnlyOrder) || supportmsg("Reduce Only"))
-    isnothing(stop_loss) || let stop_k = @pyconst("stopLoss")
-        haskey(params, stop_k) || (params[stop_k] = trigger_dict(exc, stop_loss))
+
+    postOnly = @pyconst("postOnly")
+    reduceOnly = @pyconst("reduceOnly")
+    stopLoss = @pyconst("stopLoss")
+    stopLossPrice = @pyconst("stopLossPrice")
+    takeProfitPrice = @pyconst("takeProfitPrice")
+    triggerPrice = @pyconst("triggerPrice")
+    triggerDirection = @pyconst("triggerDirection")
+
+    if has(exc, :createPostOnlyOrder)
+        get!(params, postOnly, post_only)
+    elseif get(params, postOnly, false)
+        supportmsg("post only")
+        delete!(params, postOnly)
     end
-    isnothing(take_profit) || let take_k = @pyconst("takeProfit")
-        haskey(params, take_k) || (params[take_k] = trigger_dict(exc, take_profit))
+    if s isa MarginStrategy
+        if has(exc, :createReduceOnlyOrder)
+            get!(params, reduceOnly, reduce_only)
+        elseif get(params, reduceOnly, false)
+            supportmsg("reduce only")
+            delete!(params, reduceOnly)
+        end
     end
-    isnothing(stop_trigger) || let stop_k = @pyconst("stopLossPrice")
-        haskey(params, stop_k) || (params[stop_k] = pyconvert(Py, stop_trigger))
+    if !isnothing(trigger_price)
+        if has(exc, :createTriggerOrder)
+            @lget! params triggerPrice trigger_price
+            @lget! params triggerDirection @something(
+                trigger_direction, ifelse(
+                    # NOTE: strict equality
+                    orderside(t) === Buy,
+                    "below",
+                    "above",
+                )
+            )
+        elseif haskey(params, triggerPrice)
+            supportmsg("trigger order")
+            delete!(params, triggerPrice)
+            delete!(params, triggerDirection)
+        end
     end
-    isnothing(profit_trigger) || let take_k = @pyconst("takeProfitPrice")
-        haskey(params, take_k) || (params[take_k] = pyconvert(Py, profit_trigger))
+    if !isnothing(stop_price)
+        if has(exc, :createStopLossOrder)
+            @lget! params stopLossPrice stop_price
+        elseif haskey(params, stopLossPrice)
+            supportmsg("stop loss order (close position)")
+            delete!(params, stopLossPrice)
+        end
+    end
+    if !isnothing(profit_price)
+        if has(exc, :createTakeProfitOrder)
+            @lget! params takeProfitPrice profit_price
+        elseif haskey(params, takeProfitPrice)
+            supportmsg("take profit order (close position)")
+            delete!(params, takeProfitPrice)
+        end
+    end
+    if !isnothing(stop_loss) && !isnothing(take_profit)
+        if has(exc, :createOrderWithTakeProfitAndStopLoss)
+            @lget! params stopLoss stop_loss
+            @lget! params takeProfit take_profit
+        elseif haskey(params, stopLoss) || haskey(params, takeProfit)
+            supportmsg("conditional trigger order")
+            delete!(params, stopLoss)
+            delete!(params, takeProfit)
+        end
+    elseif !isnothing(stop_loss) || !isnothing(take_profit)
+        @warn "send order: conditional trigger needs both stop_loss and take_profit input parameters"
+    end
+    trailing = if !isnothing(trailing_percent)
+        if has(exc, :createTrailingPercentOrder)
+            @lget! params trailingPercent trailing_percent
+        else
+            supportmsg("trailing percent order")
+        end
+    elseif !isnothing(trailing_amount)
+        if has(exc, :createTrailingAmountOrder)
+            @lget! params trailingAmount trailing_amount
+        else
+            supportmsg("trailing amount order")
+        end
+    end
+    if !isnothing(trailing)
+        if !isnothing(trailing_trigger_price)
+            @lget! params trailingTriggerPrice trailing_trigger_price
+        elseif !isnothing(trailing_trigger_amount)
+            if !(price isa Number)
+                @warn "send order: trailing amount order needs price input parameter" price
+                price = lastprice(ai)
+            end
+            @lget! params trailingTriggerPrice price
+        end
     end
     # start monitoring before sending the create request
     watch_trades!(s, ai)
