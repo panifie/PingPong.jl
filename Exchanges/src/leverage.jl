@@ -186,3 +186,5 @@ function marginmode!(exc::Exchange, mode, symbol; hedged=false, kwargs...)
         error("Invalid margin mode $mode")
     end
 end
+
+marginmode(exc::Exchange) = get(exc.options, "defaultMarginMode", NoMargin())

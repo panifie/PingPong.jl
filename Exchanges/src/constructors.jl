@@ -323,6 +323,15 @@ function markettype(exc, margin=Misc.config.margin)
     end
 end
 
+function markettype(exc::Exchange, sym, margin)
+    mkt = get(exc.markets, string(sym), missing)
+    if ismissing(mkt)
+        markettype(exc, margin)
+    else
+        mkt["type"]
+    end
+end
+
 @doc """Fetch and cache tickers data.
 
 $(TYPEDSIGNATURES)
