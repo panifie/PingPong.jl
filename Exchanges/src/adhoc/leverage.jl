@@ -78,3 +78,13 @@ function _handle_leverage(e::Exchange{<:eids(:binance, :binanceusdm, :binancecoi
         haskey(resp, "leverage")
     end
 end
+
+marginmode!(exc::Exchange{<:ExchangeID{:binance}}, mode, symbol; hedged=false, kwargs...) = begin
+    # setting default margin mode in the binance spot testnet triggers ccxt to
+    # use wrong api endpoints
+    if !issandbox(exc)
+        invoke(marginmode!, Tuple{Exchange,<:Any,<:Any}, exc, mode, symbol)
+    else
+        return true
+    end
+end

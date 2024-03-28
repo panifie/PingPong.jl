@@ -11,3 +11,13 @@ function resp_position_initial_margin(resp, ::Type{ExchangeID{:binanceusdm}})
         im
     end |> pytofloat
 end
+
+function _ccxt_balance_args(::Strategy{<:ExecMode,ExchangeID{:binance}}, kwargs)
+    params, rest = split_params(kwargs)
+    for k in ("type", "code")
+        if haskey(params, k)
+            delete!(params, k)
+        end
+    end
+    (; params, rest)
+end

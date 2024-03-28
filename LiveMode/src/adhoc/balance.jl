@@ -14,7 +14,9 @@ function _fetch_balance(
     exc::Exchange{ExchangeID{:phemex}}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
 )
     params["type"] = @pystr type lowercase(string(type))
-    params["code"] = @pystr code uppercase(string(@something code qc))
+    if type != :spot
+        params["code"] = @pystr code uppercase(string(@something code qc))
+    end
 
     _execfunc_timeout(
         _exc_balance_func(exc); timeout, params, kwargs...
@@ -22,11 +24,25 @@ function _fetch_balance(
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:deribit, :gateio, :hitbtc, :binancecoin, :binance)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:deribit, :gateio, :hitbtc, :binancecoin)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
 )
     params["code"] = @pystr code uppercase(string(@something code qc))
     if haskey(params, "type")
         delete!(params, "type")
+    end
+
+    _execfunc_timeout(
+        _exc_balance_func(exc); timeout, params, kwargs...
+    )
+end
+
+function _fetch_balance(
+    exc::Exchange{<:eids(:binance)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+)
+    for k in ("code", "type")
+        if haskey(params, k)
+            delete!(params, k)
+        end
     end
 
     _execfunc_timeout(

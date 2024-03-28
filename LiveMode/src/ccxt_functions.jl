@@ -293,11 +293,15 @@ function ccxt_orders_func!(a, exc)
     end
 end
 
+function create_order_func(exc::Exchange, func, args...; kwargs...)
+    _execfunc(func, args...; kwargs...)
+end
+
 @doc "Sets up the [`create_order`](@ref) closure for the ccxt exchange instance."
 function ccxt_create_order_func!(a, exc)
     func = first(exc, :createOrderWs, :createOrder)
     @assert !isnothing(func) "$(nameof(exc)) doesn't have a `create_order` function"
-    a[:live_send_order_func] = ccxt_create_order(args...; kwargs...) = _execfunc(func, args...; kwargs...)
+    a[:live_send_order_func] = ccxt_create_order(args...; kwargs...) = create_order_func(exc, func, args...; kwargs...)
 end
 
 function positions_func(exc::Exchange, ais, args...; timeout, kwargs...)
@@ -405,6 +409,12 @@ function ccxt_positions_func!(a, exc)
     end
 end
 
+cancel_loop_func(exc, cancel_single_f) = begin
+    cancel_loop(ids; symbol) = @sync for id in ids
+        @async _execfunc(cancel_single_f, id; symbol)
+    end
+end
+
 @doc "Sets up the [`cancel_order`](@ref) closure for the ccxt exchange instance."
 function ccxt_cancel_orders_func!(a, exc)
     orders_f = a[:live_orders_func]
@@ -414,10 +424,7 @@ function ccxt_cancel_orders_func!(a, exc)
     else
         cancel_single_f = first(exc, :cancelOrderWs, :cancelOrder)
         if !isnothing(cancel_single_f)
-            cancel_loop_f(ids; symbol) = @sync for id in ids
-                @async _execfunc(cancel_single_f, id; symbol)
-            end
-            ccxt_cancel_single(ai; side=nothing, ids=()) = _cancel_orders(ai, side, ids, orders_f, cancel_loop_f)
+            ccxt_cancel_single(ai; side=nothing, ids=()) = _cancel_orders(ai, side, ids, orders_f, cancel_loop_func(exc, cancel_single_f))
         else
             error("$(nameof(exc)) doesn't support any cancel order function.")
         end
