@@ -296,6 +296,10 @@ function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
 
+function ordershistory(ai::AssetInstance)
+    unique(t.order for t in trades(ai))
+end
+
 @doc """
 Returns all keys for orders in a strategy.
 
