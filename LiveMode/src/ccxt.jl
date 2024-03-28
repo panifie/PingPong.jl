@@ -266,6 +266,17 @@ end
 _ccxtbalance_type(::NoMarginStrategy) = @pyconst("spot")
 _ccxtbalance_type(::MarginStrategy) = @pyconst("futures")
 
+
+# FIXME: this should be handled by a `ccxt_balancetype` function
+_balance_type(s::NoMarginStrategy) = :spot
+_balance_type(s::MarginStrategy) = :swap
+
+function _ccxt_balance_args(s, kwargs)
+    params, rest = split_params(kwargs)
+    @lget! params "type" @pystr(_balance_type(s))
+    (; params, rest)
+end
+
 resp_trade_cost(resp, ::EIDType)::DFT = get_float(resp, "cost")
 resp_trade_amount(resp, ::EIDType)::DFT = get_float(resp, Trf.amount)
 resp_trade_amount(resp, ::EIDType, ::Type{Py}) = get_py(resp, Trf.amount)

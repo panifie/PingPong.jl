@@ -133,7 +133,7 @@ _balance_task!(w) = begin
             if e isa InterruptException
                 break
             else
-                @debug_backtrace LogWatchPos2
+                @debug_backtrace LogWatchBalance
             end
         end
     end
@@ -162,18 +162,8 @@ function Watchers._fetch!(w::Watcher, ::CcxtBalanceVal)
     return true
 end
 
-@doc """ A named tuple of total, free, and used balances. """
-const BalanceTuple = NamedTuple{(:total, :free, :used),NTuple{3,DFT}}
-@doc """ A snapshot of total, free, and used balances. """
-const BalanceSnapshot = NamedTuple{(:date, :balance),Tuple{DateTime,BalanceTuple}}
-@doc """ A dictionary of balances. """
-const BalanceDict1 = Dict{Symbol,BalanceTuple}
-@doc """ A snapshot of balances. """
-const BalanceView2 = NamedTuple{(:date, :balance),Tuple{Ref{DateTime},BalanceDict1}}
-
 function _init!(w::Watcher, ::CcxtBalanceVal)
-    dataview = (; date=Ref(DateTime(0)), balance=BalanceDict1())
-    default_init(w, dataview, false)
+    default_init(w, BalanceDict(), false)
     _lastpushed!(w, DateTime(0))
     _lastprocessed!(w, DateTime(0))
     _lastcount!(w, ())
@@ -192,7 +182,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
     end
     eid = typeof(exchangeid(_exc(w)))
     data_date, data = last(w.buffer)
-    bal = w.view.balance
+    baldict = w.view.assets
     if !isdict(data) || resp_event_type(data, eid) != ot.Balance
         @debug "watchers process: wrong data type" _module = LogWatchBalProcess data_date typeof(data)
         _lastprocessed!(w, data_date)
@@ -203,12 +193,12 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
         return nothing
     end
     date = @something pytodate(data, eid) now()
-    if date == w.view.date[]
+    if date == w.view.date
         _lastprocessed!(w, data_date)
         return nothing
     end
     s = w[:strategy]
-    assets_value = current_total(s) - s.cash
+    assets_value = current_total(s, bal=w.view) - s.cash
     qc_upper, qc_lower = @lget! attrs(w) :qc_syms begin
         upper = nameof(cash(s))
         lower = string(upper) |> lowercase |> Symbol
@@ -249,16 +239,22 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
                     v
                 end
             end
-            balance = bal[k] = (; total, free, used)
-            if isqc
-                live_sync_strategy_cash!(s, bal=(; date, balance))
+            bal = if haskey(baldict, k)
+                update!(baldict[k], date; total, free, used)
+            else
+                baldict[k] = BalanceSnapshot(; currency=sym, date, total, free, used)
             end
-            if s isa NoMarginStrategy
-                live_sync_cash!(s, asset_bysym(s, sym), bal=(; date, balance))
+            if isqc
+                live_sync_strategy_cash!(s; bal)
+            elseif s isa NoMarginStrategy
+                ai = asset_bysym(s, sym)
+                if !isnothing(ai)
+                    live_sync_cash!(s, ai; bal)
+                end
             end
         end
     end
-    w.view.date[] = date
+    w.view.date = date
     _lastprocessed!(w, data_date)
     _lastcount!(w, data)
     @debug "balance watcher data:" _module = LogWatchBalProcess date get(bal, :BTC, nothing) _module = :Watchers

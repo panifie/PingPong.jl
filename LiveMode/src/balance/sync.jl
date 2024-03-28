@@ -8,7 +8,7 @@ It checks the total and used cash balances, and updates the strategy's cash and 
 """
 function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; bal=nothing, overwrite=false, kwargs...)
     bal = @something bal live_balance(s; kwargs...)
-    avl_cash = getproperty(bal.balance, kind)
+    avl_cash = getproperty(bal, kind)
     bc = nameof(s.cash)
 
     c = if isnothing(avl_cash)
@@ -37,10 +37,15 @@ If no balance information is found for an asset, its cash and committed cash val
 
 """
 function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
-    bal = live_balance(s; kwargs...)
+    bal = live_balance(s; full=true, withoutkws(:overwrite; kwargs)...)
+    if isnothing(bal)
+        @error "sync uni: failed, no balance" e = exchangeid(s)
+        return
+    end
     loop_kwargs = filterkws(:fallback_kwargs; kwargs)
     @sync for ai in s.universe
-        @async live_sync_cash!(s, ai; bal, loop_kwargs...)
+        ai_bal = @get bal ai BalanceSnapshot(ai)
+        @async live_sync_cash!(s, ai; bal=ai_bal, loop_kwargs...)
     end
 end
 
@@ -66,8 +71,7 @@ function live_sync_cash!(
     @lock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift
         if overwrite || bal.date != DateTime(0) || !isfinite(cash(ai))
-            this_bal = bal.balance
-            cash!(ai, this_bal.free)
+            cash!(ai, bal.free)
             # FIXME: used cash can't be assummed to only account for open orders.
             # It might consider (cross) margin as well (same problem as positions)
             # cash!(committed(ai), this_bal.used)
