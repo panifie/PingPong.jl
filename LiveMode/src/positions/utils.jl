@@ -106,7 +106,9 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         timeout = @timeout_now()
         if timeout > Second(0)
             # NOTE: Force fetching doesn't guarantee the latest result, there still a TTL cache here
-            let resp = fetch_positions(s; side, timeout, fallback_kwargs...)
+            # NOTE: don't pass neighter the instance nor the side, always fetch all positions
+            # otherwise it breaks watcher updates processing
+            let resp = fetch_positions(s; timeout, fallback_kwargs...)
                 _handle_pos_resp(resp, ai, side)
             end
         end
@@ -230,7 +232,7 @@ function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
         @debug "live contracts: " _module = LogPosFetch isnothing(pup) closed = isnothing(pup) ? nothing : pup.closed[]
         ZERO
     else
-        amt = resp_position_contracts(pup.resp, exchangeid(ai))
+        amt = resp_position_contracts(pup.resp, exchangeid(ai)) |> abs
         @debug "live contracts: " _module = LogPosFetch amt
         if isshort(ai)
             -amt
@@ -447,25 +449,24 @@ If the side can't be parsed, a function `default_side_func` can be passed as arg
 """
 function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; default_side_func=Returns(nothing))
     ccxt_side = resp_position_side(update, eid)
-    def_side = isnothing(p) ? Long() : posside(p)
+    def_side = isnothing(p) ? Long() : posside(p) # NOTE: posside(...) can still be nothing
     if pyisnone(ccxt_side)
         @debug "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
-        _ccxtpnlside(update, eid, def=def_side)
+        @something _ccxtpnlside(update, eid, def=def_side) default_side_func(update)
     else
-        let side_str = ccxt_side.lower()
-            if pyeq(Bool, side_str, @pyconst("short"))
-                Short()
-            elseif pyeq(Bool, side_str, @pyconst("long"))
-                Long()
-            else
-                @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" _module = LogCcxtFuncs side_str resp_position_contracts(
-                    update, eid
-                ) f = @caller
-                def_side = @something default_side_func(update) def_side
-                side::PositionSide = _ccxtpnlside(update, eid, def=def_side)
-                @debug "ccxt posside: inferred" _module = LogCcxtFuncs def_side side
-                side
-            end
+        side_str = ccxt_side.lower()
+        if pyeq(Bool, side_str, @pyconst("short"))
+            Short()
+        elseif pyeq(Bool, side_str, @pyconst("long"))
+            Long()
+        else
+            @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" _module = LogCcxtFuncs side_str resp_position_contracts(
+                update, eid
+            ) f = @caller
+            def_side = @something default_side_func(update) def_side
+            side::PositionSide = _ccxtpnlside(update, eid, def=def_side)
+            @debug "ccxt posside: inferred" _module = LogCcxtFuncs def_side side
+            side
         end
     end
 end
