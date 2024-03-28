@@ -359,9 +359,9 @@ _default_ordertype(s, ai::MarginInstance, resp) = begin
     else
         ifelse(flag, Buy, Sell)
     end
-    _default_ordertype(flag, oside)
+    _default_ordertype(flag, oside, resp)
 end
-_default_ordertype(s, ai::NoMarginInstance) = MarketOrder{cash(ai) > ZERO ? Sell : Buy}
+_default_ordertype(s, ai::NoMarginInstance, _) = MarketOrder{cash(ai) > ZERO ? Sell : Buy}
 
 @doc """ Re-activates a previously active order.
 
