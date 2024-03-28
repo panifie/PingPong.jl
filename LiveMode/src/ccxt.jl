@@ -62,7 +62,7 @@ function get_float(resp::Union{Py,PyDict}, k, def, args...; ai)
         def
     else
         ismissing(def) ||
-            isapprox(ai, v, def, args...) ||
+            isequal(ai, v, def, args...) ||
             begin
                 @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
             end
@@ -218,14 +218,14 @@ end
 function isorder_synced(o, ai, resp::Union{Py,PyDict}, eid::EIDType=exchangeid(ai))
     @debug "is order synced:" _module = LogSyncOrder filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
     order_filled = resp_order_filled(resp, eid)
-    v = isapprox(ai, filled_amount(o), order_filled, Val(:amount)) ||
+    v = isequal(ai, filled_amount(o), order_filled, Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
         order_trades = trades(o)
         if ntrades > 0
             ntrades == length(order_trades)
         elseif length(order_trades) > 0
             amt = sum(t.amount for t in order_trades)
-            isapprox(ai, amt, order_filled, Val(:amount))
+            isequal(ai, amt, order_filled, Val(:amount))
         else
             false
         end

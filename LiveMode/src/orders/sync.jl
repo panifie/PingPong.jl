@@ -107,7 +107,7 @@ function live_sync_open_orders!(
                 continue
             elseif isfilled(ai, o)
                 trades_amount = _amount_from_trades(trades(o))
-                if !isapprox(ai, trades_amount, o.amount, Val(:amount))
+                if !isequal(ai, trades_amount, o.amount, Val(:amount))
                     @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
                     replay_order!(s, o, ai; resp, exec=false)
                 else
@@ -280,7 +280,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
         local_amt = abs(first(trades(o)).amount)
         resp_amt = resp_trade_amount(trade, eid)
         # When a mismatch happens we reset local state for the order
-        if isapprox(ai, local_amt, resp_amt, Val(:amount))
+        if isequal(ai, local_amt, resp_amt, Val(:amount))
             @warn "replay order: mismatching amounts (resetting)" local_amt resp_amt o.id ai = raw(
                 ai
             ) exc = nameof(exchange(ai))

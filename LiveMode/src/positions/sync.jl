@@ -156,7 +156,7 @@ function _live_sync_position!(
     # resp cash, (always positive for longs, or always negative for shorts)
     let rv = islong(pos) ? positive(amount) : negative(amount)
         @debug "sync pos: amount" _module = LogPosSync resp_amount = amount rv posside(pos)
-        if !isapprox(ai, cash(pos), rv, Val(:amount))
+        if !isequal(ai, cash(pos), rv, Val(:amount))
             @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
         end
         cash!(pos, rv)

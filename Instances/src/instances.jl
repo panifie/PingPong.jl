@@ -354,8 +354,8 @@ $(TYPEDSIGNATURES)
 This function checks if two specified amounts `v1` and `v2` are approximately equal for an `AssetInstance`. It's used to validate whether two amounts are similar considering small variations.
 
 """
-function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount})
-    isapprox(value(v1), value(v2); atol=ai.precision.amount + eps(DFT))
+function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount}; atol=ai.precision.amount + eps(DFT))
+    isapprox(value(v1), value(v2); atol)
 end
 @doc """ Check if two prices are approximately equal for an `AssetInstance`.
 
@@ -364,8 +364,16 @@ $(TYPEDSIGNATURES)
 This function checks if two specified prices `v1` and `v2` are approximately equal for an `AssetInstance`. It's used to validate whether two prices are similar considering small variations.
 
 """
-function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:price})
-    isapprox(value(v1), value(v2); atol=ai.precision.price + eps(DFT))
+function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:price}; atol=ai.precision.price + eps(DFT))
+    isapprox(value(v1), value(v2); atol)
+end
+
+function Base.isequal(ai::AssetInstance, v1, v2, kind::Val{:amount})
+    isapprox(ai, v1, v2, kind, atol=ai.limits.amount.min - eps(DFT))
+end
+
+function Base.isequal(ai::AssetInstance, v1, v2, kind::Val{:price})
+    isapprox(ai, v1, v2, kind, atol=ai.limits.price.min - eps(DFT))
 end
 
 @doc """ Create an `AssetInstance` from a zarr instance.
