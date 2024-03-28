@@ -61,7 +61,7 @@ macro get(dict, k, expr)
     dict = esc(dict)
     expr = esc(expr)
     k = esc(k)
-    :(@something get($dict, $k, nothing) $expr)
+    :(@coalesce get($dict, $k, missing) $expr)
 end
 
 @doc "Lazy *get or set* for a container key-value pair that *should not contain* `missing`."
@@ -88,9 +88,9 @@ macro multiget(dict, args...)
         throw(ArgumentError("Not enough args in macro call."))
     end
     expr = esc(args[end])
-    result = :(@something)
+    result = :(@coalesce)
     for k in args[begin:(end-1)]
-        push!(result.args, :(get($dict, $(esc(k)), nothing)))
+        push!(result.args, :(get($dict, $(esc(k)), missing)))
     end
     push!(result.args, expr)
     result
