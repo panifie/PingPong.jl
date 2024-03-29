@@ -1,5 +1,30 @@
 using PythonCall: PyList, pynew, Py
 # using PythonCall.C.CondaPkg: envdir
+using PythonCall.GC: GC as PyGC
+
+@doc """ Disables pythoncall gc calls during the execution of an expression.
+
+$(TYPEDSIGNATURES)
+
+This macro takes an expression and ensures that the pythoncall garbage collector is disabled during its execution.
+The garbage collector is re-enabled after the expression has been executed, regardless of whether the expression completed successfully or an error was thrown.
+"""
+macro nogc(expr)
+    ex = quote
+        try
+            $(PyGC.disable)()
+            # Base.GC.enable(false)
+            $expr
+        finally
+            # if threadid() == 1
+            #     Base.GC.gc(false)
+            # end
+            # Base.GC.enable(true)
+            $(PyGC.enable)()
+        end
+    end
+    esc(ex)
+end
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
