@@ -245,7 +245,7 @@ function isdust(ai::AssetInstance, price, p::PositionSide)
         this_cash * price * leverage(pos) < ai.limits.cost.min
     end
 end
-function isdust(ai::MarginInstance, price)
+function isdust(ai::MarginInstance, price::Number)
     isdust(ai, price, Long()) && isdust(ai, price, Short())
 end
 function isdust(ai::NoMarginInstance, price::Number)
