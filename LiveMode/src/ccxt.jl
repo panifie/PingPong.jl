@@ -209,7 +209,7 @@ time_in_force_value(::Exchange, v) = v
 time_in_force_key(::Exchange) = "timeInForce"
 
 @doc "Tests if a ccxt order object is filled."
-function _ccxtisfilled(resp::Union{Py,PyDict}, ::EIDType)
+function resp_isfilled(resp::Union{Py,PyDict}, ::EIDType)
     get_float(resp, "filled") == get_float(resp, "amount") &&
         iszero(get_float(resp, "remaining"))
 end
