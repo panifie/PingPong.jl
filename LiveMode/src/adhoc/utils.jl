@@ -21,7 +21,7 @@ time_in_force_value(::Exchange, _, v) = v
 const _BINANCE_EXC = Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}
 first(exc::_BINANCE_EXC, syms::Vararg{Union{Symbol,String}}) = begin
     fs = first(syms) |> string
-    if endswith(fs, "Ws") && fs != "createOrderWs"
+    if endswith(fs, "Ws") && (fs != "createOrderWs" && exchangeid(exc) != ExchangeID{:binance})
         invoke(first, Tuple{Exchange,Vararg{Symbol}}, exc, syms[2:end]...)
     else
         invoke(first, Tuple{Exchange,Vararg{Symbol}}, exc, syms...)
