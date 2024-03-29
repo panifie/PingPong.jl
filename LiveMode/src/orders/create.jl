@@ -108,6 +108,15 @@ function create_live_order(
         return nothing
     elseif activate
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
+        # Perform a trade if the order has been filled instantly
+        already_filled = resp_order_filled(resp, eid)
+        if already_filled > ZERO && isempty(trades(o))
+            # wait for trades watcher
+            waitfortrade(s, ai, o, waitfor=s[:func_cache_ttl], force=false)
+        end
+        if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
+            emulate_trade!(s, o, ai; resp)
+        end
     end
     @debug "create order: done" _module = LogCreateOrder committed(o) o.amount ordertype(o)
     return o

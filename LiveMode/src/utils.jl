@@ -450,6 +450,8 @@ function st.default!(s::LiveStrategy)
     get!(a, :order_byid_ttl, throttle_per_asset)
     # How long to cache position updates (lists)
     get!(a, :positions_ttl, Second(3))
+    # How long to cache balance updates (lists)
+    get!(a, :balance_ttl, Second(1))
     # How long to cache fetch all orders/trades calls
     get!(a, :func_cache_ttl, Second(3))
 
