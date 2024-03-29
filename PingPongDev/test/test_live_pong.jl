@@ -34,12 +34,12 @@ function _reset_remote_pos(s, ai)
     for side in (Long, Short)
         pos = position(ai, side)
         waitfor = round(lm.throttle(s), Second, RoundUp) + Second(1)
-        @test if isopen(pos)
+        @test if isopen(ai, Long) || isopen(ai, Short)
             @info "TEST: PositionClose" posside(pos)
             ect.pong!(s, ai, posside(pos), now(), ect.PositionClose(); waitfor)
         else
-            @info "TEST: CancelOrders" side = isnothing(pos) ? nothing : posside(pos)
             @test !isopen(ai)
+            @info "TEST: CancelOrders" side = isnothing(pos) ? nothing : posside(pos)
             if ect.pong!(s, ai, ect.CancelOrders(); t=BuyOrSell)
                 true
             else
@@ -408,7 +408,7 @@ function test_live_pong(exchange=:phemex, mm_exchange=:phemex; debug="Executors,
         @eval @testset failfast = FAILFAST "live" begin
 
             exchange = $(QuoteNode(exchange))
-            mm_exchange = $(QuoteNode(exchange))
+            mm_exchange = $(QuoteNode(mm_exchange))
             s = live_strat(:ExampleMargin; exchange=mm_exchange, initial_cash=1e8, skip_sync=true)
             setglobal!(Main, :s, s)
             try
