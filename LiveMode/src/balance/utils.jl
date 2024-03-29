@@ -153,7 +153,7 @@ function _force_fetchbal(s; fallback_kwargs)
 
     if waslocked
         @debug "force fetch bal: waiting for fetch notify" _module = LogBalance
-        wait(w)
+        wait(w, s[:balance_ttl])
         @debug "force fetch bal: checking if updated" _module = LogBalance
         if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
             @debug "force fetch bal: waited" _module = LogBalance

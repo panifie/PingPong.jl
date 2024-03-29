@@ -241,6 +241,15 @@ function Base.wait(w::Watcher, b=:fetch)
     end
 end
 
+function Base.wait(w::Watcher, timeout::Period, b=:fetch)
+    if isstopped(w)
+        false
+    else
+        slept = waitforcond(getproperty(w.beacon, b), timeout)
+        slept < Millisecond(timeout).value
+    end
+end
+
 function Base.show(out::IO, w::Watcher)
     tps = "$(typeof(w))"
     write(out, "$(length(w.buffer))-element ")

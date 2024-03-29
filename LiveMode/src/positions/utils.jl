@@ -94,7 +94,7 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
 
     if waslocked
         @debug "force fetch pos: waiting notify" _module = LogPosFetch islocked(w) ai = raw(ai) isstopped(w)
-        wait(w)
+        wait(w, s[:positions_ttl])
         @debug "force fetch pos: checking if updated"
         if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
             return
