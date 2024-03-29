@@ -508,7 +508,9 @@ This function checks if an order is open, validates the order details (type, sym
 If the filled amount has changed, it computes the new average price and checks if it's within the limits.
 It then emulates the trade and updates the order state.
 """
-function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price), exec=true)
+function emulate_trade!(s::LiveStrategy, o, ai; resp,
+    average_price=nothing,
+    exec=true)
     if !isopen(ai, o)
         @error "emu trade: closed order ($(o.id))"
         return nothing
@@ -526,6 +528,11 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=Ref(o.price)
     if !is_reduce_only && actual_amount < ai.limits.amount.min
         @debug "emu trade: fill status unchanged" _module = LogCreateTrade o.id prev_filled new_filled actual_amount
         return nothing
+    end
+    if isnothing(average_price)
+        average_price = let ap = resp_order_average(resp, eid)
+            iszero(ap) ? o.price : ap
+        end |> Ref
     end
     prev_cost = average_price[] * prev_filled
     (net_cost, actual_price) = let ap = resp_order_average(resp, eid)
@@ -661,8 +668,9 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
     if !(haskey(orders_byid, o.id) && haskey(s, ai, o))
-        @debug "Wait for order: inactive" _module = LogWaitOrder unfilled(o) filled_amount(o) isfilled(ai, o) fetch_orders(s, ai, ids=(o.id,))
-        return isprocessed_order(s, ai, o.id) || isfilled(ai, o)
+        isproc = isprocessed_order(s, ai, o.id)
+        @debug "Wait for order: inactive" _module = LogWaitOrder unfilled(o) filled_amount(o) isfilled(ai, o) isproc fetch_orders(s, ai, ids=(o.id,)) @caller
+        return isproc || isfilled(ai, o)
     end
     @debug "Wait for order: start" _module = LogWaitOrder id = o.id timeout = timeout
     while slept < timeout
