@@ -262,10 +262,10 @@ function live_balance(
 )::Union{BalanceDict,BalanceSnapshot,Nothing}
     ai_arg = full ? () : (ai,)
     bal = get_balance(s, ai_arg...)
-    wlocked = islocked(balance_watcher(s))
-    if force &&
-       !wlocked &&
-       (isnothing(bal) || (!isnothing(since)) && bal.date < since)
+    w = balance_watcher(s)
+    wlocked = islocked(w)
+    if ((force && !wlocked) || isempty(buffer(w))) &&
+       (isnothing(bal) || (!isnothing(since) && bal.date < since))
         _force_fetchbal(s; fallback_kwargs)
         bal = get_balance(s, ai_arg..., type)
     end
@@ -293,7 +293,7 @@ The kind of balance to retrieve is specified by the `kind` parameter.
 If the balance is not found, it returns a zero balance with the current date.
 """
 function _live_kind(args...; kind, since=nothing, kwargs...)
-    bal = live_balance(args...; kwargs...)
+    bal = live_balance(args...; since, kwargs...)
     if isnothing(bal)
         bal = BalanceSnapshot(@something(since, now()))
     end
@@ -313,15 +313,14 @@ It sums up the value of all assets in the universe of the strategy, using either
 The function accepts a `price_func` parameter to determine the price of each asset.
 """
 function st.current_total(
-    s::LiveStrategy{N,<:ExchangeID,<:WithMargin}; price_func=lastprice, local_bal=false
+    s::LiveStrategy{N,<:ExchangeID,<:WithMargin}; price_func=lastprice, local_bal=false, bal::BalanceDict=get_balance(s)
 ) where {N}
     tot = Ref(zero(DFT))
     s_tot = if local_bal
         s.cash.value
     else
-        bview = get_balance(s)
         cur = nameof(cash(s))
-        (@get bview cur BalanceSnapshot(cur)).free
+        (@get bal cur BalanceSnapshot(cur)).free
     end
     @sync for ai in s.universe
         @async let v = if local_bal

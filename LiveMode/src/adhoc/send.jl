@@ -29,5 +29,5 @@ function create_order_func(exc::Exchange{ExchangeID{:binance}}, func, args...; p
             params[timeInForce] = @pyconst("PO")
         end
     end
-    _execfunc(func, args...; kwargs...)
+    _execfunc(func, args...; params, kwargs...)
 end
