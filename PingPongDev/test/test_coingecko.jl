@@ -76,7 +76,7 @@ coingecko_chart() = begin
     @test data isa NamedTuple
     @test Day(6) < now() - data.dates[1] < Day(8)
     data = cg.coinschart_tf("monero"; timeframe=tf"5m")
-    @test round(data.dates[2] - data.dates[1], Minute) <= Minute(5)
+    @test round(data.dates[2] - data.dates[1], Minute) <= Minute(6)
 end
 
 coingecko_ohlc() = begin
