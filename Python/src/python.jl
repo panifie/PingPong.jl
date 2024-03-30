@@ -16,7 +16,7 @@ macro nogc(expr)
             # Base.GC.enable(false)
             $expr
         finally
-            # if threadid() == 1
+            # if Threads.threadid() == 1
             #     Base.GC.gc(false)
             # end
             # Base.GC.enable(true)

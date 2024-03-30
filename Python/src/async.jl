@@ -426,10 +426,7 @@ mutable struct StreamHandler
     const func::Union{Function,Py}
     const id::Int
     task::Union{Nothing,Task}
-    StreamHandler(args...) = begin
-        h = new(args...)
-        finalizer(stop_handler!, h)
-    end
+    StreamHandler(args...) = new(args...)
 end
 
 function stream_handler(f_pull, f_push)
@@ -487,24 +484,22 @@ function start_handler!(handler)
 end
 
 function stop_handler!(handler)
-    @nogc begin
-        if is_handler_running(handler)
-            set_stream_flag!(false, handler.id)
-            task = handler.task
-            if !istaskdone(task)
-                pycancel(task, false)
-            end
+    if is_handler_running(handler)
+        set_stream_flag!(false, handler.id)
+        task = handler.task
+        if !istaskdone(task)
+            pycancel(task, false)
         end
-        n = handler.id
-        pull_name = Symbol(:handler_pull, n)
-        push_name = Symbol(:handler_push, n)
-        flag_name = Symbol(:handler_flag, n)
-        gpa.globs.pop(string(pull_name), nothing)
-        gpa.globs.pop(string(push_name), nothing)
-        gpa.globs.pop(string(flag_name), nothing)
-        filter!(HANDLERS) do name
-            name != pull_name
-        end
+    end
+    n = handler.id
+    pull_name = Symbol(:handler_pull, n)
+    push_name = Symbol(:handler_push, n)
+    flag_name = Symbol(:handler_flag, n)
+    gpa.globs.pop(string(pull_name), nothing)
+    gpa.globs.pop(string(push_name), nothing)
+    gpa.globs.pop(string(flag_name), nothing)
+    filter!(HANDLERS) do name
+        name != pull_name
     end
     true
 end
