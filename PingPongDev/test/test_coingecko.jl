@@ -5,6 +5,9 @@ function test_coingecko()
         using .PingPong.Engine.LiveMode.Watchers.CoinGecko
         using .PingPong.Engine.Instruments
         using .PingPong.Engine.TimeTicks
+        using .Instruments.Derivatives: @d_str
+        using .TimeTicks
+        using .TimeTicks.Dates: format, @dateformat_str
         cg = CoinGecko
         # ensure other watchers are pulling data from coingecko
         # to avoid rate limit
@@ -33,7 +36,8 @@ function test_coingecko()
         @test length(cg.coinsmarkets()) > 0
         @test cg.coinsid("bitcoin")["id"] == "bitcoin"
         @test "identifier" ∈ keys(cg.coinsticker("monero")[1]["market"])
-        @test round(Int, cg.coinshistory("bitcoin", "2020-01-02").price) == 7194
+        date = format(now() - Month(1), dateformat"YYYY-mm-dd")
+        @test 62500 < round(Int, cg.coinshistory("bitcoin", date).price) < 62600
         @info "TEST: cg start"
         coingecko_chart()
         @info "TEST: cg ohlc"
