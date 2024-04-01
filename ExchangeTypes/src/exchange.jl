@@ -146,16 +146,17 @@ _has_all(exc, what; kwargs...) = all((_has(exc, v; kwargs...)) for v in what)
 # NOTE: wrap the function here to quickly overlay methods
 has(exc, what::Tuple{Vararg{Symbol}}; kwargs...) = _has_all(exc, what; kwargs...)
 
+_first(exc::Exchange, args::Symbol...) =
+    for name in args
+        has(exc, name) && return getproperty(getfield(exc, :py), name)
+    end
+
 @doc """Return the first available property from a variable number of Symbol arguments in the given Exchange.
 
 $(TYPEDSIGNATURES)
 
 This function iterates through the provided Symbols and returns the value of the first property that exists in the Exchange object."""
-function Base.first(exc::Exchange, args::Vararg{Symbol})
-    for name in args
-        has(exc, name) && return getproperty(getfield(exc, :py), name)
-    end
-end
+Base.first(exc::Exchange, args::Symbol...) = _first(exc, args...)
 
 @doc "Updates the global exchange `exc` variable."
 globalexchange!(new::Exchange) = begin
