@@ -347,9 +347,9 @@ macro retry(expr, count=3, check=isa, value=Exception)
     esc(ex)
 end
 
-filterfrom!(pred::Function, ::Nothing; kwargs...) = nothing
+removefrom!(pred::Function, ::Nothing; kwargs...) = nothing
 @doc "Filter out items from a list starting from give `idx`."
-filterfrom!(pred::Function, out; idx=0) = begin
+removefrom!(pred::Function, out; idx=0) = begin
     n = idx
     while n < length(out)
         o = out[n]

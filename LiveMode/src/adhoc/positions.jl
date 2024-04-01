@@ -8,7 +8,7 @@ function positions_func(exc::Exchange{ExchangeID{:deribit}}, ais; timeout, kwarg
     resp = _execfunc_timeout(f; timeout, kwargs...)
     syms = Set(raw(ai) for ai in ais)
     if islist(resp)
-        filterfrom!(resp) do p
+        removefrom!(resp) do p
             string(p.get("symbol")) ∈ syms
         end
     end

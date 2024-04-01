@@ -57,7 +57,7 @@ function _cancel_all_orders(ai, orders_f, cancel_f)
     sym = raw(ai)
     eid = exchangeid(ai)
     all_orders = _execfunc(orders_f, ai)
-    filterfrom!(all_orders) do o
+    removefrom!(all_orders) do o
         status = resp_order_status(o, eid)
         pyne(Bool, status, @pyconst("open"))
     end
@@ -138,7 +138,7 @@ function _filter_positions(out, eid::EIDType, side=Hedged(); default_side_func=R
     if out isa Exception || (@something side Hedged()) isa Hedged
         out
     elseif isshort(side) || islong(side)
-        filterfrom!(out) do p
+        removefrom!(out) do p
             this_side = posside_fromccxt(p, eid; default_side_func)
             !isside(this_side, side)
         end
@@ -152,7 +152,7 @@ $(TYPEDSIGNATURES)
 This function fetches orders for a given asset instance `ai` using the provided `mytrades_func`. The `side` parameter (default is `BuyOrSell`) and `ids` parameter (default is an empty tuple) allow filtering of the fetched orders. Additional keyword arguments `kwargs...` are passed to the fetch function.
 
 """
-function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), kwargs...)
+function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), pred_funcs=(), kwargs...)
     resp = _execfunc(this_func, ai)
     if resp isa Exception
         @error "ccxt fetch orders" raw(ai) resp
@@ -172,15 +172,16 @@ function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), kwargs...)
             notside
         end
     else
-        let ids_set = Set(if eltype(ids) == String
-                ids
-            else
-                (string(id) for id in ids)
-            end)
-            should_skip(o) = resp_order_id(o, eid, String) ∉ ids_set || notside(o)
+        id_strings = if eltype(ids) == String
+            ids
+        else
+            (string(id) for id in ids)
         end
+        ids_set = Set(id_strings)
+        (o) -> resp_order_id(o, eid, String) ∉ ids_set || notside(o)
     end
-    filterfrom!(should_skip, resp)
+    filter_func(o) = should_skip(o) || any(f(o) for f in pred_funcs)
+    removefrom!(filter_func, resp)
 end
 
 @doc """ Try to fetch all items to save api credits by passing `nothing` as asset instance, if supported
@@ -202,7 +203,7 @@ function _tryfetchall(a, func, ai, args...; kwargs...)
             if ai isa AssetInstance
                 this_sym = @pystr(raw(ai))
                 eid = exchangeid(ai)
-                filterfrom!(ans) do o
+                removefrom!(ans) do o
                     pyne(Bool, resp_order_symbol(o, eid), this_sym)
                 end
             end
@@ -468,10 +469,14 @@ function ccxt_oc_orders_func!(a, exc; open=true)
         ccxt_oc_func(ai, args...; kwargs...) = _tryfetchall(a, ccxt_all_orders_func, ai, args...; kwargs...)
         if open
             this_func = ccxt_open_orders_func(args...; kwargs...) = ccxt_oc_func(args...; kwargs...)
-            ccxt_open_orders(ai, args...; kwargs...) = _fetch_orders(ai, this_func; eid, kwargs...)
+            isopen_func(o) = !_ccxtisopen(o, eid)
+            ccxt_open_orders(ai, args...; kwargs...) = _fetch_orders(ai, this_func;
+                eid, pred_funcs=(isopen_func,), kwargs...)
         else
             this_func = ccxt_closed_orders_func(args...; kwargs...) = ccxt_oc_func(args...; kwargs...)
-            ccxt_closed_orders(ai, args...; kwargs...) = _fetch_orders(ai, this_func; eid, kwargs...)
+            isclosed_func(o) = _ccxtisopen(o, eid)
+            ccxt_closed_orders(ai, args...; kwargs...) = _fetch_orders(ai, this_func;
+                eid, pred_funcs=(isclosed_func,), kwargs...)
         end
     else
         orders_func = get(a, :live_orders_func, nothing)
