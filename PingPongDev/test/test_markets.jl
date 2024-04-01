@@ -1,6 +1,6 @@
 using Test
 
-function _test_markets(name=:binance, pair="BTC/USDT")
+function _test_markets(name=EXCHANGE, pair="BTC/USDT")
     exc = getexchange!(name)
     @test exc isa Exchanges.CcxtExchange
     @test nameof(exc) == name

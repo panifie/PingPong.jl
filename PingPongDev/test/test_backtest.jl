@@ -103,6 +103,7 @@ function margin_overrides(ot=:market)
 end
 
 test_margin_market(s) = begin
+    s[:per_order_leverage] = false
     @test marginmode(s) isa egn.Isolated
     s.attrs[:overrides] = margin_overrides(:market)
     egn.start!(s)
@@ -197,11 +198,15 @@ test_backtest() = begin
         PingPong.@environment!
         using .PingPong.Engine.Strategies: reset!
     end
+    # NOTE: Don't override exchange of these tests, since they rely on
+    # specific assets precision/limits
     @testset failfast = FAILFAST "backtest" begin
         s = backtest_strat(:Example)
+        @info "TEST: Example strat" exc = nameof(exchange(s))
         invokelatest(_nomargin_backtest_tests, s)
 
         s = backtest_strat(:ExampleMargin)
+        @info "TEST: ExampleMargin strat" exc = nameof(exchange(s))
         invokelatest(_margin_backtest_tests, s)
     end
 end

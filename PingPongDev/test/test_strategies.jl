@@ -11,8 +11,9 @@ end
 function test_strategies()
     _strategies_load()
     @testset "strategies" begin
-        cfg = Config(exchange=Symbol(exc.id))
+        cfg = Config(exchange=EXCHANGE)
         @test cfg isa Config
+        @test cfg.exchange == EXCHANGE
         s = st.strategy!(:Example, cfg)
         @test s isa st.Strategy
         @test nameof(cash(s)) == :USDT
@@ -20,6 +21,7 @@ function test_strategies()
         @test marginmode(s) == NoMargin()
         @test typeof(s).parameters[3] <: ExchangeID
         @test nameof(s) == :Example
+        @test nameof(exchange(s)) == EXCHANGE
         @test sort!(raw.(s.universe.data.asset)) == sort!(["ETH/USDT", "BTC/USDT", "SOL/USDT"])
     end
 end

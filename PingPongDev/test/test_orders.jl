@@ -8,9 +8,9 @@ function test_sanitize(exc)
     s = "BTC/USDT:USDT"
     asset = parse(Derivative, s)
     @test asset isa Derivative
-    @test exc isa Exchange{ExchangeID{:binanceusdm}}
+    @test exc isa Exchange{ExchangeID{EXCHANGE_MM}}
     ai = inst.instance(exc, asset)
-    @test ai isa AssetInstance{Instruments.Derivatives.Derivative8,ExchangeID{:binanceusdm},NoMargin}
+    @test ai isa AssetInstance{Instruments.Derivatives.Derivative8,ExchangeID{EXCHANGE_MM},NoMargin}
 
     init_amount = amount = 123.1234567891012
     init_price = price = 0.12333333333333333
@@ -36,7 +36,7 @@ end
 
 _strat() = begin
     Random.seed!(123)
-    backtest_strat(:ExampleMargin)
+    backtest_strat(:ExampleMargin, exchange=EXCHANGE_MM)
 end
 
 function test_orderscount(s)
@@ -66,7 +66,12 @@ function test_orderscount(s)
         price=ai.limits.price.min,
         date=row.timestamp,
     )
-    ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
+    maxcash = ai.limits.price.min * 1000
+    ect.cash!(s.cash, maxcash)
+    setproperty!(ai.ohlcv[date()], :low, 2ai.limits.price.min)
+    setproperty!(ai.ohlcv[date(2)], :low, 2ai.limits.price.min)
+    t = ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
+    @test ismissing(t)
     @test_throws AssertionError ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
     ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date(2))
     @test length(collect(ect.orders(s, ai))) == 2
@@ -78,7 +83,10 @@ function test_orderscount(s)
     ect.cash!(s.cash, 1e6)
     ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount=10.0, date=date(3))
     @test s.cash < 1e6
-    ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount=1.0, price=100, date=date(3))
+    setproperty!(ai.ohlcv[date(3)], :high, 10ai.limits.price.min)
+    t = ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount=1.0, price=ai.limits.price.min, date=date(3))
+    @test !isnothing(t)
+    @test t.order isa ect.GTCOrder{ect.Sell}
     @test cash(ai) == 9.0
     ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount=1.0, price=1e9, date=date(3))
     @test length(collect(ect.orders(s, ai, ect.Sell))) == 1
@@ -123,7 +131,7 @@ test_orders() = @testset "orders" begin
         using .Misc: roundfloat
     end
     @info "TEST: sanitize"
-    exc = getexchange!(:binanceusdm) # NOTE: binanceusdm NON sandbox version is geo restricted (not CI friendly)
+    exc = getexchange!(EXCHANGE_MM) # NOTE: binanceusdm NON sandbox version is geo restricted (not CI friendly)
     @testset failfast = FAILFAST test_sanitize(exc)
     @info "TEST: orderscount"
     s = _strat()

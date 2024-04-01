@@ -34,10 +34,12 @@ test_funding() = begin
         using .PingPong.Engine.Misc
     end
     @testset "funding" begin
-        _test_funding(:binance)
+        _test_funding(EXCHANGE)
+        _test_funding(EXCHANGE_MM)
         _test_funding(:phemex)
         _test_funding(:phemex)
-        _test_funding_rate(:binance)
+        _test_funding_rate(EXCHANGE)
+        _test_funding_rate(EXCHANGE_MM)
         _test_funding_rate(:phemex)
         _test_funding_rate(:phemex)
     end

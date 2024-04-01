@@ -85,7 +85,7 @@ _prevclose(s) = s.attrs[:prev_close]::Option{Float64}
 _thisclose!(s, v) = s.attrs[:this_close] = v
 _prevclose!(s, v) = s.attrs[:prev_close] = v
 
-function select_ordertype(s::S, os::Type{<:OrderSide}, p::PositionSide=Long())
+function select_ordertype(s::SC, os::Type{<:OrderSide}, p::PositionSide=Long())
     let t = s.attrs[:ordertype]
         if p == Long()
             if t == :market

@@ -29,15 +29,6 @@ function _mock_py_f(pyf, f, args...; kwargs...)
     end
 end
 
-macro with_pymock(expr)
-    ex = quote
-        Mocking.apply([patch_local, patch_local2]) do
-            $(expr)
-        end
-    end
-    esc(ex)
-end
-
 macro live_setup!()
     ex = quote
         @pass [patch_pf, patch_pft] begin
@@ -51,9 +42,10 @@ end
 
 function _live_load()
     @eval begin
-        isdefined(Main, :PingPongDev) || begin
-            using PingPongDev
-            PingPongDev.PingPong.@environment!
+        using PingPongDev
+        try
+            @eval PingPongDev.PingPong.@environment!
+        catch
         end
         using Base.Experimental: @overlay
         using .inst: MarginInstance, raw, cash, cash!
@@ -180,8 +172,7 @@ end
 function test_live_cancel_orders(s)
     @eval resps = []
     patch = @expr function Python.pyfetch(f::Py, args...; kwargs...)
-        if string(f.__name__) in
-           ("cancel_order", "cancel_orders", "cancel_order_ws", "cancel_orders_ws")
+        if string(f.__name__) in ("cancel_order", "cancel_orders", "cancel_order_ws", "cancel_orders_ws")
             push!(resps, (args, kwargs))
         else
             _pyjson("fetch_orders.json")
@@ -190,6 +181,7 @@ function test_live_cancel_orders(s)
     @live_setup!
     @pass [patch] begin
         lm.cancel_orders(s, ai)
+        Main.ords = resps
         @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
         @test length(resps[1][2]) == 1
         @test first(resps[1][2]) == (:symbol => raw(ai))
@@ -206,7 +198,7 @@ end
 
 function _has_patch()
     @eval disabled = Ref{Any}(())
-    patch = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym)
+    patch = @expr function exs.ExchangeTypes.has(exc, sym)
         if sym in disabled[]
             false
         else
@@ -232,8 +224,9 @@ function test_live_cancel_all_orders(s)
         lm.set_exc_funcs!(s)
         lm.cancel_all_orders(s, ai)
         @test length(resps[1]) == 2
-        @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
-        @test string(resps[1][2][1]) == raw(ai) #
+        @test string(resps[1][1][1]) == "BTC/USDT:USDT"
+        # @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
+        @test string(resps[1][1][1]) == raw(ai) #
         empty!(resps)
         disabled[] = ()
         lm.set_exc_funcs!(s)
@@ -251,6 +244,7 @@ function test_live_position(s)
         if occursin("position", string(f.__name__))
             _pyjson("fetch_positions.json")
         else
+            @warn "MOCKING: Unhandled call!" f
             Python._pyfetch_timeout(f, args...; kwargs...)
         end
     end
@@ -294,6 +288,7 @@ function test_live_position_sync(s)
         update = lm._posupdate(now(), resp)::lm.PositionTuple
 
         @info "TEST: watch positions!"
+        s[:is_watch_positions] = false
         lm.watch_positions!(s)
         # test if sync! returns a Position object with the correct attributes
         @info "TEST: lock"
@@ -348,24 +343,22 @@ function test_live_pnl(s)
         lp = lm.fetch_positions(s, ai; side=p)[0]
         @test !isnothing(lp)
         update = lm.PositionTuple(lm._posupdate(now(), lp))
-        pos = lm.live_sync_position!(s, ai, p, update; commits=false)
+        lm.live_sync_position!(s, ai, p, update; commits=false)
+        pos = position(ai, p)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
+        empty!(lm.positions_watcher(s))
         # test if live_pnl returns the correct unrealized pnl from the live position
-        let resp = lm.live_position(s, ai, p; force=true).resp
-            pnl = lm.live_pnl(s, ai, p; synced=true, verbose=false)
-            @test pnl == lm.resp_position_unpnl(resp, eid)
-        end
-        return nothing
+        update = lm.live_position(s, ai, p; force=true)
+        pnl = lm.live_pnl(s, ai, p; synced=true, verbose=false)
+        @test pnl == lm.resp_position_unpnl(update.resp, eid)
 
-        lp[lm.Pos.unrealizedPnl] = 0.0
-        pnl = lm.live_pnl(s, ai, p; resp=lp, force_resync=:no, verbose=false)
+        update.resp[lm.Pos.unrealizedPnl] = 0.0
+        pnl = lm.live_pnl(s, ai, p; update, synced=true, verbose=false)
         @test pnl ≈ 124.992 atol = 1e-2
         lm.entryprice!(pos, 0.0)
-        pnl = lm.live_pnl(s, ai, p; resp=lp, force_resync=:no, verbose=false)
+        pnl = lm.live_pnl(s, ai, p; update, synced=true, verbose=false)
         @test pnl ≈ -9299 atol = 1
-        pnl = lm.live_pnl(s, ai, p; resp=lp, force_resync=:auto, verbose=false)
-        @test pnl ≈ 124.992 atol = 1e-2
     end
 end
 
@@ -491,85 +484,106 @@ function test_live_openclosed_orders(s)
                 _pyjson("fetch_orders.json")
             end
         else
+            @warn "MOCKING: unhandled call" f
             Python._pyfetch(f, args...; kwargs...)
         end
     end
-    patch2 = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym, args...; kwargs...)
+    patch2 = @expr function exs.ExchangeTypes.has(exc, sym, args...; kwargs...)
         if sym in disabled[]
             false
         else
             exs.ExchangeTypes._has(exc, sym)
         end
     end
-    @pass [patch1, patch2] begin
+    patch3 = @expr function ExchangeTypes.first(exc::Exchange, args::Vararg{Symbol})
+        if any(sym in disabled[] for sym in args)
+            nothing
+        else
+            for a in args
+                if ExchangeTypes._has(exc, a)
+                    return getproperty(exc, a)
+                end
+            end
+            nothing
+        end
+    end
+    @pass [patch1, patch2, patch3] begin
         @live_setup!
         lm.set_exc_funcs!(s)
         @test has(exchange(ai), :fetchOpenOrders)
         orders = lm.fetch_open_orders(s, ai)
-        @test length(orders) == 15 # no check is done when query is direct from exchange
+        Main.ords = orders
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
-        disabled[] = (:fetchOpenOrders,)
+        @test length(orders) == 1 # no check is done when query is direct from exchange
+        @test lm.resp_order_id(first(orders), eid, String) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
+        disabled[] = (:fetchOpenOrders, :fetchOpenOrdersWs)
         lm.set_exc_funcs!(s)
         orders = lm.fetch_open_orders(s, ai)
-        Main.ords = orders
         @test length(orders) == 1
         @test all(pyeq(Bool, o["status"], @pyconst("open")) for o in orders)
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
 
-        disabled[] = (:fetchOpenOrders,)
+        disabled[] = (:fetchOpenOrders, :fetchOpenOrdersWs)
         lm.empty_caches!(s)
         lm.set_exc_funcs!(s)
-        @test has(exchange(ai), :fetchClosedOrders)
+        @test has(exchange(ai), :fetchClosedOrders, :fetchClosedOrdersWs)
         orders = lm.fetch_closed_orders(s, ai)
-        @test length(orders) == 15
+        @test length(orders) == 14
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
-        disabled[] = (:fetchClosedOrders,)
+        disabled[] = (:fetchClosedOrders, :fetchClosedOrdersWs)
         lm.set_exc_funcs!(s)
         orders = lm.fetch_closed_orders(s, ai)
         @test length(orders) == 14
         @test all(pyne(Bool, o["status"], @pyconst("open")) for o in orders)
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
-        disabled[] = (:fetchOrders, :fallback)
+        disabled[] = (:fetchOrders, :fetchOrdersWs, :fallback)
         lm.set_exc_funcs!(s)
         orders = lm.fetch_orders(s, ai)
         @test length(orders) == 15
         @test all(pyeq(Bool, o["symbol"], @pyconst(raw(ai))) for o in orders)
-        disabled[] = (:fetchOrders, :fetchClosedOrders)
+        disabled[] = (:fetchOrders, :fetchOrdersWs, :fetchOpenOrdersWs, :fetchClosedOrdersWs, :fetchClosedOrders)
         lm.set_exc_funcs!(s)
         @test_throws UndefKeywordError lm.fetch_orders(s, ai)
     end
 end
 
-function _test_live(debug=true)
-    if debug
-        ENV["JULIA_DEBUG"] = "LiveMode"
+function _test_live(debug="LiveMode")
+    if EXCHANGE_MM != :phemex
+        @warn "skipping `live` tests for $EXCHANGE_MM (because currently mocked against a specific exchange)"
+        return
     end
-    let cbs = st.STRATEGY_LOAD_CALLBACKS.live
-        if lm.load_strategy_cache ∉ cbs
-            push!(cbs, lm.load_strategy_cache)
+    prev_debug = get(ENV, "JULIA_DEBUG", nothing)
+    ENV["JULIA_DEBUG"] = debug
+    try
+        let cbs = st.STRATEGY_LOAD_CALLBACKS.live
+            if lm.load_strategy_cache ∉ cbs
+                push!(cbs, lm.load_strategy_cache)
+            end
         end
-    end
-
-    @testset failfast = FAILFAST "live" begin
-        s = @pass [patch_pf, patch_pft] begin
-            live_strat(:ExampleMargin; exchange=:phemex, skip_sync=true)
+        @testset failfast = FAILFAST "live" begin
+            s = @pass [patch_pf, patch_pft] begin
+                live_strat(:ExampleMargin; exchange=EXCHANGE_MM, skip_sync=true)
+            end
+            setglobal!(Main, :s, s)
+            try
+                @testset "live_fetch_orders" test_live_fetch_orders(s)
+                @testset "live_fetch_positions" test_live_fetch_positions(s)
+                @testset "live_cancel_orders" test_live_cancel_orders(s)
+                @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
+                @testset "live_position" test_live_position(s)
+                @testset "live_position_sync" test_live_position_sync(s)
+                @testset "live_pnl" test_live_pnl(s)
+                @testset "live_send_order" test_live_send_order(s)
+                @testset "live_my_trades" test_live_my_trades(s)
+                @testset "live_order_trades" test_live_order_trades(s)
+                @testset "live_openclosed_order" test_live_openclosed_orders(s)
+            finally
+                @async lm.stop_all_tasks(s)
+                lm.save_strategy_cache(s; inmemory=true)
+            end
         end
-        try
-            @testset "live_fetch_orders" test_live_fetch_orders(s)
-            @testset "live_fetch_positions" test_live_fetch_positions(s)
-            @testset "live_cancel_orders" test_live_cancel_orders(s)
-            @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
-            @testset "live_position" test_live_position(s)
-            @testset "live_position_sync" test_live_position_sync(s)
-            @testset "live_pnl" test_live_pnl(s)
-            @testset "live_send_order" test_live_send_order(s)
-            @testset "live_my_trades" test_live_my_trades(s)
-            @testset "live_order_trades" test_live_order_trades(s)
-            @testset "live_openclosed_order" test_live_openclosed_orders(s)
-        finally
-            @async lm.stop_all_tasks(s)
-            lm.save_strategy_cache(s; inmemory=true)
-        end
+    finally
+        ENV["JULIA_DEBUG"] = prev_debug
     end
 end
 

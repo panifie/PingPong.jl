@@ -68,7 +68,7 @@ end
 
 function test_live_pong_mg(s)
     ai = s[m"btc"]
-    amount = ai.limits.amount.min
+    amount = ai.limits.amount.min * 2
     eid = exchangeid(ai)
     reset!(s)
     waitfor = round(lm.throttle(s), Second) + Second(1)
@@ -104,7 +104,7 @@ function test_live_pong_mg(s)
         s, ai
     )
     @test inst.timestamp(ai) >= since
-    @test cash(ai, Short()) == -0.001 == lm.live_contracts(s, ai, Short(), since=last(ai.history).date, force=true)
+    @test cash(ai, Short()) == -amount == lm.live_contracts(s, ai, Short(), since=last(ai.history).date, force=true)
     @test iszero(cash(ai, Long()))
     @test isopen(ai, Short())
     @info "TEST: Position Close (2nd)"
@@ -135,6 +135,7 @@ function test_live_pong_mg(s)
     while lm.timestamp(ai, Long) < since
         @info "TEST: waiting for timestamp"
         @lock lm.positions_watcher(s) nothing
+        sleep(0.1)
     end
     pos = position(ai)
     @test lm.islong(pos)
@@ -147,7 +148,7 @@ function test_live_pong_mg(s)
     end
     n_test_orders = length(lm.ordershistory(ai)) - orders_offset
     @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) n_test_orders orders_offset
-    @test cash(pos) == 0.001 * n_test_orders == lm.live_contracts(s, ai, force=true)
+    @test cash(pos) == amount * n_test_orders == lm.live_contracts(s, ai, force=true)
     pside = posside(ai)
     @info "TEST: Position Close (3rd)"
     @test !isnothing(lm.get_positions(s, ai, Short()))
@@ -379,7 +380,7 @@ function test_live_pong_nm_fok(s)
 end
 
 # NOTE: phemex testnet is disabled during weekends
-function test_live_pong(exchange=:phemex, mm_exchange=:phemex; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogPosSync",
+function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogPosSync",
     sync=false, stop=true, save=false)
     @eval begin
         if !isdefined(Main, :_live_load)

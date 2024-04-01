@@ -21,7 +21,7 @@ end
 _test_ohlcv() = begin
     # if one exchange does not succeeds try on other exchanges
     # until one succeeds
-    for e in (:kucoin, :phemex, :binance)
+    for e in unique((EXCHANGE, EXCHANGE_MM, :kucoin, :phemex, :binance))
         @debug "TEST: test_ohlcv" exchange = e
         let exc = setexchange!(e)
             _test_ohlcv_exc(exc)

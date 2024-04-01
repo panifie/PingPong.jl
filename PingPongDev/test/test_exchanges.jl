@@ -1,13 +1,12 @@
 using Test
 
-exc_sym = :phemex
-test_exch() = setexchange!(:phemex, sandbox=false).name == "Phemex"
+test_exch() = Symbol(lowercase(setexchange!(EXCHANGE, sandbox=false).name)) == EXCHANGE
 _exchange() = begin
     empty!(Exchanges.exchanges)
     empty!(Exchanges.sb_exchanges)
-    e = getexchange!(exc_sym, markets=:yes, cache=false, sandbox=false)
-    @test nameof(e) == exc_sym
-    @test exc_sym ∈ keys(ExchangeTypes.exchanges) || exc_sym ∈ keys(ExchangeTypes.sb_exchanges)
+    e = getexchange!(EXCHANGE, markets=:yes, cache=false, sandbox=false)
+    @test nameof(e) == EXCHANGE
+    @test EXCHANGE ∈ keys(ExchangeTypes.exchanges) || exc_sym ∈ keys(ExchangeTypes.sb_exchanges)
     e
 end
 _exchange_pairs(exc) = begin

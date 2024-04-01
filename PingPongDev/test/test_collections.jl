@@ -7,7 +7,7 @@ test_assetcollection() = @testset "AssetCollection" begin
         using .PingPong.Engine.Exchanges
     end
     prs = ["ETH/USDT", "BTC/USDT"]
-    exc = getexchange!(:phemex)
+    exc = getexchange!(EXCHANGE)
     let coll = AssetCollection()
         @test isempty(coll)
     end
