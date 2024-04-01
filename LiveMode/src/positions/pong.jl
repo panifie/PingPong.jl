@@ -206,16 +206,16 @@ function pong!(
     if waitfor_closed(s, ai, @timeout_now)
         if waitposclose(s, ai, P; waitfor=@timeout_now)
         else
-            @debug "pong pos close: timedout" _module = LogLivePosClose pos = P ai = raw(ai)
+            @debug "pong pos close: timedout" _module = LogPosClose pos = P ai = raw(ai)
         end
         live_sync_position!(
             s, ai, P(); since, overwrite=true, waitfor=@timeout_now
         )
         if @lock ai isopen(ai, pos)
-            @debug "pong pos close:" _module = LogLivePosClose timestamp(ai, pos) >= since timestamp(ai, pos) ==
+            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(ai, pos) ==
                                                                                            DateTime(0)
             pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
-            @debug "pong pos close: still open (local) position" _module = LogLivePosClose since position(ai, pos) data =
+            @debug "pong pos close: still open (local) position" _module = LogPosClose since position(ai, pos) data =
                 try
                     resp = first(fetch_positions(s, ai))
                     this_pup = live_position(

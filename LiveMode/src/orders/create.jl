@@ -92,7 +92,7 @@ function create_live_order(
         end
         o = create()
         if isnothing(o) && synced
-            @warn "create order: can't construct" id = resp_order_id(resp, eid) ai = raw(ai) s = nameof(s)
+            @warn "create order: can't construct" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s)
             @sync begin
                 @async live_sync_strategy_cash!(s)
                 @async live_sync_universe_cash!(s)
