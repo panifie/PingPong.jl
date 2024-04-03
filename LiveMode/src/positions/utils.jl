@@ -85,7 +85,9 @@ The position is then stored in the position watcher and processed.
 """
 function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fallback_kwargs)
     @timeout_start
-
+    let cache = _positions_resp_cache(s.attrs)
+        @lock cache.lock empty!(cache.data)
+    end
     w = positions_watcher(s)
     @debug "force fetch pos: checking" _module = LogPosFetch islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
@@ -105,7 +107,6 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
     resp = @lock w begin
         timeout = @timeout_now()
         if timeout > Second(0)
-            # NOTE: Force fetching doesn't guarantee the latest result, there still a TTL cache here
             # NOTE: don't pass neighter the instance nor the side, always fetch all positions
             # otherwise it breaks watcher updates processing
             let resp = fetch_positions(s; timeout, fallback_kwargs...)
@@ -552,7 +553,7 @@ function waitforpos(
         while true
             pup = get_positions(s, ai, bp)
             isnothing(pup) || break
-            slept < timeout || begin
+            if slept > timeout
                 @debug "wait for pos: timedout (position not found)" _module = LogPosWait ai = raw(ai) side = bp f = @caller
                 return false
             end
@@ -576,7 +577,6 @@ function waitforpos(
         @debug "wait for pos: waited" _module = LogPosWait slept
         this_timestamp = pup.date
         if this_timestamp >= prev_timestamp >= prev_since
-            since
             @debug "wait for pos: up to date " _module = LogPosWait prev_timestamp this_timestamp resp_position_contracts(
                 pup.resp, eid
             ) pup.closed[]
@@ -592,7 +592,7 @@ function waitforpos(
             @debug "wait for pos:" _module = LogPosWait time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp =
                 pup.date side = posside(bp) ai = raw(ai)
         end
-        slept < timeout || begin
+        if slept > timeout
             @debug "wait for pos: timedout" _module = LogPosWait ai = raw(ai) side = bp f = @caller
             return false
         end
