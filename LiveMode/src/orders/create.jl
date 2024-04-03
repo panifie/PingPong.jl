@@ -30,6 +30,7 @@ function create_live_order(
         @warn "create order: empty response ($(raw(ai)))"
         return nothing
     end
+
     eid = side = type = loss = profit = date = id = nothing
     try
         eid = exchangeid(ai)
@@ -86,24 +87,23 @@ function create_live_order(
         return nothing
     end
     o = let f = construct_order_func(type)
-        function create()
+        function create(; skipcommit)
             @debug "create order: local" _module = LogCreateOrder ai = raw(ai) id amount date type price loss profit
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
-        o = create()
+        o = create(; skipcommit)
         if isnothing(o) && synced
-            @warn "create order: can't construct" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s)
-            @sync begin
-                @async live_sync_strategy_cash!(s)
-                @async live_sync_universe_cash!(s)
+            @warn "create order: can't construct (back-tracking)" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s)
+            o = findorder(s, ai; resp, side)
+            if isnothing(o)
+                @debug "create order: retrying (no commits)" _module = LogCreateOrder ai = raw(ai) side = posside(t)
+                o = @lock ai create(skipcommit=true)
             end
-            @debug "create order: constructing" _module = LogCreateOrder ai = raw(ai) side = posside(t)
-            o = @lock ai create()
         end
         o
     end
     if isnothing(o)
-        @error "create order: failed to sync" id ai = raw(ai) s = nameof(s) type
+        @error "create order: failed to sync" id ai = raw(ai) cash(ai) amount s = nameof(s) type
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
