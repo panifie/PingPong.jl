@@ -56,7 +56,7 @@ Base.iterate(bal::BalanceDict, args...; kwargs...) = iterate(bal.assets, args...
 Base.get(bal::BalanceDict, ai::AssetInstance, args...; kwargs...) = get(bal.assets, bc(ai), args...; kwargs...)
 Base.get(bal::BalanceDict, args...; kwargs...) = get(bal.assets, args...; kwargs...)
 reset!(bal::BalanceDict{T}) where {T} = begin
-    for snap in bal.assets
+    for snap in values(bal.assets)
         reset!(snap)
     end
     bal.date = DateTime(0)
