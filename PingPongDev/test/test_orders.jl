@@ -43,6 +43,11 @@ function test_orderscount(s)
     @test ect.execmode(s) == ect.Sim()
     st.reset!(s)
     ai = s[m"btc"]
+    maxcost = isfinite(ai.limits.cost.max) ? ai.limits.cost.max :
+              isfinite(ai.limits.amount.max) ? ai.limits.price.min * ai.limits.amount.max :
+              2.88230119e17
+    maxprice = isfinite(ai.limits.price.max) ? ai.limits.price.max : maxcost / ai.limits.amount.min
+    maxcash = isfinite(s.cash.limits.max) ? s.cash.limits.max : maxcost
     @info "TEST: " typeof(ai)
     row = ai.ohlcv[100, :]
     date(n=1) = row.timestamp + tf"1m" * n
@@ -51,12 +56,14 @@ function test_orderscount(s)
         ai,
         ect.GTCOrder{ect.Buy};
         amount=ai.limits.amount.min - eps(),
-        price=100.0,
+        price=ai.limits.price.min,
         date=row.timestamp,
     )
-    @info "TEST: " collect(ect.orders(s, ai))
+    @info "TEST: " ords = collect(ect.orders(s, ai))
     @test length(collect(ect.orders(s, ai))) == 0
-    ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e10, date=date())
+    price = maxprice
+    amount = maxcost / price
+    ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount, price, date=date())
     @test length(collect(ect.orders(s, ai))) == 0
     ect.pong!(
         s,
@@ -66,29 +73,39 @@ function test_orderscount(s)
         price=ai.limits.price.min,
         date=row.timestamp,
     )
-    maxcash = ai.limits.price.min * 1000
+    setproperty!(ai.ohlcv[date()], :low, 4ai.limits.price.min)
+    setproperty!(ai.ohlcv[date(2)], :low, 4ai.limits.price.min)
+    price = ai.limits.price.min
+    amount = ai.limits.cost.min / price * 100
     ect.cash!(s.cash, maxcash)
-    setproperty!(ai.ohlcv[date()], :low, 2ai.limits.price.min)
-    setproperty!(ai.ohlcv[date(2)], :low, 2ai.limits.price.min)
-    t = ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
+    t = ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount, price, date=date())
     @test ismissing(t)
-    @test_throws AssertionError ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date())
-    ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount=100.0, price=1e-8, date=date(2))
+    @test_throws AssertionError ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount, price, date=date())
+    price = 2ai.limits.price.min
+    amount = 2ai.limits.cost.min / price
+    @info "TEST: orders" price amount
+    @test length(collect(ect.orders(s, ai))) == 1
+    ect.pong!(s, ai, ect.GTCOrder{ect.Buy}; amount, price, date=date(2))
     @test length(collect(ect.orders(s, ai))) == 2
     @test length(collect(ect.orders(s, ai, ect.Buy))) == 2
     @test length(collect(ect.orders(s, ai, ect.Sell))) == 0
     @test ect.hasorders(s, ect.Buy)
     @test !ect.hasorders(s, ect.Sell)
     st.default!(s)
-    ect.cash!(s.cash, 1e6)
-    ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount=10.0, date=date(3))
-    @test s.cash < 1e6
+    ect.cash!(s.cash, maxcost)
+    Main.s = s
+    amount *= 3
+    ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount, date=date(3))
+    @test s.cash < maxcost
     setproperty!(ai.ohlcv[date(3)], :high, 10ai.limits.price.min)
-    t = ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount=1.0, price=ai.limits.price.min, date=date(3))
+    prev_amount = @something cash(ai) ZERO
+    amount = ai.limits.cost.min / ai.limits.price.min
+    t = ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount, price=ai.limits.price.min, date=date(3))
     @test !isnothing(t)
     @test t.order isa ect.GTCOrder{ect.Sell}
-    @test cash(ai) == 9.0
-    ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount=1.0, price=1e9, date=date(3))
+    @info "TEST: orders" cash(ai) prev_amount amount
+    @test cash(ai) == prev_amount
+    ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount, price=11ai.limits.price.min, date=date(3))
     @test length(collect(ect.orders(s, ai, ect.Sell))) == 1
     @test length(collect(ect.orders(s))) == 3
     @test length(collect(ect.orders(s, ai, Long()))) == 3
@@ -101,13 +118,19 @@ function test_orderscount(s)
     let prevc = s.cash.value
         ect.pong!(s, ai, Long(), date(3), ect.PositionClose())
         @test isnothing(cash(ai))
+        @test !isopen(ai)
+        @test !isopen(ai, Long)
         @test s.cash > prevc
     end
-    ect.pong!(s, ai, ect.ShortGTCOrder{ect.Sell}; amount=1.0, price=1e5, date=date(4))
+    amount = 3ai.limits.amount.min
+    price = ai.limits.cost.min / amount + ai.limits.price.min
+    ect.pong!(s, ai, ect.ShortGTCOrder{ect.Sell}; amount, price, date=date(4))
     @test length(collect(ect.shortorders(s, ai))) == 1
     @test isnothing(cash(ai))
-    ect.pong!(s, ai, ect.ShortMarketOrder{ect.Sell}; amount=1.0, date=date(4))
-    @test cash(ai) == -1.0
+    amount = ai.limits.cost.min / ai.limits.price.min
+    ect.pong!(s, ai, ect.ShortMarketOrder{ect.Sell}; amount, date=date(4))
+    @info "TEST: orders" cash(ai) ai.limits.amount.min
+    @test cash(ai) == -10.0
     @test inst.status(position(ai, Short)) == ect.PositionOpen()
     let prevc = s.cash.value
         try
