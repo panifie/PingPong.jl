@@ -243,14 +243,19 @@ $(TYPEDSIGNATURES)
 This function retrieves the state of an order with a specific `id` from a collection of orders `orders_byid`. If the state is not immediately available, the function waits for a specified duration `waitfor` before trying again.
 
 """
-function get_order_state(orders_byid, id; waitfor=Second(5), file=@__FILE__, line=@__LINE__)
+function get_order_state(orders_byid, id; s, ai, waitfor=Second(5), file=@__FILE__, line=@__LINE__)
     @something(
         get(orders_byid, id, nothing)::Union{Nothing,LiveOrderState},
+        findorder(s, ai; id),
+        # Need to lock to ensure `live_create_order` calls have finished
         begin
-            @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
-                waitfor _file = file _line = line @caller
-            waitforcond(() -> haskey(orders_byid, id), waitfor)
-            get(orders_byid, id, missing)
+            @timeout_start
+            @lock ai begin
+                @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
+                    waitfor _file = file _line = line @caller
+                waitforcond(() -> haskey(orders_byid, id), waitfor=@timeout_now)
+                get(orders_byid, id, missing)
+            end
         end
     )
 end
@@ -293,7 +298,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
             push!(sem.queue, n)
             try
-                let state = get_order_state(orders_byid, id)
+                let state = get_order_state(orders_byid, id; s, ai)
                     if state isa LiveOrderState
                         @debug "handle trade: locking state" _module = LogWatchTrade id resp islocked(state.lock)
                         @lock state.lock begin
@@ -475,8 +480,12 @@ This function forces a fetch trades operation for a specific order `o` in a live
 
 """
 function _force_fetchtrades(s, ai, o)
+    @lock s let a = s.attrs
+        _trades_resp_cache(a, ai) |> empty!
+        _order_trades_resp_cache(a, ai) |> empty!
+    end
     ordersby_id = active_orders(s, ai)
-    state = get_order_state(ordersby_id, o.id; waitfor=Millisecond(0))
+    state = get_order_state(ordersby_id, o.id; s, ai, waitfor=Millisecond(0))
     @debug "force fetch trades: " _module = LogTradeFetch locked =
         state isa LiveOrderState ? islocked(state.lock) : nothing ai = raw(ai) f = @caller 10
     function handler()

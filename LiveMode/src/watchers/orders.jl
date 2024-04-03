@@ -412,7 +412,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             synced=false,
         )
         if o isa Order
-            state = get_order_state(active_orders(s, ai), o.id)
+            state = get_order_state(active_orders(s, ai), o.id; s, ai)
             if state isa LiveOrderState
                 update_order!(s, ai, eid; resp, state)
             else
@@ -459,7 +459,7 @@ function process_order!(s, ai, orders_byid, resp, sem)
             n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
             push!(sem.queue, n)
             try
-                state = get_order_state(orders_byid, id)
+                state = get_order_state(orders_byid, id; s, ai)
                 # wait for earlier events to be processed
                 while first(sem.queue) != n
                     @debug "handle ord: waiting for queue" _module = LogWatchOrder n id
@@ -690,7 +690,7 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
             @debug "Wait for order: not found" _module = LogWaitOrder id = o.id
             return true
         end
-        slept < timeout || begin
+        if slept > timeout
             @debug "Wait for order: timedout" _module = LogWaitOrder id = o.id timeout
             return false
         end
