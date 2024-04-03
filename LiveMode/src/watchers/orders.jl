@@ -346,12 +346,14 @@ function update_order!(s, ai, eid; resp, state)
     @debug "update ord: handled" _module = LogWatchOrder id = state.order.id filed = filled_amount(state.order) f = @caller 7
 end
 
-_default_ordertype2(islong::Bool, oside::OrderSide) =
+_default_ordertype(islong::Bool, bs::BySide, args...) = begin
+    oside = orderside(bs)
     if islong
         MarketOrder{oside}
     else
         ShortMarketOrder{opposite(oside)}
     end
+end
 _default_ordertype(s, ai::MarginInstance, resp) = begin
     flag = islong(ai)
     oside = if resp_order_reduceonly(resp, exchangeid(ai))
