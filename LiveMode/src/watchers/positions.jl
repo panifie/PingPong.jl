@@ -183,11 +183,18 @@ $(TYPEDSIGNATURES)
 
 This function starts the watcher for positions in a live strategy `s`. The watcher checks and updates the positions at a specified interval.
 """
-function watch_positions!(s::LiveStrategy; interval=st.throttle(s))
+function watch_positions!(s::LiveStrategy; interval=st.throttle(s), wait=false)
     @lock s begin
         w = @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(s; interval)
-        @lock w if isstopped(w) && !attr(s, :stopped, false)
+        just_started = @lock w if isstopped(w) && !attr(s, :stopped, false)
             start!(w)
+            true
+        else
+            false
+        end
+        while wait && just_started && _lastprocessed(w) == DateTime(0)
+            @debug "live: waiting for initial positions" _module = LogWatchPos
+            safewait(w.beacon.process)
         end
         w
     end
@@ -232,7 +239,12 @@ end
 _positions_task(w) = @lget! attrs(w) :positions_task _positions_task!(w)
 
 function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
+    _lastprocessed!(w, DateTime(0))
     attrs = w.attrs
+    view = attrs[:view]
+    empty!(view.long)
+    empty!(view.short)
+    empty!(view.last)
     s = attrs[:strategy]
     _exc!(attrs, exchange(s))
     _tfunc!(
