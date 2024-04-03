@@ -51,8 +51,10 @@ function _order_byid_resp_cache(a, ai)
 end
 
 function _positions_resp_cache(a)
-    lock = ReentrantLock()
-    @lget! a :positions_cache (; lock, data=ttl_resp_dict(a[:positions_ttl], Any, Any))
+    @lget! a :positions_cache begin
+        lock = ReentrantLock()
+        (; lock, data=ttl_resp_dict(a[:positions_ttl], Any, Any))
+    end
 end
 
 function _func_cache(a)
