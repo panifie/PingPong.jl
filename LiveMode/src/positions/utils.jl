@@ -227,6 +227,7 @@ If the asset is short, the function returns the negative of the number of contra
 
 """
 function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
+    watch_positions!(s)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
         @debug "live contracts: " _module = LogPosFetch isnothing(pup) closed = isnothing(pup) ? nothing : pup.closed[]

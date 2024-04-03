@@ -260,6 +260,7 @@ function live_balance(
     type=nothing,
     full=false,
 )::Union{BalanceDict,BalanceSnapshot,Nothing}
+    watch_balance!(s)
     ai_arg = full ? () : (ai,)
     bal = get_balance(s, ai_arg...)
     w = balance_watcher(s)
