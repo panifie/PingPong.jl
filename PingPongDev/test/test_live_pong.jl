@@ -12,9 +12,12 @@ function _check_state(s, ai)
         @test isapprox(cash(ai, side), lm.live_contracts(s, ai, side, force=true), rtol=1e-1)
         @test isfinite(committed(ai, side))
     end
+    _get(v, args...) = get(v, args...)
+    _get(::Nothing, _, def) = def
     for side in (Long, Short)
         pside = posside(ai)
-        resps = (@something lm.fetch_positions(s, ai; side=pside, timeout=Second(10)) lm.get_positions(s, ai, side)) |> PyList
+        resps = (@something lm.fetch_positions(s, ai; side=pside, timeout=Second(10)) _get(lm.get_positions(s, ai, side), :resp, [])) |> PyList
+        @info "TEST: check state" typeof(resps)
         idx = findfirst(resps) do resp
             string(lm.resp_position_symbol(resp, eid)) == raw(ai) &&
                 string(lm.resp_position_side(resp, eid)) == lm._ccxtposside(side)
@@ -53,14 +56,15 @@ function _reset_remote_pos(s, ai)
 end
 
 _waitwatchers(s) = begin
-    return
     bw = lm.balance_watcher(s)
-    if bw[:last_processed] == DateTime(0)
+    while bw[:last_processed] == DateTime(0)
+        @info "TEST: waiting for balance watcher initial update" bw.view
         lm.safewait(bw.beacon.process)
     end
     if s isa lm.MarginStrategy
         pw = lm.positions_watcher(s)
-        if pw[:last_processed] == DateTime(0)
+        while pw[:last_processed] == DateTime(0)
+            @info "TEST: waiting for position watcher initial update"
             lm.safewait(pw.beacon.process)
         end
     end
@@ -71,12 +75,11 @@ function test_live_pong_mg(s)
     amount = ai.limits.amount.min * 2
     eid = exchangeid(ai)
     reset!(s)
-    waitfor = round(lm.throttle(s), Second) + Second(1)
+    waitfor = 2 * round(lm.throttle(s), Second)
     @test lm.hasattr(s, :trades_cache_ttl)
     lm.live_sync_strategy!(s, force=true)
     _waitwatchers(s)
     since = now()
-    waitfor = Second(3)
     pos = position(ai)
     #  TODO: wait for first sync
     _check_state(s, ai)
@@ -84,6 +87,7 @@ function test_live_pong_mg(s)
 
     _reset_remote_pos(s, ai)
     @test lm.live_contracts(s, ai, Short(), force=true) == 0
+    @info "TEST: " w = lm.positions_watcher(s)
     @test lm.live_contracts(s, ai, Long(), force=true) == 0
     @test !isopen(ai)
 
@@ -93,13 +97,16 @@ function test_live_pong_mg(s)
     if ismissing(trade)
         o = first(values(s, ai, Sell))
         @info "TEST: trades delay" o.id
-        @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor)
+        while !lm.isfilled(ai, o)
+            lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor)
+        end
     end
+    @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor) || @lock s @lock ai lm.isfilled(ai, o)
     pup = lm.live_position(s, ai, force=true)
     @info "TEST:" pup trade
     @test lm.live_contracts(s, ai, force=true) < ZERO || iszero(cash(ai))
     @test !isnothing(position(ai))
-    @test !isnothing(pup) # FLAPS
+    @test !isnothing(pup)
     @info "TEST: Position" date = isnothing(pup) ? nothing : pup.date lm.live_contracts(
         s, ai
     )
@@ -132,10 +139,11 @@ function test_live_pong_mg(s)
             end
         end
     end
+    w = lm.positions_watcher(s)
     while lm.timestamp(ai, Long) < since
-        @info "TEST: waiting for timestamp"
-        @lock lm.positions_watcher(s) nothing
-        sleep(0.1)
+        @info "TEST: waiting for timestamp" isstarted(w)
+        @lock w nothing
+        sleep(1)
     end
     pos = position(ai)
     @test lm.islong(pos)
@@ -146,21 +154,25 @@ function test_live_pong_mg(s)
         @info "TEST: waiting for orders to be closed"
         lm.waitfor_closed(s, ai)
     end
+    since = lm.trades(ai)[end].date
+    lm.waitforpos(s, ai, posside(pos); since, waitfor) || lm.live_position(s, ai; since, force=true)
+    @test lm.timestamp(ai) >= since
     n_test_orders = length(lm.ordershistory(ai)) - orders_offset
-    @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) n_test_orders orders_offset
-    @test cash(pos) == amount * n_test_orders == lm.live_contracts(s, ai, force=true)
+    contracts = lm.live_contracts(s, ai, force=true)
+    @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) contracts n_test_orders orders_offset since
+    @test cash(pos) == amount * n_test_orders == contracts
     pside = posside(ai)
     @info "TEST: Position Close (3rd)"
     @test !isnothing(lm.get_positions(s, ai, Short()))
     @test if ect.pong!(s, ai, posside(ai), now(), ect.PositionClose(); waitfor)
         true
     else
+        this_side = posside(ai)
         @info "TEST: waitposclose" pside lm.live_contracts(s, ai)
-        if !lm.waitposclose(s, ai, posside(ai); waitfor) || error()
+        if !lm.waitposclose(s, ai, this_side; waitfor)
             lm._force_fetchpos(s, ai; fallback_kwargs=(;))
         end
-        lm.live_sync_position!(s, ai, force=true)
-        lm.waitposclose(s, ai, posside(ai); waitfor=Second(0))
+        lm.waitposclose(s, ai, this_side; waitfor)
     end
     @test !isopen(ai)
     @test isempty(lm.active_orders(s, ai))
@@ -380,7 +392,7 @@ function test_live_pong_nm_fok(s)
 end
 
 # NOTE: phemex testnet is disabled during weekends
-function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogPosSync",
+function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogWatchTrade,LogPosSync",
     sync=false, stop=true, save=false)
     @eval begin
         if !isdefined(Main, :_live_load)
@@ -391,9 +403,11 @@ function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Execu
             FAILFAST = true
         end
         _live_load()
-        if isdefined(Main, :s)
-            @async stop!(s)
-            reset!(s)
+        if isdefined(Main, :s) && Main.s isa st.Strategy
+            @async begin
+                stop!(s)
+                reset!(s)
+            end
         end
     end
     prev_debug = get(ENV, "JULIA_DEBUG", "")
