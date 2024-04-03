@@ -201,7 +201,11 @@ function findorder(
     ai;
     resp=nothing,
     id=resp_order_id(resp, exchangeid(ai), String),
-    side=_ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=BuyOrSell)
+    side=if isnothing(resp)
+        BuyOrSell
+    else
+        _ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=BuyOrSell)
+    end
 )
     if !isempty(id)
         for o in values(s, ai, side)
