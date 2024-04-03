@@ -102,7 +102,9 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    trade = _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
+    w = positions_watcher(s)
+    # NOTE: avoid positions update when executing orders
+    trade = @lock w._exec.buffer_lock _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
     if synced && trade isa Trade
         live_sync_position!(
             s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
@@ -132,7 +134,9 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    trade = _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
+    w = positions_watcher(s)
+    # NOTE: avoid positions update when executing orders
+    trade = @lock w._exec.buffer_lock _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
         live_sync_position!(
             s, ai, posside(trade); since=trade.date, waitfor=@timeout_now
@@ -212,8 +216,7 @@ function pong!(
             s, ai, P(); since, overwrite=true, waitfor=@timeout_now
         )
         if @lock ai isopen(ai, pos)
-            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(ai, pos) ==
-                                                                                           DateTime(0)
+            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(ai, pos) == DateTime(0)
             pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
             @debug "pong pos close: still open (local) position" _module = LogPosClose since position(ai, pos) data =
                 try
