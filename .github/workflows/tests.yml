@@ -29,9 +29,9 @@ jobs:
           ~/.julia
           .conda
           PingPongDev/.CondaPkg/env
-        key: ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
+        key: ${{ matrix.os }}-julia-${{ env.JULIA_VERSION }}-test-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-julia-${{ env.JULIA_VERSION }}-test-
+          ${{ matrix.os }}-julia-${{ env.JULIA_VERSION }}-test-
     - name: Set up Julia
       uses: julia-actions/setup-julia@v1
       with:
@@ -48,13 +48,20 @@ jobs:
         PINGPONG_CMC_APIKEY: ${{ secrets.PINGPONG_CMC_APIKEY }}
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+    - name: Git submodules
+      run: git submodule init; git submodule update
     - name: Install dependencies
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: sudo apt-get install -y xauth direnv
+    - name: Install dependencies
+      if: ${{ matrix.os == 'macos-14' }}
+      run: brew install xauth direnv
+    - name: Instantiate
       run: |
-        git submodule init; git submodule update
-        sudo apt-get install -y xauth direnv
         direnv allow .
         eval "$(direnv hook bash)"
-        julia --project=PingPongDev/ -e 'import Pkg; Pkg.resolve(); Pkg.update(); Pkg.instantiate(); using PingPongDev;'
+        git reset --hard # otherwise instantiate fails
+        julia --project=PingPongDev/ -e 'import Pkg; Pkg.instantiate(); using PingPongDev;'
     - name: Run tests # coverage is generated only on success
       env:
         PINGPONG_TEST_EXCHANGE: "phemex"
