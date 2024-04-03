@@ -344,7 +344,7 @@ end
 
 function handle_list_resp(eid::EIDType, resp, timeout, pre_timeout, base_timeout)
     if ismissing(resp)
-        @warn "ccxt: request timed out" resp eid base_timeout[] f = @caller 14
+        @warn "ccxt: request timed out" resp eid base_timeout[] f = @caller 10
         base_timeout[] += if timeout > Second(0)
             round(timeout, Second, RoundUp)
         else
@@ -352,7 +352,7 @@ function handle_list_resp(eid::EIDType, resp, timeout, pre_timeout, base_timeout
         end
         nothing
     elseif resp isa Exception
-        @warn "ccxt: request error" resp eid
+        @warn "ccxt: request error" resp eid f = @caller 10
         pre_timeout[] += Second(1)
         nothing
     else
