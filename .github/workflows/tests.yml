@@ -54,6 +54,8 @@ jobs:
         julia --project=PingPongDev/ -e 'import Pkg; Pkg.resolve(); Pkg.update(); Pkg.instantiate(); using PingPongDev;'
     - name: Run tests # coverage is generated only on success
       env:
+        PINGPONG_TEST_EXCHANGE: "phemex"
+        PINGPONG_TEST_EXCHANGE_MM: "phemex"
         PINGPONG_BYBIT_SANDBOX_APIKEY: ${{ secrets.PINGPONG_BYBIT_SANDBOX_APIKEY }}
         PINGPONG_BYBIT_SANDBOX_SECRET: ${{ secrets.PINGPONG_BYBIT_SANDBOX_SECRET }}
         PINGPONG_BYBIT_SANDBOX_PASSWORD: ${{ secrets.PINGPONG_BYBIT_SANDBOX_PASSWORD }}
