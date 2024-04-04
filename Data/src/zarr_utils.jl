@@ -125,7 +125,7 @@ function zdelete!(
             else
                 # Delete all entries where dates are less than `to`
                 to_idx = search_to(firstindex(selected))
-                tail_range = (to_idx+1):lastindex(z, 1)
+                tail_range = (to_idx + 1):lastindex(z, 1)
                 tail_len = length(tail_range)
                 if tail_len > 0
                     z[begin:tail_len, :] = view(z, tail_range, :)
@@ -143,7 +143,7 @@ function zdelete!(
             # and less than `to`
             from_idx = search_from()
             to_idx = search_to(from_idx)
-            right_range = (to_idx+1):lastindex(z, 1)
+            right_range = (to_idx + 1):lastindex(z, 1)
             # the last idx of the copied over data
             end_idx = from_idx + length(right_range) - 1
             if length(right_range) > 0
@@ -277,7 +277,7 @@ function _get_zarray(
         if isempty(za) || _wrongdims(za, sz) || _wrongcols(za, sz) || reset
             @debug "_get_zarray" sz _wrongdims(za, sz) _wrongcols(za, sz)
             if overwrite || reset
-                delete!(zi.store, key, recursive=true)
+                delete!(zi.store, key; recursive=true)
                 za = @zcreate
             else
                 throw(
@@ -313,12 +313,15 @@ function Base.unique!(by::Function, z::ZArray; dims=1)
     z[:] = reduce(vcat, [reshape(el, (1, slice_len)) for el in u])
 end
 
+const ZINSTANCE_INIT_FUNC = Ref{Union{Function,Type}}(ZarrInstance)
 if @load_preference("data_store", "lmdb") == "lmdb"
-    include("lmdbstore.jl")
-    zinstance(args...; kwargs...) = zilmdb(args...; kwargs...)
-else
-    zinstance(args...; kwargs...) = ZarrInstance()
+    using LMDB: LMDB as lm
+    if lm.LibLMDB.LMDB_jll.is_available()
+        include("lmdbstore.jl")
+        ZINSTANCE_INIT_FUNC[] = zilmdb
+    end
 end
+zinstance(args...; kwargs...) = ZINSTANCE_INIT_FUNC[](args...; kwargs...)
 
 const zi = Ref{Option{ZarrInstance}}()
 const zcache = Dict{String,ZarrInstance}()

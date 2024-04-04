@@ -110,7 +110,7 @@ using .Lang: @preset, @precomp
         end
     finally
         Logging.disable_logging(Logging.Debug)
-        if @load_preference("data_store", "lmdb") == "lmdb"
+        if @load_preference("data_store", "lmdb") == "lmdb" && lm.LibLMDB.LMDB_jll.is_available()
             rm(tmp_zi[].store.a)
         end
     end

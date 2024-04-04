@@ -17,7 +17,9 @@ using .Misc: @skipoffline
         end
         _closeall()
     finally
-        rm(tmp_zi.store.a)
+        if hasproperty(tmp_zi.store, :a)
+            rm(tmp_zi.store.a)
+        end
     end
     Python.py_stop_loop()
 end
