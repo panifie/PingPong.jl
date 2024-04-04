@@ -22,7 +22,7 @@ else
        include("consts.jl")
     end
     @compile_workload include("consts.jl")
-    include("python.jl")
+    include("module.jl")
     __init__() = _doinit()
     @compile_workload include("precompile.jl")
     _setup!()

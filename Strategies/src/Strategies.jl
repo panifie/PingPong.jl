@@ -10,7 +10,7 @@ if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     end
 else
     occursin(string(@__MODULE__), get(ENV, "JULIA_NOPRECOMP", "")) && __precompile__(false)
-    include("strategies.jl")
+    include("module.jl")
     if true # get(ENV, "JULIA_PRECOMPILE", "") == "yes"
         include("precompile.jl")
     else

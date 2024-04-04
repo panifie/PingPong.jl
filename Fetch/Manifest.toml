@@ -185,7 +185,7 @@ uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
 version = "0.1.10"
 
 [[deps.ExchangeTypes]]
-deps = ["Ccxt", "FunctionalCollections", "Mocking", "OrderedCollections", "Serialization"]
+deps = ["Ccxt", "FunctionalCollections", "OrderedCollections", "Serialization"]
 path = "../ExchangeTypes"
 uuid = "16e96388-e60e-4b60-892f-986722d15ae4"
 version = "0.1.0"
@@ -439,7 +439,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.14"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "Mocking", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -575,7 +575,7 @@ uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
 
 [[deps.Python]]
-deps = ["Dates", "DocStringExtensions", "Lang", "Mocking", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["Dates", "DocStringExtensions", "Lang", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"

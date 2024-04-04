@@ -11,7 +11,7 @@ else
         __precompile__(false)
         include("consts.jl")
     end
-    include("misc.jl")
+    include("module.jl")
     __init__() = _doinit()
     include("precompile.jl")
 end
