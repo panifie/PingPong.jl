@@ -61,7 +61,6 @@ $(TYPEDSIGNATURES)
 This function checks both Buy and Sell sides for any orders that match the provided position side in the Margin Strategy.
 
 """
-hasorders(s::MarginStrategy, ai, ps::PositionSide)
 function hasorders(s::MarginStrategy, ai, ps::PositionSide)
     _hasorders(s, ai, ps, Buy) || _hasorders(s, ai, ps, Sell)
 end
