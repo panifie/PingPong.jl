@@ -7,8 +7,10 @@ using Test
 test_zarrinstance() = begin
     zi = Data.zinstance()
     @test zi isa ZarrInstance
-    @test zi.store isa Data.LMDBDictStore
-    @test startswith(zi.store.a.env.path, Data.DATA_PATH)
+    if Data.lm.LibLMDB.LMDB_jll.is_available()
+        @test zi.store isa Data.LMDBDictStore
+        @test startswith(zi.store.a.env.path, Data.DATA_PATH)
+    end
     zi
 end
 
