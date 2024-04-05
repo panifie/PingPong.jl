@@ -116,7 +116,9 @@ function test_orderscount(s)
     @test length(collect(ect.longorders(s, ai))) == 3
     @test length(collect(ect.longorders(s, ai, ect.Buy))) == 2
     let prevc = s.cash.value
+        @test !ect.isdust(ai, ot.Order{ot.ForcedOrderType{Sell}}, last(ai.history).price)
         ect.pong!(s, ai, Long(), date(3), ect.PositionClose())
+        @test ect.isdust(ai, last(ai.history).price)
         @test isnothing(cash(ai))
         @test !isopen(ai)
         @test !isopen(ai, Long)
@@ -127,10 +129,11 @@ function test_orderscount(s)
     ect.pong!(s, ai, ect.ShortGTCOrder{ect.Sell}; amount, price, date=date(4))
     @test length(collect(ect.shortorders(s, ai))) == 1
     @test isnothing(cash(ai))
+    setproperty!(ai.ohlcv[date(4)], :open, 10ai.limits.price.min)
     amount = ai.limits.cost.min / ai.limits.price.min
     ect.pong!(s, ai, ect.ShortMarketOrder{ect.Sell}; amount, date=date(4))
     @info "TEST: orders" cash(ai) ai.limits.amount.min
-    @test cash(ai) == -10.0
+    @test iszero(cash(ai, Long))
     @test inst.status(position(ai, Short)) == ect.PositionOpen()
     let prevc = s.cash.value
         try
