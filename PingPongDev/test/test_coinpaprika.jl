@@ -1,7 +1,7 @@
 using Test
 
-function test_paprika()
-    @testset "paprika" begin
+function test_coinpaprika()
+    @testset "coinpaprika" begin
         @eval begin
             using .PingPong.Engine.LiveMode.Watchers.CoinPaprika
             using .PingPong.Engine.Instruments

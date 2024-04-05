@@ -24,8 +24,8 @@ test_map = [
     :roi => [:test_roi],
     :stoploss => [:test_stoploss],
     #
-    :cmc => [:test_cmc],
-    :paprika => [:test_paprika],
+    :cmc => [:test_coinmarketcap],
+    :paprika => [:test_coinpaprika],
     :gecko => [:test_coingecko],
     :funding => [:test_funding],
     #

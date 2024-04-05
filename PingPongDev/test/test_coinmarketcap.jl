@@ -20,7 +20,7 @@ _test_cmc_1(fromenv=true) = begin
     @test pc1 > pc2
 end
 
-test_cmc(fromenv=true) = begin
+test_coinmarketcap(fromenv=true) = begin
     @eval begin
         using .PingPong: PingPong
         using .PingPong.Engine.LiveMode.Watchers.CoinMarketCap
