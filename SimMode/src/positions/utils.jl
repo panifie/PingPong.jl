@@ -54,7 +54,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
     @deassert iszero(committed(ai, p)) committed(ai, p)
     ot = ReduceOnlyOrder(p)
     price = priceat(s, ot, ai, date)
-    amount = abs(nondust(ai, price, p))
+    amount = abs(nondust(ai, ot, price))
     if amount > 0.0
         @ifdebug prevcash = s.cash.value
         t = pong!(s, ai, ot; amount, date, price)
@@ -76,15 +76,15 @@ Closes a leveraged position.
 
 $(TYPEDSIGNATURES)
 
-When a date is given, this function closes pending orders and sells the remaining cash. 
+When a date is given, this function closes pending orders and sells the remaining cash.
 It then resets the position, deletes it from the holdings, and checks that the position is closed and no funds are committed.
 
 """
-function close_position!(
-    s::IsolatedStrategy, ai, p::PositionSide, date=nothing
-)
+function close_position!(s::IsolatedStrategy, ai, p::PositionSide, date=nothing)
     # when a date is given we should close pending orders and sell remaining cash
-    isnothing(date) || force_exit_position(s, ai, p, date)
+    if !isnothing(date)
+        force_exit_position(s, ai, p, date)
+    end
     reset!(ai, p)
     delete!(s.holdings, ai)
     @deassert !isopen(position(ai, p)) && iszero(ai)
@@ -112,11 +112,7 @@ $(TYPEDSIGNATURES)
 `actual_price/amount`: the price/amount to execute the liquidation market order with (for paper mode).
 """
 function liquidate!(
-    s::MarginStrategy,
-    ai::MarginInstance,
-    p::PositionSide,
-    date,
-    fees=maxfees(ai) * 2.0;
+    s::MarginStrategy, ai::MarginInstance, p::PositionSide, date, fees=maxfees(ai) * 2.0;
 )
     pos = position(ai, p)
     for (_, o) in orders(s, ai, p)
@@ -175,8 +171,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if a position is open. If it is, it either updates the position with the given trade or closes it if the position is dust. 
-If the position is not open, it opens a new position with the given trade. 
+This function checks if a position is open. If it is, it either updates the position with the given trade or closes it if the position is dust.
+If the position is not open, it opens a new position with the given trade.
 After updating or opening the position, it checks if the position needs to be liquidated.
 
 """
@@ -205,8 +201,8 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function checks if a position is open and updates the timestamp. 
-If the position is liquidatable, it is liquidated. 
+This function checks if a position is open and updates the timestamp.
+If the position is liquidatable, it is liquidated.
 Otherwise, the position remains open and a `PositionUpdate` is pinged.
 
 """
@@ -241,7 +237,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function is used to update the state of all active asset holdings within the provided instance of `IsolatedStrategy` for a specified date. 
+This function is used to update the state of all active asset holdings within the provided instance of `IsolatedStrategy` for a specified date.
 Execution updates include the maintenance of position and order records and accounting for any change of asset state to reflect liquidations or trade updates.
 """
 function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)

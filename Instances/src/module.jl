@@ -3,7 +3,7 @@ using OrderTypes
 
 import Exchanges.ExchangeTypes: exchangeid, exchange, exc
 using Exchanges: CurrencyCash, Data, TICKERS_CACHE10, markettype, @tickers!
-using OrderTypes: ByPos, AssetEvent, positionside, Instruments
+using OrderTypes: ByPos, AssetEvent, positionside, Instruments, ordertype
 using .Data: load, zi, empty_ohlcv, DataFrame, DataStructures
 using .Data.DFUtils: daterange, timeframe
 import .Data: stub!
@@ -174,13 +174,13 @@ Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
 Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
-Base.lock(ai::AssetInstance) = begin
+function Base.lock(ai::AssetInstance)
     @debug "locking $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
     lock(getfield(ai, :lock))
     @debug "locked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
 end
 Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
-Base.unlock(ai::AssetInstance) = begin
+function Base.unlock(ai::AssetInstance)
     unlock(getfield(ai, :lock))
     @debug "unlocked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
 end
@@ -233,7 +233,7 @@ $(TYPEDSIGNATURES)
 This function checks if the position value of a given `AssetInstance` at a specific price is below the minimum limit for that asset. The position side `p` determines if it's a long or short position.
 
 """
-function isdust(ai::AssetInstance, price, p::PositionSide)
+function isdust(ai::MarginInstance, price::Number, p::PositionSide)
     pos = position(ai, p)
     if isnothing(pos)
         return true
@@ -256,6 +256,13 @@ function isdust(ai::NoMarginInstance, price::Number)
         this_cash * price < ai.limits.cost.min
     end
 end
+function isdust(ai::AssetInstance, o::Type{<:Order}, price::Number)
+    if o <: ReduceOnlyOrder
+        false
+    else
+        invoke(isdust, Tuple{MarginInstance,Number,PositionSide}, ai, price, posside(ai))
+    end
+end
 @doc """ Get the asset cash rounded to precision.
 
 $(TYPEDSIGNATURES)
@@ -263,7 +270,7 @@ $(TYPEDSIGNATURES)
 This function returns the asset cash of a `MarginInstance` rounded according to the asset's precision. The position side `p` is determined by the `posside` function.
 
 """
-function nondust(ai::MarginInstance, price, p=posside(ai))
+function nondust(ai::MarginInstance, price::Number, p=posside(ai))
     pos = position(ai, p)
     if isnothing(pos)
         return zero(price)
@@ -272,6 +279,15 @@ function nondust(ai::MarginInstance, price, p=posside(ai))
     amt = c.value
     abs(amt * price * leverage(pos)) < ai.limits.cost.min ? zero(amt) : amt
 end
+
+function nondust(ai::MarginInstance, o::Type{<:Order}, price)
+    if o <: ReduceOnlyOrder
+        cash(ai).value
+    else
+        invoke(nondust, Tuple{MarginInstance,Number,PositionSide}, ai, price, posside(o))
+    end
+end
+
 @doc """ Check if the amount is below the asset instance's minimum limit.
 
 $(TYPEDSIGNATURES)
@@ -362,7 +378,9 @@ $(TYPEDSIGNATURES)
 This function checks if two specified amounts `v1` and `v2` are approximately equal for an `AssetInstance`. It's used to validate whether two amounts are similar considering small variations.
 
 """
-function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:amount}; atol=ai.precision.amount + eps(DFT))
+function Base.isapprox(
+    ai::AssetInstance, v1, v2, ::Val{:amount}; atol=ai.precision.amount + eps(DFT)
+)
     isapprox(value(v1), value(v2); atol)
 end
 @doc """ Check if two prices are approximately equal for an `AssetInstance`.
@@ -372,16 +390,18 @@ $(TYPEDSIGNATURES)
 This function checks if two specified prices `v1` and `v2` are approximately equal for an `AssetInstance`. It's used to validate whether two prices are similar considering small variations.
 
 """
-function Base.isapprox(ai::AssetInstance, v1, v2, ::Val{:price}; atol=ai.precision.price + eps(DFT))
+function Base.isapprox(
+    ai::AssetInstance, v1, v2, ::Val{:price}; atol=ai.precision.price + eps(DFT)
+)
     isapprox(value(v1), value(v2); atol)
 end
 
 function Base.isequal(ai::AssetInstance, v1, v2, kind::Val{:amount})
-    isapprox(ai, v1, v2, kind, atol=ai.limits.amount.min - eps(DFT))
+    isapprox(ai, v1, v2, kind; atol=ai.limits.amount.min - eps(DFT))
 end
 
 function Base.isequal(ai::AssetInstance, v1, v2, kind::Val{:price})
-    isapprox(ai, v1, v2, kind, atol=ai.limits.price.min - eps(DFT))
+    isapprox(ai, v1, v2, kind; atol=ai.limits.price.min - eps(DFT))
 end
 
 @doc """ Create an `AssetInstance` from a zarr instance.
@@ -514,7 +534,11 @@ This function returns a similar `AssetInstance` to the one provided, but resets 
 
 """
 function Base.similar(
-    ai::AssetInstance; exc=ai.exchange, limits=ai.limits, precision=ai.precision, fees=ai.fees
+    ai::AssetInstance;
+    exc=ai.exchange,
+    limits=ai.limits,
+    precision=ai.precision,
+    fees=ai.fees,
 )
     AssetInstance(ai.asset, ai.data, exc, marginmode(ai); limits, precision, fees)
 end
@@ -1002,7 +1026,7 @@ function lastprice(ai::AssetInstance, ::Val{:history})
     if length(v) > 0
         last(v).price
     else
-        lastprice(ai, hist=true)
+        lastprice(ai; hist=true)
     end
 end
 
