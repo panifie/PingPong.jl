@@ -42,11 +42,11 @@ end
 
 function dostub!(pairs=symnames(); s=s, loader=default_loader())
     isempty(pairs) && return nothing
-    @eval Main let
+    @eval Main let this_s = $(esc(s))
         GC.gc()
-        qc = string(nameof($s.cash))
-        data = $loader($pairs, qc)
-        egn.stub!($s.universe, data)
+        qc = string(nameof(this_s.cash))
+        data = $(loader)($(pairs), qc)
+        egn.stub!(this_s.universe, data)
     end
 end
 
@@ -57,7 +57,7 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
         try
             global $bind, ai
             if isdefined(Main, $(QuoteNode(bind))) &&
-                $bind isa st.Strategy{<:Union{Paper,Live}}
+               $bind isa st.Strategy{<:Union{Paper,Live}}
                 try
                     exs.ExchangeTypes._closeall()
                     @async lm.stop_all_tasks($bind)
@@ -69,7 +69,7 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
             st.issim($bind) && fill!(
                 $bind.universe,
                 $bind.timeframe,
-                $bind.config.timeframes[(begin + 1):end]...,
+                $bind.config.timeframes[(begin+1):end]...,
             )
             execmode($bind) == Sim() && $stub && dostub!(; $bind)
             st.default!($bind)
