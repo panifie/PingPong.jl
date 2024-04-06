@@ -58,7 +58,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with an asset `ai` in the strategy `s`. If the `reset` flag is set, it also clears the task queues and resets the asset's task queue length.
 
 """
-function stop_asset_tasks(s::LiveStrategy, ai; reset=false)
+function stop_asset_tasks(s::RTStrategy, ai; reset=false)
     tasks = asset_tasks(s, ai)
     for (name, task) in tasks.byname
         stop_task(task)
@@ -99,7 +99,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with all assets in the strategy `s`. If the `reset` flag is set, it also clears the task queues and resets the task queue lengths for all assets.
 
 """
-function stop_all_asset_tasks(s::LiveStrategy; reset=false, kwargs...)
+function stop_all_asset_tasks(s::RTStrategy; reset=false, kwargs...)
     if reset
         @sync for ai in s.universe
             @async stop_asset_tasks(s, ai; reset, kwargs...)
@@ -119,7 +119,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with a strategy `s` for a specific `account`. If the `reset` flag is set, it also clears the task queues and resets the task queue lengths for the account.
 
 """
-function stop_strategy_tasks(s::LiveStrategy, account=current_account(s); reset=false)
+function stop_strategy_tasks(s::RTStrategy, account=current_account(s); reset=false)
     tasks = strategy_tasks(s, account)
     for task in values(tasks.tasks)
         stop_task(task)
@@ -142,7 +142,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with strategy `s`. If the `reset` flag is set, it also clears all task queues and resets all task queue lengths in the strategy.
 
 """
-function stop_all_strategy_tasks(s::LiveStrategy; reset=false, kwargs...)
+function stop_all_strategy_tasks(s::RTStrategy; reset=false, kwargs...)
     accounts = all_strategy_tasks(s)
     if reset
         @sync for acc in keys(accounts)
@@ -164,7 +164,7 @@ $(TYPEDSIGNATURES)
 This function stops all tasks associated with strategy `s`. If the `reset` flag is set to true, it also resets all task queues and lengths, effectively stopping all asset and strategy tasks and watches.
 
 """
-function stop_all_tasks(s::LiveStrategy; reset=true)
+function stop_all_tasks(s::RTStrategy; reset=true)
     # these are non blocking
     stop_watch_ohlcv!(s)
     stop_watch_positions!(s)
@@ -200,7 +200,7 @@ const StrategyTasks = NamedTuple{
 }
 
 @doc """ Retrieves the task associated with an order. """
-function order_task(s::LiveStrategy, ai, k; tasks=nothing)
+function order_task(s::RTStrategy, ai, k; tasks=nothing)
     tup = asset_tasks(s, ai; tasks)
     @lock tup.lock get(tup.byorder, k, nothing)
 end
@@ -212,13 +212,13 @@ $(TYPEDSIGNATURES)
 This function retrieves the task queue associated with an asset `ai` in the strategy `s`.
 
 """
-asset_queue(s::LiveStrategy, ai; tasks=nothing) = begin
+asset_queue(s::RTStrategy, ai; tasks=nothing) = begin
     at = @something tasks asset_tasks(s, ai)
     at.queue
 end
 
 
-function _unsafe_asset_tasks(s::LiveStrategy)
+function _unsafe_asset_tasks(s::RTStrategy)
     @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
 end
 @doc """ Retrieves tasks associated with all assets.
@@ -228,7 +228,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with all assets in the strategy `s`. It returns a dictionary mapping asset identifiers to their respective tasks.
 
 """
-asset_tasks(s::LiveStrategy) = @lock s _unsafe_asset_tasks(s)
+asset_tasks(s::RTStrategy) = @lock s _unsafe_asset_tasks(s)
 @doc """ Retrieves tasks associated with a specific asset.
 
 $(TYPEDSIGNATURES)
@@ -236,19 +236,19 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with a specific asset `ai` in the strategy `s`. It returns a [`AssetTasks`](@ref) representing a collection of tasks associated with the asset.
 
 """
-function asset_tasks(s::LiveStrategy, ai; tasks=nothing)
+function asset_tasks(s::RTStrategy, ai; tasks=nothing)
     @lock s @lget! @something(tasks, _unsafe_asset_tasks(s)) ai (;
         lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
 end
-function asset_task(s::LiveStrategy, ai, k; tasks=nothing)
+function asset_task(s::RTStrategy, ai, k; tasks=nothing)
     tup = @something tasks asset_tasks(s, ai; tasks)
     @lock tup.lock begin
         get(tup.byname, k, nothing)
     end
 end
 
-function _set_task!(s::LiveStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol)
+function _set_task!(s::RTStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol)
     if istaskrunning(t)
         tasks = @something tasks asset_tasks(s, ai)
         @lock tasks.lock begin
@@ -264,11 +264,11 @@ function _set_task!(s::LiveStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol
     end
 end
 
-function set_asset_task!(s::LiveStrategy, ai, t::Task, k; tasks=nothing)
+function set_asset_task!(s::RTStrategy, ai, t::Task, k; tasks=nothing)
     _set_task!(s, ai, t, k, tasks; kind=:byname)
 end
 
-function set_order_task!(s::LiveStrategy, ai, t::Task, k; tasks=nothing)
+function set_order_task!(s::RTStrategy, ai, t::Task, k; tasks=nothing)
     _set_task!(s, ai, t, k, tasks; kind=:byorder)
 end
 
@@ -279,7 +279,7 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s`. It returns a dictionary mapping account identifiers to their respective [`StrategyTasks`](@ref).
 
 """
-function all_strategy_tasks(s::LiveStrategy)
+function all_strategy_tasks(s::RTStrategy)
     @lock s begin
         @lget! attrs(s) :live_strategy_tasks Dict{String,StrategyTasks}()
     end
@@ -291,13 +291,13 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with the strategy `s` for a specific `account`. It returns the account [`StrategyTasks`](@ref].
 
 """
-function strategy_tasks(s::LiveStrategy, account=current_account(s))
+function strategy_tasks(s::RTStrategy, account=current_account(s))
     tasks = all_strategy_tasks(s)
     @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
 end
 
 function set_strategy_task!(
-    s::LiveStrategy, task::Task, k::Symbol; account=current_account(s), tasks=nothing
+    s::RTStrategy, task::Task, k::Symbol; account=current_account(s), tasks=nothing
 )
     if istaskrunning(task)
         tuple = @something tasks strategy_tasks(s, account)
@@ -315,7 +315,7 @@ function set_strategy_task!(
 end
 
 function strategy_task(
-    s::LiveStrategy, k; account=current_account(s), tasks=nothing
+    s::RTStrategy, k; account=current_account(s), tasks=nothing
 )
     tup = @something tasks strategy_tasks(s, account)
     @lock tup.lock get(tup.tasks, k, nothing)
