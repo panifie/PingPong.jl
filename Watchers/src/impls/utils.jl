@@ -148,13 +148,17 @@ _warmed!(_, ::Warmed) = nothing
 _warmed!(w, ::Pending) = setattr!(w, Warmed(), :status)
 _pending!(attrs) = attrs[:status] = Pending()
 _pending!(w::Watcher) = _pending!(attrs(w))
-_status(w::Watcher) = attr(w, :status)
+_status(w::Watcher) = w[:status]
 @doc "`_chill!` sets the warmup target attribute of the window to the current time applied with the time frame rate."
 _chill!(w) = setattr!(w, apply(_tfr(w), now()), :warmup_target)
 _warmup!(_, ::Warmed) = nothing
 @doc "Checks if we can start processing data, after we are past the initial incomplete timeframe."
 function _warmup!(w, ::Pending)
-    apply(_tfr(w), now()) > attr(w, :warmup_target) && _warmed!(w, _status(w))
+    ats = apply(_tfr(w), now())
+    target = w[:warmup_target]
+    if ats > target
+        _warmed!(w, _status(w))
+    end
 end
 macro warmup!(w)
     w = esc(w)

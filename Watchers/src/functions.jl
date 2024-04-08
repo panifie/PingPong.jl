@@ -94,6 +94,8 @@ function isstale(w::Watcher)
 end
 @doc "The last available data entry."
 Base.last(w::Watcher) = last(w.buffer)
+@doc "True if the watcher buffer is empty."
+Base.isempty(w::Watcher) = isempty(w.buffer)
 @doc "The length of the watcher buffer."
 Base.length(w::Watcher) = length(w.buffer)
 @doc "The date of the last update fetched by the watcher."
