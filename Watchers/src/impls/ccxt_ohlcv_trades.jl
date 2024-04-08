@@ -59,8 +59,9 @@ function ccxt_ohlcv_watcher(
     if !isnothing(iswatch)
         attrs[:iswatch] = iswatch
     end
+    attrs[:issandbox] = issandbox(exc)
     watcher_type = Vector{CcxtTrade}
-    wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, issandbox(exc), sym)))
+    wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, attrs[:issandbox], sym)))
     w = watcher(
         watcher_type,
         wid,
@@ -128,7 +129,7 @@ function _start!(w::Watcher, ::CcxtOHLCVVal)
     attrs = w.attrs
     attrs[:backoff] = ms(0)
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid)
+    exc = getexchange!(eid, sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
 
     # TODO: Make watcher multi symbol compatible

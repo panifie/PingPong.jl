@@ -49,9 +49,10 @@ function ccxt_orderbook_watcher(exc::Exchange, sym; level=L1, interval=Second(1)
     _exc!(attrs, exc)
     _tfr!(attrs, timeframe)
     attrs[:oblevel] = level
+    attrs[:issandbox] = issandbox(exc)
     _ob_func(attrs, OrderBookLevel(level))
     watcher_type = DataFrame
-    wid = string(CcxtOrderBookVal.parameters[1], "-", hash((exc.id, sym, level)))
+    wid = string(CcxtOrderBookVal.parameters[1], "-", hash((exc.id, attrs[:issandbox], sym, level)))
     w = watcher(
         watcher_type,
         wid,
@@ -176,7 +177,7 @@ end
 function _start!(w::Watcher, ::CcxtOrderBookVal)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid)
+    exc = getexchange!(eid, sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
     _ob_func(attrs, OrderBookLevel(attrs[:oblevel]))
 end

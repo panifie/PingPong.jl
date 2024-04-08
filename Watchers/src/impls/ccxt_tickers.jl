@@ -57,11 +57,12 @@ function ccxt_tickers_watcher(
     if !isnothing(iswatch)
         attrs[:iswatch] = iswatch::Bool
     end
+    attrs[:issandbox] = issandbox(exc)
     _sym!(attrs, syms)
     _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
-    wid = string(wid, "-", hash((exc.id, syms, issandbox(exc))))
+    wid = string(wid, "-", hash((exc.id, syms, attrs[:issandbox])))
     watcher(
         watcher_type,
         wid,
@@ -133,7 +134,7 @@ _fetch!(w::Watcher, ::CcxtTickerVal) = _tfunc(w)()
 function _reset_tickers_func!(w::Watcher)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid)
+    exc = getexchange!(eid; sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
     args = isempty(_sym(w)) ? () : (_sym(w),)
