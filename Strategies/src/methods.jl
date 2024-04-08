@@ -18,7 +18,6 @@ This function is used to fetch the market identifiers associated with a specific
 """
 marketsid(t::Type{<:S}) where {S<:Strategy} = invokelatest(ping!, t, StrategyMarkets())
 marketsid(s::S) where {S<:Strategy} = begin
-
     ping!(typeof(s), StrategyMarkets())
 end
 Base.Broadcast.broadcastable(s::Strategy) = Ref(s)
@@ -38,7 +37,7 @@ end
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy exchange."
-exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)), sandbox=s.sandbox)
+exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)); sandbox=s.sandbox)
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
 ) where {E<:ExchangeID}
@@ -46,13 +45,15 @@ function exchangeid(
 end
 Exchanges.accounts(s::Strategy) = Exchanges.accounts(exchange(s))
 Exchanges.current_account(s::Strategy) = Exchanges.current_account(exchange(s))
-Exchanges.getexchange!(s::Type{<:Strategy}) = getexchange!(Symbol(exchangeid(s)), sandbox=issandbox(s))
+function Exchanges.getexchange!(s::Type{<:Strategy})
+    getexchange!(Symbol(exchangeid(s)); sandbox=issandbox(s))
+end
 Exchanges.issandbox(s::Strategy) = begin
     ans = s.sandbox
     @deassert ans == Exchanges.issandbox(exchange(s))
     ans
 end
-Exchanges.issandbox(s::Type{<:Strategy}) =
+function Exchanges.issandbox(s::Type{<:Strategy})
     let mod = getproperty(Main, nameof(s))
         if hasproperty(mod, :SANDBOX)
             prop = getproperty(mod, :SANDBOX)
@@ -69,6 +70,7 @@ Exchanges.issandbox(s::Type{<:Strategy}) =
             execmode(s) != Paper()
         end
     end
+end
 cash(s::Strategy) = getfield(s, :cash)
 Instances.committed(s::Strategy) = getfield(s, :cash_committed)
 @doc "Cash that is not committed, and therefore free to use for new orders."
@@ -81,7 +83,7 @@ function marginmode(
 end
 
 @doc "Returns the strategy execution mode."
-Misc.execmode(::Strategy{M}) where {M<:ExecMode} = M()
+Misc.execmode(::Union{Type{S},S}) where {S<:Strategy{M}} where {M<:ExecMode} = M()
 
 @doc """ Checks if the strategy's cash matches its universe.
 
@@ -284,12 +286,7 @@ The `similar` function creates a new strategy that is similar to the given one.
 It allows for optional changes to the mode, timeframe, and exchange.
 The new strategy is created with the same self, margin mode, and universe as the original, but with a copy of the original's configuration.
 """
-function Base.similar(
-    s::Strategy;
-    mode=s.mode,
-    timeframe=s.timeframe,
-    exc=exchange(s),
-)
+function Base.similar(s::Strategy; mode=s.mode, timeframe=s.timeframe, exc=exchange(s))
     s = Strategy(
         s.self,
         mode,
