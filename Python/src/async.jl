@@ -139,6 +139,7 @@ function py_stop_loop(pa::PythonAsync=gpa)
         wait(pa.task[])
     catch
     end
+    GC_RUNNING[] = false
 end
 
 @doc """ Generates a function that terminates the python even loop.

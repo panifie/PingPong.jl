@@ -45,3 +45,6 @@ end
 
 const PYREF = Ref{PythonAsync}()
 isdefined(@__MODULE__, :gpa) || @eval const gpa = PythonAsync()
+
+const GC_TASK = Ref{Task}()
+const GC_RUNNING = Ref(false)

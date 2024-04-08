@@ -80,6 +80,26 @@ function clearpypath!()
     end
 end
 
+function pygctask!()
+    if ccall(:jl_generating_output, Cint, ()) != 0
+        return nothing
+    end
+    GC_TASK[] = @async begin
+        GC_RUNNING[] = true
+        while GC_RUNNING[]
+            try
+                if Threads.threadid() == 1
+                    PyGC.enable()
+                    PyGC.disable()
+                end
+            catch e
+                @error exception = e
+            end
+            sleep(1)
+        end
+    end
+end
+
 function isinitialized()
     _INITIALIZED[]
 end
@@ -95,6 +115,7 @@ function _doinit()
             f()
         end
         empty!(CALLBACKS)
+        pygctask!()
     catch e
         @debug e
     end
