@@ -118,7 +118,7 @@ function _out_as_input(inputs, data; elkey=nothing)
             Dict(v[elkey] => v for v in data)
         end
     elseif isdict(data)
-        Dict(i => data[i] for i in inputs)
+        Dict(i => data[i] for i in inputs if haskey(data, i))
     else
         Dict(i => data for i in inputs)
     end
