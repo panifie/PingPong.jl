@@ -42,8 +42,8 @@ end
 
 function dostub!(pairs=symnames(); s=s, loader=default_loader())
     isempty(pairs) && return nothing
-    @eval Main let this_s = $(esc(s))
-        GC.gc()
+    @eval Main let
+        this_s = $s
         qc = string(nameof(this_s.cash))
         data = $(loader)($(pairs), qc)
         egn.stub!(this_s.universe, data)
@@ -71,7 +71,7 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
                 $bind.timeframe,
                 $bind.config.timeframes[(begin+1):end]...,
             )
-            execmode($bind) == Sim() && $stub && dostub!(; $bind)
+            execmode($bind) == Sim() && $stub  && dostub!(symnames($bind); s=$bind)
             st.default!($bind)
             ai = try
                 first($bind.universe)
