@@ -150,10 +150,11 @@ function _reset_tickers_func!(w::Watcher)
         tickers_func() = begin
             tasks = @lget! attrs :process_tasks Task[]
             fetched = @lock w begin
+                time = now()
                 resp = fetch_func()
                 result = _parse_ticker_snapshot(resp)
                 if !isempty(result)
-                    pushnew!(w, result)
+                    pushnew!(w, result, time)
                     true
                 else
                     false
