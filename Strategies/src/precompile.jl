@@ -2,8 +2,17 @@ using .Lang: @preset, @precomp
 
 @preset let
     ExchangeTypes.Python.py_start_loop()
-    @precomp let
-        strategy()
+    tries = 0
+    @precomp begin
+        while tries < 3
+            try
+                strategy()
+                break
+            catch
+                sleep(1)
+            end
+            tries += 1
+        end
     end
     s = strategy()
     @precomp begin
