@@ -432,7 +432,7 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kw
 end
 # FIXME: `pairs` and `timeframe` should swap place to be consistent with `load_ohlcv` func
 function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
-    pairs = pairs isa String ? [pairs] : pairs
+    pairs = pairs isa AbstractString ? [pairs] : pairs
     fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
 end
 function fetch_ohlcv(exc, timeframe; qc=config.qc, kwargs...)
