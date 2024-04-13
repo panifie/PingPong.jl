@@ -117,11 +117,13 @@ function Base.close(w::Watcher; doflush=true)
     lf = trylock(w._exec.fetch_lock)
     lb = trylock(w._exec.buffer_lock)
     try
-        isstopped(w) || stop!(w)
+        if !isstopped(w)
+            stop!(w)
+        end
         doflush && flush!(w)
-        if haskey(WATCHERS, w.name)
-            attr(WATCHERS[w.name], :started, DateTime(0)) ==
-            attr(w, :started, DateTime(0)) && delete!(WATCHERS, w.name)
+        global_w = get(WATCHERS, w.name, missing)
+        if global_w === w
+            delete!(WATCHERS, w.name)
         end
         nothing
     catch

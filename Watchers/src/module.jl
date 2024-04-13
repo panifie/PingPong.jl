@@ -34,7 +34,10 @@ function _tryfetch(w)::Bool
         catch e
             logerror(w, e)
         end
-        haskey(WATCHERS, w.name) && delete!(WATCHERS, w.name)
+        prev_w = pop!(WATCHERS, w.name, missing)
+        if !ismissing(prev_w) && isstarted(prev_w)
+            stop!(w)
+        end
     end
     if result isa Exception
         logerror(w, result)
@@ -238,8 +241,9 @@ $(TYPEDSIGNATURES)
 This function creates a new watcher with the specified parameters and adds it to the global `WATCHERS` list. If a watcher with the same name already exists in the list, it replaces the old watcher with the new one.
 """
 function watcher(T::Type, name::String, args...; kwargs...)
-    if haskey(WATCHERS, name)
-        pop!(WATCHERS, name) |> close
+    prev_w = pop!(WATCHERS, name, missing)
+    if !ismissing(prev_w)
+        close(prev_w)
         @warn "Replacing watcher $name with new instance."
     end
     WATCHERS[name] = _watcher(T, name, args...; kwargs...)
