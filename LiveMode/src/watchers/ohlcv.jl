@@ -1,6 +1,6 @@
 using Watchers.WatchersImpls: ccxt_ohlcv_watcher, ccxt_ohlcv_tickers_watcher
 using .st: logpath
-using .Data: DataFrame
+using .Data: DataFrame, propagate_ohlcv!
 
 @doc """ Continuously propagates OHLCV data.
 
@@ -15,10 +15,11 @@ propagate_loop(::RTStrategy, ai, w::Watcher) = begin
     data = ai.data
     try
         while true
-            wait(w, :process)
+            safewait(w.beacon.process)
             try
                 propagate_ohlcv!(data)
-            catch
+            catch exception
+                @debug "watchers: propagate loop" exception
             end
         end
     catch
@@ -38,11 +39,12 @@ If the watcher is not stopped, it tries to propagate the OHLCV data for each ass
 propagate_loop(s::RTStrategy, w::Watcher) = begin
     try
         while true
-            wait(w, :process)
+            safewait(w.beacon.process)
             for ai in s.universe
                 try
                     propagate_ohlcv!(ai.data)
-                catch
+                catch exception
+                    @debug "watchers: propagate loop" exception
                 end
             end
         end
@@ -99,7 +101,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
             prev_w = get(ow, ai, missing)
             if !ismissing(prev_w)
                 if isrunning(prev_w)
-                    stop!(prev_w)
+                    close(prev_w)
                 end
             end
             w = ow[ai] = ccxt_ohlcv_watcher(exc, sym; s.timeframe, default_view)
