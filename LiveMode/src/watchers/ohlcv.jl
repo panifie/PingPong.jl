@@ -13,13 +13,16 @@ If the watcher is not stopped, it tries to propagate the OHLCV data.
 """
 propagate_loop(::RTStrategy, ai, w::Watcher) = begin
     data = ai.data
-    while true
-        wait(w, :process)
-        isstopped(w) && break
-        try
-            propagate_ohlcv!(data)
-        catch
+    try
+        while true
+            wait(w, :process)
+            try
+                propagate_ohlcv!(data)
+            catch
+            end
         end
+    catch
+        @warn "watchers: propagate loop stopped" ai = raw(ai)
     end
 end
 
@@ -33,15 +36,18 @@ If the watcher is not stopped, it tries to propagate the OHLCV data for each ass
 
 """
 propagate_loop(s::RTStrategy, w::Watcher) = begin
-    while true
-        wait(w, :process)
-        isstopped(w) && break
-        for ai in s.universe
-            try
-                propagate_ohlcv!(data)
-            catch
+    try
+        while true
+            wait(w, :process)
+            for ai in s.universe
+                try
+                    propagate_ohlcv!(ai.data)
+                catch
+                end
             end
         end
+    catch
+        @warn "watchers: propagate loop stopped" s = nameof(s)
     end
 end
 
@@ -98,7 +104,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
             end
             w = ow[ai] = ccxt_ohlcv_watcher(exc, sym; s.timeframe, default_view)
             Watchers.load!(w)
-            w[:process_task] = @async propagate_loop(s, ai, w)
+            w[:propagate_task] = @async propagate_loop(s, ai, w)
         end
 
         @sync for ai in s.universe
