@@ -530,7 +530,7 @@ function sandbox!(exc::Exchange=exc; flag=!issandbox(exc), remove_keys=true)
     end
     if flag && success
         @assert issandbox(exc) "Exchange sandbox mode couldn't be enabled. (disable sandbox mode with `sandbox=false`)"
-        remove_keys && exckeys!(exc, "", "", "")
+        remove_keys && exckeys!(exc, "", "", "", "", "")
     elseif isempty(exc.py.secret)
         exckeys!(exc)
     end
