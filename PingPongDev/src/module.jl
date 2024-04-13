@@ -52,37 +52,29 @@ end
 
 function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
     @eval Main begin
-        GC.enable(false)
-        $gc_disable()
-        try
-            global $bind, ai
-            if isdefined(Main, $(QuoteNode(bind))) &&
-               $bind isa st.Strategy{<:Union{Paper,Live}}
-                try
-                    exs.ExchangeTypes._closeall()
-                    @async lm.stop_all_tasks($bind)
-                catch this_err
-                    @warn this_err
-                end
+        global $bind, ai
+        if isdefined(Main, $(QuoteNode(bind))) &&
+           $bind isa st.Strategy{<:Union{Paper,Live}}
+            try
+                exs.ExchangeTypes._closeall()
+                @async lm.stop_all_tasks($bind)
+            catch exception
+                @warn "stop failed" exception
             end
-            $bind = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
-            st.issim($bind) && fill!(
-                $bind.universe,
-                $bind.timeframe,
-                $bind.config.timeframes[(begin+1):end]...,
-            )
-            execmode($bind) == Sim() && $stub  && dostub!(symnames($bind); s=$bind)
-            st.default!($bind)
-            ai = try
-                first($bind.universe)
-            catch
-            end
-            $bind
-        finally
-            $gc_enable()
-            GC.enable(true)
-            GC.gc()
         end
+        $bind = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
+        st.issim($bind) && fill!(
+            $bind.universe,
+            $bind.timeframe,
+            $bind.config.timeframes[(begin+1):end]...,
+        )
+        execmode($bind) == Sim() && $stub && dostub!(symnames($bind); s=$bind)
+        st.default!($bind)
+        ai = try
+            first($bind.universe)
+        catch
+        end
+        $bind
     end
 end
 
