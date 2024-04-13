@@ -39,7 +39,7 @@ instances(s::Strategy) = universe(s).data.instance
 @doc "Strategy exchange."
 exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)); sandbox=s.sandbox)
 function exchangeid(
-    ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E} where {X,N}}
+    ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E,R,C} where {X,N,R,C}}
 ) where {E<:ExchangeID}
     E
 end
