@@ -48,7 +48,7 @@ function ccxt_tickers_watcher(
     load=true,
     process=false,
     buffer_capacity=100,
-    view_capacity=1000,
+    view_capacity=2000,
     flush=true,
     iswatch=nothing,
 )
@@ -137,7 +137,7 @@ function _reset_tickers_func!(w::Watcher)
     exc = getexchange!(eid; sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
-    args = isempty(_sym(w)) ? () : (_sym(w),)
+    args = isempty(_sym(w)) ? () : (_sym(w)...,)
     watch_func = first(exc, :watchTickersForSymbols, :watchTickers)
     fetch_func = choosefunc(exc, "Ticker", args...)
     iswatch = @lget! attrs :iswatch !isnothing(watch_func)

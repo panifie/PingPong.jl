@@ -33,6 +33,7 @@ function ccxt_ohlcv_tickers_watcher(
     diff_volume=true,
     timeframe=tf"1m",
     logfile=nothing,
+    view_capacity=count(timeframe, tf"1d") + 1,
     default_view=nothing,
     kwargs...,
 )
@@ -43,6 +44,7 @@ function ccxt_ohlcv_tickers_watcher(
         start=false,
         load=false,
         process=false,
+        view_capacity,
         kwargs...,
     )
 
