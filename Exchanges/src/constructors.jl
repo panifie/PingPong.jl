@@ -362,7 +362,9 @@ macro tickers!(type=nothing, force=false, cache=TICKERS_CACHE100)
                 $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}},
-                        let v = pyfetch(f; params=LittleDict(@pyconst("type") => @pystr(tp)))
+                        let v = pyfetch(
+                                f; params=LittleDict(@pyconst("type") => @pystr(tp))
+                            )
                             if v isa PyException
                                 pyfetch($(exc).fetchTickers)
                             elseif v isa Exception
@@ -468,7 +470,7 @@ $(TYPEDSIGNATURES)
 """
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
-function exckeys!(exc, key, secret, pass)
+function exckeys!(exc, key, secret, pass, wa, pk)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
     if Symbol(exc.id) ∈ (:kucoin, :kucoinfutures)
         (key, secret) = secret, key
@@ -476,6 +478,8 @@ function exckeys!(exc, key, secret, pass)
     exc.py.apiKey = key
     exc.py.secret = secret
     exc.py.password = pass
+    exc.py.walletAddress = wa
+    exc.py.privateKey = pk
     nothing
 end
 
@@ -493,7 +497,13 @@ function exckeys!(exc; sandbox=issandbox(exc))
     end
     if !isempty(exc_keys)
         @debug "Setting exchange keys..."
-        exckeys!(exc, (exc_keys[k] for k in ("apiKey", "secret", "password"))...)
+        exckeys!(
+            exc,
+            (
+                exc_keys[k] for
+                k in ("apiKey", "secret", "password", "walletAddress", "privateKey")
+            )...,
+        )
     end
 end
 
@@ -547,7 +557,7 @@ timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
 function check_timeout(exc::Exchange=exc, interval=Second(5))
     @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
-gettimeout(exc::Exchange=exc)::Millisecond = Millisecond(pyconvert(Int, exc.timeout))
+gettimeout(; exc::Exchange=exc)::Millisecond = Millisecond(pyconvert(Int, exc.timeout))
 
 _fetchnoerr(f, t) =
     let v = pyfetch(f)
