@@ -18,11 +18,17 @@ $(TYPEDSIGNATURES)
 
 The function takes a watcher, a value, and an optional time as arguments. If the value is not `nothing` and it is different from the last value in the watcher buffer, the function pushes a new tuple containing the time and the value to the watcher buffer.
 """
-function pushnew!(w::Watcher, value, time=nothing)
+function pushnew!(w::Watcher{T}, value, time=nothing) where {T}
     # NOTE: use object inequality to avoid non determinsm
-    @lock _buffer_lock(w) if !isnothing(value) && (isempty(w.buffer) || Bool(value != w.buffer[end].value))
-        v = (time=@something(time, now()), value)
-        push!(w.buffer, v)
+    buf = buffer(w)
+    @lock _buffer_lock(w) if !isnothing(value) && (isempty(buf) || Bool(value != buf[end].value))
+        # TODO: remove this check once DataStructures releases 1.0
+        if value isa T || applicable(convert, T, value)
+            v = (time=@something(time, now()), value)
+            push!(buf, v)
+        else
+            @error "watchers: wrong type" expected = T got = typeof(value)
+        end
     end
 end
 
