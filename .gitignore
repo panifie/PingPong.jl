@@ -40,3 +40,7 @@
 /vendor/*
 PingPong.so
 test/test.jlo
+PingPong/test/
+PingPongInteractive/test/
+user/Load/test/
+.vscode/
