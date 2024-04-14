@@ -500,7 +500,7 @@ function exckeys!(exc; sandbox=issandbox(exc))
         exckeys!(
             exc,
             (
-                exc_keys[k] for
+                get(exc_keys, k, "") for
                 k in ("apiKey", "secret", "password", "walletAddress", "privateKey")
             )...,
         )
