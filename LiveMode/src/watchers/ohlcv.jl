@@ -104,18 +104,16 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
                     close(prev_w)
                 end
             end
-            w = ow[ai] = ccxt_ohlcv_watcher(exc, sym; s.timeframe, default_view)
+            w = ccxt_ohlcv_watcher(exc, sym; s.timeframe, default_view)
             Watchers.load!(w)
             w[:propagate_task] = @async propagate_loop(s, ai, w)
+            if isstopped(w)
+                start!(w)
+            end
+            ow[ai] = w
         end
-
         @sync for ai in s.universe
             @async start_watcher(ai)
-        end
-        @sync for w in values(ow)
-            if isstopped(w)
-                @async start!(w)
-            end
         end
     else
         default_view = Dict{String,DataFrame}(
