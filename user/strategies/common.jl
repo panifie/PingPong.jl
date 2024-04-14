@@ -46,16 +46,18 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
         for ai in s.universe
             wv[ai.asset.raw] = ai.ohlcv
         end
-        w[:process_func] = () -> while isstarted(w)
-            for ai in s.universe
-                try
-                    propagate_ohlcv!(ai.data)
-                catch
+        w[:process_func] = () -> begin
+            while isstarted(w)
+                for ai in s.universe
+                    try
+                        propagate_ohlcv!(ai.data)
+                    catch
+                    end
                 end
+                safewait(w.beacon.process)
             end
-            safewait(w.beacon.process)
+            @warn "propagate loop stopped"
         end
-        w[:process_task] = @async w[:process_func]()
         w[:quiet] = true
         @async begin
             try
@@ -65,6 +67,7 @@ function _tickers_watcher(s; view_capacity=1000, k=:tickers_watcher, tf=_timefra
             catch
             end
             start!(w)
+            w[:process_task] = @async w[:process_func]()
         end
         s[k] = w
     end
