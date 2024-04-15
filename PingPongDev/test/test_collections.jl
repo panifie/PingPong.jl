@@ -1,5 +1,5 @@
 # TODO: add some stub data
-test_assetcollection() = @testset "AssetCollection" begin
+test_collections() = @testset "collections" begin
     @eval begin
         using .PingPong.Engine.Collections
         using .PingPong.Engine.Misc
