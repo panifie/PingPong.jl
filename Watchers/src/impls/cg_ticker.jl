@@ -14,10 +14,14 @@ const CgTickerVal = Val{:cg_ticker}
 @doc """ Create a `Watcher` instance that tracks the price of some currencies on an exchange (coingecko).
 
 """
-function cg_ticker_watcher(syms::AbstractVector; interval=Second(360))
+function cg_ticker_watcher(syms::AbstractVector; byid=false, interval=Second(360))
     attrs = Dict{Symbol,Any}()
     sort!(syms)
-    attrs[:ids] = cg.idbysym.(syms)
+    attrs[:ids] = if byid
+        syms
+    else
+        cg.idbysym.(syms)
+    end
     attrs[:key] = join(("cg_ticker", string.(syms)...), "_")
     attrs[:names] = Symbol.(syms)
     watcher_type = NamedTuple{tuple(attrs[:names]...),NTuple{length(syms),CgTick}}
@@ -32,14 +36,15 @@ function cg_ticker_watcher(syms::AbstractVector; interval=Second(360))
         attrs,
     )
 end
-cg_ticker_watcher(syms::Vararg) = cg_ticker_watcher([syms...])
+cg_ticker_watcher(syms::Vararg; kwargs...) = cg_ticker_watcher([syms...]; kwargs...)
 
 _fetch!(w::Watcher, ::CgTickerVal) = begin
     ids = w[:ids]
     mkts = cg.coinsmarkets(; ids)
-    ordered = ((mkts[string(id)] for id in ids)...,)
+    order = Dict(value => index for (index, value) in enumerate(ids))
+    ordered = sort(mkts, by=m -> order[m["id"]])
     if length(mkts) > 0
-        value = @parsedata CgTick ordered "symbol"
+        value = @parsedata CgTick ordered "id"
         pushnew!(w, value)
         true
     else

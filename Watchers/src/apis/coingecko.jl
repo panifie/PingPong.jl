@@ -121,6 +121,18 @@ idbysym(sym) = begin
     first(match)
 end
 
+tickerbyid(id) = begin
+    loadcoins!()
+    for (ticker, ids) in coins_syms
+        idx = findfirst(ids) do i
+            i == id
+        end
+        if !isnothing(idx)
+            return ticker
+        end
+    end
+end
+
 @enum SortBy begin
     gecko_desc
     gecko_asc

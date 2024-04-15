@@ -27,8 +27,8 @@ function _test_save(k, w)
 end
 
 function _test_watchers_1()
-    w = wi.cg_ticker_watcher("btc", "eth")
-    @test w.name == "cg_ticker-7224535830704663454"
+    w = wi.cg_ticker_watcher("bitcoin", "ethereum", byid=true)
+    @test w.name == "cg_ticker-15280856976725193512"
     @test w.buffer isa DataStructures.CircularBuffer
     @test w.interval.flush == Minute(6)
     @test w.interval.flush == Minute(6)
