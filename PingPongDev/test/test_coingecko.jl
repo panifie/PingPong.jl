@@ -37,7 +37,7 @@ function test_coingecko()
         @test cg.coinsid("bitcoin")["id"] == "bitcoin"
         @test "identifier" ∈ keys(cg.coinsticker("monero")[1]["market"])
         date = format(now() - Month(1), dateformat"YYYY-mm-dd")
-        @test 62500 < round(Int, cg.coinshistory("bitcoin", date).price) < 62600
+        @test 1e12 > round(Int, cg.coinshistory("bitcoin", date).price) > 20000
         @info "TEST: cg start"
         coingecko_chart()
         @info "TEST: cg ohlc"
