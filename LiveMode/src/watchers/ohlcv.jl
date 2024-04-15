@@ -96,6 +96,9 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
     ow = ohlcv_watchers(s)
     if isohlcv_bytrades(s)
         function start_watcher(ai)
+            # NOTE: define it as local, otherwise async would clobber it before
+            # being saved in the dict
+            local w
             sym = raw(ai)
             default_view = @lget! ai.data s.timeframe Data.empty_ohlcv()
             prev_w = get(ow, ai, missing)
@@ -107,9 +110,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
             w = ccxt_ohlcv_watcher(exc, sym; s.timeframe, default_view)
             Watchers.load!(w)
             w[:propagate_task] = @async propagate_loop(s, ai, w)
-            if isstopped(w)
-                start!(w)
-            end
+            start!(w)
             ow[ai] = w
         end
         @sync for ai in s.universe
