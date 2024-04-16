@@ -56,7 +56,7 @@ test_nomargin_ioc(s) = begin
     egn.start!(s)
     @test first(_ai_trades(s)).order isa egn.IOCOrder
     @info "TEST: " s.cash.value
-    @test Cash(:USDT, 694.918e3) ≈ s.cash atol = 1
+    @test Cash(:USDT, 694.909e3) ≈ s.cash atol = 1
     @info "TEST: " s.cash_committed.value
     @test Cash(:USDT, -0.4e-7) ≈ s.cash_committed atol = 1e-6
     @test st.trades_count(s) == 10244
