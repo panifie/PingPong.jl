@@ -45,6 +45,8 @@ Recommended installation is through docker. There are 4 images:
 
 ```shell
 docker pull docker.io/panifie/pingpong-precomp
+docker run -it --rm docker.io/panifie/pingpong-precomp julia
+using PingPong # or PingPongInteractive for plotting and optimization
 ```
 
 ## Install (git)
@@ -83,7 +85,7 @@ Download some data:
 
 ```julia
 pairs = im.raw.(s.universe.data.asset) # `im` is the Instruments module
-const bn = scr.BinanceData `scr` is the Scrapers module
+const bn = scr.BinanceData # `scr` is the Scrapers module
 bn.binancedownload(pairs)
 ```
 
