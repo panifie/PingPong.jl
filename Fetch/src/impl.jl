@@ -31,6 +31,7 @@ import .Data: propagate_ohlcv!
 using .Data.DFUtils: lastdate, colnames, addcols!, copysubs!
 using .Data.DataStructures: SortedDict
 using .Data.Misc
+using .Data.Cache: save_cache, load_cache
 using .Misc: _instantiate_workers, config, DATA_PATH, fetch_limits, drop, StrOrVec, Iterable
 using .Misc.TimeTicks
 using .Misc.DocStringExtensions
@@ -75,13 +76,15 @@ $(TYPEDSIGNATURES)
 Data.to_ohlcv(py::Py) = DataFrame(_to_ohlcv_vecs(py), OHLCV_COLUMNS)
 
 function _check_from_to(from::F, to::T) where {F,T<:DateType}
-    from = timefloat(from)
+    from = isnothing(from) ? nothing : timefloat(from)
     if to === ""
         to = timefloat(now())
     else
         to = timefloat(to)
-        from > to &&
-            error("End date ($(to |> dt)) must be higher than start date ($(from |> dt)).")
+        if !isnothing(from) && from > to
+            @error "fetch: end date higher than start date" from to
+            from = nothing
+        end
     end
     (from, to)
 end
@@ -157,23 +160,29 @@ This function iterates over the timeframes and periods of the exchange to find t
 
 """
 function find_since(exc::Exchange, pair)
-    data = ()
-    actual = now()
-    tfs, periods = __ordered_timeframes(exc)
-    for (t, p) in zip(tfs, periods)
-        since_ts = _since_timestamp(actual, p)
-        # fetch the first available candles using a long (1w) timeframe
-        data = _fetch_ohlcv_with_delay(
-            exc, pair; timeframe=t, since=since_ts, df=true, retry=false
-        )
-        !isempty(data) && break
+    cache_key = string(exc.name, "-", pair)
+    cached_since = load_cache(cache_key; raise=false)
+    @something cached_since begin
+        data = ()
+        actual = now()
+        tfs, periods = __ordered_timeframes(exc)
+        for (t, p) in zip(tfs, periods)
+            since_ts = _since_timestamp(actual, p)
+            # fetch the first available candles using a long (1w) timeframe
+            data = _fetch_ohlcv_with_delay(
+                exc, pair; timeframe=t, since=since_ts, df=true, retry=false
+            )
+            !isempty(data) && break
+        end
+        if isempty(data)
+            # try without `since` arg
+            data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
+        end
+        # default to 1 day
+        ans = dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1], Val(:round))
+        save_cache(cache_key, ans)
+        ans
     end
-    if isempty(data)
-        # try without `since` arg
-        data = _fetch_ohlcv_with_delay(exc, pair; timeframe=tfs[begin], df=true)
-    end
-    # default to 1 day
-    dtstamp(isempty(data) ? now() - Day(1) : data[begin, 1], Val(:round))
 end
 
 @doc """ Defines the fetch limit for an exchange.
@@ -196,25 +205,26 @@ $(TYPEDSIGNATURES)
 This function calculates the 'since' parameter based on the specified 'from' timestamp, or finds the appropriate 'since' value if 'from' is 0.0.
 """
 function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
-    if from == 0.0
-        find_since(exc, pair)
-    else
-        since_ts = Int(from)
+    if from isa Number && !iszero(from)
+        since_ts = round(Int, from, RoundUp)
         append!(
             out,
-            _fetch_with_delay(fetch_func, pair; since=since_ts, df=is_df, limit, converter),
-            cols=:union)
+            _fetch_with_delay(fetch_func, pair; since=since_ts, df=is_df, limit, converter);
+            cols=:union,
+        )
         if size(out, 1) > 0
             first_date = apply(tf"1d", out[begin, :timestamp])
             since_date = apply(tf"1d", dt(since_ts))
             if since_date != DateTime(0) && first_date > since_date
-                @warn "Exchange ($(nameof(exc))) likely ignores `since` argument [$(since_date) ($(pair))]"
+                @warn "fetch: ($(nameof(exc))) likely ignores `since` argument [$(since_date) ($(pair))]"
             end
-            Int(timefloat(out[end, 1]))
+            round(Int, timefloat(out[end, 1]), RoundUp)
         else
-            @debug "Couldn't fetch data for $pair from $(exc.name), too long dates? $(dt(from))."
+            @debug "fetch: failed since guess for $pair from $(exc.name), too long dates? $(dt(from))."
             find_since(exc, pair)
         end
+    else
+        find_since(exc, pair)
     end
 end
 
@@ -228,7 +238,7 @@ function _fetch_loop(
     fetch_func::Function,
     exc::Exchange,
     pair;
-    from::F,
+    from::Option{F},
     to::F,
     sleep_t,
     out=empty_ohlcv(),
@@ -249,7 +259,7 @@ function _fetch_loop(
         last_fetched_count[] = size(fetched, 1)
         size(fetched, 1) == 0 ? false : (append!(out, fetched); true)
     end
-    lastts(out) = Int(timefloat(out[end, 1]))
+    lastts(out) = round(Int, timefloat(out[end, 1]), RoundUp)
     if isnothing(since)
         dofetch()
     else
@@ -281,7 +291,7 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
     end
     if e isa PyException
         if !isnothing(match(r"429([0]+)?", string(e._v)))
-            @debug "Exchange error 429, too many requests."
+            @debug "fetch: exchange error 429, too many requests."
             sleep(sleep_t)
             sleep_t = (sleep_t + 1) * 2
             limit = isnothing(limit) ? limit : limit ÷ 2
@@ -296,7 +306,7 @@ function __handle_error(e, fetch_func, pair, since, df, sleep_t, limit, converte
                 usetimeframe=limit > 500,
             )
         elseif isccxterror(e)
-            @warn "Error downloading ohlc data for pair $pair on exchange $(exc.name). \n $(e._v)"
+            @error "fetch: failed fetch ohlcv" pair exception = e
             @return_empty()
         else
             rethrow(e)
@@ -323,27 +333,25 @@ function __handle_fetch(
     if retry && (!dpl || length(data) == 0)
         @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
         sleep(sleep_t)
-        since_arg = if isnothing(since)
-            ()
+        kwargs = if isnothing(since)
+            (; limit)
         else
-            tmp = round(Int, since * 1.005)
+            ofs = timefloat(now() - dt(since)) / 2.0
+            tmp = since + round(Int, since + ofs, RoundUp)
             if tmp > dtstamp(now())
-                limit = fetch_limit(exc, nothing)
-                ()
+                (; limit=1000)
             else
-                (; since=tmp)
+                (; since=tmp, limit=max(10, something(limit, 20) ÷ 2))
             end
         end
-        # sleep_t = (sleep_t + 1) * 2
         return (
             true,
             _fetch_with_delay(
                 fetch_func,
                 pair;
-                since_arg...,
+                kwargs...,
                 df,
                 sleep_t,
-                limit=max(10, something(limit, 20) ÷ 2),
                 converter,
                 retry=limit > 10,
                 usetimeframe=limit > 500,
@@ -466,7 +474,12 @@ The function can run in parallel if `parallel` is set to true. If `wait_task` is
 You can provide additional parameters using `kwargs`.
 """
 function fetch_ohlcv(
-    excs::Vector{Exchange}, timeframe; sandbox=true, parallel=false, wait_task=false, kwargs...
+    excs::Vector{Exchange},
+    timeframe;
+    sandbox=true,
+    parallel=false,
+    wait_task=false,
+    kwargs...,
 )
     # out_file = joinpath(DATA_PATH, "out.log")
     # err_file = joinpath(DATA_PATH, "err.log")
@@ -646,7 +659,7 @@ The `update_ohlcv!` function updates the tail of an OHLCV DataFrame `df` with th
 """
 function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default, from=nothing)
     from = if isempty(df)
-        @something from DateTime(0)
+        from
     else
         iscontig, idx, last_date = contiguous_ts(
             df.timestamp, string(tf); raise=false, return_date=true
@@ -657,15 +670,18 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default, from=n
         @deassert dt(last_date) == lastdate(df) dt(last_date), lastdate(df)
         last_date
     end
-    if !islast(dt(from), tf)
-        cleaned = _fetch_ohlcv_from_to(
-            exc, pair, string(tf); from, to=now(), cleanup=true, ohlcv_kind
-        )
-        Data.DFUtils.addcols!(cleaned, df)
-        copysubs!(df, empty, empty!)
-        append!(df, cleaned)
+    if isnothing(from)
+    elseif dt(from) < dt"2010-01-01"
+        @warn "fetch: old from date" from
+    elseif islast(dt(from), tf)
+        @debug "fetch: from date too early" from
     end
-    df
+    cleaned = _fetch_ohlcv_from_to(
+        exc, pair, string(tf); from, to=now(), cleanup=true, ohlcv_kind
+    )
+    Data.DFUtils.addcols!(cleaned, df)
+    copysubs!(df, empty, empty!)
+    append!(df, cleaned)
 end
 
 @doc """Propagates OHLCV data to all timeframes in a data structure.
