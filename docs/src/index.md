@@ -77,6 +77,10 @@ Load the default strategy, which you can look up at `./user/strategies/Example.j
 
 ```julia
 using PingPong
+using Scrapers: Scrapers as scr
+using Data: Data as data
+using SimMode: SimMode as sm
+
 @environment!
 s = st.strategy(:Example) # `st` is the `Strategies` module
 ```
@@ -85,7 +89,6 @@ Download some data:
 
 ```julia
 pairs = im.raw.(s.universe.data.asset) # `im` is the Instruments module
-using Scrapers: Scrapers as scr
 const bn = scr.BinanceData # `scr` is the Scrapers module
 bn.binancedownload(pairs)
 ```
