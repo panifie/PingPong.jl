@@ -85,6 +85,7 @@ Download some data:
 
 ```julia
 pairs = im.raw.(s.universe.data.asset) # `im` is the Instruments module
+using Scrapers: Scrapers as scr
 const bn = scr.BinanceData # `scr` is the Scrapers module
 bn.binancedownload(pairs)
 ```
