@@ -252,8 +252,17 @@ if occursin("Plotting", get(ENV, "JULIA_PRECOMP", ""))
             py.py_start_loop()
         end
         s = opt._precomp_strat(OptimizationExt)
-        sess = opt.gridsearch(s)
-        @precomp Plotting.plot_results(sess)
+        sess = opt.gridsearch(s; resume=false)
+        # because BareStrat (in `user/strategies/BareStrat.jl`) does has opt functions commented out
+        # avoids assertion in plot_results after filtering
+        for obj in sess.results.obj
+            obj[1] = 1.0
+        end
+        try
+            @precomp Plotting.plot_results(sess)
+        catch exception
+            @error "plotting: opt extension precompile failed" exception
+        end
         py.py_stop_loop()
     end
 end
