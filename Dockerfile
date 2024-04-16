@@ -27,7 +27,7 @@ RUN $JULIA_CMD --project=/pingpong/Python -e "import Pkg; Pkg.instantiate()"
 COPY --chown=ppuser:ppuser ./Python /pingpong/Python
 RUN $JULIA_CMD --project=/pingpong/Python -e "using Python"
 
-from python1 as precompile1
+FROM python1 as precompile1
 COPY --chown=ppuser:ppuser ./PingPong/*.toml /pingpong/PingPong/
 ENV JULIA_PROJECT=/pingpong/PingPong
 ENV JULIA_NOPRECOMP=""
