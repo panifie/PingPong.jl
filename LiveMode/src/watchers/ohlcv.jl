@@ -127,7 +127,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
                 syms=(raw(ai) for ai in s.universe),
                 flush=false,
                 logfile=logpath(s; name="tickers_watcher_$(nameof(s))"),
-                view_capacity=attr(s, :live_view_capacity, 1000),
+                view_capacity=attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1),
                 default_view,
             )
         w[:quiet] = true

@@ -321,7 +321,7 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
                 end
             end
         end
-        if nrow(df) + 1 < w.capacity.view
+        if nrow(df) + 2 < w.capacity.view
             @warn "Can't fill view with enough data, exchange likely doesn't support fetching more than $(nrow(df)) past candles"
         end
     end
