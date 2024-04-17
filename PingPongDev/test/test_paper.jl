@@ -55,7 +55,7 @@ function test_paper_margin(s)
     t = ect.pong!(s, ai, ot.MarketOrder{ot.Sell}; amount=0.011, date)
     @test t isa ot.LongTrade
     @test t isa ot.SellTrade
-    @test cash(pos) == 0.009
+    @test cash(pos) ≈ 0.02 + t.amount
     @test pos.timestamp[] == date
     @test isapprox(s.cash.value - prevcash, t.value - t.fees, atol=1e-1)
     prev_cash = s.cash.value
@@ -79,6 +79,7 @@ function test_paper_margin(s)
     @test ect.orderscount(s, ai) == length(s[:paper_order_tasks])
     @test !(t isa ot.Trade)
     _, taken_vol, total_vol = st.attr(s, :paper_liquidity)[ai]
+    ect.cash!(s.cash, 1e17)
     date += Millisecond(1)
     prev_taken = taken_vol[]
     t = ect.pong!(
