@@ -439,9 +439,8 @@ function _fetch_ohlcv_with_delay(exc::Exchange, args...; ohlcv_kind=:default, kw
     _fetch_with_delay(fetch_func, args...; limit, kwargs...)
 end
 # FIXME: `pairs` and `timeframe` should swap place to be consistent with `load_ohlcv` func
-function fetch_ohlcv(exc, timeframe, pairs; kwargs...)
-    pairs = pairs isa AbstractString ? [pairs] : pairs
-    fetch_ohlcv(exc, string(timeframe), pairs; kwargs...)
+function fetch_ohlcv(exc, timeframe, pair::AbstractString; kwargs...)
+    fetch_ohlcv(exc, string(timeframe), [pair]; kwargs...)
 end
 function fetch_ohlcv(exc, timeframe; qc=config.qc, kwargs...)
     pairs = tickers(exc, qc; as_vec=true)
@@ -621,7 +620,7 @@ This function fetches OHLCV data from a given exchange `exc` for a list of `pair
 """
 function fetch_ohlcv(
     exc::Exchange,
-    timeframe::AbstractString,
+    timeframe::String,
     pairs::Iterable;
     zi=zi[],
     from::DateType="",
