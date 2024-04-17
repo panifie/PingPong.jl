@@ -88,7 +88,7 @@ s = st.strategy(:Example) # `st` is the `Strategies` module
 Download some data:
 
 ```julia
-pairs = im.raw.(s.universe.data.asset) # `im` is the Instruments module
+pairs = [lowercase(ai.bc) for ai in s.universe]
 const bn = scr.BinanceData # `scr` is the Scrapers module
 bn.binancedownload(pairs)
 ```
