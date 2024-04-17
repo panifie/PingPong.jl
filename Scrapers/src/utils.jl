@@ -8,9 +8,17 @@ The function returns a set of selected symbols.
 
 """
 function selectsyms(syms, all_syms; quote_currency="usdt", perps_only=true)
+    mysyms = Set{String}()
+    all_syms_set = Set(all_syms)
+    for s in syms
+        if s in all_syms_set
+            push!(mysyms, s)
+        else
+            @debug "scrapers: symbol not found" s
+        end
+    end
     qc = uppercase(quote_currency)
     selected = Set(uppercase.(syms))
-    mysyms = Set{String}()
     all = isempty(selected)
     rgx = Regex("(.*?)($qc)")
     for s in all_syms
