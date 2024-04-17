@@ -8,6 +8,7 @@ using .Misc: @skipoffline
     using Exchanges.ExchangeTypes: _closeall
     tmp_zi = zinstance(mktempdir())
     @warn "Precompilation of the `Fetch` module does api calls!"
+    # ENV["JULIA_DEBUG"] = "Fetch"
     try
         let e = getexchange!(:cryptocom)
             @precomp @skipoffline begin

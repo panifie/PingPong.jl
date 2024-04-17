@@ -331,12 +331,12 @@ function __handle_fetch(
     data = fetch_func(pair, since, limit; usetimeframe)
     dpl = pyisinstance(data, @py(list))
     if retry && (!dpl || length(data) == 0)
-        @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))."
+        @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))." data
         sleep(sleep_t)
         kwargs = if isnothing(since)
-            (; limit)
+            (; since, limit=limit ÷ 2)
         else
-            ofs = timefloat(now() - dt(since)) / 2.0
+            ofs = max(timefloat(Day(1)), timefloat(now() - dt(since)) / 2.0)
             tmp = since + round(Int, since + ofs, RoundUp)
             if tmp > dtstamp(now())
                 (; limit=1000)
@@ -353,8 +353,8 @@ function __handle_fetch(
                 df,
                 sleep_t,
                 converter,
-                retry=limit > 10,
-                usetimeframe=limit > 500,
+                retry=kwargs[:limit] > 10,
+                usetimeframe=kwargs[:limit] > 500,
             ),
         )
     end
