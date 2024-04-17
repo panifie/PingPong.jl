@@ -367,36 +367,46 @@ function _load_ohlcv(za::ZArray, td; from="", to="", saved_col=1, as_z=false, wi
     with_to = !iszero(to)
 
     ts_start = if with_from
-        Int(max(firstindex(za, saved_col), (from - saved_first_ts + td) ÷ td))
+        min_idx = firstindex(za, saved_col)
+        from_idx = (from - saved_first_ts + td) ÷ td
+        @debug "data: with from" min_idx from_idx dt(from)
+        round(Int, max(min_idx, from_idx))
     else
         firstindex(za, saved_col)
     end
     ts_stop = if with_to
-        Int(min(lastindex(za, saved_col), (ts_start + ((to - from) ÷ td))))
+        max_idx = lastindex(za, saved_col)
+        to_idx = (ts_start + ((to - from) ÷ td))
+        @debug "data: with to" max_idx to_idx dt(to)
+        round(Int, min(max_idx, to_idx))
     else
         lastindex(za, saved_col)
     end
 
-    as_z && return za, (ts_start, ts_stop)
-    isempty(ts_start:ts_stop) && return as_empty(ts_start, ts_stop)
+    if as_z
+        return za, (ts_start, ts_stop)
+    elseif isempty(ts_start:ts_stop)
+        return as_empty(ts_start, ts_stop)
+    end
 
     data = za[ts_start:ts_stop, :]
 
-    with_from && @assert data[begin, saved_col] >= apply(td, timefloat(from)) - td (
-        dt(data[begin, saved_col]), dt(apply(td, timefloat(from))), timeframe(td)
-    )
-    with_to && @assert data[end, saved_col] <= apply(td, timefloat(to)) + td (
-        dt(data[end, saved_col]), dt(apply(td, timefloat(to))), timeframe(td)
-    )
-    let (from_saved, to_saved) = (data[begin, saved_col], data[end, saved_col])
-        if from_saved == to_saved && iszero(from_saved)
-            delete!(za)
-            return as_empty()
-        end
+    if with_from && !(data[begin, saved_col] >= apply(td, timefloat(from)) - td)
+        @warn "data: storage likely has missing entries, consider purging (begin)"
+    end
+    if with_to && !(data[end, saved_col] <= apply(td, timefloat(to)) + td)
+        @warn "data: storage likely has missing entries, consider purging (end)"
     end
 
-    with_z && return (to_ohlcv(data), za)
-    to_ohlcv(data)
+    (from_saved, to_saved) = (data[begin, saved_col], data[end, saved_col])
+    if from_saved == to_saved && iszero(from_saved)
+        delete!(za)
+        as_empty()
+    elseif with_z
+        (to_ohlcv(data), za)
+    else
+        to_ohlcv(data)
+    end
 end
 function _load_ohlcv(zi::ZarrInstance, key, args...; kwargs...)
     @debug "Loading data from $(zi.path):$(key)"
