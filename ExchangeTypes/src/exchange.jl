@@ -1,4 +1,5 @@
 using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr
+using Ccxt: _issupported
 using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
 using OrderedCollections: OrderedSet
@@ -140,16 +141,45 @@ _has(exc::Exchange, s::Symbol) = begin
     h = getfield(exc, :has)
     get(h, s, false)
 end
+
+
+@doc """
+Checks if the specified feature `feat` is supported by any of the exchanges available through the ccxt library.
+
+# Arguments
+- `s::Symbol`: The feature to check for support across exchanges.
+- `full::Bool=true`: If `true`, checks both static and instantiated properties of the exchange for support.
+
+# Returns
+- `Vector{String}`: A list of exchange names that support the specified feature.
+"""
+function _has(feat::Symbol; full=true)
+    supported = String[]
+    ccxt = Ccxt.ccxtws()
+    feat = string(feat)
+    for e in ccxt_exchange_names()
+        name = string(e)
+        if hasproperty(ccxt, name)
+            cls = getproperty(ccxt, name)
+            if (full && (_issupported(cls.has, feat) || _issupported(cls().has, feat))) ||
+                _issupported(cls.has, feat)
+                push!(supported, name)
+            end
+        end
+    end
+    supported
+end
 # NOTE: wrap the function here to quickly overlay methods
 has(args...; kwargs...) = _has(args...; kwargs...)
 _has_all(exc, what; kwargs...) = all((_has(exc, v; kwargs...)) for v in what)
 # NOTE: wrap the function here to quickly overlay methods
 has(exc, what::Tuple{Vararg{Symbol}}; kwargs...) = _has_all(exc, what; kwargs...)
 
-_first(exc::Exchange, args::Symbol...) =
+function _first(exc::Exchange, args::Symbol...)
     for name in args
         has(exc, name) && return getproperty(getfield(exc, :py), name)
     end
+end
 
 @doc """Return the first available property from a variable number of Symbol arguments in the given Exchange.
 
