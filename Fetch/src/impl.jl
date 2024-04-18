@@ -669,7 +669,7 @@ function update_ohlcv!(df::DataFrame, pair, exc, tf; ohlcv_kind=:default, from=n
         @deassert dt(last_date) == lastdate(df) dt(last_date), lastdate(df)
         last_date
     end
-    if isnothing(from)
+    if isnothing(from) || from isa Number
     elseif dt(from) < dt"2010-01-01"
         @warn "fetch: old from date" from
     elseif islast(dt(from), tf)

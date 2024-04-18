@@ -373,7 +373,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             end
         end
     catch e
-        @ifdebug isdefined(Main, :e) && (Main.e[] = e)
+        @ifdebug LogWatchTrade isdefined(Main, :e) && (Main.e[] = e)
         @debug_backtrace LogWatchTrade
         ispyminor_error(e) || @error e
     end
