@@ -15,7 +15,7 @@ _test_ohlcv_exc(exc) = begin
     @test names(pd.data) == String.(OHLCV_COLUMNS)
     @test size(pd.data)[1] > (count / 10 * 9) # if its less there is something wrong
     lastcandle = pd.data[end, :][1]
-    @test islast(lastcandle, timeframe) || now() - lastcandle.timestamp < Second(5)
+    @test islast(lastcandle, timeframe) || now() - lastcandle.timestamp < s.timeframe
 end
 
 _test_ohlcv() = begin
