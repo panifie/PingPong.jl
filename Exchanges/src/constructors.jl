@@ -557,7 +557,7 @@ timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
 function check_timeout(exc::Exchange=exc, interval=Second(5))
     @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
-gettimeout(; exc::Exchange=exc)::Millisecond = Millisecond(pyconvert(Int, exc.timeout))
+gettimeout(exc::Exchange)::Millisecond = Millisecond(pyconvert(Int, exc.timeout))
 
 _fetchnoerr(f, t) =
     let v = pyfetch(f)
