@@ -253,7 +253,7 @@ function get_order_state(orders_byid, id; s, ai, waitfor=Second(5), file=@__FILE
             @lock ai begin
                 @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
                     waitfor _file = file _line = line @caller
-                waitforcond(() -> haskey(orders_byid, id), waitfor=@timeout_now)
+                waitforcond(() -> haskey(orders_byid, id), @timeout_now)
                 get(orders_byid, id, missing)
             end
         end
