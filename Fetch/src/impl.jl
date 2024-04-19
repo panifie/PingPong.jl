@@ -215,6 +215,8 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
         if size(out, 1) > 0
             first_date = apply(tf"1d", out[begin, :timestamp])
             since_date = apply(tf"1d", dt(since_ts))
+            # TODO: this is too noisy, it should also check that the requested
+            # period is smaller than the fetch limit
             if since_date != DateTime(0) && first_date > since_date
                 @warn "fetch: ($(nameof(exc))) likely ignores `since` argument [$(since_date) ($(pair))]"
             end
