@@ -11,7 +11,7 @@ if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     @eval __init__() = begin
         @eval begin
             include(joinpath(@__DIR__, "consts.jl"))
-            include(joinpath(@__DIR__, "python.jl"))
+            include(joinpath(@__DIR__, "module.jl"))
             _setup!()
             _doinit()
         end

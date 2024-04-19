@@ -2,7 +2,7 @@ module PingPong
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
-        entrypath = joinpath(@__DIR__, "pingpong.jl")
+        entrypath = joinpath(@__DIR__, "module.jl")
         @eval begin
             isdefined(Main, :Revise) && Main.Revise.track($entrypath)
             include($entrypath)

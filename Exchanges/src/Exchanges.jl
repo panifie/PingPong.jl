@@ -2,7 +2,7 @@ module Exchanges
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
-        include(joinpath(@__DIR__, "exchanges.jl"))
+        include(joinpath(@__DIR__, "module.jl"))
         @eval _doinit()
     end
 else

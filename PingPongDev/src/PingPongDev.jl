@@ -2,7 +2,7 @@ module PingPongDev
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
-        include(joinpath(@__DIR__, "pingpongdev.jl"))
+        include(joinpath(@__DIR__, "module.jl"))
         @eval _doinit()
     end
 else
