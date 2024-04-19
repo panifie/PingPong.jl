@@ -1,0 +1,9 @@
+name = "SimpleStrategy"
+uuid = "9faf1dd7-6398-46c6-90c9-24e0234666dd"
+authors = ["untoreh <francesco.giannelli@yahoo.it>"]
+version = "0.1.0"
+
+[strategy]
+mode = "Sim"
+include_file = "src/SimpleStrategy.jl"
+margin = "NoMargin"
