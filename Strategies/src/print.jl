@@ -179,10 +179,12 @@ function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
     mmh = minmax_holdings(s)
     long, short, liquidations = trades_count(s, Val(:positions))
     trades = long + short
-    write(
-        out,
-        "Trades: $(trades) ~ $long(longs) ~ $short(shorts) ~ $(liquidations)(liquidations)\n",
-    )
+    trades_msg = if marginmode(s) isa NoMargin
+        "Trades: $(trades) ~ $long\n"
+    else
+        "Trades: $(trades) ~ $long(longs) ~ $short(shorts) ~ $(liquidations)(liquidations)\n"
+    end
+    write(out, trades_msg)
     write(out, "Holdings: $(mmh.count)")
     if mmh.min[1] != cur
         write(out, " ~ min $(Cash(mmh.min...))($cur)")
