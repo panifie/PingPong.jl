@@ -23,6 +23,6 @@ using .Misc: swapkeys
 using .Misc.DocStringExtensions
 
 # include("consts.jl")
-# include("funcs.jl")
 include("types/constructors.jl")
 include("types/datahandlers.jl")
+include("functions.jl")
