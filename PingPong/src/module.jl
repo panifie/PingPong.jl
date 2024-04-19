@@ -54,10 +54,13 @@ macro environment!(pp=@__MODULE__)
         using .Instruments.Derivatives
         using .Instruments.Derivatives: Derivatives as der
         using .pp.Engine.Data: Data as da, DFUtils as du
+
+        using .da: load_ohlcv
         using .da.Cache: save_cache, load_cache
         using .pp.Engine.Processing: Processing as pro
         using .pp.Remote: Remote as rmt
         using .pp.Engine.LiveMode.Watchers
+        using .Watchers.Fetch: fetch_ohlcv
         using .Watchers: WatchersImpls as wi
 
         if !isdefined($(__module__), :Stubs)
@@ -105,7 +108,7 @@ macro strategyenv!()
         using .ect: orders
         using .pp.Engine.Exchanges: getexchange!, marketsid
         using .pc: resample, islast, iscomplete, isincomplete
-        using .Data: propagate_ohlcv!, stub!
+        using .Data: propagate_ohlcv!, stub!, load_ohlcv
         using .Data.DataStructures: CircularBuffer
         using .Misc: after, before, rangeafter, rangebefore, LittleDict
         using .Misc: istaskrunning, start_task, stop_task

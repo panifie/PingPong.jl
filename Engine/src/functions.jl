@@ -1,5 +1,6 @@
 import .LiveMode.Watchers.Fetch: fetch_ohlcv
 import .Processing.Data: load_ohlcv
+using .Exchanges: exchangeid
 
 function fetch_ohlcv(
     s::Strategy;

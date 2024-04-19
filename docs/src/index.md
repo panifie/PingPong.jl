@@ -73,38 +73,37 @@ using PingPong # or PingPongInteractive for plotting and optimization
 
 ## Quickstart
 
-Load the default strategy, which you can look up at `./user/strategies/Example.jl` or [make your own](./strategy.md#Setup-a-new-strategy).
+Load the default strategy, which you can look up at `./user/strategies/SimpleStrategy/` or [make your own](./strategy.md#Setup-a-new-strategy).
 
 ```julia
 using PingPong
-using Scrapers: Scrapers as scr
 using Data: Data as data
 using SimMode: SimMode as sm
 
 @environment!
-s = st.strategy(:Example) # `st` is the `Strategies` module
+# `st` is the `Strategies` module
+# arguments override defaults (see `s.config` fields)
+s = st.strategy(:SimpleStrategy, exchange=:binance) 
 ```
 
 Download some data:
 
 ```julia
-pairs = [lowercase(ai.bc) for ai in s.universe]
-const bn = scr.BinanceData # `scr` is the Scrapers module
-bn.binancedownload(pairs)
+# download last 1000 candles from strategy exchange
+fetch_ohlcv(s, from=-1000) 
 ```
 
 Load the data into the strategy universe:
 
 ```julia
-let data = bn.binanceload(pairs)
-    da.stub!(s.universe, data) # `da` is the `Data` module
-end
+load_ohlcv(s)
 ```
 
 Backtest the strategy within the period available from the loaded data.
 
 ```julia
-sm.start!(s) # `sm` is the `SimMode` module
+# `sm` is the `SimMode` module
+sm.start!(s)
 ```
 
 Plot the simulated trades.
