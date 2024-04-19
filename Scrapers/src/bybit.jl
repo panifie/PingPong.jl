@@ -218,16 +218,24 @@ function bybitdownload(
         for s in selected
             @acquire SEM begin
                 function fetchandsave(s)
-                    ohlcv, last_file, tmpdata = fetchsym(s; reset, path)
-                    if !(isnothing(ohlcv) || isnothing(last_file))
-                        bybitsave(s, ohlcv; path)
-                        ca.save_cache(cache_key(s; path), last_file)
-                    else
-                        tmppath = joinpath(_tempdir(), "pingpong")
-                        mkpath(tmppath)
-                        name = basename(tempname())
-                        ca.save_cache(name; cache_path=tmppath)
-                        @info "Saving temp data to $(joinpath(tmppath, name))"
+                    try
+                        ohlcv, last_file, tmpdata = fetchsym(s; reset, path)
+                        if !(isnothing(ohlcv) || isnothing(last_file))
+                            bybitsave(s, ohlcv; path)
+                            ca.save_cache(cache_key(s; path), last_file)
+                        else
+                            tmppath = joinpath(_tempdir(), "pingpong")
+                            mkpath(tmppath)
+                            name = basename(tempname())
+                            ca.save_cache(name; cache_path=tmppath)
+                            @info "Saving temp data to $(joinpath(tmppath, name))"
+                        end
+                    catch exception
+                        if exception isa InterruptException()
+                            rethrow(exception)
+                        else
+                            @error "fetchandsave" s exception
+                        end
                     end
                     @pbupdate!
                 end
