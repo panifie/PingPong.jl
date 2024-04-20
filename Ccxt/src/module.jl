@@ -107,8 +107,6 @@ end
 @doc """
 A dictionary for storing function wrappers with their unique identifiers.
 """
-const FUNCTION_WRAPPERS = ConcurrentDict{UInt64,Function}()
-
 function _out_as_input(inputs, data; elkey=nothing)
     if islist(data)
         if length(data) == length(inputs)
@@ -133,44 +131,40 @@ $(TYPEDSIGNATURES)
 This function selects a function based on the provided exception, suffix, and inputs. It then executes the chosen function with the provided inputs and keyword arguments. The function can handle multiple types of inputs and can execute multiple functions concurrently if necessary.
 """
 function choosefunc(exc, suffix, inputs::AbstractVector; elkey=nothing, kwargs...)
-    @lget! FUNCTION_WRAPPERS hash((
-        exc.id, pyisnone(exc.urls.get("apiBackup")), suffix, elkey, inputs, kwargs...
-    )) begin
-        hasinputs = length(inputs) > 0
-        f, kind = _multifunc(exc, suffix, hasinputs)
-        if hasinputs
-            if kind == :multi
-                function multi_func()
-                    args = isempty(inputs) ? () : (inputs,)
-                    data = pyfetch(f, args...; kwargs...)
-                    _out_as_input(inputs, data; elkey)
-                end
-            else
-                function single_func()
-                    out = Dict{eltype(inputs),Union{Task,Py}}()
-                    try
-                        for i in inputs
-                            out[i] = pytask(f(i); kwargs...)
-                        end
-                        for (i, task) in out
-                            out[i] = fetch(task)
-                        end
-                    catch e
-                        @sync for v in values(out)
-                            if v isa Task && !istaskdone(v)
-                                pycancel(v)
-                            end
-                        end
-                        e isa PyException && rethrow(e)
-                        filter!(p -> p isa Task, out)
-                    end
-                    _out_as_input(inputs, out; elkey)
-                end
+    hasinputs = length(inputs) > 0
+    f, kind = _multifunc(exc, suffix, hasinputs)
+    if hasinputs
+        if kind == :multi
+            function multi_func()
+                args = isempty(inputs) ? () : (inputs,)
+                data = pyfetch(f, args...; kwargs...)
+                _out_as_input(inputs, data; elkey)
             end
         else
-            args = isempty(inputs) ? () : (inputs,)
-            default_func() = pyfetch(f, args...; kwargs...)
+            function single_func()
+                out = Dict{eltype(inputs),Union{Task,Py}}()
+                try
+                    for i in inputs
+                        out[i] = pytask(f(i); kwargs...)
+                    end
+                    for (i, task) in out
+                        out[i] = fetch(task)
+                    end
+                catch e
+                    @sync for v in values(out)
+                        if v isa Task && !istaskdone(v)
+                            pycancel(v)
+                        end
+                    end
+                    e isa PyException && rethrow(e)
+                    filter!(p -> p isa Task, out)
+                end
+                _out_as_input(inputs, out; elkey)
+            end
         end
+    else
+        args = isempty(inputs) ? () : (inputs,)
+        default_func() = pyfetch(f, args...; kwargs...)
     end
 end
 

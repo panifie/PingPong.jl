@@ -137,7 +137,10 @@ function _reset_tickers_func!(w::Watcher)
     exc = getexchange!(eid; sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
-    args = isempty(_sym(w)) ? () : (_sym(w)...,)
+    sym = _sym(w)
+    args = isempty(sym) ? () :
+           sym isa Base.Generator ? (sym...,) :
+           (sym,)
     watch_func = first(exc, :watchTickersForSymbols, :watchTickers)
     fetch_func = choosefunc(exc, "Ticker", args...)
     iswatch = @lget! attrs :iswatch !isnothing(watch_func)
