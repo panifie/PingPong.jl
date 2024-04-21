@@ -22,7 +22,7 @@ The function initializes a Strategy object with the specified settings and asset
 function Strategies.Strategy(
     self::Module,
     assets::Union{Dict,Iterable{String}};
-    load_data=true,
+    load_data=false,
     config::Config,
     mode=config.mode,
     margin=config.margin,

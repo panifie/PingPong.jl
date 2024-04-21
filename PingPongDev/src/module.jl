@@ -50,11 +50,10 @@ function dostub!(pairs=symnames(); s=s, loader=default_loader())
     end
 end
 
-function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
+function loadstrat!(strat=:Example, bind=:s; load=false, stub=false, mode=Sim(), kwargs...)
     @eval Main begin
         global $bind, ai
-        if isdefined(Main, $(QuoteNode(bind))) &&
-           $bind isa st.Strategy{<:Union{Paper,Live}}
+        if isdefined(Main, $(QuoteNode(bind))) && $bind isa st.Strategy{<:Union{Paper,Live}}
             try
                 exs.ExchangeTypes._closeall()
                 @async lm.stop_all_tasks($bind)
@@ -63,12 +62,18 @@ function loadstrat!(strat=:Example, bind=:s; stub=true, mode=Sim(), kwargs...)
             end
         end
         $bind = st.strategy($(QuoteNode(strat)); mode=$mode, $(kwargs)...)
-        st.issim($bind) && fill!(
-            $bind.universe,
-            $bind.timeframe,
-            $bind.config.timeframes[(begin+1):end]...,
-        )
-        execmode($bind) == Sim() && $stub && dostub!(symnames($bind); s=$bind)
+        if st.issim($bind)
+            if $load
+                fill!(
+                    $bind.universe,
+                    $bind.timeframe,
+                    $bind.config.timeframes[(begin + 1):end]...,
+                )
+            end
+            if $stub
+                dostub!(symnames($bind); s=$bind)
+            end
+        end
         st.default!($bind)
         ai = try
             first($bind.universe)
