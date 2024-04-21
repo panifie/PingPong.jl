@@ -77,7 +77,9 @@ function Base.parse(::Type{Asset}, s::AbstractString)
     Asset(SubString(s), pair[1], pair[2])
 end
 const symbol_rgx_cache = Dict{String,Regex}()
-function Base.parse(::Type{<:AbstractAsset}, s::AbstractString, qc::AbstractString; raise=true)
+function Base.parse(
+    ::Type{<:AbstractAsset}, s::AbstractString, qc::AbstractString; raise=true
+)
     pair = splitpair(s)
     m = match(@lget!(symbol_rgx_cache, qc, Regex("(.*)($qc)(?:settled?)?\$", "i")), pair[1])
     if isnothing(m)
@@ -98,6 +100,8 @@ end
 _hashtuple(a::AbstractAsset) = (a.bc, a.qc)
 Base.hash(a::AbstractAsset) = hash(_hashtuple(a))
 Base.hash(a::AbstractAsset, h::UInt) = hash(_hashtuple(a), h)
+Base.isequal(a::AbstractAsset, b::AbstractAsset) = raw(a) == raw(b)
+Base.:(==)(a::AbstractAsset, b::AbstractAsset) = true
 Base.convert(::Type{String}, a::AbstractAsset) = a.raw
 Base.string(a::AbstractAsset) = "Asset($(a.bc)/$(a.qc))"
 Base.show(buf::IO, a::AbstractAsset) = write(buf, string(a))
