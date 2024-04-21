@@ -57,7 +57,6 @@ function delete!(store::DirectoryStore, paths::Vararg{String}; recursive=true)
 end
 
 function delete!(store::AbstractStore, paths...; recursive=true)
-    display("zarr_utils.jl:60")
     delete!(store, paths...; recursive)
 end
 
