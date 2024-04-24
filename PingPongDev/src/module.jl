@@ -31,7 +31,7 @@ function symnames(s=Main.s)
     String[lowercase(v) for v in (string.(getproperty.(st.assets(s), :bc)))]
 end
 
-function default_loader(load_func=nothing)
+function default_data_loader(load_func=nothing)
     @eval Main begin
         using Scrapers: Scrapers as scr
         let f = @something $(load_func) scr.BinanceData.binanceload
@@ -40,7 +40,7 @@ function default_loader(load_func=nothing)
     end
 end
 
-function dostub!(pairs=symnames(); s=s, loader=default_loader())
+function dostub!(pairs=symnames(); s=s, loader=default_data_loader())
     isempty(pairs) && return nothing
     @eval Main let
         this_s = $s
@@ -109,8 +109,9 @@ resetenv!() = begin
         using .Python
     end
     try
+        Python.py_stop_loop()
+    finally
         Python.py_start_loop()
-    catch
     end
     exs.ExchangeTypes._closeall()
     Watchers._closeall()
@@ -123,5 +124,5 @@ togglewatch!(s, enable=true) = begin
     lm.stop_all_tasks(s)
 end
 
-export backtest_strat, loadstrat!, symnames, default_loader
+export backtest_strat, loadstrat!, symnames, default_data_loader
 export @environment!, dostub!, resetenv!, togglewatch!
