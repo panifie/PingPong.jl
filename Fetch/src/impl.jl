@@ -218,7 +218,9 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
             # TODO: this is too noisy, it should also check that the requested
             # period is smaller than the fetch limit
             if since_date != DateTime(0) && first_date > since_date
-                @warn "fetch: ($(nameof(exc))) likely ignores `since` argument [$(since_date) ($(pair))]"
+                @warn "fetch: ($(nameof(exc))) likely ignores `since` argument" since_date dt(
+                    since_ts
+                ) dt(from) pair
             end
             round(Int, timefloat(out[end, 1]), RoundUp)
         else
@@ -251,8 +253,9 @@ function _fetch_loop(
     last_fetched_count = Ref(0)
     pair ∉ keys(exc.markets) && throw("Pair $pair not in exchange markets.")
     is_df = out isa DataFrame
-    since = __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
-    since = since_param(exc, since)
+    since = let v = __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
+        since_param(exc, v)
+    end
     @debug "since time: ", since
     @debug "Starting from $(dt(since)) - to: $(dt(to))."
     function dofetch()
@@ -339,9 +342,9 @@ function __handle_fetch(
             (; since, limit=limit ÷ 2)
         else
             ofs = max(timefloat(Day(1)), timefloat(now() - dt(since)) / 2.0)
-            tmp = since + round(Int, since + ofs, RoundUp)
+            tmp = since + round(Int, ofs, RoundUp)
             if tmp > dtstamp(now())
-                (; limit=1000)
+                (; since, limit=1000)
             else
                 (; since=tmp, limit=max(10, something(limit, 20) ÷ 2))
             end
