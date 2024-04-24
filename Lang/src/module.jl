@@ -439,8 +439,135 @@ macro ignore(expr)
     esc(ex)
 end
 
+_parse_keys(keys) = begin
+    if length(keys) == 1 && keys[1] isa Expr && keys[1].head == :block
+        [a for a in keys[1].args if !(a isa LineNumberNode)]
+    else
+        keys
+    end
+end
+
+_setkeys(mod, keys, reset) = begin
+    @eval mod begin
+        if isdefined($mod, :_STATIC_KEYS)
+            if $reset
+                empty!(_STATIC_KEYS)
+            end
+            push!(_STATIC_KEYS, (Symbol(k) for k in $keys)...)
+        else
+            const _STATIC_KEYS = Set{Symbol}(Symbol(k) for k in $keys)
+        end
+    end
+end
+
+
+"""
+    @statickeys!(keys...)
+
+Declare a set of static keys that can be used with the `@setkey!` and `@getkey` macros.
+
+The `keys` argument can be a single expression that evaluates to a collection of symbols, or individual symbol arguments.
+
+This macro updates the `_STATIC_KEYS` set in the current module to contain the provided keys. If `_STATIC_KEYS` is not defined, it will be created.
+"""
+macro statickeys!(keys...)
+    keys = _parse_keys(keys)
+    _setkeys(__module__, keys, true)
+end
+
+
+"""
+    @add_statickeys!(keys...)
+
+Adds the provided keys to the set of statically defined keys.
+
+See also `@statickeys!`.
+"""
+macro add_statickeys!(keys...)
+    keys = _parse_keys(keys)
+    _setkeys(__module__, keys, false)
+end
+
+"""
+    @setkey!(container, k, v)
+
+Set the value of key `k` in the `container` dictionary to `v`. Raises an error if `k` is not a statically defined key.
+"""
+macro setkey!(container, k, v)
+    @assert k isa QuoteNode && k.value isa Symbol "only symbol keys are supported"
+    if k.value ∉ __module__._STATIC_KEYS
+        error("key '$k' not statically defined")
+    else
+        esc(:($container[$k] = $v))
+    end
+end
+
+"""
+    @setkey!(container, kv)
+
+Set the value of key `kv` in the `container` dictionary. Raises an error if `kv` is not a statically defined key.
+"""
+macro setkey!(container, kv)
+    @assert kv isa Symbol "only symbol keys are supported"
+    if kv ∉ __module__._STATIC_KEYS
+        error("key '$kv' not statically defined")
+    else
+        esc(:($container[$(QuoteNode(kv))] = $kv))
+    end
+end
+
+"""
+    @getkey(container, k)
+
+Get the value of key `k` from the `container` dictionary. Raises an error if `k` is not a statically defined key.
+"""
+macro getkey(container, k)
+    @assert k isa Symbol
+    if k ∉ __module__._STATIC_KEYS
+        error("key '$k' not statically defined")
+    else
+        esc(:($container[$(QuoteNode(k))]))
+    end
+end
+
+macro getattr(container, k)
+    :(@getkey($(container).attrs, $k))
+end
+
+macro setattr!(container, k, v)
+    :(@setkey!($(container).attrs, $k, $v))
+end
+
+macro setattr!(container, kv)
+    :(@setkey!($(container).attrs, $kv))
+end
+
+macro key(k)
+    if k isa QuoteNode
+        @assert k.value isa Symbol "only symbol keys are supported"
+        if k.value ∉ __module__._STATIC_KEYS
+            error("key '$k' not statically defined")
+        else
+            esc(:($(QuoteNode(k))))
+        end
+    elseif k isa Expr
+        @assert k.head == :call &&
+                k.args[1] isa Symbol &&
+                k.args[2] isa QuoteNode &&
+                k.args[2].value isa Symbol "not a valid static key statement"
+        if k.args[2].value ∉ __module__._STATIC_KEYS
+            error("key '$(k.args[2])' not statically defined")
+        else
+            esc(k)
+        end
+    else
+        error("wrong argument $k")
+    end
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
 export @as, @sym_str, @caller
+export @statickeys!, @add_statickeys!, @setkey!, @getkey, @getattr, @setattr, @key
 export Option, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
