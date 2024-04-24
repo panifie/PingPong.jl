@@ -1,7 +1,7 @@
 module WatchersImpls
 using LazyJSON
 using ..Lang: @lget!, @kget!, fromdict, Option
-using ..Lang: @statickeys!, @setkey!, @getkey
+using ..Lang: @statickeys!, @setkey!, @getkey, @key
 using ..TimeTicks
 using ..Misc
 using ..Watchers

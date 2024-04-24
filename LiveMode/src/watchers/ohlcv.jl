@@ -120,6 +120,8 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
         default_view = Dict{String,DataFrame}(
             raw(ai) => @lget!(ai.data, s.timeframe, empty_ohlcv()) for ai in s.universe
         )
+        buffer_capacity = attr(s, :live_buffer_capacity, 100)
+        view_capacity = attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity)
         s[:live_ohlcv_watcher] =
             w = ccxt_ohlcv_tickers_watcher(
                 exc;
@@ -127,16 +129,19 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
                 syms=(raw(ai) for ai in s.universe),
                 flush=false,
                 logfile=logpath(s; name="tickers_watcher_$(nameof(s))"),
-                view_capacity=attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1),
+                buffer_capacity,
+                view_capacity,
                 default_view,
             )
         w[:quiet] = true
         w[:resync_noncontig] = true
-        wv = w.view
-        @sync for ai in s.universe
-            sym = raw(ai)
-            wv[sym] = ai.data[s.timeframe]
-            @async Watchers.load!(w, sym)
+        w[:startup_task] = @async begin
+            wv = w.view
+            @sync for ai in s.universe
+                sym = raw(ai)
+                wv[sym] = ai.data[s.timeframe]
+                @async Watchers.load!(w, sym)
+            end
         end
         w[:propagate_task] = @async propagate_loop(s, w)
         start!(w)
