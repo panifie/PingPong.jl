@@ -1,6 +1,7 @@
 module WatchersImpls
 using LazyJSON
 using ..Lang: @lget!, @kget!, fromdict, Option
+using ..Lang: @statickeys!, @setkey!, @getkey
 using ..TimeTicks
 using ..Misc
 using ..Watchers
@@ -24,6 +25,21 @@ using Base: Semaphore
 
 using ..CoinGecko: CoinGecko as cg
 using ..CoinPaprika: CoinPaprika as cp
+
+# TODO replace _function wrappers with @getkey @setkey!
+@statickeys! begin
+    default_view
+    timeframe
+    n_jobs
+    sem
+    ids
+    key
+    status
+    logfile
+    last_processed
+    process_tasks
+end
+
 
 include("utils.jl")
 include("cg_ticker.jl")

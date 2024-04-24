@@ -11,6 +11,10 @@ using ..Misc: rangeafter, rangebetween
 using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
 
+@add_statickeys! begin
+    status
+end
+
 @doc """
 Removes trailing 'Z' from a string and parses it into a DateTime object.
 
