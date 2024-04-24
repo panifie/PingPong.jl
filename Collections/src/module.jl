@@ -67,11 +67,16 @@ struct AssetCollection
         else
             (_) -> empty_ohlcv()
         end
-        function getInstance(aa::AbstractAsset)
+        function get_instance(aa::AbstractAsset)
             data = SortedDict(tf => load_func(aa))
             AssetInstance(aa; data, exc, margin, min_amount)
         end
-        instances = AssetInstance[getInstance(ast) for ast in assets]
+        instances_ord = Dict(raw(k) => n for (n, k) in enumerate(assets))
+        instances = AssetInstance[]
+        @sync for ast in assets
+            @async push!(instances, get_instance(ast))
+        end
+        sort!(instances; by=(ai) -> instances_ord[raw(ai)])
         AssetCollection(instances)
     end
 end
@@ -91,13 +96,13 @@ end
 
 using .Instruments: isbase, isquote
 function Base.getindex(ac::AssetCollection, i::ExchangeID, col=Colon())
-    @view ac.data[ac.data.exchange.==i, col]
+    @view ac.data[ac.data.exchange .== i, col]
 end
 function Base.getindex(ac::AssetCollection, i::AbstractAsset, col=Colon())
-    @view ac.data[ac.data.asset.==i, col]
+    @view ac.data[ac.data.asset .== i, col]
 end
 function Base.getindex(ac::AssetCollection, i::AbstractString, col=Colon())
-    @view ac.data[ac.data.asset.==i, col]
+    @view ac.data[ac.data.asset .== i, col]
 end
 function Base.getindex(ac::AssetCollection, i::MatchString, col=Colon())
     v = @view ac.data[startswith.(getproperty.(ac.data.asset, :raw), uppercase(i.s)), :]
@@ -162,12 +167,16 @@ The `prettydf` function takes the following parameters:
 function prettydf(ac::AssetCollection; full=false)
     limit = full ? size(ac.data)[1] : displaysize(stdout)[1] - 1
     limit = min(size(ac.data)[1], limit)
-    DataFrame(
-        begin
-            row = @view ac.data[n, :]
-            (; _cashstr(row.instance)..., name=row.asset, exchange=row.exchange.id)
-        end for n in 1:limit
-    )
+    get_row(n) = begin
+        row = @view ac.data[n, :]
+        (; _cashstr(row.instance)..., name=row.asset, exchange=row.exchange.id)
+    end
+    half = limit ÷ 2
+    df = DataFrame(get_row(n) for n in 1:half)
+    for n in (nrow(ac.data) - half + 1):nrow(ac.data)
+        push!(df, get_row(n))
+    end
+    df
 end
 
 Base.show(io::IO, ac::AssetCollection) = write(io, string(prettydf(ac)))
@@ -250,7 +259,7 @@ reset!(ac::AssetCollection) = begin
     foreach(eachindex(ais)) do idx
         ai = ais[idx]
         eid = exchangeid(ai)
-        ais[idx] = similar(ai, exc=getexchange!(eid))
+        ais[idx] = similar(ai; exc=getexchange!(eid))
     end
 end
 
