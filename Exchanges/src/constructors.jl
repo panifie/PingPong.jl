@@ -549,6 +549,11 @@ end
 
 $(TYPEDSIGNATURES)"
 ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
+ratelimit(exc::Exchange=exc) = pyconvert(DFT, exc.py.rateLimit)
+ratelimit_tokens(exc::Exchange=exc) = pyconvert(DFT, exc.py.rateLimitTokens)
+function ratelimit_njobs(exc::Exchange)
+    round(Int, div(ratelimit(exc), ratelimit_tokens(exc)), RoundDown)
+end
 @doc "Set exchange timeout. (milliseconds)
 
 $(TYPEDSIGNATURES)"
