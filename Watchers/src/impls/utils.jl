@@ -199,7 +199,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end-maxlen+1):end, :])
+    available = @view(z[(end - maxlen + 1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -558,10 +558,11 @@ function check_task!(w)
     try
         task = handler_task(w)
         if !istaskrunning(task)
-            handler_task!(w;
+            handler_task!(
+                w;
                 init_func=w[:init_func],
                 corogen_func=w[:corogen_func],
-                wrapper_func=w[:wrapper_func]
+                wrapper_func=w[:wrapper_func],
             )
             istaskrunning(handler_task(w))
         else
