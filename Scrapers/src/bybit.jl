@@ -231,7 +231,7 @@ function bybitdownload(
                             @info "Saving temp data to $(joinpath(tmppath, name))"
                         end
                     catch exception
-                        if exception isa InterruptException()
+                        if exception isa InterruptException
                             rethrow(exception)
                         else
                             @error "fetchandsave" s exception
