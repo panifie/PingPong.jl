@@ -113,7 +113,6 @@ Base.hash(a::Derivative, h::UInt64) = hash(getfield(a, :asset).raw, h)
 Base.string(a::Derivative) = "Derivative($(a.raw))"
 Base.show(buf::IO, a::Derivative) = write(buf, string(a))
 Base.Broadcast.broadcastable(q::Derivative) = Ref(q)
-Base.:(==)(a::Derivative, b::Derivative) = raw(a) == raw(b)
 
 export Derivative, DerivativeKind, @d_str, perpetual, sc
 
