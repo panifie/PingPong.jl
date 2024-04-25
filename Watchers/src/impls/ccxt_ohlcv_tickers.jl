@@ -25,6 +25,7 @@ baremodule LogOHLCVTickers end
     isresolving
     stale_candle
     stale_df
+    callback
 end
 
 @doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
@@ -41,6 +42,7 @@ the view up to the watcher `view_capacity`.
 - `logfile`: optional path to save errors.
 - `diff_volume`: calculate volume by subtracting the rolling 1d snapshots (`true`)
 - `n_jobs`: concurrent startup fetching jobs for ohlcv
+- `callback`: function `fn(df, sym)` called every time a dataframe is updated
 
 !!! "warning" startup times
     The higher the number of symbols, the longer it will take to load initial OHLCV candles. When the semaphore (`w[:sem]`) is not full anymore, all the symbols should then start to trail the latest (full) candle as soon as possible.
@@ -55,6 +57,7 @@ function ccxt_ohlcv_tickers_watcher(
     view_capacity=count(timeframe, tf"1d") + 1 + buffer_capacity,
     default_view=nothing,
     n_jobs=ratelimit_njobs(exc),
+    callback=nothing,
     kwargs...,
 )
     w = ccxt_tickers_watcher(
@@ -74,6 +77,7 @@ function ccxt_ohlcv_tickers_watcher(
     @setkey! a :tickers_ohlcv true
     @setkey! a timeframe
     @setkey! a n_jobs
+    @setkey! a callback
     @setkey! a :sem Base.Semaphore(n_jobs)
     @assert price_source ∈ PRICE_SOURCES "price_source $price_source is not one of: $PRICE_SOURCES"
     @setkey! a price_source
@@ -232,6 +236,7 @@ function _ensure_contig!(w, df, temp_candle::TempCandle, tf, sym)
     ## append complete candle (check again adjaciency)
     if isrightadj(temp_candle.timestamp, _lastdate(df), tf)
         pushmax!(df, fromstruct(temp_candle), w.capacity.view)
+        @getkey(w, callback)(df, sym)
     end
 end
 function diff_volume!(w, df, temp_candle, sym, latest_timestamp)

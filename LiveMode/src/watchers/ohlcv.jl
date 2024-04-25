@@ -122,6 +122,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
         )
         buffer_capacity = attr(s, :live_buffer_capacity, 100)
         view_capacity = attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity)
+        propagate_callback(_, sym) = asset_bysym(s, sym) |> ohlcv_dict |> propagate_ohlcv!
         s[:live_ohlcv_watcher] =
             w = ccxt_ohlcv_tickers_watcher(
                 exc;
@@ -132,6 +133,7 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
                 buffer_capacity,
                 view_capacity,
                 default_view,
+                callback=propagate_callback
             )
         w[:quiet] = true
         w[:resync_noncontig] = true
@@ -143,7 +145,6 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
                 @async Watchers.load!(w, sym)
             end
         end
-        w[:propagate_task] = @async propagate_loop(s, w)
         start!(w)
     end
 end
