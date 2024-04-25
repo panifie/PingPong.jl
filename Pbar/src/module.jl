@@ -122,13 +122,17 @@ macro pbar!(data, desc="", unit="") # use_finalizer=false)
 end
 
 @doc "Complete a job."
-function complete!(pb, j)
+function complete!(pb, j, force=true)
     if !isnothing(j.N)
-        (j.finished || j.N != j.i) && begin
+        if j.finished || j.N != j.i
             update!(j; i=j.N - j.i)
             dorender(pb)
         end
-        (!j.transient) && removejob!(pb, j)
+        if force || !j.transient
+            if j in pb.jobs
+                removejob!(pb, j)
+            end
+        end
     end
     nothing
 end
@@ -170,12 +174,14 @@ macro withpbar!(data, args...)
         local iserror = false
         try
             $code
-        catch
-            iserror = true
-            pbclose!($pbar[])
-            clearpbar($pbar[])
+        catch e
+            if e isa InterruptException
+                rethrow(e)
+            else
+                iserror = true
+            end
         finally
-            iserror || pbclose!($pbj.job, $pbar[])
+            pbclose!($pbj.job, $pbar[])
         end
     end
 end
