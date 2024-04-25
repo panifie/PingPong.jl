@@ -20,7 +20,7 @@ using ..Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
 using ..Data.DataFrames
 using ..Pbar
 using Instruments
-using ..Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire
+using ..Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire, @except
 using ..TimeTicks
 using ..DocStringExtensions
 
@@ -143,7 +143,7 @@ function binancesyms(; kwargs...)
             els = ez.elements(ez.elements(html.node)[1])
             symname(el) = begin
                 sp = split(el.content, '/')
-                isempty(sp[end]) ? sp[end - 1] : sp[end]
+                isempty(sp[end]) ? sp[end-1] : sp[end]
             end
             allsyms = [symname(el) for el in els if el.name == "CommonPrefixes"]
             ca.save_cache(key, allsyms)
@@ -238,15 +238,18 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
     if isempty(selected)
         throw(ArgumentError("No symbols found matching $syms"))
     end
+    quit = Ref(false)
     @withpbar! selected desc = "Symbols" begin
-        fetchandsave(s) = begin
+        fetchandsave(s) = @except if !quit[]
             ohlcv, last_file = fetchsym(s; reset, path_kws...)
             if !(isnothing(ohlcv) || isnothing(last_file))
                 binancesave(s, ohlcv; reset)
                 ca.save_cache(key_path(s; path_kws...), last_file)
+            else
+                @warn "binance: download failed" sym = s
             end
             @pbupdate!
-        end
+        end "binance scraper" (quit[] = true)
         @acquire SEM asyncmap(fetchandsave, (s for s in selected), ntasks=WORKERS[])
     end
     nothing

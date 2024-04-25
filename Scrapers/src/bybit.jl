@@ -26,6 +26,7 @@ using ..Scrapers:
     glue_ohlcv,
     dofetchfiles,
     symfiles,
+    _tempdir,
     @acquire,
     @fromassets
 using ..DocStringExtensions
@@ -175,7 +176,9 @@ function fetchsym(sym; reset=false, path=PATHS.trading)
     files = let links = symlinkslist(sym; path)
         symfiles(links; by=l -> l.content, from)
     end
-    isnothing(files) && return (nothing, nothing)
+    if isnothing(files)
+        return (nothing, nothing, nothing)
+    end
     out = dofetchfiles(sym, files; func=fetch_ohlcv, path)
     (mergechunks(files, out), last(files), out)
 end
@@ -207,42 +210,35 @@ The function throws an error if no symbols are found matching the input symbols.
 
 """
 function bybitdownload(
-    syms=String[]; reset=false, path=PATHS.trading, quote_currency="usdt"
+    syms=String[]; reset=false, path=PATHS.trading, quote_currency="usdt", maxerrors=3
 )
     all_syms = bybitallsyms(path)
     selected = selectsyms(syms, all_syms; quote_currency)
     if isempty(selected)
         throw(ArgumentError("No symbols found matching $syms"))
     end
+    quit = Ref(maxerrors)
     @withpbar! selected desc = "Symbols" begin
-        for s in selected
-            @acquire SEM begin
-                function fetchandsave(s)
-                    try
-                        ohlcv, last_file, tmpdata = fetchsym(s; reset, path)
-                        if !(isnothing(ohlcv) || isnothing(last_file))
-                            bybitsave(s, ohlcv; path)
-                            ca.save_cache(cache_key(s; path), last_file)
-                        else
-                            tmppath = joinpath(_tempdir(), "pingpong")
-                            mkpath(tmppath)
-                            name = basename(tempname())
-                            ca.save_cache(name; cache_path=tmppath)
-                            @info "Saving temp data to $(joinpath(tmppath, name))"
-                        end
-                    catch exception
-                        if exception isa InterruptException
-                            rethrow(exception)
-                        else
-                            @error "fetchandsave" s exception
-                        end
-                    end
-                    @pbupdate!
-                end
-                asyncmap(fetchandsave, (s for s in selected); ntasks=WORKERS[])
+        fetchandsave(s) = @except if quit[] > 0
+            ohlcv, last_file, tmpdata = fetchsym(s; reset, path)
+            # ohlcv is nothing if there was no data to fetch
+            # last_file is nothing if the data was invalid (e.g. empty)
+            # so if either is nothing, we don't have valid data to save
+            if !isnothing(ohlcv) && !isnothing(last_file)
+                bybitsave(s, ohlcv; path)
+                ca.save_cache(cache_key(s; path), last_file)
+            elseif !isnothing(tmpdata)
+                tmppath = joinpath(_tempdir(), "pingpong")
+                mkpath(tmppath)
+                name = basename(tempname())
+                ca.save_cache(name, tmpdata; cache_path=tmppath)
+                @warn "bybit: saving temp data" sym = s path = joinpath(tmppath, name)
             end
-        end
+            @pbupdate!
+        end "bybit scraper: failed to fetch $s" (quit[] = quit[] - 1)
+        @acquire SEM asyncmap(fetchandsave, (s for s in selected); ntasks=WORKERS[])
     end
+    nothing
 end
 @fromassets bybitdownload
 @argstovec bybitdownload AbstractString

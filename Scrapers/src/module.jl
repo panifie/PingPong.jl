@@ -18,11 +18,15 @@ using .Data.DFUtils: lastdate, firstdate
 using .Data.DataFrames
 using .Pbar
 
-@doc "Controls the number of workers used by the Scrapers module."
-const WORKERS = Ref(10)
+@doc "Controls the number of workers used by the Scrapers module to download chunks (1 chunk == 1 request).
+See also [`SEM`](@ref)
+"
+const WORKERS = Ref(4)
 @doc "The time frame used by the Scrapers module."
 const TF = Ref(tf"1m")
-@doc "A samaphore for parallel downloads."
+@doc "A samaphore for parallel downloads. Controls how many symbols are downloaded in parallel.
+When downloading archives from scratch use more [`WORKERS`](@ref) and smaller `sem_size`, when updating use larer `sem_size` and fewer workers.
+"
 const SEM = Base.Semaphore(3)
 
 @doc "Default HTTP parameters used by the Scrapers module."

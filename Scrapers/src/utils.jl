@@ -194,19 +194,16 @@ The function returns a dictionary of DataFrames.
 function dofetchfiles(sym, files; func, kwargs...)
     out = Dict{DateTime,DataFrame}()
     @withpbar! files desc = sym begin
+        quit = Ref(false)
         @acquire SEM begin
             # NOTE: func must accept a kw arg `out`
-            dofetch(file) = begin
-                try
-                    func(sym, file; out, kwargs...)
-                catch e
-                    @ifdebug begin
-                        @warn "chunk $file couldn't be parsed."
-                        @warn e
-                    end
+            dofetch(file) =
+                if !quit[]
+                    @except begin
+                        func(sym, file; out, kwargs...)
+                        @pbupdate!
+                    end "chunk error for $file" (quit[] = true)
                 end
-                @pbupdate!
-            end
             asyncmap(dofetch, files; ntasks=WORKERS[])
         end
     end
