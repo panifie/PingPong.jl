@@ -344,7 +344,7 @@ function __handle_fetch(
             ofs = max(timefloat(Day(1)), timefloat(now() - dt(since)) / 2.0)
             tmp = since + round(Int, ofs, RoundUp)
             if tmp > dtstamp(now())
-                (; since, limit=1000)
+                return (false, pylist())
             else
                 (; since=tmp, limit=max(10, something(limit, 20) ÷ 2))
             end
