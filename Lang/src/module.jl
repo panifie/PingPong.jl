@@ -439,7 +439,7 @@ macro ignore(expr)
     esc(ex)
 end
 
-_parse_keys(keys) = begin
+function _parse_keys(keys)
     if length(keys) == 1 && keys[1] isa Expr && keys[1].head == :block
         [a for a in keys[1].args if !(a isa LineNumberNode)]
     else
@@ -447,7 +447,7 @@ _parse_keys(keys) = begin
     end
 end
 
-_setkeys(mod, keys, reset) = begin
+function _setkeys(mod, keys, reset)
     @eval mod begin
         if isdefined($mod, :_STATIC_KEYS)
             if $reset
@@ -459,7 +459,6 @@ _setkeys(mod, keys, reset) = begin
         end
     end
 end
-
 
 """
     @statickeys!(keys...)
@@ -474,7 +473,6 @@ macro statickeys!(keys...)
     keys = _parse_keys(keys)
     _setkeys(__module__, keys, true)
 end
-
 
 """
     @add_statickeys!(keys...)
@@ -565,9 +563,38 @@ macro key(k)
     end
 end
 
+"""
+    @except(code)
+
+Executes `code` and catches exceptions, logging details if an exception other than `InterruptException` is encountered.
+
+# Variables
+- `code`: Expression to be executed.
+"""
+macro except(code, msg="exception caught", onerror=nothing, oninterrupt=nothing)
+    file = string(__source__.file)
+    line = __source__.line
+    mod = __module__
+    ex = quote
+        try
+            $code
+        catch e
+            $onerror
+            if e isa InterruptException
+                $oninterrupt
+                rethrow(e)
+            else
+                @error $msg _file = $file _line = $line _module = $mod exception =
+                    (e, Base.catch_backtrace())
+            end
+        end
+    end
+    esc(ex)
+end
+
 export @preset, @precomp
 export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
-export @as, @sym_str, @caller
+export @as, @sym_str, @caller, @except
 export @statickeys!, @add_statickeys!, @setkey!, @getkey, @getattr, @setattr, @key
 export Option, @asyncm, @ifdebug, @deassert, @argstovec, @debug_backtrace
