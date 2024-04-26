@@ -193,9 +193,9 @@ version = "1.11.1"
 
 [[deps.Term]]
 deps = ["AbstractTrees", "CodeTracking", "Dates", "Highlights", "InteractiveUtils", "Logging", "Markdown", "MyterialColors", "OrderedCollections", "Parameters", "PrecompileTools", "ProgressLogging", "REPL", "Tables", "UUIDs", "Unicode", "UnicodeFun"]
-git-tree-sha1 = "ffac67f6fbcbb32027d924b93ba91b7633af9220"
+git-tree-sha1 = "387e63d0b12d43982a3aacaef81cbbfb465715ae"
 uuid = "22787eb5-b846-44ae-b979-8e399b8463ab"
-version = "2.0.5"
+version = "2.0.6"
 
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
