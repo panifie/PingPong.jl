@@ -26,15 +26,20 @@ end
 function _update_project(path, fullpath; precomp, inst, doupdate, io=stdout)
     projpath = dirname(joinpath(path, fullpath))
     Pkg.activate(projpath; io)
-    Pkg.resolve(; io)
-    prev_offline_status = Pkg.OFFLINE_MODE[]
-    doupdate && begin
+    if doupdate
+        prev_offline_status = Pkg.OFFLINE_MODE[]
         Pkg.offline(false)
         Pkg.update()
         Pkg.offline(prev_offline_status)
+    else
+        Pkg.resolve(; io)
     end
-    precomp && Pkg.precompile(; io)
-    inst && Pkg.instantiate(; io)
+    if precomp
+        Pkg.precompile(; io)
+    end
+    if inst
+        Pkg.instantiate(; io)
+    end
 end
 
 function update_projects(path="."; io=stdout, doupdate=false, inst=false, precomp=false)
@@ -71,7 +76,7 @@ end
 
 @doc "List of directories to put into tests.yml julia process coverage action"
 function coverage_directories(sep=",")
-    names = projects_name(io=devnull)
+    names = projects_name(; io=devnull)
     buf = IOBuffer()
     try
         for name in sort!([n for n in names])
