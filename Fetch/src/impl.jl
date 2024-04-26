@@ -344,7 +344,7 @@ function __handle_fetch(
             ofs = max(timefloat(Day(1)), timefloat(now() - dt(since)) / 2.0)
             tmp = since + round(Int, ofs, RoundUp)
             if tmp > dtstamp(now())
-                return (false, pylist())
+                (; since=nothing, limit=2000)
             else
                 (; since=tmp, limit=max(10, something(limit, 20) ÷ 2))
             end
@@ -358,8 +358,8 @@ function __handle_fetch(
                 df,
                 sleep_t,
                 converter,
-                retry=kwargs[:limit] > 10,
-                usetimeframe=kwargs[:limit] > 500,
+                retry=!isnothing(since) && kwargs[:limit] > 10,
+                usetimeframe,
             ),
         )
     end
