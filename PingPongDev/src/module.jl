@@ -41,8 +41,8 @@ function default_data_loader(load_func=nothing)
     end
 end
 
-function avl_gigabytes()
-    round(Int, Base.Sys.free_memory() / 1e9, RoundDown) * 1e9
+function avl_gigabytes(reserved=1)
+    (round(Int, Base.Sys.free_memory() / 1e9, RoundDown) - reserved) * 1e9
 end
 
 function safe_from(s, pairs)
@@ -53,6 +53,7 @@ end
 
 function stub!(pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom=length(pairs) > 10)
     isempty(pairs) && return nothing
+    GC.gc()
     @eval Main let
         this_s = $s
         qc = string(nameof(this_s.cash))
