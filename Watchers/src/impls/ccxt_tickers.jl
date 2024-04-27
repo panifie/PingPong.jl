@@ -139,7 +139,7 @@ function _reset_tickers_func!(w::Watcher)
     # don't pass empty args to imply all symbols
     sym = _sym(w)
     args = isempty(sym) ? () :
-           sym isa Base.Generator ? (sym...,) :
+           sym isa Base.Generator ? ([sym...],) :
            (sym,)
     watch_func = first(exc, :watchTickersForSymbols, :watchTickers)
     fetch_func = choosefunc(exc, "Ticker", args...)
