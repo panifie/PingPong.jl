@@ -193,9 +193,9 @@ The data is saved under a key constructed using the symbol and path.
 The function also checks if the data is valid before saving, if the debug flag is set.
 
 """
-function bybitsave(sym, data; path=PATHS.trading, zi=zi[])
+function bybitsave(sym, data; path=PATHS.trading, zi=zi[], reset=false)
     save_ohlcv(
-        zi, NAME, key(sym, path), string(TF[]), data; check=@ifdebug(check_all_flag, :none)
+        zi, NAME, key(sym, path), string(TF[]), data; check=@ifdebug(check_all_flag, :none), reset
     )
 end
 

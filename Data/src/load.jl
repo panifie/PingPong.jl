@@ -113,22 +113,17 @@ function _save_ohlcv(
             if overwrite
                 # when overwriting get the index where data starts overwriting storage
                 # we count the number of candles using the difference
-                offset = convert(Int, ((data_first_ts - saved_first_ts + td) ÷ td))
+                offset = round(Int, ((data_first_ts - saved_first_ts + td) ÷ td), RoundDown)
                 data_view = @view data[:, :]
-                @debug begin
-                    ts = compact(Millisecond(td))
-                    first_date = dt(data_first_ts)
-                    last_date = dt(saved_last_ts)
-                    next_date = dt(saved_last_ts + td)
-                    "timeframe: $ts\nfirst_date: $first_date\nlast_date: $last_date\nnext_date: $next_date"
+                @debug "data: overwrite" timeframe = compact(Millisecond(td)) first_date = dt(data_first_ts) last_date = dt(saved_last_ts) next_date = dt(saved_last_ts + td)
+                let end_date = if size(za, 1) < offset
+                        za[end, saved_col]
+                    else
+                        @debug "data" saved = dt(za[end, saved_col]) data_first = dt(data[begin, data_col]) saved_off = dt(za[offset, data_col])
+                        za[offset, saved_col]
+                    end |> timefloat
+                    @assert timefloat(data[begin, data_col]) >= end_date
                 end
-                @debug begin
-                    saved = dt(za[end, saved_col])
-                    data_first = dt(data[begin, data_col])
-                    saved_off = dt(za[offset, data_col])
-                    "saved: $saved\ndata_first: $data_first\nsaved_off: $saved_off"
-                end
-                @assert timefloat(data[begin, data_col]) >= timefloat(za[offset, saved_col])
             else
                 # when not overwriting get the index where data has new values
                 data_range = rangeafter(@view(data[:, data_col]), saved_last_ts)
@@ -137,7 +132,7 @@ function _save_ohlcv(
                 data_view = @view(data[data_range, :])
                 @debug :saved, dt(za[end, saved_col]), dt(data[data_offset, data_col])
                 @assert length(data_range) < 1 ||
-                    za[end, saved_col] + td == timefloat(data[data_offset, data_col])
+                        za[end, saved_col] + td == timefloat(data[data_offset, data_col])
             end
             szdv = size(data_view, 1)
             if szdv > 0
@@ -151,14 +146,14 @@ function _save_ohlcv(
             # fetch saved data starting after the last date of the new data
             # which has to be >= saved_first_date because we checked for contig
             saved_offset = Int(max(1, (data_last_ts - saved_first_ts + td) ÷ td))
-            saved_data = za[(saved_offset + 1):end, :]
+            saved_data = za[(saved_offset+1):end, :]
             szd = size(data, 1)
             ssd = size(saved_data, 1)
             n_cols = size(za, 2)
             @debug ssd + szd, n_cols
             # the new size will include the amount of saved date not overwritten by new data plus new data
             resize!(za, (ssd + szd, n_cols))
-            za[(szd + 1):end, :] = saved_data
+            za[(szd+1):end, :] = saved_data
             za[begin:szd, :] = @to_mat(data)
             @debug :data_last, dt(data_last_ts) :saved_first, dt(saved_first_ts)
         end
@@ -321,7 +316,7 @@ function to_ohlcv(data::Matrix)
     DataFrame(
         :timestamp => dates,
         (
-            OHLCV_COLUMNS_TS[n] => @view(data[:, n + 1]) for
+            OHLCV_COLUMNS_TS[n] => @view(data[:, n+1]) for
             n in eachindex(OHLCV_COLUMNS_TS)
         )...;
         copycols=false,
