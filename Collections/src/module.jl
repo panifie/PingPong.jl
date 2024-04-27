@@ -211,13 +211,18 @@ The `DateRange` function takes the following parameters:
 
 - `ac`: an AssetCollection object which encapsulates a collection of assets.
 - `tf` (optional): a TimeFrame object that represents a specific time frame. If not provided, the function will calculate the date range based on all time frames in the AssetCollection.
+- `skip_empty` (optional, default is false): a boolean that indicates whether to skip empty data frames in the calculation of the date range.
 
 """
-function TimeTicks.DateRange(ac::AssetCollection, tf=nothing)
+function TimeTicks.DateRange(ac::AssetCollection, tf=nothing; skip_empty=false)
     m = typemin(DateTime)
     M = typemax(DateTime)
     for ai in ac.data.instance
-        d_min = firstdate(first(values(ai.data)))
+        df = first(values(ai.data))
+        if skip_empty && isempty(df)
+            continue
+        end
+        d_min = firstdate(df)
         d_min > m && (m = d_min)
         d_max = lastdate(last(ai.data).second)
         d_max < M && (M = d_max)
