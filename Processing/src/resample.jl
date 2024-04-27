@@ -83,7 +83,9 @@ This function takes a data vector, a source transformation function `from_tf`, a
 function resample(data, from_tf, to_tf, cleanup=false, style=:ohlcv, chop=true)
     @deassert all(cleanup_ohlcv_data(data, from_tf).timestamp .== data.timestamp) "Resampling assumptions are not met, expecting cleaned data."
 
-    cleanup && (data = cleanup_ohlcv_data(data, from_tf))
+    if cleanup
+        data = cleanup_ohlcv_data(data, from_tf)
+    end
 
     frame_size, src_td, td, abort = _deltas(data, to_tf)
     isnothing(abort) || return abort

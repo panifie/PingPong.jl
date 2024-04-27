@@ -3,11 +3,12 @@ using Reexport
 using PingPong.Engine: Strategies as st, Engine as egn
 using PingPong: @environment!
 using PingPong.Exchanges.Python: Python
-using .Python.PythonCall.GC: enable as gc_enable, disable as gc_disable
 using Random
 using Stubs
-
 using PingPong.Misc
+using .Misc.Lang
+
+import .egn.Data: stub!
 
 global s, ai, e
 
@@ -35,17 +36,28 @@ function default_data_loader(load_func=nothing)
     @eval Main begin
         using Scrapers: Scrapers as scr
         let f = @something $(load_func) scr.BinanceData.binanceload
-            (pairs, qc) -> f(pairs; quote_currency=qc)
+            (pairs, qc; kwargs...) -> f(pairs; quote_currency=qc, kwargs...)
         end
     end
 end
 
-function dostub!(pairs=symnames(); s=s, loader=default_data_loader())
+function avl_gigabytes()
+    round(Int, Base.Sys.free_memory() / 1e9, RoundDown) * 1e9
+end
+
+function safe_from(s, pairs)
+    tf = s.timeframe
+    len_per_pair = round(Int, avl_gigabytes() / length(pairs) / sizeof(egn.Data.Candle{DFT}))
+    egn.now() - len_per_pair * tf
+end
+
+function stub!(pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom=length(pairs) > 10)
     isempty(pairs) && return nothing
     @eval Main let
         this_s = $s
         qc = string(nameof(this_s.cash))
-        data = $(loader)($(pairs), qc)
+        kwargs = $safeoom ? (; from=$safe_from(s, $pairs)) : ()
+        data = $(loader)($(pairs), qc; kwargs...)
         egn.stub!(this_s.universe, data)
     end
 end
@@ -67,11 +79,16 @@ function loadstrat!(strat=:Example, bind=:s; load=false, stub=false, mode=Sim(),
                 fill!(
                     $bind.universe,
                     $bind.timeframe,
-                    $bind.config.timeframes[(begin + 1):end]...,
+                    $bind.config.timeframes[(begin+1):end]...,
                 )
             end
             if $stub
-                dostub!(symnames($bind); s=$bind)
+                pairs = symnames($bind)
+                if length(pairs) > 10
+                    stramedstub!(pairs; s=$bind)
+                else
+                    stub!(pairs; s=$bind)
+                end
             end
         end
         st.default!($bind)
@@ -125,4 +142,4 @@ togglewatch!(s, enable=true) = begin
 end
 
 export backtest_strat, loadstrat!, symnames, default_data_loader
-export @environment!, dostub!, resetenv!, togglewatch!
+export @environment!, stub!, streamedstub!, resetenv!, togglewatch!

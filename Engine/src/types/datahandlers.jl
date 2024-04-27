@@ -9,6 +9,30 @@ function Base.fill!(ac::AssetCollection, tfs...; kwargs...)
     @eachrow ac.data fill!(:instance, tfs...; kwargs...)
 end
 
+function Misc.swapkeys(dict::AbstractDict; parse_args=(fiatnames,))
+    swap_func(k) = begin
+        a = parse(AbstractAsset, k, parse_args...)
+        (a.bc, a.qc)
+    end
+    swapkeys(dict, NTuple{2,Symbol}, swap_func)
+end
+
+function _stubfill!(ai::AssetInstance, src_dict)
+    pd = get(src_dict, (ai.asset.bc, ai.asset.qc), nothing)
+    if !isnothing(pd)
+        for tf in keys(ai.data)
+            data = ohlcv_dict(ai)
+            new_data = resample(pd, tf)
+            try
+                empty!(data[tf])
+                append!(data[tf], new_data)
+            catch
+                data[tf] = new_data
+            end
+        end
+    end
+end
+
 @doc """Replaces the data of the asset instances with `src` which should be a mapping. Used for backtesting.
 
 $(TYPEDSIGNATURES)
@@ -35,21 +59,19 @@ stub!(strat.universe, data)
 """
 function stub!(ac::AssetCollection, src; fromfiat=true)
     parse_args = fromfiat ? (fiatnames,) : ()
-    src_dict = swapkeys(
-        src, NTuple{2,Symbol}, k -> let a = parse(AbstractAsset, k, parse_args...)
-            (a.bc, a.qc)
-        end
-    )
-    for inst in ac.data.instance
-        for tf in keys(inst.data)
-            pd = get(src_dict, (inst.asset.bc, inst.asset.qc), nothing)
-            isnothing(pd) && continue
+    src_dict = swapkeys(src; parse_args)
+    for ai in ac.data.instance
+        pd = get(src_dict, (ai.asset.bc, ai.asset.qc), nothing)
+        isnothing(pd) && continue
+        @debug "stub" ai = raw(ai)
+        for tf in keys(ai.data)
+            data = ohlcv_dict(ai)
             new_data = resample(pd, tf)
             try
-                empty!(inst.data[tf])
-                append!(inst.data[tf], new_data)
+                empty!(data[tf])
+                append!(data[tf], new_data)
             catch
-                inst.data[tf] = new_data
+                data[tf] = new_data
             end
         end
     end
