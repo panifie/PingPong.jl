@@ -34,14 +34,19 @@ function create_live_order(
     eid = side = type = loss = profit = date = id = nothing
     try
         eid = exchangeid(ai)
+        status = resp_order_status(resp, eid)
         side = @something _orderside(resp, eid) orderside(t)
-        @debug "create order: parsing" _module = LogCreateOrder status = resp_order_status(resp, eid) filled = resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
+        @debug "create order: parsing" _module = LogCreateOrder status filled = resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
         let isopen = _ccxtisopen(resp, eid),
             hasfill = resp_order_filled(resp, eid) > ZERO,
-            hasid = !isempty(resp_order_id(resp, eid))
+            oid = resp_order_id(resp, eid),
+            hasid = !isempty(oid)
 
             if !isopen && !hasfill && !hasid
                 @warn "create order: refusing" isopen hasfill hasid
+                return nothing
+            elseif _ccxtisstatus(resp, "canceled")
+                @warn "create order: canceled" ai = raw(ai) id hasfill hasid
                 return nothing
             end
         end
