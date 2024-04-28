@@ -159,6 +159,7 @@ function _live_sync_position!(
         if !isequal(ai, cash(pos), rv, Val(:amount))
             @warn_unsynced "amount" posside(pos) abs(cash(pos)) amount
         end
+        # TODO: should also be checked for finiteness? probably not?
         cash!(pos, rv)
     end
     # If the resp amount is "dust" the position should be considered closed, and to be reset

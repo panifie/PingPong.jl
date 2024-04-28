@@ -323,6 +323,10 @@ function st.current_total(
         cur = nameof(cash(s))
         (@get bal cur BalanceSnapshot(cur)).free
     end
+    if !isfinite(s_tot)
+        @warn "strategy cash: not finite value"
+        s_tot = zero(s_tot)
+    end
     @sync for ai in s.universe
         @async let v = if local_bal
                 current_price = try
@@ -344,7 +348,11 @@ function st.current_total(
                 (long_nt - long_nt * maxfees(ai)) / leverage(ai, Long()) +
                 (short_nt - short_nt * maxfees(ai)) / leverage(ai, Short())
             end
-            tot[] += v
+            if isfinite(v)
+                tot[] += v
+            else
+                @warn "strategy cash: not finite asset cash" ai = raw(ai) long = cash(ai, Long) short = cash(ai, Short)
+            end
         end
     end
     tot[] + s_tot
@@ -366,6 +374,10 @@ function st.current_total(
     else
         @get(bal, s, BalanceSnapshot(nameof(s))).free
     end
+    if !isfinite(tot)
+        @warn "strategy cash: not finite"
+        tot = zero(tot)
+    end
     wprice_func(ai) =
         try
             price_func(ai)
@@ -384,7 +396,11 @@ function st.current_total(
             # Because `price_func` can be async, the value of `x` might be stale by
             # the time `y` is fetched, and the assignment might clobber the most
             # recent value of `x`
-            tot += v
+            if isfinite(v)
+                tot += v
+            else
+                @warn "strategy cash: not finite asset cash" ai = raw(ai)
+            end
         end
     end
     tot

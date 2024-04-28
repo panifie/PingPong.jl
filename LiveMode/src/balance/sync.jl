@@ -22,7 +22,11 @@ function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; b
     if !isapprox(s.cash.value, c; rtol=1e-4)
         @warn "strategy cash: total unsynced" loc = cash(s).value rem = c
     end
-    cash!(s.cash, c)
+    if isfinite(c)
+        cash!(s.cash, c)
+    else
+        @warn "strategy cash: non finite" c kind bal
+    end
 
     nothing
 end
@@ -71,7 +75,11 @@ function live_sync_cash!(
     @lock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift
         if overwrite || bal.date != DateTime(0) || !isfinite(cash(ai))
-            cash!(ai, bal.free)
+            if isfinite(bal.free)
+                cash!(ai, bal.free)
+            else
+                @warn "asset cash: non finite" ai = raw(ai) bal
+            end
             # FIXME: used cash can't be assummed to only account for open orders.
             # It might consider (cross) margin as well (same problem as positions)
             # cash!(committed(ai), this_bal.used)
