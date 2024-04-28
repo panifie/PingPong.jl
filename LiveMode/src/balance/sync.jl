@@ -1,3 +1,31 @@
+function _sync_comm_cash!(s)
+    comm = ZERO
+    buys = s.buyorders
+    sells = s.sellorders
+    for ai in s.universe
+        this_buys = get(buys, ai, missing)
+        if !ismissing(this_buys)
+            for o in this_buys
+                if o isa IncreaseOrder
+                    comm += committed(o)
+                end
+            end
+        end
+        this_sells = get(sells, ai, missing)
+        if !ismissing(this_sells)
+            for o in this_sells
+                if o isa IncreaseOrder
+                    comm += committed(o)
+                end
+            end
+        end
+    end
+    if !isapprox(s.cash_committed, comm, rtol=0.01)
+        @warn "strategy cash: cash committed unsynced" set = s.cash_committed actual = comm
+        cash!(s.cash_committed, comm)
+    end
+end
+
 @doc """ Synchronizes the cash balance of a live strategy.
 
 $(TYPEDSIGNATURES)
@@ -27,6 +55,12 @@ function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; b
     else
         @warn "strategy cash: non finite" c kind bal
     end
+    # FIXME: cash_committed goes out of sync, possible causes:
+    # - unhandled exception before the value is updated
+    # - orders are popped but cash is not decommitted? (seems impossible)
+    # - trades not updating the comm? Still seems unlikely
+    # HACK: resync committed cash from all local orders
+    _sync_comm_cash!(s)
 
     nothing
 end
