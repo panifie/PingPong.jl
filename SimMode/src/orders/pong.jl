@@ -52,6 +52,6 @@ function pong!(
     kwargs...,
 ) where {O<:OrderSide}
     for tup in orders(s, ai, t)
-        cancel!(s, tup.second, ai; err=OrderCancelled(tup.second))
+        cancel!(s, tup.second, ai; err=OrderCanceled(tup.second))
     end
 end

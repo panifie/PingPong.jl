@@ -290,7 +290,7 @@ function remove_strategy(subj=nothing)
             end
             @info "Strategy removed"
         else
-            @info "Removal cancelled"
+            @info "Removal canceled"
         end
     else
         udir = user_dir()
@@ -301,7 +301,7 @@ function remove_strategy(subj=nothing)
                 strat_name = where
                 @info "Strategy removed"
             else
-                @info "Removal cancelled"
+                @info "Removal canceled"
             end
         else
             proj_strat = joinpath(udir, "strategies", string(where))
@@ -311,7 +311,7 @@ function remove_strategy(subj=nothing)
                     strat_name = where
                     @info "Strategy removed"
                 else
-                    @info "Removal cancelled"
+                    @info "Removal canceled"
                 end
             else
                 @error "Input is neither a project path nor a strategy name" input = where

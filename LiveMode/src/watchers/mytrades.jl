@@ -201,13 +201,13 @@ function ispyexception(e, pyexception)
     end
 end
 function ispyminor_error(e)
-    ispycancelled_error(e) || ispyinvstate_error(e)
+    ispycanceled_error(e) || ispyinvstate_error(e)
 end
 function ispyinvstate_error(e)
     ispyexception(e, Python.gpa.pyaio.InvalidStateError)
 end
-function ispycancelled_error(e)
-    ispyexception(e, Python.gpa.pyaio.CancelledError)
+function ispycanceled_error(e)
+    ispyexception(e, Python.gpa.pyaio.CanceledError)
 end
 
 @doc """ Generates a minimal hash for a trade response. """

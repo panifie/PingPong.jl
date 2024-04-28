@@ -481,10 +481,10 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function decommit!(s::Strategy, o::IncreaseOrder, ai, cancelled=false)
+function decommit!(s::Strategy, o::IncreaseOrder, ai, canceled=false)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
-    @deassert cancelled || isdust(ai, o) o
+    @deassert canceled || isdust(ai, o) o
     sub!(s.cash_committed, committed(o))
     @deassert gtxzero(ai, s.cash_committed, Val(:price)) s.cash_committed.value,
     s.cash.precision,

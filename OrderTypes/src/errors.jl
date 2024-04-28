@@ -27,8 +27,8 @@ end
     msg::Any
 end
 
-@doc "When an order has been directly cancelled by a strategy."
-@kwdef struct OrderCancelled <: OrderError
+@doc "When an order has been directly canceled by a strategy."
+@kwdef struct OrderCanceled <: OrderError
     order::O where {O<:Order}
 end
 

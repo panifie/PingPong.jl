@@ -281,7 +281,7 @@ function update_order!(s, ai, eid; resp, state)
             end
         end
         # if order is filled remove it from the task orders map.
-        # Also remove it if the order is not open anymore (closed, cancelled, expired, rejected...)
+        # Also remove it if the order is not open anymore (closed, canceled, expired, rejected...)
         order_open = _ccxtisopen(resp, eid)
         order_closed = _ccxtisclosed(resp, eid)
         order_trades = trades(state.order)

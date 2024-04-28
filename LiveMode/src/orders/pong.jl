@@ -65,7 +65,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function cancels all live orders of a certain side (buy/sell) through the `live_cancel` function.
-Once the orders are cancelled, it waits for confirmation of the cancellation and then synchronizes the cash balance in the live strategy to reflect the cancellations.
+Once the orders are canceled, it waits for confirmation of the cancelation and then synchronizes the cash balance in the live strategy to reflect the cancelations.
 It returns a boolean indicating whether the cancellation was successful.
 
 """

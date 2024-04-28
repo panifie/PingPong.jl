@@ -49,7 +49,7 @@ This function cancels all orders associated with the specified position and upda
 """
 function force_exit_position(s::Strategy, ai, p, date::DateTime)
     for (_, o) in orders(s, ai, p)
-        cancel!(s, o, ai; err=OrderCancelled(o))
+        cancel!(s, o, ai; err=OrderCanceled(o))
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
     ot = ReduceOnlyOrder(p)

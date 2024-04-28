@@ -2,7 +2,7 @@
 
 $(TYPEDSIGNATURES)
 
-This function creates a live market order and then waits for it to either be filled or cancelled, depending on the waiting time provided.
+This function creates a live market order and then waits for it to either be filled or canceled, depending on the waiting time provided.
 The function returns the last trade if any trades have occurred, otherwise it returns a `missing` status.
 
 """

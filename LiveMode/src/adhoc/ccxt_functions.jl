@@ -54,12 +54,12 @@ function ccxt_open_orders_func!(a, exc::Exchange{ExchangeID{:phemex}}; open=true
                     (@async _fetch_orders(ai, open_orders_func; eid, kwargs...)),
                     (@async _fetch_orders(ai, orders_func; eid, kwargs...))
                 end
-                cancelled_ords = removefrom!(
+                canceled_ords = removefrom!(
                     _phemex_ispending,
                     @something(fetch(ot), pylist())
                 )
                 closed_ords = @something fetch(ct) pylist()
-                closed_ords.extend(cancelled_ords)
+                closed_ords.extend(canceled_ords)
                 closed_ords
             end
         end

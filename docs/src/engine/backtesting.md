@@ -70,10 +70,10 @@ A limit order call might return a trade if the order was queued correctly. If th
 
 ## Limit Order Types
 
-In addition to GTC (Good Till Cancelled) orders, there are also IOC (Immediate Or Cancel) and FOK (Fill Or Kill) orders:
+In addition to GTC (Good Till Canceled) orders, there are also IOC (Immediate Or Cancel) and FOK (Fill Or Kill) orders:
 
-- GTC: This order remains active until it is either filled or cancelled.
-- IOC: This order must be executed immediately. Any portion of the order that cannot be filled immediately will be cancelled.
+- GTC: This order remains active until it is either filled or canceled.
+- IOC: This order must be executed immediately. Any portion of the order that cannot be filled immediately will be canceled.
 - FOK: This order must be executed in its entirety or not at all.
 
 All three are subtypes of a limit order, `<: LimitOrder>`. You can create them by calling `pong!` as shown below:

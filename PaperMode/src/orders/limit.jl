@@ -3,7 +3,7 @@ using .Misc.Lang: @logerror, @debug_backtrace
 using .Instances.Exchanges: Py, pyfetch, @pystr, @pyconst, has
 using SimMode: trade!
 using .Executors: AnyGTCOrder
-using .OrderTypes: ImmediateOrderType, OrderCancelled
+using .OrderTypes: ImmediateOrderType, OrderCanceled
 
 _asdate(py) = parse(DateTime, rstrip(string(py), 'Z'))
 
@@ -92,7 +92,7 @@ $(TYPEDSIGNATURES)
 The function first checks if the order volume exceeds the daily limit using the `volumecap!` function.
 If the volume is within the limit, it creates a simulated limit order using the `create_sim_limit_order` function.
 If the order is not filled and is of type ImmediateOrderType, it cancels the order.
-For Good Till Cancelled (GTC) orders, it queues them for execution using the `paper_limitorder!` function.
+For Good Till Canceled (GTC) orders, it queues them for execution using the `paper_limitorder!` function.
 
 """
 function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
@@ -119,7 +119,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
             return @something trade missing
         elseif !isfilled(ai, o) && ordertype(o) <: ImmediateOrderType
             @debug "paper limit order: canceling" o.asset ordertype(o) o.price o.amount
-            cancel!(s, o, ai; err=OrderCancelled(o))
+            cancel!(s, o, ai; err=OrderCanceled(o))
         end
         # return first trade (if any)
         return trade

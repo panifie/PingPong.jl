@@ -291,7 +291,7 @@ export LongOrder, ShortOrder, ShortBuyOrder, ShortSellOrder
 export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, AnyImmediateOrder
 export LiquidationOrder, ReduceOnlyOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
-export OrderFailed, OrderCancelled, LiquidationOverride
+export OrderFailed, OrderCanceled, LiquidationOverride
 export Balance, OHLCV
 export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
 export liqside, sidetopos, opposite

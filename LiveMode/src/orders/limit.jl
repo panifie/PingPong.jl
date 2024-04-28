@@ -2,9 +2,9 @@
 
 $(TYPEDSIGNATURES)
 
-This function creates a live limit order and then waits for it to either be filled or cancelled, depending on the waiting time provided.
+This function creates a live limit order and then waits for it to either be filled or canceled, depending on the waiting time provided.
 It handles immediate orders differently, in such cases it waits for the order to be closed.
-If an order fails or is cancelled, the function returns the relevant status.
+If an order fails or is canceled, the function returns the relevant status.
 
 """
 function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, price, waitfor, synced, kwargs)
@@ -46,7 +46,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
                 last(order_trades)
             end
         else
-            @debug "pong limit order: cancelled or failed" _module = LogCreateOrder
+            @debug "pong limit order: canceled or failed" _module = LogCreateOrder
         end
     end
 end

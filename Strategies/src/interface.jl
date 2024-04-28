@@ -29,7 +29,7 @@ $(TYPEDSIGNATURES)"
 ping!(::Strategy, ::ResetStrategy) = nothing
 @doc "How much lookback data the strategy needs. $(TYPEDSIGNATURES)"
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
-@doc "When an order is cancelled the strategy is pinged with an order error. $(TYPEDSIGNATURES)"
+@doc "When an order is canceled the strategy is pinged with an order error. $(TYPEDSIGNATURES)"
 ping!(s::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) = push!(s.logs, StrategyErrorEvent{exchangeid(s)}(err))
 @doc "Market symbols that populate the strategy universe"
 ping!(::Type{<:Strategy}, ::StrategyMarkets)::Vector{String} = String[]

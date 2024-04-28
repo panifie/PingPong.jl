@@ -62,7 +62,7 @@ If the trade is successful, it starts tracking the order.
 function SimMode.marketorder!(s::PaperStrategy, o, ai; date, obside)
     _, _, trade = from_orderbook(obside, s, ai, o; o.amount, date)
     if isnothing(trade)
-        cancel!(s, o, ai; err=OrderCancelled(o))
+        cancel!(s, o, ai; err=OrderCanceled(o))
         nothing
     else
         hold!(s, ai, o)
