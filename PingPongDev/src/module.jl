@@ -57,7 +57,7 @@ function stub!(pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom
     @eval Main let
         this_s = $s
         qc = string(nameof(this_s.cash))
-        kwargs = $safeoom ? (; from=$safe_from(s, $pairs)) : ()
+        kwargs = $safeoom ? (; from=$safe_from(this_s, $pairs)) : ()
         data = $(loader)($(pairs), qc; kwargs...)
         egn.stub!(this_s.universe, data)
     end
@@ -85,11 +85,7 @@ function loadstrat!(strat=:Example, bind=:s; load=false, stub=false, mode=Sim(),
             end
             if $stub
                 pairs = symnames($bind)
-                if length(pairs) > 10
-                    stramedstub!(pairs; s=$bind)
-                else
-                    stub!(pairs; s=$bind)
-                end
+                stub!(pairs; s=$bind)
             end
         end
         st.default!($bind)
@@ -143,4 +139,4 @@ togglewatch!(s, enable=true) = begin
 end
 
 export backtest_strat, loadstrat!, symnames, default_data_loader
-export @environment!, stub!, streamedstub!, resetenv!, togglewatch!
+export @environment!, stub!, resetenv!, togglewatch!
