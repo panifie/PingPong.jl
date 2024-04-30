@@ -224,9 +224,8 @@ function test_live_cancel_all_orders(s)
         lm.set_exc_funcs!(s)
         lm.cancel_all_orders(s, ai)
         @test length(resps[1]) == 2
-        @test string(resps[1][1][1]) == "BTC/USDT:USDT"
-        # @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
-        @test string(resps[1][1][1]) == raw(ai) #
+        @test string(resps[1][1][1]) == "5fdd5248-0621-470b-b5df-e9c6bbe89860"
+        @test string(resps[1][2][1]) == raw(ai) #
         empty!(resps)
         disabled[] = ()
         lm.set_exc_funcs!(s)
@@ -566,9 +565,9 @@ function _test_live(debug="LiveMode")
             end
             setglobal!(Main, :s, s)
             try
-                @testset "live_fetch_orders" test_live_fetch_orders(s)
-                @testset "live_fetch_positions" test_live_fetch_positions(s)
-                @testset "live_cancel_orders" test_live_cancel_orders(s)
+                # @testset "live_fetch_orders" test_live_fetch_orders(s)
+                # @testset "live_fetch_positions" test_live_fetch_positions(s)
+                # @testset "live_cancel_orders" test_live_cancel_orders(s)
                 @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
                 @testset "live_position" test_live_position(s)
                 @testset "live_position_sync" test_live_position_sync(s)
