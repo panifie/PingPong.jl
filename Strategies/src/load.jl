@@ -191,11 +191,18 @@ function strategy!(src::Symbol, cfg::Config)
                 let
                     using Pkg: Pkg
                     if $isproject
+                        @debug "loading: " strat = $project_file
                         Pkg.activate($project_file; io=Base.devnull)
-                        Pkg.instantiate(; io=Base.devnull)
+                        try
+                            Pkg.instantiate(; io=Base.devnull)
+                        catch e
+                            @error "loading: failed instantiation" exception = e
+                        end
+                        using $src
+                    else
+                        include($path)
+                        using .$src
                     end
-                    include($path)
-                    using .$src
                     if isinteractive() && isdefined(Main, :Revise)
                         Main.Revise.track($src, $path)
                     end
@@ -223,29 +230,34 @@ If this fails, it then tries to access the `SC` property of the module.
 The function also checks if the exchange is specified in the strategy or in the configuration.
 """
 function _strategy_type(mod, cfg)
-    s_type = if isdefined(mod, :S) &&
-                mod.S isa Type{<:Strategy} &&
-                exchangeid(mod.S) == exchangeid(cfg.exchange)
-        mod.S
-    else
-        if cfg.exchange == Symbol()
-            if isdefined(mod, :EXCID) && mod.EXCID != Symbol()
-                cfg.exchange = mod.EXCID
-            elseif isdefined(mod, :S)
-                cfg.exchange = exchangeid(mod.S)
-            else
-                error("loading: exchange not specified (neither in strategy nor in config)")
+    s_type =
+        if isdefined(mod, :S) &&
+            mod.S isa Type{<:Strategy} &&
+            exchangeid(mod.S) == exchangeid(cfg.exchange)
+            mod.S
+        else
+            if cfg.exchange == Symbol()
+                if isdefined(mod, :EXCID) && mod.EXCID != Symbol()
+                    cfg.exchange = mod.EXCID
+                elseif isdefined(mod, :S)
+                    cfg.exchange = exchangeid(mod.S)
+                else
+                    error(
+                        "loading: exchange not specified (neither in strategy nor in config)",
+                    )
+                end
+            end
+            try
+                if isdefined(mod, :EXCID) && mod.EXCID != cfg.exchange
+                    @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
+                end
+                mod.SC{ExchangeID{cfg.exchange}}
+            catch
+                error(
+                    "loading: strategy main type `S` or `SC` not defined in strategy module.",
+                )
             end
         end
-        try
-            if isdefined(mod, :EXCID) && mod.EXCID != cfg.exchange
-                @warn "loading: overriding default exchange with config" mod.EXCID cfg.exchange
-            end
-            mod.SC{ExchangeID{cfg.exchange}}
-        catch
-            error("loading: strategy main type `S` or `SC` not defined in strategy module.")
-        end
-    end
     mode_type = s_type{typeof(cfg.mode)}
     margin_type = _concrete(mode_type, typeof(cfg.margin))
     _concrete(margin_type, typeof(cfg.qc))
