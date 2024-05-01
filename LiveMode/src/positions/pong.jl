@@ -35,8 +35,10 @@ function Executors.pong!(
                 if synced && isopen(ai, pos)
                     # then sync position
                     live_sync_position!(s, ai, pos; force=false, since)
+                    isapprox(leverage(ai, pos), val; atol)
+                else
+                    true
                 end
-                true
             else
                 false
             end
