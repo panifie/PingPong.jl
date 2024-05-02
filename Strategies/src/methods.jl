@@ -166,6 +166,12 @@ const config_fields = fieldnames(Config)
 @doc "Set strategy defaults."
 default!(s::Strategy) = nothing
 
+@doc """ Fills the strategy with the specified timeframes.
+
+$(TYPEDSIGNATURES)
+
+This function fills the strategy with the specified timeframes. It first creates a set of timeframes and adds the strategy's timeframe, the timeframes from the strategy's configuration, and the timeframe attribute of the strategy. It then fills the universe of the strategy with these timeframes.
+"""
 Base.fill!(s::Strategy; kwargs...) = begin
     tfs = Set{TimeFrame}()
     push!(tfs, s.timeframe)
@@ -175,39 +181,36 @@ Base.fill!(s::Strategy; kwargs...) = begin
 end
 
 _config_attr(s, k) = getfield(getfield(s, :config), k)
-@doc """ Fills the strategy with data.
+
+@doc """ Retrieves a property of a strategy.
 
 $(TYPEDSIGNATURES)
 
-The `fill!` function populates the strategy's universe with data for a set of timeframes.
-The timeframes include the strategy's timeframe, the timeframes in the strategy's configuration, and the timeframe attribute of the strategy.
+This function checks if the property is directly on the strategy or the strategy's configuration.
+If the property is not found, it checks the configuration's attributes.
 """
 function Base.getproperty(s::Strategy, sym::Symbol)
-    if sym == :attrs
-        _config_attr(s, :attrs)
-    elseif sym == :exchange
-        _config_attr(s, :exchange)
-    elseif sym == :path
-        _config_attr(s, :path)
-    elseif sym == :initial_cash
-        _config_attr(s, :initial_cash)
-    elseif sym == :min_size
-        _config_attr(s, :min_size)
-    elseif sym == :min_vol
-        _config_attr(s, :min_vol)
-    elseif sym == :qc
-        _config_attr(s, :qc)
-    elseif sym == :margin
-        _config_attr(s, :margin)
-    elseif sym == :leverage
-        _config_attr(s, :leverage)
-    elseif sym == :mode
-        _config_attr(s, :mode)
-    elseif sym == :sandbox
-        _config_attr(s, :sandbox)
-    else
+    if hasfield(Strategy, sym)
         getfield(s, sym)
+    else
+        cfg = getfield(s, :config)
+        if hasfield(Config, sym)
+            getfield(cfg, sym)
+        else
+            getfield(cfg, :attrs)[sym]
+        end
     end
+end
+
+@doc """ Retrieves a property of a strategy using a string key.
+
+$(TYPEDSIGNATURES)
+
+This function first gets the universe of the strategy and then retrieves the property using the string key.
+"""
+function Base.getproperty(s::Strategy, sym::String)
+    uni = getfield(s, :universe)
+    uni[MatchString(sym)]
 end
 
 @doc """ Generates the path for strategy logs.
