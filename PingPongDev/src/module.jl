@@ -1,4 +1,5 @@
 using Reexport
+using Pkg: Pkg
 @reexport using PingPong
 using PingPong.Engine: Strategies as st, Engine as egn
 using PingPong: @environment!
@@ -138,5 +139,9 @@ togglewatch!(s, enable=true) = begin
     lm.stop_all_tasks(s)
 end
 
+
+using PingPong: _activate_and_import
+tools!() = _activate_and_import(:StrategyTools, :stt)
+
 export backtest_strat, loadstrat!, symnames, default_data_loader
-export @environment!, stub!, resetenv!, togglewatch!
+export @environment!, stub!, resetenv!, togglewatch!, tools!
