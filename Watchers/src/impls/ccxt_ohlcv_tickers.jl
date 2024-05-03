@@ -7,6 +7,7 @@ using ..Fetch.Exchanges: ratelimit_njobs
 using ..Lang: fromstruct, ifproperty!, ifkey!, @acquire, @add_statickeys!
 using ..Watchers: @logerror, _val, default_view, buffer
 
+
 const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
 
@@ -50,6 +51,7 @@ the view up to the watcher `view_capacity`.
 function ccxt_ohlcv_tickers_watcher(
     exc::Exchange;
     price_source=:last,
+    # FIXME: There is possible bug where the first candle has abnormal high volume (probably caused by wrong initial diffing of the daily volume or zero inital daily volume), unable to reproduce
     diff_volume=true,
     timeframe=tf"1m",
     logfile=nothing,
@@ -236,13 +238,17 @@ function _ensure_contig!(w, df, temp_candle::TempCandle, tf, sym)
     ## append complete candle (check again adjaciency)
     if isrightadj(temp_candle.timestamp, _lastdate(df), tf)
         pushmax!(df, fromstruct(temp_candle), w.capacity.view)
-        @getkey(w, callback)(df, sym)
+        invokelatest(@getkey(w, callback), df, sym)
     end
 end
 function diff_volume!(w, df, temp_candle, sym, latest_timestamp)
     # prev_candle_daily = _dvol(w, sym)
     # this is set on each ticker should be equal to the previous ticker baseVolume
     prev_candle_daily = _dvol(w, sym)
+    if iszero(prev_candle_daily) && !iszero(temp_candle.volume)
+        @warn "ohlcv tickers watcher: zero prev daily volume" latest_timestamp sym temp_candle.volume
+        return false
+    end
     _dvol!(w, sym, temp_candle.volume)
     # the index of the first candle which volume
     # should be dropped from the rolling 1d ticker volume
@@ -344,12 +350,10 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     if isempty(w)
         return nothing
     elseif @ispending(w)
-        if @getkey(w, diff_volume)
-            if !isempty(buffer(w))
-                data_date, data = last(buffer(w))
-                for (sym, ticker) in data
-                    _dvol!(w, sym, ticker.baseVolume)
-                end
+        if @getkey(w, diff_volume) && !isempty(buffer(w))
+            data_date, data = last(buffer(w))
+            for (sym, ticker) in data
+                _dvol!(w, sym, ticker.baseVolume)
             end
         end
         return nothing

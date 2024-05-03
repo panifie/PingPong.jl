@@ -122,7 +122,10 @@ function watch_ohlcv!(s::RTStrategy, kwargs...)
         )
         buffer_capacity = attr(s, :live_buffer_capacity, 100)
         view_capacity = attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity)
-        propagate_callback(_, sym) = asset_bysym(s, sym) |> ohlcv_dict |> propagate_ohlcv!
+        function propagate_callback(_, sym)
+            @debug "watchers: propagating" sym
+            asset_bysym(s, sym) |> ohlcv_dict |> propagate_ohlcv!
+        end
         s[:live_ohlcv_watcher] =
             w = ccxt_ohlcv_tickers_watcher(
                 exc;
