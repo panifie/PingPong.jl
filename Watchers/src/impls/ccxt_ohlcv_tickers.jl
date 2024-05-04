@@ -51,7 +51,6 @@ the view up to the watcher `view_capacity`.
 function ccxt_ohlcv_tickers_watcher(
     exc::Exchange;
     price_source=:last,
-    # FIXME: There is possible bug where the first candle has abnormal high volume (probably caused by wrong initial diffing of the daily volume or zero inital daily volume), unable to reproduce
     diff_volume=true,
     timeframe=tf"1m",
     logfile=nothing,
@@ -196,7 +195,10 @@ function _queue_resolve(w, df, latest_timestamp, sym)
         try
             resolve_dict[sym] = true
             @debug "ohlcv tickers: resolving" _module = LogOHLCVTickers sym latest_timestamp
-            @acquire sem _resolve(w, df, latest_timestamp, sym)
+            ans = @acquire sem _resolve(w, df, latest_timestamp, sym)
+            if ans isa Exception
+                @debug "ohlcv tickers: resolve error" _module = LogOHLCVTickers exception = ans
+            end
         finally
             resolve_dict[sym] = false
         end
@@ -208,8 +210,10 @@ function _maybe_resolve(w, df, sym, this_ts, tf)
         from = now() - (min_rows + 1) * tf
         sem = @getkey w sem
         @acquire sem _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
-    elseif !isrightadj(this_ts, _lastdate(df), tf)
-        @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym _lastdate(df) this_ts
+    elseif this_ts != _lastdate(df)
+        @key :stale_candle
+    elseif !isrightadj(this_ts, last_date, tf)
+        @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym last_date this_ts
         _queue_resolve(w, df, this_ts, sym)
         @ifdebug @assert isrightadj(this_ts, _lastdate(df), tf)
         @key :stale_df
@@ -364,10 +368,10 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
         tasks = @getkey(w, process_tasks)
         data_date, data = w.buffer[idx]
         for (sym, ticker) in data
-            t = @async @lock _symlock(w, sym) @logerror w _update_sym_ohlcv(
+            t = @async @lock _symlock(w, sym) _update_sym_ohlcv(
                 w, ticker, data_date
             )
-            push!(tasks, t)
+            push!(tasks, errormonitor(t))
         end
         _lastprocessed!(w, data_date)
         idx = _idx_to_process(w, data_date, last_idx)
