@@ -89,7 +89,7 @@ macro multiget(dict, args...)
     end
     expr = esc(args[end])
     result = :(@coalesce)
-    for k in args[begin:(end-1)]
+    for k in args[begin:(end - 1)]
         push!(result.args, :(get($dict, $(esc(k)), missing)))
     end
     push!(result.args, expr)
@@ -375,7 +375,7 @@ macro caller(n=4)
     quote
         let funcs = stacktrace() |> $_dedup_funcs
             if length(funcs) > 2
-                join(reverse!(@view(funcs[(begin+1):min(length(funcs), $n)])), " > ")
+                join(reverse!(@view(funcs[(begin + 1):min(length(funcs), $n)])), " > ")
             else
                 ""
             end
@@ -550,9 +550,9 @@ macro key(k)
         end
     elseif k isa Expr
         @assert k.head == :call &&
-                k.args[1] isa Symbol &&
-                k.args[2] isa QuoteNode &&
-                k.args[2].value isa Symbol "not a valid static key statement"
+            k.args[1] isa Symbol &&
+            k.args[2] isa QuoteNode &&
+            k.args[2].value isa Symbol "not a valid static key statement"
         if k.args[2].value ∉ __module__._STATIC_KEYS
             error("key '$(k.args[2])' not statically defined")
         else
@@ -561,6 +561,17 @@ macro key(k)
     else
         error("wrong argument $k")
     end
+end
+
+@doc """
+Converts a string to a statically defined key symbol.
+
+$(TYPEDSIGNATURES)
+
+This macro ensures that the given string k is converted to a symbol and validated against statically defined keys in the module.
+"""
+macro k_str(k)
+    :((@__MODULE__).@key($(QuoteNode(Symbol(k))))) |> esc
 end
 
 """
@@ -584,8 +595,9 @@ macro except(code, msg="exception caught", onerror=nothing, oninterrupt=nothing)
                 $oninterrupt
                 rethrow(e)
             else
-                @error $msg _file = $file _line = $line _module = $mod exception =
-                    (e, Base.catch_backtrace())
+                @error $msg _file = $file _line = $line _module = $mod exception = (
+                    e, Base.catch_backtrace()
+                )
             end
         end
     end
