@@ -44,6 +44,7 @@ baremodule LogWatchTrade end
 baremodule LogWatchPos end
 baremodule LogWatchPos2 end
 baremodule LogWatchPosProcess end
+baremodule LogWatchOHLCV end
 baremodule LogPush end
 baremodule LogWait end
 baremodule LogWaitTrade end
