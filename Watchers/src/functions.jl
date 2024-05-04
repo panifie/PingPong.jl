@@ -149,10 +149,11 @@ Base.empty!(w::Watcher) = begin
     end
 end
 Base.getproperty(w::Watcher, p::Symbol) = begin
-    if p == :view
-        Base.get(w)
-    else
+    if hasfield(Watcher, p)
         getfield(w, p)
+    else
+        attrs = getfield(w, :attrs)
+        getindex(attrs, p)
     end
 end
 buffer(w::Watcher) = getfield(w, :buffer)
@@ -260,7 +261,7 @@ function Base.show(out::IO, w::Watcher)
     if length(tps) > 80
         write(out, @view(tps[begin:40]))
         write(out, "...")
-        write(out, @view(tps[(end-40):end]))
+        write(out, @view(tps[(end - 40):end]))
     else
         write(out, tps)
     end

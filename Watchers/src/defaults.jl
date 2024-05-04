@@ -138,13 +138,13 @@ $(TYPEDSIGNATURES)
 
 The function takes a watcher as an argument and returns the `view` attribute of the watcher.
 """
-default_get(w::Watcher) = attr(w, :view)
+default_get(w::Watcher, def) = get(w.attrs, :view, def)
 
 _notimpl(sym, w) = throw(error("`$sym` Not Implemented for watcher `$(w.name)`"))
 @doc "May run after a successful fetch operation, according to the `flush_interval`. It spawns a task."
-_flush!(w::Watcher, ::Val) = default_flusher(w, attr(w, :key))
+_flush!(w::Watcher, ::Val) = default_flusher(w, w.key)
 @doc "Called once on watcher creation, used to pre-fill the watcher buffer."
-_load!(w::Watcher, ::Val) = default_loader(w, attr(w, :key))
+_load!(w::Watcher, ::Val) = default_loader(w, w.key)
 @doc "Appends new data to the watcher buffer, returns `true` when new data is added, `false` otherwise."
 _fetch!(w::Watcher, ::Val) = _notimpl(fetch!, w)
 @doc "Processes the watcher data, called everytime the watcher fetches new data."
@@ -153,9 +153,9 @@ _process!(w::Watcher, ::Val) = default_process(w, Data.DFUtils.appendmax!)
 _init!(w::Watcher, ::Val) = default_init(w)
 
 @doc "Returns the processed `view` of the watcher data."
-_get(w::Watcher, ::Val) = default_get(w)
+_get(w::Watcher, ::Val, def=nothing) = default_get(w, def)
 @doc "Returns the processed `view` of the watcher data. Accessible also as a `view` property of the watcher object."
-Base.get(w::Watcher) = _get(w, _val(w))
+Base.get(w::Watcher, def) = _get(w, _val(w), def)
 @doc "If the watcher manager a group of things that it is fetching, `_push!` should add an element to it."
 _push!(w::Watcher, ::Val) = _notimpl(push!, w)
 @doc "Same as `_push!` but for removing elements."
