@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.2"
+julia_version = "1.10.3"
 manifest_format = "2.0"
 project_hash = "249594e9780659c095ed8cd1eab9c8b32795dbbd"
 
@@ -107,7 +107,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.0+0"
+version = "1.1.1+0"
 
 [[deps.ConcurrentCollections]]
 git-tree-sha1 = "875d52bb9900dcf9e4e6bbd02da0e590eb200dc8"
@@ -593,7 +593,7 @@ version = "1.3.0"
 deps = ["Engine", "MacroTools", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
 path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.3.23"
+version = "1.3.24"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
