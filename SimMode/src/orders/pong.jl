@@ -48,9 +48,9 @@ function pong!(
     s::Strategy{<:Union{Paper,Sim}},
     ai::AssetInstance,
     ::CancelOrders;
-    t::Type{O}=BuyOrSell,
+    t::Type{<:OrderSide}=BuyOrSell,
     kwargs...,
-) where {O<:OrderSide}
+)
     for tup in orders(s, ai, t)
         cancel!(s, tup.second, ai; err=OrderCanceled(tup.second))
     end
