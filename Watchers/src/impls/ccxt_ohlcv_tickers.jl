@@ -210,9 +210,9 @@ function _maybe_resolve(w, df, sym, this_ts, tf)
         from = now() - (min_rows + 1) * tf
         sem = @getkey w sem
         @acquire sem _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
-    elseif this_ts != _lastdate(df)
+    elseif this_ts == _lastdate(df)
         @key :stale_candle
-    elseif !isrightadj(this_ts, last_date, tf)
+    elseif !isrightadj(this_ts, _lastdate(df), tf)
         @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym last_date this_ts
         _queue_resolve(w, df, this_ts, sym)
         @ifdebug @assert isrightadj(this_ts, _lastdate(df), tf)
