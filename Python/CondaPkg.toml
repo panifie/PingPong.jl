@@ -1,5 +1,5 @@
 [deps]
-python = "<3.12"
+python = "3.12"
 [pip.deps]
 ccxt = ""
 numpy = ""
