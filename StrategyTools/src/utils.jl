@@ -82,8 +82,12 @@ function degrees(slp)
 end
 
 @doc """
-Get half the length of a timeframe in milliseconds.
+TimeFrame division
 
 $(TYPEDSIGNATURES)
 """
-half_timeframe(tf::TimeFrame) = Millisecond(floor(timefloat(period(tf)) / 2.0))
+Base.:(/)(tf::TimeFrame, d; type=Millisecond) = begin
+    p = period(tf)
+    v = Millisecond(floor(timefloat(p) / d))
+    round(v, Millisecond, RoundDown)
+end

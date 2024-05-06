@@ -7,8 +7,7 @@ using .egn.Data: empty_ohlcv, nrow, contiguous_ts
 using .egn.Data.DataStructures: CircularBuffer, Deque, LittleDict
 using .egn.Data.DFUtils: dateindex, firstdate
 using .egn.Instruments: raw
-using .egn.OrderTypes: Buy, Sell, Order, OrderError, Trade, OrderSide, PositionSide
-using .egn.OrderTypes: FOKOrder, ShortFOKOrder
+using .egn.OrderTypes
 using .egn.Instances: Instances as inst, ohlcv, ohlcv_dict, posside, collateral, trades, exchangeid
 using .egn.Strategies: strategy, Strategy, AssetInstance, SimStrategy, RTStrategy, marketsid
 using .egn.Strategies: freecash, current_total, volumeat, closeat
