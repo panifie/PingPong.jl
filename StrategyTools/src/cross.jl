@@ -5,7 +5,7 @@ $(TYPEDSIGNATURES)
 Checks if values `a`, `b`, and `c` satisfy the conditions for a crossover in the specified direction (`:above` or `:below`).
 """
 iscrossed(a, b, ::Val{:above}) = a > b
-iscrossed(a, b, ::Val{:below}) = a <= b
+iscrossed(a, b, ::Val{:below}) = a < b
 
 @doc """ Retrieve a signal value from a dictionary for a given key.
 

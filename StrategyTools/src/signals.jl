@@ -178,8 +178,7 @@ signals!(s, args...; kwargs...) =
         rethrow()
     end
 
-isstalesignal(s::SimStrategy, ats::DateTime) = false
-function isstalesignal(s::RTStrategy, ats::DateTime; lifetime=0.25)
+function isstalesignal(s::Strategy, ats::DateTime; lifetime=0.25)
     any(
         ats - apply(sig_def.tf, ats) > sig_def.tf / (1.0 / lifetime)
         for
