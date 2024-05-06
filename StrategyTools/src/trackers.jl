@@ -239,10 +239,10 @@ function inittrends!(s, trends)
     end
 end
 
-isuptrend(s, ai, sig_name) = strategy_signal(s, ai, sig_name) === Up
-isdowntrend(s, ai, sig_name) = strategy_signal(s, ai, sig_name) === Down
-ismissing_trend(s, ai, sig_name) = strategy_signal(s, ai, sig_name) === MissingTrend
-isstationary(s, ai, sig_name) = strategy_signal(s, ai, sig_name) === MissingTrend
+isuptrend(s, ai, sig_name) = strategy_trend(s, ai, sig_name) === Up
+isdowntrend(s, ai, sig_name) = strategy_trend(s, ai, sig_name) === Down
+ismissing_trend(s, ai, sig_name) = strategy_trend(s, ai, sig_name) === MissingTrend
+isstationary(s, ai, sig_name) = strategy_trend(s, ai, sig_name) === MissingTrend
 function istrending!(s::Strategy, ai::AssetInstance, ats::DateTime, sig_name)
     ov = ohlcv(ai, signal_timeframe(s, sig_name))
     sig = strategy_signal(s, ai, sig_name)

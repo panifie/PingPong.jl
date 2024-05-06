@@ -48,6 +48,7 @@ end
 signals_names(s) = keys(s[:signals_def].defs)
 signal_timeframe(s, name) = s[:signals_def].defs[name].tf
 strategy_signal(s, ai, name) = s[:signals][ai][name]
+strategy_trend(s, ai, name) = s[:signals][ai][name].trend
 
 @doc """
 Update or initialize mutable data related to asset information.
