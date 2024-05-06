@@ -36,15 +36,26 @@ function select_ordertype(s::Strategy, os::Type{<:OrderSide}, p::PositionSide=Lo
     end
 end
 
+function price_from_trades(ai)
+    h = trades(ai)
+    t = get(h, lastindex(h), missing)
+    if !ismissing(t)
+        t.price
+    else
+        missing
+    end
+end
+
 @doc """ Select additional keyword arguments for `Buy` orders based on order type
 
 $(TYPEDSIGNATURES)
 
 Depending on the order type symbol, additional keyword arguments are selected to define order parameters like price. This method specifically handles the `Buy` side logic by adjusting price based on closing value.
 """
-function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats)
+function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats; incr=(buy=1.02, sell=0.99))
+    price = @coalesce price_from_trades(ai) closeat(ai, ats)
     if otsym == :gtc
-        (; price=1.02 * closeat(ohlcv(ai), ats))
+        (; price=incr.buy * price)
     else
         ()
     end
@@ -56,9 +67,10 @@ $(TYPEDSIGNATURES)
 
 Selects an order type `os` based on the strategy `s` and the position side `p`. The order type is determined by the `ordertype` attribute of the strategy.
 """
-function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats)
+function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats; incr=(; buy=1.02, sell=0.99))
+    price = @coalesce price_from_trades(ai) closeat(ai, ats)
     if otsym == :gtc
-        (; price=0.99 * closeat(ohlcv(ai), ats))
+        (; price=incr.sell * price)
     else
         ()
     end
