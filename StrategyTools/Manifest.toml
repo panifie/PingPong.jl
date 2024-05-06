@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.2"
+julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "e714e05e6b5f0b73c580f3bc86a9510efa436713"
+project_hash = "519fd762d499c2d49ae874857011860396b0745d"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -23,9 +23,9 @@ version = "0.4.5"
 
 [[deps.AliasTables]]
 deps = ["Random"]
-git-tree-sha1 = "07591db28451b3e45f4c0088a2d5e986ae5aa92d"
+git-tree-sha1 = "ca95b2220ef440817963baa71525a8f2f4ae7f8f"
 uuid = "66dad0bd-aa9a-41b7-9441-69ab47430ed8"
-version = "1.1.1"
+version = "1.0.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -113,7 +113,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.0+0"
+version = "1.1.1+0"
 
 [[deps.ConcurrentCollections]]
 git-tree-sha1 = "875d52bb9900dcf9e4e6bbd02da0e590eb200dc8"
@@ -319,14 +319,6 @@ deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "f218fe3736ddf977e0e772bc9a586b2383da2685"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.23"
-
-[[deps.IncTA]]
-deps = ["Dates", "OnlineStatsBase", "Tables"]
-git-tree-sha1 = "243947a02e779a86f272f8ddc4c70f3ad4a10a8a"
-repo-rev = "main"
-repo-url = "https://github.com/femtotrader/IncTA.jl"
-uuid = "dc2d07fb-478f-4566-8417-81bb3e5a7af1"
-version = "0.1.0"
 
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
@@ -557,9 +549,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.Mocking]]
 deps = ["Compat", "ExprTools"]
-git-tree-sha1 = "bf17d9cb4f0d2882351dfad030598f64286e5936"
+git-tree-sha1 = "4cc0c5a83933648b615c36c2b956d94fda70641e"
 uuid = "78c3b35d-d492-501b-9361-3d52fe80e533"
-version = "0.7.8"
+version = "0.7.7"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
@@ -602,6 +594,12 @@ deps = ["AbstractTrees", "Dates", "LinearAlgebra", "OrderedCollections", "Statis
 git-tree-sha1 = "6aa22dda15d3387639210d382fafc4f2a84b4fb9"
 uuid = "925886fa-5bf2-5e8e-b522-a9147a512338"
 version = "1.6.3"
+
+[[deps.OnlineTechnicalIndicators]]
+deps = ["Dates", "OnlineStatsBase", "Tables"]
+git-tree-sha1 = "bff61d307678117081d09d291c2e356bdfd980a7"
+uuid = "dc2d07fb-478f-4566-8417-81bb3e5a7af1"
+version = "0.1.0"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
@@ -682,7 +680,7 @@ version = "1.3.0"
 deps = ["Engine", "MacroTools", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
 path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.3.22"
+version = "1.3.25"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]

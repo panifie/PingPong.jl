@@ -17,7 +17,7 @@ using .egn.LiveMode.Watchers.Fetch: update_ohlcv!
 using .egn: ispaper, islive
 using Statistics: mean
 
-using IncTA: IncTA as ta
+using OnlineTechnicalIndicators: OnlineTechnicalIndicators as oti
 
 include("utils.jl")
 include("extrema.jl")

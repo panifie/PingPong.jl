@@ -89,7 +89,7 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
                 1
         end
         @deassert idx_stop == idx_start + count ats, tf, count
-        ta.fit!(this.state, range)
+        oti.fit!(this.state, range)
     elseif this.date < this_tf_ats
         # This ensures that we only compute the minimum necessary in case
         # the signals lags behind (only in live)
@@ -103,7 +103,7 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
         @deassert data.timestamp[idx_stop] < apply(tf, ats)
         range = view(data.close, idx_start:idx_stop)
         if !isempty(range)
-            ta.fit!(this.state, range)
+            oti.fit!(this.state, range)
         else
             @warn "not enough data for the requested count" start_date this_tf_ats count maxlog =
                 1

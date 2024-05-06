@@ -283,7 +283,7 @@ end
 #     @deassert length(close) <= attrs[:slope_window] (length(close), idx_start, idx_stop, date[])
 #     if length(close) > 0
 #         fill!(os.A, zero(eltype(os.A))) # reset
-#         ta.fit!(os, ((((v,), n) for (n, v) in enumerate(close))...,))
+#         oti.fit!(os, ((((v,), n) for (n, v) in enumerate(close))...,))
 #         date[] = ats
 #     end
 # end
