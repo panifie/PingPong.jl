@@ -1,5 +1,7 @@
 [deps]
-python = "3.12"
+python = "3.12.*"
+# NOTE: update this when OpenSSL.jl supports openssl >=3.3
+openssl = "3.2.*"
 [pip.deps]
 ccxt = ""
 numpy = ""
