@@ -65,6 +65,7 @@ function stub!(
         kwargs = $safeoom ? (; from=$safe_from(this_s, $pairs)) : ()
         data = $(loader)($(pairs), qc; kwargs...)
         t = Threads.@spawn egn.stub!(this_s.universe, data)
+        errormonitor(t)
         while !istaskdone(t)
             GC.gc(true)
             sleep(1)
