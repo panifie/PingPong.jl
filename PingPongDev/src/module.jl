@@ -48,11 +48,15 @@ end
 
 function safe_from(s, pairs)
     tf = s.timeframe
-    len_per_pair = round(Int, avl_gigabytes() / length(pairs) / sizeof(egn.Data.Candle{DFT}))
+    len_per_pair = round(
+        Int, avl_gigabytes() / length(pairs) / sizeof(egn.Data.Candle{DFT}) / 2
+    )
     egn.now() - len_per_pair * tf
 end
 
-function stub!(pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom=length(pairs) > 10)
+function stub!(
+    pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom=length(pairs) > 10
+)
     isempty(pairs) && return nothing
     GC.gc()
     @eval Main let
@@ -60,7 +64,11 @@ function stub!(pairs=symnames(); s=Main.s, loader=default_data_loader(), safeoom
         qc = string(nameof(this_s.cash))
         kwargs = $safeoom ? (; from=$safe_from(this_s, $pairs)) : ()
         data = $(loader)($(pairs), qc; kwargs...)
-        egn.stub!(this_s.universe, data)
+        t = Threads.@spawn egn.stub!(this_s.universe, data)
+        while !istaskdone(t)
+            GC.gc(true)
+            sleep(1)
+        end
     end
 end
 
@@ -81,7 +89,7 @@ function loadstrat!(strat=:Example, bind=:s; load=false, stub=false, mode=Sim(),
                 fill!(
                     $bind.universe,
                     $bind.timeframe,
-                    $bind.config.timeframes[(begin+1):end]...,
+                    $bind.config.timeframes[(begin + 1):end]...,
                 )
             end
             if $stub
@@ -138,7 +146,6 @@ togglewatch!(s, enable=true) = begin
     end
     lm.stop_all_tasks(s)
 end
-
 
 using PingPong: _activate_and_import
 tools!() = _activate_and_import(:StrategyTools, :stt)
