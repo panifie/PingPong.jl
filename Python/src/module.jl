@@ -86,11 +86,18 @@ function pygctask!()
     end
     GC_TASK[] = @async begin
         GC_RUNNING[] = true
+        PyGC.disable()
         while GC_RUNNING[]
             try
                 if Threads.threadid() == 1
-                    PyGC.enable()
-                    PyGC.disable()
+                    PyGC.C.with_gil(false) do
+                        while !isempty(PyGC.QUEUE)
+                            ptr = pop!(PyGC.QUEUE)
+                            if ptr != PyGC.C.PyNULL
+                                PyGC.C.Py_DecRef(ptr)
+                            end
+                        end
+                    end
                 end
             catch e
                 @error exception = e
@@ -98,7 +105,10 @@ function pygctask!()
             sleep(1)
         end
     end
+    atexit(pystopgctask)
 end
+
+pystopgctask() = GC_RUNNING[] = false
 
 function isinitialized()
     _INITIALIZED[]
