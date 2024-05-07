@@ -7,7 +7,6 @@ using ..Fetch.Exchanges: ratelimit_njobs
 using ..Lang: fromstruct, ifproperty!, ifkey!, @acquire, @add_statickeys!
 using ..Watchers: @logerror, _val, default_view, buffer
 
-
 const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
 
@@ -88,7 +87,9 @@ function ccxt_ohlcv_tickers_watcher(
     if !isnothing(logfile)
         @setkey! a logfile
     end
-    @setkey! a :key string("ccxt_", exc.name, issandbox(exc), "_ohlcv_tickers_", join(ids, "_"))
+    @setkey! a :key string(
+        "ccxt_", exc.name, issandbox(exc), "_ohlcv_tickers_", join(ids, "_")
+    )
     @setkey! a :status Pending()
     w
 end
@@ -197,7 +198,8 @@ function _queue_resolve(w, df, latest_timestamp, sym)
             @debug "ohlcv tickers: resolving" _module = LogOHLCVTickers sym latest_timestamp
             ans = @acquire sem _resolve(w, df, latest_timestamp, sym)
             if ans isa Exception
-                @debug "ohlcv tickers: resolve error" _module = LogOHLCVTickers exception = ans
+                @debug "ohlcv tickers: resolve error" _module = LogOHLCVTickers exception =
+                    ans
             end
         finally
             resolve_dict[sym] = false
@@ -206,11 +208,13 @@ function _queue_resolve(w, df, latest_timestamp, sym)
 end
 function _maybe_resolve(w, df, sym, this_ts, tf)
     if isempty(df)
-        min_rows = w.capacity.view - w.capacity.buffer
-        from = now() - (min_rows + 1) * tf
         sem = @getkey w sem
-        @acquire sem _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
-    elseif this_ts == _lastdate(df)
+        @acquire sem _ensure_ohlcv(w, sym)
+        if isempty(df)
+            return @key :stale_df
+        end
+    end
+    if this_ts == _lastdate(df)
         @key :stale_candle
     elseif !isrightadj(this_ts, _lastdate(df), tf)
         @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym last_date this_ts
@@ -261,14 +265,15 @@ function diff_volume!(w, df, temp_candle, sym, latest_timestamp)
     if idx < 1
         resolution = _maybe_resolve(w, df, sym, latest_timestamp, _tfr(w))
         if @key :stale_candle == resolution
-            @debug "ohlcv tickers watcher: stale candle" _module = LogOHLCVTickers sym _lastdate(df) latest_timestamp
+            @debug "ohlcv tickers watcher: stale candle" _module = LogOHLCVTickers sym _lastdate(
+                df
+            ) latest_timestamp
             return false
         else
             idx = dateindex(df, dropped_candle_date)
             if idx < 1
-                @debug "ohlcv tickers watcher: failed to resolve candles history" _module = LogOHLCVTickers sym n = nrow(
-                    df
-                ) dropped_candle_date
+                @debug "ohlcv tickers watcher: failed to resolve candles history" _module =
+                    LogOHLCVTickers sym n = nrow(df) dropped_candle_date
                 return false
             end
         end
@@ -368,9 +373,7 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
         tasks = @getkey(w, process_tasks)
         data_date, data = w.buffer[idx]
         for (sym, ticker) in data
-            t = @async @lock _symlock(w, sym) _update_sym_ohlcv(
-                w, ticker, data_date
-            )
+            t = @async @lock _symlock(w, sym) _update_sym_ohlcv(w, ticker, data_date)
             push!(tasks, errormonitor(t))
         end
         _lastprocessed!(w, data_date)
@@ -390,6 +393,35 @@ end
 
 _stop!(w::Watcher, ::CcxtOHLCVTickerVal) = _stop!(w, CcxtTickerVal())
 
+function _ensure_ohlcv(w, sym)
+    tf = _tfr(w)
+    min_rows = w.capacity.view - w.capacity.buffer
+    df = @lget! w.view sym empty_ohlcv()
+    if isempty(df)
+        # fetch in excess
+        from = now() - (w.capacity.view + 1) * tf
+        _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
+        _do_check_contig(w, df, _checks(w))
+    else
+        let (from, to) = (lastdate(df), _nextdate(tf))
+            if length(from:(period(tf)):to) > min_rows
+                from = to - period(tf) * w.capacity.view
+            end
+            _fetchto!(w, df, sym, tf, Val(:append); from, to)
+        end
+        _do_check_contig(w, df, _checks(w))
+        if nrow(df) < min_rows
+            let to = _firstdate(df) + period(tf)
+                _fetchto!(w, df, sym, tf, Val(:prepend); to)
+                _do_check_contig(w, df, _checks(w))
+            end
+        end
+    end
+    if nrow(df) < min_rows
+        @warn "ohlcv tickers watcher: can't fill view with enough data" sym nrow(df) min_rows
+    end
+end
+
 @doc """ Loads the OHLCV data for a specific symbol.
 
 $(TYPEDSIGNATURES)
@@ -403,34 +435,9 @@ function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
     if _isloaded(w, sym)
         return nothing
     end
-    tf = _tfr(w)
     sem = @getkey w sem
-    @lock _symlock(w, sym) @acquire sem begin
-        min_rows = w.capacity.view - w.capacity.buffer
-        df = @lget! w.view sym empty_ohlcv()
-        if isempty(df)
-            from = now() - (min_rows + 1) * tf
-            _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
-            _do_check_contig(w, df, _checks(w))
-        else
-            let (from, to) = (lastdate(df), _nextdate(tf))
-                if length(from:(tf.period):to) > min_rows
-                    from = to - period(tf) * min_rows
-                end
-                _fetchto!(w, df, sym, tf, Val(:append); from, to)
-            end
-            _do_check_contig(w, df, _checks(w))
-            if nrow(df) < min_rows
-                let to = _firstdate(df) + period(tf)
-                    _fetchto!(w, df, sym, tf, Val(:prepend); to)
-                    _do_check_contig(w, df, _checks(w))
-                end
-            end
-        end
-        if nrow(df) + 2 < min_rows
-            @warn "ohlcv tickers watcher: can't fill view with enough data" sym nrow(df) min_rows
-        end
-    end
+    l = _symlock(w, sym)
+    @lock l @acquire sem _ensure_ohlcv(w, sym)
 end
 
 @doc """ Loads the OHLCV data for all symbols.
