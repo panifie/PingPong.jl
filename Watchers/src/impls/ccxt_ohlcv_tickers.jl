@@ -26,6 +26,7 @@ baremodule LogOHLCVTickers end
     stale_candle
     stale_df
     callback
+    fetch_backoff
 end
 
 @doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
@@ -139,6 +140,7 @@ function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     @setkey! a :candle_ticks Dict{String,Int}()
     @setkey! a :loaded Dict{String,Bool}()
     @setkey! a :sym_locks Dict{String,ReentrantLock}()
+    @setkey! a :fetch_backoff Dict{String,Int}()
     @setkey! a :last_processed typemax(DateTime)
     _initsyms!(w)
     _checkson!(w)
@@ -212,12 +214,16 @@ function _maybe_resolve(w, df, sym, this_ts, tf)
         @acquire sem _ensure_ohlcv(w, sym)
         if isempty(df)
             return @key :stale_df
+        else
+            invokelatest(@getkey(w, callback), df, sym)
         end
     end
     if this_ts == _lastdate(df)
         @key :stale_candle
     elseif !isrightadj(this_ts, _lastdate(df), tf)
-        @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym last_date this_ts
+        @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym _lastdate(
+            df
+        ) this_ts
         _queue_resolve(w, df, this_ts, sym)
         @ifdebug @assert isrightadj(this_ts, _lastdate(df), tf)
         @key :stale_df
@@ -270,6 +276,12 @@ function diff_volume!(w, df, temp_candle, sym, latest_timestamp)
             ) latest_timestamp
             return false
         else
+            backoff_dict = @getkey(w, fetch_backoff)
+            backoff = @lget! backoff_dict sym 0
+            if backoff < 3
+                _ensure_ohlcv(w, sym)
+                backoff_dict[sym] += 1
+            end
             idx = dateindex(df, dropped_candle_date)
             if idx < 1
                 @debug "ohlcv tickers watcher: failed to resolve candles history" _module =
