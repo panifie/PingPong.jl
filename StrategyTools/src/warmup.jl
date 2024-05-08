@@ -15,7 +15,8 @@ If warmup has not been previously completed for the given asset instance, it per
 """
 function warmup!(cb::Function, s::RTStrategy, ai, ats, n_candles=999)
     if !s[:warmup][ai]
-        @lock s[:warmup_lock] _warmup!(cb, s, ai, ats; n_candles)
+        warmup_lock = @lock s @lget! s.attrs :warmup_lock ReentrantLock()
+        @lock warmup_lock _warmup!(cb, s, ai, ats; n_candles)
     end
 end
 
