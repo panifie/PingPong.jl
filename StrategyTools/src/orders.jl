@@ -57,7 +57,7 @@ function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats; incr=(buy=1.02,
     if otsym == :gtc
         (; price=incr.buy * price)
     else
-        ()
+        (;)
     end
 end
 
@@ -72,7 +72,7 @@ function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats; incr=(; buy=1.
     if otsym == :gtc
         (; price=incr.sell * price)
     else
-        ()
+        (;)
     end
 end
 
