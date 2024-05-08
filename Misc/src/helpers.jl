@@ -64,7 +64,9 @@ macro skipoffline(
                 $expr
             catch
                 if $(isoffline)()
-                    @error "skipping error since offline" maxlog = 1 _module = $this_module _file = $this_file _line = $this_line exception = (first(Base.catch_stack())...,)
+                    @error "skipping error since offline" maxlog = 1 _module = $this_module _file = $this_file _line = $this_line exception = (
+                        first(Base.catch_stack())...,
+                    )
                 else
                     rethrow()
                 end
@@ -294,8 +296,21 @@ end
 
 $(TYPEDSIGNATURES)
 "
-function toprecision(n::AbstractFloat, prec::Integer)
+function toprecision(n::AbstractFloat, prec::Int)
     round(n; digits=prec)
+end
+
+@doc """ Round a float to a given precision.
+
+$(TYPEDSIGNATURES)
+
+When the precision is a float it represents the number of pips.
+When the precision is an integer it represents the number of decimals.
+
+Examples:
+"""
+function toprecision(n::AbstractFloat, prec::UInt)
+    round(n; digits=prec - 1)
 end
 
 @doc """Checks if a value is approximately zero.

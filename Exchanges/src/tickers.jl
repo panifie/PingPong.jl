@@ -4,7 +4,7 @@ using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc: waitforcond
 using Instruments: isfiatquote, spotpair
 using .Python: @pystr, @pyconst, pyfetch_timeout, pylist, pytruth
-using ExchangeTypes: decimal_to_size
+using ExchangeTypes: decimal_to_size, excDecimalPlaces, excSignificantDigits, excTickSize
 
 @doc """A leveraged pair is a pair like `BTC3L/USD`.
 - `:yes` : Leveraged pairs will not be filtered.
@@ -244,14 +244,45 @@ function lastprice(exc::Exchange, tick)
     end
 end
 
+function default_amount_precision(exc)
+    if exc.precision == excDecimalPlaces
+        8
+    elseif exc.precision == excSignificantDigits
+        9
+    elseif exc.precision == excTickSize
+        1e-8
+    end
+end
+
+function default_price_precision(exc)
+    if exc.precision == excDecimalPlaces
+        2
+    elseif exc.precision == excSignificantDigits
+        3
+    elseif exc.precision == excTickSize
+        1e-2
+    end
+end
+
+function _get_precision(exc, mkt, k)
+    v = mkt[k]
+    if !pyisnone(v)
+        pytofloat(v)
+    elseif k in ("amount", "base")
+        default_amount_precision(exc)
+    else # price cost quote
+        default_price_precision(exc)
+    end
+end
+
 @doc "Precision of the (base, quote) currencies of the market.
 
 $(TYPEDSIGNATURES)
 "
 function market_precision(pair::AbstractString, exc::Exchange)
     mkt = exc.markets[pair]["precision"]
-    p_amount = decimal_to_size(pyconvert(DFT, mkt["amount"]), exc.precision)
-    p_price = decimal_to_size(pyconvert(DFT, mkt["price"]), exc.precision)
+    p_amount = decimal_to_size(_get_precision(exc, mkt, "amount"), exc.precision)
+    p_price = decimal_to_size(_get_precision(exc, mkt, "price"), exc.precision)
     (; amount=p_amount, price=p_price)
 end
 market_precision(a::AbstractAsset, args...) = market_precision(a.raw, args...)
