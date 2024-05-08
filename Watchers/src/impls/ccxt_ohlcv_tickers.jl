@@ -248,11 +248,12 @@ If the temporary candle is not right adjacent to the last date in the DataFrame,
 
 """
 function _ensure_contig!(w, df, temp_candle::TempCandle, tf, sym)
-    _maybe_resolve(w, df, sym, temp_candle.timestamp, tf)
-    ## append complete candle (check again adjaciency)
-    if isrightadj(temp_candle.timestamp, _lastdate(df), tf)
-        pushmax!(df, fromstruct(temp_candle), w.capacity.view)
-        invokelatest(@getkey(w, callback), df, sym)
+    if isnothing(_maybe_resolve(w, df, sym, temp_candle.timestamp, tf))
+        ## append complete candle (check again adjaciency)
+        if isrightadj(temp_candle.timestamp, _lastdate(df), tf)
+            pushmax!(df, fromstruct(temp_candle), w.capacity.view)
+            invokelatest(@getkey(w, callback), df, sym)
+        end
     end
 end
 function diff_volume!(w, df, temp_candle, sym, latest_timestamp)
