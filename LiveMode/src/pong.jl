@@ -8,7 +8,7 @@ $(TYPEDSIGNATURES)
 This function triggers the execution of the OHLCV (Open, High, Low, Close, Volume) watcher for a real-time strategy `s`.
 
 """
-pong!(s::RTStrategy, ::WatchOHLCV) = watch_ohlcv!(s)
+pong!(s::RTStrategy, ::WatchOHLCV, args...; kwargs...) = watch_ohlcv!(s, args...; kwargs...)
 @doc """ Triggers the data update for a real-time strategy.
 
 $(TYPEDSIGNATURES)
