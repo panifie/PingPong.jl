@@ -1,22 +1,34 @@
 using Base: FieldDescStorage, swaprows!
-const SignalType1 = @NamedTuple{type::UnionAll, tf::TimeFrame, count::Int}
+const SignalType6 = @NamedTuple{type::UnionAll, tf::TimeFrame, count::Int, params::NamedTuple}
 
-struct Signals13{N}
-    defs::LittleDict{Symbol,SignalType1}
-    Signals13(; defs) = new{length(defs)}(defs)
+struct Signals17{N}
+    defs::LittleDict{Symbol,SignalType6}
+    Signals17(; defs) = new{length(defs)}(defs)
 end
 
-function signals(signals, timeframes, counts)
-    @assert length(signals) == length(timeframes) == length(counts) "every signal needs a timeframe and a period"
+@doc """
+Create multiple signal definitions and instantiate a new `Signals17` object.
+
+$(TYPEDSIGNATURES)
+
+Constructs a dictionary of signals from input tuples and then creates a `Signals17` instance using these definitions. Each signal configuration is converted into a typed tuple preserving the structure required by `Signals17`.
+
+"""
+function signals(signals, timeframes, count, params)
+    @assert length(signals) == length(timeframes) == length(count) == length(params) "every signal needs a timeframe and a period"
     names = ((sig.first for sig in signals)...,)::Tuple
     signals_tuple = (
         (
-            (; type=sig.second, tf, count=pd) for
-            (sig, tf, pd) in zip(signals, timeframes, counts)
+            (; type=sig.second, tf, count=c, params=p) for
+            (sig, tf, c, p) in zip(signals, timeframes, count, params)
         )...,
     )
     defs = LittleDict(names, signals_tuple)
-    Signals13(; defs)
+    Signals17(; defs)
+end
+
+function signals(defs::Vararg{Pair})
+    Signals17(; defs=LittleDict(defs))
 end
 
 @kwdef mutable struct SignalState4{T}
@@ -38,7 +50,7 @@ function signals_state(s)
     s[:signals] = Dict(
         ai => let
             NamedTuple(
-                name => SignalState4(; state=this.type(; period=this.count)) for
+                name => SignalState4(; state=this.type(; this.params...)) for
                 (name, this) in sig_defs.defs
             )
         end for ai in s.universe
@@ -48,8 +60,14 @@ end
 signals_names(s) = keys(s[:signals_def].defs)
 signal_timeframe(s, name) = s[:signals_def].defs[name].tf
 strategy_signal(s, ai, name) = s[:signals][ai][name]
-signal_value(s, ai, name) = strategy_signal(s, ai, name).state.value
+@doc "Dispatch on `typeof(sig.state)`"
+signal_value(::Any; sig) = sig.state.value
+signal_value(s, ai, name) = begin
+    sig = strategy_signal(s, ai, name)
+    signal_value(sig.state; sig)
+end
 signal_trend(s, ai, name) = strategy_signal(s, ai, name).trend
+signal_history(s, sig) = s.signals_history[sig]
 
 @doc """
 Update or initialize mutable data related to asset information.
@@ -121,7 +139,7 @@ $(TYPEDSIGNATURES)
 
 Iterates over the universe of assets and for each asset iterates over the configured signals. Calls `update_signal!` to update each indicator with the current asset time series and configuration.
 """
-function signals!(s::Strategy, ::Val{:warmup}; force=false)
+function signals!(s::Strategy, ::Val{:warmup}; force=false, history=true)
     if force
         initparams!(s, getparams())
     elseif get!(s.attrs, :signals_set, false)
@@ -142,6 +160,9 @@ function signals!(s::Strategy, ::Val{:warmup}; force=false)
         end
     end
     force && GC.gc()
+    if history
+        signals_history!(s)
+    end
     s[:signals_set] = true
 end
 
@@ -186,4 +207,14 @@ function isstalesignal(s::Strategy, ats::DateTime; lifetime=0.25)
         for
         sig_def in values(s.signals_def.defs)
     )
+end
+
+function signals_history!(s, tp=DFT)
+    hist_dict = s[:signals_history] = Dict{SignalState4,Ref{tp}}()
+    for sigs in values(s.signals)
+        for sig in sigs
+            hist_dict[sig] = Ref{tp}(NaN)
+        end
+    end
+    hist_dict
 end

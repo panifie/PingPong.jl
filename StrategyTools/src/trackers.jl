@@ -243,24 +243,41 @@ isuptrend(s, ai, sig_name) = signal_trend(s, ai, sig_name) === Up
 isdowntrend(s, ai, sig_name) = signal_trend(s, ai, sig_name) === Down
 ismissing_trend(s, ai, sig_name) = signal_trend(s, ai, sig_name) === MissingTrend
 isstationary(s, ai, sig_name) = signal_trend(s, ai, sig_name) === MissingTrend
-function istrending!(s::Strategy, ai::AssetInstance, ats::DateTime, sig_name)
-    ov = ohlcv(ai, signal_timeframe(s, sig_name))
-    sig = strategy_signal(s, ai, sig_name)
-    idx = dateindex(ov, ats)
+cmptrend(::Any; sig, idx, ov) = begin
     if iszero(idx) || ismissing(sig.state.value)
         sig.trend = MissingTrend
         false
     else
         close = ov.close[idx]
+        ans = false
         sig.trend = if close > sig.state.value
+            ans = true
             Up
         elseif close == sig.state.value
+            ans = false
             Stationary
         else
+            ans = true
             Down
         end
-        true
+        ans
     end
+end
+@doc """
+Check if an asset is trending for a given signal
+
+$(TYPEDSIGNATURES)
+
+Checks if the asset `ai` is trending at time `ats` for the signal `sig_name` in the strategy `s`.
+The trending condition is determined by the provided `func::Function` which has the signature:
+
+    func(::SignalState, ::Int, ::DataFrame)::Bool
+"""
+function istrending!(s::Strategy, ai::AssetInstance, ats::DateTime, sig_name; func=cmptrend)
+    ov = ohlcv(ai, signal_timeframe(s, sig_name))
+    sig = strategy_signal(s, ai, sig_name)
+    idx = dateindex(ov, ats)
+    func(sig.state; sig, idx, ov)
 end
 
 ## SLOPE
