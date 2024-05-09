@@ -353,7 +353,7 @@ function _idx_to_process(w, date, prev_idx)
         end
     elseif buffer(w)[idx].time != date
         idx
-    else
+    elseif idx < length(buffer(w))
         idx + 1
     end
 end
