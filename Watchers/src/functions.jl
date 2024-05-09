@@ -1,5 +1,5 @@
 import Fetch.Exchanges.ExchangeTypes: exchange, exchangeid
-import .Misc: start!, stop!, load!
+import .Misc: start!, stop!, load!, isrunning
 import .Data.DFUtils: lastdate
 using .Lang: @ifdebug, @caller
 
@@ -197,6 +197,8 @@ isstarted(w::Watcher) =
     let t = _timer(w)
         !isnothing(t) && isopen(t)
     end
+isrunning(w::Watcher) = isstarted(w)
+
 @doc "True if watcher if the fetch lock locked."
 Base.islocked(w::Watcher) = islocked(_fetch_lock(w))
 @doc "True if the buffer lock is locked."
