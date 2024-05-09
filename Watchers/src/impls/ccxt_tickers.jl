@@ -59,7 +59,7 @@ function ccxt_tickers_watcher(
     end
     attrs[:issandbox] = issandbox(exc)
     _sym!(attrs, syms)
-    _ids!(attrs, syms)
+    _ids!(attrs, collect(syms))
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
     wid = string(wid, "-", hash((exc.id, syms, attrs[:issandbox])))
@@ -102,7 +102,7 @@ wpyconvert(::Type{<:Union{Nothing,DateTime}}, py::Py) =
     end
 wpyconvert(::Type{T}, v::Symbol) where {T} = T(v)
 
-_parse_ticker_snapshot(snap) = begin
+function _parse_ticker_snapshot(snap)
     result = Dict{String,CcxtTicker}()
     if !(snap isa Py)
         try
@@ -130,24 +130,45 @@ If new trades are fetched, they are appended to the trades buffer and the last f
 
 """
 _fetch!(w::Watcher, ::CcxtTickerVal) = _tfunc(w)()
-
+function _check_ids(exc, ids)
+    markets = keys(exc.markets)
+    issymbol_available(sym) =
+        if sym ∉ markets
+            @warn "tickers watcher: symbol not on exchange" sym
+            false
+        else
+            true
+        end
+    filter(issymbol_available, ids)
+end
+_func_args(exc, ids) =
+    if isempty(ids)
+        ()
+    else
+        (_check_ids(exc, ids),)
+    end
 function _reset_tickers_func!(w::Watcher)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
     exc = getexchange!(eid; sandbox=attrs[:issandbox])
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
-    sym = _sym(w)
-    args = isempty(sym) ? () :
-           sym isa Base.Generator ? ([sym...],) :
-           (sym,)
+    ids = _ids(w)
+    @assert ids isa Vector
+    args = _func_args(exc, ids)
     watch_func = first(exc, :watchTickersForSymbols, :watchTickers)
     fetch_func = choosefunc(exc, "Ticker", args...)
     iswatch = @lget! attrs :iswatch !isnothing(watch_func)
     if iswatch
         corogen_func(_) = coro_func() = watch_func(args...)
         init_func() = fetch_func()
-        handler_task!(w; init_func, corogen_func, wrapper_func=_parse_ticker_snapshot, if_func=!isempty)
+        handler_task!(
+            w;
+            init_func,
+            corogen_func,
+            wrapper_func=_parse_ticker_snapshot,
+            if_func=!isempty,
+        )
         _tfunc!(attrs, () -> check_task!(w))
     else
         tickers_func() = begin

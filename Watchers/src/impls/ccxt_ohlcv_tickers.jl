@@ -1,4 +1,4 @@
-using ..Data: OHLCV_COLUMNS
+using ..Data: OHLCV_COLUMNS, contiguous_ts
 using ..Data.DataStructures: PriorityQueue
 using ..Data.DFUtils: lastdate, dateindex
 using ..Misc: between
@@ -431,6 +431,7 @@ function _ensure_ohlcv(w, sym)
         end
     end
     if nrow(df) < min_rows
+        # TODO: provide support of upsampling with interpolation
         @warn "ohlcv tickers watcher: can't fill view with enough data" sym nrow(df) min_rows
     end
 end
