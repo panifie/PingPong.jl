@@ -300,14 +300,13 @@ function toprecision(n::AbstractFloat, prec::Int)
     round(n; digits=prec)
 end
 
-@doc """ Round a float to a given precision.
+@doc """ Round a float to a given precision (`SIGNIFICANT_DIGITS`).
 
 $(TYPEDSIGNATURES)
 
-When the precision is a float it represents the number of pips.
-When the precision is an integer it represents the number of decimals.
+`SIGNIFICANT_DIGITS` precision mode is similar to `DECIMAL_PLACES` except
+that the last digit is the one that is rounded
 
-Examples:
 """
 function toprecision(n::AbstractFloat, prec::UInt)
     round(n; digits=prec - 1)
