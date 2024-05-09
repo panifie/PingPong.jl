@@ -37,6 +37,8 @@ function leverage!(exc::Exchange, v, sym; side=Long(), timeout=Second(5))
             resp_lev = pyfetch_timeout(exc.fetchLeverage, Returns(nothing), timeout, sym)
             if isnothing(resp_lev)
                 false
+            elseif resp_lev isa Exception
+                @error "exchanges: set leverage" exception = resp_lev
             else
                 side_key = ifelse(side == Long(), "longLeverage", "shortLeverage")
                 resp_val = pytofloat(get(resp_lev, side_key, one(DFT)))
