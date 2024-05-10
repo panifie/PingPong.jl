@@ -325,6 +325,24 @@ macro logerror(fileexpr)
     end
 end
 
+@doc """Catch errors in a code block and print the backtrace.
+
+$(TYPEDSIGNATURES)
+
+Executes the given `code` block and catches any errors that occur.
+If an error is caught, the backtrace is printed using `@debug_backtrace`.
+An optional `msg` string can be provided to print additional context.
+"""
+macro catcherror(code, msg="")
+    quote
+        try
+            $(esc(code))
+        catch
+            @debug_backtrace $(__module__) $msg
+        end
+    end
+end
+
 @doc """Write an error message `e` to the given file handle `filehandle` using the logging system.
 
 $(TYPEDSIGNATURES)
@@ -546,7 +564,7 @@ macro key(k)
         if k.value ∉ __module__._STATIC_KEYS
             error("key '$k' not statically defined")
         else
-            esc(:($(QuoteNode(k))))
+            k
         end
     elseif k isa Expr
         @assert k.head == :call &&
@@ -571,7 +589,7 @@ $(TYPEDSIGNATURES)
 This macro ensures that the given string k is converted to a symbol and validated against statically defined keys in the module.
 """
 macro k_str(k)
-    :((@__MODULE__).@key($(QuoteNode(Symbol(k))))) |> esc
+    :((@__MODULE__).@key($(QuoteNode(Symbol(k)))))
 end
 
 """
