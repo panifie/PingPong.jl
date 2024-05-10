@@ -27,6 +27,7 @@ baremodule LogOHLCVTickers end
     callback
     fetch_backoff
     vwap
+    minrows_warned
 end
 
 @doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
@@ -81,6 +82,7 @@ function ccxt_ohlcv_tickers_watcher(
     @setkey! a n_jobs
     @setkey! a callback
     @setkey! a diff_volume
+    a[k"minrows_warned"] = false
     a[k"tickers_ohlcv"] = true
     a[k"sem"] = Base.Semaphore(n_jobs)
     a[k"volume_divisor"] = Day(1) / period(timeframe)
@@ -398,9 +400,10 @@ function _ensure_ohlcv!(w, sym)
             _do_check_contig(w, df, _checks(w))
         end
     end
-    if nrow(df) < min_rows
+    if nrow(df) < min_rows && !w[k"minrows_warned"]
         # TODO: provide support of upsampling with interpolation
         @warn "ohlcv tickers watcher: can't fill view with enough data" sym nrow(df) min_rows
+        w[k"minrows_warned"] = true
     end
 end
 
