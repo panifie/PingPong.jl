@@ -128,9 +128,6 @@ function default_init(w::Watcher, dataview=default_view(w, empty_ohlcv), seriali
     a[:last_processed] = nothing
     a[:checks] = Val(:off)
     a[:serialized] = serialized
-    let logfile = get(a, :logfile, nothing)
-        isnothing(logfile) || write(logfile, "")
-    end
 end
 @doc """ Returns the processed `view` of the watcher data.
 

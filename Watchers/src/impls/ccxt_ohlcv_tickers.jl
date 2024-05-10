@@ -1,7 +1,7 @@
 using ..Data: OHLCV_COLUMNS, contiguous_ts
 using ..Data.DataStructures: PriorityQueue
 using ..Data.DFUtils: lastdate, dateindex
-using ..Misc: between
+using ..Misc: between, truncate_file
 using ..Fetch.Processing: iscomplete
 using ..Fetch.Exchanges: ratelimit_njobs
 using ..Lang: fromstruct, ifproperty!, ifkey!, @acquire, @add_statickeys!, @k_str
@@ -137,7 +137,7 @@ function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     a[k"loaded"] = Dict{String,Bool}()
     a[k"sym_locks"] = Dict{String,ReentrantLock}()
     a[k"fetch_backoff"] = Dict{String,Int}()
-    a["last_processed"] = typemax(DateTime)
+    a[k"last_processed"] = typemax(DateTime)
     _initsyms!(w)
     _checkson!(w)
 end

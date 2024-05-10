@@ -76,6 +76,48 @@ macro skipoffline(
     esc(ex)
 end
 
+@doc """Truncate a file to contain only the last `nlines` lines.
+
+$(TYPEDSIGNATURES)
+
+Opens the file for reading, keeps only the last `nlines` lines, then opens the file again for writing and overwrites it with those last lines.
+Throws an error if `nlines` is not a positive integer.
+"""
+function truncate_file(filename, nlines)
+    # Check if nlines is positive
+    if nlines <= 0
+        error("nlines must be a positive integer")
+    end
+    f = open(filename, "a+")
+    lines = IOBuffer()
+    try
+        seekend(f)
+        current_pos = position(f)
+        count = 0
+
+        while count <= nlines && current_pos > 0
+            seek(f, current_pos - 1)
+            if Char(peek(f)) == '\n'
+                count += 1
+                seek(f, current_pos)
+                line = readline(f; keep=true)
+                write(lines, line)
+                seek(f, current_pos - 1)
+            end
+            current_pos -= 1
+        end
+
+        # Truncate the file at the current position
+        truncate(f, 0)
+        seekstart(lines)
+        seekstart(f)
+        write(f, lines)
+    finally
+        close(lines)
+        close(f)
+    end
+end
+
 @doc """Finds the module corresponding to a given symbol.
 
 $(TYPEDSIGNATURES)

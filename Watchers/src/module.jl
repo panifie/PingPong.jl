@@ -8,7 +8,7 @@ using .Data.DataFrames: DataFrame
 using .Misc
 using .Misc.TimeTicks
 using .Misc.Lang: Option, safewait, safenotify, @lget!, Lang
-using .Misc: after
+using .Misc: after, truncate_file
 using Base.Threads: @spawn
 
 @doc """ Attempts to fetch data for a watcher
@@ -225,6 +225,12 @@ function _watcher(
     w = finalizer(close, w)
     @debug "_init $name"
     _init!(w, _val(w))
+    logfile = get(attrs, :logfile, nothing)
+    if !isnothing(logfile)
+        maxlines = get(attrs, :logfile_maxlines, 10000)
+        @debug "truncating logfile" logfile maxlines
+        truncate_file(logfile, maxlines)
+    end
     @debug "_load for $name? $(w.has.load)"
     w.has.load && _load!(w, _val(w))
     w.last_flush = now() # skip flush on start
