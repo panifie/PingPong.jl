@@ -1,5 +1,4 @@
 using ..Data: OHLCV_COLUMNS, contiguous_ts
-using ..Data.DataStructures: PriorityQueue
 using ..Data.DFUtils: lastdate, dateindex
 using ..Misc: between, truncate_file
 using ..Fetch.Processing: iscomplete
@@ -27,6 +26,7 @@ baremodule LogOHLCVTickers end
     stale_df
     callback
     fetch_backoff
+    vwap
 end
 
 @doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
@@ -174,31 +174,9 @@ _resetcandle!(w, cdl, ts, price) = begin
     cdl.close = price
     cdl.volume = ifelse(_isvwap(w), NaN, 0)
 end
-_isvwap(w) = w[k"price_source"] == :vwap
+_isvwap(w) = w[k"price_source"] == k"vwap"
 _zeroticks!(w, sym) = w[k"candle_ticks"][sym] = 0
-_dvol!(w, sym, v) = _dvol(w)[sym] = v
-function _queue_resolve(w, df, latest_timestamp, sym)
-    resolve_dict = w[k"isresolving"]
-    sem = w[k"sem"]
-    if get(resolve_dict, sym, false)
-        while get(resolve_dict, sym, false)
-            @debug "ohlcv tickers: waiting for resolution" _module = LogOHLCVTickers sym latest_timestamp
-            safewait(sem.cond_wait)
-        end
-    else
-        try
-            resolve_dict[sym] = true
-            @debug "ohlcv tickers: resolving" _module = LogOHLCVTickers sym latest_timestamp
-            ans = @acquire sem _resolve(w, df, latest_timestamp, sym)
-            if ans isa Exception
-                @debug "ohlcv tickers: resolve error" _module = LogOHLCVTickers exception =
-                    ans
-            end
-        finally
-            resolve_dict[sym] = false
-        end
-    end
-end
+
 function _maybe_resolve(w, df, sym, this_ts, tf)
     if isempty(df)
         @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
@@ -214,7 +192,7 @@ function _maybe_resolve(w, df, sym, this_ts, tf)
         @debug "ohlcv tickers: resolving stale df" _module = LogOHLCVTickers sym _lastdate(
             df
         ) this_ts
-        _queue_resolve(w, df, this_ts, sym)
+        @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
         @ifdebug @assert isrightadj(this_ts, _lastdate(df), tf)
         k"stale_df"
     end
@@ -269,7 +247,7 @@ function diff_volume!(w, df, temp_candle, sym, latest_timestamp)
             backoff_dict = w[k"fetch_backoff"]
             backoff = @lget! backoff_dict sym 0
             if backoff < 3
-                _ensure_ohlcv!(w, sym)
+                @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
                 backoff_dict[sym] += 1
             end
             idx = dateindex(df, dropped_candle_date)
@@ -400,23 +378,24 @@ function _ensure_ohlcv!(w, sym)
     min_rows = w.capacity.view - w.capacity.buffer
     df = @lget! w.view sym empty_ohlcv()
     if isempty(df)
+        local this, from, to
         # fetch in excess
-        from = now() - (w.capacity.view + 1) * tf
-        _fetchto!(w, df, sym, tf, Val(:append); from, to=_nextdate(tf))
+        this = now()
+        from = this - (w.capacity.view + 1) * tf
+        to = _nextdate(tf)
+        _fetchto!(w, df, sym, tf, Val(:append); from, to)
         _do_check_contig(w, df, _checks(w))
     else
-        let (from, to) = (lastdate(df), _nextdate(tf))
-            if length(from:(period(tf)):to) > min_rows
-                from = to - period(tf) * w.capacity.view
-            end
-            _fetchto!(w, df, sym, tf, Val(:append); from, to)
+        (from, to) = (lastdate(df), _nextdate(tf))
+        if length(from:(period(tf)):to) > min_rows
+            from = to - period(tf) * w.capacity.view
         end
+        _fetchto!(w, df, sym, tf, Val(:append); from, to)
         _do_check_contig(w, df, _checks(w))
         if nrow(df) < min_rows
-            let to = _firstdate(df) + period(tf)
-                _fetchto!(w, df, sym, tf, Val(:prepend); to)
-                _do_check_contig(w, df, _checks(w))
-            end
+            to = _firstdate(df) + period(tf)
+            _fetchto!(w, df, sym, tf, Val(:prepend); to)
+            _do_check_contig(w, df, _checks(w))
         end
     end
     if nrow(df) < min_rows
