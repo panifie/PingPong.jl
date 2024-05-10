@@ -1,7 +1,7 @@
 module WatchersImpls
 using LazyJSON
 using ..Lang: @lget!, @kget!, fromdict, Option
-using ..Lang: @statickeys!, @setkey!, @getkey, @key
+using ..Lang: @statickeys!, @setkey!
 using ..TimeTicks
 using ..Misc
 using ..Watchers
@@ -26,7 +26,7 @@ using Base: Semaphore
 using ..CoinGecko: CoinGecko as cg
 using ..CoinPaprika: CoinPaprika as cp
 
-# TODO replace _function wrappers with @getkey @setkey!
+# TODO replace _function wrappers with statickeys syntax
 @statickeys! begin
     default_view
     timeframe

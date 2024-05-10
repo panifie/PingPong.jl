@@ -156,6 +156,10 @@ Base.getproperty(w::Watcher, p::Symbol) = begin
         getindex(attrs, p)
     end
 end
+Base.getproperty(w::Watcher, p::String) = begin
+    attrs = getfield(w, :attrs)
+    getindex(attrs, :view)[p]
+end
 buffer(w::Watcher) = getfield(w, :buffer)
 Base.getindex(w::Watcher, i::Symbol) = attr(w, i)
 Base.setindex!(w::Watcher, v, i::Symbol) = setattr!(w, v, i)
