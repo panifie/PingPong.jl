@@ -153,7 +153,7 @@ function signals!(s::Strategy, ::Val{:warmup}; force=false, history=true)
             this_asset = asset_tasks(s, ai; tasks).byname
             prev_task = get(this_asset, :signals, nothing)
             if !istaskrunning(prev_task)
-                this_asset[:signals] = @async foreach(s[:signals_def]) do def
+                this_asset[:signals] = @async foreach(s.signals_def.defs) do def
                     update_data!(ai, def.tf)
                 end
             end
