@@ -11,6 +11,7 @@ using .Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
 using .Misc.Lang: @lget!, @ifdebug, @deassert, Option, @writeerror, @debug_backtrace
+using .Misc: truncate_file
 using .Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using .Executors.Strategies
 using .Instances: MarginInstance
@@ -206,6 +207,7 @@ function start!(
     else
         s[:run_task] = @async begin
             logfile = runlog(s)
+            truncate_file(logfile, logmaxlines(s))
             loghandle = open(logfile, "w")
             try
                 logger = SimpleLogger(loghandle)
@@ -274,6 +276,10 @@ This function returns the log file path for a given strategy. If the log file pa
 """
 function runlog(s, name=lowercase(string(typeof(execmode(s)))))
     get!(s.attrs, :logfile, st.logpath(s; name))
+end
+
+function logmaxlines(s)
+    get!(s.attrs, :logfile_maxlines, 10000)
 end
 
 @doc """
