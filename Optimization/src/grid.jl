@@ -287,8 +287,7 @@ function gridsearch(
                         end
                     end
                 end
-                # TODO: use @nogc for other optimization methods
-                @nogc Threads.@threads for cell in grid_itr
+                Threads.@threads for cell in grid_itr
                     if isrunning()
                         try
                             runner(cell)

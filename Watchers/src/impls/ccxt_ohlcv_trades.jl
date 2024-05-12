@@ -5,7 +5,6 @@ using ..Fetch.Processing.TradesOHLCV
 using ..Fetch.Processing: trail!
 using ..Fetch.Python
 using ..Misc: sleep_pad
-using .Python: @nogc
 using .Lang: @get
 
 const CcxtOHLCVVal = Val{:ccxt_ohlcv}
@@ -142,7 +141,7 @@ function _start!(w::Watcher, ::CcxtOHLCVVal)
     _pending!(w)
     empty!(_trades(w))
     df = w.view
-    @nogc _fetchto!(w, df, _sym(w), _tfr(w); to=_curdate(_tfr(w)), from=if !isempty(df)
+    _fetchto!(w, df, _sym(w), _tfr(w); to=_curdate(_tfr(w)), from=if !isempty(df)
         lastdate(df)
     end)
     _check_contig(w, w.view)
@@ -182,7 +181,7 @@ function _parse_trades(w, pytrades)
         sleep(w[:backoff])
         return nothing
     end
-    @nogc if length(pytrades) > 0
+    if length(pytrades) > 0
         new_trades = [
             fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in this_trades
         ]
@@ -228,7 +227,7 @@ function _empty_candles(w, ::Warmed)
     raw_right = isempty(_trades(w)) ? w.last_fetch : _firsttrade(w).timestamp
     left = apply(tf, _lastdate(w.view))
     right = apply(tf, raw_right)
-    @nogc trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
+    trail!(w.view, tf; from=left, to=right, cap=w.capacity.view)
 end
 
 @doc """ Processes the watcher data and updates the dataframe
@@ -247,17 +246,17 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     # On startup, the first trades that we receive are likely incomplete
     # So we have to discard them, and only consider trades after the first (normalized) timestamp
     # Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
-    temp = let temp = @nogc trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
+    temp = let temp = trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
         isnothing(temp) && return nothing
         ohlcv = cleanup_ohlcv_data(temp.ohlcv, _tfr(w))
         (; ohlcv, temp.start, temp.stop)
     end
-    @nogc if isempty(w.view)
+    if isempty(w.view)
         appendmax!(w.view, temp.ohlcv, w.capacity.view)
     else
         _resolve(w, w.view, temp.ohlcv)
     end
-    @nogc keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
+    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
     _warmed!(w, _status(w))
     @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end
