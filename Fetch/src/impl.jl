@@ -711,18 +711,10 @@ function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)
 end
 
 function _fetch_candles(
-    exc, timeframe, pairs::Iterable; from::D1, to::D2, ohlcv_kind=:default
+    exc, timeframe, pairs::Iterable; kwargs...
 ) where {D1,D2<:Union{DateTime,AbstractString}}
     @sync Dict(
-        name => @async __get_ohlcv(
-            exc,
-            name,
-            timeframe,
-            Returns((nothing, from)),
-            to;
-            cleanup=false,
-            ohlcv_kind,
-        )[1] for name in pairs
+        name => @async _fetch_candles(exc, timeframe, pairs; kwargs...) for name in pairs
     )
 end
 
