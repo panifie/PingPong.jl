@@ -15,6 +15,7 @@ const currency_lock = ReentrantLock()
 function to_float(py::Py, T::Type{<:AbstractFloat}=DFT)
     something(pyconvert(Option{T}, py), zero(T))
 end
+to_float(v::Number) = v
 
 @doc "Convert a Python object to a number."
 function to_num(py::Py)
