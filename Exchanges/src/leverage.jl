@@ -39,6 +39,7 @@ function leverage!(exc::Exchange, v, sym; side=Long(), timeout=Second(5))
                 false
             elseif resp_lev isa Exception
                 @error "exchanges: set leverage" exception = resp_lev
+                false
             else
                 side_key = ifelse(side == Long(), "longLeverage", "shortLeverage")
                 resp_val = pytofloat(get(resp_lev, side_key, one(DFT)))
