@@ -42,7 +42,7 @@ function iscrossed(s, ai, ats, sig_b, drc::Val)
             @debug "crossed: signal missing" ai sig_b
             return false
         elseif sig.date < prev_date
-            @warn "crossed: stale signal"
+            @warn "crossed: stale signal" maxlog = 1
             return false
         elseif isnan(prev_sig_val[])
             @debug "crossed: signal missing" ai sig_b
