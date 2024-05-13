@@ -27,14 +27,25 @@ $(TYPEDSIGNATURES)
 "
 function leverage!(exc::Exchange, v, sym; side=Long(), timeout=Second(5))
     lev = leverage_value(exc, v, sym)
-    resp = pyfetch_timeout(exc.setLeverage, Returns(nothing), timeout, lev, sym)
+    set_func = first(exc, :setLeverage)
+    if isnothing(set_func)
+        @warn "exchanges: set leverage not supported" exc
+        return false
+    end
+    resp = pyfetch_timeout(set_func, Returns(nothing), timeout, lev, sym)
     if isnothing(resp)
-        @warn "exchanges: set leverage timedout" sym lev = v exc = nameof(exc)
+        @warn "exchanges: set leverage timedout" sym lev = v exc
         false
     else
         success = _handle_leverage(exc, resp)
         if !success
-            resp_lev = pyfetch_timeout(exc.fetchLeverage, Returns(nothing), timeout, sym)
+            # TODO: support `fetchLeverages` with caching?
+            fetch_func = first(exc, :fetchLeverage)
+            if isnothing(fetch_func)
+                @warn "exchange: can't check leverage" exc
+                return false
+            end
+            resp_lev = pyfetch_timeout(fetch_func, Returns(nothing), timeout, sym)
             if isnothing(resp_lev)
                 false
             elseif resp_lev isa Exception
