@@ -361,7 +361,7 @@ macro tickers!(type=nothing, force=false, cache=TICKERS_CACHE100)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
                 $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
                     $tickers = pyconvert(
-                        Dict{String,Dict{String,Any}}, fetch_tickers(exc, tp)
+                        Dict{String,Dict{String,Any}}, fetch_tickers($exc, tp)
                     )
                 end
             else
