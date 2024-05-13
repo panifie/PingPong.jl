@@ -21,13 +21,13 @@ baremodule LogOHLCVTickers end
     temp_ohlcv
     daily_volume
     candle_ticks
-    isresolving
     stale_candle
     stale_df
     callback
     fetch_backoff
     vwap
     minrows_warned
+    syms_processed
 end
 
 @doc """OHLCV watcher based on exchange tickers data. This differs from the ohlcv watcher based on trades.
@@ -140,6 +140,7 @@ function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
     a[k"sym_locks"] = Dict{String,ReentrantLock}()
     a[k"fetch_backoff"] = Dict{String,Int}()
     a[k"last_processed"] = typemax(DateTime)
+    a[k"syms_processed"] = Dict(string(sym) => (false, DateTime(0)) for sym in _ids(w))
     _initsyms!(w)
     _checkson!(w)
 end
@@ -184,8 +185,6 @@ function _maybe_resolve(w, df, sym, this_ts, tf)
         @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
         if isempty(df)
             return k"stale_df"
-        else
-            invokelatest(w[k"callback"], df, sym)
         end
     end
     if this_ts == _lastdate(df)
@@ -273,10 +272,8 @@ This function updates the OHLCV for a specific symbol based on the latest timest
 It resets the temporary candlestick chart if the timestamp is newer than the current one and ensures contiguity when appending the candle to the DataFrame.
 
 """
-function _update_sym_ohlcv(w, ticker, last_time)
-    sym = ticker.symbol
+function _update_sym_ohlcv(w, ticker, latest_timestamp, sym=ticker.symbol)
     df = @lget! w.view sym empty_ohlcv()
-    latest_timestamp = apply(_tfr(w), @something ticker.timestamp last_time)
     price = getproperty(ticker, w[k"price_source"])
     temp_candle = @lget! w[k"temp_ohlcv"] sym begin
         c = TempCandle(; timestamp=latest_timestamp)
@@ -349,17 +346,29 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
         end
         return nothing
     end
+    syms_processed = w[k"syms_processed"]
+    map!(Returns((false, DateTime(0))), values(syms_processed))
     last_idx = lastindex(buffer(w))
     idx = _idx_to_process(w, last_p_date, last_idx)
+    latest_timestamp = DateTime(0)
+    this_tf = _tfr(w)
     while !isnothing(idx)
-        tasks = w[k"process_tasks"]
+        tasks = w.handler.process_tasks
         data_date, data = w.buffer[idx]
         for (sym, ticker) in data
-            t = @async @lock _symlock(w, sym) _update_sym_ohlcv(w, ticker, data_date)
+            latest_timestamp = apply(this_tf, @something ticker.timestamp data_date)
+            t = @async @lock _symlock(w, sym) _update_sym_ohlcv(w, ticker, latest_timestamp)
             push!(tasks, errormonitor(t))
+            syms_processed[sym] = (true, latest_timestamp)
         end
         _lastprocessed!(w, data_date)
         idx = _idx_to_process(w, data_date, last_idx)
+    end
+    for (sym, p) in syms_processed
+        if !p[1] && latest_timestamp > p[2]
+            _update_sym_ohlcv(w, nothing, latest_timestamp, sym)
+            syms_processed[sym] = (true, latest_timestamp)
+        end
     end
 end
 
@@ -369,7 +378,6 @@ function _start!(w::Watcher, ::CcxtOHLCVTickerVal)
     _chill!(w)
     a = w.attrs
     a[k"sem"] = Base.Semaphore(a[:n_jobs])
-    a[k"isresolving"] = Dict{String,Bool}()
     empty!(w[k"temp_ohlcv"])
 end
 
@@ -405,6 +413,19 @@ function _ensure_ohlcv!(w, sym)
         @warn "ohlcv tickers watcher: can't fill view with enough data" sym nrow(df) min_rows
         w[k"minrows_warned"] = true
     end
+    cb = get(w.attrs, k"callback", nothing)
+    if applicable(cb, (df, sym))
+        invokelatest(cb, df, sym)
+    end
+end
+
+function _load_ohlcv!(w, sym)
+    sym ∉ _ids(w) && error("Trying to load $sym, but watcher is not tracking it.")
+    if _isloaded(w, sym)
+        return nothing
+    end
+    l = _symlock(w, sym)
+    @lock l @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
 end
 
 @doc """ Loads the OHLCV data for a specific symbol.
@@ -415,13 +436,16 @@ This function loads the OHLCV data for a specific symbol.
 If the symbol is not being tracked by the watcher or if the data for the symbol has already been loaded, the function returns nothing.
 
 """
-function _load!(w::Watcher, ::CcxtOHLCVTickerVal, sym)
-    sym ∉ _ids(w) && error("Trying to load $sym, but watcher is not tracking it.")
-    if _isloaded(w, sym)
+_load!(w::Watcher, ::CcxtOHLCVTickerVal, sym) = _load_ohlcv!(w, sym)
+
+function _load_all_ohlcv!(w)
+    if (isempty(w.buffer) || isempty(w.view))
         return nothing
     end
-    l = _symlock(w, sym)
-    @lock l @acquire w[k"sem"] _ensure_ohlcv!(w, sym)
+    syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
+    @sync for sym in syms
+        @async @acquire w[k"sem"] @logerror w _load!(w, _val(w), sym)
+    end
 end
 
 @doc """ Loads the OHLCV data for all symbols.
@@ -432,12 +456,40 @@ This function loads the OHLCV data for all symbols.
 If the buffer or view of the watcher is empty, the function returns nothing.
 
 """
-function _loadall!(w::Watcher, ::CcxtOHLCVTickerVal)
-    if (isempty(w.buffer) || isempty(w.view))
+_loadall!(w::Watcher, ::CcxtOHLCVTickerVal) = _load_all_ohlcv!(w)
+
+function _update_sym_ohlcv(w, ::Nothing, latest_timestamp, sym)
+    df = get(w.view, sym, nothing)
+    if isnothing(df)
         return nothing
     end
-    syms = isempty(w.buffer) ? keys(w.view) : keys(last(w.buffer).value)
-    @sync for sym in syms
-        @async @acquire w[k"sem"] @logerror w _load!(w, _val(w), sym)
+    temp_candle = get(w, k"temp_ohlcv", nothing)
+    if isnothing(temp_candle)
+        return nothing
+    end
+    price = if !iszero(temp_candle.close)
+        temp_candle.close
+    elseif !isempty(df)
+        p = last(df.close)
+        _resetcandle!(w, temp_candle, _lastdate(df), price)
+        p
+    else
+        return nothing
+    end
+    # if new candle timestamp, push the previous finished candle
+    if temp_candle.timestamp < latest_timestamp
+        if w[k"candle_ticks"] > 0
+            if w[k"diff_volume"]
+                diff_volume!(w, df, temp_candle, sym, latest_timestamp)
+            elseif !_isvwap(w)
+                # NOTE: this is where a stall can happen since can potentially call
+                # process adjusted volume
+                _meanvolume!(w, sym, temp_candle)
+            end
+        end
+        # `_fetch_candles`
+        _ensure_contig!(w, df, temp_candle, _tfr(w), sym)
+        _resetcandle!(w, temp_candle, latest_timestamp, price)
+        _zeroticks!(w, sym)
     end
 end

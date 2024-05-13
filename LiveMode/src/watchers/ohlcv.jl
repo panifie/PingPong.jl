@@ -121,6 +121,7 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
         )
         buffer_capacity = attr(s, :live_buffer_capacity, 100)
         view_capacity = attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity)
+        n_jobs = attr(s, :live_ohlcv_jobs, 4)
         function propagate_callback(_, sym)
             @debug "watchers: propagating" _module = LogWatchOHLCV sym
             asset_bysym(s, sym) |> ohlcv_dict |> propagate_ohlcv!
@@ -134,6 +135,7 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
                 logfile=logpath(s; name="tickers_watcher_$(nameof(s))"),
                 buffer_capacity,
                 view_capacity,
+                n_jobs,
                 default_view,
                 callback=propagate_callback
             )

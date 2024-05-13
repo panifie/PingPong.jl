@@ -3,7 +3,7 @@ using ..Data.DFUtils: firstdate, lastdate, copysubs!, addcols!
 using ..Data.DataFramesMeta
 using ..Fetch.Exchanges: Exchange
 using ..Fetch.Exchanges.Ccxt: _multifunc, Py
-using ..Fetch.Exchanges.Python: islist, isdict
+using ..Fetch.Exchanges.Python: islist, isdict, StreamHandler
 using ..Fetch: fetch_candles
 using ..Lang
 using ..Lang: safenotify, safewait
@@ -12,6 +12,7 @@ using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
 
 @add_statickeys! begin
+    exc
     status
 end
 
@@ -491,46 +492,53 @@ function _flushfrom!(w)
     _lastflushed!(w, _lastdate(w.view))
 end
 
-function handler_task!(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
+@kwdef mutable struct WatcherHandler1
+    init = true
+    init_func::Function
+    corogen_func::Function
+    wrapper_func::Function
+    channel::Channel
+    state::Option{StreamHandler} = nothing
+    task::Option{Task} = nothing
+    const process_tasks = Task[]
+end
+
+function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
     interval = w.interval.fetch
     buffer_size = max(w.capacity.buffer, w.capacity.view)
-    init = Ref(true)
-    tasks = w[:process_tasks] = Task[]
-    channel = w[:channel] = Ref(Channel{Any}(buffer_size))
-    w[:init_func] = init_func
-    w[:corogen_func] = corogen_func
-    w[:wrapper_func] = wrapper_func
+    wh = WatcherHandler1(; init_func, corogen_func, wrapper_func, channel=Channel{Any}(buffer_size))
+    tasks = wh.process_tasks
     function process_val!(w, v)
         if !isnothing(v)
             @lock w _dopush!(w, wrapper_func(v); if_func)
         end
-        push!(tasks, @async process!(w))
+        push!(tasks, errormonitor(@async process!(w)))
         filter!(!istaskdone, tasks)
     end
     function init_watch_func(w)
         let v = @lock w init_func()
             process_val!(w, v)
         end
-        init[] = false
-        f_push(v) = put!(channel[], v)
-        h = w[:handler] = stream_handler(corogen_func(w), f_push)
-        start_handler!(h)
-        bind(channel[], h.task)
+        wh.init = false
+        f_push(v) = put!(wh.channel, v)
+        wh.state = stream_handler(corogen_func(w), f_push)
+        start_handler!(wh.state)
+        bind(wh.channel, wh.task)
     end
     function watch_func(w)
-        if init[]
+        if wh.init
             init_watch_func(w)
         end
-        v = if isopen(channel[])
-            take!(channel[])
+        v = if isopen(wh.channel)
+            take!(wh.channel)
         else
-            channel[] = Channel{Any}(buffer_size)
+            wh.channel = Channel{Any}(buffer_size)
             init_watch_func(w)
-            if !isopen(channel[])
+            if !isopen(wh.channel)
                 @error "Positions handler can't be started"
                 sleep(interval)
             else
-                take!(channel[])
+                take!(wh.channel)
             end
         end
         if v isa Exception
@@ -541,33 +549,29 @@ function handler_task!(w; init_func, corogen_func, wrapper_func=pylist, if_func=
         end
         return true
     end
-    w[:handler_task] = @async begin
-        while isstarted(w)
-            try
-                watch_func(w)
-                safenotify(w.beacon.fetch)
-            catch e
-                if e isa InterruptException
-                    break
-                else
-                    @debug_backtrace
-                end
+    wh.task = @async while isstarted(w)
+        try
+            watch_func(w)
+            safenotify(w.beacon.fetch)
+        catch e
+            if e isa InterruptException
+                break
+            else
+                @debug_backtrace
             end
         end
     end
+    return wh
 end
 
-handler_task(w) = w[:handler_task]
-function check_task!(w)
+handler_task!(w, sym; kwargs...) = @lget! w.handlers sym new_handler_task(w; kwargs...)
+handler_task!(w; kwargs...) = w[:handler] = new_handler_task(w; kwargs...)
+handler_task(w) = w.handler.task
+handler_task(w, sym) = w.handlers[sym].task
+function check_handler_task!(wh)
     try
-        task = handler_task(w)
-        if !istaskrunning(task)
-            handler_task!(
-                w;
-                init_func=w[:init_func],
-                corogen_func=w[:corogen_func],
-                wrapper_func=w[:wrapper_func],
-            )
+        if !istaskrunning(wh.task)
+            handler_task!(w; wh.init_func, wh.corogen_func, wh.wrapper_func)
             istaskrunning(handler_task(w))
         else
             true
@@ -578,14 +582,18 @@ function check_task!(w)
     end
 end
 
-function stop_handler_task!(w)
-    handler = attr(w, :handler, nothing)
-    if !isnothing(handler)
-        stop_handler!(handler)
+check_task!(w) = check_handler_task!(w.handler)
+check_task!(w, sym) = check_handler_task!(w.handlers[sym])
+
+function stop_watcher_handler!(wh)
+    if !isnothing(wh)
+        stop_handler!(wh.state)
     end
-    channel = attr(w, :channel, nothing)
-    if channel isa Ref{Channel} && isopen(channel[])
-        close(channel[])
+    if isopen(wh.channel)
+        close(wh.channel)
     end
     nothing
 end
+
+stop_handler_task!(w) = stop_watcher_handler!(w.handler)
+stop_handler_task!(w, sym) = stop_watcher_handler!(w.handlers[sym])
