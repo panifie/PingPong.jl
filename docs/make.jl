@@ -63,6 +63,7 @@ get(ENV, "PINGPONG_DOCS_LOADED", "false") == "true" || begin
     use(:Optimization, "Optimization")
     use(:Ccxt, "Ccxt")
     use(:Python, "Python")
+    use(:StrategyTools, "StrategyTools")
     using PingPong.Data.DataStructures
     @eval using Base: Timer
     ENV["LOADED"] = "true"
