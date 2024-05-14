@@ -162,6 +162,7 @@ function _warmup!(w, ::Pending)
     ats = apply(_tfr(w), now())
     target = w[:warmup_target]
     if ats > target
+        @debug "watchers: warmed!" w
         _warmed!(w, _status(w))
     end
 end

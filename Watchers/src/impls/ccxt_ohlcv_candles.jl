@@ -53,22 +53,27 @@ end
 
 _fetch!(w::Watcher, ::CcxtOHLCVCandlesVal; sym=nothing) = _tfunc(w)()
 
+@kwdef mutable struct CandleWatcherSymbolState2
+    const sym::String
+    const lock::ReentrantLock = ReentrantLock()
+    loaded::Bool = false
+    backoff::Int8 = 0
+    isprocessed::Bool = false
+    processed_time::DateTime = DateTime(0)
+end
+
 function _init!(w::Watcher, ::CcxtOHLCVCandlesVal)
     _view!(w, default_view(w, Dict{String,DataFrame}))
-    a = attrs(w)
-    a[k"loaded"] = Dict{String,Bool}()
-    a[k"sym_locks"] = Dict{String,ReentrantLock}()
-    a[k"fetch_backoff"] = Dict{String,Int}()
-    _initsyms!(w)
     _checkson!(w)
 end
 
 _process!(::Watcher, ::CcxtOHLCVCandlesVal) = nothing
 
 function _start!(w::Watcher, ::CcxtOHLCVCandlesVal)
-    _reset_candles_func!(w)
     a = w.attrs
     a[k"sem"] = Base.Semaphore(a[k"n_jobs"])
+    a[k"symstates"] = Dict(sym => CandleWatcherSymbolState2(; sym) for sym in _ids(w))
+    _reset_candles_func!(w)
 end
 
 _stop!(w::Watcher, ::CcxtOHLCVCandlesVal) = begin
@@ -115,7 +120,7 @@ function _reset_candles_func!(w)
     init_func() =
         for sym in ids
             push!(init_tasks, @async begin
-                @lock _symlock(w, sym) _ensure_ohlcv!(w, sym)
+                @lock w.symstates[sym].lock _ensure_ohlcv!(w, sym)
                 delete!(init_tasks, current_task())
             end)
         end

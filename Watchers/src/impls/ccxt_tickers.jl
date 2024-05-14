@@ -42,7 +42,7 @@ function ccxt_tickers_watcher(
     exc::Exchange;
     val=CcxtTickerVal(),
     wid=CcxtTickerVal.parameters[1],
-    syms=[],
+    syms=keys(exc.markets),
     interval=Second(5),
     start=true,
     load=true,
