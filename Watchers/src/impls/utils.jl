@@ -506,7 +506,9 @@ end
 function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
     interval = w.interval.fetch
     buffer_size = max(w.capacity.buffer, w.capacity.view)
-    wh = WatcherHandler1(; init_func, corogen_func, wrapper_func, channel=Channel{Any}(buffer_size))
+    wh = WatcherHandler1(;
+        init_func, corogen_func, wrapper_func, channel=Channel{Any}(buffer_size)
+    )
     tasks = wh.process_tasks
     function process_val!(w, v)
         if !isnothing(v)
@@ -595,5 +597,18 @@ function stop_watcher_handler!(wh)
     nothing
 end
 
-stop_handler_task!(w) = stop_watcher_handler!(w.handler)
-stop_handler_task!(w, sym) = stop_watcher_handler!(w.handlers[sym])
+stop_handler_task!(w) = begin
+    h = get(w.attrs, :handler, nothing)
+    if !isnothing(h)
+        stop_watcher_handler!(h)
+    end
+end
+stop_handler_task!(w, sym) = begin
+    hs = get(w.attrs, :handlers, nothing)
+    if !isnothing(hs)
+        h = get(hs, sym, nothing)
+        if !isnothing(h)
+            stop_watcher_handler!(h)
+        end
+    end
+end

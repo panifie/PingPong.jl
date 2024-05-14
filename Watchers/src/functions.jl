@@ -14,6 +14,14 @@ _fetch_lock(w) = getfield(_exec(w), :fetch_lock)
 _buffer_lock(w) = getfield(_exec(w), :buffer_lock)
 _errors(w) = getfield(_exec(w), :errors)
 _val(w) = getfield(w, :_val)
+watcher_tasks(w) = begin
+    a = w.attrs
+    if get(a, :iswatch, false) && haskey(a, :handler)
+        w.handler.process_tasks
+    else
+        get(a, :process_tasks, nothing)
+    end
+end
 
 @doc "Get the exchange associated with the watcher."
 exchange(w::Watcher) = attr(w, :exc, nothing)

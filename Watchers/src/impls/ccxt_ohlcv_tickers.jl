@@ -4,7 +4,7 @@ using ..Misc: between, truncate_file
 using ..Fetch.Processing: iscomplete
 using ..Fetch.Exchanges: ratelimit_njobs
 using ..Lang: fromstruct, ifproperty!, ifkey!, @acquire, @add_statickeys!, @k_str
-using ..Watchers: @logerror, _val, default_view, buffer
+using ..Watchers: @logerror, _val, default_view, buffer, watcher_tasks
 
 const PRICE_SOURCES = (:last, :vwap, :bid, :ask)
 const CcxtOHLCVTickerVal = Val{:ccxt_ohlcv_ticker}
@@ -353,7 +353,7 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
     latest_timestamp = DateTime(0)
     this_tf = _tfr(w)
     while !isnothing(idx)
-        tasks = w.handler.process_tasks
+        tasks = watcher_tasks(w)
         data_date, data = w.buffer[idx]
         for (sym, ticker) in data
             latest_timestamp = apply(this_tf, @something ticker.timestamp data_date)
