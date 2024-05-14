@@ -45,7 +45,7 @@ function create_live_order(
             if !isopen && !hasfill && !hasid
                 @warn "create order: refusing" isopen hasfill hasid
                 return nothing
-            elseif _ccxtisstatus(resp, "canceled")
+            elseif _ccxtisstatus(resp, "canceled", eid)
                 @warn "create order: canceled" ai = raw(ai) id hasfill hasid
                 return nothing
             end

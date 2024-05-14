@@ -251,7 +251,7 @@ function _ccxt_sidetype(
 end
 
 _ccxtisstatus(status::String, what) = pyeq(Bool, @pystr(status), @pystr(what))
-_ccxtisstatus(resp, statuses::Vararg{String}) = any(x -> _ccxtisstatus(resp, x), statuses)
+_ccxtisstatus(resp, statuses::NTuple{N,String}) where {N} = any(x -> _ccxtisstatus(resp, x), statuses)
 function _ccxtisstatus(resp, status::String, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pystr(status))
 end
