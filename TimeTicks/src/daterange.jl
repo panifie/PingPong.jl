@@ -41,10 +41,10 @@ Base.similar(dr::DateRange) = begin
     DateRange(dr.start, dr.stop, dr.step)
 end
 
-function Base.show(dr::DateRange)
-    Base.print("start: $(dr.start)\nstop:  $(dr.stop)\nstep:  $(dr.step)\n")
+function Base.print(io::IO, dr::DateRange)
+    print(io, "start: ", dr.start, "\nstop:  ", dr.stop, "\nstep:  ", dr.step, "\n")
 end
-Base.display(dr::DateRange) = Base.show(dr)
+Base.display(dr::DateRange) = Base.print(dr)
 iterate(dr::DateRange) = begin
     @assert !isnothing(dr.start) && !isnothing(dr.stop)
     this = @something dr.current_date[1] dr.start

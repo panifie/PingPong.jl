@@ -711,15 +711,37 @@ end
 Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
 Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)
 
-function Base.string(ai::NoMarginInstance)
-    "AssetInstance($(ai.bc)/$(ai.qc)[$(compactnum(ai.cash.value))]{$(ai.exchange.name)})"
+function Base.print(io::IO, ai::NoMarginInstance)
+    write(
+        io,
+        "\"",
+        raw(ai),
+        " [",
+        compactun(ai.cash.value),
+        "]{",
+        ai.exchange.name,
+        "}",
+    )
 end
-function Base.string(ai::MarginInstance)
+function Base.print(io::IO, ai::MarginInstance)
     long = compactnum(cash(ai, Long()).value)
     short = compactnum(cash(ai, Short()).value)
-    "AssetInstance($(ai.bc)/$(ai.qc)[L:$long/S:$short]{$(ai.exchange.name)})"
+    write(
+        io,
+        "[\"",
+        raw(ai),
+        "\"][L:",
+        long,
+        "/S:",
+        short,
+        "][",
+        ai.exchange.name,
+        "]",
+    )
 end
-Base.show(io::IO, ai::AssetInstance) = write(io, string(ai))
+Base.show(io::IO, ::MIME"text/plain", ai::AssetInstance) = print(io, ai)
+Base.show(io::IO, ai::AssetInstance) = print(io, "\"", raw(ai), "\"")
+
 @doc """ Stub data for an `AssetInstance` with a `DataFrame`.
 
 $(TYPEDSIGNATURES)

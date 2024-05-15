@@ -435,7 +435,7 @@ function liqprice!(po::Position{Short}, v)
     po.liquidation_price[] = v
 end
 
-function Base.show(io::IO, po::Position)
+function Base.print(io::IO, po::Position)
     write(io, "Position($(posside(po)), $(po.asset))\n")
     write(io, "entryprice: ")
     write(io, string(price(po)))
@@ -454,6 +454,9 @@ function Base.show(io::IO, po::Position)
     write(io, "\ndate: ")
     write(io, string(po.timestamp[]))
 end
+
+Base.show(io::IO, ::MIME"text/plain", po::Position) = print(io, po)
+Base.show(io::IO, po::Position) = print(io, po)
 
 export notional, additional, price, bankruptcy, pnl, collateral
 export timestamp!, leverage!, tier!

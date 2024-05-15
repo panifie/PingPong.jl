@@ -147,12 +147,12 @@ end
 
 _ascash((val, sym)) = Cash(val, sym)
 
-Base.string(::Isolated) = "Isolated Margin"
-Base.string(::Cross) = "Cross Margin"
-Base.string(::NoMargin) = "No Margin"
+Base.print(io::IO, ::Isolated) = write(io, "Isolated Margin")
+Base.string(io::IO, ::Cross) = write(io, "Cross Margin")
+Base.string(io::IO, ::NoMargin) = write(io, "No Margin")
 
 @nospecialize
-function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
+function Base.print(out::IO, s::Strategy; price_func=lasttrade_price_func)
     exc = exchange(s)
     write(out, "Name: $(nameof(s)) ($(s |> execmode |> typeof |> nameof)) ")
     if islive(s)
@@ -201,4 +201,8 @@ function Base.show(out::IO, s::Strategy; price_func=lasttrade_price_func)
     t = nameof(s.cash)
     write(out, "$(t): $(tot) (Total)")
 end
+Base.display(s::Strategy; kwargs...) = print(s)
+Base.show(out::IO, ::MIME"text/plain", s::Strategy; kwargs...) = print(out, s; kwargs...)
+Base.show(out::IO, s::Strategy; kwargs...) = print(out, ":", nameof(s))
+
 @specialize

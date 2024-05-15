@@ -142,7 +142,6 @@ _has(exc::Exchange, s::Symbol) = begin
     get(h, s, false)
 end
 
-
 @doc """
 Checks if the specified feature `feat` is supported by any of the exchanges available through the ccxt library.
 
@@ -227,7 +226,7 @@ Base.nameof(e::CcxtExchange) = Symbol(getfield(e, :id))
 exchange(e::Exchange, args...; kwargs...) = e
 exchangeid(e::E) where {E<:Exchange} = getfield(e, :id)
 
-Base.show(out::IO, exc::Exchange) = begin
+Base.print(out::IO, exc::Exchange) = begin
     write(out, "Exchange: ")
     write(out, exc.name)
     write(out, " | ")
@@ -236,3 +235,5 @@ Base.show(out::IO, exc::Exchange) = begin
     tfs = collect(exc.timeframes)
     write(out, "$(length(tfs)) timeframes")
 end
+Base.display(exc::Exchange) = print(exc)
+Base.show(out::IO, exc::Exchange) = print(out, ":", nameof(exc))
