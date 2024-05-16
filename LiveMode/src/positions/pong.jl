@@ -187,15 +187,16 @@ function pong!(
         )
         live_sync_position!(s, ai, pos, update)
     end
-    isopen(ai, pos) || begin
+    if !isopen(ai, pos)
         @warn "pong pos close: not open locally" ai = raw(ai) side = P
         return true
     end
-    _, this_kwargs = splitkws(:reduce_only; kwargs)
-    waitfor_closed(s, ai, @timeout_now) ||
+    if !waitfor_closed(s, ai, @timeout_now)
         @error "pong pos close: orders still pending" orderscount(s, ai) cash(ai) committed(
             ai
         )
+    end
+    _, this_kwargs = splitkws(:reduce_only; kwargs)
     amount = ai |> cash |> abs
     @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
     close_trade = pong!(
