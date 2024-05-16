@@ -1,7 +1,7 @@
 using .st: IsolatedStrategy
 
 using .Executors: AnyMarketOrder
-using SimMode: position!
+using SimMode: position!, singlewaycheck
 
 @doc """Creates a paper market order, updating a leveraged position.
 
@@ -21,7 +21,7 @@ function pong!(
     price=NaN,
     kwargs...,
 )
-    isopen(ai, opposite(positionside(t))) && return nothing
+    !singlewaycheck(s, ai, t) && return nothing
     o, obside = create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
     isnothing(o) && return nothing
     trade = marketorder!(s, o, ai; obside, date)
@@ -45,6 +45,6 @@ function pong!(
     date,
     kwargs...,
 )
-    isopen(ai, opposite(positionside(t))) && return nothing
+    !singlewaycheck(s, ai, t) && return nothing
     create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
 end

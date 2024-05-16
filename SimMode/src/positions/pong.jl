@@ -11,6 +11,20 @@ const _PROTECTIONS_WARNING = """
     we can't ensure that all exchanges have such protections in place.
 """
 
+function singlewaycheck(s, ai, t)
+    pside = positionside(t)
+    opside = opposite(pside)
+    if isopen(ai, opside)
+        return false
+    end
+    for (_, o) in orders(s, ai)
+        if positionside(o) == opside
+            return false
+        end
+    end
+    return true
+end
+
 @doc "Creates a simulated limit order, updating a levarged position."
 function pong!(
     s::IsolatedStrategy{Sim},
@@ -19,7 +33,7 @@ function pong!(
     amount,
     kwargs...,
 )
-    isopen(ai, opposite(positionside(t))) && return nothing
+    !singlewaycheck(s, ai, t) && return nothing
     o = create_sim_limit_order(s, t, ai; amount, kwargs...)
     return if !isnothing(o)
         t = order!(s, o, o.date, ai)
@@ -39,7 +53,7 @@ function pong!(
     date,
     kwargs...,
 )
-    isopen(ai, opposite(positionside(t))) && return nothing
+    !singlewaycheck(s, ai, t) && return nothing
     fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
     o = create_sim_market_order(s, t, ai; amount, date, order_kwargs...)
     isnothing(o) && return nothing

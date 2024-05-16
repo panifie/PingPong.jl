@@ -1,4 +1,4 @@
-using PaperMode.SimMode: _lev_value, leverage!, leverage, position!
+using PaperMode.SimMode: _lev_value, leverage!, leverage, position!, singlewaycheck
 using .st: IsolatedStrategy
 using .Executors: hasorders, update_leverage!
 using .st: exchange
@@ -63,7 +63,7 @@ The check is performed for the current trade type `t` and the associated asset i
 macro isolated_position_check()
     ex = quote
         p = positionside(t)
-        if isopen(ai, opposite(p))
+        if !singlewaycheck(s, ai, t)
             @warn "pong: double direction order in non hedged mode" position(ai) order_type = t
             return nothing
         end
@@ -73,7 +73,7 @@ macro isolated_position_check()
            tup.date >= timestamp(ai, opposite(p)) &&
            !tup.closed[] &&
            _ccxt_isposopen(tup.resp, exchangeid(ai))
-            @warn "pong: double direction order in non hedged mode (2nd)" position(ai) order_type = t
+            @warn "pong: double direction order in non hedged mode (from resp)" position(ai) order_type = t
             @debug "pong: isolated check" _module = LogPos resp = tup.resp
             return nothing
         end
