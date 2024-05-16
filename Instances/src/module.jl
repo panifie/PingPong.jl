@@ -712,32 +712,12 @@ Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
 Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)
 
 function Base.print(io::IO, ai::NoMarginInstance)
-    write(
-        io,
-        "\"",
-        raw(ai),
-        " [",
-        compactun(ai.cash.value),
-        "]{",
-        ai.exchange.name,
-        "}",
-    )
+    write(io, "\"", raw(ai), " [", compactun(ai.cash.value), "]{", ai.exchange.name, "}")
 end
 function Base.print(io::IO, ai::MarginInstance)
     long = compactnum(cash(ai, Long()).value)
     short = compactnum(cash(ai, Short()).value)
-    write(
-        io,
-        "[\"",
-        raw(ai),
-        "\"][L:",
-        long,
-        "/S:",
-        short,
-        "][",
-        ai.exchange.name,
-        "]",
-    )
+    write(io, "[\"", raw(ai), "\"][L:", long, "/S:", short, "][", ai.exchange.name, "]")
 end
 Base.show(io::IO, ::MIME"text/plain", ai::AssetInstance) = print(io, ai)
 Base.show(io::IO, ai::AssetInstance) = print(io, "\"", raw(ai), "\"")
@@ -960,7 +940,10 @@ This function opens or closes the status of a non-hedged position in a `MarginIn
 """
 function status!(ai::MarginInstance, p::PositionSide, pstat::PositionStatus)
     pos = position(ai, p)
-    @assert pstat == PositionOpen() ? status(opposite(ai, p)) == PositionClose() : true "Can only have either long or short position open in non-hedged mode, not both."
+    if pstat == PositionOpen() && status(opposite(ai, p)) == PositionOpen()
+        @error "double position in non hedged mode" ai.longpos ai.shortpos
+        error()
+    end
     _status!(pos, pstat)
     _lastpos!(ai, p, pstat)
 end
