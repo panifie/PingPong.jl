@@ -64,7 +64,7 @@ macro isolated_position_check()
     ex = quote
         p = positionside(t)
         if isopen(ai, opposite(p))
-            _warnpos(p)
+            @warn "pong: double direction order in non hedged mode" position(ai) order_type = t
             return nothing
         end
         side_dict = get_positions(s, opposite(p))
@@ -73,7 +73,8 @@ macro isolated_position_check()
            tup.date >= timestamp(ai, opposite(p)) &&
            !tup.closed[] &&
            _ccxt_isposopen(tup.resp, exchangeid(ai))
-            _warnpos(p)
+            @warn "pong: double direction order in non hedged mode (2nd)" position(ai) order_type = t
+            @debug "pong: isolated check" _module = LogPos resp = tup.resp
             return nothing
         end
     end
