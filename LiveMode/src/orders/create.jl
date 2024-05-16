@@ -93,17 +93,17 @@ function create_live_order(
     end
     o = let f = construct_order_func(type)
         function create(; skipcommit)
-            @debug "create order: local" _module = LogCreateOrder ai = raw(ai) id amount date type price loss profit
+            @debug "create order: local" _module = LogCreateOrder ai id amount date type price leverage(ai) loss profit
             f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
         end
         o = create(; skipcommit)
         if isnothing(o) && synced
             @warn "create order: can't construct (back-tracking)" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s)
             o = findorder(s, ai; resp, side)
-            if isnothing(o)
-                @debug "create order: retrying (no commits)" _module = LogCreateOrder ai = raw(ai) side = posside(t)
-                o = @lock ai create(skipcommit=true)
-            end
+        end
+        if isnothing(o)
+            @debug "create order: retrying (no commits)" _module = LogCreateOrder ai = raw(ai) side = posside(t)
+            o = @lock ai create(skipcommit=true)
         end
         o
     end
