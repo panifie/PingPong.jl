@@ -36,6 +36,7 @@ all_tests = [
 ]
 
 tests(selected=ARGS) = begin
+    selected = string.(selected)
     test_all = "all" ∈ selected || length(selected) == 0
     for testname in all_tests
         if test_all || lowercase(string(testname)) ∈ selected
