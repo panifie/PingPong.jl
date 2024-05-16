@@ -69,6 +69,16 @@ function iszerolev(s, ai, ts; timeout=Day(1))
     iszero(tup.value) && ts < tup.time + timeout
 end
 
+function default_dampener(v)
+    if zero(v) <= v <= 2.0one(v)
+        v
+    elseif v > 2.0one(v)
+        log2(v) + one(v)
+    else
+        zero(v)
+    end
+end
+
 @doc """
 Adjusts the leverage for an asset based on the Kelly criterion.
 
@@ -76,7 +86,7 @@ $(TYPEDSIGNATURES)
 
 Applies a damping function to the raw Kelly leverage to ensure it remains within practical limits.
 """
-function tracklev!(s, ai; dampener=log2)
+function tracklev!(s, ai; dampener=default_dampener)
     ats, pnl = getpnl(s, ai)
     μ = mean(pnl)
     s2 = ((pnl .- μ) .^ 2 |> sum) / (length(pnl) - 1)
