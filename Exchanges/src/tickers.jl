@@ -296,7 +296,7 @@ const DEFAULT_LEVERAGE = (; min=0.0, max=100.0)
 const DEFAULT_AMOUNT = (; min=1e-15, max=Inf)
 const DEFAULT_PRICE = (; min=1e-15, max=Inf)
 const DEFAULT_COST = (; min=1e-15, max=Inf)
-const DEFAULT_FIAT_COST = (; min=1.0, max=Inf)
+const DEFAULT_FIAT_COST = (; min=0.01, max=Inf)
 
 _min_from_precision(::Nothing) = nothing
 _min_from_precision(v::Int) = 1.0 / 10.0^v
