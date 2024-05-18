@@ -3,6 +3,8 @@ using .Exchanges.Ccxt: choosefunc
 using ..Python
 using .Python: pyisnone
 
+baremodule LogTickersWatcher end
+
 const CcxtTickerVal = Val{:ccxt_ticker}
 @doc "The ccxt ticker object as a NamedTuple."
 const CcxtTicker = @NamedTuple begin
@@ -139,7 +141,12 @@ function _check_ids(exc, ids)
         else
             true
         end
-    filter(issymbol_available, ids)
+    v = filter(issymbol_available, ids)
+    if isempty(v)
+        @debug "tickers watcher: no symbols" ids exc
+        error("tickers watcher: no symbols on exchange")
+    end
+    v
 end
 _func_args(exc, ids) =
     if isempty(ids)
