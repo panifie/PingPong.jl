@@ -92,6 +92,8 @@ end
 
 function _fetch!(w::Watcher, ::CcxtOHLCVTickerVal; sym=nothing)
     _fetch!(w, CcxtTickerVal())
+    _checkforstale(w)
+    true
 end
 
 @doc """ A mutable struct representing a temporary candlestick chart.
@@ -359,9 +361,21 @@ function _process!(w::Watcher, ::CcxtOHLCVTickerVal)
         _lastprocessed!(w, data_date)
         idx = _idx_to_process(w, data_date, last_idx)
     end
-    isstale = available(this_tf, now()) > latest_timestamp
+end
+
+@doc """ Checks for stale data in the watcher.
+
+$(TYPEDSIGNATURES)
+
+This function checks for stale data in the watcher by iterating over the symbol states and updating the OHLCV if necessary.
+"""
+function _checkforstale(w)
+    symstates = w.symstates
+    this_tf = _tfr(w)
+    latest_timestamp = apply(this_tf, @lget!(last(buffer(w), 1), 1, (; time=now())).time)
+    tasks = watcher_tasks(w)
     for state in values(symstates)
-        if !state.isprocessed && isstale && latest_timestamp > state.processed_time
+        if !state.isprocessed && apply(this_tf, state.processed_time) < latest_timestamp
             t = @async @lock state.lock _update_sym_ohlcv(
                 w, nothing, latest_timestamp, state.sym
             )
