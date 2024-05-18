@@ -28,7 +28,7 @@ const CcxtTicker = @NamedTuple begin
     quoteVolume::Float64
 end
 
-_ids!(attrs, ids) = attrs[:ids] = ids
+_ids!(attrs, ids) = attrs[:ids] = string.(ids)
 _ids(w) = attr(w, :ids)
 
 @doc """ Create a `Watcher` instance that tracks all markets for an exchange (ccxt)
@@ -61,7 +61,7 @@ function ccxt_tickers_watcher(
     end
     attrs[:issandbox] = issandbox(exc)
     _sym!(attrs, syms)
-    _ids!(attrs, collect(syms))
+    _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
     wid = string(wid, "-", hash((exc.id, syms, attrs[:issandbox])))
