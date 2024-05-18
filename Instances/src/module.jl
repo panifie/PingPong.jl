@@ -152,7 +152,7 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
                     asset=a,
                     min_size=limits.amount.min,
                     tiers=[tiers],
-                    this_tier=[tiers[1]],
+                    this_tier=[first(values(tiers))],
                     cash=CurrencyCash(e, a.bc, 0.0),
                     cash_committed=CurrencyCash(e, a.bc, 0.0),
                 )
