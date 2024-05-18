@@ -116,6 +116,7 @@ macro strategyenv!()
         using .inst: takerfees, makerfees, maxfees, minfees
         using .inst: ishedged, cash, committed, instance, isdust, nondust
         using .pp.Engine.LiveMode: updated_at!, @retry
+        using .pp.Engine.LiveMode: ohlcvmethod, ohlcvmethod!
         using .Instruments: compactnum
         using .Lang: @m_str
 

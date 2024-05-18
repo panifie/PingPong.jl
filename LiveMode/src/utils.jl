@@ -475,6 +475,8 @@ function st.default!(s::LiveStrategy)
     get!(a, :is_watch_orders, true)
     get!(a, :is_watch_mytrades, true)
     get!(a, :is_watch_tickers, true)
+    # see `ohlcvmethod!`
+    get!(a, :live_ohlcv_method, :tickers)
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
