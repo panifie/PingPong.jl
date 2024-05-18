@@ -19,7 +19,7 @@ watcher_tasks(w) = begin
     if get(a, :iswatch, false) && haskey(a, :handler)
         w.handler.process_tasks
     else
-        get(a, :process_tasks, nothing)
+        @lget! a :process_tasks Task[]
     end
 end
 
