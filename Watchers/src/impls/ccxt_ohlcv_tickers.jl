@@ -487,7 +487,7 @@ function _update_sym_ohlcv(w, ::Nothing, latest_timestamp, sym)
         return nothing
     end
     temp_candle = state.temp
-    price = if !iszero(temp_candle.close)
+    price = if isfinite(temp_candle.close) && !iszero(temp_candle.close)
         temp_candle.close
     elseif !isempty(df)
         p = last(df.close)
