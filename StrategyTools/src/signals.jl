@@ -45,7 +45,7 @@ function Base.iterate(state::StrategyTools.SignalState4, prev)
     getfield(state, idx), idx
 end
 
-function signals_state(s)
+function signals_state!(s)
     sig_defs = s[:signals_def]
     s[:signals] = Dict(
         ai => let
@@ -145,7 +145,7 @@ function signals!(s::Strategy, ::Val{:warmup}; force=false, history=true)
     elseif get!(s.attrs, :signals_set, false)
         return nothing
     end
-    s[:signals] = signals_state(s)
+    s[:signals] = signals_state!(s)
     # Fill fresh ohlcv data at startup
     if ispaper(s) || islive(s)
         tasks = @lock s @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
