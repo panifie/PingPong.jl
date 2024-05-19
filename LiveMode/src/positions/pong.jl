@@ -29,24 +29,24 @@ function Executors.pong!(
     else
         val = _lev_value(lev)
         since = now()
+        this_pos = position(ai, pos)
         # First update on exchange
-        ans = if force || !isapprox(leverage(ai, pos), val; atol)
+        if force || !isapprox(leverage(this_pos), val; atol)
             if leverage!(exchange(ai), val, raw(ai); timeout=throttle(s))
-                if synced && isopen(ai, pos)
+                if synced && isopen(this_pos)
                     # then sync position
-                    live_sync_position!(s, ai, pos; force=false, since)
-                    isapprox(leverage(ai, pos), val; atol)
+                    waitforpos(s, ai, pos; since)
+                    if isopen(this_pos)
+                        isapprox(leverage(ai, pos), val; atol)
+                    else
+                        true
+                    end
                 else
                     true
                 end
             else
                 false
             end
-        end
-        if synced
-            isapprox(leverage(ai, pos), val; atol)
-        else
-            ans
         end
     end
 end
