@@ -573,7 +573,8 @@ function _draw_trades!(
         trades_ax,
         view(anchors, z_index);
         color=view(colors, z_index),
-        yscale=log10,
+        # FIXME: new makie version don't have this arg
+        # yscale=log10,
         strokecolor=:black,
         strokewidth=0.33,
         inspector_hover=balloons_tooltip_func(@view(trades_df[z_index, :]);),
