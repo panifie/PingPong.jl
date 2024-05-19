@@ -21,7 +21,6 @@ using OnlineTechnicalIndicators: OnlineTechnicalIndicators as oti
 
 include("utils.jl")
 include("extrema.jl")
-include("optimization.jl")
 include("orders.jl")
 include("trackers.jl")
 include("signals.jl")

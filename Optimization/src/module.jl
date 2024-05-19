@@ -17,6 +17,8 @@ using Base.Threads: threadid
 using SimMode.Misc.DocStringExtensions
 import .st: ping!
 
+include("utils.jl")
+
 @doc "A named tuple representing the context and space in the optimization process."
 const ContextSpace = NamedTuple{(:ctx, :space),Tuple{Context,Any}}
 @doc """ A mutable structure representing the running state of an optimization process.
@@ -398,39 +400,42 @@ The function takes three arguments: `sess`, `small_step`, and `big_step`.
 The function returns a function that performs a backtest for a given set of parameters and a given iteration number.
 """
 function define_backtest_func(sess, small_step, big_step)
-    (params, n) -> let tid = Threads.threadid(), slot = sess.s_clones[tid]
-        lock(slot[1]) do
+    function opt_backtest_func(params, n)
+        tid = Threads.threadid()
+        slot = sess.s_clones[tid]
+        @lock slot[1] begin
             # `ofs` is used as custom input source of randomness
-            let s = slot[2], ctx = sess.ctx_clones[tid], ofs = sess.attrs[:offset] + n
-                # clear strat
-                st.reset!(s, true)
-                # apply params
-                ping!(s, params, OptRun())
-                # randomize strategy startup time
-                let wp = ping!(s, WarmupPeriod()),
-                    inc = Millisecond(round(Int, small_step / ofs)) + big_step * (n - 1)
+            s = slot[2]
+            ctx = sess.ctx_clones[tid]
+            ofs = sess.attrs[:offset] + n
+            # clear strat
+            st.reset!(s, true)
+            # set params as strategy attributes
+            setparams!(s, sess, params)
+            # Pre backtest hook
+            ping!(s, params, OptRun())
+            # randomize strategy startup time
+            let wp = ping!(s, WarmupPeriod()),
+                inc = Millisecond(round(Int, small_step / ofs)) + big_step * (n - 1)
 
-                    current!(ctx.range, ctx.range.start + wp + inc)
-                end
-                # backtest and score
-                initial_cash = value(s.cash)
-                start!(s, ctx; doreset=false)
-                st.sizehint!(s) # avoid deallocations
-                metrics = metrics_func(s; initial_cash)
-                lock(sess.lock) do
-                    push!(
-                        sess.results,
-                        (;
-                            repeat=ofs,
-                            metrics...,
-                            (
-                                pname => p for (pname, p) in zip(keys(sess.params), params)
-                            )...,
-                        ),
-                    )
-                end
-                metrics.obj
+                current!(ctx.range, ctx.range.start + wp + inc)
             end
+            # backtest and score
+            initial_cash = value(s.cash)
+            start!(s, ctx; doreset=false)
+            st.sizehint!(s) # avoid deallocations
+            metrics = metrics_func(s; initial_cash)
+            lock(sess.lock) do
+                push!(
+                    sess.results,
+                    (;
+                        repeat=ofs,
+                        metrics...,
+                        (pname => p for (pname, p) in zip(keys(sess.params), params))...,
+                    ),
+                )
+            end
+            metrics.obj
         end
     end
 end
