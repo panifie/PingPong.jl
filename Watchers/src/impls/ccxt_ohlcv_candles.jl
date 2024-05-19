@@ -12,7 +12,7 @@ function ccxt_ohlcv_candles_watcher(
     view_capacity=count(timeframe, tf"1d") + 1 + buffer_capacity,
     default_view=nothing,
     n_jobs=ratelimit_njobs(exc),
-    callback=nothing,
+    callback=Returns(nothing),
     kwargs...,
 )
     a = Dict{Symbol,Any}()
@@ -117,13 +117,14 @@ function _reset_candles_func!(w)
     tf = _tfr(w)
     tf_str = string(tf)
     init_tasks = @lget! attrs k"process_tasks" Set{Task}()
-    init_func() =
+    function init_func()
         for sym in ids
             push!(init_tasks, @async begin
                 @lock w.symstates[sym].lock _ensure_ohlcv!(w, sym)
                 delete!(init_tasks, current_task())
             end)
         end
+    end
     if has(exc, :watchOHLCVForSymbols)
         watch_func = exc.watchOHLCVForSymbols
         wrapper_func = _update_ohlcv_func(w)
@@ -190,6 +191,7 @@ function _update_ohlcv_func(w)
                     end
                 end
             end
+            invokelatest(w[k"callback"], this_df, sym)
         end
         snap.py
     end
@@ -229,6 +231,7 @@ function _update_ohlcv_func_single(w, sym)
             @warn "ohlcv (candles): out of sync, resolving"
             _ensure_ohlcv!(w, sym)
         end
+        invokelatest(w[k"callback"], df, sym)
         snap.py
     end
 end
