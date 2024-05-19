@@ -28,7 +28,9 @@ $(TYPEDSIGNATURES)
 
 Asynchronously maps the function `f` over the iterable `iter` for the real-time strategy `s`.
 """
-liveloop(f, s::RTStrategy, iter) = asyncmap(f, iter)
+liveloop(f, s::RTStrategy, iter) = @sync for i in iter
+    @async(f(i)) |> errormonitor
+end
 
 @doc """ Apply function to iterable for a strategy.
 
