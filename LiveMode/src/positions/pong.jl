@@ -19,8 +19,8 @@ The function returns the trade or leverage update status.
 
 """
 function Executors.pong!(
-    s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide, synced=false, atol=1e-1, force=false
-)
+    s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide, synced=false, atol=1e-1, force=false,
+)::Bool
     if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
             ai
@@ -30,23 +30,19 @@ function Executors.pong!(
         val = _lev_value(lev)
         since = now()
         this_pos = position(ai, pos)
+        issameval = isapprox(leverage(this_pos), val; atol)
         # First update on exchange
-        if force || !isapprox(leverage(this_pos), val; atol)
-            if leverage!(exchange(ai), val, raw(ai); timeout=throttle(s))
-                if synced && isopen(this_pos)
-                    # then sync position
-                    waitforpos(s, ai, pos; since)
-                    if isopen(this_pos)
-                        isapprox(leverage(ai, pos), val; atol)
-                    else
-                        true
-                    end
-                else
-                    true
-                end
+        if (force || !issameval) && leverage!(exchange(ai), val, raw(ai); timeout=throttle(s))
+            leverage!(this_pos, val)
+            if synced
+                # wait for lev update from watcher
+                waitforpos(s, ai, pos; since)
+                isapprox(leverage(ai, pos), val; atol)
             else
-                false
+                true
             end
+        else
+            issameval
         end
     end
 end
