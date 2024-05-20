@@ -24,7 +24,7 @@ function Executors.pong!(
     if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
             ai
-        ) s = nameof(s)
+        ) s = nameof(s) n_orders = orderscount(s, ai)
         false
     else
         val = _lev_value(lev)
@@ -201,7 +201,7 @@ function pong!(
     since = if close_trade isa Trade
         close_trade.date
     elseif isnothing(close_trade)
-        @error "pong pos close: failed to reduce position to zero"
+        @error "pong pos close: failed to reduce position to zero" ai P t
         return false
     else
         @warn "pong pos close: closing order trades delay" values(s, ai, orderside(t)) ai = raw(ai)

@@ -9,8 +9,12 @@ import .Misc.marginmode
 resp_code(resp, ::Type{<:ExchangeID}) = pygetitem(resp, @pyconst("code"), @pyconst(""))
 function _handle_leverage(e::Exchange, resp)
     if resp isa PyException
-        @debug resp
-        occursin("not modified", string(resp))
+        if occursin("not modified", string(resp))
+            true
+        else
+            @warn "exchanges: set leverage error" e resp
+            false
+        end
     else
         resptobool(e, resp)
     end
