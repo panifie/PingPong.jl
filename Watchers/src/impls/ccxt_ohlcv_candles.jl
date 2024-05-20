@@ -53,13 +53,14 @@ end
 
 _fetch!(w::Watcher, ::CcxtOHLCVCandlesVal; sym=nothing) = _tfunc(w)()
 
-@kwdef mutable struct CandleWatcherSymbolState2
+@kwdef mutable struct CandleWatcherSymbolState4
     const sym::String
     const lock::ReentrantLock = ReentrantLock()
     loaded::Bool = false
     backoff::Int8 = 0
     isprocessed::Bool = false
     processed_time::DateTime = DateTime(0)
+    nextcandle::Any = ()
 end
 
 function _init!(w::Watcher, ::CcxtOHLCVCandlesVal)
@@ -72,7 +73,7 @@ _process!(::Watcher, ::CcxtOHLCVCandlesVal) = nothing
 function _start!(w::Watcher, ::CcxtOHLCVCandlesVal)
     a = w.attrs
     a[k"sem"] = Base.Semaphore(a[k"n_jobs"])
-    a[k"symstates"] = Dict(sym => CandleWatcherSymbolState2(; sym) for sym in _ids(w))
+    a[k"symstates"] = Dict(sym => CandleWatcherSymbolState4(; sym) for sym in _ids(w))
     _reset_candles_func!(w)
 end
 
@@ -154,6 +155,7 @@ function _update_ohlcv_func(w)
     view = _view(w)
     tf = _tfr(w)
     tf_str = _tfr(w) |> string
+    symstates = w.symstates
     function ohlcv_wrapper_func(snap)
         if snap isa Exception
             @error "ohlcv (candles): exception" exception = snap
@@ -164,34 +166,39 @@ function _update_ohlcv_func(w)
         end
         latest_ts = apply(tf, now())
         for (sym, tf_candles) in snap
+            state = symstates[sym]::CandleWatcherSymbolState4
             this_df = view[sym]
             if isempty(this_df)
                 @debug "ohlcv (candles): waiting for startup fetch" _module =
                     LogOHLCVWatcher sym
+                state.nextcandle = tf_candles
                 continue
             end
             next_ts = _nextdate(this_df, tf)
-            if next_ts == latest_ts
+            if islast(lastdate(this_df), tf) || next_ts == latest_ts
                 # df is already updated
+                state.nextcandle = tf_candles
                 continue
             end
-            for (this_tf_str, candles) in tf_candles
+            for (this_tf_str, candles) in state.nextcandle
                 if this_tf_str == tf_str
                     for cdl in candles
                         cdl_ts = apply(tf, first(cdl) |> dt)
-                        if cdl_ts < latest_ts && cdl_ts == next_ts
+                        if cdl_ts == next_ts
                             tup = (cdl_ts, (pytofloat(cdl[idx]) for idx in 2:6)...)
                             push!(this_df, tup)
                             next_ts = cdl_ts
+                            break
                         end
                     end
                     if next_ts + tf < latest_ts
-                        @warn "ohlcv (candles): out of sync, resolving" sym
+                        @warn "ohlcv (candles): out of sync, resolving" sym next_ts tf latest_ts
                         _ensure_ohlcv!(w, sym)
                     end
                 end
             end
             invokelatest(w[k"callback"], this_df, sym)
+            state.nextcandle = tf_candles
         end
         snap.py
     end
@@ -200,6 +207,7 @@ end
 function _update_ohlcv_func_single(w, sym)
     view = _view(w)
     tf = _tfr(w)
+    state = w.symstates[sym]::CandleWatcherSymbolState4
     function ohlcv_wrapper_func(snap)
         if snap isa Exception
             @error "ohlcv (candles): exception" exception = snap
@@ -210,28 +218,32 @@ function _update_ohlcv_func_single(w, sym)
         end
         df = get(view, sym, nothing)
         if isnothing(df) || isempty(df)
+            state.nextcandle = snap
             @debug "ohlcv (candles): waiting for startup fetch" _module = LogOHLCVWatcher sym
             return nothing
         end
         latest_ts = apply(tf, now())
         next_ts::DateTime = _nextdate(df, tf)
-        if next_ts == latest_ts
+        if islast(lastdate(df), tf) || next_ts >= latest_ts
+            state.nextcandle = snap
             # df is already updated
             return nothing
         end
-        for cdl in snap
+        for cdl in state.nextcandle
             cdl_ts = apply(tf, first(cdl) |> dt)
-            if cdl_ts < latest_ts && cdl_ts == next_ts
+            if cdl_ts == next_ts
                 tup = (cdl_ts, (pytofloat(cdl[idx]) for idx in 2:6)...)
                 push!(df, tup)
                 next_ts = cdl_ts
+                break
             end
         end
         if next_ts + tf < latest_ts
-            @warn "ohlcv (candles): out of sync, resolving" sym
+            @warn "ohlcv (candles): out of sync, resolving" sym next_ts tf latest_ts
             _ensure_ohlcv!(w, sym)
         end
         invokelatest(w[k"callback"], df, sym)
+        state.nextcandle = snap
         snap.py
     end
 end
