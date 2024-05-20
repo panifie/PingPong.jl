@@ -186,7 +186,7 @@ function _update_ohlcv_func(w)
                         end
                     end
                     if next_ts + tf < latest_ts
-                        @warn "ohlcv (candles): out of sync, resolving"
+                        @warn "ohlcv (candles): out of sync, resolving" sym
                         _ensure_ohlcv!(w, sym)
                     end
                 end
@@ -228,7 +228,7 @@ function _update_ohlcv_func_single(w, sym)
             end
         end
         if next_ts + tf < latest_ts
-            @warn "ohlcv (candles): out of sync, resolving"
+            @warn "ohlcv (candles): out of sync, resolving" sym
             _ensure_ohlcv!(w, sym)
         end
         invokelatest(w[k"callback"], df, sym)
