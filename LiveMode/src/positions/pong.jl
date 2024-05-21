@@ -24,7 +24,7 @@ function Executors.pong!(
     if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
             ai
-        ) s = nameof(s) n_orders = orderscount(s, ai)
+        ) s = nameof(s) n_orders = orderscount(s, ai) isopen(ai, pos)
         false
     else
         val = _lev_value(lev)
