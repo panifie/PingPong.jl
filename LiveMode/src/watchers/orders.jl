@@ -513,11 +513,11 @@ It then emulates the trade and updates the order state.
 function emulate_trade!(s::LiveStrategy, o, ai; resp,
     average_price=nothing,
     exec=true)
-    if !isopen(ai, o)
-        @error "emu trade: closed order ($(o.id))"
+    eid = exchangeid(ai)
+    if !isopen(ai, o) || !_ccxtisopen(resp, eid),
+        @error "emu trade: closed/canceled order ($(o.id))"
         return nothing
     end
-    eid = exchangeid(ai)
     if !isordertype(ai, o, resp, eid) ||
        !isordersymbol(ai, o, resp, eid) ||
        !isorderid(ai, o, resp, eid; getter=resp_order_id)

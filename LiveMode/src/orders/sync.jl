@@ -152,8 +152,12 @@ function live_sync_open_orders!(
                 if isdict(order_resp)
                     @deassert resp_order_id(order_resp, eid, String) == id
                     replay_order!(s, state.order, ai; resp=order_resp, exec)
-                else
+                elseif !iszero(filled_amount(state.order))
                     @error "sync orders: local order not found on exchange" id ai = raw(ai) exc = nameof(
+                        exchange(ai)
+                    ) resp = order_resp
+                else
+                    @debug "sync order: local order not found on exchange (probably canceled)" id ai = raw(ai) exc = nameof(
                         exchange(ai)
                     ) resp = order_resp
                 end

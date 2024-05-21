@@ -5,6 +5,44 @@ using .Executors.Instruments: AbstractAsset
 using .OrderTypes: ordertype, MarketOrderType, GTCOrderType, ForcedOrderType
 using .Lang: filterkws
 
+function isopenorder(s, ai, resp, eid; fetched=false)
+    isopen = _ccxtisopen(resp, eid),
+    hasfill = resp_order_filled(resp, eid) > ZERO,
+    oid = resp_order_id(resp, eid),
+    hasid = !isempty(oid)
+
+    if !isopen && !hasfill && !hasid
+        @warn "create order: refusing" isopen hasfill hasid
+        return false
+    else
+        status = resp_order_status(resp, eid)
+        if !pytruth(status) && !fetched
+            if isprocessed_order(s, ai, oid)
+                fetched_resp = fetch_orders(s, ai, ids=(oid,))
+                if isemptish(resp)
+                    @debug "create order: order not found on exchange (cancelled?)" ai = raw(ai) oid hasfill hasid fetched_resp
+                    return false
+                else
+                    resp = first(fetched_resp)
+                    return if resp_order_id(resp, eid) != oid
+                        @error "create order: wrong id" oid resp
+                        false
+                    else
+                        isopenorder(s, ai, resp, eid, fetched=true)
+                    end
+                end
+            else
+                @warn "create order: unknown status" ai = raw(ai) id hasfill hasid
+                return false
+            end
+        elseif _ccxtisstatus("canceled", status) || fetched
+            @warn "create order: canceled" ai = raw(ai) id hasfill hasid
+            return false
+        end
+    end
+    return true
+end
+
 @doc """ Creates a live order.
 
 $(TYPEDSIGNATURES)
@@ -37,18 +75,8 @@ function create_live_order(
         status = resp_order_status(resp, eid)
         side = @something _orderside(resp, eid) orderside(t)
         @debug "create order: parsing" _module = LogCreateOrder status filled = resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
-        let isopen = _ccxtisopen(resp, eid),
-            hasfill = resp_order_filled(resp, eid) > ZERO,
-            oid = resp_order_id(resp, eid),
-            hasid = !isempty(oid)
-
-            if !isopen && !hasfill && !hasid
-                @warn "create order: refusing" isopen hasfill hasid
-                return nothing
-            elseif _ccxtisstatus(resp, "canceled", eid)
-                @warn "create order: canceled" ai = raw(ai) id hasfill hasid
-                return nothing
-            end
+        if !isopenorder(s, ai, resp, eid)
+            return nothing
         end
         this_order_type(ot) = begin
             pos = @something posside(t) posside(ai) Long()
