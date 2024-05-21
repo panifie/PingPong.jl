@@ -67,7 +67,7 @@ function dosetmargin(exc::Exchange{ExchangeID{:bybit}}, mode_str, symbol;
     end
 end
 
-leverage_value(::Exchange{ExchangeID{:phemex}}, val, sym) = float(val)
+leverage_value(::Exchange{ExchangeID{:phemex}}, val, sym) = round(float(val), digits=2)
 leverage_value(::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, val, sym) = round(Int, float(val))
 
 function _handle_leverage(e::Exchange{<:eids(:binance, :binanceusdm, :binancecoin)}, resp)

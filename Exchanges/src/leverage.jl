@@ -20,7 +20,7 @@ function _handle_leverage(e::Exchange, resp)
     end
 end
 
-leverage_value(::Exchange, val, sym) = string(val)
+leverage_value(::Exchange, val, sym) = string(round(float(val), digits=2))
 @doc "Update the leverage for a specific symbol.
 
 $(TYPEDSIGNATURES)
