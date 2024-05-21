@@ -514,7 +514,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
     average_price=nothing,
     exec=true)
     eid = exchangeid(ai)
-    if !isopen(ai, o) || !_ccxtisopen(resp, eid),
+    if !isopen(ai, o) || !_ccxtisopen(resp, eid)
         @error "emu trade: closed/canceled order ($(o.id))"
         return nothing
     end

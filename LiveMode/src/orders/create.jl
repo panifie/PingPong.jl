@@ -6,9 +6,9 @@ using .OrderTypes: ordertype, MarketOrderType, GTCOrderType, ForcedOrderType
 using .Lang: filterkws
 
 function isopenorder(s, ai, resp, eid; fetched=false)
-    isopen = _ccxtisopen(resp, eid),
-    hasfill = resp_order_filled(resp, eid) > ZERO,
-    oid = resp_order_id(resp, eid),
+    isopen = _ccxtisopen(resp, eid)
+    hasfill = resp_order_filled(resp, eid) > ZERO
+    oid = resp_order_id(resp, eid)
     hasid = !isempty(oid)
 
     if !isopen && !hasfill && !hasid
