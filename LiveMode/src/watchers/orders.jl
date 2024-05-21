@@ -518,11 +518,15 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
         return nothing
     end
     eid = exchangeid(ai)
-    check_type(ai, o, resp, eid) || return nothing
-    check_symbol(ai, o, resp, eid) || return nothing
-    check_id(ai, o, resp, eid; getter=resp_order_id) || return nothing
+    if !isordertype(ai, o, resp, eid) ||
+       !isordersymbol(ai, o, resp, eid) ||
+       !isorderid(ai, o, resp, eid; getter=resp_order_id)
+        return nothing
+    end
     side = _ccxt_sidetype(resp, eid; o)
-    _check_side(side, o) || return nothing
+    if !isorderside(side, o)
+        return nothing
+    end
     is_reduce_only = o isa ReduceOnlyOrder
     new_filled = resp_order_filled(resp, eid)
     prev_filled = filled_amount(o)
@@ -548,15 +552,13 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
         else
             this_cost = resp_order_cost(resp, eid)
             if iszero(this_cost)
-                @error "emu trade: unavailable fields (average or cost)" ai = raw(ai) exc = nameof(
-                    exchange(ai)
-                )
+                @error "emu trade: unavailable fields (average or cost)" ai ai.exchange o.id resp
                 (ZERO, ZERO)
             else
                 prev_cost = average_price[] * prev_filled
                 net_cost = this_cost - prev_cost
                 if net_cost < ai.limits.cost.min && !is_reduce_only
-                    @error "emu trade: net cost below min" ai = raw(ai) net_cost
+                    @error "emu trade: net cost below min" ai net_cost o
                     (ZERO, ZERO)
                 else
                     average_price[] = (prev_cost + net_cost) / new_filled
@@ -565,14 +567,18 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
             end
         end
     end
-    _check_price(s, ai, actual_price, o; resp) || return nothing
-    check_limits(actual_price, ai, :price) || return nothing
-    if !is_reduce_only
-        check_limits(net_cost, ai, :cost) || return nothing
-        check_limits(actual_amount, ai, :amount) || return nothing
+    if !isorderprice(s, ai, actual_price, o; resp) ||
+       !inlimits(actual_price, ai, :price)
+        return nothing
+    end
+    if !is_reduce_only && (
+        !inlimits(net_cost, ai, :cost) ||
+        !inlimits(actual_amount, ai, :amount)
+    )
+        return nothing
     end
 
-    @debug "emu trade: emulating" _module = LogCreateTrade id = o.id
+    @debug "emu trade: emulating" _module = LogCreateTrade o.id
     _warn_cash(s, ai, o; actual_amount)
     date = @something pytodate(resp, eid) now()
     fees_quote, fees_base = _tradefees(

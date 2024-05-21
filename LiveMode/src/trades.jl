@@ -87,14 +87,16 @@ const Trf = NamedTuple(
     )
 )
 
-function check_limits(v, ai, lim_sym)
+function inlimits(v, ai, lim_sym)
     lims = ai.limits
     min = getproperty(lims, lim_sym).min
     max = getproperty(lims, lim_sym).max
 
-    min <= v <= max || begin
+    if v < min || v > max
         @warn "Trade amount $(v) outside limits ($(min)-$(max))"
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -277,7 +279,7 @@ This function checks if the trade symbol from the response matches the symbol of
 If they do not match, it issues a warning and returns `false`.
 
 """
-function check_symbol(ai, o, resp, eid::EIDType; getter=resp_trade_symbol)::Bool
+function isordersymbol(ai, o, resp, eid::EIDType; getter=resp_trade_symbol)::Bool
     pyeq(Bool, getter(resp, eid), @pystr(raw(ai))) || begin
         @warn "Mismatching trade for $(raw(ai))($(resp_trade_symbol(resp, eid))), order: $(o.asset), refusing construction."
         return false
@@ -292,10 +294,12 @@ This function checks if the response from the exchange is of the expected type.
 If the response is not of the expected type, it issues a warning and returns `false`.
 
 """
-function check_type(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
-    pyisinstance(resp, type) || begin
+function isordertype(ai, o, resp, ::EIDType; type=pybuiltins.dict)::Bool
+    if !pyisinstance(resp, type)
         @warn "Invalid response for order $(raw(ai)), order: $o, refusing construction."
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -307,10 +311,12 @@ This function checks if the trade id from the response matches the id of the ord
 If they do not match, it issues a warning and returns `false`.
 
 """
-function check_id(ai, o, resp, eid::EIDType; getter=resp_trade_order)::Bool
-    string(getter(resp, eid)) == o.id || begin
+function isorderid(ai, o, resp, eid::EIDType; getter=resp_trade_order)::Bool
+    if string(getter(resp, eid)) != o.id
         @warn "Mismatching id $(raw(ai))($(resp_trade_order(resp, eid))), order: $(o.id), refusing construction."
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -322,10 +328,12 @@ This function checks if the side of the trade from the response matches the side
 If they do not match, it issues a warning and returns `false`.
 
 """
-function _check_side(side, o)::Bool
-    side == orderside(o) || begin
+function isorderside(side, o)::Bool
+    if side != orderside(o)
         @warn "Mismatching trade side $side and order side $(orderside(o)), refusing construction."
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -338,15 +346,16 @@ If the price is far off from the order price, it issues a warning.
 The function also checks if the price is greater than zero, issuing a warning and returning `false` if it's not.
 
 """
-function _check_price(s, ai, actual_price, o; resp)::Bool
-    isapprox(actual_price, o.price; rtol=0.05) ||
-        o isa AnyMarketOrder ||
-        begin
-            @warn "Trade price far off from order price, order: $(o.price), exchange: $(actual_price) ($(nameof(s)) @ ($(raw(ai)))"
-        end
-    actual_price > ZERO || begin
+function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
+    if !isapprox(actual_price, o.price; rtol) ||
+       !(o isa AnyMarketOrder)
+        @warn "Trade price far off from order price, order: $(o.price), exchange: $(actual_price) ($(nameof(s)) @ ($(raw(ai)))"
+        false
+    elseif actual_price <= ZERO
         @warn "Trade price can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -358,10 +367,12 @@ This function checks if the trade amount from the response is greater than zero.
 If it's not, it issues a warning and returns `false`.
 
 """
-function _check_amount(s, ai, actual_amount; resp)::Bool
-    actual_amount > ZERO || begin
+function isorderamount(s, ai, actual_amount; resp)::Bool
+    if actual_amount <= ZERO
         @warn "Trade amount can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
-        return false
+        false
+    else
+        true
     end
 end
 
@@ -374,8 +385,9 @@ If it's not, it issues a warning.
 
 """
 function _warn_cash(s, ai, o; actual_amount)
-    iscashenough(s, ai, actual_amount, o) ||
+    if !iscashenough(s, ai, actual_amount, o)
         @warn "make trade: local cash not enough" cash(ai) o.id actual_amount
+    end
 end
 
 @doc """ Constructs a trade based on the order and response
@@ -390,26 +402,36 @@ Otherwise, it calculates the fees, warns if the local cash is not enough for the
 """
 function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, kwargs...)
     eid = exchangeid(ai)
-    trade isa Trade && return trade
-    check_type(ai, o, resp, eid) || return nothing
-    check_symbol(ai, o, resp, eid) || return nothing
-    check_id(ai, o, resp, eid) || return nothing
+    if trade isa Trade
+        return trade
+    end
+    if !isordertype(ai, o, resp, eid) ||
+       !isordersymbol(ai, o, resp, eid) ||
+       !isorderid(ai, o, resp, eid)
+        return nothing
+    end
     side = _ccxt_sidetype(resp, eid; o)
-    _check_side(side, o) || return nothing
+    if !isorderside(side, o)
+        return nothing
+    end
     actual_amount = resp_trade_amount(resp, eid)
     actual_price = resp_trade_price(resp, eid)
-    _check_price(s, ai, actual_price, o; resp) || return nothing
-    check_limits(actual_price, ai, :price)
+    if !isorderprice(s, ai, actual_price, o; resp) ||
+       return nothing
+    end
+    inlimits(actual_price, ai, :price)
     if actual_amount <= ZERO
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = net_cost / actual_price
-        _check_amount(s, ai, actual_amount; resp) || return nothing
+        if !isorderamount(s, ai, actual_amount; resp)
+            return nothing
+        end
     else
         net_cost = cost(actual_price, actual_amount)
     end
-    check_limits(net_cost, ai, :cost)
-    check_limits(actual_amount, ai, :amount)
+    inlimits(net_cost, ai, :cost)
+    inlimits(actual_amount, ai, :amount)
 
     _warn_cash(s, ai, o; actual_amount)
     date = @something pytodate(resp, eid) now()
