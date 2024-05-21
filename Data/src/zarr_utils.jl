@@ -124,7 +124,7 @@ function zdelete!(
             else
                 # Delete all entries where dates are less than `to`
                 to_idx = search_to(firstindex(selected))
-                tail_range = (to_idx + 1):lastindex(z, 1)
+                tail_range = (to_idx+1):lastindex(z, 1)
                 tail_len = length(tail_range)
                 if tail_len > 0
                     z[begin:tail_len, :] = view(z, tail_range, :)
@@ -142,7 +142,7 @@ function zdelete!(
             # and less than `to`
             from_idx = search_from()
             to_idx = search_to(from_idx)
-            right_range = (to_idx + 1):lastindex(z, 1)
+            right_range = (to_idx+1):lastindex(z, 1)
             # the last idx of the copied over data
             end_idx = from_idx + length(right_range) - 1
             if length(right_range) > 0
@@ -196,7 +196,12 @@ default_value(t::T) where {T<:Type} = begin
     end
 end
 
-default_value(f::Function) = first(Base.return_types(f)) |> default_value
+default_value(f::Function) =
+    for t in Base.return_types(f)
+        if t ∉ (UnionAll, Any)
+            return default_value(t)
+        end
+    end
 
 @doc "Candles data is stored with hierarchy PAIR -> [TIMEFRAMES...]. A pair is a ZGroup, a timeframe is a ZArray.
 
