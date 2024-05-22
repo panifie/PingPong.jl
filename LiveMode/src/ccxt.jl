@@ -61,11 +61,11 @@ function get_float(resp::Union{Py,PyDict}, k, def, args...; ai)
     if isnothing(v)
         def
     else
-        ismissing(def) ||
-            isequal(ai, v, def, args...) ||
-            begin
-                @warn "Exchange order $k not matching request $def (local),  $v ($(nameof(exchange(ai))))"
-            end
+        if !ismissing(def) &&
+           !isequal(ai, v, def, args...) &&
+           !(@something(ordertype_fromccxt(resp, exchangeid(ai)), ot.LimitOrderType) <: ot.MarketOrderType)
+            @warn "live: exchange order $k not matching request" ai v
+        end
         v
     end
 end
@@ -99,8 +99,8 @@ _pystrsym(v::String) = @pystr(uppercase(v))
 _pystrsym(v::Symbol) = @pystr(uppercase(string(v)))
 _pystrsym(ai::AssetInstance) = @pystr(ai.bc)
 
-_ccxtordertype(::LimitOrder) = @pyconst "limit"
-_ccxtordertype(::MarketOrder) = @pyconst "market"
+_ccxtordertype(::ot.LimitOrderType) = @pyconst "limit"
+_ccxtordertype(::ot.MarketOrderType) = @pyconst "market"
 _ccxtorderside(::BySide{Buy}) = @pyconst "buy"
 _ccxtorderside(::BySide{Sell}) = @pyconst "sell"
 _ccxtobside(::BySide{Buy}) = @pyconst "bids"
