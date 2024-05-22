@@ -823,7 +823,7 @@ function liqprice!(ai::MarginInstance, v, ::ByPos{S}) where {S<:PositionSide}
     liqprice!(position(ai, S), v)
 end
 @doc "Asset position leverage."
-function leverage(ai::MarginInstance, ::ByPos{S}=position(ai)) where {S<:PositionSide}
+function leverage(ai::MarginInstance, ::ByPos{S}=posside(ai)) where {S<:PositionSide}
     position(ai, S) |> leverage
 end
 leverage(::MarginInstance, ::Nothing) = 1.0
