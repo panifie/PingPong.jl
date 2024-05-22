@@ -204,7 +204,7 @@ function pong!(
         @error "pong pos close: failed to reduce position to zero" ai P t
         return false
     else
-        @warn "pong pos close: closing order trades delay" values(s, ai, orderside(t)) ai = raw(ai)
+        @warn "pong pos close: closing order delay" orders = collect(values(s, ai, orderside(t))) ai t
         timestamp(ai) + Millisecond(1)
     end
     if waitfor_closed(s, ai, @timeout_now)
