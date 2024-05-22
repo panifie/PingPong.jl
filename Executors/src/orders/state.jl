@@ -583,14 +583,14 @@ end
 $(TYPEDSIGNATURES)
 
 """
-function cancel!(s::Strategy, o::Order, ai; err::OrderError)
+function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
     @debug "Cancelling order" o.id ai = raw(ai) err
     if isqueued(o, s, ai)
         decommit!(s, o, ai, true)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
     end
-    nothing
+    true
 end
 
 @doc """Performs cleanups after a trade (attempt).

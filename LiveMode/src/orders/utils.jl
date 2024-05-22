@@ -156,7 +156,7 @@ If orders remain open after the sync attempt, it signals an error.
 """
 function waitfor_closed(
     s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
-)
+)::Bool
     try
         active = active_orders(s, ai)
         slept = 0

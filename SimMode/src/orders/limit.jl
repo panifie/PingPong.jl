@@ -88,7 +88,9 @@ function limitorder_ifprice!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
         # Order might trigger on high/low, but execution uses the *close* price.
         limitorder_ifvol!(s, o, date, ai)
     elseif o isa Union{AnyFOKOrder,AnyIOCOrder}
-        cancel!(s, o, ai; err=NotMatched(o.price, pbs, 0.0, 0.0))
+        if cancel!(s, o, ai; err=NotMatched(o.price, pbs, 0.0, 0.0))
+            nothing
+        end
     else
         missing
     end
@@ -132,7 +134,7 @@ This function executes a limit order `o` at a given `date` for an asset `ai` bas
 """
 function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
     @ifdebug VOL_CHECKS[] += 1
-    ans = missing
+    ans::Union{Missing,Nothing,Trade} = missing
     cdl_vol = st.volumeat(ai, date)
     amount = unfilled(o)
     @deassert amount > 0.0
@@ -143,9 +145,11 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
             @deassert amount == actual_amount
             ans = trade!(s, o, ai; price=o.price, date, actual_amount)
         else
-            cancel!(
+            if cancel!(
                 s, o, ai; err=NotMatched(o.price, priceat(s, o, ai, date), amount, cdl_vol)
             )
+                ans = nothing
+            end
         end
         @deassert !isqueued(o, s, ai)
     else
@@ -158,9 +162,11 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
             ans = trade!(s, o, ai; price=o.price, date, actual_amount)
         else
             # Cancel IOC orders if partially filled
-            o isa AnyIOCOrder &&
-                !isfilled(ai, o) &&
-                cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
+            if o isa AnyIOCOrder &&
+               !isfilled(ai, o) &&
+               cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
+                ans = nothing
+            end
         end
         @deassert o isa AnyGTCOrder || !isqueued(o, s, ai)
     end

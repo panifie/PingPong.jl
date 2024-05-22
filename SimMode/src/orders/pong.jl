@@ -50,8 +50,7 @@ function pong!(
     ::CancelOrders;
     t::Type{<:OrderSide}=BuyOrSell,
     kwargs...,
-)
-    for tup in orders(s, ai, t)
-        cancel!(s, tup.second, ai; err=OrderCanceled(tup.second))
-    end
+)::Bool
+    all(cancel!(s, tup.second, ai; err=OrderCanceled(tup.second))
+        for tup in orders(s, ai, t))
 end
