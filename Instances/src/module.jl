@@ -975,8 +975,9 @@ $(TYPEDSIGNATURES)
 This function calculates the profit and loss (PnL) for an asset position. It takes into account the current price and the position. The PnL represents the gain or loss made on the position, based on the current price compared to the price at which the position was opened.
 
 """
-function pnl(ai, ::ByPos{P}, price; pos=position(ai, P)) where {P}
-    isnothing(pos) && return 0.0
+function pnl(ai, ::ByPos{P}, price) where {P}
+    pos = position(ai, P)
+    isnothing(pos) && return ZERO
     pnl(pos, price)
 end
 

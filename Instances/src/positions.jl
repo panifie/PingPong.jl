@@ -361,8 +361,8 @@ This function calculates the Profit and Loss (PNL) for a long position (`po`), g
 
 """
 function pnl(po::Position{Long}, current_price, amount=cash(po))
-    isopen(po) || return 0.0
-    (current_price - price(po)) * abs(amount)
+    isopen(po) || return ZERO
+    pnl(price(po), current_price, amount, Long()) * leverage(po)
 end
 
 @doc """ Calc PNL for short position given `current_price` as input.
@@ -373,8 +373,8 @@ This function calculates the Profit and Loss (PNL) for a short position (`po`), 
 
 """
 function pnl(po::Position{Short}, current_price, amount=cash(po))
-    isopen(po) || return 0.0
-    (price(po) - current_price) * abs(amount)
+    isopen(po) || return ZERO
+    pnl(price(po), current_price, amount, Short()) * leverage(po)
 end
 
 @doc """ Calc PNL percentage.
@@ -396,7 +396,7 @@ $(TYPEDSIGNATURES)
 This function calculates the Profit and Loss (PNL) for a long position, given the entry price (`entryprice`), the current price (`current_price`), and the amount.
 
 """
-function pnl(entryprice::T, current_price::T, amount, ::Long) where {T}
+function pnl(entryprice::T, current_price::T, amount, ::ByPos{Long}) where {T}
     (current_price - entryprice) * abs(amount)
 end
 
@@ -407,7 +407,7 @@ $(TYPEDSIGNATURES)
 This function calculates the Profit and Loss (PNL) for a short position, given the entry price (`entryprice`), the current price (`current_price`), and the amount.
 
 """
-function pnl(entryprice::T, current_price::T, amount, ::Short) where {T}
+function pnl(entryprice::T, current_price::T, amount, ::ByPos{Short}) where {T}
     (entryprice - current_price) * abs(amount)
 end
 
