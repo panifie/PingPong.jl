@@ -41,7 +41,7 @@ This function syncs the live open orders with the trading strategy and asset ins
 It fetches open orders, replay them, and updates the order tracking.
 This function also handles checking and updating of cash commitments for the strategy and asset instance.
 
-- `overwrite`: A boolean flag indicating whether to overwrite strategy state (default is `true`).
+- `overwrite`: A boolean flag indicating whether to overwrite strategy state (default is `false`).
 - `exec`: A boolean flag indicating whether to execute the orders during syncing (default is `false`).
 - `create_kwargs`: A dictionary of keyword arguments for creating an order (default is `(;)`).
 - `side`: The side of the order (default is `BuyOrSell`).
@@ -62,10 +62,15 @@ function live_sync_open_orders!(
             return nothing
         end
     end
-    # Pre-delete local orders not open on exc to fix commit calculation
+    # Pre-delete local orders not open on exc to fix strategy cash commit calculation
     let exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
         for o in values(s, ai, side)
-            o.id ∉ exc_ids && delete!(s, ai, o)
+            if o.id ∉ exc_ids
+                if !overwrite
+                    decommit!(s, o, ai)
+                end
+                delete!(s, ai, o)
+            end
         end
     end
     live_orders = Set{String}()
@@ -126,6 +131,9 @@ function live_sync_open_orders!(
             @debug "sync orders: local order non open on exchange." _module = LogSyncOrder o.id ai = raw(ai) exc = nameof(
                 exchange(ai)
             )
+            if !overwrite
+                decommit!(s, o, ai)
+            end
             delete!(s, ai, o)
         end
     end
@@ -223,7 +231,7 @@ function findorder(
         if t isa Integer
             return history[t].order
         else
-            # @debug "find order: not found" resp id t
+            @debug "find order: not found" _module = LogSyncOrder resp id t
         end
     end
 end
