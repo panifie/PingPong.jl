@@ -195,7 +195,7 @@ function live_sync_open_orders!(
             side, default_pos, create_kwargs, overwrite
         )
     end
-    remove_live_orders(s, ai; overwrite, live_orders)
+    remove_live_orders(s, ai; overwrite, live_orders, side)
 
     loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
 
