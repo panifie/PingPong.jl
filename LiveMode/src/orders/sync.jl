@@ -74,7 +74,7 @@ function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, sid
     end
 end
 
-function remove_local_orders(s, ai; overwrite, eid, open_orders)
+function remove_local_orders(s, ai; overwrite, eid, open_orders, side)
     # Pre-delete local orders not open on exc to fix strategy cash commit calculation
     exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
     for o in values(s, ai, side)
@@ -87,7 +87,7 @@ function remove_local_orders(s, ai; overwrite, eid, open_orders)
     end
 end
 
-function remove_live_orders(s, ai; overwrite, live_orders)
+function remove_live_orders(s, ai; overwrite, live_orders, side)
     for o in values(s, ai, side)
         if o.id ∉ live_orders
             @debug "sync orders: local order non open on exchange." _module = LogSyncOrder o.id ai exchange(ai)
@@ -176,7 +176,7 @@ function live_sync_open_orders!(
             return nothing
         end
     end
-    remove_local_orders(s, ai; overwrite, eid, open_orders)
+    remove_local_orders(s, ai; overwrite, eid, open_orders, side)
     live_orders = Set{String}()
     @ifdebug begin
         cash_long = cash(ai, Long())
