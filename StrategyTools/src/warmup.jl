@@ -1,4 +1,15 @@
 @doc """
+Initializes warmup attributes for a strategy.
+
+$(TYPEDSIGNATURES)
+"""
+function initwarmup!(s; timeout=Minute(15))
+    attrs = s.attrs
+    attrs[:warmup] = Dict(ai => false for ai in s.universe)
+    attrs[:warmup_lock] = ReentrantLock()
+    attrs[:warmup_timeout] = timeout
+end
+@doc """
 Placeholder for simulation strategy warmup.
 
 $(TYPEDSIGNATURES)
@@ -14,9 +25,12 @@ $(TYPEDSIGNATURES)
 If warmup has not been previously completed for the given asset instance, it performs the necessary preparations.
 """
 function warmup!(cb::Function, s::RTStrategy, ai, ats, n_candles=999)
-    if !s[:warmup][ai]
-        warmup_lock = @lock s @lget! s.attrs :warmup_lock ReentrantLock()
-        @lock warmup_lock _warmup!(cb, s, ai, ats; n_candles)
+    # give up on warmup after `warmup_timeout`
+    if now() - s.is_start < s.warmup_timeout
+        if !s[:warmup][ai]
+            warmup_lock = @lock s @lget! s.attrs :warmup_lock ReentrantLock()
+            @lock warmup_lock _warmup!(cb, s, ai, ats; n_candles)
+        end
     end
 end
 
