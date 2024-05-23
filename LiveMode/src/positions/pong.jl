@@ -192,11 +192,11 @@ function pong!(
             ai
         )
     end
-    _, this_kwargs = splitkws(:reduce_only; kwargs)
+    _, this_kwargs = splitkws(:reduce_only, :tag; kwargs)
     amount = ai |> cash |> abs
     @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
     close_trade = pong!(
-        s, ai, t; amount, reduce_only=true, waitfor=@timeout_now, this_kwargs...
+        s, ai, t; amount, reduce_only=true, tag="position_close", waitfor=@timeout_now, this_kwargs...
     )
     since = if close_trade isa Trade
         close_trade.date

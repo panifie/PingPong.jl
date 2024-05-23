@@ -45,6 +45,7 @@ function basicorder(
     loss=nothing,
     profit=nothing,
     id="",
+    tag=""
 )
     if !ismonotonic(loss, price, profit)
         @debug "basic order: prices not monotonic" ai = raw(ai) loss price profit type
@@ -70,6 +71,7 @@ function basicorder(
         price,
         amount,
         id,
+        tag,
         attrs=basic_order_state(profit, loss, committed, unfilled),
     )
 end

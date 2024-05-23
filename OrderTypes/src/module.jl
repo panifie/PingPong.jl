@@ -78,6 +78,7 @@ struct Order{
     price::Float64
     amount::Float64
     id::String
+    tag::String
     attrs::NamedTuple
 end
 
@@ -101,9 +102,10 @@ function Order(
     amount,
     attrs=(;),
     id="",
+    tag="",
     kwargs...,
 ) where {T<:OrderType,A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
-    Order{T,A,E,P}(a, e, date, price, amount, id, attrs)
+    Order{T,A,E,P}(a, e, date, price, amount, id, tag, attrs)
 end
 function Order(
     a, e, ::Type{Order{T,<:AbstractAsset,<:ExchangeID,P}}; kwargs...

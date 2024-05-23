@@ -410,6 +410,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             price=missing,
             amount=missing,
             synced=false,
+            tag="reactivate"
         )
         if o isa Order
             state = get_order_state(active_orders(s, ai), o.id; s, ai)
