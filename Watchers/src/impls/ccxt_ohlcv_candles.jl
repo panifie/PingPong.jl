@@ -123,7 +123,7 @@ function _reset_candles_func!(w)
             push!(
                 init_tasks,
                 @async begin
-                    @lock w.symstates[sym].lock @lock w.sem _ensure_ohlcv!(w, sym)
+                    @lock w.symstates[sym].lock @acquire w.sem _ensure_ohlcv!(w, sym)
                     delete!(init_tasks, current_task())
                 end
             )
