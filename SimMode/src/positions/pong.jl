@@ -64,9 +64,16 @@ function pong!(
 end
 
 @doc "Closes a leveraged position."
-function pong!(s::MarginStrategy{<:Union{Paper,Sim}}, ai, side, date, ::PositionClose)
+function pong!(s::MarginStrategy{<:Union{Paper,Sim}}, ai::MarginInstance, side::ByPos, date, ::PositionClose; kwargs...)
     close_position!(s, ai, side, date)
     @deassert !isopen(ai, side)
+end
+
+@doc "Closes all strategy positions"
+function pong!(s::MarginStrategy{Sim}, side::ByPos, date, ::PositionClose; kwargs...)
+    for ai in s.universe
+        close_position!(s, ai, side, date; kwargs...)
+    end
 end
 
 _lev_value(lev::Function) = lev()
