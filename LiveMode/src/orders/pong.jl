@@ -81,9 +81,10 @@ function pong!(
 )
     @timeout_start
     if !hasorders(s, ai, t) && !confirm
-        @debug "pong cancel orders: no local open orders"
+        @debug "pong cancel orders: no local open orders" _module = LogCancelOrder
         return true
     end
+    watch_orders!(s, ai)
     if live_cancel(s, ai; ids, side=t, confirm)::Bool
         success = waitfor_closed(s, ai, @timeout_now; t)
         if success && synced
