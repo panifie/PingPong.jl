@@ -45,10 +45,14 @@ stop_task(t::Task) = begin
 end
 
 function kill_task(t)
-    interrupt_task = @async Base.throwto(t, InterruptException())
-    if !istaskdone(interrupt_task)
-        sleep(0)
-        Base.throwto(interrupt_task, InterruptException())
+    try
+        interrupt_task = @async Base.throwto(t, InterruptException())
+        if !istaskdone(interrupt_task)
+            sleep(0)
+            Base.throwto(interrupt_task, InterruptException())
+        end
+    catch
+        @debug_backtrace
     end
     istaskdone(t)
 end
