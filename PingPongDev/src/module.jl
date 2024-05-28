@@ -90,7 +90,7 @@ function loadstrat!(strat=:Example, bind=:s; load=false, stub=false, mode=Sim(),
                 fill!(
                     $bind.universe,
                     $bind.timeframe,
-                    $bind.config.timeframes[(begin + 1):end]...,
+                    $bind.config.timeframes[(begin+1):end]...,
                 )
             end
             if $stub
@@ -137,8 +137,19 @@ resetenv!() = begin
     finally
         Python.py_start_loop()
     end
+    if !istaskrunning(Python.GC_TASK[])
+        Python.pygctask!()
+    end
     exs.ExchangeTypes._closeall()
     Watchers._closeall()
+    for pull_name in Python.HANDLERS
+        n_str = split(string(pull_name), "handler_pull")[2]
+        n = Meta.tryparse(Int, n_str)
+        if !isnothing(n)
+            Python.gpa.globs[string("handler_flag", n)] = true
+        end
+    end
+    Python.pygctask!()
 end
 
 togglewatch!(s, enable=true) = begin
