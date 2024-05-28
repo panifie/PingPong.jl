@@ -35,7 +35,7 @@ function _setup!()
             string(vinfo.major, ".", vinfo.minor)
         end
         # NOTE: Make sure conda libs precede system libs
-        PYTHONPATH[] = string(".:", joinpath(envdir(), "lib"), "/python", PY_V[])
+        PYTHONPATH[] = string(".:", joinpath(envdir(), "lib", string("python", PY_V[])))
         setpypath!()
         using PythonCall:
             Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
@@ -47,9 +47,15 @@ end
 @doc "Remove wrong python version libraries dirs from python loading path."
 function clearpypath!()
     sys_path_list = PyList(pyimport("sys").path)
-    ENV["PYTHONPATH"] = ".:$(envdir())/python$(PY_V[])"
+    py_v = PY_V[]
+    ENV["PYTHONPATH"] = string(".:", joinpath(envdir(), "lib", string("python", py_v)))
     if isempty(PYMODPATHS)
-        append!(PYMODPATHS, (pyconvert(String, p) for p in sys_path_list))
+        for p in sys_path_list
+            this_path = pyconvert(String, p)
+            if occursin(py_v, this_path)
+                push!(PYMODPATHS, this_path)
+            end
+        end
     else
         empty!(sys_path_list)
         append!(sys_path_list, (pystr(p) for p in PYMODPATHS))
