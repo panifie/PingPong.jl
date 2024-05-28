@@ -72,17 +72,19 @@ function pygctask!()
         while GC_RUNNING[]
             try
                 if Threads.threadid() == 1
-                    PyGC.C.with_gil(false) do
-                        while !isempty(PyGC.QUEUE)
-                            ptr = pop!(PyGC.QUEUE)
-                            if ptr != PyGC.C.PyNULL
-                                PyGC.C.Py_DecRef(ptr)
+                    if !isempty(PyGC.QUEUE)
+                        PyGC.C.with_gil(false) do
+                            for ptr in PyGC.QUEUE
+                                if ptr != PyGC.C.PyNULL
+                                    PyGC.C.Py_DecRef(ptr)
+                                end
                             end
                         end
+                        empty!(PyGC.QUEUE)
                     end
                 end
             catch e
-                @error exception = e
+                @error "Python GC ERROR" exception = e
             end
             sleep(1)
         end
