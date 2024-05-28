@@ -452,7 +452,7 @@ function stream_handler(f_pull, f_push)
                 try:
                     $push_name(e)
                 except:
-                    print(e)
+                    print("handler error $n: ", e)
                     await pysleep(1)
     """
     func = first(
@@ -498,6 +498,7 @@ function stop_handler!(handler)
     flag_name = Symbol(:handler_flag, n)
     gpa.globs.pop(string(pull_name), nothing)
     gpa.globs.pop(string(push_name), nothing)
+    # NOTE: deleting the flag to early will cause handler to error
     gpa.globs.pop(string(flag_name), nothing)
     filter!(HANDLERS) do name
         name != pull_name
