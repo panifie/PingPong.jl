@@ -391,10 +391,9 @@ $(TYPEDSIGNATURES)
 """
 function async_start_runner_func!(pa)
     code = """
-    global asyncio, juliacall, uvloop, Main
+    global asyncio, juliacall, Main
     import asyncio
     import juliacall
-    import uvloop
     from juliacall import Main
     jlsleep = getattr(Main, "sleep")
     pysleep = asyncio.sleep
@@ -410,10 +409,10 @@ function async_start_runner_func!(pa)
     globs = pydict()
     pyexec(NamedTuple{(:main,),Tuple{Py}}, code, globs)
     code = """
-    global asyncio, uvloop
-    import asyncio, uvloop
+    global asyncio
+    import asyncio
     def start(Python):
-        with asyncio.Runner(loop_factory=uvloop.new_event_loop) as runner:
+        with asyncio.Runner() as runner:
             runner.run(main(Python))
     """
     start_func = pyexec(NamedTuple{(:start,),Tuple{Py}}, code, globs).start
