@@ -11,6 +11,7 @@ using .Misc:
     init_task,
     start_task,
     stop_task,
+    kill_task,
     TaskFlag,
     waitforcond,
     @start_task,
@@ -50,6 +51,28 @@ baremodule LogWait end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
 
+
+@doc """ Starts a timeout.
+
+$(TYPEDSIGNATURES)
+
+This macro starts a timeout. If a `start` argument is provided, it sets the start time of the timeout to `start`. Otherwise, it sets the start time to the current time.
+
+"""
+macro timeout_start(start=nothing)
+    esc(:(timeout_date = @something $start now() + waitfor))
+end
+@doc """ Retrieves the current timeout.
+
+$(TYPEDSIGNATURES)
+
+This macro retrieves the current time of the timeout. It's typically used to check the elapsed time since a timeout started.
+
+"""
+macro timeout_now()
+    esc(:(max(Millisecond(0), timeout_date - now())))
+end
+
 ## TASKS
 
 @doc """ Stops all tasks associated with a particular asset.
@@ -68,29 +91,55 @@ function stop_asset_tasks(s::RTStrategy, ai; reset=false)
         stop_task(task)
     end
     if reset
-        reset_asset_tasks!(tasks)
+        reset_asset_tasks!(s, tasks)
     end
 end
 
-function reset_asset_tasks!(tasks)
+function reset_asset_tasks!(a, tasks)
+    waitfor = attr(a, :live_stop_timeout, Second(1))
+    @timeout_start
     for (name, task) in tasks.byname
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks name
-            wait(task)
+            waitforcond(() -> !istaskdone(task), @timeout_now())
+            if istaskrunning(task)
+                @debug "killing task" _module = LogTasks name
+                kill_task(task)
+            end
         end
     end
     for (order, task) in tasks.byorder
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks order
-            wait(task)
+            waitforcond(() -> !istaskdone(task), @timeout_now())
+            if istaskrunning(task)
+                kill_task(task)
+            end
         end
     end
     empty!(tasks.byname)
     empty!(tasks.byorder)
-    iszero(tasks.queue[]) || begin
+    if !iszero(tasks.queue[])
         @warn "Expected asset queue to be zero, found $(tasks.queue[]) (resetting)"
         tasks.queue[] = 0
     end
+end
+
+function _persistent_stop_asset_tasks(s, ai; reset, kwargs...)
+    while true
+        try
+            stop_asset_tasks(s, ai; reset, kwargs...)
+            return true
+        catch e
+            if e isa InterruptException
+                continue
+            else
+                @error "strat: stop task failed" ai exception = e
+                return false
+            end
+        end
+    end
+    return false
 end
 
 @doc """ Stops all tasks associated with all assets.
@@ -107,7 +156,7 @@ function stop_all_asset_tasks(s::RTStrategy; reset=false, kwargs...)
         end
     else
         for ai in s.universe
-            stop_asset_tasks(s, ai; kwargs...)
+            _persistent_stop_asset_tasks(s, ai; reset, kwargs...)
         end
     end
     @debug "strat: all asset tasks stopped" s = nameof(s)
@@ -170,9 +219,22 @@ function stop_all_tasks(s::RTStrategy; reset=true)
     stop_watch_ohlcv!(s)
     stop_watch_positions!(s)
     stop_watch_balance!(s)
-    @sync begin
-        @async stop_all_asset_tasks(s; reset)
-        @async stop_all_strategy_tasks(s; reset)
+
+    while true
+        try
+            @sync begin
+                @async stop_all_asset_tasks(s; reset)
+                @async stop_all_strategy_tasks(s; reset)
+            end
+            break
+        catch e
+            if e isa InterruptException
+                continue
+            else
+                @error "stop strategy tasks error:" _module = LogWait exception = e
+                break
+            end
+        end
     end
     @debug "strategy: stopped all tasks" _module = LogTasks s = nameof(s)
 end
@@ -475,8 +537,12 @@ function st.default!(s::LiveStrategy)
     get!(a, :is_watch_orders, true)
     get!(a, :is_watch_mytrades, true)
     get!(a, :is_watch_tickers, true)
+    # watch tasks idle time
+    get!(a, :watch_idle_timeout, Second(Minute(15)))
     # see `ohlcvmethod!`
     get!(a, :live_ohlcv_method, :tickers)
+    # max time to wait for tasks before kill
+    get!(a, :live_stop_timeout, Second(1))
 
     if limit > 0
         live_sync_closed_orders!(s; limit)
@@ -599,27 +665,6 @@ function timestamp(s, ai::AssetInstance; side=posside(ai))
     max(order_date, trade_date, pos_date)
 end
 
-@doc """ Starts a timeout.
-
-$(TYPEDSIGNATURES)
-
-This macro starts a timeout. If a `start` argument is provided, it sets the start time of the timeout to `start`. Otherwise, it sets the start time to the current time.
-
-"""
-macro timeout_start(start=nothing)
-    esc(:(timeout_date = @something $start now() + waitfor))
-end
-@doc """ Retrieves the current timeout.
-
-$(TYPEDSIGNATURES)
-
-This macro retrieves the current time of the timeout. It's typically used to check the elapsed time since a timeout started.
-
-"""
-macro timeout_now()
-    esc(:(max(Millisecond(0), timeout_date - now())))
-end
-
 @doc """ Stops a live strategy.
 
 $(TYPEDSIGNATURES)
@@ -633,11 +678,7 @@ function stop!(s::LiveStrategy; kwargs...)
     catch
         @debug_backtrace LogTasks
     end
-    try
-        stop_all_tasks(s)
-    catch
-        @debug_backtrace LogTasks
-    end
+    stop_all_tasks(s)
 end
 
 function _last_posside(ai)
