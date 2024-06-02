@@ -13,7 +13,7 @@ include("adhoc/tickers.jl")
 
 export exc, @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, tickers, pairs
-export issandbox, ratelimit!, ispercentage
+export issandbox, ratelimit!, isratelimited, ispercentage
 export timestamp, timeout!, check_timeout
 export ticker!, lastprice
 export leverage!, marginmode!
