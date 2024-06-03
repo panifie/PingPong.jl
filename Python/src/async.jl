@@ -445,8 +445,9 @@ function stream_handler(f_pull, f_push)
         backoff = 0
         while $flag_name:
             try:
-                v = await $pull_name()
-                $push_name(v)
+                while $flag_name:
+                    v = await $pull_name()
+                    $push_name(v)
             except Exception as e:
                 try:
                     $push_name(e)
