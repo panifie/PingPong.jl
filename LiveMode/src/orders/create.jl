@@ -8,11 +8,11 @@ using .Lang: filterkws
 function isopenorder(s, ai, resp, eid; fetched=false)
     isopen = _ccxtisopen(resp, eid)
     hasfill = resp_order_filled(resp, eid) > ZERO
-    oid = resp_order_id(resp, eid)
+    oid = resp_order_id(resp, eid, String)
     hasid = !isempty(oid)
 
     if !isopen && !hasfill && !hasid
-        @warn "create order: refusing" isopen hasfill hasid
+        @warn "create order: refusing" ai oid isopen hasfill hasid
         return false
     else
         status = resp_order_status(resp, eid)
@@ -20,7 +20,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
             if isprocessed_order(s, ai, oid)
                 fetched_resp = fetch_orders(s, ai, ids=(oid,))
                 if isemptish(resp)
-                    @debug "create order: order not found on exchange (cancelled?)" ai = raw(ai) oid hasfill hasid fetched_resp
+                    @debug "create order: order not found on exchange (canceled?)" ai oid hasfill hasid fetched_resp
                     return false
                 else
                     resp = first(fetched_resp)
@@ -32,11 +32,11 @@ function isopenorder(s, ai, resp, eid; fetched=false)
                     end
                 end
             else
-                @warn "create order: unknown status" ai = raw(ai) id hasfill hasid
+                @warn "create order: unknown status" ai oid hasfill hasid
                 return false
             end
-        elseif _ccxtisstatus("canceled", status) || fetched
-            @warn "create order: canceled" ai = raw(ai) id hasfill hasid
+        elseif _ccxtisstatus(status, "canceled", "rejected") || fetched
+            @warn "create order: $status" ai oid hasfill hasid
             return false
         end
     end
