@@ -506,7 +506,7 @@ function ccxt_my_trades_func!(a, exc)
     mytrades_func = first(exc, :fetchMyTradesWs, :fetchMyTrades)
     a[:live_my_trades_func] = if !isnothing(mytrades_func)
         function mytrades_wrapped(ai; since=nothing, params=nothing)
-            _execfunc(mytrades_func, raw(ai); _skipkwargs(; since, params)...)
+             _execfunc(mytrades_func, raw(ai); _skipkwargs(; since, params)...)
         end
         function ccxt_my_trades(ai; since=nothing, params=nothing)
             _tryfetchall(a, mytrades_wrapped, ai; since, params)
@@ -642,6 +642,7 @@ function ccxt_order_trades_func!(a, exc)
         mytrades_func = a[:live_my_trades_func]
         ccxt_order_trades_fallback(ai, id; since=nothing, params=nothing) = begin
             # Filter recent trades history for trades matching the order
+            @debug "fetch order trades: from cache" _module = LogTradeFetch ai id
             trades_cache = _trades_resp_cache(a, ai)
             resp_latest = if mytrades_func isa Function
                 @lget! trades_cache LATEST_RESP_KEY _execfunc(
@@ -650,17 +651,20 @@ function ccxt_order_trades_func!(a, exc)
             end
             id_str = string(id)
             trades_resp = if isemptish(resp_latest)
+                @debug "fetch order trades: emptish" _module = LogTradeFetch ai id
                 []
             else
                 # NOTE: this can fail if the trade struct `order` field is none/empty
                 this_trades = _ordertrades(resp_latest, exc, ((x) -> string(x) == id_str))
                 if isnothing(this_trades)
+                    @debug "fetch order trades: empty filtered" _module = LogTradeFetch ai id
                     []
                 else
                     Any[this_trades...]
                 end
             end
             if isemptish(trades_resp)
+                @debug "fetch order trades: fetch since" _module = LogTradeFetch ai id
                 # Fallback to fetching trades history using since
                 find_trades_since(a, ai, id_str; exc, since, params)
             else
