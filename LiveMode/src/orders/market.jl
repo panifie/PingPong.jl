@@ -30,7 +30,7 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         nothing
     else
         if synced
-            @lock ai @lock s _force_fetchtrades(s, ai, o)
+            @lock ai _force_fetchtrades(s, ai, o)
         end
         if isempty(order_trades)
             @debug "market order: no trades yet" _module = LogCreateOrder synced

@@ -148,7 +148,7 @@ function create_live_order(
             waitfortrade(s, ai, o, waitfor=s[:func_cache_ttl], force=false)
         end
         if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
-            emulate_trade!(s, o, ai; resp)
+            @lock ai emulate_trade!(s, o, ai; resp)
         end
     end
     @debug "create order: done" _module = LogCreateOrder committed(o) o.amount ordertype(o)

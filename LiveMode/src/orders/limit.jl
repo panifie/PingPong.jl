@@ -27,7 +27,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
             nothing
         else
             if synced
-                @lock ai @lock s _force_fetchtrades(s, ai, o)
+                @lock ai _force_fetchtrades(s, ai, o)
             end
             if isempty(order_trades)
                 if haskey(s, ai, o)
@@ -46,7 +46,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
         last(order_trades)
     elseif haskey(s, ai, o)
         if synced
-            @lock ai @lock s _force_fetchtrades(s, ai, o)
+            @lock ai _force_fetchtrades(s, ai, o)
         end
         if isempty(order_trades)
             if haskey(s, ai, o)
