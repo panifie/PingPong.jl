@@ -87,9 +87,14 @@ function pong!(
     watch_orders!(s, ai)
     if live_cancel(s, ai; ids, side=t, confirm)::Bool
         success = waitfor_closed(s, ai, @timeout_now; t)
-        if success && synced
-            @debug "pong cancel orders: syncing cash" side = orderside(t) _module = LogCancelOrder
-            live_sync_cash!(s, ai; waitfor=@timeout_now)
+        if success
+            if synced
+                @debug "pong cancel orders: syncing cash" side = orderside(t) _module = LogCancelOrder
+                live_sync_cash!(s, ai; waitfor=@timeout_now)
+            end
+        else
+            @debug "pong cancel orders: failed syncing open orders" ai t _module = LogCancelOrder
+            live_sync_open_orders!(s, ai)
         end
         @debug "pong cancel orders: " success side = orderside(t) _module = LogCancelOrder
         success
