@@ -255,20 +255,3 @@ function pong!(
         end
     end
 end
-
-@doc """ Closes positions for a live margin strategy.  
-
-$(TYPEDSIGNATURES)  
-
-Initiates asynchronous position closing for each asset instance in the strategy's universe. """
-function pong!(
-    s::MarginStrategy{Live},
-    bp::ByPos,
-    date,
-    ::PositionClose;
-    kwargs...
-)
-    @sync for ai in s.universe
-        @async pong!(s, ai, bp, date, PositionClose(); kwargs...)
-    end
-end
