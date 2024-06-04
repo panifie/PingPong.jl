@@ -7,6 +7,7 @@ The function returns the last trade if any trades have occurred, otherwise it re
 
 """
 function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor, kwargs)
+    local o, order_trades
     # NOTE: necessary locks to prevent race conditions between balance/positions updates
     # and order creation
     @lock ai @lock s begin
@@ -17,23 +18,27 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         @deassert o isa AnyMarketOrder{orderside(t)} o
         @debug "market order: created" _module = LogCreateOrder id = o.id hasorders(s, ai, o.id)
         order_trades = trades(o)
-        @timeout_start
-
-        if !isempty(order_trades) ||
-           (waitfororder(s, ai, o; waitfor=@timeout_now) && !isempty(order_trades))
-            last(order_trades)
-        else
-            if waitfortrade(s, ai, o; waitfor=@timeout_now)
-                last(order_trades)
-            else
-                synced && _force_fetchtrades(s, ai, o)
-                if isempty(order_trades)
-                    @debug "market order: no trades yet" _module = LogCreateOrder synced
-                    missing
-                else
-                    last(order_trades)
-                end
+    end
+    @timeout_start
+    if !isempty(order_trades) ||
+       (waitfororder(s, ai, o; waitfor=@timeout_now) && !isempty(order_trades))
+        last(order_trades)
+    elseif waitfortrade(s, ai, o; waitfor=@timeout_now)
+        last(order_trades)
+    elseif !haskey(s, ai, o)
+        @debug "market order: failed" _module = LogCreateOrder synced
+        nothing
+    else
+        if synced
+            @lock ai @lock s _force_fetchtrades(s, ai, o)
+        end
+        if isempty(order_trades)
+            @debug "market order: no trades yet" _module = LogCreateOrder synced
+            if haskey(s, ai, o)
+                missing
             end
+        else
+            last(order_trades)
         end
     end
 end
