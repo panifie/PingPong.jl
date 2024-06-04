@@ -93,7 +93,7 @@ function inlimits(v, ai, lim_sym)
     max = getproperty(lims, lim_sym).max
 
     if v < min || v > max
-        @warn "Trade amount $(v) outside limits ($(min)-$(max))"
+        @warn "create trade: value outside bounds" lim_sym v min max
         false
     else
         true
@@ -349,10 +349,10 @@ The function also checks if the price is greater than zero, issuing a warning an
 function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
     if !isapprox(actual_price, o.price; rtol) ||
        !(o isa AnyMarketOrder)
-        @warn "Trade price far off from order price, order: $(o.price), exchange: $(actual_price) ($(nameof(s)) @ ($(raw(ai)))"
+        @warn "create trade: trade price far off from order price" o.price exc_price = actual_price ai nameof(s)
         false
-    elseif actual_price <= ZERO
-        @warn "Trade price can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
+    elseif actual_price <= ZERO || !isfinite(actual_price)
+        @warn "create trade: invalid price" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
         false
     else
         true
@@ -368,8 +368,8 @@ If it's not, it issues a warning and returns `false`.
 
 """
 function isorderamount(s, ai, actual_amount; resp)::Bool
-    if actual_amount <= ZERO
-        @warn "Trade amount can't be zero, ($(nameof(s)) @ ($(raw(ai))) tradeid: ($(resp_trade_id(resp, exchangeid(ai))), refusing construction."
+    if actual_amount <= ZERO || !isfinite(actual_amount)
+        @warn "create trade: invalid amount" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
         false
     else
         true
@@ -416,11 +416,11 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     end
     actual_amount = resp_trade_amount(resp, eid)
     actual_price = resp_trade_price(resp, eid)
-    if !isorderprice(s, ai, actual_price, o; resp) ||
-       return nothing
+    if !isorderprice(s, ai, actual_price, o; resp)
+        return nothing
     end
     inlimits(actual_price, ai, :price)
-    if actual_amount <= ZERO
+    if actual_amount <= ZERO || !isfinite(actual_amount)
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = net_cost / actual_price
