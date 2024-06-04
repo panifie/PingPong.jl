@@ -1,4 +1,4 @@
-using .Executors: _cashfrom, hasorders
+using .Executors: _cashfrom, hasorders, decommit!
 
 @doc """ Maximizes cash and neutralizes commitments before syncing.
 
@@ -124,7 +124,7 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
                 elseif !iszero(filled_amount(state.order))
                     @error "sync orders: local order not found on exchange" id ai exchange(ai) order_resp
                 else
-                    @debug "sync order: local order not found on exchange (probably canceled)" id ai exchange(ai) order_resp
+                    @debug "sync order: local order not found on exchange (probably canceled/rejected)" id ai exchange(ai) order_resp
                 end
                 clear_order!(s, ai, state.order)
             else
@@ -248,7 +248,7 @@ function findorder(
         if t isa Integer
             return history[t].order
         else
-            @debug "find order: not found" _module = LogSyncOrder resp id t
+            @debug "find order: not found" _module = LogSyncOrder resp id t f = @caller
         end
     end
 end
@@ -278,7 +278,7 @@ The flag 'insert' determines whether the trades are inserted to the asset trades
 """
 function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     eid = exchangeid(ai)
-    @debug "replay order: activate" _module = LogSyncOrder id = o.id
+    @debug "replay order: activate" _module = LogSyncOrder id = o.id ai
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
     if iszero(resp_order_filled(resp, eid))
         if !iszero(filled_amount(o))

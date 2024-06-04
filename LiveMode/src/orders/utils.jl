@@ -86,7 +86,7 @@ The function ensures that the trade and orders watchers are running for the asse
 
 """
 function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
-    @debug "orders: set active" _module = LogWatchOrder o.id islocked(s)
+    @debug "orders: set active" _module = LogWatchOrder o.id islocked(s) f = @caller
     state = @lget! active_orders(s, ai) o.id (;
         order=o,
         lock=ReentrantLock(),
@@ -96,7 +96,7 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     )
     watch_trades!(s, ai) # ensure trade watcher is running
     watch_orders!(s, ai) # ensure orders watcher is running
-    @debug "orders: state" _module = LogWatchOrder
+    @debug "orders: state" _module = LogWatchOrder ai o.id
     state
 end
 
