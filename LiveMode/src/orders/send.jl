@@ -217,8 +217,8 @@ function live_send_order(
         end
     end
     # start monitoring before sending the create request
-    watch_trades!(s, ai)
     watch_orders!(s, ai)
+    watch_trades!(s, ai)
     @debug "send order: create" _module = LogSendOrder sym type price amount side params
     resp = create_order(s, sym, args...; side, type, price, amount, params)
     while resp isa Exception && retries > 0
