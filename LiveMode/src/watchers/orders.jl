@@ -13,79 +13,85 @@ using .SimMode: @maketrade
 Initialize necessary tasks and variables for watching orders.
 """
 function initialize_watch_tasks!(s::LiveStrategy, ai)
-    exc = exchange(ai)
     orders_byid = active_orders(s, ai)
-    stop_delay = Ref(Second(60))
-    return exc, orders_byid, stop_delay
+    stop_delay = Ref(s.watch_idle_timeout)
+    return orders_byid, stop_delay
 end
 
 """
 Defines the functions used for watching orders based on the exchange capabilities.
 """
-function define_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
-    watch_func = first(exc, :watchOrders)
+function define_loop_funct(s::LiveStrategy, ai; exc_kwargs=(;))
+    watch_func = first(exchange(ai), :watchOrders)
+    _, func_kwargs = splitkws(:since; kwargs=exc_kwargs)
     sym = raw(ai)
     if !isnothing(watch_func) && s[:is_watch_orders]
         init_handler() = begin
             channel = Channel{Any}(s[:live_buffer_size])
-            coro_func() = watch_func(sym; exc_kwargs...)
-            f_push(v) = put!(channel, v)
-            h = stream_handler(coro_func, f_push)
+            task_local_storage(:channel, channel)
+            since = dtstamp(attr(s, :is_start, now()))
+            h = @lget! task_local_storage() :handler begin
+                coro_func() = watch_func(sym; since, func_kwargs...)
+                f_push(v) = put!(channel, v)
+                stream_handler(coro_func, f_push)
+            end
             start_handler!(h)
             bind(channel, h.task)
-            task_local_storage(:handler, h)
-            task_local_storage(:channel, channel)
         end
         get_from_channel() = begin
-            channel = get(@something(current_task().storage, (;)), :channel, nothing)
-            if isnothing(channel) || !isopen(channel)
-                init_handler()
-            else
-
+            chan = let c = get(@something(current_task().storage, (;)), :channel, nothing)
+                if isnothing(c) || !isopen(c)
+                    init_handler()
+                    task_local_storage(:channel)
+                else
+                    c
+                end
             end
-            channel = task_local_storage(:channel)
-            if isopen(channel)
-                take!(channel)
+            if isopen(chan)
+                take!(chan)
             else
                 @error "Order handler can't open channel"
             end
         end
+        (get_from_channel, true)
     else
-        _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-        since = Ref(now())
+        since = Ref(attr(s, :is_start, now()))
         since_start = since[]
         eid = exchangeid(ai)
         get_from_call() = begin
             since[] == since_start || sleep(1)
             resp = fetch_orders(
-                s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                s, ai; since=dtstamp(since[]) + 1, func_kwargs...
             )
             if islist(resp) && !isempty(resp)
                 since[] = @something pytodate(resp[-1], eid) now()
             end
             resp
         end
+        (get_from_call, false)
     end
 end
 
 """
 Manages the order updates by continuously fetching and processing new orders.
 """
-function manage_order_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func)
+function manage_order_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func, iswatch)
     sem = task_sem()
     process_tasks = Task[]
+    idle_timeout = Second(s.watch_idle_timeout)
     try
         while @istaskrunning()
             try
+                @debug "watchers orders: loop func" _module = LogWatchOrder
                 updates = loop_func()
-                stop_delay[] = Second(60)
-                process_updates!(s, ai, orders_byid, updates, sem, process_tasks)
+                process_updates!(s, ai, orders_byid, updates, sem, process_tasks, iswatch)
+                stop_delay[] = idle_timeout
             catch e
-                handle_order_updates_errors!(e, ai)
+                handle_order_updates_errors!(e, ai, iswatch)
             end
         end
     finally
-        h = task_local_storage(:handler, nothing)
+        h = get(task_local_storage(), :handler, nothing)
         if !isnothing(h)
             stop_handler!(h)
         end
@@ -95,14 +101,16 @@ end
 """
 Processes updates for orders, including fetching new orders and updating existing ones.
 """
-function process_updates!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks)
+function process_updates!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks, iswatch)
     if updates isa Exception
         if updates isa InterruptException
             throw(updates)
         else
             @ifdebug ispyminor_error(updates) ||
                      @debug "watch orders: fetching error" _module = LogWatchOrder updates
-            sleep(1)
+            if !iswatch
+                sleep(1)
+            end
         end
     else
         for resp in pylist(updates)
@@ -118,14 +126,16 @@ end
 """
 Handles errors that occur during the order watching process.
 """
-function handle_order_updates_errors!(e, ai)
+function handle_order_updates_errors!(e, ai, iswatch)
     if e isa InterruptException || e isa InvalidStateException
         rethrow(e)
     else
         @debug "watch orders: error (task termination?)" _module = LogWatchOrder raw(ai) istaskrunning() current_task().storage[:running]
         @debug_backtrace LogWatchOrder
     end
-    sleep(1)
+    if !iswatch
+        sleep(1)
+    end
 end
 
 """
@@ -140,7 +150,7 @@ function monitor_stop_conditions!(s::LiveStrategy, ai, task, stop_delay, tasks)
         @istaskrunning() || break
         sleep(stop_delay[])
         stop_delay[] = Second(0)
-        if orderscount(s, ai) == 0 && !isactive(s, ai)
+        @lock ai if orderscount(s, ai) == 0 && !isactive(s, ai)
             task_local_storage(:running, false)
             try
                 @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" _module = LogWatchOrder current_task()
@@ -171,25 +181,27 @@ Any additional keyword arguments (`exc_kwargs`) are passed to the asset instance
 The function handles exceptions gracefully. If an exception occurs during the fetch orders operation, it logs the exception and continues with the next iteration.
 
 """
-function watch_orders!(s::LiveStrategy, ai; exc_kwargs=())
-    @debug "watch orders: get task" ai = raw(ai) islocked(s) _module = LogWatchOrder
+function watch_orders!(s::LiveStrategy, ai; exc_kwargs=(;))
+    @debug "watch orders: get task" ai islocked(s) _module = LogWatchOrder
     tasks = asset_tasks(s, ai)
-    @debug "watch orders: locking" ai = raw(ai) islocked(s) _module = LogWatchOrder
+    @debug "watch orders: locking" ai islocked(s) _module = LogWatchOrder
     @lock tasks.lock begin
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)
             if istaskrunning(task)
+                @debug "watch orders: task running" ai islocked(s) _module = LogWatchOrder
                 return task
             end
         end
         # Call the top-level functions
-        exc, orders_byid, stop_delay = initialize_watch_tasks!(s, ai)
-        loop_func = define_loop_funct(s, ai, exc; exc_kwargs)
-        task = @start_task orders_byid manage_order_updates!(s, ai, orders_byid, stop_delay, loop_func)
+        orders_byid, stop_delay = initialize_watch_tasks!(s, ai)
+        loop_func, iswatch = define_loop_funct(s, ai; exc_kwargs)
+        task = @start_task orders_byid manage_order_updates!(s, ai, orders_byid, stop_delay, loop_func, iswatch)
         stop_task = @async monitor_stop_conditions!(s, ai, task, stop_delay, tasks)
 
         tasks.byname[:orders_task] = task
         tasks.byname[:orders_stop_task] = stop_task
+        @debug "watch orders: new task" ai islocked(s) _module = LogWatchOrder
         return task
     end
 end
@@ -233,8 +245,20 @@ end
 
 @doc """ Stops the orders watcher for an asset instance. """
 function stop_watch_orders!(s::LiveStrategy, ai)
-    asset_orders_task(s, ai) |> stop_task
-    asset_orders_stop_task(s, ai) |> stop_task
+    waitfor = attr(s, :live_stop_timeout, Second(3))
+    @timeout_start
+    tasks = (asset_orders_task(s, ai), asset_orders_stop_task(s, ai))
+    for task in tasks
+        stop_task(task)
+    end
+    for task in tasks
+        if !istaskdone(task)
+            waitforcond(() -> !istaskdone(task), @timeout_now())
+            if !istaskdone(task)
+                kill_task(task)
+            end
+        end
+    end
 end
 
 @doc """ Generates a unique enough hash for an order, preferably based on the last update, or the order info otherwise. """
@@ -343,7 +367,8 @@ function update_order!(s, ai, eid; resp, state)
             end
         end
     end
-    @debug "update ord: handled" _module = LogWatchOrder id = state.order.id filed = filled_amount(state.order) f = @caller 7
+    @debug "update ord: handled" _module = LogWatchOrder id = state.order.id filled = filled_amount(state.order) f = @caller 7
+    asset_orders_task(s, ai).storage[:notify] |> safenotify
 end
 
 _default_ordertype(islong::Bool, bs::BySide, args...) = begin
@@ -444,14 +469,22 @@ function process_order!(s, ai, orders_byid, resp, sem)
     try
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
+        @debug "handle ord: processing" id resp
         @lock ai begin
-            isprocessed_order(s, ai, id) && return nothing
-            isprocessed_order_update(s, ai, resp) && return nothing
+            if isprocessed_order(s, ai, id) ||
+               isprocessed_order_update(s, ai, resp)
+                return nothing
+            end
             record_order_update!(s, ai, resp)
         end
         @debug "handle ord: this event" _module = LogWatchOrder id = id status = resp_order_status(resp, eid)
         if isempty(id) || resp_event_type(resp, eid) != Order
             @debug "handle ord: missing order id" _module = LogWatchOrder
+            return nothing
+            # NOTE: when an order request is rejected by the exchange
+            # a local order is never stored
+        elseif _ccxtisstatus(resp, "rejected", eid)
+            @debug "handle ord: rejected order" _module = LogWatchOrder
             return nothing
         else
             # TODO: we could replace the queue with the handler_tasks vector
@@ -676,7 +709,7 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     slept = 0
     timeout = Millisecond(waitfor).value
     orders_byid = active_orders(s, ai)
-    if !(haskey(orders_byid, o.id) && haskey(s, ai, o))
+    if @lock ai !haskey(orders_byid, o.id)
         isproc = isprocessed_order(s, ai, o.id)
         @debug "Wait for order: inactive" _module = LogWaitOrder unfilled(o) filled_amount(o) isfilled(ai, o) isproc fetch_orders(s, ai, ids=(o.id,)) @caller
         return isproc || isfilled(ai, o)

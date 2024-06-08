@@ -41,27 +41,31 @@ $(TYPEDSIGNATURES)
 This function starts tasks in a live strategy `s` that watch the exchange for trades for an asset instance `ai`. It constantly checks and updates the trades based on the latest data from the exchange.
 
 """
-function watch_trades!(s::LiveStrategy, ai; exc_kwargs=())
-    @debug "watch trades: get tasks" _module = LogWatchTrade ai = raw(ai) islocked(s) @caller
+function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(;))
+    @debug "watch trades: get tasks" _module = LogWatchTrade ai islocked(s) @caller
     tasks = asset_tasks(s, ai)
-    @debug "watch trades: locking" _module = LogWatchTrade ai = raw(ai)
+    @debug "watch trades: locking" _module = LogWatchTrade ai
     @lock tasks.lock begin
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_trades_task(tasks.byname)
             if istaskrunning(task)
-                @debug "watch trades: task running" _module = LogWatchTrade ai = raw(ai)
+                @debug "watch trades: task running" _module = LogWatchTrade ai
                 return task
             end
         end
         exc, orders_byid, stop_delay = initialize_watch_trades_tasks!(s, ai)
         if !hasmytrades(exc)
-            @error "watch trades: trades monitoring is not supported" exc ai = raw(ai)
+            @error "watch trades: trades monitoring is not supported" exc ai
             return nothing
         end
-        loop_func = define_trades_loop_funct(s, ai, exc; exc_kwargs)
-        task = @start_task orders_byid manage_trade_updates!(s, ai, orders_byid, stop_delay, loop_func)
+        loop_func, iswatch = define_trades_loop_funct(s, ai, exc; exc_kwargs)
+        task = @start_task orders_byid manage_trade_updates!(s, ai, orders_byid, stop_delay, loop_func, iswatch)
 
         tasks.byname[:trades_task] = task
+        @debug "watch trades: new task" _module = LogWatchTrade ai
+        while !istaskstarted(task)
+            sleep(0.01)
+        end
         return task
     end
 end
@@ -73,37 +77,41 @@ function initialize_watch_trades_tasks!(s::LiveStrategy, ai)
     return exc, orders_byid, stop_delay
 end
 
-function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
+function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=(;))
     watch_func = first(exc, :watchMyTrades)
+    _, func_kwargs = splitkws(:since; kwargs=exc_kwargs)
     sym = raw(ai)
     if !isnothing(watch_func) && s[:is_watch_mytrades]
         init_handler() = begin
             channel = Channel{Any}(s[:live_buffer_size])
-            coro_func() = watch_func(sym; exc_kwargs...)
-            f_push(v) = put!(channel, v)
-            h = stream_handler(coro_func, f_push)
+            task_local_storage(:channel, channel)
+            since = dtstamp(attr(s, :is_start, now()))
+            h = @lget! task_local_storage() :handler begin
+                coro_func() = watch_func(sym; since, func_kwargs...)
+                f_push(v) = put!(channel, v)
+                stream_handler(coro_func, f_push)
+            end
             start_handler!(h)
             bind(channel, h.task)
-            task_local_storage(:handler, h)
-            task_local_storage(:channel, channel)
         end
         get_from_channel() = begin
-            channel = get(@something(current_task().storage, (;)), :channel, nothing)
-            if isnothing(channel) || !isopen(channel)
-                init_handler()
-            else
-
+            chan = let c = get(@something(current_task().storage, (;)), :channel, nothing)
+                if isnothing(c) || !isopen(c)
+                    init_handler()
+                    task_local_storage(:channel)
+                else
+                    c
+                end
             end
-            channel = task_local_storage(:channel)
-            if isopen(channel)
-                take!(channel)
+            if isopen(chan)
+                take!(chan)
             else
                 @error "Order handler can't open channel"
             end
         end
+        (get_from_channel, true)
     else
-        _, other_exc_kwargs = splitkws(:since; kwargs=exc_kwargs)
-        last_date = isempty(ai.history) ? now() : last(ai.history).date
+        last_date = isempty(ai.history) ? attr(s, :is_start, now()) : last(ai.history).date
         since = Ref(last_date)
         startup = Ref(true)
         eid = exchangeid(ai)
@@ -112,7 +120,7 @@ function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
                 sleep(1)
             end
             updates = fetch_my_trades(
-                s, ai; since=dtstamp(since[]) + 1, other_exc_kwargs...
+                s, ai; since=dtstamp(since[]) + 1, func_kwargs...
             )
             if islist(updates) && !isempty(updates)
                 since[] = resp_trade_timestamp(updates[-1], eid, DateTime)
@@ -121,37 +129,42 @@ function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=())
             end
             updates
         end
+        (get_from_call, false)
     end
 end
 
-function manage_trade_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func)
+function manage_trade_updates!(s::LiveStrategy, ai, orders_byid, stop_delay, loop_func, iswatch)
     sem = task_sem()
     process_tasks = Task[]
+    idle_timeout = Second(s.watch_idle_timeout)
     try
         while @istaskrunning()
             try
                 updates = loop_func()
-                process_trades!(s, ai, orders_byid, updates, sem, process_tasks)
+                process_trades!(s, ai, orders_byid, updates, sem, process_tasks, iswatch)
+                stop_delay[] = idle_timeout
             catch e
-                handle_trade_updates_errors!(e, ai)
+                handle_trade_updates_errors!(e, ai, iswatch)
             end
         end
     finally
-        h = task_local_storage(:handler, nothing)
+        h = get(task_local_storage(), :handler, nothing)
         if !isnothing(h)
             stop_handler!(h)
         end
     end
 end
 
-function process_trades!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks)
+function process_trades!(s::LiveStrategy, ai, orders_byid, updates, sem, process_tasks, iswatch)
     if updates isa Exception
         if updates isa InterruptException
             throw(updates)
         else
             @ifdebug ispyminor_error(updates) ||
                      @debug "watch trades: fetching error" _module = LogWatchTrade updates
-            sleep(1)
+            if !iswatch
+                sleep(1)
+            end
         end
     else
         for resp in pylist(updates)
@@ -162,14 +175,16 @@ function process_trades!(s::LiveStrategy, ai, orders_byid, updates, sem, process
     end
 end
 
-function handle_trade_updates_errors!(e, ai)
-    if e isa InterruptException || e isa InvalidStateException
+function handle_trade_updates_errors!(e, ai, iswatch)
+    if e isa InterruptException || (iswatch && e isa InvalidStateException)
         rethrow(e)
     else
         @debug "watch trades: error (task termination?)" _module = LogWatchTrade raw(ai) istaskrunning() current_task().storage[:running]
         @debug_backtrace LogWatchTrade
     end
-    sleep(1)
+    if !iswatch
+        sleep(1)
+    end
 end
 
 asset_trades_task(tasks) = get(tasks, :trades_task, nothing)
@@ -370,6 +385,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                 idx = findfirst(x -> x == n, sem.queue)
                 isnothing(idx) || deleteat!(sem.queue, idx)
                 safenotify(sem.cond)
+                asset_trades_task(s, ai).storage[:notify] |> safenotify
             end
         end
     catch e
@@ -384,9 +400,17 @@ end
 $(TYPEDSIGNATURES)
 """
 function stop_watch_trades!(s::LiveStrategy, ai)
+    waitfor = attr(s, :live_stop_timeout, Second(3))
+    @timeout_start
     t = asset_trades_task(s, ai)
     if istaskrunning(t)
         stop_task(t)
+        if !istaskdone(t)
+            waitforcond(() -> !istaskdone(t), @timeout_now())
+            if !istaskdone(t)
+                kill_task(t)
+            end
+        end
     end
 end
 
@@ -442,7 +466,9 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5), force=tr
     active = active_orders(s, ai)
     _force() =
         if force
-            _force_fetchtrades(s, ai, o)
+            @debug "wait for trade:" _module = LogWaitTrade id = o.id f = @caller
+            # TODO: ensure this lock doesn't cause deadlocks
+            @lock ai _force_fetchtrades(s, ai, o)
             length(order_trades) > prev_count
         else
             false
