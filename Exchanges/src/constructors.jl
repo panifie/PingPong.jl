@@ -459,6 +459,26 @@ $(TYPEDSIGNATURES)
 """
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
+function authenticate!(exc::CcxtExchange, tries=3)
+    if hasproperty(exc.py, :authenticate)
+        resp = pyfetch(exc.authenticate)
+        if resp isa Exception
+            if tries > 0 && pyisinstance(resp, Ccxt._lazypy(Ccxt.ccxt, "ccxt").RequestTimeout)
+                return authenticate!(exc, tries - 1)
+            end
+            Main.resp = resp
+            @error "exchange: auth error" resp
+            false
+        else
+            true
+        end
+    else
+        @error "exchange: no `authenticate` method." exc
+        false
+    end
+end
+
+
 function exckeys!(exc, key, secret, pass, wa, pk)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
     if Symbol(exc.id) ∈ (:kucoin, :kucoinfutures)
@@ -469,6 +489,7 @@ function exckeys!(exc, key, secret, pass, wa, pk)
     exc.py.password = pass
     exc.py.walletAddress = wa
     exc.py.privateKey = pk
+    authenticate!(exc)
     nothing
 end
 
