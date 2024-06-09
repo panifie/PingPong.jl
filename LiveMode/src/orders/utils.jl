@@ -162,20 +162,20 @@ function waitfor_closed(
         slept = 0
         timeout = Millisecond(waitfor).value
         success = true
-        @debug "wait ord close: waiting" _module = LogWaitOrder ai = raw(ai) side = t
+        @debug "wait ord close: waiting" _module = LogWaitOrder ai side = t
         while true
             isactive(s, ai; active, side=t) || begin
-                @debug "wait ord close: done" _module = LogWaitOrder ai = raw(ai)
+                @debug "wait ord close: done" _module = LogWaitOrder ai
                 break
             end
             slept < timeout || begin
                 success = false
-                @debug "wait ord close: timedout" _module = LogWaitOrder ai = raw(ai) side = t waitfor f = @caller
+                @debug "wait ord close: timedout" _module = LogWaitOrder ai side = t waitfor f = @caller
                 if synced
                     @warn "wait ord close: syncing open orders!"
                     live_sync_open_orders!(s, ai; side=t, overwrite=false, exec=true)
                     success = if isactive(s, ai; side=t)
-                        @error "wait ord close: orders still active" side = t n = orderscount(
+                        @error "wait ord close: orders still active" ai side = t n = orderscount(
                             s, ai, t
                         ) length(active_orders(s, ai)) isactive(s, ai; side=t)
                         false
@@ -190,7 +190,7 @@ function waitfor_closed(
         end
         if success
             if orderscount(s, ai, t) > 0
-                @debug "wait ord close: syncing open orders! (2nd)" _module = LogWaitOrder ai = raw(ai) orderscount(s, ai, t)
+                @debug "wait ord close: syncing open orders! (2nd)" _module = LogWaitOrder ai orderscount(s, ai, t)
                 live_sync_open_orders!(s, ai; side=t, overwrite=false, exec=true)
                 iszero(orderscount(s, ai, t))
             else

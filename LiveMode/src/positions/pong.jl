@@ -60,7 +60,7 @@ macro isolated_position_check()
     ex = quote
         p = positionside(t)
         if !singlewaycheck(s, ai, t)
-            @warn "pong: double direction order in non hedged mode" position(ai) order_type = t
+            @warn "pong: double direction order in non hedged mode" ai position(ai) order_type = t
             return nothing
         end
         side_dict = get_positions(s, opposite(p))
@@ -184,11 +184,11 @@ function pong!(
         live_sync_position!(s, ai, pos, update)
     end
     if !isopen(ai, pos)
-        @warn "pong pos close: not open locally" ai = raw(ai) side = P
+        @warn "pong pos close: not open locally" ai side = P
         return true
     end
     if !waitfor_closed(s, ai, @timeout_now)
-        @error "pong pos close: orders still pending" orderscount(s, ai) cash(ai) committed(
+        @error "pong pos close: orders still pending" ai orderscount(s, ai) cash(ai) committed(
             ai
         )
     end
