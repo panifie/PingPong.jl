@@ -347,7 +347,7 @@ The function also checks if the price is greater than zero, issuing a warning an
 
 """
 function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
-    if !isapprox(actual_price, o.price; rtol) ||
+    if !isapprox(actual_price, o.price; rtol) &&
        !(o isa AnyMarketOrder)
         @warn "create trade: trade price far off from order price" o.price exc_price = actual_price ai nameof(s)
         false
