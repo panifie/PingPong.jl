@@ -165,7 +165,6 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
         start!(w)
     end
 end
-ohlcv_watcher(s::RTStrategy) = attr(s, :ohlcv_watcher, nothing)
 
 @doc """ Stops watching OHLCV data.
 
