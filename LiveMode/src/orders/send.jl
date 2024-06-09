@@ -98,7 +98,7 @@ function live_send_order(
     # @amount! ai amount
     if !skipchecks
         if !check_available_cash(s, ai, amount, price, t)
-            @warn "send order: not enough cash. out of sync?" this_cash = cash(
+            @warn "send order: not enough cash" this_cash = cash(
                 ai, posside(t)
             ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
                 s
