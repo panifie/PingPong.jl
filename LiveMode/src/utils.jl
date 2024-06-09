@@ -101,19 +101,27 @@ function reset_asset_tasks!(a, tasks)
     for (name, task) in tasks.byname
         if istaskrunning(task)
             @debug "waiting for asset task" _module = LogTasks name
-            waitforcond(() -> !istaskdone(task), @timeout_now())
-            if istaskrunning(task)
-                @debug "killing task" _module = LogTasks name
-                kill_task(task)
+            @async begin
+                this_task = $task
+                this_name = $name
+                waitforcond(() -> !istaskdone(this_task), @timeout_now())
+                if istaskrunning(this_task)
+                    @debug "killing task" _module = LogTasks this_name
+                    kill_task(this_task)
+                end
             end
         end
     end
     for (order, task) in tasks.byorder
         if istaskrunning(task)
-            @debug "waiting for asset task" _module = LogTasks order
-            waitforcond(() -> !istaskdone(task), @timeout_now())
-            if istaskrunning(task)
-                kill_task(task)
+            @async begin
+                this_task = $task
+                this_order = $order
+                @debug "waiting for asset task" _module = LogTasks this_order
+                waitforcond(() -> !istaskdone(this_task), @timeout_now())
+                if istaskrunning(this_task)
+                    kill_task(this_task)
+                end
             end
         end
     end

@@ -406,9 +406,11 @@ function stop_watch_trades!(s::LiveStrategy, ai)
     if istaskrunning(t)
         stop_task(t)
         if !istaskdone(t)
-            waitforcond(() -> !istaskdone(t), @timeout_now())
-            if !istaskdone(t)
-                kill_task(t)
+            @async begin
+                waitforcond(() -> !istaskdone(t), @timeout_now())
+                if !istaskdone(t)
+                    kill_task(t)
+                end
             end
         end
     end

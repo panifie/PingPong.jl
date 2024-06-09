@@ -253,9 +253,12 @@ function stop_watch_orders!(s::LiveStrategy, ai)
     end
     for task in tasks
         if !istaskdone(task)
-            waitforcond(() -> !istaskdone(task), @timeout_now())
-            if !istaskdone(task)
-                kill_task(task)
+            @async begin
+                this_task = $task
+                waitforcond(() -> !istaskdone(this_task), @timeout_now())
+                if !istaskdone(this_task)
+                    kill_task(this_task)
+                end
             end
         end
     end
