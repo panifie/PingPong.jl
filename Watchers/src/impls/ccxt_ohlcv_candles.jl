@@ -106,6 +106,7 @@ If the buffer or view of the watcher is empty, the function returns nothing.
 
 """
 _loadall!(w::Watcher, ::CcxtOHLCVCandlesVal) = _load_all_ohlcv!(w)
+isemptish(v) = isnothing(v) || isempty(v)
 
 function _reset_candles_func!(w)
     attrs = w.attrs
@@ -134,7 +135,7 @@ function _reset_candles_func!(w)
         wrapper_func = _update_ohlcv_func(w)
         syms = [@py([sym, tf_str]) for sym in ids]
         corogen_func = (_) -> coro_func() = watch_func(syms)
-        handler_task!(w; init_func, corogen_func, wrapper_func, if_func=!isempty)
+        handler_task!(w; init_func, corogen_func, wrapper_func, if_func=!isemptish)
         _tfunc!(attrs, () -> check_task!(w))
     elseif has(exc, :watchOHLCV)
         w[:handlers] = Dict{String,WatcherHandler1}()
@@ -143,7 +144,7 @@ function _reset_candles_func!(w)
         for sym in ids
             wrapper_func = _update_ohlcv_func_single(w, sym)
             corogen_func = (_) -> coro_func() = watch_func(sym; timeframe=tf_str)
-            handler_task!(w, sym; init_func, corogen_func, wrapper_func, if_func=!isempty)
+            handler_task!(w, sym; init_func, corogen_func, wrapper_func, if_func=!isemptish)
         end
         check_all_handlers() = all(check_task!(w, sym) for sym in ids)
         _tfunc!(attrs, check_all_handlers)
