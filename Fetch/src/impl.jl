@@ -336,7 +336,11 @@ function __handle_fetch(
     data = fetch_func(pair, since, limit; usetimeframe)
     dpl = pyisinstance(data, @py(list))
     if retry && (!dpl || length(data) == 0)
-        @debug "Downloaded data is not a matrix...retrying (since: $(dt(since)))." data
+        if data isa Exception
+            @warn "fetch ohlcv: unexpected value (retrying)" data
+        else
+            @debug "fetch ohlcv: response (retrying)" data since
+        end
         sleep(sleep_t)
         kwargs = if isnothing(since)
             (; since, limit=limit ÷ 2)
