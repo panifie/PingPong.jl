@@ -204,9 +204,9 @@ function _update_ohlcv_func(w)
                         end
                     end
                 end
+                invokelatest(w[k"callback"], this_df, sym)
+                state.nextcandle = tf_candles
             end
-            invokelatest(w[k"callback"], this_df, sym)
-            state.nextcandle = tf_candles
         end
         snap.py
     end
