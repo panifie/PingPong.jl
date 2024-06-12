@@ -25,7 +25,7 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         last(order_trades)
     elseif waitfortrade(s, ai, o; waitfor=@timeout_now)
         last(order_trades)
-    elseif !haskey(s, ai, o)
+    elseif !haskey(s, ai, o) && isempty(trades(o))
         @debug "market order: failed" _module = LogCreateOrder synced
         nothing
     else
