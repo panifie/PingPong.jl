@@ -423,12 +423,14 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     if actual_amount <= ZERO || !isfinite(actual_amount)
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
-        actual_amount = net_cost / actual_price
+        actual_amount = toprecision(net_cost / actual_price, ai.precision.amount)
         if !isorderamount(s, ai, actual_amount; resp)
             return nothing
         end
     else
-        net_cost = cost(actual_price, actual_amount)
+        net_cost = let c = cost(actual_price, actual_amount)
+            toprecision(c, ai.precision.price)
+        end
     end
     inlimits(net_cost, ai, :cost)
     inlimits(actual_amount, ai, :amount)
