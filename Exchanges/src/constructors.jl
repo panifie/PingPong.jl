@@ -461,7 +461,11 @@ issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
 function authenticate!(exc::CcxtExchange, tries=3)
     if hasproperty(exc.py, :authenticate)
-        resp = pyfetch(exc.authenticate)
+        resp = try
+            pyfetch(exc.authenticate)
+        catch e
+            @error "exchange auth error" exception = e
+        end
         if resp isa Exception
             if tries > 0 && pyisinstance(resp, Ccxt._lazypy(Ccxt.ccxt, "ccxt").RequestTimeout)
                 return authenticate!(exc, tries - 1)
