@@ -220,7 +220,7 @@ function __get_since(exc, fetch_func, pair, limit, from, out, is_df, converter)
             if since_date != DateTime(0) && first_date > since_date
                 @warn "fetch: ($(nameof(exc))) likely ignores `since` argument" since_date dt(
                     since_ts
-                ) dt(from) pair
+                ) dt(from) pair maxlog = 1
             end
             round(Int, timefloat(out[end, 1]), RoundUp)
         else
