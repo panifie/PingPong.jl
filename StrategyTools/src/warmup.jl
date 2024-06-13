@@ -8,6 +8,7 @@ function initwarmup!(s; timeout=Minute(15))
     attrs[:warmup] = Dict(ai => false for ai in s.universe)
     attrs[:warmup_lock] = ReentrantLock()
     attrs[:warmup_timeout] = timeout
+    attrs[:warmup_candles] = 999
 end
 @doc """
 Placeholder for simulation strategy warmup.
@@ -24,7 +25,7 @@ $(TYPEDSIGNATURES)
 
 If warmup has not been previously completed for the given asset instance, it performs the necessary preparations.
 """
-function warmup!(cb::Function, s::RTStrategy, ai, ats, n_candles=999)
+function warmup!(cb::Function, s::RTStrategy, ai, ats, n_candles=s.warmup_candles)
     # give up on warmup after `warmup_timeout`
     if now() - s.is_start < s.warmup_timeout
         if !s[:warmup][ai]
@@ -42,7 +43,7 @@ $(TYPEDSIGNATURES)
 The function prepares the trading strategy by simulating past data before live execution starts.
 """
 function _warmup!(
-    callback::Function, s::Strategy, ai::AssetInstance, ats::DateTime; n_candles=999
+    callback::Function, s::Strategy, ai::AssetInstance, ats::DateTime; n_candles=s.warmup_candles
 )
     # wait until ohlcv data is available
     @debug "warmup: checking ohlcv data"
