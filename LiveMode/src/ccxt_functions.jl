@@ -155,7 +155,7 @@ This function fetches orders for a given asset instance `ai` using the provided 
 function _fetch_orders(ai, this_func; eid, side=BuyOrSell, ids=(), pred_funcs=(), kwargs...)
     resp = _execfunc(this_func, ai)
     if resp isa Exception
-        @error "ccxt fetch orders" raw(ai) resp
+        @error "ccxt fetch orders" raw(ai) resp @caller
         return nothing
     end
     notside = let sides = if side === BuyOrSell # NOTE: strict equality
