@@ -96,7 +96,7 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     params, rest = split_params(kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
-    tasks = Task[]
+    w[:process_tasks] = tasks = Task[]
     if iswatch
         init = Ref(true)
         buffer_size = attr(s, :live_buffer_size, 1000)
@@ -120,7 +120,6 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 w[:positions_handler] = watch_positions_handler(
                     exc, (ai for ai in s.universe); f_push, params, rest...
                 )
-            w[:process_tasks] = tasks
             start_handler!(h)
             bind(channel[], h.task)
         end
