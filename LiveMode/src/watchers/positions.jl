@@ -96,9 +96,9 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     params, rest = split_params(kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
-    w[:process_tasks] = tasks = Task[]
+    tasks = Task[]
+    init = Ref(true)
     if iswatch
-        init = Ref(true)
         buffer_size = attr(s, :live_buffer_size, 1000)
         s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
         function process_pos!(w, v)
@@ -122,6 +122,7 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 )
             start_handler!(h)
             bind(channel[], h.task)
+            w[:process_tasks] = tasks
         end
         function watch_positions_func(w)
             if init[]
@@ -164,6 +165,10 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     else
         fetch_positions_func(w) = begin
             start = now()
+            if init[]
+                w[:process_tasks] = tasks
+                init[] = false
+            end
             try
                 v = @lock w fetch_positions(s; timeout, params, rest...)
                 _dopush!(w, v)
