@@ -138,7 +138,7 @@ function _reset_candles_func!(w)
         handler_task!(w; init_func, corogen_func, wrapper_func, if_func=!isemptish)
         _tfunc!(attrs, () -> check_task!(w))
     elseif has(exc, :watchOHLCV)
-        w[:handlers] = Dict{String,WatcherHandler1}()
+        w[:handlers] = Dict{String,WatcherHandler2}()
         watch_func = exc.watchOHLCV
         syms = [(sym, tf) for sym in ids]
         for sym in ids
@@ -251,7 +251,7 @@ function _update_ohlcv_func_single(w, sym)
                     break
                 end
             end
-            if next_ts + tf < latest_ts && isempty(handlers[sym].channel)
+            if next_ts + tf < latest_ts && isempty(handlers[sym].buffer)
                 @warn "ohlcv (candles): out of sync, resolving" sym next_ts tf latest_ts
                 @acquire sem _ensure_ohlcv!(w, sym)
             end

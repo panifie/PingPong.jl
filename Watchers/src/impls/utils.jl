@@ -205,7 +205,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end - maxlen + 1):end, :])
+    available = @view(z[(end-maxlen+1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -493,12 +493,13 @@ function _flushfrom!(w)
     _lastflushed!(w, _lastdate(w.view))
 end
 
-@kwdef mutable struct WatcherHandler1
+@kwdef mutable struct WatcherHandler2
     init = true
     init_func::Function
     corogen_func::Function
     wrapper_func::Function
-    channel::Channel
+    buffer_notify::Condition
+    buffer::Vector{Any}
     state::Option{StreamHandler} = nothing
     task::Option{Task} = nothing
     const process_tasks = Task[]
@@ -507,8 +508,11 @@ end
 function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
     interval = w.interval.fetch
     buffer_size = max(w.capacity.buffer, w.capacity.view)
-    wh = WatcherHandler1(;
-        init_func, corogen_func, wrapper_func, channel=Channel{Any}(buffer_size)
+    buffer = Vector{Any}()
+    buffer_notify = Condition()
+    sizehint!(buffer, buffer_size)
+    wh = WatcherHandler2(;
+        init_func, corogen_func, wrapper_func, buffer, buffer_notify
     )
     tasks = wh.process_tasks
     function process_val!(w, v)
@@ -523,27 +527,21 @@ function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_fu
             process_val!(w, v)
         end
         wh.init = false
-        f_push(v) = put!(wh.channel, v)
+        f_push(v) = begin
+            push!(wh.buffer, v)
+            notify(wh.buffer_notify)
+        end
         wh.state = stream_handler(corogen_func(w), f_push)
         start_handler!(wh.state)
-        bind(wh.channel, wh.task)
     end
     function watch_func(w)
         if wh.init
             init_watch_func(w)
         end
-        v = if isopen(wh.channel)
-            take!(wh.channel)
-        else
-            wh.channel = Channel{Any}(buffer_size)
-            init_watch_func(w)
-            if !isopen(wh.channel)
-                @error "Positions handler can't be started"
-                sleep(interval)
-            else
-                take!(wh.channel)
-            end
+        while isempty(wh.buffer)
+            wait(wh.buffer_notify)
         end
+        v = popfirst!(wh.buffer)
         if v isa Exception
             @error "watcher: $(w.name)" exception = v
             sleep(1)
@@ -591,9 +589,6 @@ check_task!(w, sym) = check_handler_task!(w.handlers[sym])
 function stop_watcher_handler!(wh)
     if !isnothing(wh)
         stop_handler!(wh.state)
-    end
-    if isopen(wh.channel)
-        close(wh.channel)
     end
     nothing
 end

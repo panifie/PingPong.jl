@@ -83,33 +83,39 @@ function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=(;))
     sym = raw(ai)
     if !isnothing(watch_func) && s[:is_watch_mytrades]
         init_handler() = begin
-            channel = Channel{Any}(s[:live_buffer_size])
-            task_local_storage(:channel, channel)
+            buf = Vector{Any}()
+            sizehint!(buf, s[:live_buffer_size])
+            # NOTE: this is NOT a Threads.Condition because we shouldn't yield inside the push function
+            # (we can't lock (e.g. by using `safenotify`) must use plain `notify`)
+            buf_notify = Condition()
+            task_local_storage(:buf, buf)
+            task_local_storage(:buf_notify, buf_notify)
             since = dtstamp(attr(s, :is_start, now()))
             h = @lget! task_local_storage() :handler begin
                 coro_func() = watch_func(sym; since, func_kwargs...)
-                f_push(v) = put!(channel, v)
+                f_push(v) = begin
+                    push!(buf, v)
+                    notify(buf_notify)
+                end
                 stream_handler(coro_func, f_push)
             end
             start_handler!(h)
-            bind(channel, h.task)
         end
-        get_from_channel() = begin
-            chan = let c = get(@something(current_task().storage, (;)), :channel, nothing)
-                if isnothing(c) || !isopen(c)
+        get_from_buffer() = begin
+            buf = let b = get(@something(current_task().storage, (;)), :buf, nothing)
+                if isnothing(b)
                     init_handler()
-                    task_local_storage(:channel)
+                    task_local_storage(:buf)
                 else
-                    c
+                    b
                 end
             end
-            if isopen(chan)
-                take!(chan)
-            else
-                @error "Order handler can't open channel"
+            while isempty(buf)
+                wait(task_local_storage(:buf_notify))
             end
+            popfirst!(buf)
         end
-        (get_from_channel, true)
+        (get_from_buffer, true)
     else
         last_date = isempty(ai.history) ? attr(s, :is_start, now()) : last(ai.history).date
         since = Ref(last_date)

@@ -61,16 +61,20 @@ function _w_balance_func(s, attrs)
     timeout = throttle(s)
     interval = attrs[:interval]
     params, rest = _ccxt_balance_args(s, attrs[:func_kwargs])
+    init = Ref(true)
     tasks = Task[]
     if attrs[:iswatch]
-        init = Ref(true)
         buffer_size = attr(s, :live_buffer_size, 1000)
-        s[:balance_channel] = channel = Ref(Channel{Any}(buffer_size))
+        s[:balance_buffer] = buf = Vector{Any}()
+        # NOTE: this is NOT a Threads.Condition because we shouldn't yield inside the push function
+        # (we can't lock (e.g. by using `safenotify`) must use plain `notify`)
+        s[:balance_notify] = buf_notify = Condition()
+        sizehint!(buf, buffer_size)
         function process_bal!(w, v)
             if !isnothing(v)
                 _dopush!(w, v; if_func=isdict)
             end
-            if !isready(channel[])
+            if !isempty(buf)
                 push!(tasks, @async process!(w))
             end
             filter!(!istaskdone, tasks)
@@ -79,28 +83,22 @@ function _w_balance_func(s, attrs)
             v = @lock w fetch_balance(s; timeout, params, rest...)
             process_bal!(w, v)
             init[] = false
-            f_push(v) = put!(channel[], v)
+            f_push(v) = begin
+                push!(buf, v)
+                notify(buf_notify)
+            end
             h = w[:balance_handler] = watch_balance_handler(exc; f_push, params, rest...)
             w[:process_tasks] = tasks
             start_handler!(h)
-            bind(channel[], h.task)
         end
         function watch_balance_func(w)
             if init[]
                 init_watch_func(w)
             end
-            v = if isopen(channel[])
-                take!(channel[])
-            else
-                channel[] = Channel{Any}(buffer_size)
-                init_watch_func(w)
-                if !isopen(channel[])
-                    @error "Balance handler can't be started"
-                    sleep(interval)
-                else
-                    take!(channel[])
-                end
+            while isempty(buf)
+                wait(buf_notify)
             end
+            v = popfirst!(buf)
             if v isa Exception
                 @error "balance watcher: unexpected value" exception = v
                 sleep(1)
@@ -110,6 +108,10 @@ function _w_balance_func(s, attrs)
         end
     else
         fetch_balance_func(w) = begin
+            if init[]
+                w[:process_tasks] = tasks
+                init[] = false
+            end
             start = now()
             try
                 v = @lock w fetch_balance(s; timeout, params, rest...)
@@ -142,14 +144,9 @@ end
 _balance_task(w) = @lget! attrs(w) :balance_task _balance_task!(w)
 
 function Watchers._stop!(w::Watcher, ::CcxtBalanceVal)
-    s = w[:strategy]
     handler = attr(w, :balance_handler, nothing)
     if !isnothing(handler)
         stop_handler!(handler)
-    end
-    channel = attr(s, :balance_channel, nothing)
-    if channel isa Ref{Channel} && isopen(channel[])
-        close(channel[])
     end
     nothing
 end

@@ -100,12 +100,14 @@ function _w_positions_func(s, interval; iswatch, kwargs)
     init = Ref(true)
     if iswatch
         buffer_size = attr(s, :live_buffer_size, 1000)
-        s[:positions_channel] = channel = Ref(Channel{Any}(buffer_size))
+        s[:positions_buffer] = buf = Vector{Any}()
+        s[:positions_notify] = buf_notify = Condition()
+        sizehint!(buf, buffer_size)
         function process_pos!(w, v)
             if !isnothing(v)
                 _dopush!(w, pylist(v))
             end
-            if !isready(channel[])
+            if !isempty(buf)
                 push!(tasks, @async process!(w))
             end
             filter!(!istaskdone, tasks)
@@ -115,31 +117,25 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 process_pos!(w, v)
             end
             init[] = false
-            f_push(v) = put!(channel[], v)
+            f_push(v) = begin
+                push!(buf, v)
+                notify(buf_notify)
+            end
             h =
                 w[:positions_handler] = watch_positions_handler(
                     exc, (ai for ai in s.universe); f_push, params, rest...
                 )
             start_handler!(h)
-            bind(channel[], h.task)
             w[:process_tasks] = tasks
         end
         function watch_positions_func(w)
             if init[]
                 init_watch_func(w)
             end
-            v = if isopen(channel[])
-                take!(channel[])
-            else
-                channel[] = Channel{Any}(buffer_size)
-                init_watch_func(w)
-                if !isopen(channel[])
-                    @error "Positions handler can't be started"
-                    sleep(interval)
-                else
-                    take!(channel[])
-                end
+            while isempty(buf)
+                wait(buf_notify)
             end
+            v = popfirst!(buf)
             if v isa Exception
                 @error "positions watcher: unexpected value" exception = v
                 sleep(1)
@@ -259,14 +255,9 @@ function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
     )
 end
 function Watchers._stop!(w::Watcher, ::CcxtPositionsVal)
-    s = w[:strategy]
     handler = attr(w, :positions_handler, nothing)
     if !isnothing(handler)
         stop_handler!(handler)
-    end
-    channel = attr(s, :positions_channel, nothing)
-    if channel isa Ref{Channel} && isopen(channel[])
-        close(channel[])
     end
     nothing
 end
