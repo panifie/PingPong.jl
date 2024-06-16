@@ -145,7 +145,7 @@ function create_live_order(
         already_filled = resp_order_filled(resp, eid)
         if already_filled > ZERO && isempty(trades(o))
             # wait for trades watcher
-            waitfortrade(s, ai, o, waitfor=s[:func_cache_ttl], force=false)
+            waitfortrade(s, ai, o, waitfor=s[:func_cache_ttl], force=synced)
         end
         if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
             @lock ai emulate_trade!(s, o, ai; resp)

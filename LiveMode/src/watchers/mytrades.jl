@@ -476,7 +476,7 @@ function waitfortrade(s::LiveStrategy, ai, o::Order; waitfor=Second(5), force=tr
         if force
             @debug "wait for trade:" _module = LogWaitTrade id = o.id f = @caller
             # TODO: ensure this lock doesn't cause deadlocks
-            @lock ai _force_fetchtrades(s, ai, o)
+            _force_fetchtrades(s, ai, o)
             length(order_trades) > prev_count
         else
             false
@@ -547,8 +547,10 @@ function _force_fetchtrades(s, ai, o)
         @lock state.lock if waslocked && length(trades(o)) != prev_count
             @debug "force fetch trades: skipping after lock" _module = LogTradeFetch
             return nothing
+        else
+            # NOTE: only lock asset *after* state.lock not avoid deadlocks
+            @lock ai handler()
         end
-        handler()
     else
         handler()
     end
