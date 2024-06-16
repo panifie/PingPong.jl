@@ -21,7 +21,7 @@ function pong!(
     kwargs...,
 )::Union{<:Trade,Nothing,Missing}
     @timeout_start
-    w = balances_watcher(s)
+    w = balance_watcher(s)
     # NOTE: avoid balances updates when executing orders
     trade = @lock w._exec.buffer_lock _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
     if synced && trade isa Trade
@@ -50,7 +50,7 @@ function pong!(
     kwargs...,
 )
     @timeout_start
-    w = balances_watcher(s)
+    w = balance_watcher(s)
     # NOTE: avoid balances updates when executing orders
     trade = @lock w._exec.buffer_lock _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
     if synced && trade isa Trade
