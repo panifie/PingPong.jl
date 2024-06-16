@@ -194,8 +194,7 @@ function _update_ohlcv_func(w)
                             if cdl_ts == next_ts
                                 tup = (cdl_ts, (pytofloat(cdl[idx]) for idx in 2:6)...)
                                 push!(this_df, tup)
-                                next_ts = cdl_ts
-                                break
+                                next_ts += tf
                             end
                         end
                         if next_ts + tf < latest_ts
