@@ -1,6 +1,7 @@
 import .SimMode: maketrade, trade!
 using .SimMode: @maketrade, iscashenough, cost
 using .Misc.TimeToLive: safettl
+using .Misc: toprecision
 
 @doc """ Checks and filters trades based on a timestamp.
 
