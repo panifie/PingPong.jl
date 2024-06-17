@@ -533,7 +533,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.14"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "LoggingExtras", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"
@@ -680,7 +680,7 @@ version = "1.3.0"
 deps = ["Engine", "MacroTools", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
 path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.3.43"
+version = "1.4.13"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
