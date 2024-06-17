@@ -56,7 +56,7 @@ function force_exit_position(s::Strategy, ai, p, date::DateTime)
     price = priceat(s, ot, ai, date)
     amount = abs(nondust(ai, ot, price))
     if amount > 0.0
-        @ifdebug prevcash = s.cash.value
+        prevcash = s.cash.value
         t = pong!(s, ai, ot; amount, date, price)
         @debug "force exit position: " amount price t.price s.cash.value - prevcash t.value
         @deassert let o = t.order

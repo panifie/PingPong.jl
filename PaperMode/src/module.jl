@@ -186,7 +186,7 @@ function strategy_logger!(s)
     esc_logname = replace(logname, r"(.)" => s"\\\1")
     rotate_logger = DatetimeRotatingFileLogger(
         logdir,
-        string(esc_logname, "-", raw"YYYY-mm-dd-HH-MM.\l\o\g");
+        string(esc_logname, "-", raw"YYYY-mm-dd.\l\o\g");
         rotation_callback=_compressor,
     )
     ts_logger = timestamp_logger(rotate_logger)
