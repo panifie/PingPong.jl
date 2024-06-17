@@ -565,9 +565,9 @@ function _test_live(debug="LiveMode")
             end
             setglobal!(Main, :s, s)
             try
-                # @testset "live_fetch_orders" test_live_fetch_orders(s)
-                # @testset "live_fetch_positions" test_live_fetch_positions(s)
-                # @testset "live_cancel_orders" test_live_cancel_orders(s)
+                @testset "live_fetch_orders" test_live_fetch_orders(s)
+                @testset "live_fetch_positions" test_live_fetch_positions(s)
+                @testset "live_cancel_orders" test_live_cancel_orders(s)
                 @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
                 @testset "live_position" test_live_position(s)
                 @testset "live_position_sync" test_live_position_sync(s)

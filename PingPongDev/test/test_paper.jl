@@ -364,19 +364,19 @@ function test_paper()
     s = @eval backtest_strat(:Example; exchange=EXCHANGE, config_attrs=(; skip_watcher=true), mode=Paper())
     try
         @testset failfast = FAILFAST "paper" begin
-            # try
-            #     @info "TEST: paper nomargin market"
-            #     @testset test_paper_nomargin_market(s)
-            #     @info "TEST: paper nomargin gtc"
-            #     @testset test_paper_nomargin_gtc(s)
-            #     @info "TEST: paper nomargin ioc"
-            #     @testset test_paper_nomargin_ioc(s)
-            #     @info "TEST: paper nomargin fok"
-            #     @testset test_paper_nomargin_fok(s)
-            # finally
-            #     stop!(s)
-            #     reset!(s)
-            # end
+            try
+                @info "TEST: paper nomargin market"
+                @testset test_paper_nomargin_market(s)
+                @info "TEST: paper nomargin gtc"
+                @testset test_paper_nomargin_gtc(s)
+                @info "TEST: paper nomargin ioc"
+                @testset test_paper_nomargin_ioc(s)
+                @info "TEST: paper nomargin fok"
+                @testset test_paper_nomargin_fok(s)
+            finally
+                stop!(s)
+                reset!(s)
+            end
 
             s = @eval backtest_strat(
                 :ExampleMargin; exchange=EXCHANGE_MM, config_attrs=(; skip_watcher=true), mode=Paper()
