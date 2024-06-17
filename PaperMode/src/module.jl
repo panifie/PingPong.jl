@@ -1,7 +1,7 @@
 using Fetch: Fetch, pytofloat
 using SimMode
 using SimMode.Executors
-using Base: SimpleLogger, with_logger
+using Base: with_logger
 using .Executors: orders, orderscount
 using .Executors.OrderTypes
 using .Executors.TimeTicks
@@ -10,8 +10,8 @@ using .Executors.Misc
 using .Executors.Instruments: compactnum as cnum
 using .Misc.ConcurrentCollections: ConcurrentDict
 using .Misc.TimeToLive: safettl
+using .Misc.LoggingExtras
 using .Misc.Lang: @lget!, @ifdebug, @deassert, Option, @writeerror, @debug_backtrace
-using .Misc: truncate_file
 using .Executors.Strategies: MarginStrategy, Strategy, Strategies as st, ping!
 using .Executors.Strategies
 using .Instances: MarginInstance
@@ -19,7 +19,7 @@ using .Instances.Exchanges: CcxtTrade
 using .Instances.Data.DataStructures: CircularBuffer
 using SimMode: AnyMarketOrder, AnyLimitOrder
 import .Executors: pong!
-import .Misc: start!, stop!, isrunning, sleep_pad
+import .Misc: start!, stop!, isrunning, sleep_pad, LOGGING_GROUPS
 
 @doc "A constant `TradesCache` that is a dictionary mapping `AssetInstance` to a circular buffer of `CcxtTrade`."
 const TradesCache = Dict{AssetInstance,CircularBuffer{CcxtTrade}}()
@@ -70,41 +70,17 @@ function log(s::Strategy)
 end
 
 @doc """
-Creates a function to flush the log and a lock for thread safety.
-
-$(TYPEDSIGNATURES)
-
-This function creates a `maybeflush` function that flushes the log if the time since the last flush exceeds the `log_flush_interval`. It also creates a `ReentrantLock` to ensure thread safety when flushing the log.
-"""
-function flushlog_func(s::Strategy)
-    last_flush = Ref(DateTime(0))
-    log_flush_interval = attr(s, :log_flush_interval, Second(1))
-    log_lock = ReentrantLock()
-    maybeflush(loghandle) =
-        let this_time = now()
-            if this_time - last_flush[] > log_flush_interval
-                lock(log_lock) do
-                    flush(loghandle)
-                    last_flush[] = this_time
-                end
-            end
-        end
-    maybeflush, log_lock
-end
-
-@doc """
 Executes the main loop of the strategy.
 
 $(TYPEDSIGNATURES)
 
-This function executes the main loop of the strategy, logging the state, flushing the log, pinging the strategy, and sleeping for the throttle duration. It handles exceptions and ensures the strategy stops running when an interrupt exception is thrown.
+This function executes the main loop of the strategy, logging the state, pinging the strategy, and sleeping for the throttle duration. It handles exceptions and ensures the strategy stops running when an interrupt exception is thrown.
 """
-function _doping(s; throttle, loghandle, flushlog, log_lock)
+function _doping(s; throttle)
     is_running = attr(s, :is_running)
     @assert isassigned(is_running)
     setattr!(s, now(), :is_start)
     setattr!(s, missing, :is_stop)
-    log_tasks = Task[]
     ping_start = DateTime(0)
     prev_cash = s.cash.value
     s_cash = s.cash
@@ -115,7 +91,6 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                     log(s)
                     prev_cash = s_cash.value
                 end
-                flushlog(loghandle)
                 ping_start = now()
                 ping!(s, now(), nothing)
                 sleep_pad(ping_start, throttle)
@@ -124,15 +99,7 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
                     is_running[] = false
                     rethrow(e)
                 end
-                filter!(istaskdone, log_tasks)
-                let lt = @async @lock log_lock try
-                        @writeerror loghandle
-                    catch
-                        @debug "Failed to log $(now())"
-                        @debug_backtrace
-                    end
-                    push!(log_tasks, lt)
-                end
+                @debug_backtrace
                 sleep_pad(ping_start, throttle)
             end
         end
@@ -142,9 +109,6 @@ function _doping(s; throttle, loghandle, flushlog, log_lock)
     finally
         is_running[] = false
         setattr!(s, now(), :is_stop)
-        for t in log_tasks
-            istaskdone(t) || schedule(t, InterruptException(); error=true)
-        end
     end
 end
 
@@ -158,7 +122,7 @@ This function starts the execution of a strategy in either foreground or backgro
 function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
-    local startinfo, flushlog, log_lock
+    local startinfo
     s[:stopped] = false
     @debug "start: locking"
     @lock s begin
@@ -198,30 +162,35 @@ function start!(
         @deassert attr(s, :is_running)[]
 
         startinfo = header(s, throttle)
-        flushlog, log_lock = flushlog_func(s)
     end
+    logger = s[:logger]
     if foreground
         s[:run_task] = nothing
-        @info startinfo
-        _doping(s; throttle, loghandle=stdout, flushlog, log_lock)
+        with_logger(logger) do
+            @info startinfo
+            _doping(s; throttle)
+        end
     else
-        s[:run_task] = @async begin
-            logfile = runlog(s)
-            truncate_file(logfile, logmaxlines(s))
-            loghandle = open(logfile, "w")
-            try
-                logger = SimpleLogger(loghandle)
-                with_logger(logger) do
-                    @info startinfo
-                    _doping(s; throttle, loghandle, flushlog, log_lock)
-                end
-            finally
-                flush(loghandle)
-                close(loghandle)
-                @assert !isopen(loghandle)
-            end
+        s[:run_task] = @async with_logger(logger) do
+            @info startinfo
+            _doping(s; throttle)
         end
     end
+end
+
+_compressor(file) = run(`gzip $(file)`)
+function strategy_logger!(s)
+    logdir, logname = let file = runlog(s)
+        dirname(file), splitext(basename(file))[1]
+    end
+    esc_logname = replace(logname, r"(.)" => s"\\\1")
+    rotate_logger = DatetimeRotatingFileLogger(
+        logdir,
+        string(esc_logname, "-", raw"YYYY-mm-dd-HH-MM.\l\o\g");
+        rotation_callback=_compressor,
+    )
+    ts_logger = timestamp_logger(rotate_logger)
+    s[:logger] = TeeLogger(global_logger(), ts_logger)
 end
 
 @doc """

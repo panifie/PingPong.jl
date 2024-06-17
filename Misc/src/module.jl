@@ -7,6 +7,10 @@ using FunctionalCollections: PersistentHashMap
 using ConcurrentCollections: ConcurrentCollections
 using OrderedCollections: OrderedCollections, OrderedDict, LittleDict
 
+using LoggingExtras: LoggingExtras
+const LOGGING_GROUPS = Set{Symbol}()
+export LOGGING_GROUPS
+
 include("defs.jl")
 include("lists.jl")
 include("sandbox.jl")

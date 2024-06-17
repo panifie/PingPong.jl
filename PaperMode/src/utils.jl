@@ -8,20 +8,15 @@ const OrderTaskTuple = NamedTuple{(:task, :alive),Tuple{Task,Ref{Bool}}}
 @doc "Keeps track of the consumed volume of an asset (from the daily liquidity)."
 const AssetLiquidity = Tuple{Ref{DateTime},Ref{DFT},Ref{DFT}}
 
-@doc """ 
-Resets the logs of a given strategy.
+const date_format = "yyyy-mm-dd HH:MM:SS"
 
-$(TYPEDSIGNATURES)
-
-This function resets the logs of a given strategy by clearing the log file associated with the strategy's execution mode.
-"""
-function reset_logs(s::Strategy)
-    mode = execmode(s) |> typeof |> string
-    logfile = @lget! attrs(s) :logfile st.logpath(s, name="$(mode)_events")
-    write(logfile, "")
+function timestamp_logger(logger)
+    TransformerLogger(logger) do log
+        merge(log, (; message="$(Dates.format(now(), date_format)) $(log.message)"))
+    end
 end
 
-@doc """ 
+@doc """
 Sets the default attributes for a given strategy.
 
 $(TYPEDSIGNATURES)
@@ -38,7 +33,7 @@ function st.default!(s::Strategy{Paper})
     end
     empty!(tasks)
     _simmode_defaults!(s, attrs)
-    reset_logs(s)
+    strategy_logger!(s)
 end
 
 function priceat(::PaperStrategy, ::Type{<:Order}, ai, args...; kwargs...)

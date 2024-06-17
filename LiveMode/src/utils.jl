@@ -1,5 +1,5 @@
 using PaperMode.OrderTypes
-using PaperMode: reset_logs, SimMode
+using PaperMode: SimMode, strategy_logger!
 using .SimMode: _simmode_defaults!
 using .Lang: @lget!, Option, @get, MatchString
 using .Python: @pystr, @pyconst, Py, PyList, @py, pylist, pytuple, pyne
@@ -22,6 +22,7 @@ using Watchers.WatchersImpls: islist, isdict, _dopush!
 import .Instances: timestamp
 
 # logmodules
+# TODO: replace these with LOGGING_GROUPS var and a LogginExtras early filter
 baremodule LogPos end
 baremodule LogPosClose end
 baremodule LogPosSync end
@@ -490,7 +491,7 @@ This function sets default values for a live strategy `s`. These defaults includ
 function st.default!(s::LiveStrategy)
     a = attrs(s)
     _simmode_defaults!(s, a)
-    reset_logs(s)
+    strategy_logger!(s)
 
     skip_sync = if get(a, :skip_sync, false)
         a[:sync_history_limit] = 0

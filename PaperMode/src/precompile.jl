@@ -30,7 +30,6 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         end
         elapsed(s)
         isrunning(s)
-        reset_logs(s)
     end
     ot = OrderTypes
     start!(s)
