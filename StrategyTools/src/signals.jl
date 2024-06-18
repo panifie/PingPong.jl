@@ -94,7 +94,7 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
     this = ai_signals[sig_name]
     data = ohlcv(ai, tf)
     this_tf_ats = available(tf, ats)
-    @debug "update_signal!" raw(ai) contiguous_ts(data) maxlog = 1
+    @debug "update_signal!" raw(ai) iscontig = isempty(data) ? nothing : contiguous_ts(data) maxlog = 1
     if ismissing(this.state.value)
         start_date = ats - tf * count
         idx_start = dateindex(data, start_date)
