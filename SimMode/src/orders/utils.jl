@@ -17,6 +17,7 @@ _simmode_defaults!(s, attrs) = begin
     attrs[:sim_base_slippage] = Val(:spread)
     attrs[:sim_market_slippage] = Val(:skew)
     attrs[:sim_last_orders_update] = DateTime(0)
+    attrs[:sim_debug] = false
 end
 
 @doc "Sets default attributes for simulation mode."

@@ -1,6 +1,8 @@
 using Executors: orderscount
 using Executors: isoutof_orders
 using .Instances.Data.DFUtils: lastdate
+using .Misc.LoggingExtras
+using Base: with_logger
 
 import .Misc: start!, stop!
 
@@ -39,13 +41,20 @@ function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=tru
         st.reset!(s)
     end
     update_mode = s.attrs[:sim_update_mode]::ExecAction
-    for date in ctx.range
-        isoutof_orders(s) && begin
-            @deassert all(iszero(ai) for ai in universe(s))
-            break
+    logger = if s[:sim_debug]
+        current_logger()
+    else
+        MinLevelLogger(current_logger(), Logging.Info)
+    end
+    with_logger(logger) do
+        for date in ctx.range
+            isoutof_orders(s) && begin
+                @deassert all(iszero(ai) for ai in universe(s))
+                break
+            end
+            update!(s, date, update_mode)
+            ping!(s, date, ctx)
         end
-        update!(s, date, update_mode)
-        ping!(s, date, ctx)
     end
     s
 end
@@ -55,7 +64,7 @@ Backtest with context of all data loaded in the strategy universe.
 
 $(TYPEDSIGNATURES)
 
-Backtest the strategy with the context of all data loaded in the strategy universe. This function ensures that the universe data starts at the same time. If `trim_universe` is true, it trims the data to ensure alignment. If `doreset` is true, it resets the strategy before starting the backtest. The backtest is performed using the specified `ctx` context. 
+Backtest the strategy with the context of all data loaded in the strategy universe. This function ensures that the universe data starts at the same time. If `trim_universe` is true, it trims the data to ensure alignment. If `doreset` is true, it resets the strategy before starting the backtest. The backtest is performed using the specified `ctx` context.
 
 """
 start!(s::Strategy{Sim}; kwargs...) = start!(s, Context(s); kwargs...)
@@ -65,9 +74,9 @@ Starts the strategy with the given count.
 
 $(TYPEDSIGNATURES)
 
-Starts the strategy with the given count. 
-If `count` is greater than 0, it sets the start and end timestamps based on the count and the strategy's timeframe. 
-Otherwise, it sets the start and end timestamps based on the last timestamp in the strategy's universe. 
+Starts the strategy with the given count.
+If `count` is greater than 0, it sets the start and end timestamps based on the count and the strategy's timeframe.
+Otherwise, it sets the start and end timestamps based on the last timestamp in the strategy's universe.
 
 """
 function start!(s::Strategy{Sim}, count::Integer; kwargs...)
