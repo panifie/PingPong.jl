@@ -112,20 +112,21 @@ PingPong.jl requires at least Julia 1.9. Is not in the julia registry, to instal
 
 - Clone the repository:
 ```bash
-git clone --recurse-submodules https://github.com/panifie/PingPong.jl pingpong
+git clone --recurse-submodules https://github.com/panifie/PingPong.jl
 ```
-- Activate the project:
+- Check the env vars in `.envrc`, then enabled them with `direnv allow`.
 ```bash
-cd pingpong
-git submodule init
-git submodule update
-julia --project=.
+cd PingPong.jl
+direnv allow
+```
+- Activate the project specified by `JULIA_PROJECT` in the `.envrc`.
+```bash
+julia 
 ```
 - Download and build dependencies:
-```bash
-# use centralized condapkg env
-ENV["JULIA_CONDAPKG_ENV"] = joinpath(dirname(Base.active_project()), ".conda")
-import Pkg; Pkg.instantiate()
+```julia
+] instantiate
+using PingPong  # or PingPongInteractive for plotting and optimization
 ```
 
 Read the :book: documentation ([link](https://panifie.github.io/PingPong.jl/)) to learn how to get started with the bot.
