@@ -44,7 +44,7 @@ function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=tru
     logger = if s[:sim_debug]
         current_logger()
     else
-        MinLevelLogger(current_logger(), Logging.Info)
+        MinLevelLogger(current_logger(), s[:log_level])
     end
     with_logger(logger) do
         for date in ctx.range

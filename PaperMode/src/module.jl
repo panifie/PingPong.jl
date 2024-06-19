@@ -190,7 +190,8 @@ function strategy_logger!(s)
         rotation_callback=_compressor,
     )
     ts_logger = timestamp_logger(rotate_logger)
-    s[:logger] = TeeLogger(global_logger(), ts_logger)
+    min_level_logger = MinLevelLogger(ts_logger, s[:log_level])
+    s[:logger] = TeeLogger(global_logger(), min_level_logger)
 end
 
 @doc """
