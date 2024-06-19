@@ -712,7 +712,7 @@ Data.DFUtils.firstdate(ai::AssetInstance) = first(ohlcv(ai).timestamp)
 Data.DFUtils.lastdate(ai::AssetInstance) = last(ohlcv(ai).timestamp)
 
 function Base.print(io::IO, ai::NoMarginInstance)
-    write(io, "\"", raw(ai), " [", compactun(ai.cash.value), "]{", ai.exchange.name, "}")
+    write(io, "\"", raw(ai), " [", compactnum(ai.cash.value), "]{", ai.exchange.name, "}")
 end
 function Base.print(io::IO, ai::MarginInstance)
     long = compactnum(cash(ai, Long()).value)
