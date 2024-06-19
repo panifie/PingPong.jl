@@ -5,7 +5,7 @@ const EXC = :binance
 const MARGIN = NoMargin
 const TF = tf"1d"
 @strategyenv!
-using Engine.Simulations: mean
+using .Engine.Simulations: mean
 function ping!(t::Type{<:SC}, config, ::LoadStrategy)
     config.min_timeframe = tf"1d"
     config.timeframes = [tf"1d"]
