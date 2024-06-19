@@ -63,7 +63,7 @@ values: `tickers`, `trades`, `candles`
 
 """
 ohlcvmethod(s::Strategy) = s[:live_ohlcv_method]
-ohlcvmethod!(s::Strategy, k) = begin
+ohlcvmethod!(s::Strategy, k=:candles) = begin
     if k ∉ (:tickers, :candles, :trades)
         error("ohlcv methods supported are `tickers`, `candles` and `trades`")
     end
@@ -80,7 +80,7 @@ Otherwise, it returns the single watcher for the strategy `s`.
 
 """
 function ohlcv_watchers(s::RTStrategy)
-    if ohlcvmethod(s) == :trades
+    if ohlcvmethod!(s) == :trades
         @lget! s.attrs :live_ohlcv_watchers Dict{AssetInstance,Watcher}()
     else
         attr(s, :live_ohlcv_watcher, nothing)
