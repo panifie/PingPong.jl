@@ -51,24 +51,25 @@ using PingPong # or PingPongInteractive for plotting and optimization
 
 ## Install (git)
 
-Clone the repo:
+PingPong.jl requires at least Julia 1.9. Is not in the julia registry, to install it do the following:
 
-```shell
-git clone https://github.com/panifie/PingPong.jl
-cd PingPong.jl
-``` 
-
-Check the env vars in `.envrc`, then enabled them with `direnv allow`.
-Launch julia with the `PingPong` project:
-
-``` shell
-julia --project ./PingPong
+- Clone the repository:
+```bash
+git clone --recurse-submodules https://github.com/panifie/PingPong.jl
 ```
-
-Load PingPong
-``` julia
+- Check the env vars in `.envrc`, then enabled them with `direnv allow`.
+```bash
+cd PingPong.jl
+direnv allow
+```
+- Activate the project specified by `JULIA_PROJECT` in the `.envrc`.
+```bash
+julia 
+```
+- Download and build dependencies:
+```julia
 ] instantiate
-using PingPong # or PingPongInteractive for plotting and optimization
+using PingPong  # or PingPongInteractive for plotting and optimization
 ```
 
 ## Quickstart
