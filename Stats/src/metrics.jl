@@ -74,7 +74,7 @@ Calculates the Sharpe ratio for a `Strategy` `s` over a specified timeframe `tf`
 The risk-free rate `rfr` can be specified, and defaults to 0.0.
 
 """
-function sharpe(s::Strategy, tf=tf"1d", rfr=0.0)
+function sharpe(s::Strategy, tf=tf"1d"; rfr=0.0)
     @balance_arr
     returns = _returns_arr(balance)
     _rawsharpe(returns; rfr, tf)
@@ -104,7 +104,7 @@ Calculates the Sortino ratio for a `Strategy` `s` over a specified timeframe `tf
 The risk-free rate `rfr` can be specified, and defaults to 0.0.
 
 """
-function sortino(s::Strategy, tf=tf"1d", rfr=0.0)
+function sortino(s::Strategy, tf=tf"1d"; rfr=0.0)
     @balance_arr
     returns = _returns_arr(balance)
     _rawsortino(returns; rfr, tf)
