@@ -240,7 +240,7 @@ function multi(
     balance = let df = trades_balance(s, tf)
         isnothing(df) &&
             return Dict(m => ifelse(normalize, 0.0, typemin(DFT)) for m in metrics)
-        df.cum_balance
+        df.cum_total
     end
     returns = _returns_arr(balance)
     if isempty(returns)
@@ -248,11 +248,11 @@ function multi(
     end
     maybenorm = normalize ? normalize_metric : (x, _...) -> x
     Dict((m => let v = if m == :sharpe
-            _rawsharpe(returns)
+            _rawsharpe(returns; tf)
         elseif m == :sortino
-            _rawsortino(returns)
+            _rawsortino(returns; tf)
         elseif m == :calmar
-            _rawcalmar(returns)
+            _rawcalmar(returns; tf)
         elseif m == :drawdown
             maxdd(returns).dd
         elseif m == :expectancy
