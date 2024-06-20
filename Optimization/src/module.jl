@@ -3,7 +3,7 @@ using SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using SimMode.TimeTicks
 using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
-using .Instances.Data: zinstance, za
+using .Instances.Data: zinstance, Zarr as za
 using .Instances.Data.Zarr: getattrs, writeattrs
 using .Instances.Exchanges: exc, sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
