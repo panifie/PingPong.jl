@@ -690,7 +690,7 @@ $(TYPEDSIGNATURES)
 - `exc`: an Exchange object to perform the check on.
 - `type` (optional, default is `:basic`): a symbol representing the type of check to perform.
 """
-function check(exc::Exchange, type=:basic)
+function check(exc::Exchange; type=:basic)
     missing_funcs = Set()
     blockers = Set()
     total = Ref(0)
