@@ -203,6 +203,8 @@ Calculates the trading expectancy for a `Strategy` `s` over a specified timefram
 
 """
 function expectancy(s::Strategy, tf=tf"1d")
+    @balance_arr
+    returns = _returns_arr(balance)
     _rawexpectancy(returns)
 end
 
