@@ -470,7 +470,6 @@ function authenticate!(exc::CcxtExchange, tries=3)
             if tries > 0 && pyisinstance(resp, Ccxt._lazypy(Ccxt.ccxt, "ccxt").RequestTimeout)
                 return authenticate!(exc, tries - 1)
             end
-            Main.resp = resp
             @error "exchange: auth error" resp
             false
         else
