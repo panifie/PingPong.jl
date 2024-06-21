@@ -459,10 +459,12 @@ $(TYPEDSIGNATURES)
 """
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
+_authenticate!(::Exchange) = nothing
+
 function authenticate!(exc::CcxtExchange, tries=3)
     if hasproperty(exc.py, :authenticate)
         resp = try
-            pyfetch(exc.authenticate)
+            _authenticate!(exc)
         catch e
             @error "exchange auth error" exception = e
         end
@@ -476,10 +478,11 @@ function authenticate!(exc::CcxtExchange, tries=3)
             true
         end
     else
-        @error "exchange: no `authenticate` method." exc
+        @warn "exchange: no `authenticate` method." exc
         false
     end
 end
+authenticate!(::Exchange, tries=3) = nothing
 
 
 function exckeys!(exc, key, secret, pass, wa, pk)
@@ -690,7 +693,7 @@ $(TYPEDSIGNATURES)
 - `exc`: an Exchange object to perform the check on.
 - `type` (optional, default is `:basic`): a symbol representing the type of check to perform.
 """
-function check(exc::Exchange, type=:basic)
+function check(exc::Exchange; type=:basic)
     missing_funcs = Set()
     blockers = Set()
     total = Ref(0)

@@ -117,7 +117,9 @@ function symlinkslist(s; kwargs...)
     links = ez.Node[]
     function chunk_url(el)
         e = ez.elements(el)[1]
-        e.name == "Key" && !endswith(e.content, "CHECKSUM") && push!(links, e)
+        if e.name == "Key" && !endswith(e.content, "CHECKSUM")
+            push!(links, e)
+        end
     end
     for el in ez.elements(ez.elements(html.node)[1])
         el.name == "Contents" && chunk_url(el)
@@ -243,10 +245,10 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
         fetchandsave(s) = @except if !quit[]
             ohlcv, last_file = fetchsym(s; reset, path_kws...)
             if !(isnothing(ohlcv) || isnothing(last_file))
-                binancesave(s, ohlcv; reset)
+                binancesave(s, ohlcv; reset, path_kws...)
                 ca.save_cache(key_path(s; path_kws...), last_file)
             else
-                @warn "binance: download failed" sym = s
+                @warn "binance: download failed (or up to date)" sym = s last_file
             end
             @pbupdate!
         end "binance scraper" (quit[] = true)
