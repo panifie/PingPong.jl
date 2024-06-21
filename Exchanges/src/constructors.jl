@@ -459,10 +459,12 @@ $(TYPEDSIGNATURES)
 """
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
+_authenticate!(::CcxtExchange) = nothing
+
 function authenticate!(exc::CcxtExchange, tries=3)
     if hasproperty(exc.py, :authenticate)
         resp = try
-            pyfetch(exc.authenticate)
+            _authenticate!(exc)
         catch e
             @error "exchange auth error" exception = e
         end
@@ -476,7 +478,7 @@ function authenticate!(exc::CcxtExchange, tries=3)
             true
         end
     else
-        @error "exchange: no `authenticate` method." exc
+        @warn "exchange: no `authenticate` method." exc
         false
     end
 end
