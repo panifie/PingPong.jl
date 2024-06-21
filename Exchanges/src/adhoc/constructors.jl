@@ -7,4 +7,4 @@ _doinit() = begin
     HOOKS[:bybit] = [_load_time_diff]
 end
 
-_authenticate!(exc::CcxtExchange{:phemex}) = pyfetch(exc.authenticate)
+_authenticate!(exc::Exchange{ExchangeID{:phemex}}) = pyfetch(exc.authenticate)
