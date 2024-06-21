@@ -459,7 +459,7 @@ $(TYPEDSIGNATURES)
 """
 issupported(tf::TimeFrame, exc) = issupported(string(tf), exc)
 
-_authenticate!(::CcxtExchange) = nothing
+_authenticate!(::Exchange) = nothing
 
 function authenticate!(exc::CcxtExchange, tries=3)
     if hasproperty(exc.py, :authenticate)
@@ -482,6 +482,7 @@ function authenticate!(exc::CcxtExchange, tries=3)
         false
     end
 end
+authenticate!(::Exchange, tries=3) = nothing
 
 
 function exckeys!(exc, key, secret, pass, wa, pk)
