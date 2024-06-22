@@ -31,8 +31,18 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
         elseif waitfortrade(s, ai, o; waitfor=@timeout_now, force=synced)
             last(order_trades)
         elseif haskey(s, ai, o)
-            @debug "pong limit order: no trades yet (immediate)" _module = LogCreateOrder o.id
-            missing
+            if synced
+                live_sync_open_orders!(s, ai, side=orderside(o))
+                if !isempty(order_trades)
+                    last(order_trades)
+                elseif haskey(s, ai, o)
+                    @debug "pong limit order: no trades yet (immediate,synced)" _module = LogCreateOrder o.id
+                    missing
+                end
+            else
+                @debug "pong limit order: no trades yet (immediate)" _module = LogCreateOrder o.id
+                missing
+            end
         else
             @debug "pong limit order: order failed (immediate)" _module = LogCreateOrder o.id
         end
@@ -42,9 +52,18 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
     elseif waitfortrade(s, ai, o; waitfor=@timeout_now, force=synced)
         last(order_trades)
     elseif haskey(s, ai, o)
-        # @assert isempty(order_trades)
-        @debug "pong limit order: no trades yet" _module = LogCreateOrder synced
-        missing
+        if synced
+            live_sync_open_orders!(s, ai, side=orderside(o))
+            if !isempty(order_trades)
+                last(order_trades)
+            elseif haskey(s, ai, o)
+                @debug "pong limit order: no trades yet (synced)" _module = LogCreateOrder synced
+                missing
+            end
+        else
+            @debug "pong limit order: no trades yet" _module = LogCreateOrder synced
+            missing
+        end
     else
         @debug "pong limit order: canceled or failed" _module = LogCreateOrder
     end
