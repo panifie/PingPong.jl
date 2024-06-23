@@ -36,6 +36,7 @@ baremodule LogSendOrder end
 baremodule LogSyncOrder end
 baremodule LogWaitOrder end
 baremodule LogTasks end
+baremodule LogTasks2 end
 baremodule LogCreateTrade end
 baremodule LogOHLCV end
 baremodule LogCcxtFuncs end

@@ -188,14 +188,14 @@ The function handles exceptions gracefully. If an exception occurs during the fe
 
 """
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=(;))
-    @debug "watch orders: get task" ai islocked(s) _module = LogWatchOrder
+    @debug "watch orders: get task" ai islocked(s) _module = LogTasks2
     tasks = asset_tasks(s, ai)
-    @debug "watch orders: locking" ai islocked(s) _module = LogWatchOrder
+    @debug "watch orders: locking" ai islocked(s) _module = LogTasks2
     @lock tasks.lock begin
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_orders_task(tasks.byname)
             if istaskrunning(task)
-                @debug "watch orders: task running" ai islocked(s) _module = LogWatchOrder
+                @debug "watch orders: task running" ai islocked(s) _module = LogTasks2
                 return task
             end
         end
@@ -207,7 +207,7 @@ function watch_orders!(s::LiveStrategy, ai; exc_kwargs=(;))
 
         tasks.byname[:orders_task] = task
         tasks.byname[:orders_stop_task] = stop_task
-        @debug "watch orders: new task" ai islocked(s) _module = LogWatchOrder
+        @debug "watch orders: new task" ai islocked(s) _module = LogTasks2
         return task
     end
 end
