@@ -89,13 +89,13 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         @lock cache.lock empty!(cache.data)
     end
     w = positions_watcher(s)
-    @debug "force fetch pos: checking" _module = LogPosFetch islocked(w) ai = raw(ai) f = @caller 7
+    @debug "force fetch pos: checking" _module = LogPosForceFetch islocked(w) ai = raw(ai) f = @caller 7
     waslocked = islocked(w)
     last_time = lastdate(w)
     prev_pup = get_positions(s, ai, side)
 
     if waslocked
-        @debug "force fetch pos: waiting notify" _module = LogPosFetch islocked(w) ai = raw(ai) isstopped(w)
+        @debug "force fetch pos: waiting notify" _module = LogPosForceFetch islocked(w) ai = raw(ai) isstopped(w)
         wait(w, s[:positions_ttl])
         @debug "force fetch pos: checking if updated"
         if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
@@ -103,7 +103,7 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         end
     end
 
-    @debug "force fetch pos: locking" _module = LogPosFetch islocked(w) ai = raw(ai)
+    @debug "force fetch pos: locking" _module = LogPosForceFetch islocked(w) ai = raw(ai)
     resp = @lock w begin
         timeout = @timeout_now()
         if timeout > Second(0)
@@ -115,15 +115,15 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         end
     end
     if !isnothing(resp)
-        @debug "force fetch pos:" _module = LogPosFetch amount = try
+        @debug "force fetch pos:" _module = LogPosForceFetch amount = try
             resp_position_contracts(first(resp), exchangeid(ai))
         catch
         end
         pushnew!(w, resp)
         process!(w, fetched=true)
-        @debug "force fetch pos: processing" _module = LogPosFetch
+        @debug "force fetch pos: processing" _module = LogPosForceFetch
     end
-    @debug "force fetch pos: done" _module = LogPosFetch
+    @debug "force fetch pos: done" _module = LogPosForceFetch
 end
 
 _isstale(ai, pup, side, since) =
@@ -194,7 +194,7 @@ function live_position(
         pup = get_positions(s, ai, side)
         if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
             @error "live pos: last force fetch failed" date =
-                isnothing(pup) ? nothing : pup.date since force
+                isnothing(pup) ? nothing : pup.date since force f = @caller 10
             return nothing
         end
     end

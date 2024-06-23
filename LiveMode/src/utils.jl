@@ -27,6 +27,7 @@ baremodule LogPos end
 baremodule LogPosClose end
 baremodule LogPosSync end
 baremodule LogPosFetch end
+baremodule LogPosForceFetch end
 baremodule LogPosWait end
 baremodule LogUniSync end
 baremodule LogCreateOrder end
