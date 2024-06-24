@@ -271,12 +271,10 @@ function get_order_state(orders_byid, id; s, ai, waitfor=Second(5), file=@__FILE
         # Need to lock to ensure `live_create_order` calls have finished
         begin
             @timeout_start
-            @lock ai begin
-                @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
-                    waitfor _file = file _line = line @caller
-                waitforcond(() -> haskey(orders_byid, id), @timeout_now)
-                get(orders_byid, id, missing)
-            end
+            @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
+                waitfor _file = file _line = line @caller
+            waitforcond(() -> haskey(orders_byid, id), @timeout_now)
+            get(orders_byid, id, missing)
         end
     )
 end
