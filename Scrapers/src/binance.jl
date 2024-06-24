@@ -106,6 +106,7 @@ function make_sym_url(sym; marker="", kwargs...)
     marker_query = !isempty(marker) ? "&marker=" * marker : ""
     URI(url; query=sym_path * '/' * marker_query)
 end
+
 @doc """ Retrieves a list of links for a specific symbol.
 
 $TYPEDSIGNATURES)
@@ -199,6 +200,7 @@ function fetchsym(sym; reset, path_kws...)
     end
     files = String[]
     while true
+        # TODO: these lists should be cached (except the last)
         links = symlinkslist(sym; marker=from, path_kws...)
         this = scr.symfiles(links; by=x -> x.content, from)
         if isnothing(this) || isempty(this)
@@ -253,7 +255,13 @@ $(TYPEDSIGNATURES)
 """
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     cdn!()
-    path_kws = filterkws(:market, :freq, :kind; kwargs)
+    path_kws = let kws = filterkws(:market, :freq, :kind; kwargs)
+        if !haskey(kws, :freq)
+            (; kws..., freq=:monthly)
+        else
+            kws
+        end
+    end
     all_syms = binancesyms(; path_kws...)
     selected = selectsyms(syms, all_syms; quote_currency)
     if isempty(selected)
@@ -267,7 +275,7 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
                 binancesave(s, ohlcv; reset, path_kws...)
                 ca.save_cache(key_path(s; path_kws...), last_file)
             else
-                @warn "binance: download failed (or up to date)" sym = s last_file
+                @debug "binance: download failed (or up to date)" sym = s last_file
             end
             @pbupdate!
         end "binance scraper" (quit[] = true)
