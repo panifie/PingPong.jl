@@ -476,10 +476,17 @@ Afterwards, the order is deleted from the active orders.
 
 !!! warning "Leverage information not available"
     It is not possible to correctly sync the trade history of an asset because the leverage and margin information of the asset at the time of each trade is not available from the exchange. As a result, the leverage of all trades replayed from closed orders is currently set to 1.0.
+!!! Warning "Position side unknown"
+    CCXT orders structures don't have position side, hence to properly reconstruct the position history the exchange must either support `fetchPositionHistory` (or maybe `fetchLedger`), but currently these function are not checked/used
+    (there is a constrained case that could be generally supported, when syncing the last trades up to the current state and knowing the current position state, the trades position state can be checked for correctness and flipped in case of wrong initial Long/Short guess)
 """
-function live_sync_closed_orders!(s::LiveStrategy, ai; create_kwargs=(;), side=BuyOrSell, kwargs...)
+function live_sync_closed_orders!(s::LiveStrategy, ai; dowarn=true, create_kwargs=(;), side=BuyOrSell, kwargs...)
+    if dowarn
+        @warn "closed orders syncing doesn't support leverage and position side!"
+    end
     eid = exchangeid(ai)
-    closed_orders = @lget! _closed_orders_resp_cache(s.attrs, ai) LATEST_RESP_KEY let resp = fetch_closed_orders(s, ai; side, kwargs...)
+    closed_orders = @lget! _closed_orders_resp_cache(s.attrs, ai) LATEST_RESP_KEY let
+        resp = fetch_closed_orders(s, ai; side, kwargs...)
         isnothing(resp) ? [] : [resp...]
     end
     if isnothing(closed_orders)

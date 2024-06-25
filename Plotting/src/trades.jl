@@ -563,6 +563,12 @@ function _draw_trades!(
     for row in eachrow(trades_df)
         ai = row.instance
         x = dateindex(chart_timestamps, row.timestamp)
+        if iszero(x)
+            @error "plotting: missing date" ai row.timestamp first_ts = first(
+                chart_timestamps
+            )
+            error()
+        end
         push!(anchors, anchor(ai, x, row.norm_qv))
         clr = colors_dict[ai]
         push!(colors, (RGBAf(clr.r, clr.g, clr.b, max(0.1, row.norm_tc))))

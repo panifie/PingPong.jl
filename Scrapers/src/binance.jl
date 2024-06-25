@@ -252,10 +252,13 @@ $(TYPEDSIGNATURES)
 
 `binancedownload` gets symbol data from Binance and saves it to disk. It uses `fetchsym` to get the data and `binancesave` to persist it. If no symbols match the selection, the function throws an error.
 
+!!! warning "Don't switch from `daily` to `monthly` freq"
+    when switching from `daily` freq back to `monthly` freq it will re-download all `monthly` archives
+
 """
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     cdn!()
-    path_kws = let kws = filterkws(:market, :freq, :kind; kwargs)
+    path_kws = let kws = NamedTuple(filterkws(:market, :freq, :kind; kwargs))
         if !haskey(kws, :freq)
             (; kws..., freq=:monthly)
         else
