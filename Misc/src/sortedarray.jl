@@ -1,13 +1,15 @@
+import Serialization: serialize, deserialize, AbstractSerializer, serialize_type
+
 _dosort!(arr::AbstractVector, args...; dims=1, kwargs...) = sort!(arr, args...; kwargs...)
 _dosort!(arr, args...; kwargs...) = sort!(arr, args...; kwargs...)
 
-struct SortedArray{A<:AbstractArray}
+struct SortedArray{T,N,A<:AbstractArray{T,N}} <: AbstractArray{T,N}
     arr::A
     opts::NamedTuple{(:dims, :rev, :by),Tuple{Int,Bool,Function}}
     function SortedArray(
         arr::A=Vector[]; dims=1, rev=false, by=identity
     ) where {A<:AbstractArray}
-        new{A}(_dosort!(arr; dims, rev, by), (; dims, rev, by))
+        new{eltype(A),ndims(A),A}(_dosort!(arr; dims, rev, by), (; dims, rev, by))
     end
 end
 
@@ -87,35 +89,35 @@ function Base.permutedims(sa::SortedArray)
     )
 end
 
-function Base.push!(sa::SortedArray{A}, value) where {A<:AbstractVector}
+function Base.push!(sa::SortedArray{T,1,A}, value) where {T,A<:AbstractVector{T}}
     index = searchsortedfirst(sa.arr, value; rev=sa.opts.rev, by=sa.opts.by)
     insert!(sa.arr, index, value)
     return sa
 end
 
-function Base.push!(sa::SortedArray{A}, value) where {A<:AbstractArray}
+function Base.push!(sa::SortedArray{T,N,A}, value) where {T,N,A<:AbstractArray{T,N}}
     error("push! is only supported for 1-dimensional SortedArray")
 end
 
-function Base.append!(sa::SortedArray{A}, values) where {A<:AbstractVector}
+function Base.append!(sa::SortedArray{T,1,A}, values) where {T,A<:AbstractVector{T}}
     append!(sa.arr, values)
     _dosort!(sa.arr; sa.opts...)
     return sa
 end
 
-function Base.append!(sa::SortedArray{A}, values) where {A<:AbstractArray}
+function Base.append!(sa::SortedArray{T,N,A}, values) where {T,N,A<:AbstractArray{T,N}}
     error("append! is only supported for 1-dimensional SortedArray")
 end
 
-function Base.vcat(sas::SortedArray{A}...) where {A<:AbstractVector}
-    isempty(sas) && return SortedArray{A}()
+function Base.vcat(sas::SortedArray{T,1,A}...) where {T,A<:AbstractVector{T}}
+    isempty(sas) && return SortedArray{T,1,A}()
     new_arr = vcat([sa.arr for sa in sas]...)
     opts = sas[1].opts
     _dosort!(new_arr; opts.dims, opts.rev, opts.by)
     return SortedArray(new_arr; opts...)
 end
 
-function Base.hcat(sas::SortedArray{A}...) where {A<:AbstractArray}
+function Base.hcat(sas::SortedArray{T,N,A}...) where {T,N,A<:AbstractArray{T,N}}
     if any(sa -> sa.opts.dims != 1, sas)
         error("hcat is only supported for SortedArray with sorting dimension 1")
     end
@@ -125,7 +127,7 @@ function Base.hcat(sas::SortedArray{A}...) where {A<:AbstractArray}
     return SortedArray(new_arr; dims=1, opts.rev, opts.by)
 end
 
-function Base.cat(sas::SortedArray{A}...; dims::Integer) where {A<:AbstractArray}
+function Base.cat(sas::SortedArray{T,N,A}...; dims::Integer) where {T,N,A<:AbstractArray{T,N}}
     if any(sa -> sa.opts.dims != sas[1].opts.dims, sas)
         error("All SortedArray instances must have the same sorting dimension")
     end
@@ -167,9 +169,9 @@ Base.any(f, sa::SortedArray) = any(f, sa.arr)
 Base.all(f, sa::SortedArray) = all(f, sa.arr)
 Base.in(x, sa::SortedArray) = in(x, sa.arr)
 
-function Base.show(io::IO, ::MIME"text/plain", sa::SortedArray{A}) where {A<:AbstractArray}
-    print(io, "SortedArray{$(eltype(A)),$(ndims(A))}(")
-    show(io, sa.arr)
+function Base.show(io::IO, ::MIME"text/plain", sa::SortedArray{T,N,A}) where {T,N,A<:AbstractArray{T,N}}
+    print(io, "SortedArray{$T,$N}(")
+    print(io, sa.arr)
     print(io, "; dims=$(sa.opts.dims), rev=$(sa.opts.rev), by=$(sa.opts.by))")
 end
 
@@ -264,5 +266,15 @@ function Base.accumulate(f, sa::SortedArray; dims=sa.opts.dims)
 end
 
 Base.cumsum(sa::SortedArray; dims=1) = accumulate(+, sa; dims=dims)
+
+function serialize(s::AbstractSerializer, sa::A) where A<:SortedArray
+    serialize_type(s, A, false)
+    serialize(s, (sa.arr, sa.opts))
+end
+
+function deserialize(buf::AbstractSerializer, ::Type{<:SortedArray})
+    arr, opts = deserialize(buf)
+    SortedArray(arr; opts...)
+end
 
 export SortedArray
