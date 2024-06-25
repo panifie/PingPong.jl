@@ -37,10 +37,10 @@ using Exchanges
 using Fetch: Fetch as fe
 
 exc = getexchange!(:kucoin)
-timeframe = tf"1m"
+timeframe = "1m"
 pairs = ("BTC/USDT", "ETH/USDT")
 # Will fetch the last 1000 candles, `to` can also be passed to download a specific range
-fe.fetch_candles(exc, timeframe, pairs; from=-1000)
+fe.fetch_ohlcv(exc, timeframe, pairs; from=-1000)
 ```
 Fetching directly from exchanges is not recommended for smaller timeframes since they are heavily rate-limited.
 Archives are a better option.

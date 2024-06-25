@@ -121,7 +121,7 @@ direnv allow
 ```
 - Activate the project specified by `JULIA_PROJECT` in the `.envrc`.
 ```bash
-julia 
+julia # or --project=PingPongInteractive
 ```
 - Download and build dependencies:
 ```julia
