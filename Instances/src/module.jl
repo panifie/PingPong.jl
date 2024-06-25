@@ -11,7 +11,7 @@ using .Data.DataFrames: metadata
 using .Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!, Misc
 import .Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using .Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision, ZERO
-using .Misc: Lang, TimeTicks
+using .Misc: Lang, TimeTicks, SortedArray
 using .Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .Misc.DocStringExtensions
 import .Misc: approxzero, gtxzero, ltxzero, marginmode, load!
@@ -39,6 +39,7 @@ const Precision{T<:Real} = NamedTuple{(:amount, :price),<:Tuple{<:T,<:T}}
 const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),<:NTuple{4,<:T}}
 @doc "Defines a type for currency cash, which is parameterized by an exchange `E` and a symbol `S`."
 const CCash{E} = CurrencyCash{Cash{S,DFT},E} where {S}
+const AnyTrade{T,E} = Trade{O,T,E} where {O<:OrderType}
 
 include("positions.jl")
 
@@ -54,7 +55,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
     data::SortedDict{TimeFrame,DataFrame}
     "The trade history of the pair."
-    history::Vector{Trade{O,T,E} where O<:OrderType}
+    history::SortedArray{Vector{AnyTrade{T,E}}}
     "Logs of events related to the asset."
     logs::Vector{AssetEvent{E}}
     "A lock for synchronizing access to the asset instance."
@@ -103,7 +104,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
         new{A,E,M}(
             a,
             data,
-            Trade{OrderType,A,E}[],
+            SortedArray(AnyTrade{A,E}[]; by=trade -> trade.date),
             AssetEvent{E}[],
             ReentrantLock(),
             cash,

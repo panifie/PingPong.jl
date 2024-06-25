@@ -4,9 +4,8 @@ _dosort!(arr, args...; kwargs...) = sort!(arr, args...; kwargs...)
 struct SortedArray{A<:AbstractArray}
     arr::A
     opts::NamedTuple{(:dims, :rev, :by),Tuple{Int,Bool,Function}}
-    SortedArray() = new{Vector}(Any[], (dims=1, rev=false, by=identity))
     function SortedArray(
-        arr::A=A[]; dims=1, rev=false, by=identity
+        arr::A=Vector[]; dims=1, rev=false, by=identity
     ) where {A<:AbstractArray}
         new{A}(_dosort!(arr; dims, rev, by), (; dims, rev, by))
     end
@@ -168,9 +167,7 @@ Base.any(f, sa::SortedArray) = any(f, sa.arr)
 Base.all(f, sa::SortedArray) = all(f, sa.arr)
 Base.in(x, sa::SortedArray) = in(x, sa.arr)
 
-function Base.show(
-    io::IO, ::MIME"text/plain", sa::SortedArray{A}
-) where {A<:AbstractArray}
+function Base.show(io::IO, ::MIME"text/plain", sa::SortedArray{A}) where {A<:AbstractArray}
     print(io, "SortedArray{$(eltype(A)),$(ndims(A))}(")
     show(io, sa.arr)
     print(io, "; dims=$(sa.opts.dims), rev=$(sa.opts.rev), by=$(sa.opts.by))")
@@ -195,8 +192,6 @@ function Base.resize!(sa::SortedArray, n)
     _dosort!(sa.arr; sa.opts...)
     return sa
 end
-
-Base.issorted(sa::SortedArray) = true
 
 function Base.unique!(sa::SortedArray)
     unique!(sa.arr)
