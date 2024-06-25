@@ -209,8 +209,7 @@ function _tryfetchall(a, func, ai, args...; kwargs...)
             end
             return ans
         else
-            if resp_all isa Exception
-                !occursin("symbol", string(resp_all))
+            if resp_all isa Exception && !occursin("symbol", string(resp_all))
                 @warn "fetch all failed" exception = resp_all f = @caller 14
             end
             @debug "fetch all: disabling" func_name

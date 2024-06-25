@@ -1,6 +1,7 @@
 using Engine.Executors: Strategy
 using Engine.Strategies: SimStrategy
 using Engine.LiveMode: RTStrategy
+using .Misc.LoggingExtras
 
 _logmsg(::SimStrategy, val, msg; kwargs...) = nothing
 function _logmsg(::RTStrategy, ::Val{:debug}, msg; kwargs...)
@@ -19,7 +20,7 @@ isliveorpaper(::SimStrategy) = false
 macro ldebug(args...)
     ex = quote
         if $isliveorpaper(s)
-            @debug $(args...)
+            $(@__MODULE__).@debugv $(args...)
         end
     end
     esc(ex)
@@ -29,7 +30,7 @@ end
 macro linfo(args...)
     ex = quote
         if $isliveorpaper(s)
-            @info $(args...)
+            $(@__MODULE__).@infov $(args...)
         end
     end
     esc(ex)
@@ -39,7 +40,7 @@ end
 macro lwarn(args...)
     ex = quote
         if $isliveorpaper(s)
-            @warn $(args...)
+            $(@__MODULE__).@warnv $(args...)
         end
     end
     esc(ex)
@@ -49,7 +50,7 @@ end
 macro lerror(args...)
     ex = quote
         if $isliveorpaper(s)
-            @error $(args...)
+            $(@__MODULE__).@errorv $(args...)
         end
     end
     esc(ex)

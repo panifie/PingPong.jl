@@ -42,14 +42,14 @@ This function starts tasks in a live strategy `s` that watch the exchange for tr
 
 """
 function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(;))
-    @debug "watch trades: get tasks" _module = LogWatchTrade ai islocked(s) @caller
+    @debug "watch trades: get tasks" _module = LogTasks2 ai islocked(s) @caller
     tasks = asset_tasks(s, ai)
-    @debug "watch trades: locking" _module = LogWatchTrade ai
+    @debug "watch trades: locking" _module = LogTasks2 ai
     @lock tasks.lock begin
         @deassert tasks.byname === asset_tasks(s, ai).byname
         let task = asset_trades_task(tasks.byname)
             if istaskrunning(task)
-                @debug "watch trades: task running" _module = LogWatchTrade ai
+                @debug "watch trades: task running" _module = LogTasks2 ai
                 return task
             end
         end
@@ -62,7 +62,7 @@ function watch_trades!(s::LiveStrategy, ai; exc_kwargs=(;))
         task = @start_task orders_byid manage_trade_updates!(s, ai, orders_byid, stop_delay, loop_func, iswatch)
 
         tasks.byname[:trades_task] = task
-        @debug "watch trades: new task" _module = LogWatchTrade ai
+        @debug "watch trades: new task" _module = LogTasks2 ai
         while !istaskstarted(task)
             sleep(0.01)
         end
@@ -271,12 +271,10 @@ function get_order_state(orders_byid, id; s, ai, waitfor=Second(5), file=@__FILE
         # Need to lock to ensure `live_create_order` calls have finished
         begin
             @timeout_start
-            @lock ai begin
-                @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
-                    waitfor _file = file _line = line @caller
-                waitforcond(() -> haskey(orders_byid, id), @timeout_now)
-                get(orders_byid, id, missing)
-            end
+            @debug "get ord state: order not found active, waiting" _module = LogWatchOrder id = id waitfor =
+                waitfor _file = file _line = line @caller
+            waitforcond(() -> haskey(orders_byid, id), @timeout_now)
+            get(orders_byid, id, missing)
         end
     )
 end
@@ -319,72 +317,71 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
             n = isempty(sem.queue) ? 1 : last(sem.queue) + 1
             push!(sem.queue, n)
             try
-                let state = get_order_state(orders_byid, id; s, ai)
-                    if state isa LiveOrderState
-                        @debug "handle trade: locking state" _module = LogWatchTrade id resp islocked(state.lock)
-                        @lock state.lock begin
-                            this_hash = trade_hash(resp, eid)
-                            this_hash ∈ state.trade_hashes || begin
-                                push!(state.trade_hashes, this_hash)
-                                # wait for earlier events to be processed
-                                while first(sem.queue) != n
-                                    safewait(sem.cond)
-                                end
-                                @debug "handle trade: exec trade" _module = LogWatchTrade ai = raw(ai) id
-                                t = @lock ai begin
-                                    @debug "handle trade: before trade exec" _module = LogWatchTrade open =
-                                        if ismissing(state)
-                                            missing
-                                        else
-                                            isopen(ai, state.order)
-                                        end state isa LiveOrderState
-                                    if isopen(ai, state.order)
-                                        queue = asset_queue(s, ai)
-                                        inc!(queue)
-                                        try
-                                            @debug "handle trade: trade!" _module = LogWatchTrade
-                                            trade!(
-                                                s,
-                                                state.order,
-                                                ai;
-                                                resp,
-                                                date=nothing,
-                                                price=nothing,
-                                                actual_amount=nothing,
-                                                fees=nothing,
-                                                slippage=false,
-                                            )
-                                        finally
-                                            dec!(queue)
-                                        end
+                state = get_order_state(orders_byid, id; s, ai)
+                if state isa LiveOrderState
+                    @debug "handle trade: locking state" _module = LogWatchTrade id resp islocked(state.lock)
+                    @lock state.lock begin
+                        this_hash = trade_hash(resp, eid)
+                        this_hash ∈ state.trade_hashes || begin
+                            push!(state.trade_hashes, this_hash)
+                            # wait for earlier events to be processed
+                            while first(sem.queue) != n
+                                safewait(sem.cond)
+                            end
+                            @debug "handle trade: exec trade" _module = LogWatchTrade ai = raw(ai) id
+                            t = @lock ai begin
+                                @debug "handle trade: before trade exec" _module = LogWatchTrade open =
+                                    if ismissing(state)
+                                        missing
+                                    else
+                                        isopen(ai, state.order)
+                                    end state isa LiveOrderState
+                                if isopen(ai, state.order)
+                                    queue = asset_queue(s, ai)
+                                    inc!(queue)
+                                    try
+                                        @debug "handle trade: trade!" _module = LogWatchTrade
+                                        trade!(
+                                            s,
+                                            state.order,
+                                            ai;
+                                            resp,
+                                            date=nothing,
+                                            price=nothing,
+                                            actual_amount=nothing,
+                                            fees=nothing,
+                                            slippage=false,
+                                        )
+                                    finally
+                                        dec!(queue)
                                     end
                                 end
-                                @debug "handle trade: after exec" _module = LogWatchTrade trade = t cash = cash(ai) side = if isnothing(t)
-                                    get_position_side(s, ai)
-                                else
-                                    posside(t)
-                                end
                             end
+                            @debug "handle trade: after exec" _module = LogWatchTrade trade = t cash = cash(ai) side = if isnothing(t)
+                                get_position_side(s, ai)
+                            else
+                                posside(t)
+                            end
+                        end
+                    end
+                else
+                    # NOTE: give id directly since the _resp is for a trade and not an order
+                    o = findorder(s, ai; resp, id)
+                    if o isa Order
+                        if isfilled(ai, o) && length(trades(o)) > 0
+                            amount = resp_trade_amount(resp, eid)
+                            last_amount = last(trades(o)).amount
+                            @warn "handle trade: no matching active order, possibly a late trade" emulated =
+                                last_amount exchange = amount
+                        else
+                            @error "handle trade: expected live order state since order was not filled" id ai = raw(
+                                ai
+                            ) s = nameof(s)
                         end
                     else
-                        # NOTE: give id directly since the _resp is for a trade and not an order
-                        o = findorder(s, ai; resp, id)
-                        if o isa Order
-                            if isfilled(ai, o) && length(trades(o)) > 0
-                                amount = resp_trade_amount(resp, eid)
-                                last_amount = last(trades(o)).amount
-                                @warn "handle trade: no matching active order, possibly a late trade" emulated =
-                                    last_amount exchange = amount
-                            else
-                                @error "handle trade: expected live order state since order was not filled" id ai = raw(
-                                    ai
-                                ) s = nameof(s)
-                            end
-                        else
-                            @warn "handle trade: no matching order nor state" id ai = raw(
-                                ai
-                            ) resp_order_type(resp, eid) s = nameof(s)
-                        end
+                        @warn "handle trade: no matching order nor state" id ai = raw(
+                            ai
+                        ) resp_order_type(resp, eid) s = nameof(s)
                     end
                 end
             finally

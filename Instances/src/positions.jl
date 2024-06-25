@@ -117,7 +117,7 @@ const ShortPosition{E<:ExchangeID,M<:WithMargin} = Position{Short,E,M}
 @doc "The number of digits to keep for margin calculations."
 const POSITION_PRECISION = 4
 @doc "The number of digits allowed for leverage values."
-const LEVERAGE_PRECISION = 1
+const LEVERAGE_PRECISION = 2
 @doc "A constant defining the rounding mode for positions as `RoundToZero`."
 const POSITION_ROUNDING_MODE = RoundToZero
 

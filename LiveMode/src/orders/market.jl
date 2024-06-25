@@ -31,9 +31,19 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         @debug "market order: failed" _module = LogCreateOrder synced
         nothing
     elseif isempty(order_trades)
-        @debug "market order: no trades yet" _module = LogCreateOrder synced
         if haskey(s, ai, o)
-            missing
+            if synced
+                live_sync_open_orders!(s, ai, side=orderside(o))
+                if !isempty(order_trades)
+                    last(order_trades)
+                elseif haskey(s, ai, o)
+                    @debug "market order: no trades yet (synced)" _module = LogCreateOrder
+                    missing
+                end
+            else
+                @debug "market order: no trades yet" _module = LogCreateOrder
+                missing
+            end
         end
     else
         last(order_trades)

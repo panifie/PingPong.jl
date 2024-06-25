@@ -436,7 +436,7 @@ function _ensure_ohlcv!(w, sym)
 end
 
 function _load_ohlcv!(w, sym)
-    state = get(w, k"symstates", nothing)
+    state = attr(w, k"symstates", nothing)
     if isnothing(state)
         @error "ohlcv tickers watcher: load filed, not tracking" sym
     end

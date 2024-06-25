@@ -27,6 +27,7 @@ baremodule LogPos end
 baremodule LogPosClose end
 baremodule LogPosSync end
 baremodule LogPosFetch end
+baremodule LogPosForceFetch end
 baremodule LogPosWait end
 baremodule LogUniSync end
 baremodule LogCreateOrder end
@@ -35,6 +36,7 @@ baremodule LogSendOrder end
 baremodule LogSyncOrder end
 baremodule LogWaitOrder end
 baremodule LogTasks end
+baremodule LogTasks2 end
 baremodule LogCreateTrade end
 baremodule LogOHLCV end
 baremodule LogCcxtFuncs end

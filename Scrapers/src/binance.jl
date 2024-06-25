@@ -20,7 +20,8 @@ using ..Data: OHLCV_COLUMNS, Cache as ca, zi, save_ohlcv, load_ohlcv
 using ..Data.DataFrames
 using ..Pbar
 using Instruments
-using ..Lang: @ifdebug, @lget!, filterkws, splitkws, @argstovec, @acquire, @except
+using ..Lang:
+    @ifdebug, @lget!, filterkws, splitkws, withoutkws, @argstovec, @acquire, @except
 using ..TimeTicks
 using ..DocStringExtensions
 
@@ -99,11 +100,13 @@ $TYPEDSIGNATURES)
 This function first calls `make_url` with the provided keyword arguments to construct a base URL. It then appends the symbol and the current timeframe to the path of the URL, creating a URL specific to the symbol.
 
 """
-function make_sym_url(sym; kwargs...)
+function make_sym_url(sym; marker="", kwargs...)
     url = make_url(; kwargs...)
     sym_path = join((rstrip(url.query, '/'), sym, string(TF[])), '/')
-    URI(url; query=sym_path * '/')
+    marker_query = !isempty(marker) ? "&marker=" * marker : ""
+    URI(url; query=sym_path * '/' * marker_query)
 end
+
 @doc """ Retrieves a list of links for a specific symbol.
 
 $TYPEDSIGNATURES)
@@ -145,7 +148,7 @@ function binancesyms(; kwargs...)
             els = ez.elements(ez.elements(html.node)[1])
             symname(el) = begin
                 sp = split(el.content, '/')
-                isempty(sp[end]) ? sp[end-1] : sp[end]
+                isempty(sp[end]) ? sp[end - 1] : sp[end]
             end
             allsyms = [symname(el) for el in els if el.name == "CommonPrefixes"]
             ca.save_cache(key, allsyms)
@@ -184,11 +187,29 @@ The function first checks if the data for the symbol is cached. If not, it retri
 
 """
 function fetchsym(sym; reset, path_kws...)
-    from = reset ? nothing : ca.load_cache(key_path(sym; path_kws...); raise=false)
-    files = let links = symlinkslist(sym; path_kws...)
-        scr.symfiles(links; by=x -> x.content, from)
+    from = if reset
+        ""
+    else
+        @something ca.load_cache(key_path(sym; path_kws...); raise=false) ca.load_cache(
+            key_path(sym; freq=:monthly, withoutkws(:freq; kwargs=path_kws)...);
+            raise=false,
+        ) ""
     end
-    isnothing(files) && return (nothing, nothing)
+    if occursin("monthly", from) && path_kws[:freq] == :daily
+        from = replace(from, "monthly" => "daily")
+    end
+    files = String[]
+    while true
+        # TODO: these lists should be cached (except the last)
+        links = symlinkslist(sym; marker=from, path_kws...)
+        this = scr.symfiles(links; by=x -> x.content, from)
+        if isnothing(this) || isempty(this)
+            break
+        end
+        append!(files, this)
+        from = files[end]
+    end
+    isempty(files) && return (nothing, nothing)
     out = dofetchfiles(sym, files; func=fetch_ohlcv)
     (mergechunks(files, out), last(files))
 end
@@ -234,7 +255,13 @@ $(TYPEDSIGNATURES)
 """
 function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwargs...)
     cdn!()
-    path_kws = filterkws(:market, :freq, :kind; kwargs)
+    path_kws = let kws = filterkws(:market, :freq, :kind; kwargs)
+        if !haskey(kws, :freq)
+            (; kws..., freq=:monthly)
+        else
+            kws
+        end
+    end
     all_syms = binancesyms(; path_kws...)
     selected = selectsyms(syms, all_syms; quote_currency)
     if isempty(selected)
@@ -248,7 +275,7 @@ function binancedownload(syms; zi=zi[], quote_currency="usdt", reset=false, kwar
                 binancesave(s, ohlcv; reset, path_kws...)
                 ca.save_cache(key_path(s; path_kws...), last_file)
             else
-                @warn "binance: download failed (or up to date)" sym = s last_file
+                @debug "binance: download failed (or up to date)" sym = s last_file
             end
             @pbupdate!
         end "binance scraper" (quit[] = true)
