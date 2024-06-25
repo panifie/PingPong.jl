@@ -179,7 +179,7 @@ uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
 version = "0.1.14"
 
 [[deps.Misc]]
-deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "LoggingExtras", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "TOML", "TimeTicks"]
+deps = ["ConcurrentCollections", "Dates", "Distributed", "DocStringExtensions", "FunctionalCollections", "JSON", "Logging", "LoggingExtras", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "Serialization", "TOML", "TimeTicks"]
 path = "../Misc"
 uuid = "ff97321b-aa60-4104-8cd6-2e42973349ab"
 version = "0.1.0"

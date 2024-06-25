@@ -55,7 +55,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
     data::SortedDict{TimeFrame,DataFrame}
     "The trade history of the pair."
-    history::SortedArray{Vector{AnyTrade{T,E}}}
+    history::SortedArray{AnyTrade{T,E}, 1}
     "Logs of events related to the asset."
     logs::Vector{AssetEvent{E}}
     "A lock for synchronizing access to the asset instance."
