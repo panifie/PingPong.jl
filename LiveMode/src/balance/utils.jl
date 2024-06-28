@@ -4,6 +4,7 @@ import .st: current_total
 using .Exchanges: @tickers!, markettype
 import .Exchanges: lastprice
 import .Misc: reset!
+import .ot: BalanceUpdated
 
 @doc """ A named tuple of total, free, and used balances. """
 mutable struct BalanceSnapshot{T<:AbstractFloat}
@@ -404,4 +405,9 @@ function st.current_total(
         end
     end
     tot
+end
+
+function BalanceUpdated(name::Symbol, eid, sym, bal)
+    bal_tup = NamedTuple(f => getfield(bal, f) for f in fieldnames(typeof(bal)))
+    BalanceUpdated{eid}(name, (; sym, bal_tup...))
 end

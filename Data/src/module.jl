@@ -11,6 +11,7 @@ include("load.jl")
 include("dataframes.jl")
 include("series.jl")
 include("cache.jl")
+include("events.jl")
 
 _doinit() = begin
     Base.empty!(zcache)

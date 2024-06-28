@@ -365,6 +365,8 @@ function update_order!(s, ai, eid; resp, state)
                     ai;
                     err=OrderFailed(resp_order_status(resp, eid, String)),
                 )
+            else
+                event!(ai, AssetEvent, :order_closed; order=state.order, state.average_price)
             end
             @debug "update ord: de activating order" _module = LogWatchOrder id = state.order.id ai = raw(ai) order_filled
             clear_order!(s, ai, state.order)
@@ -645,6 +647,8 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
                 fees=nothing,
                 slippage=false,
             )
+            event!(ai, AssetEvent, :trade_created; trade, avgp=average_price)
+            trade
         finally
             dec!(queue)
         end

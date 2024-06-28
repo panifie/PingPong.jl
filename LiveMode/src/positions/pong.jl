@@ -27,17 +27,19 @@ function Executors.pong!(
         ) s = nameof(s) n_orders = orderscount(s, ai) isopen(ai, pos)
         false
     else
-        val = _lev_value(lev)
+        new_lev = _lev_value(lev)
         since = now()
         this_pos = position(ai, pos)
-        issameval = isapprox(leverage(this_pos), val; atol)
+        prev_lev = leverage(this_pos)
+        issameval = isapprox(prev_lev, new_lev; atol)
         # First update on exchange
-        if (force || !issameval) && leverage!(exchange(ai), val, raw(ai); timeout=throttle(s))
-            leverage!(this_pos, val)
+        if (force || !issameval) && leverage!(exchange(ai), new_lev, raw(ai); timeout=throttle(s))
+            leverage!(this_pos, new_lev)
+            event!(ai, LeverageUpdated(:leverage_updated, this_pos, from_value=prev_lev))
             if synced
                 # wait for lev update from watcher
                 waitforpos(s, ai, pos; since)
-                isapprox(leverage(ai, pos), val; atol)
+                isapprox(leverage(ai, pos), new_lev; atol)
             else
                 true
             end

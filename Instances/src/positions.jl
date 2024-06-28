@@ -5,7 +5,7 @@ using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
 import Exchanges: maxleverage, tier
 using .Lang: @ifdebug
 using Base: negate
-import OrderTypes: isshort, islong, commit!
+import OrderTypes: isshort, islong, commit!, PositionUpdated, LeverageUpdated, MarginUpdated
 import .Misc: marginmode
 import .Instruments: cash!
 
@@ -70,6 +70,8 @@ function Position{P,E,M}(
     M == NoMargin && error("Trying to construct a position in `NoMargin` mode")
     Position{P,E,M}(args...; kwargs...)
 end
+
+exchangeid(::Position{<:PositionSide,E}) where {E<:ExchangeID} = E
 
 @doc """ Resets position to initial state.
 
@@ -457,6 +459,31 @@ end
 
 Base.show(io::IO, ::MIME"text/plain", po::Position) = print(io, po)
 Base.show(io::IO, po::Position) = print(io, po)
+
+function PositionUpdated(tag::Symbol, pos::Position)
+    PositionUpdated{exchangeid(pos)}(
+        tag,
+        raw(pos.asset),
+        timestamp(pos),
+        liqprice(pos),
+        entryprice(pos),
+        maintenance(pos),
+        initial(pos),
+        leverage(pos),
+        notional(pos),
+    )
+end
+
+# TODO: add `AddMargin` pong! function
+function MarginUpdated(tag::Symbol, pos::Position; from_value::DFT=ZERO)
+    MarginUpdated{exchangeid(pos)}(
+        tag, raw(pos.asset), string(marginmode(pos)), from_value, margin(pos)
+    )
+end
+
+function LeverageUpdated(tag::Symbol, pos::Position; from_value::DFT=one(ZERO))
+    LeverageUpdated{exchangeid(pos)}(tag, raw(pos.asset), from_value, leverage(pos))
+end
 
 export notional, additional, price, bankruptcy, pnl, collateral
 export timestamp!, leverage!, tier!

@@ -8,13 +8,41 @@ using .Misc: config, PositionSide, Long, Short, TimeTicks, Lang
 using .Misc.DocStringExtensions
 import .Misc: opposite
 using .TimeTicks
+using .ExchangeTypes: Exchange
 
-@doc """ Abstract type representing an event in an exchange """
+@doc """ Abstract type representing an event in an exchange
+Types implementing an `ExchangeEvent` must have a `tag::Symbol` field.
+Every instance of such event should have a unique tag.
+"""
 abstract type ExchangeEvent{E} end
-@doc """ Abstract type representing an event tied to an asset in an exchange """
-abstract type AssetEvent{E} <: ExchangeEvent{E} end
-@doc """ Abstract type representing a strategy-specific event in an exchange """
-abstract type StrategyEvent{E} <: ExchangeEvent{E} end
+
+function event!(
+    exc::Exchange,
+    kind::Type{<:ExchangeEvent},
+    tag;
+    event_date=now(),
+    this_date=now(),
+    kwargs...,
+)
+    ev = kind{exc.id}(tag, kwargs)
+    push!(exc._trace, ev; event_date, this_date)
+end
+
+function event!(exc::Exchange, ev::ExchangeEvent; event_date=now(), this_date=now())
+    push!(exc._trace, ev; event_date, this_date)
+end
+
+@doc """Records an event in the exchange's trace. """
+event!(v, args...; kwargs...) = event!(exchange(v), args...; kwargs...)
+
+struct AssetEvent{E} <: ExchangeEvent{E}
+    name::Symbol
+    data::NamedTuple
+end
+struct StrategyEvent{E} <: ExchangeEvent{E}
+    name::Symbol
+    data::NamedTuple
+end
 
 @doc """ Abstract type representing the side of an order """
 abstract type OrderSide end
@@ -71,7 +99,7 @@ $(FIELDS)
 """
 struct Order{
     T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
-} <: AssetEvent{E}
+} <: ExchangeEvent{E}
     asset::A
     exc::E
     date::DateTime
@@ -151,8 +179,12 @@ const ReduceOrder{A,E} = Union{SellOrder{A,E},ShortBuyOrder{A,E}}
 @doc "A Market Order type that liquidates a position."
 const LiquidationOrder{S,P,A<:AbstractAsset,E<:ExchangeID} = Order{LiquidationType{S},A,E,P}
 @doc "A Market Order type called when manually closing a position (to sell the holdings)."
-const LongReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{ForcedOrderType{Sell},A,E,Long}
-const ShortReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{ForcedOrderType{Buy},A,E,Short}
+const LongReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{
+    ForcedOrderType{Sell},A,E,Long
+}
+const ShortReduceOnlyOrder{A<:AbstractAsset,E<:ExchangeID} = Order{
+    ForcedOrderType{Buy},A,E,Short
+}
 const ReduceOnlyOrder = Union{LongReduceOnlyOrder,ShortReduceOnlyOrder}
 
 @doc """ Defines various order types in the trading system
@@ -294,6 +326,17 @@ export IncreaseOrder, ReduceOrder, IncreaseTrade, ReduceTrade, AnyImmediateOrder
 export LiquidationOrder, ReduceOnlyOrder
 export OrderError, NotEnoughCash, NotFilled, NotMatched, OrderTimeOut
 export OrderFailed, OrderCanceled, LiquidationOverride
-export Balance, OHLCV
 export orderside, positionside, pricetime, islong, isshort, ispos, isimmediate, isside
 export liqside, sidetopos, opposite
+export event!,
+    ExchangeEvent,
+    AssetEvent,
+    StrategyEvent,
+    PositionEvent,
+    PositionUpdated,
+    MarginUpdated,
+    LeverageUpdated,
+    PositionOpened,
+    PositionClosed,
+    BalanceUpdated,
+    OHLCVUpdated

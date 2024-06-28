@@ -9,7 +9,7 @@ using .OrderTypes: OrderError, StrategyEvent, Instruments
 using .Instruments: AbstractAsset, Cash, cash!, Derivatives.Derivative
 
 import .Data: candleat, openat, highat, lowat, closeat, volumeat, closelast
-using .Data: Misc
+using .Data: Misc, EventTrace
 using .Data.DataFrames: nrow
 using .Data.DataStructures: SortedDict, Ordering
 import .Data.DataStructures: lt
@@ -85,8 +85,6 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     holdings::Set{ExchangeAsset{E}}
     "All the assets that the strategy knows about"
     universe::AssetCollection
-    "Logs exchange events like positions updates"
-    logs::Vector{StrategyEvent{E}}
     "A lock for thread safety"
     lock::ReentrantLock
     @doc """ Initializes a new `Strategy` object
@@ -136,7 +134,6 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
             sellorders,
             holdings,
             uni,
-            StrategyEvent{eid}[],
             ReentrantLock(),
         )
     end

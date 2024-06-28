@@ -54,7 +54,6 @@ baremodule LogWait end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
 
-
 @doc """ Starts a timeout.
 
 $(TYPEDSIGNATURES)

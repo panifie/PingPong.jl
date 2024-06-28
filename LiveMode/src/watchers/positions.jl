@@ -349,7 +349,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     end
     @debug "watchers process: position" _module = LogWatchPosProcess
     @sync for resp in data
-        if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionUpdate
+        if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionEvent
             @debug "watchers process: not a position update" resp _module =
                 LogWatchPosProcess
             continue
@@ -429,7 +429,7 @@ end
 
 $(TYPEDSIGNATURES)
 
-This function updates the `PositionUpdate` status when *not* using `watch*` function. This is neccesary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions it is expected that position close updates are received as new events.
+This function updates the position flags for a symbol in a dictionary when not using the `watch*` function. This is necessary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions, it is expected that position close updates are received as new events.
 
 """
 function _setposflags!(s, data_date, dict, side, processed_syms)

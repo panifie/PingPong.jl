@@ -45,7 +45,7 @@ function basicorder(
     loss=nothing,
     profit=nothing,
     id="",
-    tag=""
+    tag="",
 )
     if !ismonotonic(loss, price, profit)
         @debug "basic order: prices not monotonic" ai = raw(ai) loss price profit type
@@ -173,8 +173,8 @@ $(TYPEDSIGNATURES)
 """
 function _check_committment(o)
     @deassert attr(o, :committed)[] |> gtxzero ||
-              ordertype(o) <: MarketOrderType ||
-              o isa IncreaseLimitOrder o
+        ordertype(o) <: MarketOrderType ||
+        o isa IncreaseLimitOrder o
 end
 
 @doc """Checks if the unfilled amount for a limit sell order is positive.
@@ -317,7 +317,9 @@ $(TYPEDSIGNATURES)
 """
 function Instances.isdust(ai::AssetInstance, o::Order)
     unf = abs(unfilled(o))
-    unf < ai.limits.amount.min || unf * o.price < ai.limits.cost.min || unf < ai.limits.amount.min * ai.fees.min
+    unf < ai.limits.amount.min ||
+        unf * o.price < ai.limits.cost.min ||
+        unf < ai.limits.amount.min * ai.fees.min
 end
 
 function Instances.isdust(ai::AssetInstance, o::ReduceOnlyOrder)
@@ -591,6 +593,7 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
         decommit!(s, o, ai, true)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
+        event!(ai, AssetEvent, :order_local_cancel; order=o, err)
     end
     true
 end

@@ -18,7 +18,7 @@ Entry trades: The date when the order was actually opened, during backtesting, i
     where the timeframe depends on the backtesting `Context`. It should match a candle.
 Exit trades: It should match the candle when the buy or sell happened.
 """
-struct Trade{O<:OrderType{S} where {S<:OrderSide}, A<:AbstractAsset, E<:ExchangeID, P<:PositionSide} <: AssetEvent{E}
+struct Trade{O<:OrderType{S} where {S<:OrderSide}, A<:AbstractAsset, E<:ExchangeID, P<:PositionSide} <: ExchangeEvent{E}
     "The order that spawned this trade."
     order::Order{O,A,E,P}
     "The date at which the trade (usually its last order) was completed."

@@ -151,6 +151,7 @@ function create_live_order(
             @lock ai emulate_trade!(s, o, ai; resp)
         end
     end
+    event!(ai, AssetEvent, :order_created; order=o, req_type=t, req_price=price, req_amount=amount)
     @debug "create order: done" _module = LogCreateOrder committed(o) o.amount ordertype(o)
     return o
 end

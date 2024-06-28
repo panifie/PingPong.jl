@@ -1,3 +1,4 @@
-struct OHLCV{E<:ExchangeID,A<:AbstractAsset,C} <: ExchangeEvent{E}
-    v::C
+struct OHLCVUpdated{E} <: ExchangeEvent{E}
+    tag::Symbol
+    data::NamedTuple
 end

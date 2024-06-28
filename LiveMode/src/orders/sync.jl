@@ -74,6 +74,7 @@ function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, sid
     end
 end
 
+@doc "Removes stale local orders"
 function remove_local_orders(s, ai; overwrite, eid, open_orders, side)
     # Pre-delete local orders not open on exc to fix strategy cash commit calculation
     exc_ids = Set(resp_order_id(resp, eid) for resp in open_orders)
@@ -166,6 +167,7 @@ function live_sync_open_orders!(
 )
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
+    # Fetch open orders from exchange
     open_orders = fetch_open_orders(s, ai; side)
     if isnothing(open_orders)
         msg = "sync orders: couldn't fetch open orders, skipping sync"
@@ -176,6 +178,7 @@ function live_sync_open_orders!(
             return nothing
         end
     end
+    # Removes local orders not active on exchange
     remove_local_orders(s, ai; overwrite, eid, open_orders, side)
     live_orders = Set{String}()
     @ifdebug begin
@@ -187,6 +190,7 @@ function live_sync_open_orders!(
     @debug "sync orders: syncing" _module = LogSyncOrder ai islocked(ai) length(open_orders)
     @lock ai begin
         default_pos = get_position_side(s, ai)
+        # overwriting the cash state
         if overwrite
             maxout!(s, ai)
         end
@@ -353,6 +357,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     end
     if isfilled(ai, o)
         clear_order!(s, ai, o)
+        event!(ai, AssetEvent, :order_closed_replayed; order=o)
     elseif filled_amount(o) > ZERO && o isa IncreaseOrder
         @ifdebug if ai ∉ s.holdings
             @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai
@@ -391,11 +396,7 @@ function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
     isnothing(trade) && return nothing
     fill!(s, ai, o, trade)
     if insert
-        history = trades(ai)
-        idx = searchsorted(history, trade; by=t -> t.date)
-        if length(idx) > 0
-            insert!(history, idx.first > 0 ? idx.first : idx.second, trade)
-        end
+        push!(trades(ai), trade)
     else
         push!(ai.history, trade)
     end

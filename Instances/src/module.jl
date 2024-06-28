@@ -55,9 +55,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
     data::SortedDict{TimeFrame,DataFrame}
     "The trade history of the pair."
-    history::SortedArray{AnyTrade{T,E}, 1}
-    "Logs of events related to the asset."
-    logs::Vector{AssetEvent{E}}
+    history::SortedArray{AnyTrade{T,E},1}
     "A lock for synchronizing access to the asset instance."
     lock::ReentrantLock
     "The amount of the asset currently held. This can be positive or negative (short)."
@@ -105,7 +103,6 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
             a,
             data,
             SortedArray(AnyTrade{A,E}[]; by=trade -> trade.date),
-            AssetEvent{E}[],
             ReentrantLock(),
             cash,
             comm,
@@ -671,7 +668,6 @@ function freecash(ai::MarginInstance, p::ByPos{Short})
 end
 _reset!(ai) = begin
     empty!(ai.history)
-    empty!(ai.logs)
     ai.lastpos[] = nothing
 end
 @doc """ Resets asset cash and commitments for a `NoMarginInstance`.

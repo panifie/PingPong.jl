@@ -99,6 +99,7 @@ function _live_sync_position!(
                             update.read[] = true
                             reset!(pos)
                             timestamp!(pos, update.date)
+                            event!(ai, PositionUpdated(:position_stale_closed, pos))
                             live_sync_position!(s, ai, oppos, oppos_pup)
                             return pos
                         end
@@ -115,6 +116,7 @@ function _live_sync_position!(
                     reset!(oppos_pos)
                     timestamp!(oppos_pos, update.date)
                 end
+                event!(ai, PositionUpdated(:position_oppos_closed, oppos_pos))
             end
         end
     end
@@ -135,6 +137,7 @@ function _live_sync_position!(
         update.read[] = true
         reset!(pos) # if not full reset at least cash/committed
         timestamp!(pos, update.date)
+        event!(ai, PositionUpdated(:position_updated_closed, pos))
         @debug "sync pos: closed flag set, reset" _module = LogPosSync ai = raw(ai) pside
         return pos
     end
@@ -320,6 +323,7 @@ function _live_sync_position!(
         update.resp, eid
     ) ai = raw(ai) posside(ai) cash(ai) isopen(ai, Long()) isopen(ai, Short()) f = @caller
     update.read[] = true
+    event!(ai, PositionUpdated(:position_updated, pos))
     return pos
 end
 

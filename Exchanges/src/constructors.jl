@@ -5,7 +5,7 @@ using Serialization: AbstractSerializer, serialize_type
 using Reexport
 using Pbar.Term: RGB, tprint
 using ExchangeTypes
-using Data: Data, DataFrame
+using Data: Data, DataFrame, EventTrace
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
@@ -219,12 +219,12 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     end
     @debug "Loaded $(length(exc.markets))."
     setflags!(exc)
-    precision = getfield(exc, :precision)
-    precision[] = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
+    exc.precision = (x -> ExcPrecisionMode(pyconvert(Int, x)))(exc.py.precisionMode)
     fees = getfield(exc, :fees)
     for (k, v) in exc.py.fees["trading"]
         _setfees!(fees, k, v)
     end
+    exc._trace = EventTrace(nameof(exc))
     exckeys!(exc)
     exc
 end

@@ -1,13 +1,14 @@
 using .Misc: DFT
 
-abstract type PositionUpdate{E} <: AssetEvent{E} end
+abstract type PositionEvent{E} <: ExchangeEvent{E} end
 
 @doc "A position snapshot represents the state of a position *after* some `ExchangeEvent` has happened.
 
 $(FIELDS)
 "
-struct PositionSnapshot{A<:AbstractAsset,E<:ExchangeID,P<:PositionSide}
-    asset::A
+struct PositionUpdated{E} <: PositionEvent{E}
+    tag::Symbol
+    asset::String
     timestamp::DateTime
     liquidation_price::DFT
     entryprice::DFT
@@ -21,9 +22,11 @@ end
 
 $(FIELDS)
 "
-struct MarginUpdate{A<:AbstractAsset,E<:ExchangeID,P<:PositionSide} <: PositionUpdate{E}
-    asset::A
-    position::PositionSnapshot{A,E,P}
+struct MarginUpdated{E} <: PositionEvent{E}
+    tag::Symbol
+    asset::String
+    mode::String
+    from::DFT
     value::DFT
 end
 
@@ -31,8 +34,31 @@ end
 
 $(FIELDS)
 "
-struct LeverageUpdate{A<:AbstractAsset,E<:ExchangeID,P<:PositionSide} <: PositionUpdate{E}
-    asset::A
-    position::PositionSnapshot{A,E,P}
+struct LeverageUpdated{E} <: PositionEvent{E}
+    tag::Symbol
+    asset::String
+    from::DFT
     value::DFT
+end
+
+@doc """ Represents a position opened event.
+
+$(TYPEDSIGNATURES)
+
+This event is triggered when a position is opened.
+"""
+struct PositionOpened{E} <: PositionEvent{E}
+    tag::Symbol
+    timestamp::DateTime
+end
+
+@doc """ Represents a position closed event.
+
+$(TYPEDSIGNATURES)
+
+This event is triggered when a position is closed.
+"""
+struct PositionClosed{E} <: PositionEvent{E}
+    tag::Symbol
+    timestamp::DateTime
 end

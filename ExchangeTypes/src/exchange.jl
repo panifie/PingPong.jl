@@ -31,7 +31,8 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const types::Set{Symbol}
     const fees::Dict{Symbol,Union{Symbol,<:Number,<:AbstractDict}}
     const has::Dict{Symbol,Bool}
-    const precision::Ref{ExcPrecisionMode}
+    precision::ExcPrecisionMode
+    _trace::Any
 end
 
 @doc """ Closes the given exchange.
@@ -89,6 +90,7 @@ function Exchange(x::Py)
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
         excDecimalPlaces,
+        nothing,
     )
     funcs = get(HOOKS, Symbol(id), ())::Union{Tuple{},Vector{Function}}
     for f in funcs
@@ -118,11 +120,7 @@ Base.hash(e::Exchange, u::UInt) = Base.hash(e.id, u)
 @doc "Attributes not matching the `Exchange` struct fields are forwarded to the wrapped ccxt class instance."
 function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
     if hasfield(E, k)
-        if k == :precision
-            getfield(e, :precision)[]
-        else
-            getfield(e, k)
-        end
+        getfield(e, k)
     else
         !isempty(e) || throw("Can't access non instantiated exchange object.")
         pygetattr(getfield(e, :py), @pystr(k))
