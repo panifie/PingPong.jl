@@ -37,8 +37,8 @@ function Base.getindex(sa::SortedArray, idx)
     sa.arr[idx]
 end
 
-function Base.get(sa::SortedArray, args...)
-    get(sa.arr, args...)
+function Base.get(sa::SortedArray, i::Integer, default)
+    get(sa.arr, i, default)
 end
 
 function Base.popfirst!(sa::SortedArray, args...)
