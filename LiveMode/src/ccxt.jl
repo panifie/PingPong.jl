@@ -381,12 +381,12 @@ resp_event_type(resp, eid::EIDType)::T where {T<:Type{<:ot.ExchangeEvent}} = beg
     elseif haskey(resp, @pyconst("total")) &&
            haskey(resp, @pyconst("free")) &&
            haskey(resp, @pyconst("used"))
-        ot.Balance
+        ot.BalanceUpdated
     elseif islist(resp) &&
            !isempty(resp) && let v = first(resp)
                pyisint(first(v)) &&
                    length(v) == 6
            end
-        ot.OHLCV
+        ot.OHLCVUpdated
     end
 end

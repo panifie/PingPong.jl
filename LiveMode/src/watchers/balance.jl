@@ -180,7 +180,7 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
     eid = typeof(exchangeid(_exc(w)))
     data_date, data = last(w.buffer)
     baldict = w.view.assets
-    if !isdict(data) || resp_event_type(data, eid) != ot.Balance
+    if !isdict(data) || resp_event_type(data, eid) != ot.BalanceUpdated
         @debug "watchers process: wrong data type" _module = LogWatchBalProcess data_date typeof(data)
         _lastprocessed!(w, data_date)
         _lastcount!(w, ())
