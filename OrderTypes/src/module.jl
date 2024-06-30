@@ -99,7 +99,7 @@ $(FIELDS)
 """
 struct Order{
     T<:OrderType{S} where {S<:OrderSide},A<:AbstractAsset,E<:ExchangeID,P<:PositionSide
-} <: ExchangeEvent{E}
+}
     asset::A
     exc::E
     date::DateTime
