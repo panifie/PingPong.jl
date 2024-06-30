@@ -18,13 +18,7 @@ function _doinit()
     Data.zi[] = Data.zinstance()
 end
 
-@doc """ Sets up the environment for the PingPong module.
-
-$(TYPEDSIGNATURES)
-
-This macro imports necessary modules and aliases for the PingPong module.
-It sets up the environment for working with exchanges, order types, instances, collections, simulations, strategies, executors, modes, and other utilities.
-"""
+@doc """ Brings most pingpong modules into scope (generally used inside the repl). """
 macro environment!(pp=@__MODULE__)
     quote
         if !isdefined($(__module__), :pp)
@@ -47,6 +41,7 @@ macro environment!(pp=@__MODULE__)
         using .pp.Engine.Lang: @m_str
         using .pp.Engine.TimeTicks
         using .TimeTicks: TimeTicks as tt
+        using .st: strategy
         using .pp.Engine.Misc
         using .Misc: Misc as mi
         using .pp.Engine.Instruments
@@ -55,12 +50,11 @@ macro environment!(pp=@__MODULE__)
         using .Instruments.Derivatives: Derivatives as der
         using .pp.Engine.Data: Data as da, DFUtils as du
 
-        using .da: load_ohlcv
         using .da.Cache: save_cache, load_cache
         using .pp.Engine.Processing: Processing as pro
         using .pp.Remote: Remote as rmt
         using .pp.Engine.LiveMode.Watchers
-        using .Watchers.Fetch: fetch_ohlcv
+        using .pp.Engine: fetch_ohlcv, load_ohlcv
         using .Watchers: WatchersImpls as wi
 
         if !isdefined($(__module__), :Stubs)
@@ -72,13 +66,7 @@ macro environment!(pp=@__MODULE__)
     end
 end
 
-@doc """ Sets up the environment for strategy execution in the PingPong module.
-
-$(TYPEDSIGNATURES)
-
-This macro imports necessary modules and aliases for executing strategies in the PingPong module.
-It prepares the environment for working with strategies, instances, order types, executors, watchers, processing, and other utilities.
-"""
+@doc """ Binds modules, types, functions commonly used inside a strategy module. """
 macro strategyenv!()
     expr = quote
         __revise_mode__ = :eval
