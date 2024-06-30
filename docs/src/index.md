@@ -78,13 +78,10 @@ Load the default strategy, which you can look up at `./user/strategies/SimpleStr
 
 ```julia
 using PingPong
-using Data: Data as data
-using SimMode: SimMode as sm
 
-@environment!
-# `st` is the `Strategies` module
+@environment! # brings modules in scope
 # arguments override defaults (see `s.config` fields)
-s = st.strategy(:SimpleStrategy, exchange=:binance) 
+s = strategy(:SimpleStrategy, exchange=:binance) 
 ```
 
 Download some data:
@@ -103,8 +100,7 @@ load_ohlcv(s)
 Backtest the strategy within the period available from the loaded data.
 
 ```julia
-# `sm` is the `SimMode` module
-sm.start!(s)
+start!(s)
 ```
 
 Plot the simulated trades.
