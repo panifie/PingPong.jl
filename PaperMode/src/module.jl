@@ -84,6 +84,7 @@ function _doping(s; throttle)
     ping_start = DateTime(0)
     prev_cash = s.cash.value
     s_cash = s.cash
+    event!(s, StrategyEvent, :strategy_started; start_time=s.is_start)
     try
         while is_running[]
             try
@@ -109,6 +110,7 @@ function _doping(s; throttle)
     finally
         is_running[] = false
         setattr!(s, now(), :is_stop)
+        event!(s, StrategyEvent, :strategy_stopped; start_time=s.is_stop)
     end
 end
 
@@ -175,6 +177,7 @@ function start!(
             @info startinfo
             _doping(s; throttle)
         end
+        return nothing
     end
 end
 
