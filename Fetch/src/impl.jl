@@ -654,9 +654,8 @@ function propagate_ohlcv!(data::SortedDict, pair::AbstractString, exc::Exchange)
 end
 
 function _fetch_candles(exc, timeframe, pairs::Iterable; kwargs...)
-    @sync Dict(
-        name => @async _fetch_candles(exc, timeframe, name; kwargs...) for name in pairs
-    )
+    tasks = [name => _fetch_candles(exc, timeframe, name; kwargs...) for name in pairs]
+    Dict(el.first => fetch(el.second) for el in tasks)
 end
 
 function _fetch_candles(
