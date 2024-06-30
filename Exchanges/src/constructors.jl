@@ -5,7 +5,7 @@ using Serialization: AbstractSerializer, serialize_type
 using Reexport
 using Pbar.Term: RGB, tprint
 using ExchangeTypes
-using Data: Data, DataFrame, EventTrace
+using Data: Data, DataFrame, eventtrace
 @reexport using ExchangeTypes
 using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
@@ -224,7 +224,7 @@ function setexchange!(exc::Exchange, args...; markets::Symbol=:yes, kwargs...)
     for (k, v) in exc.py.fees["trading"]
         _setfees!(fees, k, v)
     end
-    exc._trace = EventTrace(nameof(exc))
+    exc._trace = eventtrace(nameof(exc))
     exckeys!(exc)
     exc
 end

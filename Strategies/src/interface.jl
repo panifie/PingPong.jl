@@ -1,4 +1,4 @@
-using .OrderTypes: OrderError
+using .OrderTypes: OrderError, AssetEvent, event!
 
 ## Strategy interface
 @doc "Called on each timestep iteration, possible multiple times.
@@ -27,7 +27,7 @@ ping!(::Strategy, ::ResetStrategy) = nothing
 ping!(s::Strategy, ::WarmupPeriod) = s.timeframe.period
 @doc "When an order is canceled the strategy is pinged with an order error. $(TYPEDSIGNATURES)"
 ping!(s::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) =
-    event!(exchange(s), :order_error, AssetEvent; err)
+    event!(exchange(s), AssetEvent, :order_error; err)
 @doc "Market symbols that populate the strategy universe"
 ping!(::Type{<:Strategy}, ::StrategyMarkets)::Vector{String} = String[]
 

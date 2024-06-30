@@ -24,7 +24,7 @@ function event!(
     this_date=now(),
     kwargs...,
 )
-    ev = kind{exc.id}(tag, kwargs)
+    ev = kind{exc.id}(tag, NamedTuple(k => v for (k, v) in kwargs))
     push!(exc._trace, ev; event_date, this_date)
 end
 
@@ -36,11 +36,11 @@ end
 event!(v, args...; kwargs...) = event!(exchange(v), args...; kwargs...)
 
 struct AssetEvent{E} <: ExchangeEvent{E}
-    name::Symbol
+    tag::Symbol
     data::NamedTuple
 end
 struct StrategyEvent{E} <: ExchangeEvent{E}
-    name::Symbol
+    tag::Symbol
     data::NamedTuple
 end
 
