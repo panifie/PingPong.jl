@@ -81,3 +81,13 @@ LMDB requires a precompiled binary. If it is not available for your platform you
 [preferences.Data]
 data_store = "" # Disables lmdb (set it back to "lmdb" to enable lmdb)
 ```
+
+## Debugging in vscode
+To trigger breakpoints inside functions wrapped with a custom logger, like when executing a strategy with `start!(::Strategy)`, it might be necessary to disable loading of `Base.CoreLogging` compiled module. Inside your user settings modify the option `julia.debuggerDefaultCompiled` as shown below:
+
+``` json
+    "julia.debuggerDefaultCompiled": [
+        "ALL_MODULES_EXCEPT_MAIN",
+        "-Base.CoreLogging"
+    ],
+```
