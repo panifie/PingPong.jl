@@ -464,8 +464,8 @@ function PositionUpdated(tag, group, pos::Position)
     PositionUpdated{exchangeid(pos)}(
         Symbol(tag),
         Symbol(group),
-        (posside(pos), isopen(pos)),
         raw(pos.asset),
+        (posside(pos), isopen(pos)),
         timestamp(pos),
         liqprice(pos),
         entryprice(pos),
