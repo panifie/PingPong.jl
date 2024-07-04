@@ -487,17 +487,17 @@ $(TYPEDSIGNATURES)
 This function sets default values for a live strategy `s`. These defaults include setting up task queues, setting up assets, setting default parameters, among others.
 
 """
-function st.default!(s::LiveStrategy)
+function st.default!(s::LiveStrategy; skip_sync=nothing)
     a = attrs(s)
     _simmode_defaults!(s, a)
     strategy_logger!(s)
 
-    skip_sync = if get(a, :skip_sync, false)
+    if isnothing(skip_sync)
+        skip_sync = get!(a, :skip_sync, false)
+    end
+    if skip_sync
         a[:sync_history_limit] = 0
         @lget! a :is_running Ref(false)
-        true
-    else
-        false
     end
 
     throttle = get!(a, :throttle, Second(5))
@@ -558,6 +558,7 @@ function st.default!(s::LiveStrategy)
     if !skip_sync
         live_sync_start!(s; first_start=!haskey(a, :is_running))
     end
+    a[:defaults_set] = true
 end
 
 @doc """ Performs initial sync for a live strategy.
