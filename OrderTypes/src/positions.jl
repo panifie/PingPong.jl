@@ -8,6 +8,7 @@ $(FIELDS)
 "
 struct PositionUpdated{E} <: PositionEvent{E}
     tag::Symbol
+    group::Symbol
     asset::String
     side_status::Tuple{PositionSide,Bool}
     timestamp::DateTime
@@ -25,6 +26,7 @@ $(FIELDS)
 "
 struct MarginUpdated{E} <: PositionEvent{E}
     tag::Symbol
+    group::Symbol
     asset::String
     side::PositionSide
     timestamp::DateTime
@@ -39,6 +41,7 @@ $(FIELDS)
 "
 struct LeverageUpdated{E} <: PositionEvent{E}
     tag::Symbol
+    group::Symbol
     asset::String
     side::PositionSide
     timestamp::DateTime

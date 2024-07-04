@@ -18,7 +18,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
         status = resp_order_status(resp, eid)
         if !pytruth(status) && !fetched
             if isprocessed_order(s, ai, oid)
-                fetched_resp = fetch_orders(s, ai, ids=(oid,))
+                fetched_resp = fetch_orders(s, ai; ids=(oid,))
                 if isemptish(resp)
                     @debug "create order: order not found on exchange (canceled?)" ai oid hasfill hasid fetched_resp
                     return false
@@ -28,7 +28,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
                         @error "create order: wrong id" oid resp
                         false
                     else
-                        isopenorder(s, ai, resp, eid, fetched=true)
+                        isopenorder(s, ai, resp, eid; fetched=true)
                     end
                 end
             else
@@ -74,7 +74,8 @@ function create_live_order(
         eid = exchangeid(ai)
         status = resp_order_status(resp, eid)
         side = @something _orderside(resp, eid) orderside(t)
-        @debug "create order: parsing" _module = LogCreateOrder status filled = resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
+        @debug "create order: parsing" _module = LogCreateOrder status filled =
+            resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
         if !isopenorder(s, ai, resp, eid)
             return nothing
         end
@@ -87,11 +88,13 @@ function create_live_order(
                 if t isa Type{<:Order}
                     t
                 else
-                    @something ordertype_fromtif(resp, eid) (if _ccxtisstatus(resp, "closed", eid)
-                        MarketOrderType
-                    else
-                        GTCOrderType
-                    end |> this_order_type)
+                    @something ordertype_fromtif(resp, eid) (
+                        if _ccxtisstatus(resp, "closed", eid)
+                            MarketOrderType
+                        else
+                            GTCOrderType
+                        end |> this_order_type
+                    )
                 end
             else
                 this_order_type(ot)
@@ -121,8 +124,23 @@ function create_live_order(
     end
     o = let f = construct_order_func(type)
         function create(; skipcommit)
-            @debug "create order: local" _module = LogCreateOrder ai id amount date type price leverage(ai) loss profit
-            f(s, type, ai; id, amount, date, type, price, loss, profit, skipcommit, kwargs...)
+            @debug "create order: local" _module = LogCreateOrder ai id amount date type price leverage(
+                ai
+            ) loss profit
+            f(
+                s,
+                type,
+                ai;
+                id,
+                amount,
+                date,
+                type,
+                price,
+                loss,
+                profit,
+                skipcommit,
+                kwargs...,
+            )
         end
         o = create(; skipcommit)
         if isnothing(o) && synced
@@ -145,13 +163,22 @@ function create_live_order(
         already_filled = resp_order_filled(resp, eid)
         if already_filled > ZERO && isempty(trades(o))
             # wait for trades watcher
-            waitfortrade(s, ai, o, waitfor=s[:func_cache_ttl], force=synced)
+            waitfortrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
         end
         if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
             @lock ai emulate_trade!(s, o, ai; resp)
         end
     end
-    event!(ai, AssetEvent, :order_created; order=o, req_type=t, req_price=price, req_amount=amount)
+    event!(
+        ai,
+        AssetEvent,
+        :order_created,
+        s;
+        order=o,
+        req_type=t,
+        req_price=price,
+        req_amount=amount,
+    )
     @debug "create order: done" _module = LogCreateOrder committed(o) o.amount ordertype(o)
     return o
 end
@@ -176,7 +203,14 @@ function create_live_order(
 )
     @debug "create order: " ai = raw(ai) t price amount @caller
     resp = live_send_order(
-        s, ai, t, args...; skipchecks, amount, price, withoutkws(:date; kwargs=exc_kwargs)...
+        s,
+        ai,
+        t,
+        args...;
+        skipchecks,
+        amount,
+        price,
+        withoutkws(:date; kwargs=exc_kwargs)...,
     )
     create_live_order(s, resp, ai; amount, price, t, kwargs...)
 end

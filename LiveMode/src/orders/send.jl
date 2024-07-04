@@ -53,8 +53,8 @@ function ensure_marginmode(s::LiveStrategy, ai)
         remote_mode = Symbol(string(typeof(mm)))
         return if marginmode!(exc, remote_mode, raw(ai); hedged)
             s[:live_margin_mode][ai] = mm
-            event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), position(ai, Long)))
-            event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), position(ai, Short)))
+            event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Long)))
+            event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Short)))
             true
         else
             false

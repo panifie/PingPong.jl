@@ -35,7 +35,7 @@ function Executors.pong!(
         # First update on exchange
         if (force || !issameval) && leverage!(exchange(ai), new_lev, raw(ai); timeout=throttle(s))
             leverage!(this_pos, new_lev)
-            event!(ai, LeverageUpdated(:leverage_updated, this_pos, from_value=prev_lev))
+            event!(ai, LeverageUpdated(:leverage_updated, s, this_pos, from_value=prev_lev))
             if synced
                 # wait for lev update from watcher
                 waitforpos(s, ai, pos; since)

@@ -407,6 +407,6 @@ function st.current_total(
     tot
 end
 
-function BalanceUpdated(obj, name::Symbol, balance)
-    BalanceUpdated{exchangeid(obj)}(name, (; balance))
+function BalanceUpdated(obj, tag, group, balance)
+    BalanceUpdated{exchangeid(obj)}(Symbol(tag), Symbol(group), (; balance))
 end

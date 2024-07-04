@@ -460,9 +460,10 @@ end
 Base.show(io::IO, ::MIME"text/plain", po::Position) = print(io, po)
 Base.show(io::IO, po::Position) = print(io, po)
 
-function PositionUpdated(tag::Symbol, pos::Position)
+function PositionUpdated(tag, group, pos::Position)
     PositionUpdated{exchangeid(pos)}(
-        tag,
+        Symbol(tag),
+        Symbol(group),
         (posside(pos), isopen(pos)),
         raw(pos.asset),
         timestamp(pos),
@@ -476,9 +477,10 @@ function PositionUpdated(tag::Symbol, pos::Position)
 end
 
 # TODO: add `AddMargin` pong! function
-function MarginUpdated(tag::Symbol, pos::Position; from_value::DFT=ZERO)
+function MarginUpdated(tag, group, pos::Position; from_value::DFT=ZERO)
     MarginUpdated{exchangeid(pos)}(
-        tag,
+        Symbol(tag),
+        Symbol(group),
         raw(pos.asset),
         posside(pos),
         timestamp(pos),
@@ -488,9 +490,15 @@ function MarginUpdated(tag::Symbol, pos::Position; from_value::DFT=ZERO)
     )
 end
 
-function LeverageUpdated(tag::Symbol, pos::Position; from_value::DFT=one(ZERO))
+function LeverageUpdated(tag, group, pos::Position; from_value::DFT=one(ZERO))
     LeverageUpdated{exchangeid(pos)}(
-        tag, raw(pos.asset), posside(pos), timestamp(pos), from_value, leverage(pos)
+        Symbol(tag),
+        Symbol(group),
+        raw(pos.asset),
+        posside(pos),
+        timestamp(pos),
+        from_value,
+        leverage(pos),
     )
 end
 

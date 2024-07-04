@@ -38,7 +38,19 @@ maxout!(s::LiveStrategy, ai; skip_strategy=false) = begin
     end
 end
 
-function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, side, default_pos, create_kwargs, overwrite)
+function replay_open_orders!(
+    s,
+    ai;
+    open_orders,
+    exec,
+    live_orders,
+    eid,
+    ao,
+    side,
+    default_pos,
+    create_kwargs,
+    overwrite,
+)
     for resp in open_orders
         if resp_event_type(resp, eid) != ot.Order
             continue
@@ -48,9 +60,7 @@ function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, sid
             if state isa LiveOrderState
                 state.order
             end
-        end findorder(
-            s, ai; id, side, resp
-        ) create_live_order(
+        end findorder(s, ai; id, side, resp) create_live_order(
             s,
             resp,
             ai;
@@ -60,21 +70,26 @@ function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, sid
             synced=false,
             skipcommit=(!overwrite),
             withoutkws(:skipcommit; kwargs=create_kwargs)...,
-            tag="replay_open"
+            tag="replay_open",
         ) missing)::Union{Nothing,<:Order,Missing}
         if ismissing(o)
             continue
         elseif isfilled(ai, o)
             trades_amount = _amount_from_trades(trades(o))
             if !isequal(ai, trades_amount, o.amount, Val(:amount))
-                @warn "sync orders: replaying filled order with no trades" _module = LogSyncOrder
+                @warn "sync orders: replaying filled order with no trades" _module =
+                    LogSyncOrder
                 replay_order!(s, o, ai; resp, exec=false)
             else
-                @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount ai s = nameof(s)
+                @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount ai s = nameof(
+                    s
+                )
                 clear_order!(s, ai, o)
             end
         else
-            @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai s = nameof(s)
+            @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai s = nameof(
+                s
+            )
             push!(live_orders, o.id)
             replay_order!(s, o, ai; resp, exec)
         end
@@ -98,7 +113,9 @@ end
 function remove_live_orders(s, ai; overwrite, live_orders, side)
     for o in values(s, ai, side)
         if o.id ∉ live_orders
-            @debug "sync orders: local order non open on exchange." _module = LogSyncOrder o.id ai exchange(ai)
+            @debug "sync orders: local order non open on exchange." _module = LogSyncOrder o.id ai exchange(
+                ai
+            )
             if !overwrite
                 decommit!(s, o, ai)
             end
@@ -131,7 +148,8 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
             continue
         end
         if id ∉ live_orders
-            @debug "sync orders: tracked local order was not open on exchange" _module = LogSyncOrder id ai exchange(ai)
+            @debug "sync orders: tracked local order was not open on exchange" _module =
+                LogSyncOrder id ai exchange(ai)
             @deassert LogSyncOrder id == state.order.id
             @async @lock ai if isopen(ai, state.order) # need to sync trades
                 order_resp = try
@@ -148,13 +166,16 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
                     @deassert LogSyncOrder resp_order_id(order_resp, eid, String) == id
                     replay_order!(s, state.order, ai; resp=order_resp, exec)
                 elseif !iszero(filled_amount(state.order))
-                    @error "sync orders: local order not found on exchange" id ai exchange(ai) order_resp
+                    @error "sync orders: local order not found on exchange" id ai exchange(
+                        ai
+                    ) order_resp
                 else
-                    @debug "sync order: local order not found on exchange (probably canceled/rejected)" id ai exchange(ai) order_resp
+                    @debug "sync order: local order not found on exchange (probably canceled/rejected)" id ai exchange(
+                        ai
+                    ) order_resp
                 end
                 clear_order!(s, ai, state.order)
             else
-            
                 clear_order!(s, ai, state.order)
             end
         end
@@ -164,12 +185,12 @@ end
 function overwrite_cash!(s, ai)
     @debug "sync orders: resyncing strategy balances." maxlog = 1 _module = LogSyncOrder
     if ai isa MarginInstance
-        live_sync_cash!(s, ai, Long(), overwrite=true)
-        live_sync_cash!(s, ai, Short(), overwrite=true)
+        live_sync_cash!(s, ai, Long(); overwrite=true)
+        live_sync_cash!(s, ai, Short(); overwrite=true)
     else
-        live_sync_cash!(s, ai, overwrite=true)
+        live_sync_cash!(s, ai; overwrite=true)
     end
-    live_sync_strategy_cash!(s, overwrite=true)
+    live_sync_strategy_cash!(s; overwrite=true)
 end
 
 _amount_from_trades(trades) = sum(t.amount for t in trades)
@@ -189,7 +210,13 @@ This function also handles checking and updating of cash commitments for the str
 
 """
 function live_sync_open_orders!(
-    s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=BuyOrSell, raise=true
+    s::LiveStrategy,
+    ai;
+    overwrite=false,
+    exec=false,
+    create_kwargs=(;),
+    side=BuyOrSell,
+    raise=true,
 )
     # Get active orders for the given strategy and asset instance
     ao = active_orders(s, ai)
@@ -233,9 +260,18 @@ function live_sync_open_orders!(
         end
 
         # Replay open orders and update local state
-        replay_open_orders!(s, ai;
-            open_orders, exec, live_orders, eid, ao,
-            side, default_pos, create_kwargs, overwrite
+        replay_open_orders!(
+            s,
+            ai;
+            open_orders,
+            exec,
+            live_orders,
+            eid,
+            ao,
+            side,
+            default_pos,
+            create_kwargs,
+            overwrite,
         )
     end
 
@@ -287,7 +323,7 @@ function findorder(
         BuyOrSell
     else
         _ccxt_sidetype(resp, exchangeid(ai); getter=resp_order_side, def=BuyOrSell)
-    end
+    end,
 )
     if !isempty(id)
         for o in values(s, ai, side)
@@ -367,7 +403,9 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
         resp_amt = resp_trade_amount(trade, eid)
         # When a mismatch happens we reset local state for the order
         if isequal(ai, local_amt, resp_amt, Val(:amount))
-            @warn "replay order: mismatching amounts (resetting)" local_amt resp_amt o.id ai exchange(ai)
+            @warn "replay order: mismatching amounts (resetting)" local_amt resp_amt o.id ai exchange(
+                ai
+            )
             local_count = 0
             # remove trades from asset trades history
             filter!(t -> t.order !== o, trades(ai))
@@ -375,7 +413,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
             reset!(o, ai)
         end
     end
-    new_trades = @view order_trades[(begin+local_count):end]
+    new_trades = @view order_trades[(begin + local_count):end]
     if isempty(new_trades)
         @debug "replay order: emulating trade" _module = LogSyncOrder
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
@@ -406,7 +444,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     end
     if isfilled(ai, o)
         clear_order!(s, ai, o)
-        event!(ai, AssetEvent, :order_closed_replayed; order=o)
+        event!(ai, AssetEvent, :order_closed_replayed, s; order=o)
     elseif filled_amount(o) > ZERO && o isa IncreaseOrder
         @ifdebug if ai ∉ s.holdings
             @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai
@@ -530,7 +568,9 @@ Afterwards, the order is deleted from the active orders.
     CCXT orders structures don't have position side, hence to properly reconstruct the position history the exchange must either support `fetchPositionHistory` (or maybe `fetchLedger`), but currently these function are not checked/used
     (there is a constrained case that could be generally supported, when syncing the last trades up to the current state and knowing the current position state, the trades position state can be checked for correctness and flipped in case of wrong initial Long/Short guess)
 """
-function live_sync_closed_orders!(s::LiveStrategy, ai; dowarn=true, create_kwargs=(;), side=BuyOrSell, kwargs...)
+function live_sync_closed_orders!(
+    s::LiveStrategy, ai; dowarn=true, create_kwargs=(;), side=BuyOrSell, kwargs...
+)
     if dowarn
         @warn "closed orders syncing doesn't support leverage and position side!"
     end
@@ -540,13 +580,13 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; dowarn=true, create_kwarg
         isnothing(resp) ? [] : [resp...]
     end
     if isnothing(closed_orders)
-        @error "sync closed orders: couldn't fetch orders, skipping sync" ai s = nameof(
-            s
-        )
+        @error "sync closed orders: couldn't fetch orders, skipping sync" ai s = nameof(s)
         return nothing
     end
     order_kwargs = withoutkws(:skipcommit, :tag; kwargs=create_kwargs)
-    @debug "sync closed orders: iterating" _module = LogSyncOrder ai n_closed = length(closed_orders)
+    @debug "sync closed orders: iterating" _module = LogSyncOrder ai n_closed = length(
+        closed_orders
+    )
     @lock ai begin
         default_pos = get_position_side(s, ai)
         i = 1
@@ -572,11 +612,11 @@ function live_sync_closed_orders!(s::LiveStrategy, ai; dowarn=true, create_kwarg
                     skipcommit=true,
                     activate=false,
                     tag="replay_closed",
-                    order_kwargs...
+                    order_kwargs...,
                 ) missing)::Union{Order,Missing}
                 if !ismissing(o)
                     @deassert resp_order_status(resp, eid, String) ∈
-                              ("closed", "open", "canceled") resp_order_status(resp, eid, String)
+                        ("closed", "open", "canceled") resp_order_status(resp, eid, String)
                     @ifdebug trades_count = length(ai.history)
                     if isempty(trades(o))
                         if isopen(ai, o)

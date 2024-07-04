@@ -106,6 +106,8 @@ universe(s::Strategy) = getfield(s, :universe)
 throttle(s::Strategy) = attr(s, :throttle, Second(5))
 @doc "The strategy `Config` attributes."
 attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
+@doc "`Symbol` representation of the strategy (name of the module)."
+Base.Symbol(s::Strategy) = nameof(s)
 
 @doc """ Resets the state of a strategy.
 

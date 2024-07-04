@@ -12,19 +12,20 @@ using .ExchangeTypes: Exchange
 
 @doc """ Abstract type representing an event in an exchange
 Types implementing an `ExchangeEvent` must have a `tag::Symbol` field.
-Every instance of such event should have a unique tag.
+Every instance of such event should have a unique tag and an optional group.
 """
 abstract type ExchangeEvent{E} end
 
 function event!(
     exc::Exchange,
     kind::Type{<:ExchangeEvent},
-    tag;
+    tag,
+    group;
     event_date=now(),
     this_date=now(),
     kwargs...,
 )
-    ev = kind{exc.id}(tag, NamedTuple(k => v for (k, v) in kwargs))
+    ev = kind{exc.id}(Symbol(tag), Symbol(group), NamedTuple(k => v for (k, v) in kwargs))
     push!(exc._trace, ev; event_date, this_date)
 end
 
@@ -37,10 +38,12 @@ event!(v, args...; kwargs...) = event!(exchange(v), args...; kwargs...)
 
 struct AssetEvent{E} <: ExchangeEvent{E}
     tag::Symbol
+    group::Symbol
     data::NamedTuple
 end
 struct StrategyEvent{E} <: ExchangeEvent{E}
     tag::Symbol
+    group::Symbol
     data::NamedTuple
 end
 
