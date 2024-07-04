@@ -721,3 +721,18 @@ function feespaid(o::Order)
         sum(getproperty(t, cur) for t in trades(o))
     end
 end
+
+@doc """
+Check if the given trade is in the order.
+
+$(TYPEDSIGNATURES)
+"""
+hastrade(o::Order, t::Trade) = begin
+    tup = (t.order, t.price, t.size, t.amount, t.fees)
+    for t in trades(o)
+        if tup == (t.order, t.price, t.size, t.amount, t.fees)
+            return true
+        end
+    end
+    return false
+end
