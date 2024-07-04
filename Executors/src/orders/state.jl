@@ -24,7 +24,12 @@ $(TYPEDSIGNATURES)
 
 """
 function basic_order_state(
-    take, stop, committed::Ref{T}, unfilled::Ref{T}, trades=Trade[]
+    # FIXME: should `trades` be a `SortedArray`?
+    take,
+    stop,
+    committed::Ref{T},
+    unfilled::Ref{T},
+    trades=Trade[],
 ) where {T<:Real}
     _BasicOrderState{T}((take, stop, committed, unfilled, trades))
 end
