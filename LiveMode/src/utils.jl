@@ -291,7 +291,6 @@ asset_queue(s::RTStrategy, ai; tasks=nothing) = begin
     at.queue
 end
 
-
 function _unsafe_asset_tasks(s::RTStrategy)
     @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
 end
@@ -388,9 +387,7 @@ function set_strategy_task!(
     end
 end
 
-function strategy_task(
-    s::RTStrategy, k; account=current_account(s), tasks=nothing
-)
+function strategy_task(s::RTStrategy, k; account=current_account(s), tasks=nothing)
     tup = @something tasks strategy_tasks(s, account)
     @lock tup.lock get(tup.tasks, k, nothing)
 end
@@ -558,10 +555,41 @@ function st.default!(s::LiveStrategy)
     if limit > 0
         live_sync_closed_orders!(s; limit)
     end
-    first_start = !haskey(a, :is_running)
     if !skip_sync
-        live_sync_open_orders!(s; overwrite=first_start)
+        live_sync_start!(s; first_start=!haskey(a, :is_running))
     end
+end
+
+@doc """ Performs initial sync for a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function performs initial sync for a live strategy `s`.
+Syncs open orders, starts tracking balance and positions (for margin strategies), and optionally re-starts the OHLCV watchers.
+
+"""
+function live_sync_start!(s::LiveStrategy; first_start)
+    watch_balance!(s)
+    if s isa MarginStrategy
+        watch_positions!(s)
+    end
+    # we don't want to start the ohlcv watchers since the strategy
+    # decides whether to use them or not, but if present, we need
+    # to start them
+    let w = ohlcv_watchers(s)
+        if w isa Watcher
+            if !isstarted(w)
+                start!(w)
+            end
+        elseif valtype(w) <: Watcher
+            for ai_w in values(w)
+                if !isstarted(ai_w)
+                    start!(ai_w)
+                end
+            end
+        end
+    end
+    live_sync_open_orders!(s; overwrite=first_start)
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
@@ -611,7 +639,8 @@ end
 
 function posside_fallbacks(s::Strategy, ai)
     if hasorders(s, ai)
-        @debug "No position open for $(raw(ai)), inferring from open orders" _module = LogPos
+        @debug "No position open for $(raw(ai)), inferring from open orders" _module =
+            LogPos
         posside(first(orders(s, ai)).second)
     elseif length(trades(ai)) > 0
         @debug "No position open for $(raw(ai)), inferring from last trade" _module = LogPos
@@ -719,7 +748,6 @@ and returns `true` if the watcher has received an update since `last_time`.
 
 """
 function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
-
     last_v = if isempty(buffer(w))
         return false
     else
