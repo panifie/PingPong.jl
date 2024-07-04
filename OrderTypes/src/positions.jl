@@ -9,6 +9,7 @@ $(FIELDS)
 struct PositionUpdated{E} <: PositionEvent{E}
     tag::Symbol
     asset::String
+    side_status::Tuple{PositionSide,Bool}
     timestamp::DateTime
     liquidation_price::DFT
     entryprice::DFT
@@ -25,6 +26,8 @@ $(FIELDS)
 struct MarginUpdated{E} <: PositionEvent{E}
     tag::Symbol
     asset::String
+    side::PositionSide
+    timestamp::DateTime
     mode::String
     from::DFT
     value::DFT
@@ -37,28 +40,8 @@ $(FIELDS)
 struct LeverageUpdated{E} <: PositionEvent{E}
     tag::Symbol
     asset::String
+    side::PositionSide
+    timestamp::DateTime
     from::DFT
     value::DFT
-end
-
-@doc """ Represents a position opened event.
-
-$(TYPEDSIGNATURES)
-
-This event is triggered when a position is opened.
-"""
-struct PositionOpened{E} <: PositionEvent{E}
-    tag::Symbol
-    timestamp::DateTime
-end
-
-@doc """ Represents a position closed event.
-
-$(TYPEDSIGNATURES)
-
-This event is triggered when a position is closed.
-"""
-struct PositionClosed{E} <: PositionEvent{E}
-    tag::Symbol
-    timestamp::DateTime
 end

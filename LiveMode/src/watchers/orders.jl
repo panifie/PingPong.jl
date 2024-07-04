@@ -647,7 +647,7 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp,
                 fees=nothing,
                 slippage=false,
             )
-            event!(ai, AssetEvent, :trade_created; trade, avgp=average_price)
+            event!(ai, AssetEvent, :trade_created_emulated; trade, avgp=average_price)
             trade
         finally
             dec!(queue)

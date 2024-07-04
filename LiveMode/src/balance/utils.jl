@@ -407,7 +407,6 @@ function st.current_total(
     tot
 end
 
-function BalanceUpdated(name::Symbol, eid, sym, bal)
-    bal_tup = NamedTuple(f => getfield(bal, f) for f in fieldnames(typeof(bal)))
-    BalanceUpdated{eid}(name, (; sym, bal_tup...))
+function BalanceUpdated(obj, name::Symbol, balance)
+    BalanceUpdated{exchangeid(obj)}(name, (; balance))
 end

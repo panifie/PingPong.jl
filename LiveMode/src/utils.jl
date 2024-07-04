@@ -53,6 +53,7 @@ baremodule LogPush end
 baremodule LogWait end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
+baremodule LogTraceReplay end
 
 @doc """ Starts a timeout.
 

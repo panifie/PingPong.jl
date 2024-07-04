@@ -1,5 +1,12 @@
 using .Executors: _cashfrom, hasorders, decommit!
 
+maxout!(s::LiveStrategy) = begin
+    # strategy
+    v = s.cash.value
+    cash!(s.cash, typemax(v))
+    cash!(s.cash_committed, zero(v))
+end
+
 @doc """ Maximizes cash and neutralizes commitments before syncing.
 
 $(TYPEDSIGNATURES)
@@ -7,11 +14,11 @@ $(TYPEDSIGNATURES)
 Before syncing orders, this function sets the cash value of both the strategy and asset instance to its maximum and commits cash to zero. This prevents order creation from failing due to insufficient funds.
 
 """
-maxout!(s::LiveStrategy, ai) = begin
+maxout!(s::LiveStrategy, ai; skip_strategy=false) = begin
     # strategy
-    v = s.cash.value
-    cash!(s.cash, typemax(v))
-    cash!(s.cash_committed, zero(v))
+    if !skip_strategy
+        maxout!(s)
+    end
     if ai isa MarginInstance
         # Asset Long
         c = cash(ai, Long())
@@ -60,7 +67,7 @@ function replay_open_orders!(s, ai; open_orders, exec, live_orders, eid, ao, sid
         elseif isfilled(ai, o)
             trades_amount = _amount_from_trades(trades(o))
             if !isequal(ai, trades_amount, o.amount, Val(:amount))
-                @debug "sync orders: replaying filled order with no trades" _module = LogSyncOrder
+                @warn "sync orders: replaying filled order with no trades" _module = LogSyncOrder
                 replay_order!(s, o, ai; resp, exec=false)
             else
                 @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount ai s = nameof(s)
@@ -100,6 +107,24 @@ function remove_live_orders(s, ai; overwrite, live_orders, side)
     end
 end
 
+"""
+Synchronizes open orders with the live trading environment.
+
+$(TYPEDSIGNATURES)
+
+This function syncs the live open orders with the trading strategy and asset instance provided.
+It fetches open orders, replays them, and updates the order tracking.
+This function also handles checking and updating of cash commitments for the strategy and asset instance.
+
+Args:
+    s (LiveStrategy): The live trading strategy.
+    ai: The asset instance.
+    live_orders (Set{String}): The set of live order IDs.
+    ao (Dict{String, OrderState}): The dictionary of active orders.
+    side (BuyOrSell): The side of the order.
+    eid (String): The exchange ID.
+    exec (bool): A boolean flag indicating whether to execute the orders during syncing.
+"""
 function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
     @sync for (id, state) in ao
         if orderside(state.order) != side
@@ -107,7 +132,7 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
         end
         if id ∉ live_orders
             @debug "sync orders: tracked local order was not open on exchange" _module = LogSyncOrder id ai exchange(ai)
-            @deassert id == state.order.id
+            @deassert LogSyncOrder id == state.order.id
             @async @lock ai if isopen(ai, state.order) # need to sync trades
                 order_resp = try
                     resp = fetch_orders(s, ai; ids=(id,))
@@ -120,7 +145,7 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
                     @debug_backtrace LogSyncOrder
                 end
                 if isdict(order_resp)
-                    @deassert resp_order_id(order_resp, eid, String) == id
+                    @deassert LogSyncOrder resp_order_id(order_resp, eid, String) == id
                     replay_order!(s, state.order, ai; resp=order_resp, exec)
                 elseif !iszero(filled_amount(state.order))
                     @error "sync orders: local order not found on exchange" id ai exchange(ai) order_resp
@@ -129,6 +154,7 @@ function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
                 end
                 clear_order!(s, ai, state.order)
             else
+            
                 clear_order!(s, ai, state.order)
             end
         end
@@ -165,9 +191,11 @@ This function also handles checking and updating of cash commitments for the str
 function live_sync_open_orders!(
     s::LiveStrategy, ai; overwrite=false, exec=false, create_kwargs=(;), side=BuyOrSell, raise=true
 )
+    # Get active orders for the given strategy and asset instance
     ao = active_orders(s, ai)
     eid = exchangeid(ai)
-    # Fetch open orders from exchange
+
+    # Fetch open orders from the exchange
     open_orders = fetch_open_orders(s, ai; side)
     if isnothing(open_orders)
         msg = "sync orders: couldn't fetch open orders, skipping sync"
@@ -178,46 +206,67 @@ function live_sync_open_orders!(
             return nothing
         end
     end
-    # Removes local orders not active on exchange
+
+    # Remove local orders that are not active on the exchange
     remove_local_orders(s, ai; overwrite, eid, open_orders, side)
+
+    # Initialize a set to store live order IDs
     live_orders = Set{String}()
+
+    # Debug logging for initial cash and committed amounts
     @ifdebug begin
         cash_long = cash(ai, Long())
         comm_long = committed(ai, Long())
         cash_short = cash(ai, Short())
         comm_short = committed(ai, Short())
     end
+
     @debug "sync orders: syncing" _module = LogSyncOrder ai islocked(ai) length(open_orders)
+
+    # Lock the asset instance to prevent concurrent modifications
     @lock ai begin
         default_pos = get_position_side(s, ai)
-        # overwriting the cash state
+
+        # Reset cash state if overwrite is true
         if overwrite
             maxout!(s, ai)
         end
+
+        # Replay open orders and update local state
         replay_open_orders!(s, ai;
             open_orders, exec, live_orders, eid, ao,
             side, default_pos, create_kwargs, overwrite
         )
     end
+
+    # Remove orders that are no longer live
     remove_live_orders(s, ai; overwrite, live_orders, side)
 
+    # Process remaining orders
     loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
 
+    # Verify that the number of orders matches the live orders set
     @deassert orderscount(s, ai, side) == length(live_orders)
+
+    # Start trade and order watchers if there are active orders
     if orderscount(s, ai, side) > 0
         watch_trades!(s, ai) # ensure trade watcher is running
         watch_orders!(s, ai) # ensure orders watcher is running
     end
-    # @ifdebug @debug "" cash_long cash_short comm_long comm_short
+
+    # Debug assertion to check if cash and committed amounts remain unchanged (unless overwrite is true)
     @ifdebug @assert overwrite || all((
         cash_long == cash(ai, Long()),
         comm_long == committed(ai, Long()),
         cash_short == cash(ai, Short()),
         comm_short == committed(ai, Short()),
     ))
+
+    # Overwrite cash state if specified
     if overwrite
         overwrite_cash!(s, ai)
     end
+
     @debug "sync orders: done" _module = LogSyncOrder ai
     nothing
 end

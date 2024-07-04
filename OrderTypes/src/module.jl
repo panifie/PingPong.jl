@@ -336,7 +336,5 @@ export event!,
     PositionUpdated,
     MarginUpdated,
     LeverageUpdated,
-    PositionOpened,
-    PositionClosed,
     BalanceUpdated,
     OHLCVUpdated

@@ -463,6 +463,7 @@ Base.show(io::IO, po::Position) = print(io, po)
 function PositionUpdated(tag::Symbol, pos::Position)
     PositionUpdated{exchangeid(pos)}(
         tag,
+        (posside(pos), isopen(pos)),
         raw(pos.asset),
         timestamp(pos),
         liqprice(pos),
@@ -477,12 +478,20 @@ end
 # TODO: add `AddMargin` pong! function
 function MarginUpdated(tag::Symbol, pos::Position; from_value::DFT=ZERO)
     MarginUpdated{exchangeid(pos)}(
-        tag, raw(pos.asset), string(marginmode(pos)), from_value, margin(pos)
+        tag,
+        raw(pos.asset),
+        posside(pos),
+        timestamp(pos),
+        string(marginmode(pos)),
+        from_value,
+        margin(pos),
     )
 end
 
 function LeverageUpdated(tag::Symbol, pos::Position; from_value::DFT=one(ZERO))
-    LeverageUpdated{exchangeid(pos)}(tag, raw(pos.asset), from_value, leverage(pos))
+    LeverageUpdated{exchangeid(pos)}(
+        tag, raw(pos.asset), posside(pos), timestamp(pos), from_value, leverage(pos)
+    )
 end
 
 export notional, additional, price, bankruptcy, pnl, collateral

@@ -34,7 +34,7 @@ This function synchronizes the cash balance of a live strategy with the actual c
 It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
 
 """
-function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; bal=nothing, overwrite=false, kwargs...)
+function live_sync_strategy_cash!(s::LiveStrategy, kind=s.live_balance_kind; bal=nothing, overwrite=false, kwargs...)
     bal = @something bal live_balance(s; kwargs...)
     avl_cash = getproperty(bal, kind)
     bc = nameof(s.cash)
@@ -62,7 +62,7 @@ function live_sync_strategy_cash!(s::LiveStrategy, kind=s[:live_balance_kind]; b
     # HACK: resync committed cash from all local orders
     _sync_comm_cash!(s)
 
-    event!(s, BalanceUpdated(:strategy_balance_updated, exchangeid(s), string(nameof(cash(s))), bal))
+    event!(s, BalanceUpdated(s, :strategy_balance_updated, bal))
     nothing
 end
 
@@ -124,5 +124,5 @@ function live_sync_cash!(
         cash!(ai, ZERO)
         cash!(committed(ai), ZERO)
     end
-    event!(ai, BalanceUpdated(:asset_balance_updated, exchangeid(ai), raw(ai), bal))
+    event!(ai, BalanceUpdated(ai, :asset_balance_updated, bal))
 end

@@ -341,7 +341,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                     inc!(queue)
                                     try
                                         @debug "handle trade: trade!" _module = LogWatchTrade
-                                        trade!(
+                                        t = trade!(
                                             s,
                                             state.order,
                                             ai;
@@ -352,6 +352,8 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                             fees=nothing,
                                             slippage=false,
                                         )
+                                        event!(ai, AssetEvent, :trade_created; trade=t, avgp=state.average_price)
+                                        t
                                     finally
                                         dec!(queue)
                                     end
