@@ -20,7 +20,7 @@ function _sync_comm_cash!(s)
             end
         end
     end
-    if !isapprox(s.cash_committed, comm, rtol=0.01)
+    if !isapprox(s.cash_committed, comm; rtol=0.01)
         @warn "strategy cash: cash committed unsynced" set = s.cash_committed actual = comm
         cash!(s.cash_committed, comm)
     end
@@ -34,15 +34,15 @@ This function synchronizes the cash balance of a live strategy with the actual c
 It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
 
 """
-function live_sync_strategy_cash!(s::LiveStrategy, kind=s.live_balance_kind; bal=nothing, overwrite=false, kwargs...)
+function live_sync_strategy_cash!(
+    s::Strategy, kind=s.live_balance_kind; bal=nothing, overwrite=false, kwargs...
+)
     bal = @something bal live_balance(s; kwargs...)
     avl_cash = getproperty(bal, kind)
     bc = nameof(s.cash)
 
     c = if isnothing(avl_cash)
-        @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(
-            exchange(s)
-        )
+        @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(exchange(s))
         ZERO
     else
         avl_cash
@@ -79,7 +79,7 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
     bal = live_balance(s; full=true, withoutkws(:overwrite; kwargs)...)
     if isnothing(bal)
         @error "sync uni: failed, no balance" e = exchangeid(s)
-        return
+        return nothing
     end
     loop_kwargs = filterkws(:fallback_kwargs; kwargs)
     @sync for ai in s.universe
@@ -99,13 +99,14 @@ If no balance information is found for the asset, its cash and committed cash va
 
 """
 function live_sync_cash!(
-    s::NoMarginStrategy{Live}, ai;
+    s::NoMarginStrategy{Live},
+    ai;
     since=nothing,
     waitfor=Second(5),
     force=false,
     drift=Millisecond(5),
     bal=live_balance(s, ai; since, waitfor, force),
-    overwrite=false
+    overwrite=false,
 )
     @lock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift

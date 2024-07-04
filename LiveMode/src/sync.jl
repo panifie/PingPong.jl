@@ -1,3 +1,17 @@
+using .Executors:
+    hold!,
+    queue!,
+    decommit!,
+    position!,
+    reset!,
+    PositionOpen,
+    PositionClose,
+    PositionTrade,
+    isqueued,
+    hastrade
+using .st: Strategy, SimStrategy
+using PaperMode.SimMode: _update_from_trade!
+
 @doc """ Synchronizes a live trading strategy.
 
 $(TYPEDSIGNATURES)
@@ -15,17 +29,31 @@ function live_sync_strategy!(s::LiveStrategy; overwrite=false, force=false)
     end
 end
 
-_astuple(ev, tr) = begin
+function _astuple(ev, tr)
     timestamp = Data.todata(tr._buf, ev[1])
-    if !(timestamp isa DateTime)
-        @warn "data: corrupted event trace, expected timestamp"
-        timestamp = DateTime(0)
+    event = if !(timestamp isa DateTime)
+        @warn "data: corrupted event trace, expected timestamp" v = timestamp maxlog = 1
+        # HACK: try to get the timestamp from the event
+        event = timestamp
+        timestamp = if hasproperty(event, :timestamp)
+            event.timestamp
+        else
+            DateTime(0)
+        end
+        event
+    else
+        Data.todata(tr._buf, ev[2])
     end
-    event = Data.todata(tr._buf, ev[2])
     (; timestamp, event)
 end
 function order_from_event(s, ev)
-    o = ev.event.order
+    o = if hasproperty(ev.event, :order)
+        ev.event.order
+    elseif hasproperty(ev.event, :data) && hasproperty(ev.event.data, :order)
+        ev.event.data.order
+    else
+        @error "data: corrupted event trace, expected order" ev.event
+    end
     ai = asset_bysym(s, raw(o.asset))
     o, ai
 end
@@ -33,27 +61,16 @@ function trade_tuple(trade)
     timestamp = trade.timestamp
     price = trade.price
     amount = trade.amount
-    asset = trade.asset
+    asset = trade.order.asset
     (; timestamp, price, amount, asset)
 end
 
 function execute_trade!(s, o, ai, trade)
-    trade!(
-        s,
-        o,
-        ai;
-        nothing,
-        trade,
-        date=nothing,
-        price=nothing,
-        actual_amount=nothing,
-        fees=nothing,
-        slippage=false,
-    )
+    _update_from_trade!(s, ai, o, trade; actual_price=trade.price)
     position!(s, ai, trade)
 end
 
-function replay_position!(s::LiveStrategy, ai, o::Order)
+function replay_position!(s::SimStrategy, ai, o::Order)
     this_pos = position(ai, o)
     for t in trades(o)
         if t.date > timestamp(this_pos)
@@ -62,18 +79,45 @@ function replay_position!(s::LiveStrategy, ai, o::Order)
     end
 end
 
+function prepare_replay!(live_s::LiveStrategy)
+    s = st.similar(live_s; mode=Sim())
+    st.default!(s)
+    return s
+end
+
+function copy_cash!(dst_ai::A, src_ai::A) where {A<:NoMarginInstance}
+    cash!(dst_ai, cash(src_ai))
+    committed!(dst_ai, committed(src_ai))
+end
+
+function copy_cash!(dst_ai::A, src_ai::A) where {A<:MarginInstance}
+    cash!(dst_ai, cash(src_ai, Long()))
+    committed!(dst_ai, committed(src_ai, Long()))
+    cash!(dst_ai, cash(src_ai, Short()))
+    committed!(dst_ai, committed(src_ai, Short()))
+end
+
 @doc """ Reconstructs strategy state for events trace.
 
 NOTE: Previous ohlcv data must be present from the date of the first event to replay.
 """
 function replay_from_trace!(s::LiveStrategy)
+    sim_s = prepare_replay!(s)
     tr = exchange(s)._trace
     events = [_astuple(ev, tr) for ev in eachrow(tr._arr)]
     sort!(events; by=ev -> ev.timestamp)
+    replay_loop!(sim_s, events)
+    for (live_ai, sim_ai) in zip(s.universe, sim_s.universe)
+        # copy the trades history from the sim strategy to the live strategy
+        append!(trades(live_ai), trades(sim_ai))
+        cash!(live_ai, cash(sim_ai))
+    end
+end
+
+function replay_loop!(s::SimStrategy, events)
     since_idx = findlast(
         ev -> ev.event.tag == :strategy_started && ev.event.group == nameof(s), events
     )
-    maxout!(s)
     orders_processed = Dict{String,Order}()
     orders_active = Dict{String,Order}()
     for idx in (since_idx + 1):lastindex(events)
@@ -87,31 +131,29 @@ function replay_from_trace!(s::LiveStrategy)
         elseif tag == :order_closed
             trace_close_order!(s, ev; orders_active, orders_processed)
         elseif tag in (:trade_created, :trade_created_emulated)
-            trace_execute_trade!(s, ev; orders_processed)
+            trace_execute_trade!(s, ev; orders_processed, orders_active)
         elseif tag == :order_closed_replayed
             trace_close_order!(s, ev; replayed=true, orders_active, orders_processed)
         elseif tag == :strategy_balance_updated
             trace_balance_update!(s, ev)
         elseif tag == :asset_balance_updated
-            bal = @coalesce get(ev.data, :balance, missing) bal = BalanceSnapshot(
-                ev.data.currency, ev.data.date, ev.data.total, ev.data.free, ev.data.used
-            )
-            if !ismissing(bal)
-                live_sync_cash!(s, ai; bal, overwrite=true)
-            else
-                @error "trace replay: asset_balance_updated event missing balance" ev.data
-            end
+            trace_asset_balance_update!(s, ev)
         elseif tag in (
             :position_updated,
             :position_stale_closed,
             :position_oppos_closed,
             :position_updated_closed,
         )
-            trace_sync_position!(s, tag, ev)
-        elseif tag == (:margin_mode_set_isolated, :margin_mode_set_cross)
-            trace_sync_margin!(s, ev)
+            trace_sync_position!(s, tag, ev.event)
+        elseif tag in (
+            :margin_mode_set_isolated,
+            :margin_mode_set_cross,
+            Symbol("margin_mode_set_Isolated Margin"),
+            Symbol("margin_mode_set_Isolated Margin"),
+        )
+            trace_sync_margin!(s, ev.event)
         elseif tag == :leverage_updated
-            trace_sync_leverage!(s, ev)
+            trace_sync_leverage!(s, ev.event)
         elseif tag == :strategy_stopped
             break
         else
@@ -121,13 +163,19 @@ function replay_from_trace!(s::LiveStrategy)
 end
 
 @doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
 """
 function trace_sync_position!(s::Strategy, tag::Symbol, ev::PositionUpdated)
     ai = asset_bysym(s, ev.asset)
     side, status = ev.side_status
-    ai = asset_bysym(s, pup.asset)
+    ai = asset_bysym(s, ev.asset)
     pos = position(ai, side)
-    status!(pos, status ? PositionOpen() : PositionClose())
+    if !status
+        reset!(pos)
+        return nothing
+    end
+    status!(ai, posside(pos), status ? PositionOpen() : PositionClose())
     timestamp!(pos, ev.timestamp)
     liqprice!(pos, ev.liquidation_price)
     entryprice!(pos, ev.entryprice)
@@ -142,7 +190,7 @@ end
 function trace_sync_margin!(s::Strategy, ev::MarginUpdated)
     ai = asset_bysym(s, ev.asset)
     pos = position(ai, ev.side)
-    if !isapprox(ev.from, margin(pos); rtol=1e-4)
+    if timestamp(pos) > DateTime(0) && !isapprox(ev.from, margin(pos); rtol=1e-4)
         @warn "trace replay: margin update from value mismatch" ev.from margin(pos)
     end
     addmargin!(pos, ev.value)
@@ -153,44 +201,57 @@ function trace_sync_margin!(s::Strategy, ev::MarginUpdated)
 end
 
 @doc """ Synchronizes a leverage state from a LeverageUpdated event.
+
+$(TYPEDSIGNATURES)
 """
 function trace_sync_leverage!(s::Strategy, ev::LeverageUpdated)
     ai = asset_bysym(s, ev.asset)
     pos = position(ai, ev.side)
-    if !isapprox(ev.from, leverage(pos); rtol=1e-4)
-        @warn "trace replay: leverage update from value mismatch" ev.from leverage(pos)
+    if timestamp(ai) > DateTime(0) && !isapprox(ev.from, leverage(pos); rtol=1e-4)
+        @warn "trace replay: leverage update from value mismatch" timestamp(ai) ev.from leverage(
+            pos
+        )
     end
     leverage!(pos, ev.value)
     timestamp!(pos, ev.timestamp)
 end
 
+@doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
+"""
 function trace_create_order!(s::Strategy, ev; orders_active)
     o, ai = order_from_event(s, ev)
-    if o.id in keys(orders(s, ai))
+    if hasorders(s, ai, o)
         @error "trace replay: order already exists" o.id
         return nothing
     end
     hold!(s, ai, o)
     queue!(s, o, ai)
-    invoke(position!, Tuple{Strategy,MarginInstance,PositionTrade}, s, ai, o)
     replay_position!(s, ai, o)
     orders_active[o.id] = o
 end
 
+@doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
+"""
 function trace_close_order!(
     s::Strategy, ev; replayed::Bool, orders_active, orders_processed
 )
     o, ai = order_from_event(s, ev)
     if replayed
         if haskey(orders_processed, o.id)
-            @debug "trace replay: order_closed_replayed event for already closed order" o.id
+            @debug "trace replay: order_closed_replayed event for already closed order" _module =
+                LogTraceReplay o.id
             return nothing
         end
         if !isempty(trades(o))
-            @error "trace replay: order_closed_replayed event for order with trades" o.id
+            @error "trace replay: order_closed_replayed event for order with trades" _module =
+                LogTraceReplay o.id replayed
         end
         # is this necessary?
-        if isqueued(s, o, ai)
+        if isqueued(o, s, ai)
             decommit!(s, o, ai)
             delete!(s, ai, o)
         end
@@ -220,9 +281,13 @@ function trace_close_order!(
     orders_processed[o.id] = o
 end
 
-function trace_execute_trade!(s::Strategy, ev; orders_processed)
+@doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
+"""
+function trace_execute_trade!(s::Strategy, ev; orders_processed, orders_active)
     trade = ev.event.data.trade
-    ai = asset_bysym(s, raw(trade.asset))
+    ai = asset_bysym(s, raw(trade.order.asset))
     average_price = ev.event.data.avgp
     # the version in orders_processed should have all trades in it
     order_proc = get(orders_processed, trade.order.id, nothing)
@@ -238,7 +303,7 @@ function trace_execute_trade!(s::Strategy, ev; orders_processed)
             end
         else # the trade somewhat has a timestamp older than the order creation or the order event wasn't registered
             # enqueue the order and re-execute the trade
-            reset!(trade.order)
+            reset!(trade.order, ai)
             hold!(s, ai, trade.order)
             queue!(s, trade.order, ai)
             execute_trade!(s, trade.order, ai, trade)
@@ -246,20 +311,41 @@ function trace_execute_trade!(s::Strategy, ev; orders_processed)
     end
 end
 
+@doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
+"""
 function trace_balance_update!(s::Strategy, ev)
-    if ev.data.sym == nameof(s.cash)
-        live_sync_strategy_cash!(s; bal=ev.data.balance)
+    @debug "trace replay: balance update" _module = LogTraceReplay
+    bal = ev.event.data.balance
+    if bal.currency == nameof(s.cash)
+        kind = s.live_balance_kind
+        avl_cash = @something getproperty(bal, kind) ZERO
+        if isfinite(avl_cash)
+            cash!(s.cash, avl_cash)
+        else
+            @warn "strategy cash: non finite" c kind bal maxlog = 1
+        end
     else
-        @error "trace replay: strategy balance wrong currency" event_cur = ev.data.sym strategy_cur = nameof(
+        @error "trace replay: strategy balance wrong currency" event_cur = bal.currency strategy_cur = nameof(
             s.cash
         )
     end
 end
 
+@doc """ Synchronizes a position state from a PositionUpdated event.
+
+$(TYPEDSIGNATURES)
+"""
 function trace_asset_balance_update!(s::Strategy, ev)
     bal = ev.data.balance
-    if !ismissing(bal)
-        live_sync_cash!(s, ai; bal, overwrite=true)
+    ai = asset_bysym(s, bal.currency)
+    if bal.currency == bc(ai)
+        if isfinite(bal.free)
+            cash!(ai, bal.free)
+        else
+            @warn "asset cash: non finite" ai = raw(ai) bal
+        end
     else
         @error "trace replay: asset_balance_updated event missing balance" ev.data
     end

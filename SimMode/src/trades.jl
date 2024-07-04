@@ -197,6 +197,10 @@ function trade!(
         aftertrade!(s, ai, o)
         return nothing
     end
+    _update_from_trade!(s, ai, o, trade; actual_price)
+end
+
+function _update_from_trade!(s::Strategy, ai, o, trade; actual_price)
     @ifdebug _beforetrade(s, ai, o, trade, actual_price)
     # record trade
     @deassert !isdust(ai, o) committed(o), o
