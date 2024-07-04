@@ -367,10 +367,10 @@ end
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
 resp_ticker_price(resp, ::EIDType, k) = get_py(resp, k)
-resp_event_type(resp, eid::EIDType)::Union{<:ot.ExchangeEvent,<:ot.Order,<:ot.Trade} = begin
+resp_event_type(resp, eid::EIDType)::Type{<:Union{ot.ExchangeEvent,ot.Order,ot.Trade}} = begin
     if haskey(resp, @pyconst("clientOrderId"))
         if iszero(resp_order_amount(resp, eid))
-            ot.ExchangeEvent
+            ot.ExchangeEvent{eid}
         else
             ot.Order
         end
