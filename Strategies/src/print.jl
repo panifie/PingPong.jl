@@ -147,9 +147,9 @@ end
 
 _ascash((val, sym)) = Cash(val, sym)
 
-Base.print(io::IO, ::Isolated) = write(io, "Isolated Margin")
-Base.string(io::IO, ::Cross) = write(io, "Cross Margin")
-Base.string(io::IO, ::NoMargin) = write(io, "No Margin")
+Base.print(io::IO, ::Isolated) = write(io, "isolated")
+Base.string(io::IO, ::Cross) = write(io, "cross")
+Base.string(io::IO, ::NoMargin) = write(io, "nomargin")
 
 @nospecialize
 function Base.print(out::IO, s::Strategy; price_func=lasttrade_price_func)
