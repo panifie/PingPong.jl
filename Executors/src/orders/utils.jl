@@ -545,26 +545,11 @@ function hasorders(s::Strategy, ai::AssetInstance, ::Type{BuyOrSell})
 end
 
 @doc """
-Checks if an asset instance has a specific order in a strategy.
-
-!!! warning "Not for sim mode"
-    For speed reason we don't construct order ids (which are strings) in sim mode.
-
-$(TYPEDSIGNATURES)
-"""
-hasorders(s::Strategy{<:Union{Paper,Live}}, ai, id::String) = begin
-    for o in values(s, ai)
-        o.id == id && return true
-    end
-    false
-end
-
-@doc """
 Checks if an asset instance has a specific order in a strategy by side.
 
 $(TYPEDSIGNATURES)
 """
-function hasorders(s::Strategy, ai, id::String, ::BySide{S}) where {S<:OrderSide}
+function hasorders(s::Strategy, ai, id::String, ::BySide{S}=BuyOrSell) where {S<:OrderSide}
     for o in values(s, ai, S)
         o.id == id && return true
     end
