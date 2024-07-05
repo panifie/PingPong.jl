@@ -1,3 +1,4 @@
+import .Executors: cancel!
 @doc """ Cancels live orders on an exchange.
 
 $(TYPEDSIGNATURES)
@@ -52,11 +53,9 @@ function live_cancel(s, ai; ids=(), side=BuyOrSell, confirm=false, since=nothing
         return false
     end
     if done && confirm
-        open_orders = fetch_open_orders(
-            s, ai; since=if !isnothing(since)
-                dtstamp(since)
-            end
-        )
+        open_orders = fetch_open_orders(s, ai; since=if !isnothing(since)
+            dtstamp(since)
+        end)
         if side === BuyOrSell
             isempty(open_orders) || begin
                 @warn "live cancel: confirm failed (both sides)"
@@ -73,4 +72,13 @@ function live_cancel(s, ai; ids=(), side=BuyOrSell, confirm=false, since=nothing
         end
     end
     done
+end
+
+function cancel!(s::LiveStrategy, o::Order, ai; kwargs...)
+    if isqueued(o, s, ai)
+        decommit!(s, o, ai, true)
+        delete!(s, ai, o)
+        st.ping!(s, o, err, ai)
+        event!(ai, AssetEvent, :order_local_cancel, s; order=o, err)
+    end
 end

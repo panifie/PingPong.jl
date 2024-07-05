@@ -598,7 +598,6 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
         decommit!(s, o, ai, true)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
-        event!(ai, AssetEvent, :order_local_cancel, s; order=o, err)
     end
     true
 end
