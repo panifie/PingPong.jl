@@ -108,6 +108,7 @@ throttle(s::Strategy) = attr(s, :throttle, Second(5))
 attrs(s::Strategy) = getfield(getfield(s, :config), :attrs)
 @doc "`Symbol` representation of the strategy (name of the module)."
 Base.Symbol(s::Strategy) = nameof(s)
+Base.haskey(s::Strategy, k) = haskey(attrs(s), k)
 
 @doc """ Resets the state of a strategy.
 
@@ -149,6 +150,10 @@ function reset!(s::Strategy, config=false)
     default!(s)
     cash!(s.cash, s.config.initial_cash)
     cash!(s.cash_committed, 0.0)
+    abs = attr(s, :assets_bysym, nothing)
+    if !isnothing(abs)
+        empty!(abs)
+    end
     ping!(s, ResetStrategy())
 end
 @doc """ Reloads OHLCV data for assets in the strategy universe.
