@@ -1,4 +1,5 @@
 using .Strategies: PriceTime
+import .Instances: trades
 
 @doc """
 A data structure for maintaining a collection of iterators.
@@ -53,6 +54,7 @@ $(TYPEDSIGNATURES)
 """
 Base.iterate(oi::OrderIterator, _) = _do_orders_iter(oi)
 Base.iterate(oi::OrderIterator) = _do_orders_iter(oi)
+Base.length(oi::OrderIterator) = sum(length(i) for i in oi.iters)
 
 @doc """
 Checks if the OrderIterator is empty.
@@ -98,3 +100,7 @@ Counts the number of elements in the OrderIterator.
 $(TYPEDSIGNATURES)
 """
 Base.count(oi::OrderIterator) = count((_) -> true, oi)
+
+trades(s::Strategy) = Iterators.flatten(trades(ai) for ai in s.universe)
+tradescount(s::Strategy) = sum(length(trades(ai)) for ai in s.universe)
+closed_orders(s::Strategy) = (o for o in values(s) if !isopen(asset_bysym(s, raw(o.asset)), o))
