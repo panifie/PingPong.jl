@@ -17,6 +17,7 @@ using .Misc:
     @start_task,
     task_sem
 using .SimMode.Instances.Data: nrow
+using .st: asset_bysym
 using Watchers: Watcher
 using Watchers.WatchersImpls: islist, isdict, _dopush!
 import .Instances: timestamp
@@ -775,14 +776,3 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     end
 end
 
-function asset_bysym(s::Strategy, sym)
-    @lock s begin
-        k = string(sym)
-        dict_bysim = @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
-        @lget! dict_bysim k let v = s[MatchString(k)]
-            if v isa AssetInstance
-                v
-            end
-        end
-    end
-end

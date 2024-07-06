@@ -167,7 +167,7 @@ include("utils.jl")
 include("print.jl")
 
 export Strategy, strategy, strategy!, reset!, default!
-export @interface, assets, exchange, universe, throttle, marketsid
+export @interface, assets, exchange, universe, throttle, marketsid, asset_bysym
 export LoadStrategy, ResetStrategy, WarmupPeriod, StrategyMarkets
 export SimStrategy, PaperStrategy, LiveStrategy, RTStrategy, IsolatedStrategy, CrossStrategy
 export attr, attrs, setattr!

@@ -307,3 +307,25 @@ function Base.similar(s::Strategy; mode=s.mode, timeframe=s.timeframe, exc=excha
         config=copy(s.config),
     )
 end
+
+@doc """
+Retrieves an asset instance by symbol.
+
+$(TYPEDSIGNATURES)
+
+This function retrieves an asset instance by symbol `sym` from a strategy `s`. It first checks if the asset instance is already cached in the strategy's attributes. If not, it retrieves the asset instance from the strategy's universe. If the asset instance is not found, it returns `nothing`.
+
+"""
+function asset_bysym(s::Strategy, sym)
+    k = string(sym)
+    dict_bysim = @lock s @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
+    ai = get(dict_bysim, k, nothing)
+    if isnothing(ai)
+        ai = s[MatchString(k)]
+        if ai isa AssetInstance
+            @lock s dict_bysim[k] = ai
+        end
+    else
+        ai
+    end
+end
