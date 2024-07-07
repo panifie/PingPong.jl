@@ -1,4 +1,4 @@
-using .Lang: @lget!, @deassert, MatchString, @caller
+using .Lang: @lget!, @deassert, MatchString, @caller, Option
 import .Instances.ExchangeTypes: exchangeid, exchange
 import .Instances.Exchanges: marketsid
 import .Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
