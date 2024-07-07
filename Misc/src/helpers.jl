@@ -424,7 +424,36 @@ hasattr(d, keys...) =
         any(haskey(a, k) for k in keys)
     end
 
+@doc """
+Returns an iterator that yields unique elements from an iterable.
+
+$(TYPEDSIGNATURES)
+"""
+struct UniqueIterator{T, I}
+    iter::I
+    seen::Set{T}
+end
+
+UniqueIterator(iter) = UniqueIterator(iter, Set{eltype(iter)}())
+
+function Base.iterate(it::UniqueIterator, state=iterate(it.iter))
+    state === nothing && return nothing
+    item, next_state = state
+
+    while item in it.seen
+        state = iterate(it.iter, next_state)
+        state === nothing && return nothing
+        item, next_state = state
+    end
+
+    push!(it.seen, item)
+    return (item, iterate(it.iter, next_state))
+end
+Base.IteratorSize(::Type{<:UniqueIterator}) = Base.SizeUnknown()
+Base.eltype(::Type{UniqueIterator{T,I}}) where {T,I} = T
+
 export shift!
 export approxzero, gtxzero, ltxzero, negative, positive, inc!, dec!
 export attrs, attr, hasattr, attr!, setattr!, modifyattr!
-export isoffline, @skipoffline
+export isoffline, @skipoffline, UniqueIterator
+
