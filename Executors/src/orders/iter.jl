@@ -54,7 +54,7 @@ $(TYPEDSIGNATURES)
 """
 Base.iterate(oi::OrderIterator, _) = _do_orders_iter(oi)
 Base.iterate(oi::OrderIterator) = _do_orders_iter(oi)
-Base.length(oi::OrderIterator) = sum(length(i) for i in oi.iters)
+Base.length(oi::OrderIterator) = sum((length(i) for i in oi.iters), init=0)
 
 @doc """
 Checks if the OrderIterator is empty.
@@ -102,5 +102,13 @@ $(TYPEDSIGNATURES)
 Base.count(oi::OrderIterator) = count((_) -> true, oi)
 
 trades(s::Strategy) = Iterators.flatten(trades(ai) for ai in s.universe)
-tradescount(s::Strategy) = sum(length(trades(ai)) for ai in s.universe)
-closed_orders(s::Strategy) = (o for o in values(s) if !isopen(asset_bysym(s, raw(o.asset)), o))
+function tradescount(s::Strategy)
+    sum((length(trades(ai)) for ai in s.universe); init=0) +
+    sum((length(trades(o)) for o in values(s)); init=0)
+end
+
+function closedorders(s::Strategy)
+    Misc.UniqueIterator((
+        t.order for t in trades(s) if !isopen(asset_bysym(s, raw(t.order.asset)), t.order)
+    ))
+end

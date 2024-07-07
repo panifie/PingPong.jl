@@ -126,8 +126,12 @@ function queue!(
 ) where {S<:OrderSide}
     @debug "queue limitorder:" is_comm = iscommittable(s, o, ai)
     # This is already done in general by the function that creates the order
-    skipcommit || iscommittable(s, o, ai) || return false
+    if skipcommit || iscommittable(s, o, ai)
+        return false
+    end
+    @info length(trades(o)), o isa ReduceOrder
     push!(s, ai, o)
+    @info length(trades(o))
     @deassert hasorders(s, ai, positionside(o))
     skipcommit || commit!(s, o, ai)
     hold!(s, ai, o)
