@@ -269,14 +269,16 @@ Returns all buy orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orders(s::Strategy, ::BySide{Buy}) = getfield(s, :buyorders)
+orders(s::Strategy, ::BySide{Buy}) = OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.buyorders)))
 
 @doc """
 Returns all sell orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orders(s::Strategy, ::BySide{Sell}) = getfield(s, :sellorders)
+orders(s::Strategy, ::BySide{Sell}) = OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.sellorders)))
+
+orders(s::Strategy, ::Type{BuyOrSell}) = orders(s)
 
 @doc """
 Returns all buy orders for an asset in a strategy.

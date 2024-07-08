@@ -152,13 +152,14 @@ $(TYPEDSIGNATURES)
 
 """
 function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSide}
-    let k = pricetime(o), d = orders(s, ai, S) #, stok = searchsortedfirst(d, k)
-        @ifdebug if k ∉ keys(d)
-            @debug "Duplicate order key" o.id d[k].id o.price o.date
-        end
-        @assert k ∉ keys(d)
-        d[k] = o
+    k = pricetime(o)
+    d = orders(s, ai, S)
+    # stok = searchsortedfirst(d, k)
+    @ifdebug if k ∉ keys(d)
+        @debug "Duplicate order key" o.id d[k].id o.price o.date
     end
+    @assert k ∉ keys(d)
+    d[k] = o
 end
 @doc """Checks if an order is already added to the queue.
 
@@ -559,7 +560,7 @@ function iscommittable(::Strategy, o::ShortBuyOrder, ai)
     c <= comm || isapprox(c, comm)
 end
 
-@doc """Holds an increase order in a strategy.
+@doc """When an increase order is added to a strategy, the asset is added to the holdings.
 
 $(TYPEDSIGNATURES)
 
@@ -569,14 +570,14 @@ function hold!(s::Strategy, ai, o::IncreaseOrder)
     push!(s.holdings, ai)
 end
 
-@doc """Does nothing for a reduce order.
+@doc """Reduce orders can never switch an asset from not held to held.
 
 $(TYPEDSIGNATURES)
 
 """
 hold!(::Strategy, _, ::ReduceOrder) = nothing
 
-@doc """Releases an order from a margin strategy.
+@doc """An asset is released when there are no orders for it and its balance is zero.
 
 $(TYPEDSIGNATURES)
 
@@ -650,7 +651,7 @@ $(TYPEDSIGNATURES)
 """
 cost(o::Order) = o.price * abs(o.amount)
 
-@doc """Resets an order.
+@doc """Resets an order committment and unfilled amount.
 
 $(TYPEDSIGNATURES)
 
@@ -662,3 +663,37 @@ function reset!(o::Order, ai)
 end
 
 queue!(s::Strategy, o::Order, ai; skipcommit=false) = nothing
+
+function _increase_order_comm(s::Strategy, ai::AssetInstance, oside::BySide)
+    all_comm = sum((committed(o) for o in values(s, ai, oside)); init=ZERO)
+    s_comm = committed(s)
+    all_comm, s_comm
+end
+
+function _check_committment(s::Strategy, ai::AssetInstance, ::BySide{Buy}, ::ByPos{Long})
+    o_comm, ai_comm = _increase_order_comm(s, ai, Buy)
+    abs(ai_comm) >= abs(o_comm)
+end
+
+function _check_committment(s::Strategy, ai::AssetInstance, ::BySide{Sell}, ::ByPos{Short})
+    o_comm, s_comm = _increase_order_comm(s, ai, Sell)
+    abs(s_comm) >= abs(o_comm)
+end
+
+function _reduce_order_comm(
+    s::Strategy, ai::AssetInstance, oside::BySide, pside::ByPos=posside(ai)
+)
+    o_comm = sum((committed(o) for o in values(s, ai, oside) if ispos(pside, o)); init=ZERO)
+    s_comm = committed(ai, pside)
+    o_comm, s_comm
+end
+
+function _check_committment(s::Strategy, ai::AssetInstance, ::BySide{Sell}, ::ByPos{Long})
+    o_comm, ai_comm = _reduce_order_comm(s, ai, Sell, Long)
+    isapprox(ai, abs(o_comm), abs(ai_comm), Val(:amount))
+end
+
+function _check_committment(s::Strategy, ai::AssetInstance, ::BySide{Buy}, ::ByPos{Short})
+    o_comm, ai_comm = _reduce_order_comm(s, ai, Buy, Short)
+    isapprox(ai, abs(o_comm), abs(ai_comm), Val(:amount))
+end

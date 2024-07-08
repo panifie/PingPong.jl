@@ -1,4 +1,4 @@
-using .Strategies: PriceTime
+using .Strategies: PriceTime, asset_bysym
 import .Instances: trades
 
 @doc """
