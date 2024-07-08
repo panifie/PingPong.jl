@@ -197,9 +197,14 @@ function Base.print(out::IO, s::Strategy; price_func=lasttrade_price_func)
     write(out, "Pending buys: $(count(s, Buy))\n")
     write(out, "Pending sells: $(count(s, Sell))\n")
     write(out, "$(s.cash) (Cash)\n")
-    tot = current_total(s; price_func, local_bal=true)
     t = nameof(s.cash)
-    write(out, "$(t): $(tot) (Total)")
+    try
+        tot = current_total(s; price_func, local_bal=true)
+        write(out, "$(t): $(tot) (Total)")
+    catch
+        @debug_backtrace()
+        write(out, "$(t): Error! (use JULIA_DEBUG=Strategies) (Total)")
+    end
 end
 Base.display(s::Strategy; kwargs...) = print(s)
 Base.show(out::IO, ::MIME"text/plain", s::Strategy; kwargs...) = print(out, s; kwargs...)
