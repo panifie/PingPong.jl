@@ -138,7 +138,7 @@ If a position is open and liquidatable, it is liquidated using the `liquidate!` 
 The liquidation is performed on the asset positions in `ai` on the specified `date`.
 
 """
-function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date)
+function maybe_liquidate!(s::IsolatedStrategy, ai::MarginInstance, date::DateTime)
     pos = position(ai)
     isnothing(pos) && return nothing
     @deassert !isopen(opposite(ai, pos))
@@ -177,7 +177,7 @@ After updating or opening the position, it checks if the position needs to be li
 
 """
 function position!(
-    s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P}
+    s::IsolatedStrategy, ai::MarginInstance, t::PositionTrade{P}; check_liq=true
 ) where {P<:PositionSide}
     @deassert exchangeid(s) == exchangeid(t)
     @deassert t.order.asset == ai.asset
@@ -194,7 +194,9 @@ function position!(
         @debug "position open" cash(ai, t) t
         open_position!(s, ai, t)
     end
-    maybe_liquidate!(s, ai, t.date)
+    if check_liq
+        maybe_liquidate!(s, ai, t.date)
+    end
 end
 
 @doc """ Updates an isolated position in `Sim` mode from a new candle.
