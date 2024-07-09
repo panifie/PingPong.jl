@@ -230,6 +230,24 @@ function orders(s::Strategy, ::Val{:orderless})
 end
 
 @doc """
+Iterates over all the orders in a strategy (all the assets in the universe).
+
+$(TYPEDSIGNATURES)
+"""
+function orders(s::Strategy, ::Val{:universe})
+    OrderIterator((orders(s, ai, side) for side in (Buy, Sell) for ai in s.universe))
+end
+
+@doc """
+Iterates orderlessly over all the orders in a strategy (all the assets in the universe).
+
+$(TYPEDSIGNATURES)
+"""
+function orders(s::Strategy, ::Val{:orderless}, ::Val{:universe})
+    OrderIterator((orders(s, ai, side) for side in (Buy, Sell) for ai in s.universe))
+end
+
+@doc """
 Iterates over all the orders for an asset instance in a strategy.
 
 $(TYPEDSIGNATURES)
@@ -269,14 +287,16 @@ Returns all buy orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orders(s::Strategy, ::BySide{Buy}) = OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.buyorders)))
+orders(s::Strategy, ::BySide{Buy}) =
+    OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.buyorders)))
 
 @doc """
 Returns all sell orders for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-orders(s::Strategy, ::BySide{Sell}) = OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.sellorders)))
+orders(s::Strategy, ::BySide{Sell}) =
+    OrderIterator(Iterators.flatten(pairs(dict) for dict in values(s.sellorders)))
 
 orders(s::Strategy, ::Type{BuyOrSell}) = orders(s)
 
@@ -722,4 +742,26 @@ hastrade(o::Order, t::Trade) = begin
         end
     end
     return false
+end
+
+@doc """
+Returns the order that matches the given id (if any).
+
+$(TYPEDSIGNATURES)
+"""
+function order_byid(s::Strategy, ai::AssetInstance, id::String)
+    for o in values(s, ai)
+        if o.id == id
+            return o
+        end
+    end
+end
+
+function order_byid(s::Strategy, id::String)
+    for ai in s.holdings
+        o = order_byid(s, ai, id)
+        if !isnothing(o)
+            return o
+        end
+    end
 end
