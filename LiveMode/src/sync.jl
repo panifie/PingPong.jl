@@ -93,7 +93,9 @@ function replay_position!(s::SimStrategy, ai, o::Order)
 end
 
 function prepare_replay!(live_s::LiveStrategy)
-    st.default!(live_s; skip_sync=true)
+    if !s[:defaults_set]
+        st.default!(live_s; skip_sync=true)
+    end
     s = st.similar(live_s; mode=Sim())
     reset!(s)
     return s
