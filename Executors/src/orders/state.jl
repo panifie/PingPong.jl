@@ -341,7 +341,7 @@ isfilled(ai::AssetInstance, o::Order) =
     isdust(ai, o) || begin
         ot = trades(o)
         if length(ot) > 0
-            sum(t.amount for t in ot) >= o.amount
+            abs(sum(t.amount for t in ot)) >= abs(o.amount)
         else
             false
         end
