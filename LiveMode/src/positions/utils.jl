@@ -193,7 +193,7 @@ function live_position(
         end
         pup = get_positions(s, ai, side)
         if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
-            @error "live pos: last force fetch failed" date =
+            @error "live pos: last force fetch failed" ai date =
                 isnothing(pup) ? nothing : pup.date since force f = @caller 10
             return nothing
         end

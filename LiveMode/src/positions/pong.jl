@@ -165,17 +165,19 @@ function pong!(
     date,
     ::PositionClose;
     t=_close_order_bypos(P()),
-    waitfor=Second(10),
+    waitfor=Second(15),
     kwargs...,
 ) where {P<:PositionSide}
     pos = P()
     @timeout_start
     if hasorders(s, ai, P)
-        pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=false, waitfor=@timeout_now)
+        if !pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=true, waitfor=@timeout_now)
+            @warn "pong pos close: failed to cancel orders" ai t
+        end
     end
     update = live_position(s, ai, pos)
     if isnothing(update)
-        @warn "pong pos close: no position update (resetting)" ai = raw(ai) side = P
+        @warn "pong pos close: no position update (resetting)" ai side = P
         isopen(ai, P()) && reset!(ai, pos)
         return true
     end

@@ -39,7 +39,7 @@ function Executors.aftertrade!(
         end
         if isnothing(update)
             if !isdust(ai, t.price)
-                @warn "after trade: position sync failed, risk of corrupted state" side = posside(
+                @warn "after trade: position sync failed, risk of corrupted state" ai side = posside(
                     o
                 ) o.id t.date cash(ai)
             end
