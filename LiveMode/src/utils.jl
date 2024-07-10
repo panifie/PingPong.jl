@@ -552,8 +552,8 @@ function st.default!(s::LiveStrategy; skip_sync=nothing)
     get!(a, :live_ohlcv_method, :tickers)
     # max time to wait for tasks before kill
     get!(a, :live_stop_timeout, Second(1))
-    # if `true` then the strategy will replay execution from the exchange trace
-    # on start
+    # if `true` when the strategy starts, it will replay execution from the exchange trace
+    # (which is stored persistently)
     if get!(a, :replay_from_trace, false)
         replay_from_trace!(s)
     end
@@ -780,4 +780,3 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
         return false
     end
 end
-
