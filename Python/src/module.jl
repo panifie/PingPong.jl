@@ -73,6 +73,7 @@ function pygctask!()
             try
                 if Threads.threadid() == 1
                     if !isempty(PyGC.QUEUE)
+                        Base.GC.gc()
                         PyGC.C.with_gil(false) do
                             for ptr in PyGC.QUEUE
                                 if ptr != PyGC.C.PyNULL
