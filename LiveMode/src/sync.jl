@@ -141,13 +141,15 @@ function replay_from_trace!(s::LiveStrategy)
     end
     n_trades_replayed = sim_s.replay_n_trades
     n_trades = tradescount(sim_s)
-    @assert n_trades_replayed == n_trades "tracked trades: $(n_trades_replayed), actual: $(n_trades)"
+    if n_trades_replayed != n_trades
+        @error "trace replay: tracked trades mismatch" _module = LogTraceReplay n_trades_replayed n_trades
+    end
     n_orders_tracked = sim_s.replay_n_orders
     n_closed_orders = length((closedorders(sim_s)...,))
     n_open_orders = length(orders(sim_s))
     if n_orders_tracked != n_closed_orders
         n_all_open_orders = length(orders(sim_s, Val(:universe)))
-        @error "trace replay: tracked orders" _module = LogTraceReplay n_orders_tracked n_closed_orders n_open_orders n_all_open_orders
+        @error "trace replay: tracked orders mismatch" _module = LogTraceReplay n_orders_tracked n_closed_orders n_open_orders n_all_open_orders
     end
 end
 
