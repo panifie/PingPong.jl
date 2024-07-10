@@ -250,7 +250,10 @@ function resample_trades(
         byinstance(tdf, ai)
         append!(df, tdf)
     end
-    isempty(df) && return nothing
+    if isempty(df)
+        @warn "plotting: no trades" tf
+        return nothing
+    end
     tradesvolume!(marginmode(s), df)
     # Group by instance because we need to calc value for each one separately
     gb = bydate(df, tf, :instance)
