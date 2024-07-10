@@ -75,7 +75,7 @@ function replay_open_orders!(
         if ismissing(o)
             continue
         elseif isfilled(ai, o)
-            trades_amount = _amount_from_trades(trades(o))
+            trades_amount = _amount_from_trades(trades(o)) |> abs
             if !isequal(ai, trades_amount, o.amount, Val(:amount))
                 @warn "sync orders: replaying filled order with no trades" _module =
                     LogSyncOrder

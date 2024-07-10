@@ -729,15 +729,37 @@ function feespaid(o::Order)
     end
 end
 
+tradetuple(t::Trade) = (t.order, t.price, t.size, t.amount)
+function tradetuple(ai::AssetInstance, t::Trade)
+    (
+        t.order.id,
+        t.order.date,
+        toprecision(t.price, ai.precision.price),
+        toprecision(t.size, ai.precision.amount),
+        toprecision(t.amount, ai.precision.amount),
+    )
+end
+
 @doc """
 Check if the given trade is in the order.
 
 $(TYPEDSIGNATURES)
 """
 hastrade(o::Order, t::Trade) = begin
-    tup = (t.order, t.price, t.size, t.amount, t.fees)
+    tup = tradetuple(t)
     for t in trades(o)
-        if tup == (t.order, t.price, t.size, t.amount, t.fees)
+        if tup == tradetuple(t)
+            return true
+        end
+    end
+    return false
+end
+
+@doc "More precise version of `hastrade`."
+function hastrade(ai::AssetInstance, o::Order, t::Trade)
+    tup = tradetuple(ai, t)
+    for t in trades(o)
+        if tup == tradetuple(ai, t)
             return true
         end
     end

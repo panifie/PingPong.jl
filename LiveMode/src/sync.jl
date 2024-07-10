@@ -11,7 +11,8 @@ using .Executors:
     hastrade,
     tradescount,
     _check_committment,
-    order_byid
+    order_byid,
+    tradetuple
 using .st: Strategy, SimStrategy, asset_bysym
 using PaperMode.SimMode: _update_from_trade!
 
@@ -93,7 +94,7 @@ function replay_position!(s::SimStrategy, ai, o::Order)
 end
 
 function prepare_replay!(live_s::LiveStrategy)
-    if !live_s[:defaults_set]
+    if !attr(live_s, :defaults_set, false)
         st.default!(live_s; skip_sync=true)
     end
     s = st.similar(live_s; mode=Sim())
@@ -138,6 +139,7 @@ function replay_from_trace!(s::LiveStrategy)
         append!(this_trades, trades(sim_ai))
         copy_cash!(live_ai, sim_ai)
     end
+    empty!(s.holdings)
     for o in values(sim_s)
         hold!(s, st.asset_bysym(s, raw(o.asset)), o)
     end
@@ -250,7 +252,7 @@ function trace_sync_position!(s::SimStrategy, tag::Symbol, ev::PositionUpdated)
         reset!(pos)
         return nothing
     end
-    status!(ai, posside(pos), status ? PositionOpen() : PositionClose())
+    pos.status[] = status ? PositionOpen() : PositionClose()
     timestamp!(pos, ev.timestamp)
     liqprice!(pos, ev.liquidation_price)
     entryprice!(pos, ev.entryprice)
@@ -368,12 +370,12 @@ function trace_close_order!(
         orders_processed[o.id] = o
         return nothing
     elseif !isempty(trades(o))
-        @error "trace replay: order_closed_replayed event for order with trades" _module =
-            LogTraceReplay o.id replayed
+        @debug "trace replay: order_closed_replayed event for order with trades" _module =
+            LogTraceReplay o.id replayed isfilled(ai, o)
     end
     if isqueued(o, s, ai)
         if isfilled(ai, o)
-            trades_amount = _amount_from_trades(trades(o))
+            trades_amount = _amount_from_trades(trades(o)) |> abs
             if !isequal(ai, trades_amount, o.amount, Val(:amount))
                 @error "trace replay: unexpected closed order amount" o.id trades_amount o.amount unfilled(
                     o
@@ -384,7 +386,7 @@ function trace_close_order!(
         else
             @error "trace replay: order_closed event can't be unfilled" o.id o.amount unfilled(
                 o
-            )
+            ) filled_amount(o) isfilled(ai, o) length(trades(o))
         end
     end
     replay_position!(s, ai, o)
@@ -411,18 +413,24 @@ $(TYPEDSIGNATURES)
 """
 function trace_execute_trade!(s::SimStrategy, ev; orders_processed, orders_active)
     trade = ev.event.data.trade
+    if isnothing(trade)
+        @debug "trace replay: no trade in event" _module = LogTraceReplay ev
+        return nothing
+    end
     ai = st.asset_bysym(s, raw(trade.order.asset))
     # average_price = ev.event.data.avgp
     # the version in orders_processed should have all trades in it
     order_proc = get(orders_processed, trade.order.id, nothing)
     if !isnothing(order_proc) # the order was closed, so should have all trades
-        if !hastrade(order_proc, trade)
-            @error "trace replay: trade expected to be in order" trade.id order_proc.id
+        if !hastrade(ai, order_proc, trade)
+            @error "trace replay: trade expected to be in order" trade.order.id order_proc.id length(
+                trades(order_proc)
+            ) tradetuple(first(trades(order_proc))) tradetuple(trade)
         end
     else
         o = get(orders_active, trade.order.id, nothing) # check if the order exists
         if !isnothing(o) # the order is still open
-            if !hastrade(o, trade) # execute the trade
+            if !hastrade(ai, o, trade) # execute the trade
                 execute_trade!(s, o, ai, trade)
             end
         else # the trade somewhat has a timestamp older than the order creation or the order event wasn't registered
@@ -500,3 +508,19 @@ function trace_errors(exc::Exchange, group::Symbol=Symbol())
 end
 
 trace_errors(s::Strategy) = trace_errors(exchange(s), nameof(s))
+
+function trace_initial_cash!(s::LiveStrategy)
+    tr = exchange(s)._trace
+    events = [_astuple(ev, tr) for ev in eachrow(tr._arr)]
+    since_idx = findlast(
+        ev -> ev.event.tag == :strategy_started && ev.event.group == nameof(s), events
+    )
+    for ev in events[(since_idx + 1):end]
+        if ev.event.tag == :strategy_balance_updated
+            v = s.config.initial_cash = ev.event.data.balance.free
+            return v
+        end
+    end
+end
+
+export trace_initial_cash!
