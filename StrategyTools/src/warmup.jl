@@ -1,23 +1,25 @@
+import .egn: ExecAction, pong!
+
+struct SimWarmup <: ExecAction end
+struct InitSimWarmup <: ExecAction end
+
+pong!(s::SimStrategy, ::InitSimWarmup; kwargs...) = nothing
+
 @doc """
 Initializes warmup attributes for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function initwarmup!(s; timeout=Minute(15))
+function pong!(s::RTStrategy, ::InitSimWarmup; timeout=Minute(15))
     attrs = s.attrs
     attrs[:warmup] = Dict(ai => false for ai in s.universe)
     attrs[:warmup_lock] = ReentrantLock()
     attrs[:warmup_timeout] = timeout
     attrs[:warmup_candles] = 999
 end
-@doc """
-Placeholder for simulation strategy warmup.
 
-$(TYPEDSIGNATURES)
-"""
-function warmup!(cb::Function, s::SimStrategy, args...; kwargs...)
-    nothing
-end
+pong!(cb::Function, s::SimStrategy, ai, ats, ::SimWarmup; kwargs...) = nothing
+
 @doc """
 Initiates the warmup process for a real-time strategy instance.
 
@@ -25,7 +27,14 @@ $(TYPEDSIGNATURES)
 
 If warmup has not been previously completed for the given asset instance, it performs the necessary preparations.
 """
-function warmup!(cb::Function, s::RTStrategy, ai, ats, n_candles=s.warmup_candles)
+function pong!(
+    cb::Function,
+    s::RTStrategy,
+    ai::AssetInstance,
+    ats::DateTime,
+    ::SimWarmup;
+    n_candles=s.warmup_candles,
+)
     # give up on warmup after `warmup_timeout`
     if now() - s.is_start < s.warmup_timeout
         if !s[:warmup][ai]
@@ -43,7 +52,11 @@ $(TYPEDSIGNATURES)
 The function prepares the trading strategy by simulating past data before live execution starts.
 """
 function _warmup!(
-    callback::Function, s::Strategy, ai::AssetInstance, ats::DateTime; n_candles=s.warmup_candles
+    callback::Function,
+    s::Strategy,
+    ai::AssetInstance,
+    ats::DateTime;
+    n_candles=s.warmup_candles,
 )
     # wait until ohlcv data is available
     @debug "warmup: checking ohlcv data"
@@ -70,3 +83,5 @@ function _warmup!(
     callback(s, ai, s_sim, ai_sim)
     @debug "warmup: completed" ai = raw(ai)
 end
+
+export SimWarmup, InitSimWarmup
