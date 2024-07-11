@@ -257,7 +257,6 @@ function sizehint!(s::Strategy)
     _sizehint!(s.buyorders, s_sizes, :buyorders)
     _sizehint!(s.sellorders, s_sizes, :sellorders)
     _sizehint!(s.holdings, s_sizes, :holdings)
-    _sizehint!(s.logs, s_sizes, :logs)
     o_b_sizes = @lget! sizes :_ob_sizes Dict{String,Int}()
     for (ai, d) in s.buyorders
         _sizehint!(d, o_b_sizes, ai.asset.raw)
@@ -270,6 +269,5 @@ function sizehint!(s::Strategy)
     ai_logs_sizes = @lget! sizes :_ai_logs_sizes Dict{String,Int}()
     for ai in universe(s)
         _sizehint!(ai.history, ai_sizes, ai.asset.raw)
-        _sizehint!(ai.logs, ai_logs_sizes, ai.asset.raw)
     end
 end
