@@ -281,4 +281,8 @@ function deserialize(buf::AbstractSerializer, ::Type{<:SortedArray})
     SortedArray(arr; opts...)
 end
 
+function Base.sizehint!(sa::SortedArray, v)
+    sizehint!(sa.arr, v)
+end
+
 export SortedArray
