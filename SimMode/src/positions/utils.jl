@@ -81,6 +81,7 @@ It then resets the position, deletes it from the holdings, and checks that the p
 
 """
 function close_position!(s::IsolatedStrategy, ai, p::PositionSide, date=nothing)
+    @deassert !hasorders(s, ai, p)
     # when a date is given we should close pending orders and sell remaining cash
     if !isnothing(date)
         force_exit_position(s, ai, p, date)
@@ -183,7 +184,7 @@ function position!(
     @deassert t.order.asset == ai.asset
     pos = position(ai, P)
     if isopen(pos)
-        if isdust(ai, t.price, P())
+        if isdust(ai, t.price, P()) && !hasorders(s, ai)
             close_position!(s, ai, P())
         else
             @deassert !iszero(cash(pos)) || t isa ReduceTrade

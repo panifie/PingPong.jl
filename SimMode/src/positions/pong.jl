@@ -1,5 +1,6 @@
 using Executors.Instances: leverage!, positionside, leverage
 using Executors: hasorders
+using Executors.OrderTypes: postoside
 using .Lang: splitkws
 import Executors: pong!
 
@@ -65,6 +66,7 @@ end
 
 @doc "Closes a leveraged position."
 function pong!(s::MarginStrategy{<:Union{Paper,Sim}}, ai::MarginInstance, side::ByPos, date, ::PositionClose; kwargs...)
+    pong!(s, ai, CancelOrders(); t=postoside(side))
     close_position!(s, ai, side, date)
     @deassert !isopen(ai, side)
 end
@@ -72,7 +74,7 @@ end
 @doc "Closes all strategy positions"
 function pong!(s::MarginStrategy{Sim}, side::ByPos, date, ::PositionClose; kwargs...)
     for ai in s.universe
-        close_position!(s, ai, side, date; kwargs...)
+        pong!(s, ai, side, date, PositionClose(); kwargs...)
     end
 end
 
