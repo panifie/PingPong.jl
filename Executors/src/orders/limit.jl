@@ -84,17 +84,6 @@ end
 _cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
 _cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, positionside(o)()) + committed(o)
 
-@doc """ Unconditionally dequeues immediate orders.
-
-$(TYPEDSIGNATURES)
-
-This function is called after a trade to remove filled 'Fill Or Kill' (FOK) or 'Immediate Or Cancel' (IOC) orders from the strategy's order queue.
-"""
-function aftertrade!(s::Strategy, ai, o::Union{AnyFOKOrder,AnyIOCOrder})
-    decommit!(s, o, ai, true)
-    delete!(s, ai, o)
-    isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
-end
 
 @doc """ Checks if the provided trade is the last fill for the given asset instance.
 

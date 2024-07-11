@@ -40,4 +40,3 @@ const LongMarketSellTrade = Trade{<:MarketOrderType{Sell},<:AbstractAsset,<:Exch
 # FIXME: Should this be ≈/≉?
 islastfill(t::Trade{<:MarketOrderType}) = true
 isfirstfill(t::Trade{<:MarketOrderType}) = true
-aftertrade!(s::Strategy, ai, o::AnyMarketOrder) = decommit!(s, o, ai, true)
