@@ -110,5 +110,5 @@ end
 function closedorders(s::Strategy)
     Misc.UniqueIterator((
         t.order for t in trades(s) if !isopen(asset_bysym(s, raw(t.order.asset)), t.order)
-    ))
+    ), by=o -> o.id)
 end

@@ -432,21 +432,25 @@ $(TYPEDSIGNATURES)
 struct UniqueIterator{T, I}
     iter::I
     seen::Set{T}
+    by::Function
 end
 
-UniqueIterator(iter) = UniqueIterator(iter, Set{eltype(iter)}())
+UniqueIterator(iter; by=identity) = UniqueIterator(iter, Set{eltype(iter)}(), by)
 
 function Base.iterate(it::UniqueIterator, state=iterate(it.iter))
+    local byitem
     state === nothing && return nothing
     item, next_state = state
+    byitem = it.by(item)
 
-    while item in it.seen
+    while byitem in it.seen
         state = iterate(it.iter, next_state)
         state === nothing && return nothing
         item, next_state = state
+        byitem = it.by(item)
     end
 
-    push!(it.seen, item)
+    push!(it.seen, byitem)
     return (item, iterate(it.iter, next_state))
 end
 Base.IteratorSize(::Type{<:UniqueIterator}) = Base.SizeUnknown()
