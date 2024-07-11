@@ -408,5 +408,5 @@ function st.current_total(
 end
 
 function BalanceUpdated(obj, tag, group, balance)
-    BalanceUpdated{exchangeid(obj)}(Symbol(tag), Symbol(group), (; balance))
+    ot.BalanceUpdated{exchangeid(obj)}(Symbol(tag), Symbol(group), (; balance))
 end
