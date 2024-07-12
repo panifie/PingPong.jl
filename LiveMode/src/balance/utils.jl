@@ -4,7 +4,6 @@ import .st: current_total
 using .Exchanges: @tickers!, markettype
 import .Exchanges: lastprice
 import .Misc: reset!
-import .ot: BalanceUpdated
 
 @doc """ A named tuple of total, free, and used balances. """
 mutable struct BalanceSnapshot{T<:AbstractFloat}
@@ -407,6 +406,6 @@ function st.current_total(
     tot
 end
 
-function BalanceUpdated(obj, tag, group, balance)
+function balanceupdated(obj, tag, group, balance)
     ot.BalanceUpdated{exchangeid(obj)}(Symbol(tag), Symbol(group), (; balance))
 end

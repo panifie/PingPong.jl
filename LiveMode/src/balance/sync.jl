@@ -62,7 +62,7 @@ function live_sync_strategy_cash!(
     # HACK: resync committed cash from all local orders
     _sync_comm_cash!(s)
 
-    event!(s, BalanceUpdated(s, :strategy_balance_updated, s, bal))
+    event!(s, balanceupdated(s, :strategy_balance_updated, s, bal))
     nothing
 end
 
@@ -125,5 +125,5 @@ function live_sync_cash!(
         cash!(ai, ZERO)
         cash!(committed(ai), ZERO)
     end
-    event!(ai, BalanceUpdated(ai, :asset_balance_updated, s, bal))
+    event!(ai, balanceupdated(ai, :asset_balance_updated, s, bal))
 end
