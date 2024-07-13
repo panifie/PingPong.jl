@@ -594,7 +594,7 @@ $(TYPEDSIGNATURES)
 
 """
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
-    @debug "Cancelling order" o.id ai = raw(ai) err
+    @debug "Canceling order" o.id ai = raw(ai) err
     if isqueued(o, s, ai)
         decommit!(s, o, ai, true)
         delete!(s, ai, o)

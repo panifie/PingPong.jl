@@ -229,6 +229,11 @@ function orders(s::Strategy, ::Val{:orderless})
     (o for side in (Buy, Sell) for ai in s.holdings for o in orders(s, ai, side))
 end
 
+function orders(s::Strategy, ::BySide{O}, ::Val{:orderless}) where {O<:Union{Buy,Sell}}
+    odict = ordersdict(s, O)
+    (o for ai in s.holdings for o in odict[ai])
+end
+
 @doc """
 Iterates over all the orders in a strategy (all the assets in the universe).
 
@@ -384,6 +389,10 @@ function Base.lastindex(s::Strategy{M,S,E}, ai, bs::BySide=BuyOrSell) where {M,S
     ans
 end
 
+function ordersdict(s::Strategy, bs::BySide{O}) where {O<:Union{Buy,Sell}}
+    bs === Buy ? s.buyorders : s.sellorders
+end
+
 @doc """
 Returns the count of orders in a strategy.
 
@@ -391,7 +400,7 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0
-    for v in values(orders(s, O))
+    for v in ordersdict(s, O)
         ans += length(v)
     end
     ans
@@ -404,7 +413,9 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::Val{:increase})
     ans = 0
-    for (_, o) in values(orders(s))
+    itr = values(orders(s, O))
+    @assert eltype(itr) <: Pair
+    for (_, o) in itr
         if o isa IncreaseOrder
             ans += 1
         end
