@@ -15,7 +15,8 @@ const _PROTECTIONS_WARNING = """
 function singlewaycheck(s, ai, t)
     pside = positionside(t)
     opside = opposite(pside)
-    if isopen(ai, opside)
+    # HACK: see Instances `status!`
+    if isopen(ai, opside) && !iszero(cash(ai, opside))
         return false
     end
     for (_, o) in orders(s, ai)
