@@ -48,7 +48,8 @@ This function cancels all orders associated with the specified position and upda
 
 """
 function force_exit_position(s::Strategy, ai, p, date::DateTime)
-    for (_, o) in orders(s, ai, p)
+    ords = collect(values(s, ai, p))
+    for o in ords 
         cancel!(s, o, ai; err=OrderCanceled(o))
     end
     @deassert iszero(committed(ai, p)) committed(ai, p)
@@ -116,7 +117,8 @@ function liquidate!(
     s::MarginStrategy, ai::MarginInstance, p::PositionSide, date, fees=maxfees(ai) * 2.0;
 )
     pos = position(ai, p)
-    for (_, o) in orders(s, ai, p)
+    ords = collect(values(s, ai, p))
+    for o in ords
         @deassert o isa Order
         cancel!(s, o, ai; err=LiquidationOverride(o, liqprice(pos), date, p))
     end

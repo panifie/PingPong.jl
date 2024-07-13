@@ -10,7 +10,7 @@ This function iterates over the orders of a strategy, returning only those that 
 """
 orders(s::Strategy, ai, pos::PositionSide, os::Type{<:OrderSide})
 function orders(s::Strategy, ai, pos::PositionSide, os::Type{<:OrderSide})
-    ((k, v) for (k, v) in orders(s, ai, os) if ispos(pos, v))
+    (tup for tup in orders(s, ai, os) if ispos(pos, tup.second))
 end
 function orders(s::Strategy, ai, pos::PositionSide)
     (tup for bs in (Buy, Sell) for tup in orders(s, ai, pos, bs))
