@@ -280,7 +280,7 @@ end
 
 function nondust(ai::MarginInstance, o::Type{<:Order}, price)
     if o <: ReduceOnlyOrder
-        cash(ai).value
+        cash(ai, o).value
     else
         invoke(nondust, Tuple{MarginInstance,Number,PositionSide}, ai, price, posside(o))
     end
