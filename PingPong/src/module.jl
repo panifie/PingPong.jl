@@ -100,6 +100,7 @@ macro strategyenv!()
         using .Data.DataStructures: CircularBuffer
         using .Misc: after, before, rangeafter, rangebefore, LittleDict
         using .Misc: istaskrunning, start_task, stop_task
+        using .inst: AssetInstance
         using .inst: asset, ohlcv, ohlcv_dict, raw, lastprice, bc, qc
         using .inst: takerfees, makerfees, maxfees, minfees
         using .inst: ishedged, cash, committed, instance, isdust, nondust
