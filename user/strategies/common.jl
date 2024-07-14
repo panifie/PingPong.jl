@@ -88,32 +88,32 @@ _prevclose(s) = s.attrs[:prev_close]::Option{Float64}
 _thisclose!(s, v) = s.attrs[:this_close] = v
 _prevclose!(s, v) = s.attrs[:prev_close] = v
 
-function select_ordertype(s::SC, os::Type{<:OrderSide}, p::PositionSide=Long())
-    let t = s.attrs[:ordertype]
-        if p == Long()
-            if t == :market
-                MarketOrder{os}, t
-            elseif t == :ioc
-                IOCOrder{os}, t
-            elseif t == :fok
-                FOKOrder{os}, t
-            elseif t == :gtc
-                GTCOrder{os}, t
-            else
-                error("Wrong order type $t")
-            end
+function select_ordertype(
+    s::SC, os::Type{<:OrderSide}, p::PositionSide=Long(); t=s.ordertype
+)
+    if p == Long()
+        if t == :market
+            MarketOrder{os}, t
+        elseif t == :ioc
+            IOCOrder{os}, t
+        elseif t == :fok
+            FOKOrder{os}, t
+        elseif t == :gtc
+            GTCOrder{os}, t
         else
-            if t == :market
-                ShortMarketOrder{os}, t
-            elseif t == :ioc
-                ShortIOCOrder{os}, t
-            elseif t == :fok
-                ShortFOKOrder{os}, t
-            elseif t == :gtc
-                ShortGTCOrder{os}, t
-            else
-                error("Wrong order type $t")
-            end
+            error("Wrong order type $t")
+        end
+    else
+        if t == :market
+            ShortMarketOrder{os}, t
+        elseif t == :ioc
+            ShortIOCOrder{os}, t
+        elseif t == :fok
+            ShortFOKOrder{os}, t
+        elseif t == :gtc
+            ShortGTCOrder{os}, t
+        else
+            error("Wrong order type $t")
         end
     end
 end

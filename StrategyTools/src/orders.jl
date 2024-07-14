@@ -7,8 +7,7 @@ $(TYPEDSIGNATURES)
 
 Selects an order type `os` based on the strategy `s` and the position side `p`. The order type is determined by the `ordertype` attribute of the strategy.
 """
-function select_ordertype(s::Strategy, os::Type{<:OrderSide}, p::PositionSide=Long())
-    t = s.attrs[:ordertype]
+function select_ordertype(s::Strategy, os::Type{<:OrderSide}, p::PositionSide=Long(); t=s.ordertype)
     if p == Long()
         if t == :market
             MarketOrder{os}, t
