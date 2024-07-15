@@ -5,6 +5,7 @@
 /**/.CondaPkg/*
 /**/.JuliaFormatter.toml
 /**/.conda/*
+.conda
 /**/.projectile
 /**/__pycache__/*
 /**/deps/precompiles/*
