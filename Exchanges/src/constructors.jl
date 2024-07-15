@@ -359,11 +359,10 @@ macro tickers!(type=nothing, force=false, cache=TICKERS_CACHE100)
                 $tickers = Dict{String,Dict{String,Any}}()
             elseif $force || !haskey($cache, k)
                 @assert hastickers($exc) "Exchange doesn't provide tickers list."
-                $cache[k] = let f = first($(exc), :fetchTickersWs, :fetchTickers)
+                $cache[k] =
                     $tickers = pyconvert(
                         Dict{String,Dict{String,Any}}, fetch_tickers($exc, tp)
                     )
-                end
             else
                 $tickers = $cache[k]
             end
@@ -469,7 +468,8 @@ function authenticate!(exc::CcxtExchange, tries=3)
             @error "exchange auth error" exception = e
         end
         if resp isa Exception
-            if tries > 0 && pyisinstance(resp, Ccxt._lazypy(Ccxt.ccxt, "ccxt").RequestTimeout)
+            if tries > 0 &&
+                pyisinstance(resp, Ccxt._lazypy(Ccxt.ccxt, "ccxt").RequestTimeout)
                 return authenticate!(exc, tries - 1)
             end
             @error "exchange: auth error" resp
@@ -483,7 +483,6 @@ function authenticate!(exc::CcxtExchange, tries=3)
     end
 end
 authenticate!(::Exchange, tries=3) = nothing
-
 
 function exckeys!(exc, key, secret, pass, wa, pk)
     # FIXME: ccxt key/secret naming is swapped for kucoin apparently
