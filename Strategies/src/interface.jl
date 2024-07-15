@@ -16,6 +16,10 @@ struct ResetStrategy <: ExecAction end
 struct StrategyMarkets <: ExecAction end
 @doc "[`ping!(s::Strategy, ::WarmupPeriod)`](@ref)"
 struct WarmupPeriod <: ExecAction end
+@doc "[`ping!(s::Strategy, ::StartStrategy)`](@ref)"
+struct StartStrategy <: ExecAction end
+@doc "[`ping!(s::Strategy, ::StopStrategy)`](@ref)"
+struct StopStrategy <: ExecAction end
 # TODO: maybe methods that dispatch on strategy types should be named `ping` (without excl mark)
 @doc """Called to construct the strategy, should return the strategy instance.
 $(TYPEDSIGNATURES)"""
@@ -30,6 +34,10 @@ ping!(s::Strategy, ::Order, err::OrderError, ::AssetInstance; kwargs...) =
     event!(exchange(s), AssetEvent, :order_error, s; err)
 @doc "Market symbols that populate the strategy universe"
 ping!(::Type{<:Strategy}, ::StrategyMarkets)::Vector{String} = String[]
+@doc "Called before the strategy is started. $(TYPEDSIGNATURES)"
+ping!(::Strategy, ::StartStrategy) = nothing
+@doc "Called after the strategy is stopped. $(TYPEDSIGNATURES)"
+ping!(::Strategy, ::StopStrategy) = nothing
 
 @doc """ Provides a common interface for strategy execution.
 

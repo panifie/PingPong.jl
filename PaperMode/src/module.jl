@@ -124,6 +124,7 @@ This function starts the execution of a strategy in either foreground or backgro
 function start!(
     s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
 )
+    ping!(s, StartStrategy())
     local startinfo
     s[:stopped] = false
     @debug "start: locking"
@@ -237,6 +238,7 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
             end
         end
     end
+    ping!(s, StopStrategy())
     @info "strategy: stopped" mode = execmode(s) elapsed(s)
 end
 
