@@ -10,12 +10,12 @@ Initializes warmup attributes for a strategy.
 
 $(TYPEDSIGNATURES)
 """
-function pong!(s::RTStrategy, ::InitSimWarmup; timeout=Minute(15))
+function pong!(s::RTStrategy, ::InitSimWarmup; timeout=Minute(15), n_candles=999)
     attrs = s.attrs
     attrs[:warmup] = Dict(ai => false for ai in s.universe)
     attrs[:warmup_lock] = ReentrantLock()
     attrs[:warmup_timeout] = timeout
-    attrs[:warmup_candles] = 999
+    attrs[:warmup_candles] = n_candles
 end
 
 pong!(cb::Function, s::SimStrategy, ai, ats, ::SimWarmup; kwargs...) = nothing
