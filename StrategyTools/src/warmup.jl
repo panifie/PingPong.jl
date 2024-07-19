@@ -63,7 +63,7 @@ function _warmup!(
     since = ats - s.timeframe * n_candles
     for ohlcv in values(ohlcv_dict(ai))
         if dateindex(ohlcv, since) < 1
-            @warn "warmup: no data" ai = raw(ai) ats
+            @debug "warmup: no data" ai = raw(ai) ats
             return nothing
         end
     end

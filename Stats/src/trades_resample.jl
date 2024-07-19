@@ -251,7 +251,7 @@ function resample_trades(
         append!(df, tdf)
     end
     if isempty(df)
-        @warn "plotting: no trades" tf
+        @warn "resample: no trades" tf
         return nothing
     end
     tradesvolume!(marginmode(s), df)
