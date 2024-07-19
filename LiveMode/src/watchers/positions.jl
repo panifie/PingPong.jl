@@ -38,7 +38,8 @@ function ccxt_positions_watcher(
 )
     exc = st.exchange(s)
     check_timeout(exc, interval)
-    iswatch = s[:is_watch_positions] && !isnothing(first(exc, :watchPositions))
+    haswpos = !isnothing(first(exc, :watchPositions))
+    iswatch = haswpos && @lget! s.attrs :is_watch_positions haswpos
     attrs = Dict{Symbol,Any}()
     attrs[:strategy] = s
     attrs[:kwargs] = kwargs
