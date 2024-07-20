@@ -61,8 +61,7 @@ function log(s::Strategy)
     long, short, liq = st.trades_count(s, Val(:positions))
     cv = s.cash
     comm = s.cash_committed
-    inc = orderscount(s, Val(:increase))
-    red = orderscount(s, Val(:reduce))
+    inc, red = orderscount(s, Val(:inc_red))
     tot = st.current_total(s; price_func=lastprice, local_bal=true)
     @info string(nameof(s), "@", nameof(exchange(s))) time = now() cash = cv committed =
         comm balance = tot inc_orders = inc red_orders = red long_trades = long short_trades =

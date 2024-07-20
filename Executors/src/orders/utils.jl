@@ -400,7 +400,7 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0
-    for v in ordersdict(s, O)
+    foreach(ordersdict(s, O)) do v
         ans += length(v)
     end
     ans
@@ -413,9 +413,8 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::Val{:increase})
     ans = 0
-    itr = values(orders(s, O))
-    @assert eltype(itr) <: Pair
-    for (_, o) in itr
+    itr = values(s)
+    foreach(itr) do o
         if o isa IncreaseOrder
             ans += 1
         end
@@ -430,12 +429,27 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::Val{:reduce})
     ans = 0
-    for (_, o) in values(orders(s))
+    itr = values(s)
+    foreach(itr) do o
         if o isa ReduceOrder
             ans += 1
         end
     end
     ans
+end
+
+function orderscount(s::Strategy, ::Val{:inc_red})
+    inc_ans = 0
+    dec_ans = 0
+    itr = values(s)
+    foreach(itr) do o
+        if o isa IncreaseOrder
+            inc_ans += 1
+        elseif o isa ReduceOrder
+            dec_ans += 1
+        end
+    end
+    return inc_ans, dec_ans
 end
 
 @doc """
@@ -454,7 +468,7 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ai::AssetInstance)
     n = 0
-    for _ in orders(s, ai)
+    foreach(orders(s, ai)) do _
         n += 1
     end
     n

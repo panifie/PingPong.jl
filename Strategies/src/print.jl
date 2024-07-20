@@ -1,5 +1,5 @@
 using .Data: closelast
-using .Instances: pnl, MarginInstance, NoMarginInstance, value, ohlcv
+using .Instances: pnl, MarginInstance, NoMarginInstance, value, ohlcv, trades
 using .OrderTypes:
     LiquidationTrade, LongLiquidationTrade, ShortLiquidationTrade, LongTrade, ShortTrade
 
@@ -98,12 +98,28 @@ This function iterates over the universe of a strategy. For each asset instance 
 function trades_count(s::Strategy, ::Val{:liquidations})
     trades = 0
     liquidations = 0
-    for ai in universe(s)
-        asset_liquidations = count((x -> x isa LiquidationTrade), ai.history)
-        trades += length(ai.history) - asset_liquidations
+    foreach(universe(s)) do ai
+        this_trades = trades(ai)
+        asset_liquidations = count((x -> x isa LiquidationTrade), this_trades)
+        trades += length(this_trades) - asset_liquidations
         liquidations += asset_liquidations
     end
     (; trades, liquidations)
+end
+
+function _count_trades(ai::AssetInstance; long=0, short=0, long_liq=0, short_liq=0)
+    foreach(trades(ai)) do t
+        if t isa LongTrade
+            long += 1
+        elseif t isa ShortTrade
+            short += 1
+        elseif t isa LongLiquidationTrade
+            long_liq += 1
+        elseif t isa ShortLiquidationTrade
+            short_liq += 1
+        end
+    end
+    return long, short, long_liq, short_liq
 end
 
 @doc """ Counts the number of long, short, and liquidation trades in the strategy universe.
@@ -115,17 +131,14 @@ This function iterates over the universe of a strategy. For each asset instance 
 function trades_count(s::Strategy, ::Val{:positions})
     long = 0
     short = 0
-    liquidations = 0
+    long_liq = 0
+    short_liq = 0
     for ai in universe(s)
-        long_asset_liquidations = count((x -> x isa LongLiquidationTrade), ai.history)
-        short_asset_liquidations = count((x -> x isa ShortLiquidationTrade), ai.history)
-        n_longs = count((x -> x isa LongTrade), ai.history)
-        n_shorts = count((x -> x isa ShortTrade), ai.history)
-        long += n_longs - long_asset_liquidations
-        short += n_shorts - short_asset_liquidations
-        liquidations += long_asset_liquidations + short_asset_liquidations
+        long, short, long_liq, short_liq = _count_trades(
+            ai; long, short, long_liq, short_liq
+        )
     end
-    (; long, short, liquidations)
+    (; long, short, liquidations=long_liq + short_liq)
 end
 
 orders(s::Strategy, ::Type{Buy}) = s.buyorders
