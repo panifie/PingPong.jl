@@ -14,6 +14,7 @@ using .SimMode: start!, SimMode as sm, ping!
 using .SimMode.Executors: st, Instances, OptSetup, OptRun, OptScore, Context
 using .SimMode.Misc.Lang: @preset, @precomp
 using .SimMode.TimeTicks
+using .SimMode.Misc
 using BayesianOptimization
 using BayesianOptimization.GaussianProcesses
 using .GaussianProcesses.Distributions
