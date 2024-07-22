@@ -20,7 +20,7 @@ function signals(signals, timeframes, count, params)
     signals_tuple = (
         (
             (; type=sig.second, tf, count=c, params=p) for
-            (sig, tf, c, p) in zip(signals, timeframes, count, params)
+                (sig, tf, c, p) in zip(signals, timeframes, count, params)
         )...,
     )
     defs = LittleDict(names, signals_tuple)
@@ -31,9 +31,10 @@ function signals(defs::Vararg{Pair})
     Signals17(; defs=LittleDict(defs))
 end
 
-@kwdef mutable struct SignalState4{T}
+@kwdef mutable struct SignalState4{T, V}
     date::DateTime = DateTime(0)
     trend::Trend = Stationary
+    prev::V
     const state::T
 end
 function Base.iterate(state::StrategyTools.SignalState4)
@@ -48,10 +49,15 @@ end
 function signals_state!(s)
     sig_defs = s[:signals_def]
     s[:signals] = Dict(
-        ai => let
+        ai => begin
             NamedTuple(
-                name => SignalState4(; state=this.type(; this.params...)) for
-                (name, this) in sig_defs.defs
+                let
+                    state =  this.type(; this.params...)
+                    state_tp = typeof(state)
+                    prev_tp = fieldtype(state_tp, :value)
+                    name => SignalState4{state_tp, prev_tp}(; state, prev=state.value)
+                end for
+                    (name, this) in sig_defs.defs
             )
         end for ai in s.universe
     )
@@ -67,7 +73,7 @@ signal_value(s, ai, name) = begin
     signal_value(sig.state; sig)
 end
 signal_trend(s, ai, name) = strategy_signal(s, ai, name).trend
-signal_history(s, sig) = s.signals_history[sig]
+signal_history(::Any; sig) = sig.prev
 
 @doc """
 Update or initialize mutable data related to asset information.
@@ -80,6 +86,11 @@ function update_data!(ai, tf)
     df = @lget!(ai.data, tf, empty_ohlcv())
     from = isempty(df) ? now() - Day(1) : nothing
     update_ohlcv!(df, ai.symbol, ai.exc, tf; from)
+end
+
+@doc "Return the inputs for the `fit!` function of the signal."
+function signal_range(sig, data, range)
+    view(data.close, range)
 end
 
 @doc """
@@ -103,7 +114,7 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
             return nothing
         end
         idx_stop = dateindex(data, this_tf_ats)
-        range = view(data.close, idx_start:idx_stop)
+        range = signal_range(this.state, data, idx_start:idx_stop)
         if length(range) < count
             @warn "not enough data for the requested count" start_date this_tf_ats count maxlog =
                 1
@@ -121,8 +132,9 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
         end
         idx_stop = dateindex(data, this_tf_ats)
         @deassert data.timestamp[idx_stop] < apply(tf, ats)
-        range = view(data.close, idx_start:idx_stop)
+        range = signal_range(this.state, data, idx_start:idx_stop)
         if !isempty(range)
+            this.prev = this.state.value
             oti.fit!(this.state, range)
         else
             @warn "not enough data for the requested count" start_date this_tf_ats count maxlog =
@@ -160,9 +172,6 @@ function signals!(s::Strategy, ::Val{:warmup}; force=false, history=true)
         end
     end
     force && GC.gc()
-    if history
-        signals_history!(s)
-    end
     s[:signals_set] = true
 end
 
@@ -205,16 +214,6 @@ function isstalesignal(s::Strategy, ats::DateTime; lifetime=0.25)
     any(
         ats - apply(sig_def.tf, ats) > sig_def.tf / (1.0 / lifetime)
         for
-        sig_def in values(s.signals_def.defs)
+            sig_def in values(s.signals_def.defs)
     )
-end
-
-function signals_history!(s, tp=DFT)
-    hist_dict = s[:signals_history] = Dict{SignalState4,Ref{tp}}()
-    for sigs in values(s.signals)
-        for sig in sigs
-            hist_dict[sig] = Ref{tp}(NaN)
-        end
-    end
-    hist_dict
 end
