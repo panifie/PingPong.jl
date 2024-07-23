@@ -103,7 +103,6 @@ function boptimize!(
             modeloptimizer,
             Vector{Float64}(lower),
             Vector{Float64}(upper);
-            repetitions=splits,
             sense=Max,
             maxiterations,
             maxduration,
