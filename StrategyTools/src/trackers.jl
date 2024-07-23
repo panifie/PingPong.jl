@@ -16,10 +16,9 @@ function trackpnl!(s, ai, ats, ts)
     if !isnothing(pside)
         @deassert isopen(ai)
         close = closeat(ai, ats)
-        let pnl = s[:pnl][ai]
-            pnl[1][] = ats
-            push!(pnl[2], inst.pnl(ai, pside, close))
-        end
+        pnl = s[:pnl][ai]
+        pnl[1][] = ats
+        push!(pnl[2], inst.pnl(ai, pside, close))
     end
 end
 
