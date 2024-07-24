@@ -400,8 +400,8 @@ $(TYPEDSIGNATURES)
 """
 function orderscount(s::Strategy, ::BySide{O}) where {O}
     ans = 0
-    foreach(ordersdict(s, O)) do v
-        ans += length(v)
+    foreach(ordersdict(s, O)) do (_, dict)
+        ans += length(dict)
     end
     ans
 end
