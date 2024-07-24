@@ -264,15 +264,15 @@ isliquidation(::Order{O}) where {O<:OrderType} = O == LiquidationType
 sidetopos(::Order{<:OrderType{Buy}}) = Long
 sidetopos(::Order{<:OrderType{Sell}}) = Short
 @doc """Test if an order is a long order"""
-islong(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Long()
+islong(p::Union{<:T,<:Type{<:T}}) where {T<:PositionSide} = p == Long()
 @doc """Test if an order is a short order"""
-isshort(p::Union{T,Type{T}}) where {T<:PositionSide} = p == Short()
-islong(o::LongOrder) = true
-islong(o::ShortOrder) = false
-islong(_) = false
-isshort(o::LongOrder) = false
-isshort(o::ShortOrder) = true
-isshort(_) = false
+isshort(p::Union{<:T,<:Type{<:T}}) where {T<:PositionSide} = p == Short()
+islong(o::Union{<:LongOrder,<:Type{<:LongOrder}}) = true
+islong(o::Union{<:ShortOrder,<:Type{<:ShortOrder}}) = false
+isshort(o::Union{<:LongOrder,<:Type{<:LongOrder}}) = false
+isshort(o::Union{<:ShortOrder,<:Type{<:ShortOrder}}) = true
+islong(::Nothing) = false
+isshort(::Nothing) = false
 @doc """Test if an order is an immediate order"""
 isimmediate(::Order{<:Union{ImmediateOrderType,MarketOrderType}}) = true
 isimmediate(::Order) = false
