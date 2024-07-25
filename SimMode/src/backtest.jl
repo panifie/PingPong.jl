@@ -28,7 +28,9 @@ julia> t - tf"1m".period
 ```
 To avoid this mistake, use the function `available(::TimeFrame, ::DateTime)`, instead of apply.
 """
-function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true)
+function start!(
+    s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true, resetctx=true
+)
     # ensure that universe data start at the same time
     @ifdebug _resetglobals!()
     if trim_universe
@@ -36,8 +38,10 @@ function start!(s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=tru
             !check_alignment(data) && trim!(data)
         end
     end
-    if doreset
+    if resetctx
         tt.current!(ctx.range, ctx.range.start + ping!(s, WarmupPeriod()))
+    end
+    if doreset
         st.reset!(s)
     end
     update_mode = s.attrs[:sim_update_mode]::ExecAction
