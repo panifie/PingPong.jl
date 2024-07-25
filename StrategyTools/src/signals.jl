@@ -1,5 +1,7 @@
 using Base: FieldDescStorage, swaprows!
-const SignalType6 = @NamedTuple{type::UnionAll, tf::TimeFrame, count::Int, params::NamedTuple}
+const SignalType6 = @NamedTuple{
+    type::UnionAll, tf::TimeFrame, count::Int, params::NamedTuple
+}
 
 struct Signals17{N}
     defs::LittleDict{Symbol,SignalType6}
@@ -20,7 +22,7 @@ function signals(signals, timeframes, count, params)
     signals_tuple = (
         (
             (; type=sig.second, tf, count=c, params=p) for
-                (sig, tf, c, p) in zip(signals, timeframes, count, params)
+            (sig, tf, c, p) in zip(signals, timeframes, count, params)
         )...,
     )
     defs = LittleDict(names, signals_tuple)
@@ -31,7 +33,7 @@ function signals(defs::Vararg{Pair})
     Signals17(; defs=LittleDict(defs))
 end
 
-@kwdef mutable struct SignalState4{T, V}
+@kwdef mutable struct SignalState4{T,V}
     date::DateTime = DateTime(0)
     trend::Trend = Stationary
     prev::V
@@ -52,12 +54,11 @@ function signals_state!(s)
         ai => begin
             NamedTuple(
                 let
-                    state =  this.type(; this.params...)
+                    state = this.type(; this.params...)
                     state_tp = typeof(state)
                     prev_tp = fieldtype(state_tp, :value)
-                    name => SignalState4{state_tp, prev_tp}(; state, prev=state.value)
-                end for
-                    (name, this) in sig_defs.defs
+                    name => SignalState4{state_tp,prev_tp}(; state, prev=state.value)
+                end for (name, this) in sig_defs.defs
             )
         end for ai in s.universe
     )
@@ -105,7 +106,8 @@ function update_signal!(ai, ats, ai_signals, sig_name; tf, count)
     this = ai_signals[sig_name]
     data = ohlcv(ai, tf)
     this_tf_ats = available(tf, ats)
-    @debug "update_signal!" raw(ai) iscontig = isempty(data) ? nothing : contiguous_ts(data) maxlog = 1
+    @debug "update_signal!" raw(ai) iscontig = isempty(data) ? nothing : contiguous_ts(data) maxlog =
+        1
     if ismissing(this.state.value)
         start_date = ats - tf * count
         idx_start = dateindex(data, start_date)
@@ -212,8 +214,7 @@ signals!(s, args...; kwargs...) =
 
 function isstalesignal(s::Strategy, ats::DateTime; lifetime=0.25)
     any(
-        ats - apply(sig_def.tf, ats) > sig_def.tf / (1.0 / lifetime)
-        for
-            sig_def in values(s.signals_def.defs)
+        ats - apply(sig_def.tf, ats) > sig_def.tf / (1.0 / lifetime) for
+        sig_def in values(s.signals_def.defs)
     )
 end
