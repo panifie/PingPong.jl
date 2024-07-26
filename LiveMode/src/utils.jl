@@ -583,19 +583,21 @@ function live_sync_start!(s::LiveStrategy; first_start)
     # we don't want to start the ohlcv watchers since the strategy
     # decides whether to use them or not, but if present, we need
     # to start them
-    let w = ohlcv_watchers(s)
-        if w isa Watcher
-            if !isstarted(w)
-                start!(w)
-            end
-        elseif valtype(w) <: Watcher
-            for ai_w in values(w)
-                if !isstarted(ai_w)
-                    start!(ai_w)
-                end
+    w = ohlcv_watchers(s)
+    if w isa Watcher
+        if !isstarted(w)
+            start!(w)
+        end
+    elseif valtype(w) <: Watcher
+        for ai_w in values(w)
+            if !isstarted(ai_w)
+                start!(ai_w)
             end
         end
     end
+    live_sync_strategy_cash!(s)
+    live_sync_universe_cash!(s)
+    s.config.initial_cash = current_total(s)
     live_sync_open_orders!(s; overwrite=first_start)
 end
 
