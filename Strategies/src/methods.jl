@@ -1,4 +1,6 @@
 using .Lang: @lget!, @deassert, MatchString, @caller, Option
+using .Instances: ohlcv_dict
+using .Data: propagate_ohlcv!
 import .Instances.ExchangeTypes: exchangeid, exchange
 import .Instances.Exchanges: marketsid
 import .Instruments: cash!, add!, sub!, addzero!, subzero!, freecash, cash
@@ -184,7 +186,11 @@ Base.fill!(s::Strategy; kwargs...) = begin
     push!(tfs, s.timeframe)
     push!(tfs, s.config.timeframes...)
     push!(tfs, attr(s, :timeframe, s.timeframe))
-    coll.fill!(universe(s), tfs...; kwargs...)
+    uni = universe(s)
+    coll.fill!(uni, tfs...; kwargs...)
+    for ai in uni
+        propagate_ohlcv!(ohlcv_dict(ai))
+    end
 end
 
 _config_attr(s, k) = getfield(getfield(s, :config), k)
