@@ -33,3 +33,32 @@ The `synced=true` flag is a last-ditch attempt that _force fetches_ updates from
 The local trades history might diverge from the data sourced from the exchange because not all exchanges support endpoints for fetching trades history or events, therefore trades are emulated from diffing order updates.
 
 The local state is *not persisted*. Nothing is saved or loaded from storage. Instead, we sync the most recent history of orders with their respective trades when the strategy starts running. (This behavior might change in the future if need arises.)
+
+## Event Tracing
+
+During live execution events are recorded and flushed to storage (based on the active `ZarrInstance`).
+The `EventTrace` can be accessed from an `Exchange` object. When an `Exchange` object is initialized, it creates an `EventTrace` object to store events related to that exchange.
+
+```julia
+# Access the event trace from an exchange object
+exc = getexchange!(:binance)
+et = exc._trace
+```
+
+#### Replaying Events
+
+To replay events in a local simulation, use the `replay_from_trace!` function:
+
+```julia
+replay_from_trace!(live_strategy)
+```
+
+This function will reconstruct the state of the strategy based on the events recorded in the trace.
+
+#### Extracting Events
+
+To extract a subset of events or the last `n` events, use the `trace_tail` function:
+
+```julia
+events = trace_tail(et, n=10; as_df=false)
+```
