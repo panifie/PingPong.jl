@@ -61,7 +61,7 @@ function order!(
     s::NoMarginStrategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
 )
     @deassert abs(committed(o)) > 0.0 o
-    limitorder_ifprice!(s, o, date, ai)
+    limitorder_ifprice!(s, o, date, ai; kwargs...)
 end
 
 @doc "Progresses a simulated limit order for an isolated margin strategy."
@@ -69,7 +69,7 @@ function order!(
     s::IsolatedStrategy{Sim}, o::Order{<:LimitOrderType}, date::DateTime, ai; kwargs...
 )
     @deassert abs(committed(o)) > 0.0 (pricetime(o), o)
-    t = limitorder_ifprice!(s, o, date, ai)
+    t = limitorder_ifprice!(s, o, date, ai; kwargs...)
     t isa Trade && position!(s, ai, t)
     @deassert s.cash_committed |> gtxzero s.cash_committed.value
     t
@@ -81,12 +81,12 @@ $(TYPEDSIGNATURES)
 
 This function executes a limit order `o` at a given `date` for an asset `ai` only if the price is lower (for buy orders) or higher (for sell orders) than the order price.
 """
-function limitorder_ifprice!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
+function limitorder_ifprice!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai; kwargs...)
     @ifdebug PRICE_CHECKS[] += 1
     pbs, triggered = _istriggered(o, date, ai)
     if triggered
         # Order might trigger on high/low, but execution uses the *close* price.
-        limitorder_ifvol!(s, o, date, ai)
+        limitorder_ifvol!(s, o, date, ai; kwargs...)
     elseif o isa Union{AnyFOKOrder,AnyIOCOrder}
         if cancel!(s, o, ai; err=NotMatched(o.price, pbs, 0.0, 0.0))
             nothing
@@ -132,7 +132,7 @@ $(TYPEDSIGNATURES)
 
 This function executes a limit order `o` at a given `date` for an asset `ai` based on the volume of the candle compared to the order amount. It checks if the trade should succeed and performs the trade if conditions are met.
 """
-function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
+function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai; kwargs...)
     @ifdebug VOL_CHECKS[] += 1
     ans::Union{Missing,Nothing,Trade} = missing
     cdl_vol = st.volumeat(ai, date)
@@ -143,7 +143,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai)
         triggered, actual_amount = _fill_happened(amount, cdl_vol; max_depth=1)
         if triggered
             @deassert amount == actual_amount
-            ans = trade!(s, o, ai; price=o.price, date, actual_amount)
+            ans = trade!(s, o, ai; price=o.price, date, actual_amount, kwargs...)
         else
             if cancel!(
                 s, o, ai; err=NotMatched(o.price, priceat(s, o, ai, date), amount, cdl_vol)

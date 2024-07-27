@@ -13,9 +13,10 @@ It creates the order using `create_sim_limit_order`, checks if the order is not 
 The parameters include a strategy `s`, an asset `ai`, and a type `t`. The function also accepts an `amount` and additional arguments `kwargs...`.
 """
 function pong!(s::NoMarginStrategy{Sim}, ai, t::Type{<:AnyLimitOrder}; amount, kwargs...)
-    o = create_sim_limit_order(s, t, ai; amount, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o = create_sim_limit_order(s, t, ai; amount, order_kwargs...)
     isnothing(o) && return nothing
-    limitorder_ifprice!(s, o, o.date, ai)
+    limitorder_ifprice!(s, o, o.date, ai; fees_kwarg...)
 end
 
 @doc """ Creates a simulated market order.
@@ -30,9 +31,10 @@ Additional arguments can be passed through `kwargs...`.
 function pong!(
     s::NoMarginStrategy{Sim}, ai, t::Type{<:AnyMarketOrder}; amount, date, kwargs...
 )
-    o = create_sim_market_order(s, t, ai; amount, date, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o = create_sim_market_order(s, t, ai; amount, date, order_kwargs...)
     isnothing(o) && return nothing
-    marketorder!(s, o, ai, amount; date)
+    marketorder!(s, o, ai, amount; date, fees_kwarg...)
 end
 
 @doc """ Cancel orders for a specific asset instance.

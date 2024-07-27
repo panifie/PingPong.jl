@@ -2,7 +2,6 @@ using SimMode: create_sim_limit_order, limitorder_ifprice!, hold!
 using .st: NoMarginStrategy
 using .OrderTypes: LimitOrderType, ImmediateOrderType
 
-
 @doc """Creates a paper market order.
 
 $(TYPEDSIGNATURES)
@@ -20,9 +19,10 @@ function pong!(
     price=priceat(s, t, ai, nothing),
     kwargs...,
 )
-    o, obside = create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o, obside = create_paper_market_order(s, t, ai; amount, date, price, order_kwargs...)
     isnothing(o) && return nothing
-    marketorder!(s, o, ai; date, obside)
+    marketorder!(s, o, ai; date, obside, fees_kwarg...)
 end
 
 @doc """Creates a simulated limit order.

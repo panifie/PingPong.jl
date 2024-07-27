@@ -23,7 +23,10 @@ function pong!(
     @timeout_start
     w = balance_watcher(s)
     # NOTE: avoid balances updates when executing orders
-    trade = @lock w._exec.buffer_lock _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
+    order_kwargs = withoutkws(:fees; kwargs)
+    trade = @lock w._exec.buffer_lock _live_limit_order(
+        s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
+    )
     if synced && trade isa Trade
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
@@ -52,7 +55,10 @@ function pong!(
     @timeout_start
     w = balance_watcher(s)
     # NOTE: avoid balances updates when executing orders
-    trade = @lock w._exec.buffer_lock _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
+    order_kwargs = withoutkws(:fees; kwargs)
+    trade = @lock w._exec.buffer_lock _live_market_order(
+        s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
+    )
     if synced && trade isa Trade
         waitfororder(s, ai, trade.order; waitfor=@timeout_now)
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
@@ -89,11 +95,13 @@ function pong!(
         success = waitfor_closed(s, ai, @timeout_now; t)
         if success
             if synced
-                @debug "pong cancel orders: syncing cash" side = orderside(t) _module = LogCancelOrder
+                @debug "pong cancel orders: syncing cash" side = orderside(t) _module =
+                    LogCancelOrder
                 live_sync_cash!(s, ai; waitfor=@timeout_now)
             end
         else
-            @debug "pong cancel orders: failed syncing open orders" ai t _module = LogCancelOrder
+            @debug "pong cancel orders: failed syncing open orders" ai t _module =
+                LogCancelOrder
             live_sync_open_orders!(s, ai)
         end
         @debug "pong cancel orders: " success side = orderside(t) _module = LogCancelOrder

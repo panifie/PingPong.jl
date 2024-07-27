@@ -18,7 +18,7 @@ If the order is triggered, it executes a trade for the minimum of the trade amou
 If the order is filled, it stops tracking the order.
 
 """
-function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
+function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder; kwargs...)
     isfilled(ai, o) && return nothing
     throttle = attr(s, :throttle)
     exc = ai.exchange
@@ -62,6 +62,7 @@ function paper_limitorder!(s::PaperStrategy, ai, o::GTCOrder)
                                 date=_asdate(t["datetime"]),
                                 actual_amount,
                                 slippage=false,
+                                kwargs...,
                             )
                             isfilled(ai, o) && begin
                                 alive[] = false
@@ -103,7 +104,8 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         )
         return nothing
     end
-    o = create_sim_limit_order(s, t, ai; amount, date, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o = create_sim_limit_order(s, t, ai; amount, date, order_kwargs...)
     isnothing(o) && return nothing
     try
         obside = orderbook_side(ai, t)
@@ -115,7 +117,7 @@ function create_paper_limit_order!(s, ai, t; amount, date, kwargs...)
         # Queue GTC orders
         if o isa AnyGTCOrder
             @debug "paper limit order: queuing gtc order" o o.asset o.price o.amount
-            paper_limitorder!(s, ai, o)
+            paper_limitorder!(s, ai, o; fees_kwarg...)
             return @something trade missing
         elseif !isfilled(ai, o) && ordertype(o) <: ImmediateOrderType
             @debug "paper limit order: canceling" o.asset ordertype(o) o.price o.amount

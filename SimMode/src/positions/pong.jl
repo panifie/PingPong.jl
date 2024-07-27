@@ -36,9 +36,10 @@ function pong!(
     kwargs...,
 )
     !singlewaycheck(s, ai, t) && return nothing
-    o = create_sim_limit_order(s, t, ai; amount, kwargs...)
+    fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
+    o = create_sim_limit_order(s, t, ai; amount, order_kwargs...)
     return if !isnothing(o)
-        t = order!(s, o, o.date, ai)
+        t = order!(s, o, o.date, ai; fees_kwarg...)
         @deassert abs(committed(o)) > 0.0 || pricetime(o) ∉ keys(orders(s, ai, o))
         t
     end

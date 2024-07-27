@@ -19,7 +19,14 @@ The function returns the trade or leverage update status.
 
 """
 function Executors.pong!(
-    s::MarginStrategy{Live}, ai::MarginInstance, lev, ::UpdateLeverage; pos::PositionSide, synced=false, atol=1e-1, force=false,
+    s::MarginStrategy{Live},
+    ai::MarginInstance,
+    lev,
+    ::UpdateLeverage;
+    pos::PositionSide,
+    synced=false,
+    atol=1e-1,
+    force=false,
 )::Bool
     if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
@@ -33,9 +40,10 @@ function Executors.pong!(
         prev_lev = leverage(this_pos)
         issameval = isapprox(prev_lev, new_lev; atol)
         # First update on exchange
-        if (force || !issameval) && leverage!(exchange(ai), new_lev, raw(ai); timeout=throttle(s))
+        if (force || !issameval) &&
+            leverage!(exchange(ai), new_lev, raw(ai); timeout=throttle(s))
             leverage!(this_pos, new_lev)
-            event!(ai, LeverageUpdated(:leverage_updated, s, this_pos, from_value=prev_lev))
+            event!(ai, LeverageUpdated(:leverage_updated, s, this_pos; from_value=prev_lev))
             if synced
                 # wait for lev update from watcher
                 waitforpos(s, ai, pos; since)
@@ -62,15 +70,16 @@ macro isolated_position_check()
     ex = quote
         p = positionside(t)
         if !singlewaycheck(s, ai, t)
-            @debug "pong: double direction order in non hedged mode" ai position(ai) order_type = t
+            @debug "pong: double direction order in non hedged mode" ai position(ai) order_type =
+                t
             return nothing
         end
         side_dict = get_positions(s, opposite(p))
         tup = get(side_dict, raw(ai), nothing)
         if !isnothing(tup) &&
-           tup.date >= timestamp(ai, opposite(p)) &&
-           !tup.closed[] &&
-           _ccxt_isposopen(tup.resp, exchangeid(ai))
+            tup.date >= timestamp(ai, opposite(p)) &&
+            !tup.closed[] &&
+            _ccxt_isposopen(tup.resp, exchangeid(ai))
             @warn "pong: double direction order in non hedged mode (from resp)" position(ai) order_type = t
             @debug "pong: isolated check" _module = LogPos resp = tup.resp
             return nothing
@@ -104,8 +113,11 @@ function Executors.pong!(
     skipchecks || @isolated_position_check
     @timeout_start
     w = positions_watcher(s)
+    order_kwargs = withoutkws(:fees; kwargs)
     # NOTE: avoid positions update when executing orders
-    trade = @lock w._exec.buffer_lock _live_limit_order(s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs)
+    trade = @lock w._exec.buffer_lock _live_limit_order(
+        s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
+    )
     if synced && trade isa Trade
         live_sync_position!(
             s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
@@ -136,12 +148,13 @@ function Executors.pong!(
     skipchecks || @isolated_position_check
     @timeout_start
     w = positions_watcher(s)
+    order_kwargs = withoutkws(:fees; kwargs)
     # NOTE: avoid positions update when executing orders
-    trade = @lock w._exec.buffer_lock _live_market_order(s, ai, t; skipchecks, amount, synced, waitfor, kwargs)
+    trade = @lock w._exec.buffer_lock _live_market_order(
+        s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
+    )
     if synced && trade isa Trade
-        live_sync_position!(
-            s, ai, posside(trade); since=trade.date, waitfor=@timeout_now
-        )
+        live_sync_position!(s, ai, posside(trade); since=trade.date, waitfor=@timeout_now)
     end
     trade
 end
@@ -204,7 +217,14 @@ function pong!(
     end
     @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
     close_trade = pong!(
-        s, ai, t; amount, reduce_only=true, tag="position_close", waitfor=@timeout_now, this_kwargs...
+        s,
+        ai,
+        t;
+        amount,
+        reduce_only=true,
+        tag="position_close",
+        waitfor=@timeout_now,
+        this_kwargs...,
     )
     since = if close_trade isa Trade
         close_trade.date
@@ -217,7 +237,9 @@ function pong!(
             return true
         end
     else
-        @warn "pong pos close: closing order delay" orders = collect(values(s, ai, orderside(t))) ai t
+        @warn "pong pos close: closing order delay" orders = collect(
+            values(s, ai, orderside(t))
+        ) ai t
         timestamp(ai) + Millisecond(1)
     end
     if waitfor_closed(s, ai, @timeout_now)
@@ -225,36 +247,37 @@ function pong!(
         else
             @debug "pong pos close: timedout" _module = LogPosClose pos = P ai = raw(ai)
         end
-        live_sync_position!(
-            s, ai, P(); since, overwrite=true, waitfor=@timeout_now
-        )
+        live_sync_position!(s, ai, P(); since, overwrite=true, waitfor=@timeout_now)
         if @lock ai isopen(ai, pos)
-            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(ai, pos) == DateTime(0)
+            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(
+                ai, pos
+            ) == DateTime(
+                0
+            )
             pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
-            @debug "pong pos close: still open (local) position" _module = LogPosClose since position(ai, pos) data =
-                try
-                    resp = first(fetch_positions(s, ai))
-                    this_pup = live_position(
-                        s, ai, P(); since, waitfor=@timeout_now
-                    )
-                    eid = exchangeid(ai)
-                    (;
-                        prev_pup=if isnothing(pup)
-                            nothing
-                        else
-                            (; pup.date, pup.closed, pup.read)
-                        end,
-                        live_pos=(;
-                            timestamp=resp_position_timestamp(this_pup.resp, eid),
-                            amount=resp_position_contracts(this_pup.resp, eid),
-                        ),
-                        fetch_pos=(;
-                            timestamp=resp_position_timestamp(resp, eid),
-                            amount=resp_position_contracts(resp, eid),
-                        ),
-                    )
-                catch
-                end
+            @debug "pong pos close: still open (local) position" _module = LogPosClose since position(
+                ai, pos
+            ) data = try
+                resp = first(fetch_positions(s, ai))
+                this_pup = live_position(s, ai, P(); since, waitfor=@timeout_now)
+                eid = exchangeid(ai)
+                (;
+                    prev_pup=if isnothing(pup)
+                        nothing
+                    else
+                        (; pup.date, pup.closed, pup.read)
+                    end,
+                    live_pos=(;
+                        timestamp=resp_position_timestamp(this_pup.resp, eid),
+                        amount=resp_position_contracts(this_pup.resp, eid),
+                    ),
+                    fetch_pos=(;
+                        timestamp=resp_position_timestamp(resp, eid),
+                        amount=resp_position_contracts(resp, eid),
+                    ),
+                )
+            catch
+            end
             false
         else
             true
