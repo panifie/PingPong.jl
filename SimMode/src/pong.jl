@@ -2,9 +2,9 @@ using Executors: WatchOHLCV
 using .Instances.Data: empty_ohlcv
 using .Instances.Data.DFUtils: firstdate, setcols!
 @doc "Watchers are not used in `SimMode`."
-pong!(::Strategy{Sim}, ::WatchOHLCV) = nothing
+pong!(::Strategy{Sim}, ::WatchOHLCV; kwargs...) = nothing
 @doc "Data should be pre initialized in `SimMode`."
-pong!(::Strategy{Sim}, ::UpdateData) = nothing
+pong!(::Strategy{Sim}, ::UpdateData; kwargs...) = nothing
 @doc "Data should be pre initialized in `SimMode`."
 function pong!(
     ::Function,
