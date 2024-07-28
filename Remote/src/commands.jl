@@ -143,7 +143,7 @@ function status(cl::TelegramClient, s; text, chat_id, kwargs...)
     last_a = last(s.universe).asset.raw
     sts = let buf = IOBuffer()
         try
-            show(buf, s; price_func=lm.lastprice)
+            print(buf, s; price_func=lm.lastprice)
             String(take!(buf))
         finally
             Base.close(buf)
@@ -152,7 +152,6 @@ function status(cl::TelegramClient, s; text, chat_id, kwargs...)
     text = """$BC Strategy
     $sts
     throttle: $thr
-    assets: *$(n_assets)* (`$(first_a)`..`$(last_a)`)
     """
     sendMessage(cl; text, chat_id, parse_mode="markdown")
     true
@@ -238,12 +237,23 @@ The balances are presented in a DataFrame.
 """
 function balance(cl::TelegramClient, s; text, chat_id, kwargs...)
     df = DataFrame()
-    for ai in s.universe
-        total = total_cash(ai)
-        used = comm_cash(ai)
-        push!(df, (; asset=raw(ai), total, used))
+    prices = Dict(ai => ZERO for ai in s.universe)
+    @sync for ai in s.universe
+        @async prices[ai] = st.lastprice(ai)
     end
-    push!(df, (; asset=string(nameof(cash(s))), total=cash(s), used=committed(s)))
+    for ai in s.universe
+        amount = total_cash(ai)
+        size = amount * prices[ai]
+        push!(df, (; asset=first(raw(ai), 20), amount, size))
+    end
+    push!(
+        df,
+        (;
+            asset=first(string(nameof(cash(s))), 20),
+            amount=cash(s),
+            size=st.current_total(s; price_func=st.lastprice),
+        ),
+    )
     io = IOBuffer()
     try
         write(io, "```")
@@ -307,15 +317,13 @@ function assets(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
         io = IOBuffer()
         try
             if n_trades > 0
-                df = DataFrame(t for t in @view(ai_trades[(end-min(n_trades, 3)):end]))
+                df = DataFrame(t for t in @view(ai_trades[(end - min(n_trades, 3)):end]))
                 df[!, :side] = posside.(df.order)
                 df[!, :date] = [string(compact(now() - date), " ago") for date in df.date]
                 @debug "tg asset: " df
                 write(io, "```")
                 pretty_table(
-                    io,
-                    @view df[:, [:amount, :price, :size, :side, :date]];
-                    tf=tf_markdown,
+                    io, @view df[:, [:amount, :price, :size, :side, :date]]; tf=tf_markdown
                 )
                 write(io, "```\n")
             end
@@ -399,6 +407,23 @@ function config(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
     true
 end
 
+function find_logfile(s; logger=attr(s, :logger, nothing))
+    if isnothing(logger)
+        return attr(s, :logfile, nothing)
+    elseif hasproperty(logger, :current_file)
+        return logger.current_file
+    elseif hasproperty(logger, :loggers)
+        for logger in logger.loggers
+            file = find_logfile(s; logger)
+            if !isnothing(file)
+                return file
+            end
+        end
+    elseif hasproperty(logger, :logger)
+        return find_logfile(s; logger=logger.logger)
+    end
+end
+
 @doc """ Provides the logs of a strategy
 
 $(TYPEDSIGNATURES)
@@ -410,7 +435,7 @@ If the strategy has a valid logfile path, it sends the last 1000 lines of the lo
 function logs(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
     io = IOBuffer()
     try
-        file = attr(s, :logfile, nothing)
+        file = find_logfile(s)
         if isnothing(file) || !(file isa String) || !ispath(file)
             sendMessage(cl; text="can't find logfile", chat_id)
             return true
@@ -420,6 +445,10 @@ function logs(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
             write(io, line, "\n")
             n += 1
             n >= 1000 && break
+        end
+        if position(io) == 0
+            sendMessage(cl; text="no logs to send", chat_id)
+            return true
         end
         name = "$(nameof(s))[$(nameof(exchange(s)))]@$(now()).log"
         sendDocument(cl; document=name => io, chat_id)
