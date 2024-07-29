@@ -157,83 +157,99 @@ function trades_pnl(ai::AssetInstance; returns=_returns_arr(@cumbal()), kwargs..
     trades_pnl(returns; kwargs...)
 end
 
-function trades_stats(s::Strategy)
+function asset_stats!(res::DataFrame, ai::AssetInstance)
+    avg_dur = trades_duration(ai; f=mean)
+    med_dur = trades_duration(ai; f=median)
+    min_dur = trades_duration(ai; f=minimum)
+    max_dur = trades_duration(ai; f=maximum)
+
+    avg_size = trades_size(ai; f=mean)
+    med_size = trades_size(ai; f=median)
+    min_size = trades_size(ai; f=minimum)
+    max_size = trades_size(ai; f=maximum)
+
+    avg_leverage = trades_leverage(ai; f=mean)
+    med_leverage = trades_leverage(ai; f=median)
+    min_leverage = trades_leverage(ai; f=minimum)
+    max_leverage = trades_leverage(ai; f=maximum)
+
+    trades = length(ai.history)
+    liquidations = count(x -> x isa LiquidationTrade, ai.history)
+    longs = count(x -> x isa LongTrade, ai.history)
+    shorts = count(x -> x isa ShortTrade, ai.history)
+    weekday = trades_weekday(ai; f=mean)
+    monthday = trades_monthday(ai; f=mean)
+
+    cum_bal = @cumbal()
+    drawdown, atl, ATH = trades_drawdown(ai; cum_bal)
+    returns = _returns_arr(cum_bal)
+    avg_loss, avg_profit = trades_pnl(ai; returns, f=mean)
+    med_loss, med_profit = trades_pnl(ai; returns, f=median)
+    loss_ext, profit_ext = trades_pnl(ai; returns, f=extrema)
+    max_loss = loss_ext[1]
+    max_profit = profit_ext[2]
+    end_balance = cum_bal[end]
+
+    push!(
+        res,
+        (;
+            asset=ai.asset.raw,
+            trades,
+            liquidations,
+            longs,
+            shorts,
+            avg_dur,
+            med_dur,
+            min_dur,
+            max_dur,
+            weekday,
+            monthday,
+            avg_size,
+            med_size,
+            min_size,
+            max_size,
+            avg_leverage,
+            med_leverage,
+            min_leverage,
+            max_leverage,
+            drawdown,
+            ATH,
+            avg_loss,
+            avg_profit,
+            med_loss,
+            med_profit,
+            max_loss,
+            max_profit,
+            end_balance,
+        );
+        promote=false,
+    )
+    # upcast periods for pretty print
+    if nrow(res) == 1
+        for prop in (:avg, :med, :min, :max)
+            prop = Symbol("$(prop)_dur")
+            arr = getproperty(res, prop)
+            setproperty!(res, prop, convert(Vector{Period}, arr))
+        end
+    end
+end
+
+function trades_stats(s::Strategy; since=DateTime(0))
     res = DataFrame()
     for ai in s.universe
         isempty(ai.history) && continue
-        avg_dur = trades_duration(ai; f=mean)
-        med_dur = trades_duration(ai; f=median)
-        min_dur = trades_duration(ai; f=minimum)
-        max_dur = trades_duration(ai; f=maximum)
-
-        avg_size = trades_size(ai; f=mean)
-        med_size = trades_size(ai; f=median)
-        min_size = trades_size(ai; f=minimum)
-        max_size = trades_size(ai; f=maximum)
-
-        avg_leverage = trades_leverage(ai; f=mean)
-        med_leverage = trades_leverage(ai; f=median)
-        min_leverage = trades_leverage(ai; f=minimum)
-        max_leverage = trades_leverage(ai; f=maximum)
-
-        trades = length(ai.history)
-        liquidations = count(x -> x isa LiquidationTrade, ai.history)
-        longs = count(x -> x isa LongTrade, ai.history)
-        shorts = count(x -> x isa ShortTrade, ai.history)
-        weekday = trades_weekday(ai; f=mean)
-        monthday = trades_monthday(ai; f=mean)
-
-        cum_bal = @cumbal()
-        drawdown, atl, ATH = trades_drawdown(ai; cum_bal)
-        returns = _returns_arr(cum_bal)
-        avg_loss, avg_profit = trades_pnl(ai; returns, f=mean)
-        med_loss, med_profit = trades_pnl(ai; returns, f=median)
-        loss_ext, profit_ext = trades_pnl(ai; returns, f=extrema)
-        max_loss = loss_ext[1]
-        max_profit = profit_ext[2]
-        end_balance = cum_bal[end]
-
-        push!(
-            res,
-            (;
-                asset=ai.asset.raw,
-                trades,
-                liquidations,
-                longs,
-                shorts,
-                avg_dur,
-                med_dur,
-                min_dur,
-                max_dur,
-                weekday,
-                monthday,
-                avg_size,
-                med_size,
-                min_size,
-                max_size,
-                avg_leverage,
-                med_leverage,
-                min_leverage,
-                max_leverage,
-                drawdown,
-                ATH,
-                avg_loss,
-                avg_profit,
-                med_loss,
-                med_profit,
-                max_loss,
-                max_profit,
-                end_balance,
-            );
-            promote=false,
-        )
-        # upcast periods for pretty print
-        if nrow(res) == 1
-            for prop in (:avg, :med, :min, :max)
-                prop = Symbol("$(prop)_dur")
-                arr = getproperty(res, prop)
-                setproperty!(res, prop, convert(Vector{Period}, arr))
+        if since >= first(ai.history).date
+            hist = ai.history
+            full_hist = copy(hist)
+            try
+                filter!(x -> x.date >= since, hist)
+                asset_stats!(res, ai)
+            finally
+                empty!(hist)
+                append!(hist, full_hist)
             end
+        else
+            asset_stats!(res, ai)
         end
     end
     res
