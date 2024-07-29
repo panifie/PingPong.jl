@@ -23,8 +23,8 @@ using .Misc.Lang: @preset, @precomp, @ignore
     cl = tgclient(s)
     text = "abc123"
     @precomp @ignore begin
-        @ignore start(cl, s; text, chat_id)
-        @ignore stop(cl, s; text="now", chat_id)
+        @ignore start_strategy(cl, s; text, chat_id)
+        @ignore stop_strategy(cl, s; text="now", chat_id)
         status(cl, s; text, chat_id)
         daily(cl, s; text, chat_id)
         weekly(cl, s; text, chat_id)

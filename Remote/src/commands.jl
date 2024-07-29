@@ -43,7 +43,7 @@ It sends a message indicating the start of the strategy and updates the strategy
 The function also updates the short description of the strategy.
 
 """
-function start(cl::TelegramClient, s; text, chat_id, kwargs...)
+function start_strategy(cl::TelegramClient, s; text, chat_id, kwargs...)
     name = nameof(s)
     if isrunning(s)
         sendMessage(cl; text="""
@@ -87,7 +87,7 @@ It sends a message indicating the stop of the strategy and updates the strategy'
 The function also updates the short description of the strategy.
 
 """
-function stop(cl::TelegramClient, s; text, chat_id, kwargs...)
+function stop_strategy(cl::TelegramClient, s; text, chat_id, kwargs...)
     if !isrunning(s)
         sendMessage(cl; text="""
         $YC Strategy already stopped: *$(nameof(s))*
