@@ -1,43 +1,78 @@
 using .Lang: splitkws, @get
 
-_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N} = :unified
+function _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N}
+    :unified
+end
 _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = :unified
-_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:binanceusdm},<:WithMargin}) where {N} = :future
+function _balance_type(
+    s::Strategy{<:ExecMode,N,ExchangeID{:binanceusdm},<:WithMargin}
+) where {N}
+    :future
+end
 
-function _fetch_balance(exc::Exchange{ExchangeID{:bybit}}, qc, syms, args...; timeout=gettimeout(exc), type="unified", params=pydict(), kwargs...)
+function _fetch_balance(
+    exc::Exchange{ExchangeID{:bybit}},
+    qc,
+    syms,
+    args...;
+    timeout=gettimeout(exc),
+    type="unified",
+    params=pydict(),
+    kwargs...,
+)
     # assume bybit UTA
     params[@pyconst("type")] = "unified"
     _execfunc_timeout(_exc_balance_func(exc), args...; timeout, params, kwargs...)
 end
 
 function _fetch_balance(
-    exc::Exchange{ExchangeID{:phemex}}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{ExchangeID{:phemex}},
+    qc,
+    syms,
+    args...;
+    timeout=gettimeout(exc),
+    type=:swap,
+    code=nothing,
+    params=pydict(),
+    kwargs...,
 )
     params["type"] = @pystr type lowercase(string(type))
     if type != :spot
         params["code"] = @pystr code uppercase(string(@something code qc))
     end
 
-    _execfunc_timeout(
-        _exc_balance_func(exc); timeout, params, kwargs...
-    )
+    _execfunc_timeout(_exc_balance_func(exc); timeout, params, kwargs...)
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:deribit, :gateio, :hitbtc, :binancecoin)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:deribit, :gateio, :hitbtc, :binancecoin)},
+    qc,
+    syms,
+    args...;
+    timeout=gettimeout(exc),
+    type=:swap,
+    code=nothing,
+    params=pydict(),
+    kwargs...,
 )
     params["code"] = @pystr code uppercase(string(@something code qc))
     if haskey(params, "type")
         delete!(params, "type")
     end
 
-    _execfunc_timeout(
-        _exc_balance_func(exc); timeout, params, kwargs...
-    )
+    _execfunc_timeout(_exc_balance_func(exc); timeout, params, kwargs...)
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:binance)}, qc, syms, args...; timeout=gettimeout(exc), type=:swap, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:binance)},
+    qc,
+    syms,
+    args...;
+    timeout=gettimeout(exc),
+    type=:swap,
+    code=nothing,
+    params=pydict(),
+    kwargs...,
 )
     for k in ("code", "type")
         if haskey(params, k)
@@ -45,9 +80,7 @@ function _fetch_balance(
         end
     end
 
-    _execfunc_timeout(
-        _exc_balance_func(exc); timeout, params, kwargs...
-    )
+    _execfunc_timeout(_exc_balance_func(exc); timeout, params, kwargs...)
 end
 
 _parse_balance(::Exchange, v) = v
@@ -90,13 +123,34 @@ function _parse_balance(exc::Exchange{<:eids(:binanceusdm)}, v)
 end
 
 function _fetch_balance(
-    exc::Exchange{<:eids(:binanceusdm)}, qc, syms, args...; timeout=gettimeout(exc), type=:future, code=nothing, params=pydict(), kwargs...
+    exc::Exchange{<:eids(:binanceusdm)},
+    qc,
+    syms,
+    args...;
+    timeout=gettimeout(exc),
+    type=:future,
+    code=nothing,
+    params=pydict(),
+    kwargs...,
 )
     @lget! params "type" lowercase(string(type))
-    resp = _execfunc_timeout(
-        _exc_balance_func(exc); timeout, params, kwargs...
-    )
+    resp = _execfunc_timeout(_exc_balance_func(exc); timeout, params, kwargs...)
     _parse_balance(exc, resp)
 end
 
 _exc_balance_func(exc::Exchange{<:eids(:binanceusdm)}) = exc.fetchBalance # FIXME
+
+function fetch_balance(s::Strategy{Live,<:Any,<:ExchangeID{:phemex}}, args...; kwargs...)
+    resp = invoke(fetch_balance, Tuple{LiveStrategy}, s, args...; kwargs...)
+    w = attr(s, :live_positions_watcher, nothing)
+    if !isnothing(w)
+        positions = _phemex_parse_positions(s, resp)
+        tasks = attr(w, :process_tasks, nothing)
+        if !isemptish(positions) && !isnothing(tasks)
+            pushnew!(w, positions)
+            t = @async process!(w; fetched=true)
+            push!(tasks, t)
+        end
+    end
+    return resp
+end

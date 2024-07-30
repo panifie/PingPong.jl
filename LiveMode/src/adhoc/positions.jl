@@ -14,3 +14,22 @@ function positions_func(exc::Exchange{ExchangeID{:deribit}}, ais; timeout, kwarg
     end
     return resp
 end
+
+_resp_from_watcher(s::Strategy) = begin
+    w = attr(s, :live_balance_watcher, nothing)
+    if !(w isa Watcher) || isempty(w.buffer)
+        return nothing
+    end
+    w.buffer[end].value
+end
+function _phemex_parse_positions(
+    s::Strategy{<:ExecMode,<:Any,<:ExchangeID{:phemex}}, resp=_resp_from_watcher(s)
+)
+    positions = try
+        resp["info"]["data"]["positions"]
+    catch
+        @warn "ccxt: failed to parse positions" resp
+        return nothing
+    end
+    return exchange(s).parsePositions(positions)
+end

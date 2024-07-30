@@ -358,7 +358,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         sym = resp_position_symbol(resp, eid, String)
         ai = asset_bysym(s, sym)
         if isnothing(ai)
-            @warn "watchers process: no matching asset for symbol" sym
+            @debug "watchers process: no matching asset for symbol" _module = LogWatchPosProcess sym
             continue
         end
         default_side_func = Returns(_last_updated_position(long_dict, short_dict, sym))

@@ -10,7 +10,7 @@ macro warn_unsynced(what, loc, rem, msg="unsynced")
     ex = quote
         (
             if wasopen
-                @warn "Position $($msg) ($($what)) local: $($loc), remote: $($rem) $this_timestamp ($(raw(ai))@$(nameof(s)))"
+                @debug "Position $($msg) ($($what)) local: $($loc), remote: $($rem) $this_timestamp ($(raw(ai))@$(nameof(s)))" _module = LogPosSync
 
             end
         )
