@@ -147,8 +147,10 @@ function fetch_balance(s::Strategy{Live,<:Any,<:ExchangeID{:phemex}}, args...; k
         positions = _phemex_parse_positions(s, resp)
         tasks = attr(w, :process_tasks, nothing)
         if !isemptish(positions) && !isnothing(tasks)
-            pushnew!(w, positions)
-            t = @async process!(w; fetched=true)
+            t = @async begin
+                pushnew!(w, positions)
+                process!(w; fetched=true)
+            end
             push!(tasks, t)
         end
     end
