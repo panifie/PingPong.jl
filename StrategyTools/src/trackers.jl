@@ -108,9 +108,20 @@ function _normat(s, ai, ats; mn, mx, f=volumeat)
 end
 
 function _volumeat(_, ai, ats)
-    idx = dateindex(ai.ohlcv, ats)
+    data = ohlcv(ai)
+    idx = dateindex(data, ats)
     if idx > 0
-        volumeat(ai, ats)
+        data.volume[idx]
+    else
+        ZERO
+    end
+end
+
+function _qtvolumeat(_, ai, ats)
+    data = ohlcv(ai)
+    idx = dateindex(data, ats)
+    if idx > 0
+        data.volume[idx] * data.close[idx]
     else
         ZERO
     end
@@ -134,7 +145,7 @@ $(TYPEDSIGNATURES)
 
 The quantity is determined by the function `f` and is adjusted based on the asset `ai` and timestamp `ats`.
 """
-function trackqt!(s, ai, ats; f=_volumeat)
+function trackqt!(s, ai, ats; f=_qtvolumeat)
     local mn, mx
     ex = s[:qt_ext]
     if ex[1] == ats
