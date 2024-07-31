@@ -1,6 +1,6 @@
 using .Checks: sanitize_price, sanitize_amount
 using .Checks: iscost, ismonotonic, SanitizeOff, cost, withfees
-using .Strategies: PriceTime
+using .Strategies: PriceTime, universe
 using .Instances:
     MarginInstance, NoMarginInstance, AssetInstance, @rprice, @ramount, amount_with_fees
 using .OrderTypes:
@@ -323,6 +323,11 @@ function orders(s::Strategy{M,S,E}, ai, ::BySide{Sell}) where {M,S,E}
     @lget! s.sellorders ai st.SellOrdersDict{E}(st.SellPriceTimeOrdering())
 end
 
+"""
+Returns a unique list of orders from the trade history of a given asset instance.
+
+$(TYPEDSIGNATURES)
+"""
 function ordershistory(ai::AssetInstance)
     unique(t.order for t in trades(ai))
 end
@@ -511,7 +516,7 @@ Checks if a strategy has orders.
 
 $(TYPEDSIGNATURES)
 """
-hasorders(s::Strategy) = orderscount(s) == 0
+hasorders(s::Strategy) = orderscount(s) > 0
 
 @doc """
 Returns buy orders for an asset in a strategy.
@@ -549,34 +554,11 @@ $(TYPEDSIGNATURES)
 sideorders(s::Strategy, ai, ::BySide{S}) where {S} = sideorders(s, ai, S)
 
 @doc """
-Checks if an array has any elements.
-
-$(TYPEDSIGNATURES)
-"""
-function _hasany(arr)
-    n = 0
-    for _ in arr
-        n += 1
-        break
-    end
-    n != 0
-end
-
-@doc """
 Checks if an asset instance has pending buy orders in a strategy.
 
 $(TYPEDSIGNATURES)
 """
-hasorders(s::Strategy, ai, ::Type{Buy}) = _hasany(orders(s, ai, Buy))
-
-@doc """
-Checks if an asset instance has pending sell orders in a strategy.
-
-$(TYPEDSIGNATURES)
-"""
-function hasorders(s::Strategy, ai, ::Type{Sell})
-    !iszero(something(committed(ai), 0.0)) && _hasany(orders(s, ai, Sell))
-end
+hasorders(s::Strategy, ai, ::Type{S}) where {S<:Union{Buy,Sell}} = length(orders(s, ai, S)) > 0
 
 @doc """
 Checks if an asset instance has pending orders in a strategy.
@@ -584,7 +566,7 @@ Checks if an asset instance has pending orders in a strategy.
 $(TYPEDSIGNATURES)
 """
 function hasorders(s::Strategy, ai::AssetInstance)
-    (hasorders(s, ai, Sell) || hasorders(s, ai, Buy))
+    hasorders(s, ai, Sell) || hasorders(s, ai, Buy)
 end
 
 function hasorders(s::Strategy, ai::AssetInstance, ::Type{BuyOrSell})
@@ -636,20 +618,16 @@ $(TYPEDSIGNATURES)
 Base.haskey(s::Strategy, ai, pt::PriceTime) = haskey(s, ai, pt, BuyOrSell)
 
 @doc """
-Checks if a strategy has buy orders.
-
-$(TYPEDSIGNATURES)
-"""
-hasorders(s::Strategy, ::Type{Buy}) = !iszero(s.cash_committed)
-
-@doc """
 Checks if a strategy has sell orders.
 
 $(TYPEDSIGNATURES)
 """
-function hasorders(s::Strategy, ::Type{Sell})
-    for (_, ords) in s.sellorders
-        isempty(ords) || return true
+function hasorders(s::Strategy, ::BySide{S}) where {S<:OrderSide}
+    for ai in universe(s)
+        ords = sideorders(s, ai, S)
+        if !isempty(ords)
+            return true
+        end
     end
     return false
 end

@@ -68,23 +68,29 @@ function hasorders(s::MarginStrategy, ai, ::Long, t::Type{<:OrderSide})
     hasorders(s, ai, t)
 end
 function hasorders(s::MarginStrategy, ai, ::Long, ::Type{Sell})
-    !iszero(committed(ai, Long())) || _hasorders(s, ai, Long(), Sell)
+    _hasorders(s, ai, Long(), Sell)
 end
 function hasorders(s::MarginStrategy, ai, ::Short, ::Type{Buy})
-    !iszero(committed(ai, Short())) || _hasorders(s, ai, Short(), Buy)
+    _hasorders(s, ai, Short(), Buy)
 end
 
 function hasorders(s::MarginStrategy, ai, ::ByPos{Long})
     hasorders(s, ai, Long(), Buy) || hasorders(s, ai, Long(), Sell)
 end
 function hasorders(s::MarginStrategy, ai, ::ByPos{Short})
-    !iszero(committed(ai, Short())) ||
-        _hasorders(s, ai, Short(), Buy) ||
-        _hasorders(s, ai, Short(), Sell)
+    _hasorders(s, ai, Short(), Buy) || _hasorders(s, ai, Short(), Sell)
 end
 
 function hasorders(s::MarginStrategy, ::ByPos{P}) where {P<:PositionSide}
     for ai in s.holdings
+        _hasorders(s, ai, P(), Buy) && return true
+        _hasorders(s, ai, P(), Sell) && return true
+    end
+    return false
+end
+
+function hasorders(s::MarginStrategy, ::ByPos{P}, ::Val{:universe}) where {P<:PositionSide}
+    for ai in universe(s)
         _hasorders(s, ai, P(), Buy) && return true
         _hasorders(s, ai, P(), Sell) && return true
     end
