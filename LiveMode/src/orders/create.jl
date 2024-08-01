@@ -32,8 +32,8 @@ function isopenorder(s, ai, resp, eid; fetched=false)
                     end
                 end
             else
-                @warn "create order: unknown status" ai oid hasfill hasid
-                return false
+                @warn "create order: unknown status" ai oid hasfill hasid resp
+                return hasid
             end
         elseif _ccxtisstatus(status, "canceled", "rejected") || fetched
             @warn "create order: $status" ai oid hasfill hasid
