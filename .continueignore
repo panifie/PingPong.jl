@@ -2,3 +2,5 @@
 .conda
 .conda/
 .PingPong.so
+*/.conda/*
+wip.jl
