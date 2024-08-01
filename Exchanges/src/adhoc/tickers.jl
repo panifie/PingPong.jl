@@ -26,3 +26,19 @@ function fetch_tickers(exc::Exchange{ExchangeID{:bitrue}}, type)
         v
     end
 end
+
+function fetch_tickers(exc::Exchange{ExchangeID{:binance}}, type)
+    @assert hastickers(exc) "Exchange doesn't provide tickers list."
+    f = first(exc, :fetchTickersWs, :fetchTickers)
+    params = LittleDict{Py,Py}()
+    if type != :spot
+        params[@pyconst("type")] = @pystr(type)
+    end
+    v = pyfetch(f; params)
+    if v isa Exception
+        @error "fetch tickers: " exception = v
+        throw(v)
+    else
+        v
+    end
+end
