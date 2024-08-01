@@ -62,6 +62,7 @@ test_watchers() = @testset failfast = FAILFAST "watchers" begin
         using .PingPong.Data
         using .PingPong.Data.DataStructures
         using .PingPong.Data.Serialization
+        using .PingPong.Engine.TimeTicks
         wa = Watchers
         isdefined(@__MODULE__, :wi) || (wi = wa.WatchersImpls)
     end

@@ -172,38 +172,38 @@ function test_paper_nomargin_gtc(s)
     @test s isa st.NoMarginStrategy
     ai = s[m"eth"]
     date = now()
-    # prev_cash = s.cash.value
-    # @info "TEST: paper pong buy (last price)"
-    # ect.pong!(s, ai, ot.GTCOrder{ot.Buy}; amount=0.02, date)
-    # @test length(collect(ect.orders(s, ai))) == 1 || length(ai.history) > 0
-    # o = if length(ai.history) > 0
-    #     last(ai.history).order
-    # else
-    #     first(values(ect.orders(s, ai, ot.Buy)))
-    # end
-    # if haskey(s[:paper_order_tasks], o)
-    #     task, alive = s[:paper_order_tasks][o]
-    #     @test istaskdone(task) || alive[]
-    #     wait(task)
-    # end
-    # @test ect.isfilled(ai, last(ai.history).order)
-    # @test s.cash <= prev_cash
-    # @test !ect.iszero(cash(ai, Long()))
-    # date = now()
-    # prev_cash = s.cash.value
+    prev_cash = s.cash.value
+    @info "TEST: paper pong buy (last price)"
+    ect.pong!(s, ai, ot.GTCOrder{ot.Buy}; amount=0.02, date)
+    @test length(collect(ect.orders(s, ai))) == 1 || length(ai.history) > 0
+    o = if length(ai.history) > 0
+        last(ai.history).order
+    else
+        first(values(ect.orders(s, ai, ot.Buy)))
+    end
+    if haskey(s[:paper_order_tasks], o)
+        task, alive = s[:paper_order_tasks][o]
+        @test istaskdone(task) || alive[]
+        wait(task)
+    end
+    @test ect.isfilled(ai, last(ai.history).order)
+    @test s.cash <= prev_cash
+    @test !ect.iszero(cash(ai, Long()))
+    date = now()
+    prev_cash = s.cash.value
     this_p = lastprice(ai)
-    # @info "TEST: paper pong sell"
-    # t = ect.pong!(
-    #     s, ai, ot.GTCOrder{ot.Sell}; amount=0.01, price=this_p - this_p / 100.0, date
-    # )
-    # if haskey(st.attr(s, :paper_order_tasks), o)
-    #     task, alive = st.attr(s, :paper_order_tasks)[o]
-    #     @test istaskdone(task) || !alive[]
-    #     wait(task)
-    # end
-    # @test ect.isfilled(ai, last(ai.history).order)
-    # @test s.cash >= prev_cash
-    # @test !ect.iszero(cash(ai, Long())) && cash(ai, Long()) < 0.02
+    @info "TEST: paper pong sell"
+    t = ect.pong!(
+        s, ai, ot.GTCOrder{ot.Sell}; amount=0.01, price=this_p - this_p / 100.0, date
+    )
+    if haskey(st.attr(s, :paper_order_tasks), o)
+        task, alive = st.attr(s, :paper_order_tasks)[o]
+        @test istaskdone(task) || !alive[]
+        wait(task)
+    end
+    @test ect.isfilled(ai, last(ai.history).order)
+    @test s.cash >= prev_cash
+    @test !ect.iszero(cash(ai, Long())) && cash(ai, Long()) < 0.02
 
     _, taken_vol, total_vol = pm._paper_liquidity(s, ai)
     @info "TEST: paper pong buy 2 (price below)"
@@ -235,19 +235,20 @@ function test_paper_nomargin_gtc(s)
               length(o.attrs.trades) > prev_len ||
               lastprice(ai) >= o.price * 0.999
     end
-    amount = total_vol[] / 100.0
+    total_vol[] = ai.limits.amount.max * 1000.0
+    amount = total_vol[] / 1000.0
     price = this_p * 2.0
     date += Millisecond(1)
     this_vol = 0.0
-    @info "TEST: paper pong buy loop"
+    @info "TEST: paper pong buy loop" amount price
+    local t = nothing
     while taken_vol[] + amount < total_vol[] * 0.9
         t = ect.pong!(s, ai, ot.GTCOrder{ot.Buy}; amount, price, date)
         if t isa ot.Trade
-            # @info "TEST: paper pong " taken_vol[] total_vol[]
+            @info "TEST: paper pong " taken_vol[] total_vol[]
             this_vol += t.amount
         else
-            price *= 1.1
-            price = min(ai.limits.cost.max, price)
+            break
         end
         date += Millisecond(1)
         yield()
@@ -289,12 +290,13 @@ function test_paper_nomargin_ioc(s)
             ai.limits.leverage, ai.limits.amount, ai.limits.price, cost=(min=1.0, max=Inf)
         ),
     )
+    price = min(ai.limits.cost.max, this_p + this_p / 100.0)
     t = ect.pong!(
         s,
         ai_unlimited,
         ot.IOCOrder{ot.Buy};
-        amount=total_vol[] / 2.0,
-        price=this_p + this_p / 100.0,
+        amount=price / 2.0,
+        price,
         date,
     )
     @test t isa ot.Trade
@@ -360,13 +362,18 @@ function test_paper()
         using PingPongDev
         using .PingPong
         PingPong.@environment!
+        if isnothing(Base.find_package("BlackBoxOptim")) && @__MODULE__() == Main
+            import Pkg
+            Pkg.add("BlackBoxOptim")
+        end
+        using .PingPong.Engine.Instruments: add!
     end
     s = @eval backtest_strat(:Example; exchange=EXCHANGE, config_attrs=(; skip_watcher=true), mode=Paper())
     try
         @testset failfast = FAILFAST "paper" begin
             try
-                @info "TEST: paper nomargin market"
-                @testset test_paper_nomargin_market(s)
+                # @info "TEST: paper nomargin market"
+                # @testset test_paper_nomargin_market(s)
                 @info "TEST: paper nomargin gtc"
                 @testset test_paper_nomargin_gtc(s)
                 @info "TEST: paper nomargin ioc"

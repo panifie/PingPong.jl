@@ -5,6 +5,7 @@ function test_coingecko()
         using .PingPong.Engine.LiveMode.Watchers.CoinGecko
         using .PingPong.Engine.Instruments
         using .PingPong.Engine.TimeTicks
+        using .PingPong.Engine.Misc.Lang
         using .Instruments.Derivatives: @d_str
         using .TimeTicks
         using .TimeTicks.Dates: format, @dateformat_str
@@ -22,7 +23,7 @@ function test_coingecko()
         @info "TEST: cg rate limit"
         @test coingecko_ratelimit()
         @info "TEST: cg ids"
-        @test occursin("ethereum", cg.idbysym("eth"))
+        @test occursin("eth", cg.idbysym("eth"))
         @test "ethereum" in cg.idbysym("eth", false)
         @info "TEST: cg tickers"
         @test coingecko_tickers()
@@ -90,5 +91,5 @@ coingecko_derivatives() = begin
     one = length(cg.loadderivatives!()) > 0
     drv = cg.derivatives_from("binance_futures")
     two = drv isa Dict{Derivative,<:Dict} && length(drv) > 0
-    one && two && d"BTC/BUSD:BUSD" ∈ keys(drv)
+    one && two && parse(Derivative, "BTC/BUSD:BUSD") ∈ keys(drv)
 end

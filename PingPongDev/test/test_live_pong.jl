@@ -94,12 +94,15 @@ function test_live_pong_mg(s)
     @info "TEST: Short sell"
     trade = ect.pong!(s, ai, ShortGTCOrder{Sell}; amount, price=lastprice(ai) - 100, skipchecks=true)
     @test !isnothing(trade)
+    o = nothing
     if ismissing(trade)
         o = first(values(s, ai, Sell))
         @info "TEST: trades delay" o.id
         while !lm.isfilled(ai, o)
             lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor)
         end
+    else
+        o = trade.order
     end
     @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor) || @lock s @lock ai lm.isfilled(ai, o)
     pup = lm.live_position(s, ai, force=true)
@@ -125,13 +128,14 @@ function test_live_pong_mg(s)
     @info "TEST: Long Buy waitfortrade" position(ai)
     orders_offset = length(lm.ordershistory(ai))
     since = now()
+    price = lastprice(ai) + 100
+    long_amount = min(s.cash * 0.3 / price, amount * price)
     @sync begin
-        price = lastprice(ai) + 100
         for n in 0:2
             sleep_n = n
             @async let
                 sleep(sleep_n) # this avoid potential orders having same date on some exchanges
-                trade = ect.pong!(s, ai, GTCOrder{Buy}; amount, price, waitfor)
+                trade = ect.pong!(s, ai, GTCOrder{Buy}; amount=long_amount, price, waitfor)
                 if ismissing(trade)
                     lm.waitfortrade(s, ai, first(values(s, ai, Buy)); waitfor=Second(10)) ||
                         lm._force_fetchtrades(s, ai, first(values(s, ai, Buy)))
@@ -141,7 +145,7 @@ function test_live_pong_mg(s)
     end
     w = lm.positions_watcher(s)
     while lm.timestamp(ai, Long) < since
-        @info "TEST: waiting for timestamp" isstarted(w)
+        @info "TEST: waiting for timestamp" isstarted(w) lm.timestamp(ai, Long) since
         @lock w nothing
         sleep(1)
     end
@@ -158,9 +162,10 @@ function test_live_pong_mg(s)
     lm.waitforpos(s, ai, posside(pos); since, waitfor) || lm.live_position(s, ai; since, force=true)
     @test lm.timestamp(ai) >= since
     n_test_orders = length(lm.ordershistory(ai)) - orders_offset
+    orders_amount = sum(o.amount for o in lm.ordershistory(ai)[orders_offset+1:end])
     contracts = lm.live_contracts(s, ai, force=true)
     @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) contracts n_test_orders orders_offset since
-    @test cash(pos) == amount * n_test_orders == contracts
+    @test cash(pos) == orders_amount == contracts
     pside = posside(ai)
     @info "TEST: Position Close (3rd)"
     @test !isnothing(lm.get_positions(s, ai, Short()))
@@ -392,7 +397,7 @@ function test_live_pong_nm_fok(s)
 end
 
 # NOTE: phemex testnet is disabled during weekends
-function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogWatchTrade,LogPosSync",
+function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Executors,LogCreateOrder,LogSyncOrder,LogWatchOrder,LogWatchTrade,LogPosSync,LogTradeFetch",
     sync=false, stop=true, save=false)
     @eval begin
         if !isdefined(Main, :_live_load)

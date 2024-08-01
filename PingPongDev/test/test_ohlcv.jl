@@ -2,7 +2,7 @@ using Test
 
 
 _test_ohlcv_exc(exc) = begin
-    pair = "ETH/USDT"
+    pair = "ETH/USDT" in keys(exc.markets) ? "ETH/USDT" : "ETH/USDT:USDT"
     timeframe = "5m"
     count = 500
     o = fetch_ohlcv(exc, timeframe, [pair]; from=-count, progress=false)
@@ -35,6 +35,7 @@ test_ohlcv() = @testset "ohlcv" begin
         using .Fetch.Exchanges
         using .PingPong.Engine.Data: OHLCV_COLUMNS, ZArray, PairData
         using .PingPong.Engine.Processing: islast
+        using .PingPong.Engine.TimeTicks
     end
     _test_ohlcv()
 end
