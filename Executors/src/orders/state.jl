@@ -87,7 +87,7 @@ $(TYPEDSIGNATURES)
 
 """
 function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
-    @deassert !(o isa MarketOrder) # Market Orders are never queued
+    @deassert !issim(s) || !(o isa MarketOrder) # Market Orders are never queued
     @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     @deassert pricetime(o) ∉ keys(orders(s, ai, orderside(o)))
