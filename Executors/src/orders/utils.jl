@@ -638,7 +638,7 @@ Checks if a strategy is out of orders.
 $(TYPEDSIGNATURES)
 """
 function isoutof_orders(s::Strategy)
-    ltxzero(s.cash) && isempty(s.holdings) && length(orderscount(s)) == 0
+    ltxzero(s.cash) && isempty(s.holdings) && orderscount(s) == 0
 end
 
 @doc """
