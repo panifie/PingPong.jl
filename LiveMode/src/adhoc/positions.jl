@@ -1,6 +1,8 @@
 function positions_func(exc::Exchange{ExchangeID{:bybit}}, ais; timeout, kwargs...)
     f = first(exc, :fetchPositionsWs, :fetchPositions)
-    _execfunc_timeout(f, PyList(raw(ai) for ai in ais); timeout, kwargs...)
+    list = PyList(raw(ai) for ai in ais)
+    args = length(list) > 1 ? () : (list,)
+    _execfunc_timeout(f, args...; timeout, kwargs...)
 end
 
 function positions_func(exc::Exchange{ExchangeID{:deribit}}, ais; timeout, kwargs...)
