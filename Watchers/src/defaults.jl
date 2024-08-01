@@ -21,7 +21,7 @@ The function takes a watcher, a value, and an optional time as arguments. If the
 function pushnew!(w::Watcher{T}, value, time=nothing) where {T}
     # NOTE: use object inequality to avoid non determinsm
     buf = buffer(w)
-    @lock _buffer_lock(w) if !isnothing(value) && (isempty(buf) || Bool(value != buf[end].value))
+    @lock _buffer_lock(w) if !isnothing(value) && (isempty(buf) || Bool(value !== buf[end].value))
         # TODO: remove this check once DataStructures releases 1.0
         if value isa T || applicable(convert, T, value)
             v = (time=@something(time, now()), value)
