@@ -152,7 +152,7 @@ $(TYPEDSIGNATURES)
 function unfillment(t::Type{<:AnyBuyOrder}, amount)
     @deassert amount > 0.0
     @deassert !(t isa AnySellOrder)
-    negate(amount)
+    negate(abs(amount))
 end
 
 @doc """
