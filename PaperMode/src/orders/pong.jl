@@ -1,6 +1,7 @@
 using SimMode: create_sim_limit_order, limitorder_ifprice!, hold!
 using .st: NoMarginStrategy
 using .OrderTypes: LimitOrderType, ImmediateOrderType
+using .Misc.Lang: splitkws
 
 @doc """Creates a paper market order.
 

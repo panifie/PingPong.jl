@@ -3,6 +3,7 @@ using Executors: isoutof_orders
 using .Instances.Data.DFUtils: lastdate
 using .Misc.LoggingExtras
 using Base: with_logger
+using .st: universe
 
 import .Misc: start!, stop!
 
@@ -58,6 +59,7 @@ function start!(
             end
             update!(s, date, update_mode)
             ping!(s, date, ctx)
+            @debug "sim: iter" s.cash ltxzero(s.cash) isempty(s.holdings) orderscount(s)
         end
     end
     s
