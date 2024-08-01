@@ -18,7 +18,7 @@ Finds and returns the iterator with the smallest value.
 $(TYPEDSIGNATURES)
 """
 _findmin(non_empty_iters) = begin
-    iters = @view non_empty_iters[2:end]
+    iters = non_empty_iters
     min_val, iter_idx = findmin(peek, iters)
     min_val, iters[iter_idx]
 end
@@ -39,11 +39,10 @@ _do_orders_iter(oi) = begin
     elseif len == 1
         popfirst!(non_empty_iters[1]), nothing
     else
-        min_val, min_iter = _findmin(non_empty_iters)
+        _, min_iter = _findmin(non_empty_iters)
 
         # Remove the smallest value from the iterator and return it
-        popfirst!(min_iter)
-        min_val, nothing
+        popfirst!(min_iter), nothing
     end
 end
 
@@ -54,14 +53,14 @@ $(TYPEDSIGNATURES)
 """
 Base.iterate(oi::OrderIterator, _) = _do_orders_iter(oi)
 Base.iterate(oi::OrderIterator) = _do_orders_iter(oi)
-Base.length(oi::OrderIterator) = sum((length(i) for i in oi.iters), init=0)
+Base.length(oi::OrderIterator) = sum((length(i) for i in oi.iters); init=0)
 
 @doc """
 Checks if the OrderIterator is empty.
 
 $(TYPEDSIGNATURES)
 """
-Base.isdone(oi::OrderIterator) = isempty(oi.iters)
+Base.isdone(oi::OrderIterator) = isempty(oi.iters) || all(isempty, oi.iters)
 
 @doc """
 Returns the element type of the OrderIterator.
@@ -108,7 +107,11 @@ function tradescount(s::Strategy)
 end
 
 function closedorders(s::Strategy)
-    Misc.UniqueIterator((
-        t.order for t in trades(s) if !isopen(asset_bysym(s, raw(t.order.asset)), t.order)
-    ), by=o -> o.id)
+    Misc.UniqueIterator(
+        (
+            t.order for
+            t in trades(s) if !isopen(asset_bysym(s, raw(t.order.asset)), t.order)
+        );
+        by=o -> o.id,
+    )
 end
