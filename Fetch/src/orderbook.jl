@@ -1,6 +1,7 @@
 using Exchanges: ExchangeID, pyfetch_timeout
 using Exchanges.Ccxt: _multifunc
 using Exchanges.Misc: LittleDict
+using Exchanges.Python: pybuiltins
 @enum OrderBookLevel L1 L2 L3
 Base.convert(::Type{OrderBookLevel}, n::Integer) = OrderBookLevel(n - 1)
 
@@ -77,7 +78,9 @@ function _update_orderbook!(exc, ob, sym, lvl, limit; init)
                 ob.busy[] = false
                 return nothing
             end
-            ob.timestamp[] = dt(pyconvert(Int, pyint(py_ob["timestamp"])))
+            let v = get(py_ob, "timestamp", 0)
+                ob.timestamp[] = dt(pyconvert(Int, pyint(Bool(v == pybuiltins.None) ? 0 : v)))
+            end
             let asks = ob.asks
                 empty!(asks)
                 for a in py_ob["asks"]
