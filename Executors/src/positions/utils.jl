@@ -74,6 +74,8 @@ function hasorders(s::MarginStrategy, ai, ::Short, ::Type{Buy})
     _hasorders(s, ai, Short(), Buy)
 end
 
+# NOTE: ByPos has higher priority than BySide for dispatching
+@assert !hasmethod(hasorders, Tuple{MarginStrategy, AssetInstance, BySide})
 function hasorders(s::MarginStrategy, ai, ::ByPos{Long})
     hasorders(s, ai, Long(), Buy) || hasorders(s, ai, Long(), Sell)
 end
