@@ -64,7 +64,7 @@ function get_float(resp::Union{Py,PyDict}, k, def, args...; ai)
         if !ismissing(def) &&
            !isequal(ai, v, def, args...) &&
            !(@something(ordertype_fromccxt(resp, exchangeid(ai)), ot.LimitOrderType) <: ot.MarketOrderType)
-            @warn "live: exchange order $k not matching request" ai v
+            @warn "live: exchange order $k not matching request" ai v def
         end
         v
     end
