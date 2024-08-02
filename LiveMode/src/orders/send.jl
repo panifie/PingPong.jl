@@ -94,6 +94,11 @@ function live_send_order(
     trailing_trigger_price=nothing, # `price` is used if not set
     kwargs...,
 )
+    # sanitize amount (since asset cash can be negative and could be used as input)
+    amount = abs(amount)
+    if !isnothing(trailing_amount)
+        trailing_amount = abs(trailing_amount)
+    end
     # NOTE: this should not be needed, but some exchanges can be buggy
     # might be used in a specialized function for problematic exchanges
     # @price! ai stop_loss stop_price price profit_price take_profit
