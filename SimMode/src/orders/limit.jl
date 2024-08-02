@@ -159,7 +159,7 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai; kwargs.
         )
         if triggered
             @deassert actual_amount > amount * 0.1
-            ans = trade!(s, o, ai; price=o.price, date, actual_amount)
+            ans = trade!(s, o, ai; price=o.price, date, actual_amount, kwargs...)
         else
             # Cancel IOC orders if partially filled
             if o isa AnyIOCOrder &&
