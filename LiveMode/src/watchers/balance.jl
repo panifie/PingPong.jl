@@ -265,20 +265,18 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s), wait=false)
-    @lock s begin
-        w = @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval)
-        just_started = @lock w if isstopped(w) && !attr(s, :stopped, false)
-            start!(w)
-            true
-        else
-            false
-        end
-        while wait && just_started && _lastprocessed(w) == DateTime(0)
-            @debug "live: waiting for initial balance" _module = LogWatchBalance
-            safewait(w.beacon.process)
-        end
-        w
+    w = @lock s @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval)
+    just_started = @lock w if isstopped(w) && !attr(s, :stopped, false)
+        start!(w)
+        true
+    else
+        false
     end
+    while wait && just_started && _lastprocessed(w) == DateTime(0)
+        @debug "live: waiting for initial balance" _module = LogWatchBalance
+        safewait(w.beacon.process)
+    end
+    w
 end
 
 @doc """ Stops the watcher for balance in a live strategy.

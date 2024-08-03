@@ -112,10 +112,8 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    w = positions_watcher(s)
     order_kwargs = withoutkws(:fees; kwargs)
-    # NOTE: avoid positions update when executing orders
-    trade = @lock w._exec.buffer_lock _live_limit_order(
+    trade = _live_limit_order(
         s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
     )
     if synced && trade isa Trade
@@ -147,10 +145,8 @@ function Executors.pong!(
 )
     skipchecks || @isolated_position_check
     @timeout_start
-    w = positions_watcher(s)
     order_kwargs = withoutkws(:fees; kwargs)
-    # NOTE: avoid positions update when executing orders
-    trade = @lock w._exec.buffer_lock _live_market_order(
+    trade = _live_market_order(
         s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
     )
     if synced && trade isa Trade
