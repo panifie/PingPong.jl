@@ -172,7 +172,7 @@ $(TYPEDSIGNATURES)
 It uses a WS instance if available, otherwise an async instance.
 """
 function getexchange!(
-    x::Symbol, params=PyDict("newUpdates" => true); sandbox=true, markets=:yes, kwargs...
+    x::Symbol, params=nothing; sandbox=true, markets=:yes, kwargs...
 )
     @debug "exchanges: getexchange!" x @caller
     @lget!(
@@ -181,6 +181,7 @@ function getexchange!(
         if x == Symbol() || x == Symbol("")
             Exchange(pybuiltins.None)
         else
+            params = @something params PyDict("newUpdates" => true)
             py = ccxt_exchange(x, params; kwargs...)
             e = Exchange(py)
             sandbox && sandbox!(e; flag=true, remove_keys=false)
