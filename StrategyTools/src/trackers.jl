@@ -13,12 +13,16 @@ The PnL is calculated based on the position side and the closing price at the gi
 """
 function trackpnl!(s, ai, ats, ts)
     pside = posside(ai)
-    if !isnothing(pside)
-        @deassert isopen(ai)
-        close = closeat(ai, ats)
-        pnl = s[:pnl][ai]
+    pnl = s[:pnl][ai]
+    if pnl[1][] < ats
         pnl[1][] = ats
-        push!(pnl[2], inst.pnl(ai, pside, close))
+        if !isnothing(pside)
+            @deassert isopen(ai)
+            close = closeat(ai, ats)
+            push!(pnl[2], inst.pnl(ai, pside, close))
+        else
+            push!(pnl[2], ZERO)
+        end
     end
 end
 
@@ -85,20 +89,23 @@ $(TYPEDSIGNATURES)
 
 Applies a damping function to the raw Kelly leverage to ensure it remains within practical limits.
 """
-function tracklev!(s, ai; dampener=default_dampener)
-    ats, pnl = getpnl(s, ai)
-    μ = mean(pnl)
-    s2 = ((pnl .- μ) .^ 2 |> sum) / (length(pnl) - 1)
-    k = μ / s2
-    raw_val, value = if isnan(k)
-        def = s[:def_lev]
-        def, def
-    elseif k <= ZERO
-        0.0, 0.0
-    else
-        k, clamp(dampener(k), 1.0, 100.0)
+function tracklev!(s, ai, ats; dampener=default_dampener)
+    pnl_ats, pnl = getpnl(s, ai)
+    this_lev = levtuple(s, ai)
+    if this_lev.time < ats
+        μ = mean(pnl)
+        s2 = ((pnl .- μ) .^ 2 |> sum) / (length(pnl) - 1)
+        k = μ / s2
+        raw_val, value = if isnan(k)
+            def = s[:def_lev]
+            def, def
+        elseif k <= ZERO
+            0.0, 0.0
+        else
+            k, clamp(dampener(k), 1.0, 100.0)
+        end
+        s[:lev][ai] = (; time=pnl_ats[], raw_val, value)
     end
-    s[:lev][ai] = (; time=ats[], raw_val, value)
 end
 
 ## QT
