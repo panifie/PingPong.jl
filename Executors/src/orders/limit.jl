@@ -68,40 +68,24 @@ function limitorder(
     end
 end
 
-@doc """ Removes a filled limit order from the queue
-
-$(TYPEDSIGNATURES)
-
-The function is used post-trade to clean up the strategy's order queue.
-"""
-aftertrade!(s::Strategy, ai, o::AnyLimitOrder) = begin
-    if isfilled(ai, o)
-        decommit!(s, o, ai)
-        delete!(s, ai, o)
-    end
-end
-
 _cashfrom(s, _, o::IncreaseOrder) = st.freecash(s) + committed(o)
 _cashfrom(_, ai, o::ReduceOrder) = st.freecash(ai, positionside(o)()) + committed(o)
-
 
 @doc """ Checks if the provided trade is the last fill for the given asset instance.
 
 $(TYPEDSIGNATURES)
 """
 function islastfill(ai::AssetInstance, t::Trade{<:LimitOrderType})
-    let o = t.order
-        t.amount != o.amount && isfilled(ai, o)
-    end
+    o = t.order
+    t.amount != o.amount && isfilled(ai, o)
 end
 @doc """ Checks if the provided trade is the first fill for the given asset instance.
 
 $(TYPEDSIGNATURES)
 """
 function isfirstfill(::AssetInstance, t::Trade{<:LimitOrderType})
-    let o = t.order
-        attr(o, :unfilled)[] == negate(t.amount)
-    end
+    o = t.order
+    attr(o, :unfilled)[] == negate(t.amount)
 end
 
 @doc """ Adds a limit order to the pending orders of the strategy.

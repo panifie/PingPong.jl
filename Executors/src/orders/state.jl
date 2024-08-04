@@ -603,24 +603,6 @@ function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
     true
 end
 
-@doc """Performs cleanups after a trade (attempt).
-
-$(TYPEDSIGNATURES)
-
-"""
-aftertrade!(s, ai, o, t) = aftertrade!(s, ai, o)
-
-@doc """ Unconditionally dequeues immediate orders.
-
-$(TYPEDSIGNATURES)
-
-This function is called after a trade to remove filled 'Fill Or Kill' (FOK) or 'Immediate Or Cancel' (IOC) orders from the strategy's order queue.
-"""
-function aftertrade!(s::Strategy, ai, o::Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder})
-    decommit!(s, o, ai, true)
-    delete!(s, ai, o)
-    isfilled(ai, o) || st.ping!(s, o, NotEnoughCash(_cashfrom(s, ai, o)), ai)
-end
 
 @doc """Returns the amount of an order.
 

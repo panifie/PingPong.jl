@@ -79,8 +79,7 @@ It then invokes the `aftertrade!` function with the given strategy, asset, and o
 Finally, it updates the position with the trade.
 
 """
-function aftertrade!(s::MarginStrategy{Paper}, ai::A, o::O, t::Trade) where {A,O}
+function aftertrade!(s::MarginStrategy{Paper}, ai::A, o::O, t=nothing) where {A,O}
     @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
-    invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o)
-    position!(s, ai, t)
+    invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o, t)
 end

@@ -14,7 +14,7 @@ using .Executors:
     order_byid,
     tradetuple
 using .st: Strategy, SimStrategy, asset_bysym
-using PaperMode.SimMode: _update_from_trade!
+using PaperMode.SimMode.Executors: _update_from_trade!
 
 @doc """ Synchronizes a live trading strategy.
 
@@ -123,6 +123,7 @@ track!(s::SimStrategy, what, n=1) = begin
     s[what] += n
 end
 
+# TODO: a method to disable `ping!` calls in SimMode during trace replay must be implemented
 @doc """ Reconstructs strategy state for events trace.
 
 NOTE: Previous ohlcv data must be present from the date of the first event to replay.

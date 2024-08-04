@@ -60,10 +60,7 @@ function pong!(
     fees_kwarg, order_kwargs = splitkws(:fees; kwargs)
     o = create_sim_market_order(s, t, ai; amount, date, order_kwargs...)
     isnothing(o) && return nothing
-    t = marketorder!(s, o, ai, amount; date, fees_kwarg...)
-    isnothing(t) && return nothing
-    t isa Trade && position!(s, ai, t)
-    t
+    marketorder!(s, o, ai, amount; date, fees_kwarg...)
 end
 
 @doc "Closes a leveraged position."

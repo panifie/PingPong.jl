@@ -1,5 +1,5 @@
 using Base: negate
-using Executors: @amount!, @price!, aftertrade!, NewTrade
+using Executors: @amount!, @price!, NewTrade, trade!
 using Executors.Checks: cost, withfees, checkprice
 using Executors.Instances
 using Executors.Instruments
@@ -9,8 +9,9 @@ using .Strategies: IsolatedStrategy, NoMarginStrategy
 using .OrderTypes: BuyOrder, SellOrder, ShortBuyOrder, ShortSellOrder
 using .OrderTypes: OrderTypes as ot, PositionSide
 import .Strategies: ping!
+import Executors: maketrade
 
-include("orders/slippage.jl")
+include("slippage.jl")
 
 @doc """ Check if there is enough cash in the strategy currency for buying.
 
@@ -161,63 +162,3 @@ function maketrade(
     @maketrade
 end
 
-# include("debug.jl")
-@doc """ Executes a trade with the given parameters and updates the strategy state.
-
-$(TYPEDSIGNATURES)
-
-This function executes a trade based on the given order and asset instance. It calculates the actual price, creates a trade using the `maketrade` function, and updates the strategy and asset instance. If the trade cannot be executed (e.g., not enough cash), the function updates the state as if the order was filled without creating a trade. The function returns the created trade or nothing if the trade could not be executed.
-
-"""
-function trade!(
-    s::Strategy,
-    o,
-    ai;
-    date,
-    price,
-    actual_amount,
-    fees=maxfees(ai),
-    slippage=true,
-    kwargs...,
-)
-    @deassert abs(committed(o)) > 0.0
-    @ifdebug _afterorder()
-    if !isnothing(actual_amount)
-        if o isa ReduceOnlyOrder
-            actual_amount = min(actual_amount, ai.limits.amount.max)
-        else
-            @amount! ai actual_amount
-        end
-    end
-    actual_price = slippage ? with_slippage(s, o, ai; date, price, actual_amount) : price
-    @price! ai actual_price
-    trade = maketrade(s, o, ai; date, actual_price, actual_amount, fees, kwargs...)
-    isnothing(trade) && begin
-        # unqueue or decommit order if filled
-        aftertrade!(s, ai, o)
-        return nothing
-    end
-    _update_from_trade!(s, ai, o, trade; actual_price)
-end
-
-function _update_from_trade!(s::Strategy, ai, o, trade; actual_price)
-    @ifdebug _beforetrade(s, ai, o, trade, actual_price)
-    # record trade
-    @deassert !isdust(ai, o) committed(o), o
-    # Fills the order
-    fill!(s, ai, o, trade)
-    push!(trades(ai), trade)
-    push!(trades(o), trade)
-    # update asset cash and strategy cash
-    cash!(s, ai, trade)
-    # unqueue or decommit order if filled
-    # and update position state
-    aftertrade!(s, ai, o, trade)
-    ping!(s, ai, trade, NewTrade())
-    @ifdebug _aftertrade(s, ai, o)
-    @ifdebug _check_committments(s, ai)
-    @ifdebug _check_committments(s, ai, trade)
-    return trade
-end
-
-ping!(::Strategy, ai, trade, ::NewTrade) = nothing

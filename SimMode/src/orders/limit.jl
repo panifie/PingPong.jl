@@ -70,7 +70,6 @@ function order!(
 )
     @deassert abs(committed(o)) > 0.0 (pricetime(o), o)
     t = limitorder_ifprice!(s, o, date, ai; kwargs...)
-    t isa Trade && position!(s, ai, t)
     @deassert s.cash_committed |> gtxzero s.cash_committed.value
     t
 end

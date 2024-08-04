@@ -15,8 +15,6 @@ function Executors.aftertrade!(
     @info "after trade:" t cash = cash(ai, posside(t)) nameof(s)
     try
         invoke(aftertrade!, Tuple{Strategy,A,O,T}, s, ai, o, t)
-        # Update local state asap, since syncing can have long delays
-        position!(s, ai, t)
         # NOTE: shift by 1ms to allow for some margin of error
         # ideally exchanges should be tested to see how usually timestamps
         # are handled when a trade event would update the timestamp of an order

@@ -17,6 +17,7 @@ include("orders/utils.jl")
 include("orders/state.jl")
 include("orders/limit.jl")
 include("orders/market.jl")
+include("trades.jl")
 
 include("positions/utils.jl")
 include("positions/state.jl")

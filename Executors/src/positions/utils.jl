@@ -1,5 +1,6 @@
 using .Instances: ispos
 using .OrderTypes: ByPos
+using .Lang: @caller
 
 @doc """ Returns a generator for orders matching a given position side and order side
 
@@ -109,6 +110,8 @@ function position!(s::IsolatedStrategy, ai, date::DateTime, p::PositionSide)
     position!(s, ai, date, position(ai, p))
 end
 position!(::IsolatedStrategy, ai, ::DateTime, ::Nothing) = nothing
+
+position!(s::Strategy, args...) = @warn "`position!` not implemented for $(typeof(s))" @caller
 
 @doc "Non margin strategies don't have positions."
 position!(s::NoMarginStrategy, args...; kwargs...) = nothing

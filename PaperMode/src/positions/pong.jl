@@ -1,7 +1,7 @@
 using .st: IsolatedStrategy
 
 using .Executors: AnyMarketOrder
-using SimMode: position!, singlewaycheck
+using SimMode: singlewaycheck
 
 @doc """Creates a paper market order, updating a leveraged position.
 
