@@ -357,7 +357,7 @@ function is_pair_active(pair::AbstractString, exc::Exchange=exc)
 end
 is_pair_active(a::AbstractAsset, args...) = is_pair_active(a.raw, args...)
 
-_default_fees(exc, side) = @something get(exc.fees, side, nothing) 0.001
+_default_fees(exc, side) = @something get(exc.fees, side, nothing) 0.01
 function _fees_byside(exc, mkt, side)
     @something get(mkt, string(side), nothing) _default_fees(exc, Symbol(side))
 end
