@@ -30,7 +30,20 @@ function signals(signals, timeframes, count, params)
 end
 
 function signals(defs::Vararg{Pair})
-    Signals17(; defs=LittleDict(defs))
+    Signals17(;
+        defs=LittleDict(
+            begin
+                if !haskey(pair.second, :count)
+                    count = max((i for i in values(pair.second.params) if i isa Integer)...)
+                    pair.first => SignalType6((; pair.second..., count))
+                else
+                    pair
+                end
+            end
+
+            for pair in defs
+        ),
+    )
 end
 
 @kwdef mutable struct SignalState4{T,V}
