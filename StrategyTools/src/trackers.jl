@@ -291,6 +291,53 @@ cmptrend(::Any; sig, idx, ov) = begin
     end
 end
 @doc """
+Compares two properties of a signal state.
+
+$(TYPEDSIGNATURES)
+"""
+cmpab(sig, a, b) = begin
+    val = sig.state.value
+    if ismissing(val)
+        false
+    else
+        a_val = getproperty(val, a)
+        b_val = getproperty(val, b)
+        if ismissing(a_val) || ismissing(b_val)
+            false
+        else
+            sig.trend = if a_val > b_val
+                Up
+            elseif a_val < b_val
+                Down
+            else
+                Stationary
+            end
+            true
+        end
+    end
+end
+
+@doc """
+Calculates the rate of change of a property of a signal state.
+
+$(TYPEDSIGNATURES)
+"""
+rateab(sig, a, b) = begin
+    val = sig.state.value
+    if ismissing(val)
+        1.0, 1.0
+    else
+        a = getproperty(val, a)
+        b = getproperty(val, b)
+        if ismissing(a) || ismissing(b)
+            1.0, 1.0
+        else
+            a / b, b / a
+        end
+    end
+end
+
+@doc """
 Check if an asset is trending for a given signal
 
 $(TYPEDSIGNATURES)
