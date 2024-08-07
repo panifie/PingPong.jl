@@ -62,36 +62,36 @@ function clearpypath!()
     end
 end
 
-function pygctask!()
-    if ccall(:jl_generating_output, Cint, ()) != 0
-        return nothing
-    end
-    GC_TASK[] = @async begin
-        GC_RUNNING[] = true
-        PyGC.disable()
-        while GC_RUNNING[]
-            try
-                if Threads.threadid() == 1
-                    if !isempty(PyGC.QUEUE)
-                        Base.GC.gc()
-                        PyGC.C.with_gil(false) do
-                            for ptr in PyGC.QUEUE
-                                if ptr != PyGC.C.PyNULL
-                                    PyGC.C.Py_DecRef(ptr)
-                                end
-                            end
-                        end
-                        empty!(PyGC.QUEUE)
-                    end
-                end
-            catch e
-                @error "Python GC ERROR" exception = e
-            end
-            sleep(1)
-        end
-    end
-    atexit(pystopgctask)
-end
+# function pygctask!()
+#     if ccall(:jl_generating_output, Cint, ()) != 0
+#         return nothing
+#     end
+#     GC_TASK[] = @async begin
+#         GC_RUNNING[] = true
+#         PyGC.disable()
+#         while GC_RUNNING[]
+#             try
+#                 if Threads.threadid() == 1
+#                     if !isempty(PyGC.QUEUE)
+#                         Base.GC.gc()
+#                         PyGC.C.with_gil(false) do
+#                             for ptr in PyGC.QUEUE
+#                                 if ptr != PyGC.C.PyNULL
+#                                     PyGC.C.Py_DecRef(ptr)
+#                                 end
+#                             end
+#                         end
+#                         empty!(PyGC.QUEUE)
+#                     end
+#                 end
+#             catch e
+#                 @error "Python GC ERROR" exception = e
+#             end
+#             sleep(1)
+#         end
+#     end
+#     atexit(pystopgctask)
+# end
 
 pystopgctask() = GC_RUNNING[] = false
 
@@ -110,7 +110,6 @@ function _doinit()
             f()
         end
         empty!(CALLBACKS)
-        pygctask!()
     catch e
         @debug e
     end
