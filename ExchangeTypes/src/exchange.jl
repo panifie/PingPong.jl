@@ -1,4 +1,4 @@
-using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr
+using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr, pybuiltins
 using Ccxt: _issupported
 using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
@@ -89,7 +89,7 @@ function Exchange(x::Py)
         Set{Symbol}(),
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
-        excDecimalPlaces,
+        excTickSize,
         nothing,
     )
     funcs = get(HOOKS, Symbol(id), ())::Union{Tuple{},Vector{Function}}
@@ -104,9 +104,14 @@ end
 
 Used when converting exchange API responses to integer sizes for orders.
 """
-decimal_to_size(v, p::ExcPrecisionMode) = begin
+decimal_to_size(v, p::ExcPrecisionMode; exc=nothing) = begin
     if p == excDecimalPlaces
-        convert(Int, v)
+        if pyisinstance(v, pybuiltins.int)
+            convert(Int, v)
+        else
+            @warn "exchanges: wrong precision mode" v p exc
+            v
+        end
     else
         v
     end
