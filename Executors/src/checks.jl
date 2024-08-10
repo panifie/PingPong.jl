@@ -1,5 +1,5 @@
 module Checks
-using ..Lang: Option, @ifdebug, @deassert
+using ..Lang: Option, @ifdebug, @deassert, @caller
 using ..Misc: isstrictlysorted, toprecision, ltxzero
 using ..Misc.DocStringExtensions
 using ..Instances
@@ -80,6 +80,9 @@ Price and amount value of an order are adjusted by subtraction. Their output val
 """
 function sanitize_amount(ai::AssetInstance, amount::N) where {N<:Real}
     if ai.limits.amount.min > 0.0 && amount < ai.limits.amount.min
+        if amount < zero(amount)
+            @warn "orders: amounts should never be negative (default to min amount)" ai ai.limits.amount.min maxlog = 1 @caller 20
+        end
         ai.limits.amount.min
     elseif ai.precision.amount < 0.0 # has to be a multiple of 10
         max(toprecision(Int(amount), 10.0), ai.limits.amount.min)
