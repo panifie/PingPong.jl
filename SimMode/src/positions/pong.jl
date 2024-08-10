@@ -65,8 +65,8 @@ end
 
 @doc "Closes a leveraged position."
 function pong!(s::MarginStrategy{<:Union{Paper,Sim}}, ai::MarginInstance, side::ByPos, date, ::PositionClose; kwargs...)
-    pong!(s, ai, CancelOrders(); t=postoside(side))
-    close_position!(s, ai, side, date)
+    pong!(s, ai, CancelOrders(); t=BuyOrSell)
+    close_position!(s, ai, side, date; kwargs...)
     @deassert !isopen(ai, side)
 end
 

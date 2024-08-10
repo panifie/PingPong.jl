@@ -47,18 +47,16 @@ $(TYPEDSIGNATURES)
 This function cancels all orders associated with the specified position and updates the position with a forced order. The function also handles cases where the position is already closed or has zero committed funds.
 
 """
-function force_exit_position(s::Strategy, ai, p, date::DateTime)
-    ords = collect(values(s, ai, p))
-    for o in ords 
-        cancel!(s, o, ai; err=OrderCanceled(o))
-    end
+function force_exit_position(s::Strategy, ai, p, date::DateTime; kwargs...)
+    @assert !hasorders(s, ai)
+    @deassert isempty(collect(values(s, ai, p)))
     @deassert iszero(committed(ai, p)) committed(ai, p)
     ot = ReduceOnlyOrder(p)
     price = priceat(s, ot, ai, date)
     amount = abs(nondust(ai, ot, price))
     if amount > 0.0
         prevcash = s.cash.value
-        t = pong!(s, ai, ot; amount, date, price)
+        t = pong!(s, ai, ot; amount, date, price, kwargs...)
         @debug "force exit position: " amount price t.price s.cash.value - prevcash t.value
         @deassert let o = t.order
             (
@@ -81,11 +79,11 @@ When a date is given, this function closes pending orders and sells the remainin
 It then resets the position, deletes it from the holdings, and checks that the position is closed and no funds are committed.
 
 """
-function close_position!(s::IsolatedStrategy, ai, p::PositionSide, date=nothing)
+function close_position!(s::IsolatedStrategy, ai, p::PositionSide, date=nothing; kwargs...)
     @deassert !hasorders(s, ai, p)
     # when a date is given we should close pending orders and sell remaining cash
     if !isnothing(date)
-        force_exit_position(s, ai, p, date)
+        force_exit_position(s, ai, p, date; kwargs...)
     end
     reset!(ai, p)
     delete!(s.holdings, ai)
