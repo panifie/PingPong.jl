@@ -8,7 +8,7 @@ function compile(proj_path="user/Load"; comp_dir="Dist", cpu_target="generic", a
     @assert ispath(proj_path)
     Pkg.activate(proj_path)
     if update
-        Pkg.update(proj_path)
+        Pkg.update()
     end
     ENV["JULIA_PROJECT"] = dirname(Base.active_project())
     @assert !isempty(get(ENV, "JULIA_FULL_PRECOMP", ""))
