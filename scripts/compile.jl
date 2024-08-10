@@ -4,9 +4,12 @@ Pkg.activate(joinpath("user", "Load"))
 Pkg.add("PackageCompiler")
 using PackageCompiler
 
-function compile(proj_path="user/Load"; comp_dir="Dist", cpu_target="generic", app=false, kwargs...)
+function compile(proj_path="user/Load"; comp_dir="Dist", cpu_target="generic", app=false, update=true, kwargs...)
     @assert ispath(proj_path)
     Pkg.activate(proj_path)
+    if update
+        Pkg.update(proj_path)
+    end
     ENV["JULIA_PROJECT"] = dirname(Base.active_project())
     @assert !isempty(get(ENV, "JULIA_FULL_PRECOMP", ""))
     ENV["JULIA_PRECOMP"] = ENV["JULIA_FULL_PRECOMP"]
