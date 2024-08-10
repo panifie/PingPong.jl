@@ -1,6 +1,6 @@
-using PythonCall: PyList, pynew, Py
+# using PythonCall: PyList, pynew, Py
 # using PythonCall.C.CondaPkg: envdir
-using PythonCall.GC: GC as PyGC
+# using PythonCall.GC: GC as PyGC
 
 setpypath!() =
     if length(PYTHONPATH[]) > 0
@@ -20,22 +20,27 @@ function _ensure_env!()
 end
 
 function _setup!()
-    # isprecomp = ccall(:jl_generating_output, Cint, ()) != 0
+    isprecomp = ccall(:jl_generating_output, Cint, ()) != 0
     @eval let
         using PythonCall.C.CondaPkg: envdir, add_pip, resolve
 
-        # PY_V[] = chomp(
-        #     String(
-        #         read(
-        #             `$(joinpath(envdir(), "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`,
-        #         ),
-        #     ),
-        # )
-        PY_V[] = let vinfo = pyimport("sys").version_info
-            string(vinfo.major, ".", vinfo.minor)
+        env_path = if $isprecomp
+            realpath(ENV["JULIA_CONDAPKG_ENV"])
+        else
+            envdir()
         end
+        PY_V[] = chomp(
+            String(
+                read(
+                    `$(joinpath(env_path, "bin", "python")) -c "import sys; print(str(sys.version_info.major) + '.' + str(sys.version_info.minor))"`,
+                ),
+            ),
+        )
+        # PY_V[] = let vinfo = pyimport("sys").version_info
+        #     string(vinfo.major, ".", vinfo.minor)
+        # end
         # NOTE: Make sure conda libs precede system libs
-        PYTHONPATH[] = string(".:", joinpath(envdir(), "lib", string("python", PY_V[])))
+        PYTHONPATH[] = string(".:", joinpath(env_path, "lib", string("python", PY_V[])))
         setpypath!()
         using PythonCall:
             Py, pynew, pyimport, PyList, pyisnull, pycopy!, @py, pyconvert, pystr
