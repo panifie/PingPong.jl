@@ -81,10 +81,10 @@ $(TYPEDSIGNATURES)
 
 Checks if a trade was made recently by checking if the last trade time for the given asset instance is more recent than the current time frame. If no trades were made, it returns true.
 """
-function isrecenttrade(ai::AssetInstance, ats::DateTime, tf::TimeFrame)
+function isrecenttrade(ai::AssetInstance, ats::DateTime, tf::TimeFrame; cd=tf)
     ai_trades = trades(ai)
     last_trade_date = isempty(ai_trades) ? DateTime(0) : ai_trades[end].date
-    if last_trade_date + tf > ats + tf
+    if last_trade_date + cd > ats + tf
         @debug "surge: skipping since recent trade" ai
         true
     else
