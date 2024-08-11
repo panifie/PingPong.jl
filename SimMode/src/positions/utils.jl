@@ -3,7 +3,7 @@ using .OrderTypes: PositionSide, PositionTrade, LiquidationType, ReduceOnlyOrder
 using .Strategies.Instruments.Derivatives: Derivative
 using Executors.Instances: leverage_tiers, tier, position
 import Executors.Instances: Position, MarginInstance
-using Executors: withtrade!, maintenance!, orders, isliquidatable
+using Executors: withtrade!, maintenance!, orders, isliquidatable, LIQUIDATION_FEES
 using .Strategies: IsolatedStrategy, MarginStrategy, exchangeid
 using .Instances: PositionOpen, PositionUpdate, PositionClose
 using .Instances: margin, maintenance, status, posside
@@ -112,7 +112,7 @@ $(TYPEDSIGNATURES)
 `actual_price/amount`: the price/amount to execute the liquidation market order with (for paper mode).
 """
 function liquidate!(
-    s::MarginStrategy, ai::MarginInstance, p::PositionSide, date, fees=maxfees(ai) * 2.0;
+    s::MarginStrategy, ai::MarginInstance, p::PositionSide, date, fees=LIQUIDATION_FEES;
 )
     pos = position(ai, p)
     ords = collect(values(s, ai, p))
