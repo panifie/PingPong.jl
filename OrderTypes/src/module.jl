@@ -155,6 +155,20 @@ This function compares the date of two Order objects and returns `true` if the d
 
 """
 Base.isless(o1::O1, o2::O2) where {O1,O2<:Order} = isless(o1.date, o2.date)
+@doc """ Get the fees of an order.
+
+$(TYPEDSIGNATURES)
+
+This function returns the total fees of an order, which is the sum of the fees of all trades associated with the order.
+"""
+fees(o::Order) =
+    let tds = trades(o)
+        if isempty(tds)
+            nothing
+        else
+            sum(fees(t) for t in tds)
+        end
+    end
 
 @doc "An order that increases the size of a position."
 const BuyOrder{A,E} = Order{<:OrderType{Buy},A,E,Long}
@@ -341,3 +355,4 @@ export event!,
     LeverageUpdated,
     BalanceUpdated,
     OHLCVUpdated
+export fees

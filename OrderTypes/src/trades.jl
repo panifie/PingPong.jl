@@ -122,3 +122,5 @@ isshort(o::LongTrade) = false
 isshort(o::ShortTrade) = true
 @doc "Tests if the trade position side is the given position side"
 ispos(pos::PositionSide, t::Trade) = positionside(t) == pos
+@doc "Get the fees of a trade."
+fees(t::Trade) = getfield(t, :fees) + getfield(t, :fees_base) * getfield(t, :price)
