@@ -53,20 +53,12 @@ end
 lasttrade_price_func(ai) = begin
     h = ai.history
     data = ohlcv(ai)
-    if isempty(data) && isempty(h)
-        ZERO
-    elseif isempty(h)
-        data.close[end]
-    elseif isempty(data)
+    if !isempty(h)
         h[end].price
+    elseif !isempty(data)
+        data.close[end]
     else
-        trade_date = lasttrade_date(ai)
-        price_date = min(lastdate(data), max(firstdate(data),), trade_date)
-        if price_date >= trade_date
-            closeat(ai, price_date)
-        else
-            h[end].price
-        end
+        ZERO
     end
 end
 
@@ -163,7 +155,6 @@ If the history of the asset instance is empty, it returns the timestamp of the l
 function lasttrade_date(ai, def=ohlcv(ai).timestamp[end])
     isempty(ai.history) ? def : last(ai.history).date
 end
-
 
 @doc """ Returns a function for the last trade date of a strategy.
 
