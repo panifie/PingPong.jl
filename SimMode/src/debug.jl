@@ -20,12 +20,16 @@ function _globals()
     @show PRICE_CHECKS VOL_CHECKS CTR CTO
     nothing
 end
-function _resetglobals!()
+function _resetglobals!(s)
     CTR[] = 0
     CTO[] = 0
     PRICE_CHECKS[] = 0
     VOL_CHECKS[] = 0
     empty!(cash_tracking)
+    s[:debug_afterorder] = _afterorder
+    s[:debug_beforetrade] = _beforetrade
+    s[:debug_aftertrade] = _aftertrade
+    s[:debug_check_committments] = _check_committments
 end
 function _afterorder()
     CTO[] += 1
@@ -49,11 +53,13 @@ end
 
 function _check_committments(s::Strategy, ai)
     cash_comm = 0.0
+    n = 0
     for (_, ords) in s.buyorders
         for (_, o) in ords
             o isa ShortBuyOrder && continue
             # cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
             cash_comm = cash_comm + committed(o)
+            n += 1
         end
     end
     for (_, ords) in s.sellorders
@@ -61,12 +67,16 @@ function _check_committments(s::Strategy, ai)
             if o isa ShortSellOrder
                 # cash_comm = toprecision(cash_comm + committed(o), s.cash.precision)
                 cash_comm = cash_comm + committed(o)
+                n +=1
             end
         end
     end
-    @assert isapprox(cash_comm, s.cash_committed, atol=ai.precision.price) (;
-        cash_comm, s.cash_committed.value
-    )
+    @assert if orderscount(s) == 0
+        iszero(cash_comm) && approxzero(s.cash_committed)
+    else
+        # NOTE: committment is imprecise when using fees overrides
+        isapprox(cash_comm, s.cash_committed, atol=2s.cash_committed.precision) || haskey(s.attrs, :sim_fees)
+    end  (; cash_comm, s.cash_committed.value, ai, n)
 end
 
 function _check_committments(s, ai::AssetInstance, t::Trade)

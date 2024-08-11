@@ -33,7 +33,7 @@ function start!(
     s::Strategy{Sim}, ctx::Context; trim_universe=false, doreset=true, resetctx=true
 )
     # ensure that universe data start at the same time
-    @ifdebug _resetglobals!()
+    @ifdebug _resetglobals!(s)
     if trim_universe
         let data = st.coll.flatten(st.universe(s))
             !check_alignment(data) && trim!(data)

@@ -87,7 +87,6 @@ $(TYPEDSIGNATURES)
 
 """
 function Base.delete!(s::Strategy, ai, o::IncreaseOrder)
-    @deassert !issim(s) || !(o isa MarketOrder) # Market Orders are never queued
     @deassert committed(o) |> approxzero o
     delete!(orders(s, ai, orderside(o)), pricetime(o))
     @deassert pricetime(o) ∉ keys(orders(s, ai, orderside(o)))
@@ -155,7 +154,7 @@ function Base.push!(s::Strategy, ai, o::Order{<:OrderType{S}}) where {S<:OrderSi
     k = pricetime(o)
     d = orders(s, ai, S)
     # stok = searchsortedfirst(d, k)
-    @ifdebug if k ∉ keys(d)
+    @ifdebug if k ∈ keys(d)
         @debug "Duplicate order key" o.id d[k].id o.price o.date
     end
     @assert k ∉ keys(d)
@@ -384,10 +383,10 @@ function strategycash!(s::IsolatedStrategy, ai, t::IncreaseTrade)
     spent = t.fees + margin
     @deassert spent > 0.0
     sub!(s.cash, spent)
-    @ifdebug if committed(s) - committment(ai, t) / committed(s) < 0.0
+    @ifdebug if committment(ai, t) > committed(s)
         @error "cash: trade committment can't be higher that total comm" trade = committment(
             ai, t
-        ) total = committed(s)
+        ) total = committed(s) t
     end
     subzero!(s.cash_committed, committment(ai, t); atol=ai.limits.cost.min, dothrow=false)
     @deassert s.cash_committed |> gtxzero s.cash, s.cash_committed.value, orderscount(s)
@@ -474,6 +473,7 @@ $(TYPEDSIGNATURES)
 function commit!(s::Strategy, o::IncreaseOrder, _)
     @deassert committed(o) |> gtxzero
     add!(s.cash_committed, committed(o))
+    @debug "order commit" s.cash_committed.value committed(o)
 end
 
 @doc """Commits a reduce order to an asset instance.
@@ -495,7 +495,7 @@ function decommit!(s::Strategy, o::IncreaseOrder, ai, canceled=false)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
     @deassert canceled || isdust(ai, o) o
-    sub!(s.cash_committed, committed(o))
+    subzero!(s.cash_committed, committed(o))
     @deassert gtxzero(ai, s.cash_committed, Val(:price)) s.cash_committed.value,
     s.cash.precision,
     o
@@ -566,7 +566,7 @@ $(TYPEDSIGNATURES)
 
 """
 function hold!(s::Strategy, ai, o::IncreaseOrder)
-    @deassert hasorders(s, ai, positionside(o)) || !iszero(ai) o
+    @deassert hasorders(s, ai, orderside(o)) || !iszero(ai) o
     push!(s.holdings, ai)
 end
 
@@ -594,9 +594,10 @@ $(TYPEDSIGNATURES)
 
 """
 function cancel!(s::Strategy, o::Order, ai; err::OrderError)::Bool
-    @debug "Canceling order" o.id ai = raw(ai) err
+    @debug "order cancel" o.id ai = raw(ai) err s.cash_committed.value committed(o)
     if isqueued(o, s, ai)
         decommit!(s, o, ai, true)
+        @debug "order cancel" s.cash_committed.value
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
     end

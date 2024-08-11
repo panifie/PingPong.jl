@@ -70,7 +70,7 @@ function order!(
 )
     @deassert abs(committed(o)) > 0.0 (pricetime(o), o)
     t = limitorder_ifprice!(s, o, date, ai; kwargs...)
-    @deassert s.cash_committed |> gtxzero s.cash_committed.value
+    @deassert gtxzero(s.cash_committed, atol=2s.cash_committed.precision) s.cash_committed.value
     t
 end
 

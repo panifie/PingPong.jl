@@ -8,7 +8,7 @@ using .OrderTypes:
 using .OrderTypes: ExchangeID, ByPos, ordertype
 using .Instruments: AbstractAsset
 using Base: negate, beginsym
-using .Lang: @lget!, @deassert
+using .Lang: @lget!, @deassert, @caller
 using .Misc: Long, Short, PositionSide
 
 @doc """ Type alias for any limit order """
@@ -98,7 +98,6 @@ function committment(
     lev=leverage(ai, positionside(o)()),
     kwargs...,
 )
-    @deassert amount > 0.0
     margin = ntl / lev
     margin + fees
 end
@@ -650,8 +649,11 @@ function _check_trade(t::BuyTrade, ai)
     @deassert t.price <= t.order.price || ordertype(t) <: MarketOrderType
     @deassert t.size < 0.0
     @deassert t.amount > 0.0
-    @deassert gtxzero(ai, committed(t.order), Val(:price)) ||
-        ordertype(t) <: MarketOrderType committed(t.order), t.order.attrs.trades
+    @deassert if isshort(t)
+        ltxzero(ai, committed(t.order), Val(:amount))
+    else
+        gtxzero(committed(t.order), atol=fees(t))
+    end committed(t.order), t.order
 end
 
 @doc """

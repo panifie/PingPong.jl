@@ -20,7 +20,6 @@ $(TYPEDSIGNATURES)
 This function checks if the free cash in the strategy plus the committed amount is greater than or equal to the size of the buy order.
 
 """
-iscashenough
 function iscashenough(s::NoMarginStrategy, _, size, o::BuyOrder)
     @deassert committed(o) |> gtxzero
     st.freecash(s) + committed(o) >= size
@@ -162,3 +161,4 @@ function maketrade(
     @maketrade
 end
 
+simfees(s::Strategy, ai) = @coalesce get(s, :sim_fees, missing) maxfees(ai)

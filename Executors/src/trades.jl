@@ -60,7 +60,7 @@ function trade!(
     kwargs...,
 )
     @deassert abs(committed(o)) > 0.0
-    @ifdebug _afterorder()
+    @ifdebug s.debug_afterorder()
     if !isnothing(actual_amount)
         if o isa ReduceOnlyOrder
             actual_amount = min(actual_amount, ai.limits.amount.max)
@@ -80,7 +80,7 @@ function trade!(
 end
 
 function _update_from_trade!(s::Strategy, ai, o, trade; actual_price)
-    @ifdebug _beforetrade(s, ai, o, trade, actual_price)
+    @ifdebug s.debug_beforetrade(s, ai, o, trade, actual_price)
     # record trade
     @deassert !isdust(ai, o) committed(o), o
     # Fills the order
@@ -93,8 +93,8 @@ function _update_from_trade!(s::Strategy, ai, o, trade; actual_price)
     # and update position state
     aftertrade!(s, ai, o, trade)
     ping!(s, ai, trade, NewTrade())
-    @ifdebug _aftertrade(s, ai, o)
-    @ifdebug _check_committments(s, ai)
-    @ifdebug _check_committments(s, ai, trade)
+    @ifdebug s.debug_aftertrade(s, ai, o)
+    @ifdebug s.debug_check_committments(s, ai)
+    @ifdebug s.debug_check_committments(s, ai, trade)
     return trade
 end

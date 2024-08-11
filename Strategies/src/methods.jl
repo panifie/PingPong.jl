@@ -293,6 +293,7 @@ Base.unlock(s::Strategy) = begin
 end
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value
+Base.get(s::Strategy, k::Symbol, def) = get(getfield(s, :config), k, def)
 
 @doc """ Creates a similar strategy with optional changes.
 

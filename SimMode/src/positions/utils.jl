@@ -247,7 +247,9 @@ function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
     @ifdebug _checkorders(s)
     for ai in s.holdings
         @deassert isopen(ai) || hasorders(s, ai) ai
-        position!(s, ai, date)
+        if isopen(ai)
+            position!(s, ai, date)
+        end
     end
     @ifdebug _checkorders(s)
     @ifdebug for ai in universe(s)
