@@ -62,14 +62,14 @@ $(FIELDS)
     tiers::Vector{LeverageTiersDict}
     "Current tier applicable to the position"
     this_tier::Vector{LeverageTier}
+    function Position{P,E,M}(
+        args...; kwargs...
+    ) where {P<:PositionSide,E<:ExchangeID,M<:MarginMode}
+        M == NoMargin && error("Trying to construct a position in `NoMargin` mode")
+        new{P,E,M}(args...; kwargs...)
+    end
 end
 
-function Position{P,E,M}(
-    args...; kwargs...
-) where {P<:PositionSide,E<:ExchangeID,M<:MarginMode}
-    M == NoMargin && error("Trying to construct a position in `NoMargin` mode")
-    Position{P,E,M}(args...; kwargs...)
-end
 
 exchangeid(::Position{<:PositionSide,E}) where {E<:ExchangeID} = E
 
@@ -363,8 +363,9 @@ This function calculates the Profit and Loss (PNL) for a long position (`po`), g
 
 """
 function pnl(po::Position{Long}, current_price, amount=cash(po))
+    @deassert notional(po) ~= abs(cash(po)) * price(po)
     isopen(po) || return ZERO
-    pnl(price(po), current_price, amount, Long()) * leverage(po)
+    pnl(price(po), current_price, amount, Long())
 end
 
 @doc """ Calc PNL for short position given `current_price` as input.
@@ -376,7 +377,7 @@ This function calculates the Profit and Loss (PNL) for a short position (`po`), 
 """
 function pnl(po::Position{Short}, current_price, amount=cash(po))
     isopen(po) || return ZERO
-    pnl(price(po), current_price, amount, Short()) * leverage(po)
+    pnl(price(po), current_price, amount, Short())
 end
 
 @doc """ Calc PNL percentage.
