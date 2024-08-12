@@ -1,7 +1,7 @@
 using .Misc: MarginMode, WithMargin, Long, Short, PositionSide, ExecAction, HedgedMode
 import .Misc: opposite, reset!, Misc
 using .Instruments.Derivatives: Derivative
-using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers
+using Exchanges: LeverageTier, LeverageTiersDict, leverage_tiers, tier
 import Exchanges: maxleverage, tier
 using .Lang: @ifdebug
 using Base: negate
@@ -504,6 +504,7 @@ function LeverageUpdated(tag, group, pos::Position; from_value::DFT=one(0.0))
 end
 
 export notional, additional, price, bankruptcy, pnl, collateral
+export status, timestamp, tier
 export timestamp!, leverage!, tier!
 export liqprice!, margin!, maintenance!, initial!, additional!, notional!
 export PositionOpen, PositionClose, PositionUpdate, PositionStatus, PositionChange
