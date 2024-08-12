@@ -113,13 +113,13 @@ function anyprice(cur::String, sym, exc)
             v = lastprice(sym, exc)
             v <= zero(v) || return v
         end
-        return ZERO
+        return 0.0
     catch
-        return ZERO
+        return 0.0
     end
 end
 
-_feebysign(rate, cost) = rate >= ZERO ? cost : -cost
+_feebysign(rate, cost) = rate >= 0.0 ? cost : -cost
 @doc """ Calculates the fee from a fee dictionary
 
 $(TYPEDSIGNATURES)
@@ -150,12 +150,12 @@ function _feecost(
     @debug "live fee cost" _module = LogCreateTrade cur qc_py bc_py
     if pyeq(Bool, cur, qc_py)
         @debug "live fee cost: quote currency" _module = LogCreateTrade _getfee(fee_dict)
-        (_getfee(fee_dict), ZERO)
+        (_getfee(fee_dict), 0.0)
     elseif pyeq(Bool, cur, bc_py)
         @debug "live fee cost: base currency" _module = LogCreateTrade _getfee(fee_dict)
-        (ZERO, _getfee(fee_dict))
+        (0.0, _getfee(fee_dict))
     else
-        (ZERO, ZERO)
+        (0.0, 0.0)
     end
 end
 
@@ -250,7 +250,7 @@ function _tradefees(resp, side, ai; actual_amount, net_cost)
         return _feecost(v, ai, eid)
     end
     v = resp_trade_fees(resp, eid)
-    fees_quote, fees_base = ZERO, ZERO
+    fees_quote, fees_base = 0.0, 0.0
     if pyisinstance(v, pybuiltins.list) && !isempty(v)
         qc_py = @pystr(qc(ai))
         bc_py = @pystr(bc(ai))
@@ -352,7 +352,7 @@ function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
        !(o isa AnyMarketOrder)
         @warn "create trade: trade price far off from order price" o.price exc_price = actual_price ai nameof(s)
         false
-    elseif actual_price <= ZERO || !isfinite(actual_price)
+    elseif actual_price <= 0.0 || !isfinite(actual_price)
         @warn "create trade: invalid price" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
         false
     else
@@ -369,7 +369,7 @@ If it's not, it issues a warning and returns `false`.
 
 """
 function isorderamount(s, ai, actual_amount; resp)::Bool
-    if actual_amount <= ZERO || !isfinite(actual_amount)
+    if actual_amount <= 0.0 || !isfinite(actual_amount)
         @warn "create trade: invalid amount" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
         false
     else
@@ -421,7 +421,7 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
         return nothing
     end
     inlimits(actual_price, ai, :price)
-    if actual_amount <= ZERO || !isfinite(actual_amount)
+    if actual_amount <= 0.0 || !isfinite(actual_amount)
         @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = toprecision(net_cost / actual_price, ai.precision.amount)

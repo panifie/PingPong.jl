@@ -135,7 +135,7 @@ The drawdown is the largest percentage drop in the cumulative product of 1 plus 
 """
 function maxdd(returns)
     length(returns) <= 1 &&
-        return (; dd=ZERO, ath=get(returns, 1, ZERO), cum_returns=returns)
+        return (; dd=0.0, ath=get(returns, 1, 0.0), cum_returns=returns)
     @deassert all(x >= -1.0 for x in returns)
     cum_returns = log1p.(v == -1.0 ? -1.0 + eps() : v for v in returns)
     cumsum!(cum_returns, cum_returns)

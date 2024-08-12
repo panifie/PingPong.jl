@@ -21,7 +21,7 @@ function trackpnl!(s, ai, ats, ts)
             close = closeat(ai, ats)
             push!(pnl[2], inst.pnl(ai, pside, close))
         else
-            push!(pnl[2], ZERO)
+            push!(pnl[2], 0.0)
         end
     end
 end
@@ -99,7 +99,7 @@ function tracklev!(s, ai, ats; dampener=default_dampener)
         raw_val, value = if isnan(k)
             def = s[:def_lev]
             def, def
-        elseif k <= ZERO
+        elseif k <= 0.0
             0.0, 0.0
         else
             k, clamp(dampener(k), 1.0, 100.0)
@@ -120,7 +120,7 @@ function _volumeat(_, ai, ats)
     if idx > 0
         data.volume[idx]
     else
-        ZERO
+        0.0
     end
 end
 
@@ -130,7 +130,7 @@ function _qtvolumeat(_, ai, ats)
     if idx > 0
         data.volume[idx] * data.close[idx]
     else
-        ZERO
+        0.0
     end
 end
 
@@ -140,7 +140,7 @@ function initqt!(s)
         attrs[:qt] = LittleDict(ai => v for ai in s.universe)
     end
     n_markets = length(marketsid(s))
-    attrs[:qt_ext] = [now(), ZERO, ZERO]
+    attrs[:qt_ext] = [now(), 0.0, 0.0]
     attrs[:qt_base] = inv(n_markets) - 0.001 * n_markets
     attrs[:qt_multi] = 1.96
 end
@@ -184,11 +184,11 @@ Updates `s[:profit_thresh]` and `s[:loss_thresh]` based on the trading results.
 function track_expectancy!(s, ai)
     _, pnl = getpnl(s, ai)
     n_wins = 0
-    tot_wins = ZERO
+    tot_wins = 0.0
     n_losses = 0
-    tot_losses = ZERO
+    tot_losses = 0.0
     foreach(pnl) do v
-        if v > ZERO
+        if v > 0.0
             n_wins += 1
             tot_wins += v
         else

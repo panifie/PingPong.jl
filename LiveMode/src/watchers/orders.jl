@@ -415,7 +415,7 @@ function _default_ordertype(s, ai::MarginInstance, resp)
     end
     _default_ordertype(flag, oside, resp)
 end
-_default_ordertype(s, ai::NoMarginInstance, _) = MarketOrder{cash(ai) > ZERO ? Sell : Buy}
+_default_ordertype(s, ai::NoMarginInstance, _) = MarketOrder{cash(ai) > 0.0 ? Sell : Buy}
 
 @doc """ Re-activates a previously active order.
 
@@ -618,13 +618,13 @@ function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=nothing, exe
             this_cost = resp_order_cost(resp, eid)
             if iszero(this_cost)
                 @error "emu trade: unavailable fields (average or cost)" ai ai.exchange o.id resp
-                (ZERO, ZERO)
+                (0.0, 0.0)
             else
                 prev_cost = average_price[] * prev_filled
                 net_cost = this_cost - prev_cost
                 if net_cost < ai.limits.cost.min && !is_reduce_only
                     @error "emu trade: net cost below min" ai net_cost o
-                    (ZERO, ZERO)
+                    (0.0, 0.0)
                 else
                     average_price[] = (prev_cost + net_cost) / new_filled
                     (net_cost, net_cost / actual_amount)

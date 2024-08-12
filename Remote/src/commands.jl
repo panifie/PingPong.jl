@@ -180,9 +180,9 @@ function _rolling(cl::TelegramClient, s; period, text, chat_id)
             end
             write(
                 io,
-                if balance > ZERO
+                if balance > 0.0
                     UA
-                elseif balance == ZERO
+                elseif balance == 0.0
                     LRA
                 else
                     DA
@@ -221,9 +221,9 @@ function monthly(cl::TelegramClient, s; text, chat_id, kwargs...)
     _rolling(cl, s; period=Day(30), text, chat_id)
 end
 
-_ai_cash(ai, func) = abs(something(func(ai), ZERO))
+_ai_cash(ai, func) = abs(something(func(ai), 0.0))
 function _ai_cash(ai::HedgedInstance, func)
-    abs(something(func(ai, Long()), ZERO)) + abs(something(func(ai, Short()), ZERO))
+    abs(something(func(ai, Long()), 0.0)) + abs(something(func(ai, Short()), 0.0))
 end
 total_cash(ai) = _ai_cash(ai, cash)
 comm_cash(ai) = _ai_cash(ai, committed)
@@ -237,7 +237,7 @@ The balances are presented in a DataFrame.
 """
 function balance(cl::TelegramClient, s; text, chat_id, kwargs...)
     df = DataFrame()
-    prices = Dict(ai => ZERO for ai in s.universe)
+    prices = Dict(ai => 0.0 for ai in s.universe)
     @sync for ai in s.universe
         @async prices[ai] = st.lastprice(ai)
     end

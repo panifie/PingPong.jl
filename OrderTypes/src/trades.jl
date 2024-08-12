@@ -1,6 +1,6 @@
 using .Lang: @deassert
 using Base: negate
-using .Misc: DFT, ZERO
+using .Misc: DFT
 
 @doc "The quantity of the base currency being exchanged."
 signedamount(amount, ::AnyBuyOrder) = amount
@@ -56,7 +56,7 @@ struct Trade{O<:OrderType{S} where {S<:OrderSide}, A<:AbstractAsset, E<:Exchange
         size,
         lev=1.0,
         entryprice=price,
-        fees_base=ZERO,
+        fees_base=0.0,
     ) where {O,A,E,P}
         @deassert amount > 0.0
         @deassert size > 0.0

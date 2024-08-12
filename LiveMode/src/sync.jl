@@ -483,7 +483,7 @@ function trace_balance_update!(s::SimStrategy, ev)
     @debug "trace replay: strategy balance update" _module = LogTraceReplay bal
     if bal.currency == nameof(s.cash)
         kind = s.live_balance_kind
-        avl_cash = @something getproperty(bal, kind) ZERO
+        avl_cash = @something getproperty(bal, kind) 0.0
         if isfinite(avl_cash)
             cash!(s.cash, avl_cash)
         else

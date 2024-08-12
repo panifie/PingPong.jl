@@ -7,7 +7,7 @@ using .Lang: filterkws
 
 function isopenorder(s, ai, resp, eid; fetched=false)
     isopen = _ccxtisopen(resp, eid)
-    hasfill = resp_order_filled(resp, eid) > ZERO
+    hasfill = resp_order_filled(resp, eid) > 0.0
     oid = resp_order_id(resp, eid, String)
     hasid = !isempty(oid)
 
@@ -75,7 +75,7 @@ function create_live_order(
         status = resp_order_status(resp, eid)
         side = @something _orderside(resp, eid) orderside(t)
         @debug "create order: parsing" _module = LogCreateOrder status filled =
-            resp_order_filled(resp, eid) > ZERO id = resp_order_id(resp, eid) side
+            resp_order_filled(resp, eid) > 0.0 id = resp_order_id(resp, eid) side
         if !isopenorder(s, ai, resp, eid)
             return nothing
         end
@@ -161,7 +161,7 @@ function create_live_order(
         set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
         # Perform a trade if the order has been filled instantly
         already_filled = resp_order_filled(resp, eid)
-        if already_filled > ZERO && isempty(trades(o))
+        if already_filled > 0.0 && isempty(trades(o))
             # wait for trades watcher
             waitfortrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
         end

@@ -364,7 +364,7 @@ This function calculates the Profit and Loss (PNL) for a long position (`po`), g
 """
 function pnl(po::Position{Long}, current_price, amount=cash(po))
     @deassert notional(po) ~= abs(cash(po)) * price(po)
-    isopen(po) || return ZERO
+    isopen(po) || return 0.0
     pnl(price(po), current_price, amount, Long())
 end
 
@@ -376,7 +376,7 @@ This function calculates the Profit and Loss (PNL) for a short position (`po`), 
 
 """
 function pnl(po::Position{Short}, current_price, amount=cash(po))
-    isopen(po) || return ZERO
+    isopen(po) || return 0.0
     pnl(price(po), current_price, amount, Short())
 end
 
@@ -478,7 +478,7 @@ function PositionUpdated(tag, group, pos::Position)
 end
 
 # TODO: add `AddMargin` pong! function
-function MarginUpdated(tag, group, pos::Position; from_value::DFT=ZERO)
+function MarginUpdated(tag, group, pos::Position; from_value::DFT=0.0)
     MarginUpdated{exchangeid(pos)}(
         Symbol(tag),
         Symbol(group),
@@ -491,7 +491,7 @@ function MarginUpdated(tag, group, pos::Position; from_value::DFT=ZERO)
     )
 end
 
-function LeverageUpdated(tag, group, pos::Position; from_value::DFT=one(ZERO))
+function LeverageUpdated(tag, group, pos::Position; from_value::DFT=one(0.0))
     LeverageUpdated{exchangeid(pos)}(
         Symbol(tag),
         Symbol(group),

@@ -1,5 +1,5 @@
 function _sync_comm_cash!(s)
-    comm = ZERO
+    comm = 0.0
     buys = s.buyorders
     sells = s.sellorders
     for ai in s.universe
@@ -43,7 +43,7 @@ function live_sync_strategy_cash!(
 
     c = if isnothing(avl_cash)
         @warn "strategy cash: sync failed" s = nameof(s) cur = bc exc = nameof(exchange(s))
-        ZERO
+        0.0
     else
         avl_cash
     end
@@ -122,8 +122,8 @@ function live_sync_cash!(
         end
     else
         @debug "Resetting asset cash (not found)" _module = LogUniSync ai = raw(ai)
-        cash!(ai, ZERO)
-        cash!(committed(ai), ZERO)
+        cash!(ai, 0.0)
+        cash!(committed(ai), 0.0)
     end
     event!(ai, ot.BalanceUpdated(ai, :asset_balance_updated, s, bal))
 end

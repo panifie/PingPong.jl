@@ -61,7 +61,7 @@ function _cum_value_balance(ai::MarginInstance, df)
     def_fees = maxfees(ai)
     function cvb(o, ai, entryprice, cum_amount, leverage, close_price)
         this_val = abs(cum_amount * close_price)
-        this_fees = ismissing(o) ? ZERO : @something fees(o) def_fees
+        this_fees = ismissing(o) ? 0.0 : @something fees(o) def_fees
         if !ismissing(o)
             last_lev = leverage
             last_ep = entryprice
@@ -147,7 +147,7 @@ function _valueat(
     entryprice,
     pos,
     fees,
-    fees_base=ZERO,
+    fees_base=0.0,
 )
     close = closeat(ai, timestamp)
     this_value = cum_amount * close

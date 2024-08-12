@@ -210,7 +210,7 @@ function lastprice(exc::Exchange, tick)
         catch
         end
         @warn "exchanges: failed to fetch ticker" sym nameof(exc)
-        ZERO
+        0.0
     else
         lp = tick["last"]
         if !pytruth(lp)
@@ -233,7 +233,7 @@ function lastprice(exc::Exchange, tick)
                             (pytofloat(high) + pytofloat(low)) / 2
                         else
                             @warn "lastprice failed" nameof(exc) get(tick, "symbol", "")
-                            ZERO
+                            0.0
                         end
                     end
                 end

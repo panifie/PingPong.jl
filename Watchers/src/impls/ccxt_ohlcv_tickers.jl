@@ -120,7 +120,7 @@ end
     const temp::TempCandle = TempCandle()
     const lock::ReentrantLock = ReentrantLock()
     loaded::Bool = false
-    daily_volume::DFT = ZERO
+    daily_volume::DFT = 0.0
     ticks::Int16 = 0
     backoff::Int8 = 0
     isprocessed::Bool = false
@@ -156,7 +156,7 @@ resetcandle!(w, cdl::TempCandle, ts, price) = begin
     cdl.high = typemin(Float64)
     cdl.low = typemax(Float64)
     cdl.close = price
-    cdl.volume = ifelse(_isvwap(w), NaN, ZERO)
+    cdl.volume = ifelse(_isvwap(w), NaN, 0.0)
 end
 _isvwap(w) = w[k"price_source"] == k"vwap"
 
@@ -228,7 +228,7 @@ function diff_volume!(w, df, state, latest_timestamp)
             @debug "ohlcv tickers watcher: stale candle" _module = LogOHLCVTickers sym _lastdate(
                 df
             ) latest_timestamp
-            temp_candle.volume = ZERO
+            temp_candle.volume = 0.0
             return false
         else
             if state.backoff < 3
@@ -239,14 +239,14 @@ function diff_volume!(w, df, state, latest_timestamp)
             if idx < 1
                 @debug "ohlcv tickers watcher: failed to resolve candles history" _module =
                     LogOHLCVTickers sym n = nrow(df) dropped_candle_date
-                temp_candle.volume = ZERO
+                temp_candle.volume = 0.0
                 return false
             end
         end
     end
     first_tf_candle_volume = df.volume[idx]
     volume_diff = temp_candle.volume - prev_candle_daily + first_tf_candle_volume
-    temp_candle.volume = max(volume_diff, ZERO)
+    temp_candle.volume = max(volume_diff, 0.0)
     true
 end
 @doc """ Updates the OHLCV for a specific symbol.

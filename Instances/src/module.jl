@@ -188,7 +188,7 @@ Base.float(ai::AssetInstance) = nothing
 Base.float(ai::NoMarginInstance) = cash(ai).value
 Base.float(ai::MarginInstance) =
     let c = cash(ai)
-        @something c.value ZERO
+        @something c.value 0.0
     end
 
 posside(::NoMarginInstance) = Long()
@@ -581,7 +581,7 @@ Instruments.cash!(ai::MarginInstance, v, p::PositionSide) = cash!(cash(ai, p), v
 # - If the trade amount is 1 and fees are -0.01 (rebates), the cash to add (sub) to the asset will be ±1.01
 @doc "The amount of a trade include fees (either positive or negative)."
 amount_with_fees(amt, fb) =
-    if fb > ZERO # trade --> exchange (the amount spent is the trade amount plus the base fees)
+    if fb > 0.0 # trade --> exchange (the amount spent is the trade amount plus the base fees)
         amt - fb
     else # exchange --> trade (rebates, the amount spent is the trade amount minus the base fees (which we get back))
         amt + fb
@@ -976,7 +976,7 @@ This function calculates the profit and loss (PnL) for an asset position. It tak
 """
 function pnl(ai, ::ByPos{P}, price) where {P}
     pos = position(ai, P)
-    isnothing(pos) && return ZERO
+    isnothing(pos) && return 0.0
     pnl(pos, price)
 end
 

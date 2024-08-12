@@ -42,7 +42,7 @@ end
             amount = if side == st.Buy
                 st.cash(s)
             else
-                @something st.cash(ai) ZERO
+                @something st.cash(ai) 0.0
             end / st.closeat(ai, ts) / 3
             ect.pong!(s, ai, st.OrderTypes.MarketOrder{side}; amount, date=ts)
         end

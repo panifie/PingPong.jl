@@ -98,7 +98,7 @@ function test_orderscount(s)
     ect.pong!(s, ai, ect.MarketOrder{ect.Buy}; amount, date=date(3))
     @test s.cash < maxcost
     setproperty!(ai.ohlcv[date(3)], :high, 10ai.limits.price.min)
-    prev_amount = @something cash(ai) ZERO
+    prev_amount = @something cash(ai) 0.0
     amount = ai.limits.cost.min / ai.limits.price.min
     t = ect.pong!(s, ai, ect.GTCOrder{ect.Sell}; amount, price=ai.limits.price.min, date=date(3))
     @test !isnothing(t)

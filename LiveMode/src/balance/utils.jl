@@ -13,9 +13,9 @@ mutable struct BalanceSnapshot{T<:AbstractFloat}
     free::T
     used::T
     BalanceSnapshot{T}(args...) where {T} = new{T}(args...)
-    BalanceSnapshot(; total=ZERO,
-        free=ZERO,
-        used=ZERO,
+    BalanceSnapshot(; total=0.0,
+        free=0.0,
+        used=0.0,
         currency=Symbol(),
         date=DateTime(0)) = new{DFT}(Symbol(currency), date, total, free, used)
     BalanceSnapshot(sym) = BalanceSnapshot(currency=Symbol(sym))

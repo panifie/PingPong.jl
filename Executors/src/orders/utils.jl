@@ -107,7 +107,7 @@ Calculates the commitment when exiting a position for longs.
 
 $(TYPEDSIGNATURES)
 """
-function committment(::Type{<:SellOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
+function committment(::Type{<:SellOrder}, ai, price, amount; fees_base=0.0, kwargs...)
     @deassert amount > 0.0
     amount_with_fees(amount, fees_base)
 end
@@ -117,7 +117,7 @@ Calculates the commitment when exiting a position for shorts.
 
 $(TYPEDSIGNATURES)
 """
-function committment(::Type{<:ShortBuyOrder}, ai, price, amount; fees_base=ZERO, kwargs...)
+function committment(::Type{<:ShortBuyOrder}, ai, price, amount; fees_base=0.0, kwargs...)
     @deassert amount > 0.0
     amount_with_fees(negate(amount), fees_base)
 end
@@ -727,7 +727,7 @@ $(TYPEDSIGNATURES)
 function feespaid(o::Order)
     ot = trades(o)
     if isempty(ot)
-        ZERO
+        0.0
     else
         cur = _cur_by_side(o)
         sum(getproperty(t, cur) for t in trades(o))

@@ -14,4 +14,4 @@ function emptycaches!()
 end
 
 pytofloat(v::N) where {N<:Number} = v
-pytofloat(v::Py) = Python.pytofloat(v, ZERO)
+pytofloat(v::Py) = Python.pytofloat(v, 0.0)

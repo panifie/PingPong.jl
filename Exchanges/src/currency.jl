@@ -20,7 +20,7 @@ to_float(v::Number) = v
 @doc "Convert a Python object to a number."
 function to_num(py::Py)
     @something if pyisnone(py)
-        ZERO
+        0.0
     elseif pyisinstance(py, pybuiltins.int)
         pyconvert(Option{Int}, py)
     elseif pyisinstance(py, pybuiltins.float)
@@ -31,7 +31,7 @@ function to_num(py::Py)
         isempty(py) ? 0 : pyconvert(DFT, pyfloat(py))
     else
         pyconvert(Option{DFT}, pyfloat(py))
-    end ZERO
+    end 0.0
 end
 
 @doc "Returns the limits, precision, and fees for a currency as a named tuple.

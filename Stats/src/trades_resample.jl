@@ -69,7 +69,7 @@ $(TYPEDSIGNATURES)
 
 The function computes the earned amount as the absolute value of the product of `entryprice` and `amount` divided by `leverage`, plus the profit and loss (pnl) calculated from the `entryprice`, `price`, `amount`, and the position side of the order, minus `fees`.
 """
-function _earned(o, entryprice, amount, leverage, price, value, fees, fees_base=ZERO)
+function _earned(o, entryprice, amount, leverage, price, value, fees, fees_base=0.0)
     (abs(entryprice * amount) / leverage) +
     pnl(entryprice, price, amount, positionside(o)()) - fees - fees_base * price
 end

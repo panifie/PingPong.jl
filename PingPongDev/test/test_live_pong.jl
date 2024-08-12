@@ -4,7 +4,7 @@ using PingPongDev.PingPong.Engine.Lang: @m_str
 
 function _check_state(s, ai)
     eid = exchangeid(ai)
-    @test s.cash > ZERO
+    @test s.cash > 0.0
     @test all(isfinite(cash(ai, side)) for ai in s.universe, side in (Long, Short))
     @info "TEST: check state loop" ai
     pos = position(ai)
@@ -107,7 +107,7 @@ function test_live_pong_mg(s)
     @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor) || @lock s @lock ai lm.isfilled(ai, o)
     pup = lm.live_position(s, ai, force=true)
     @info "TEST:" pup trade
-    @test lm.live_contracts(s, ai, force=true) < ZERO || iszero(cash(ai))
+    @test lm.live_contracts(s, ai, force=true) < 0.0 || iszero(cash(ai))
     @test !isnothing(position(ai))
     @test !isnothing(pup)
     @info "TEST: Position" date = isnothing(pup) ? nothing : pup.date lm.live_contracts(
@@ -199,7 +199,7 @@ function test_live_pong_nm_gtc(s)
         @test ect.pong!(s, ai, ect.CancelOrders(); t=BuyOrSell)
         @test lm.waitfor_closed(s, ai, Second(3); t=BuyOrSell)
     end
-    @test s.cash > ZERO
+    @test s.cash > 0.0
     @test all(isfinite(cash(ai)) for ai in s.universe)
     for ai in s.universe
         @test isapprox(cash(ai), lm.live_free(s, ai), rtol=1e-1)
@@ -313,14 +313,14 @@ function _test_live_nm_fok_ioc(s, type)
     reset!(s)
     lm.live_sync_strategy!(s)
     _waitwatchers(s)
-    @test s.cash > ZERO
+    @test s.cash > 0.0
     ai = s[m"btc"]
     waitfor = Second(5)
     amount = ai.limits.amount.min
     lp = lastprice(ai)
     price = lp - 100
     this_quote = s.cash.value
-    if cash(ai) <= ZERO || committed(ai) <= ZERO
+    if cash(ai) <= 0.0 || committed(ai) <= 0.0
         lm.live_sync_cash!(s, ai, waitfor=Second(3))
     end
     if lm.isdust(ai, lp)
@@ -374,7 +374,7 @@ function test_live_pong_nm_fok(s)
     amount = ai.limits.amount.min
     price = lastprice(s, ai, Sell)
     sell_price = price + price * 0.08
-    (cash(ai) <= ZERO || committed(ai) <= ZERO) && lm.live_sync_cash!(s, ai, waitfor=Second(3))
+    (cash(ai) <= 0.0 || committed(ai) <= 0.0) && lm.live_sync_cash!(s, ai, waitfor=Second(3))
     prev_cash = cash(ai).value
     prev_quote = s.cash.value
     prev_trades = length(ai.history)

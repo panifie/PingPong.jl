@@ -232,7 +232,7 @@ function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
         @debug "live contracts: " _module = LogPosFetch isnothing(pup) closed = isnothing(pup) ? nothing : pup.closed[]
-        ZERO
+        0.0
     else
         amt = resp_position_contracts(pup.resp, exchangeid(ai)) |> abs
         @debug "live contracts: " _module = LogPosFetch amt
@@ -255,7 +255,7 @@ It then extracts the notional value from the position update.
 function live_notional(s::LiveStrategy, ai, args...; kwargs...)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
-        ZERO
+        0.0
     else
         eid = exchangeid(ai)
         ntl = resp_position_notional(pup.resp, eid)
@@ -277,7 +277,7 @@ If the retrieved MMR is zero or less, it falls back to the MMR value stored in t
 """
 _ccxtmmr(lp::Py, pos, eid) =
     let v = resp_position_mmr(lp, eid)
-        if v > ZERO
+        if v > 0.0
             v
         else
             mmr(pos)
@@ -424,14 +424,14 @@ function _ccxtpnlside(update, eid::EIDType; def=Long())
     @debug "ccxt pnl side" _module = LogCcxtFuncs unpnl liqprice eprice
     if iszero(eprice) || iszero(liqprice)
         contracts = resp_position_contracts(update, eid)
-        if contracts < ZERO
+        if contracts < 0.0
             Short()
-        elseif contracts > ZERO
+        elseif contracts > 0.0
             Long()
         else
             def
         end
-    elseif unpnl >= ZERO && liqprice < eprice
+    elseif unpnl >= 0.0 && liqprice < eprice
         Long()
     else
         Short()
@@ -484,7 +484,7 @@ The function returns `true` if the number of contracts is greater than zero, ind
 
 """
 function _ccxt_isposopen(pos::Py, eid::EIDType)
-    c = resp_position_contracts(pos, eid) > ZERO
+    c = resp_position_contracts(pos, eid) > 0.0
     i = !iszero(resp_position_initial_margin(pos, eid))
     n = !iszero(resp_position_notional(pos, eid))
     l = !iszero(resp_position_liqprice(pos, eid))

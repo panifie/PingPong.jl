@@ -68,7 +68,7 @@ function basicorder(
         abs(committed[]) >= ai.limits.amount.min || is_reduce_only
     end "Order committment too low\n$(committed[]), $(ai.asset) $date"
     unfilled = Ref(unfillment(type, amount))
-    @deassert type <: AnyBuyOrder ? unfilled[] < ZERO : unfilled[] > ZERO
+    @deassert type <: AnyBuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
     OrderTypes.Order(
         ai,
         type;
@@ -660,7 +660,7 @@ end
 queue!(s::Strategy, o::Order, ai; skipcommit=false) = nothing
 
 function _increase_order_comm(s::Strategy, ai::AssetInstance, oside::BySide)
-    all_comm = sum((committed(o) for o in values(s, ai, oside)); init=ZERO)
+    all_comm = sum((committed(o) for o in values(s, ai, oside)); init=0.0)
     s_comm = committed(s)
     all_comm, s_comm
 end
@@ -678,7 +678,7 @@ end
 function _reduce_order_comm(
     s::Strategy, ai::AssetInstance, oside::BySide, pside::ByPos=posside(ai)
 )
-    o_comm = sum((committed(o) for o in values(s, ai, oside) if ispos(pside, o)); init=ZERO)
+    o_comm = sum((committed(o) for o in values(s, ai, oside) if ispos(pside, o)); init=0.0)
     s_comm = committed(ai, pside)
     o_comm, s_comm
 end

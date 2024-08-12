@@ -4,7 +4,7 @@ _ccxtbalance_type(::Strategy{X,N,ExchangeID{:bybit},<:WithMargin}) where {X<:Exe
 
 # NOTE: only for isolated margin
 function resp_position_initial_margin(resp, ::Type{ExchangeID{:binanceusdm}})
-    im = get_py(resp, Pos.initialMargin, ZERO)
+    im = get_py(resp, Pos.initialMargin, 0.0)
     if pytruth(im)
         im
     else

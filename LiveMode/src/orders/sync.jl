@@ -445,7 +445,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
     if isfilled(ai, o)
         clear_order!(s, ai, o)
         event!(ai, AssetEvent, :order_closed_replayed, s; order=o)
-    elseif filled_amount(o) > ZERO && o isa IncreaseOrder
+    elseif filled_amount(o) > 0.0 && o isa IncreaseOrder
         @ifdebug if ai ∉ s.holdings
             @debug "sync orders: asset not in holdings" _module = LogSyncOrder ai
         end

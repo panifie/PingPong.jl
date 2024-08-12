@@ -68,11 +68,15 @@ const ObjectOrType{T} = Union{T,Type{T}}
 ==(::ObjectOrType{Short}, ::ObjectOrType{Short}) = true
 
 const StrOrVec = Union{AbstractString,AbstractVector}
+# TODO: undecided
+# regex to replace occurrences of 0.0 (or 1.0) "\(?:^\|[^0-9.'\"]\)\(\-?0\.0\)\(?:[^0-9.'\"]\|$\)"
+# still scientific notation literals need a macro to be rewritten
 @doc "The floating point number type to use."
 const DFT =
     DEFAULT_FLOAT_TYPE = get(ENV, "PINGPONG_FLOAT_TYPE", "Float64") |> Sandbox.safereval
 @doc "Static `zero(DFT)`"
 const ZERO = zero(DFT)
+@doc "Static `one(DFT)`"
 const ONE = one(DFT)
 @assert DEFAULT_FLOAT_TYPE isa DataType "$ENV must be edited within julia, before loading pingpong!"
 @doc "The margin of error to use [`2eps`]."

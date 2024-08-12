@@ -80,7 +80,7 @@ function _live_sync_position!(
                     oppos_amount = resp_position_contracts(live_pos, eid)
                     if !oppos_pup.closed[] &&
                        !oppos_pup.read[] &&
-                       oppos_amount > ZERO
+                       oppos_amount > 0.0
                         if wasopen
                             @warn "sync pos: double position open in oneway mode." oppos cash(
                                 ai, oppos
@@ -234,7 +234,7 @@ function _live_sync_position!(
             notional(pos)
         end
     end
-    @assert ntl > ZERO "sync pos: notional can't be zero"
+    @assert ntl > 0.0 "sync pos: notional can't be zero"
 
     tier!(pos, ntl)
     lqp = resp_position_liqprice(resp, eid)
@@ -300,9 +300,9 @@ function _live_sync_position!(
         "maintenance", "collateral", maintenance(pos), collateral(pos)
     )
 
-    @assert liqprice(pos) > ZERO "liqprice can't be negative ($(liqprice(pos)))"
-    @assert entryprice(pos) > ZERO "entryprice can't be negative ($(entryprice(pos)))"
-    @assert notional(pos) > ZERO "notional can't be negative ($(notional(pos)))"
+    @assert liqprice(pos) > 0.0 "liqprice can't be negative ($(liqprice(pos)))"
+    @assert entryprice(pos) > 0.0 "entryprice can't be negative ($(entryprice(pos)))"
+    @assert notional(pos) > 0.0 "notional can't be negative ($(notional(pos)))"
 
     @assert liqprice(pos) <= entryprice(pos) || isshort(pside) higherwarn(
         "liquidation price", "entry price", liqprice(pos), entryprice(pos)

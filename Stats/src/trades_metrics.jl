@@ -146,8 +146,8 @@ function trades_drawdown(ai::AssetInstance; cum_bal=@cumbal(), kwargs...)
 end
 
 function trades_pnl(returns; f=mean)
-    losses = (v for v in returns if isfinite(v) && v <= ZERO)
-    gains = (v for v in returns if isfinite(v) && v > ZERO)
+    losses = (v for v in returns if isfinite(v) && v <= 0.0)
+    gains = (v for v in returns if isfinite(v) && v > 0.0)
     NamedTuple((
         Symbol(nameof(f), :_, :loss) => isempty(losses) ? default_value(f) : f(losses),
         Symbol(nameof(f), :_, :profit) => isempty(gains) ? default_value(f) : f(gains),

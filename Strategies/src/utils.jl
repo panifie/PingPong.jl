@@ -58,7 +58,7 @@ lasttrade_price_func(ai) = begin
     elseif !isempty(data)
         data.close[end]
     else
-        ZERO
+        0.0
     end
 end
 

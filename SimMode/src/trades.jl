@@ -127,7 +127,7 @@ function maketrade(
     iscashenough(s, ai, size, o) || return nothing
     @deassert size > 0.0 && net_cost > 0.0
     fees_quote = size - net_cost
-    fees_base = ZERO
+    fees_base = 0.0
     @deassert fees_quote > 0.0 || fees < 0.0
     @maketrade
 end
@@ -156,7 +156,7 @@ function maketrade(
     size = withfees(net_cost, fees, o)
     @deassert size > 0.0 && net_cost > 0.0
     fees_quote = net_cost - size
-    fees_base = ZERO
+    fees_base = 0.0
     @deassert fees_quote > 0.0 || fees < 0.0
     @maketrade
 end

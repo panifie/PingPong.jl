@@ -31,11 +31,11 @@ function test_committment(s, s_nomg)
 
         # Test committment for SellOrder
         @test committment(SellOrder, ai_no_margin, price, amount) ==
-            amount_with_fees(amount, ZERO)
+            amount_with_fees(amount, 0.0)
 
         # Test committment for ShortBuyOrder
         @test committment(ShortBuyOrder, ai_no_margin, price, amount) ==
-            amount_with_fees(negate(amount), ZERO)
+            amount_with_fees(negate(amount), 0.0)
     end
 end
 
@@ -320,11 +320,11 @@ function test_iscommittable(s)
         @test iscommittable(s, typeof(short_buy_order), commit_short_buy, ai)
 
         # Test iscommittable with insufficient funds (edge case)
-        cash!(s.cash, ZERO)
+        cash!(s.cash, 0.0)
         @test iscommittable(s, typeof(increase_order), commit_increase, ai) == false
-        cash!(ai, ZERO, Long())
+        cash!(ai, 0.0, Long())
         @test iscommittable(s, typeof(sell_order), commit_sell, ai) == false
-        cash!(ai, ZERO, Short())
+        cash!(ai, 0.0, Short())
         @test iscommittable(s, typeof(short_buy_order), commit_short_buy, ai) == false
     end
 end
@@ -446,11 +446,11 @@ function test_hascash(s)
         @test hascash(s) == false
         cash!(ai, 1e4, Long())
         @test hascash(s) == true
-        cash!(ai, ZERO, Long())
+        cash!(ai, 0.0, Long())
         @test hascash(s) == false
         cash!(ai, 1e4, Short())
         @test hascash(s) == true
-        cash!(ai, ZERO, Short())
+        cash!(ai, 0.0, Short())
         @test hascash(s) == false
     end
 end
