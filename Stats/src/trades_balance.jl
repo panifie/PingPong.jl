@@ -1,7 +1,8 @@
 using .ect.Instances: NoMarginInstance, MarginInstance
 using .ect.OrderTypes: PositionSide
 using .ect.Executors.Checks: withfees
-
+using .ect.Strategies: tradesedge
+using .ect.Strategies: DateRange
 
 @doc """ Replaces missing values in a vector with 0.0.
 
@@ -42,35 +43,6 @@ end
 
 _cum_value_balance(::NoMarginInstance, df) = df.cum_base .* df.close
 
-@doc """ Calculates the negative of the earned amount for a `ReduceOrder`.
-
-$(TYPEDSIGNATURES)
-
-This function is specifically designed for `ReduceOrder` instances. 
-It calculates the earned amount based on the order's `entryprice`, `amount`, `leverage`, `price`, `value`, and `fees`, and then returns the negative of this amount.
-This essentially subtracts the earned amount from the base balance.
-"""
-function _basebalance(o::ReduceOrder, _, entryprice, amount, leverage, price, value, fees)
-    Base.negate(_earned(o, entryprice, amount, leverage, price, value, fees))
-end
-@doc """ Calculates the base balance for a given order.
-
-$(TYPEDSIGNATURES)
-
-This function takes an order `o`, an `AssetInstance` `ai`, `entryprice`, `amount`, `leverage`, and `price` as parameters.
-If `o` is missing, the function returns nothing.
-Otherwise, it calculates the `value` as the product of `amount` and `price`, and the `fees` based on the `value` and the maximum fees for `ai` and `o`.
-The function then returns the earned amount based on `o`, `entryprice`, `amount`, `leverage`, `price`, `value`, and `fees`.
-This essentially adds the earned amount to the base balance.
-TODO: add fees in base curr to balance calc
-"""
-function _basebalance(o, ai, entryprice, amount, leverage, price, _, _)
-    ismissing(o) && return nothing
-    value = amount * price
-    fees = withfees(value, maxfees(ai), o)
-    _earned(o, entryprice, amount, leverage, price, value, fees)
-end
-
 @doc """ Calculates the cumulative value balance for a MarginInstance.
 
 $(TYPEDSIGNATURES)
@@ -86,9 +58,10 @@ function _cum_value_balance(ai::MarginInstance, df)
     last_lev = one(DFT)
     last_ep = zero(DFT)
     last_side = Long
+    def_fees = maxfees(ai)
     function cvb(o, ai, entryprice, cum_amount, leverage, close_price)
         this_val = abs(cum_amount * close_price)
-        this_fees = this_val * maxfees(ai)
+        this_fees = ismissing(o) ? ZERO : @something fees(o) def_fees
         if !ismissing(o)
             last_lev = leverage
             last_ep = entryprice
@@ -166,13 +139,20 @@ This function takes a `MarginInstance` `ai`, a `cum_amount`, a `timestamp`, a `l
 It first calculates the closing price at the given timestamp, the value of the position based on the cumulative amount and the closing price, and the fees based on this value.
 It then returns the earned amount based on these values, using the `_earned` function.
 """
-function _valueat(ai::MarginInstance, cum_amount, timestamp, leverage, entryprice, pos)
-    let close = closeat(ai, timestamp),
-        this_value = cum_amount * close,
-        this_fees = this_value * maxfees(ai)
+function _valueat(
+    ai::MarginInstance,
+    cum_amount,
+    timestamp,
+    leverage,
+    entryprice,
+    pos,
+    fees,
+    fees_base=ZERO,
+)
+    close = closeat(ai, timestamp)
+    this_value = cum_amount * close
 
-        _earned(pos, entryprice, cum_amount, leverage, close, this_value, this_fees)
-    end
+    _earned(pos, entryprice, cum_amount, leverage, close, this_value, fees, fees_base)
 end
 
 @doc """Plots the trade history for all the assets in a strategy.
@@ -187,9 +167,8 @@ $(SIGNATURES)
 
 """
 function trades_balance(
-    s::Strategy,
+    s::Strategy;
     tf::TimeFrame=tf"1d",
-    args...;
     return_all=true,
     byasset=false,
     # normalize_timeframes=true,
@@ -199,7 +178,14 @@ function trades_balance(
         s,
         tf;
         style=:minimal,
-        custom=(:order => last, :entryprice => last, :leverage => last),
+        custom=(
+            :order => last,
+            :entryprice => last,
+            :leverage => last,
+            :amount => sum,
+            [:fees, :fees_base, :price] =>
+                ((f, b, p) -> sum(@. f .+ b .* p)) => :fees_total,
+        ),
     )
     isnothing(df) && return nothing
     # Expand dates
@@ -213,6 +199,7 @@ function trades_balance(
                 lev=Ref(one(elt)),
                 ep=Ref(zero(elt)),
                 pos=Ref{PositionSide}(Long()),
+                fees=Ref(zero(elt)),
             ) for ai in s.universe
         )
 
@@ -229,6 +216,7 @@ function trades_balance(
                         state.lev[] = :leverage
                         state.ep[] = :entryprice
                         state.pos[] = positionside(:order)()
+                        state.fees[] = :fees_total
                     end
                 end
                 # while the actual cash value is updated in place for all assets
@@ -242,6 +230,7 @@ function trades_balance(
                             state.lev[],
                             state.ep[],
                             state.pos[],
+                            state.fees[],
                         )
                     end
                 end

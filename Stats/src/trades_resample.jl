@@ -58,8 +58,8 @@ $(TYPEDSIGNATURES)
 The function calculates the spent amount as the `value` divided by `leverage` plus `fees`, and returns the negative absolute value of this amount. 
 An assertion ensures that the calculated value is non-negative before negation.
 """
-function _spent(_, _, _, leverage, _, value, fees)
-    v = value / leverage + fees
+function _spent(_, _, _, leverage, price, value, fees, fees_base)
+    v = value / leverage + fees + fees_base * price
     @assert v >= 0.0
     Base.negate(abs(v))
 end
@@ -69,14 +69,14 @@ $(TYPEDSIGNATURES)
 
 The function computes the earned amount as the absolute value of the product of `entryprice` and `amount` divided by `leverage`, plus the profit and loss (pnl) calculated from the `entryprice`, `price`, `amount`, and the position side of the order, minus `fees`.
 """
-function _earned(o, entryprice, amount, leverage, price, _, fees)
+function _earned(o, entryprice, amount, leverage, price, value, fees, fees_base=ZERO)
     (abs(entryprice * amount) / leverage) +
-    pnl(entryprice, price, amount, positionside(o)()) - fees
+    pnl(entryprice, price, amount, positionside(o)()) - fees - fees_base * price
 end
 _quotebalance(o::IncreaseOrder, args...) = _spent(o, args...)
 _quotebalance(o::ReduceOrder, args...) = _earned(o, args...)
-function quotebalance(entryprice, amount, leverage, value, price, fees, order)
-    _quotebalance.(order, entryprice, amount, leverage, price, value, fees)
+function quotebalance(entryprice, amount, leverage, value, price, fees, fees_base, order)
+    _quotebalance.(order, entryprice, amount, leverage, price, value, fees, fees_base)
 end
 @doc """ Applies custom transformations based on margin mode, style, and custom parameters.
 
@@ -92,7 +92,7 @@ function transforms(m::MarginMode, style, custom)
         if m == NoMargin
             :quote_volume => sum => :quote_balance
         else
-            [:entryprice, :amount, :leverage, :value, :price, :fees, :order] =>
+            [:entryprice, :amount, :leverage, :value, :price, :fees, :fees_base, :order] =>
                 sum ∘ quotebalance => :quote_balance
         end,
     )
