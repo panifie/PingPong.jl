@@ -231,13 +231,17 @@ $(TYPEDSIGNATURES)
 This function calculates and returns the price at which a position, given its leverage (`lev`), would be fully liquidated.
 
 """
-function bankruptcy(price::Real, lev::Real)
+function bankruptcy(price::Real, lev::Real, ::Long)
     @deassert lev != 0.0
     price * (lev - 1.0) / lev
 end
-function bankruptcy(pos::Position, price)
+function bankruptcy(price::Real, lev::Real, ::Short)
+    @deassert lev != 0.0
+    price * (lev + 1.0) / lev
+end
+function bankruptcy(pos::Position{P}, price) where P<:PositionSide
     lev = leverage(pos)
-    bankruptcy(price, lev)
+    bankruptcy(price, lev, P())
 end
 function bankruptcy(pos::Position, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
     bankruptcy(pos, o.price)

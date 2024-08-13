@@ -279,6 +279,9 @@ This function returns the asset cash of a `MarginInstance` rounded according to 
 
 """
 function nondust(ai::MarginInstance, price::Number, p=posside(ai))
+    if isnothing(p)
+        return zero(price)
+    end
     pos = position(ai, p)
     if isnothing(pos)
         return zero(price)
@@ -436,10 +439,10 @@ $(TYPEDSIGNATURES)
 This function loads OHLCV (Open, High, Low, Close, Volume) data for a given `AssetInstance`. If `reset` is set to true, it will re-fetch the data even if it's already been loaded.
 
 """
-function load!(a::AssetInstance; reset=true, zi=zi)
-    for (tf, df) in a.data
+function load!(ai::AssetInstance; reset=true, zi=zi)
+    for (tf, df) in ai.data
         reset && empty!(df)
-        loaded = load(zi, a.exchange.name, a.raw, string(tf))
+        loaded = load(zi, ai.exchange.name, raw(ai), string(tf))
         append!(df, loaded)
     end
 end
@@ -522,7 +525,7 @@ This function retrieves the last available candle (Open, High, Low, Close, Volum
 
 """
 function Data.candlelast(ai::AssetInstance, tf::TimeFrame, date::DateTime)
-    Data.candlelast(ai.data[tf], tf, date)
+    Data.candlelast(ai.data[tf])
 end
 
 function Data.candlelast(ai::AssetInstance, date::DateTime)
@@ -878,7 +881,7 @@ $(TYPEDSIGNATURES)
 This function calculates the bankruptcy price, which is the price at which the asset position would be fully liquidated. It takes into account the current price of the asset and the position side (`Long` or `Short`).
 
 """
-function bankruptcy(ai, price, ps::Type{P}) where {P<:PositionSide}
+function bankruptcy(ai, price, ps::ByPos{P}) where {P<:PositionSide}
     bankruptcy(position(ai, ps), price)
 end
 function bankruptcy(ai, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
@@ -986,7 +989,10 @@ This function calculates the profit and loss (PnL) for an asset position. It tak
 """
 function pnl(ai, ::ByPos{P}, price) where {P}
     pos = position(ai, P)
-    isnothing(pos) && return 0.0
+    if isnothing(pos)
+        @error "instances: no position found" ai P
+        return 0.0
+    end
     pnl(pos, price)
 end
 
