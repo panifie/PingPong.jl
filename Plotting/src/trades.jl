@@ -784,7 +784,7 @@ function balloons(s::Strategy; benchmark=:all, tf=tf"1d", force=false)
 
     linkaxes!(trades_ax, axes..., price_ax)
 
-    balance_df = trades_balance(s, tf; return_all=true, byasset=true)
+    balance_df = trades_balance(s; tf, return_all=true, byasset=true)
     @deassert all(balance_df.timestamp .== first(values(ax_closes)).ohlcv.timestamp)
     byasset = balance_df.byasset
     ai_value_func(idx, ai=nothing) = isnothing(ai) ? byasset[idx] : byasset[idx][ai]
