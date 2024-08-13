@@ -14,6 +14,8 @@ all_tests = [
     :markets,
     :collections,
     :orders,
+    :positions,
+    :instances,
     :strategies,
     #
     :ohlcv,
