@@ -1274,7 +1274,7 @@ version = "1.3.0"
 deps = ["Engine", "MacroTools", "Pkg", "Preferences", "REPL", "Random", "Remote", "Zarr"]
 path = "../PingPong"
 uuid = "646fb1a4-6797-441d-ad18-3bdbde2eb86b"
-version = "1.4.64"
+version = "1.4.65"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
