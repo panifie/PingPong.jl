@@ -40,6 +40,16 @@ const Fees{T<:Real} = NamedTuple{(:taker, :maker, :min, :max),<:NTuple{4,<:T}}
 @doc "Defines a type for currency cash, which is parameterized by an exchange `E` and a symbol `S`."
 const CCash{E} = CurrencyCash{Cash{S,DFT},E} where {S}
 const AnyTrade{T,E} = Trade{O,T,E} where {O<:OrderType}
+const DEFAULT_FIELDS = (;
+    limits=(;
+        leverage=(; min=1.0, max=10.0),
+        amount=(; min=1e-8, max=1e8),
+        price=(; min=1e-8, max=1e8),
+        cost=(; min=1e-8, max=1e8),
+    ),
+    precision=(; amount=1e-8, price=1e-8),
+    fees=(; taker=0.01, maker=0.01, min=0.01, max=0.01),
+)
 
 include("positions.jl")
 
@@ -130,8 +140,8 @@ const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
 @doc "A type alias representing an asset instance with cross margin."
 const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
 @doc " Retrieve the margin mode of an `AssetInstance`. "
-marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M<:WithMargin} = M()
-marginmode(::NoMarginInstance) = NoMargin()
+marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}, args...; kwargs...) where {M<:WithMargin} = M()
+marginmode(::NoMarginInstance, args...; kwargs...) = NoMargin()
 
 @doc """ Generate positions for a specific margin mode.
 
