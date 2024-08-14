@@ -4,7 +4,7 @@ using SimMode.TimeTicks
 using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
 using .Instances.Data: zinstance, Zarr as za
-using .Instances.Data.Zarr: getattrs, writeattrs
+using .Instances.Data.Zarr: getattrs, writeattrs, writemetadata
 using .Instances.Exchanges: exc, sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
@@ -208,8 +208,8 @@ function save_session(sess::OptSession; from=0, to=nrow(sess.results), zi=zinsta
         serialize=true,
     )
     # NOTE: set attributes *after* saving otherwise they do not persist
-    if from == 0
-        z = load_data(zi, k; serialized=true, as_z=true)[1]
+    z = load_data(zi, k; serialized=true, as_z=true)[1]
+    if from == 0 || pop!(z.attrs, "new", nothing) == "1"
         attrs = z.attrs
         attrs["name"] = parts.s_part
         attrs["startstop"] = parts.ctx_part
@@ -290,6 +290,9 @@ function load_session(
             else
                 remove_broken = true
                 delete!(z)
+                writemetadata(z.storage, z.path, z.metadata)
+                z.attrs["new"] = "1"
+                writeattrs(z.storage, z.path, z.attrs)
             end
             if retry_f isa Function
                 z = ensure_attrs(retry_f(), retry_f, remove_broken)
@@ -301,17 +304,16 @@ function load_session(
     function session(z, retry_f)
         as_z && return z
         results_only && return results!(DataFrame(), z)
-        sess = let z = ensure_attrs(z, retry_f)
-            attrs = z.attrs
-            OptSession(
-                @something s st.strategy(
-                    Symbol(attrs["name"]); exchange=_anyexc(), mode=Sim()
-                );
-                ctx=_deserattrs(attrs, "ctx"),
-                params=_deserattrs(attrs, "params"),
-                attrs=_deserattrs(attrs, "attrs"),
-            )
-        end
+        z = ensure_attrs(z, retry_f)
+        attrs = z.attrs
+        sess = OptSession(
+            @something s st.strategy(
+                Symbol(attrs["name"]); exchange=_anyexc(), mode=Sim()
+            );
+            ctx=_deserattrs(attrs, "ctx"),
+            params=_deserattrs(attrs, "params"),
+            attrs=_deserattrs(attrs, "attrs"),
+        )
         results!(sess.results, z)
         return sess
     end

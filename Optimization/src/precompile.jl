@@ -51,7 +51,7 @@ end
     function st.ping!(s::typeof(s), ::OptScore)::Vector
         [sharpe(s)]
     end
-    @precomp begin
+    @precomp @ignore begin
         gridsearch(s; resume=false)
         gridsearch(s; resume=true)
         progsearch(s)
