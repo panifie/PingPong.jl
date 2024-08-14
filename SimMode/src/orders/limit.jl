@@ -1,7 +1,7 @@
 using .Lang: @deassert, @posassert, Lang, @ifdebug
 using .OrderTypes
 using Executors.Checks: cost, withfees
-using Executors: AnyFOKOrder, AnyIOCOrder, AnyGTCOrder
+using Executors: AnyFOKOrder, AnyIOCOrder, AnyGTCOrder, AnyPostOnlyOrder
 import Executors: priceat, unfilled, isqueued
 import .OrderTypes: order!, FOKOrderType, IOCOrderType
 using Simulations: Simulations as sml
@@ -158,12 +158,17 @@ function limitorder_ifvol!(s::Strategy{Sim}, o::AnyLimitOrder, date, ai; kwargs.
         )
         if triggered
             @deassert actual_amount > amount * 0.1
-            ans = trade!(s, o, ai; price=o.price, date, actual_amount, kwargs...)
+            ans = if o isa AnyPostOnlyOrder && o.date == date
+                cancel!(s, o, ai; err=OrderCanceled(o))
+                nothing
+            else
+                trade!(s, o, ai; price=o.price, date, actual_amount, kwargs...)
+            end
         else
             # Cancel IOC orders if partially filled
             if o isa AnyIOCOrder &&
-               !isfilled(ai, o) &&
-               cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
+                !isfilled(ai, o) &&
+                cancel!(s, o, ai; err=NotFilled(amount, cdl_vol))
                 ans = nothing
             end
         end
