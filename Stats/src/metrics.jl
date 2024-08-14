@@ -22,7 +22,7 @@ macro balance_arr()
     s = esc(:s)
     tf = esc(:tf)
     quote
-        $(esc(:balance)) = let balance_df = trades_balance($s, $tf)
+        $(esc(:balance)) = let balance_df = trades_balance($s; $tf)
             isnothing(balance_df) && return -Inf
             balance_df.cum_total
         end
@@ -237,7 +237,7 @@ If `normalize` is `true`, the metrics are normalized with respect to `norm_max`.
 function multi(
     s::Strategy, metrics::Vararg{Symbol}; tf=tf"1d", normalize=false, norm_max=(;)
 )
-    balance = let df = trades_balance(s, tf)
+    balance = let df = trades_balance(s; tf)
         isnothing(df) &&
             return Dict(m => ifelse(normalize, 0.0, typemin(DFT)) for m in metrics)
         df.cum_total
