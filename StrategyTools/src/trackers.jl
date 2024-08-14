@@ -11,16 +11,18 @@ $(TYPEDSIGNATURES)
 
 The PnL is calculated based on the position side and the closing price at the given timestamp.
 """
-function trackpnl!(s, ai, ats, ts)
+function trackpnl!(s, ai, ats, ts; interval=10s.timeframe)
     pside = posside(ai)
     pnl = s[:pnl][ai]
-    if pnl[1][] < ats
-        pnl[1][] = ats
+    pnl_ts = pnl[1][]
+    if pnl_ts < ats
         if !isnothing(pside)
             @deassert isopen(ai)
             close = closeat(ai, ats)
+            pnl[1][] = ats
             push!(pnl[2], inst.pnl(ai, pside, close))
-        else
+        elseif pnl_ts < ats - interval
+            pnl[1][] = ats
             push!(pnl[2], 0.0)
         end
     end
