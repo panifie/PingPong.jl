@@ -216,6 +216,7 @@ function gridsearch(
     ctx = sess.ctx
     grid = gridfromparams(sess.params)
     resume && resume!(sess)
+    from = Ref(0)
     should_save = if !isnothing(save_freq)
         resume || save_session(sess; zi)
         true
@@ -261,7 +262,7 @@ function gridsearch(
         if random_search
             shuffle!(grid_itr)
         end
-        from = Ref(nrow(sess.results) + 1)
+        from[] = nrow(sess.results) + 1
         saved_last = Ref(now())
         grid_lock = ReentrantLock()
         with_logger(logger) do
