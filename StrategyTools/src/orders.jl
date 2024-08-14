@@ -17,6 +17,8 @@ function select_ordertype(s::Strategy, os::Type{<:OrderSide}, p::PositionSide=Lo
             FOKOrder{os}, t
         elseif t == :gtc
             GTCOrder{os}, t
+        elseif t == :po
+            PostOnlyOrder{os}, t
         else
             error("Wrong order type $t")
         end
@@ -29,6 +31,8 @@ function select_ordertype(s::Strategy, os::Type{<:OrderSide}, p::PositionSide=Lo
             ShortFOKOrder{os}, t
         elseif t == :gtc
             ShortGTCOrder{os}, t
+        elseif t == :po
+            ShortPostOnlyOrder{os}, t
         else
             error("Wrong order type $t")
         end
@@ -53,7 +57,7 @@ Depending on the order type symbol, additional keyword arguments are selected to
 """
 function select_orderkwargs(otsym::Symbol, ::Type{Buy}, ai, ats; incr=(buy=1.02, sell=0.99))
     price = @coalesce price_from_trades(ai) closeat(ai, ats)
-    if otsym == :gtc
+    if otsym in (:gtc, :po)
         (; price=incr.buy * price)
     else
         (;)
@@ -68,7 +72,7 @@ Selects an order type `os` based on the strategy `s` and the position side `p`. 
 """
 function select_orderkwargs(otsym::Symbol, ::Type{Sell}, ai, ats; incr=(; buy=1.02, sell=0.99))
     price = @coalesce price_from_trades(ai) closeat(ai, ats)
-    if otsym == :gtc
+    if otsym in (:gtc, :po)
         (; price=incr.sell * price)
     else
         (;)
