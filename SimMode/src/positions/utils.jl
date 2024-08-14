@@ -88,6 +88,7 @@ function close_position!(s::IsolatedStrategy, ai, p::PositionSide, date=nothing;
     reset!(ai, p)
     delete!(s.holdings, ai)
     @deassert !isopen(position(ai, p)) && iszero(ai)
+    true
 end
 
 # TODO: Implement updating margin of open positions
