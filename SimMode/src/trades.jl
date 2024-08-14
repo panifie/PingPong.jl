@@ -161,4 +161,7 @@ function maketrade(
     @maketrade
 end
 
-simfees(s::Strategy, ai) = @coalesce get(s, :sim_fees, missing) maxfees(ai)
+@doc """ Fees override for simulation mode (taker).  """
+simfeestaker(s::Strategy, ai) = @coalesce get(s, :sim_fees_taker, missing) maxfees(ai)
+@doc """ Fees override for simulation mode (maker).  """
+simfeesmaker(s::Strategy, ai) = @coalesce get(s, :sim_fees_maker, missing) minfees(ai)
