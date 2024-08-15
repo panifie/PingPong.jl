@@ -588,7 +588,7 @@ function live_sync_start!(s::LiveStrategy; first_start)
         if !isstarted(w)
             start!(w)
         end
-    elseif valtype(w) <: Watcher
+    elseif !isnothing(w) && valtype(w) <: Watcher
         for ai_w in values(w)
             if !isstarted(ai_w)
                 start!(ai_w)

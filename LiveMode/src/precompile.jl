@@ -73,7 +73,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             @async run_funcs(:phemex, st.NoMargin())
         end
     catch e
-        @error exception = e
+        @error exception = (e, catch_backtrace())
     end
     @debug "PRECOMP: live mode closing"
     Watchers._closeall()

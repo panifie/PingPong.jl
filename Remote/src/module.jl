@@ -286,11 +286,11 @@ function tgrun(
             if err isa InterruptException || (
                 err isa HTTP.HTTPError &&
                 hasproperty(err, :error) &&
-                err isa InterruptException
+                err.error isa InterruptException
             )
                 break
             else
-                @error err
+                @error "tg: error" exception = err
                 @debug_backtrace
             end
         end
