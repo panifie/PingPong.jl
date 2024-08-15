@@ -30,7 +30,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
                     sleep(0.1)
                 end
             catch e
-                @error "PRECOMP: strategy start failed" exception = e
+                @error "PRECOMP: strategy start failed" exception = (e, catch_backtrace())
             end
             @info "PRECOMP: stop" exchange margin
             stop!(s)
