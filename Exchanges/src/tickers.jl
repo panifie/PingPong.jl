@@ -173,6 +173,7 @@ function ticker!(
                 tries = 0
                 while tries < 3
                     tries += 1
+                    def_func = func == exc.fetchTicker ? Returns(missing) : exc.fetchTicker
                     v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
                     if v isa PyException
                         @error "Fetch ticker error: $v" offline = isoffline() func pair
