@@ -83,9 +83,11 @@ function _w_balance_func(s, attrs)
             v = @lock w fetch_balance(s; timeout, params, rest...)
             process_bal!(w, v)
             init[] = false
+            errors = Ref(0)
             f_push(v) = begin
                 push!(buf, v)
                 notify(buf_notify)
+                maybe_backoff!(errors, v)
             end
             h = w[:balance_handler] = watch_balance_handler(exc; f_push, params, rest...)
             w[:process_tasks] = tasks

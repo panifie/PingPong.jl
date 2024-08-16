@@ -95,9 +95,11 @@ function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=(;))
             since = dtstamp(attr(s, :is_start, now()))
             h = @lget! task_local_storage() :handler begin
                 coro_func() = watch_func(sym; since, func_kwargs...)
+                errors = Ref(0)
                 f_push(v) = begin
                     push!(buf, v)
                     notify(buf_notify)
+                    maybe_backoff!(errors, v)
                 end
                 stream_handler(coro_func, f_push)
             end

@@ -118,9 +118,11 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 process_pos!(w, v)
             end
             init[] = false
+            errors = Ref(0)
             f_push(v) = begin
                 push!(buf, v)
                 notify(buf_notify)
+                maybe_backoff!(errors, v)
             end
             h =
                 w[:positions_handler] = watch_positions_handler(

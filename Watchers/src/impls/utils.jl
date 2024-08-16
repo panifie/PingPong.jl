@@ -505,6 +505,16 @@ end
     const process_tasks = Task[]
 end
 
+function maybe_backoff!(errors, v)
+    if v isa Exception
+        errors[] += 1
+        if errors[] > 3
+            sleep(0.1)
+            errors[] = 0
+        end
+    end
+end
+
 function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_func=islist)
     interval = w.interval.fetch
     buffer_size = max(w.capacity.buffer, w.capacity.view)
@@ -527,9 +537,11 @@ function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_fu
             process_val!(w, v)
         end
         wh.init = false
+        errors = Ref(0)
         f_push(v) = begin
             push!(wh.buffer, v)
             notify(wh.buffer_notify)
+            maybe_backoff!(errors, v)
         end
         wh.state = stream_handler(corogen_func(w), f_push)
         start_handler!(wh.state)

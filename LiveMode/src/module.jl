@@ -17,6 +17,7 @@ import .Executors: pong!
 import .Misc: start!, stop!
 using .Misc.DocStringExtensions
 using .Python: pyfetch_timeout
+using Watchers.WatchersImpls: maybe_backoff!
 
 include("utils.jl")
 include("caching.jl")
