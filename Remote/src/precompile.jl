@@ -2,6 +2,7 @@ using .Misc.Lang: @preset, @precomp, @ignore
 
 @preset let
     using Telegram.HTTP
+    ENV["JULIA_DEBUG"] = "Remote"
     function closeconn_layer(handler)
         return function (req; kw...)
             HTTP.setheader(req, "Connection" => "close")
@@ -16,12 +17,14 @@ using .Misc.Lang: @preset, @precomp, @ignore
     ENV["TELEGRAM_BOT_TOKEN"] = "6911910250:AAERDZD9hc8e33_c63Wyw6xyWVXn_DhdHyU"
     chat_id = ENV["TELEGRAM_BOT_CHAT_ID"] = "-1001996551827"
     Remote.TIMEOUT[] = 1
+    @debug "PRECOMP: remote 2"
     @precomp begin
         tgstart!(s)
         tgclient(s)
     end
     cl = tgclient(s)
     text = "abc123"
+    @debug "PRECOMP: remote 2"
     @precomp @ignore begin
         @ignore start_strategy(cl, s; text, chat_id)
         @ignore stop_strategy(cl, s; text="now", chat_id)
@@ -39,13 +42,14 @@ using .Misc.Lang: @preset, @precomp, @ignore
         # get(cl, s; text, chat_id)
         tgstop!(s)
     end
-    ENV["JULIA_DEBUG"] = "LogTasks,Watchers"
+    ENV["JULIA_DEBUG"] = "Remote,LogTasks,Watchers"
     t = @async stop!(s)
     start = now()
     while !istaskdone(t)
         sleep(0.1)
         now() - start > Second(3) && break
     end
+    @debug "PRECOMP: remote 3"
     empty!(TASK_STATE) # NOTE: Required to avod spurious errors
     HTTP.Connections.closeall()
     LiveMode.ExchangeTypes._closeall()
