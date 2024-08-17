@@ -134,8 +134,10 @@ Finally, it performs checks on the loaded strategy.
 """
 function default_load(mod::Module, t::Type, config::Config)
     assets = invokelatest(mod.ping!, t, StrategyMarkets())
-    sandbox = config.mode == Paper() ? false : config.sandbox
-    s = Strategy(mod, assets; config, sandbox)
+    if config.mode == Paper()
+        config.sandbox = true
+    end
+    s = Strategy(mod, assets; config)
     _strat_load_checks(s, config)
 end
 
