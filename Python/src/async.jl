@@ -440,6 +440,8 @@ function stream_handler(f_pull, f_push)
     gpa.globs[string(flag_name)] = false
     push!(HANDLERS, pull_name)
     code = """
+    from juliacall import Main
+    jlsleep = getattr(Main, "sleep")
     pysleep = asyncio.sleep
     async def handler_loop_$n():
         backoff = 0
@@ -453,7 +455,8 @@ function stream_handler(f_pull, f_push)
                     $push_name(e)
                 except:
                     print("handler error $n: ", e)
-                    await pysleep(1)
+                await pysleep(1e-2)
+                jlsleep(1e-2)
     """
     func = first(
         pyexec(NamedTuple{(Symbol(:handler_loop_, n),),Tuple{Py}}, code, gpa.globs)
