@@ -143,7 +143,7 @@ function initqt!(s)
     end
     n_markets = length(marketsid(s))
     attrs[:qt_ext] = [now(), 0.0, 0.0]
-    attrs[:qt_base] = inv(n_markets) - 0.001 * n_markets
+    attrs[:qt_base] = inv(n_markets)
     attrs[:qt_multi] = 1.96
 end
 
@@ -169,7 +169,7 @@ function trackqt!(s, ai, ats; f=_qtvolumeat)
     s[:qt][ai] = if isfinite(v)
         v
     else
-        max(ai.limits.amount.min, s[:qt_base])
+        max(0.0, s[:qt_base])
     end
 end
 
