@@ -11,7 +11,7 @@ $(TYPEDSIGNATURES)
 
 The PnL is calculated based on the position side and the closing price at the given timestamp.
 """
-function trackpnl!(s, ai, ats, ts; interval=10s.timeframe)
+function trackpnl!(s, ai, ats, ts; interval=10s.timeframe, pnl_func=inst.pnlpct)
     pside = posside(ai)
     pnl = s[:pnl][ai]
     pnl_ts = pnl[1][]
@@ -20,10 +20,10 @@ function trackpnl!(s, ai, ats, ts; interval=10s.timeframe)
             @deassert isopen(ai)
             close = closeat(ai, ats)
             pnl[1][] = ats
-            push!(pnl[2], inst.pnl(ai, pside, close))
+            oti.fit!(pnl[2], pnl_func(ai, pside, close))
         elseif pnl_ts < ats - interval
             pnl[1][] = ats
-            push!(pnl[2], 0.0)
+            oti.fit!(pnl[2], 0.0)
         end
     end
 end
@@ -35,10 +35,8 @@ $(TYPEDSIGNATURES)
 
 Sets up a `LittleDict` with a circular buffer to store PnL data, defaulting to 100 entries.
 """
-function initpnl!(s, uni=s.universe; n=100)
-    s[:pnl] = LittleDict(ai => let c = CircularBuffer{DFT}(n)
-        (Ref(DateTime(0)), c)
-    end for ai in uni)
+function initpnl!(s, uni=s.universe; n=100, ma=oti.SMA{DFT})
+    s[:pnl] = LittleDict(ai => (Ref(DateTime(0)), ma(period=n)) for ai in uni)
 end
 
 @doc """
@@ -95,8 +93,9 @@ function tracklev!(s, ai, ats; dampener=default_dampener)
     pnl_ats, pnl = getpnl(s, ai)
     this_lev = levtuple(s, ai)
     if this_lev.time < ats
-        μ = mean(pnl)
-        s2 = ((pnl .- μ) .^ 2 |> sum) / (length(pnl) - 1)
+        μ = @coalesce pnl.value 0.0
+        vals = pnl.input_values.value
+        s2 = ((vals .- μ) .^ 2 |> sum) / (length(vals) - 1)
         k = μ / s2
         raw_val, value = if isnan(k)
             def = s[:def_lev]
