@@ -145,5 +145,10 @@ makedocs(;
             "Analysis" => ["API/analysis/analysis.md"],
         ],
     ],
-    format=Documenter.HTML(; sidebar_sitename=false),
+    format=Documenter.HTML(;
+        sidebar_sitename=false,
+        size_threshold_ignore=[
+            "watchers/watchers.md", "API/instances.md", "API/executors.md"
+        ],
+    )
 )
