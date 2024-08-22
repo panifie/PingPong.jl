@@ -51,7 +51,7 @@ function copypnl!(s, ai, s_sim, ai_sim)
     if !ismissing(sim_pnl)
         this_pnl = s[:pnl][ai]
         this_pnl[1][] = sim_pnl[1][]
-        append!(this_pnl[2], sim_pnl[2])
+        oti.fit!(this_pnl[2], sim_pnl[2].input_values.value)
         s[:warmup][ai] = true
     end
 end
