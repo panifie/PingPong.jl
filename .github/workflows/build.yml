@@ -177,7 +177,7 @@ jobs:
       - name: Save Cache
         uses: actions/cache/save@v3
         id: last_save
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
