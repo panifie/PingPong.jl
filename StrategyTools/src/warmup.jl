@@ -1,4 +1,5 @@
 import .egn: ExecAction, pong!
+using .egn: WarmupPeriod
 
 struct SimWarmup <: ExecAction end
 struct InitSimWarmup <: ExecAction end
