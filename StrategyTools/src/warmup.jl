@@ -65,7 +65,7 @@ function _warmup!(
 )
     # wait until ohlcv data is available
     @debug "warmup: checking ohlcv data"
-    since = ats - s.timeframe * n_candles
+    since = ats - min(ping!(s, WarmupPeriod()), (s.timeframe * n_candles).period)
     for ohlcv in values(ohlcv_dict(ai))
         if dateindex(ohlcv, since) < 1
             @debug "warmup: no data" ai = raw(ai) ats
@@ -85,7 +85,7 @@ function _warmup!(
     ctx = Context(Sim(), s.timeframe, since, since + s.timeframe * n_candles)
     reset!(s_sim)
     s_sim[:warmup_running] = true
-    start!(s_sim, ctx, doreset=false)
+    start!(s_sim, ctx; doreset=false)
     # callback
     callback(s, ai, s_sim, ai_sim)
     @debug "warmup: completed" ai = raw(ai)

@@ -60,7 +60,7 @@ function ccxt_tickers_watcher(
         attrs[:iswatch] = iswatch::Bool
     end
     attrs[:issandbox] = issandbox(exc)
-    _sym!(attrs, syms)
+    _sym!(attrs, syms) # FIXME: this line should be removed
     _ids!(attrs, syms)
     _exc!(attrs, exc)
     watcher_type = Dict{String,CcxtTicker}
