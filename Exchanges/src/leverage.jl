@@ -57,7 +57,7 @@ function leverage!(exc::Exchange, v, sym; side=Long(), timeout=Second(5))
                 false
             else
                 side_key = ifelse(side == Long(), "longLeverage", "shortLeverage")
-                resp_val = pytofloat(get(resp_lev, side_key, one(DFT)))
+                resp_val = pytofloat(get(resp_lev, side_key, Base.NaN))
                 pytofloat(lev) == resp_val
             end
         else
