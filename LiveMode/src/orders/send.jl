@@ -1,5 +1,7 @@
 using .Executors.Instruments: freecash
 using .Executors: @price!, @amount!
+using .Python: pybool
+using .Data: default_value
 
 @doc "Represents a trigger order with fields for the order type, price, and trigger condition."
 const TriggerOrderTuple = NamedTuple{(:type, :price, :trigger)}
@@ -54,13 +56,30 @@ function ensure_marginmode(s::LiveStrategy, ai)
         return if marginmode!(exc, remote_mode, raw(ai); hedged)
             s[:live_margin_mode][ai] = mm
             event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Long)))
-            event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Short)))
+            event!(
+                exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Short))
+            )
             true
         else
             false
         end
     end
     true
+end
+
+function pygetorconvert!(params, k, v)
+    v = get(params, k, nothing)
+    if !isnothing(v)
+        if !(v isa Py)
+            params[k] = @py v
+        end
+    else
+        params[k] = @py if v isa Type
+            default_value(v)
+        else
+            v
+        end
+    end
 end
 
 # TODO: split into multiple functions according to order type
@@ -75,14 +94,14 @@ It then sends the order to the exchange, retries if exceptions occur, and handle
 function live_send_order(
     s::LiveStrategy,
     ai,
-    t=GTCOrder{Buy},
+    t::Type{<:Order}=GTCOrder{Buy},
     args...;
     retries=0,
     skipchecks=false,
     amount,
     price=lastprice(s, ai, t),
     post_only=false,
-    reduce_only=false,
+    reduce_only=t <: ReduceOnlyOrder,
     stop_price=nothing,
     profit_price=nothing,
     stop_loss::Option{TriggerOrderTuple}=nothing,
@@ -105,11 +124,11 @@ function live_send_order(
     # @amount! ai amount
     if !skipchecks
         if !check_available_cash(s, ai, amount, price, t)
-            @warn "send order: not enough cash" this_cash = cash(
+            @warn "send order: not enough cash" this_cash = cash(ai, posside(t)) ai_comm = committed(
                 ai, posside(t)
-            ) ai_comm = committed(ai, posside(t)) ai_free = freecash(ai, posside(t)) strat_cash = cash(
+            ) ai_free = freecash(ai, posside(t)) strat_cash = cash(s) strat_comm = committed(
                 s
-            ) strat_comm = committed(s) order_cash = amount t lev = leverage(ai, posside(t))
+            ) order_cash = amount t lev = leverage(ai, posside(t))
             return nothing
         end
         if !ensure_marginmode(s, ai)
@@ -126,8 +145,8 @@ function live_send_order(
     tif = _ccxttif(exc, t)
     tif_k = @pystr(time_in_force_key(exc))
     tif_v = @pystr(time_in_force_value(exc, asset(ai), tif))
-    params = LittleDict{Py,Any}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
-    get!(params, tif_k, tif_v)
+    params = PyDict{Py,Py}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
+    pygetorconvert!(params, tif_k, tif_v)
     function supportmsg(feat)
         @warn "send order: not supported" feat exc = nameof(exc)
     end
@@ -141,28 +160,32 @@ function live_send_order(
     triggerDirection = @pyconst("triggerDirection")
 
     if has(exc, :createPostOnlyOrder)
-        get!(params, postOnly, post_only)
-    elseif get(params, postOnly, false)
+        pygetorconvert!(params, postOnly, post_only)
+    elseif pyisTrue(get(params, postOnly, false))
         supportmsg("post only")
         delete!(params, postOnly)
     end
     if s isa MarginStrategy
         if has(exc, :createReduceOnlyOrder)
-            get!(params, reduceOnly, reduce_only)
-        elseif get(params, reduceOnly, false)
+            pygetorconvert!(params, reduceOnly, reduce_only)
+        elseif pyisTrue(get(params, reduceOnly, false))
             supportmsg("reduce only")
             delete!(params, reduceOnly)
         end
     end
     if !isnothing(trigger_price)
         if has(exc, :createTriggerOrder)
-            @lget! params triggerPrice trigger_price
-            @lget! params triggerDirection @something(
-                trigger_direction, ifelse(
-                    # NOTE: strict equality
-                    orderside(t) === Buy,
-                    "below",
-                    "above",
+            pygetorconvert!(params, triggerPrice, trigger_price)
+            pygetorconvert!(
+                params,
+                triggerDirection,
+                @something(
+                    trigger_direction, ifelse(
+                        # NOTE: strict equality
+                        orderside(t) === Buy,
+                        "below",
+                        "above",
+                    )
                 )
             )
         elseif haskey(params, triggerPrice)
@@ -173,7 +196,7 @@ function live_send_order(
     end
     if !isnothing(stop_price)
         if has(exc, :createStopLossOrder)
-            @lget! params stopLossPrice stop_price
+            pygetorconvert!(params, stopLossPrice, stop_price)
         elseif haskey(params, stopLossPrice)
             supportmsg("stop loss order (close position)")
             delete!(params, stopLossPrice)
@@ -181,7 +204,7 @@ function live_send_order(
     end
     if !isnothing(profit_price)
         if has(exc, :createTakeProfitOrder)
-            @lget! params takeProfitPrice profit_price
+            pygetorconvert!(params, takeProfitPrice, profit_price)
         elseif haskey(params, takeProfitPrice)
             supportmsg("take profit order (close position)")
             delete!(params, takeProfitPrice)
@@ -189,8 +212,8 @@ function live_send_order(
     end
     if !isnothing(stop_loss) && !isnothing(take_profit)
         if has(exc, :createOrderWithTakeProfitAndStopLoss)
-            @lget! params stopLoss stop_loss
-            @lget! params takeProfit take_profit
+            pygetorconvert!(params, stopLoss, stop_loss)
+            pygetorconvert!(params, takeProfit, take_profit)
         elseif haskey(params, stopLoss) || haskey(params, takeProfit)
             supportmsg("conditional trigger order")
             delete!(params, stopLoss)
@@ -201,26 +224,26 @@ function live_send_order(
     end
     trailing = if !isnothing(trailing_percent)
         if has(exc, :createTrailingPercentOrder)
-            @lget! params trailingPercent trailing_percent
+            pygetorconvert!(params, trailingPercent, trailing_percent)
         else
             supportmsg("trailing percent order")
         end
     elseif !isnothing(trailing_amount)
         if has(exc, :createTrailingAmountOrder)
-            @lget! params trailingAmount trailing_amount
+            pygetorconvert!(params, trailingAmount, trailing_amount)
         else
             supportmsg("trailing amount order")
         end
     end
     if !isnothing(trailing)
         if !isnothing(trailing_trigger_price)
-            @lget! params trailingTriggerPrice trailing_trigger_price
+            pygetorconvert!(params, trailingTriggerPrice, trailing_trigger_price)
         elseif !isnothing(trailing_trigger_amount)
             if !(price isa Number)
                 @warn "send order: trailing amount order needs price input parameter" price
                 price = lastprice(ai)
             end
-            @lget! params trailingTriggerPrice price
+            pygetorconvert!(params, trailingTriggerPrice, price)
         end
     end
     # start monitoring before sending the create request

@@ -2,7 +2,7 @@
 function live_send_order(
     s::LiveStrategy{N,ExchangeID{:phemex}},
     ai,
-    t,
+    t::Type{<:Order},
     args...;
     amount,
     price=lastprice(s, ai, t),
@@ -18,7 +18,7 @@ function live_send_order(
     else
         @amount! ai amount
     end
-    invoke(live_send_order, Tuple{LiveStrategy,AssetInstance,UnionAll}, s, ai, t, args...; amount, price, stop_trigger, profit_trigger, stop_loss, take_profit, kwargs...)
+    invoke(live_send_order, Tuple{LiveStrategy,AssetInstance,Type{<:Order}}, s, ai, t, args...; amount, price, stop_trigger, profit_trigger, stop_loss, take_profit, kwargs...)
 end
 
 function create_order_func(exc::Exchange{ExchangeID{:binance}}, func, args...; params=LittleDict{Py,Any}(), kwargs...)
