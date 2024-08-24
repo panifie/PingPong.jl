@@ -185,7 +185,7 @@ function position!(
     @deassert t.order.asset == ai.asset
     pos = position(ai, P)
     if isopen(pos)
-        if isdust(ai, t.price, P()) && !hasorders(s, ai)
+        if isdust(ai, t.price, P())
             close_position!(s, ai, P())
         else
             @deassert !iszero(cash(pos)) || t isa ReduceTrade
@@ -255,8 +255,14 @@ function positions!(s::IsolatedStrategy{<:Union{Paper,Sim}}, date::DateTime)
     @ifdebug _checkorders(s)
     @ifdebug for ai in universe(s)
         @assert !(isopen(ai, Short()) && isopen(ai, Long()))
-        let po = position(ai)
-            @assert ai ∈ s.holdings || isnothing(po) || !isopen(po) po, status(po)
+        po = position(ai)
+        @assert if !isnothing(po)
+            ai ∈ s.holdings && !iszero(cash(po)) && isopen(po)
+        else
+            iszero(cash(ai, Long())) &&
+                iszero(cash(ai, Short())) &&
+                !isopen(ai, Long()) &&
+                !isopen(ai, Short())
         end
     end
 end
