@@ -267,7 +267,7 @@ function _positions_from_messages(w::Watcher)
     exc = w.exc
     messages = pygetattr(exc, "_positions_messages", nothing)
     if pyisjl(messages)
-        tasks = w[:process_tasks]
+        tasks = @lget! w.attrs :message_tasks Task[]
         parse_func = exc.parsePositions
         vec = pyjlvalue(messages)
         if vec isa Vector
