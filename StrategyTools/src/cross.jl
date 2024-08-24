@@ -33,7 +33,7 @@ Uses timeframes and signals to determine the crossover.
 """
 function iscrossed(s, ai, ats, sig_b, drc::Val)
     tf = signal_timeframe(s, sig_b)
-    prev_date = ats - tf
+    prev_date = available(tf, ats)
     data = ohlcv(ai, tf)
     if firstdate(data) > prev_date
         @debug "crossed: not enough candles"
@@ -49,7 +49,7 @@ function iscrossed(s, ai, ats, sig_b, drc::Val)
             @debug "crossed: signal missing" ai sig_b
             return false
         elseif sig.date < prev_date
-            @warn "crossed: stale signal" maxlog = 1
+            @warn "crossed: stale signal" maxlog = 1 sig.date prev_date
             return false
         end
         a, prev_a = cmptarget(s, ai; data, ats, prev_date)
@@ -65,6 +65,7 @@ end
 function iscrossed(s, ai, ats, sig_a_name, sig_b_name, drc::Val)
     tf_a = signal_timeframe(s, sig_a_name)
     tf_b = signal_timeframe(s, sig_b_name)
+    tf_s = s.timeframe
     sig_a = strategy_signal(s, ai, sig_a_name)
     @assert sig_a.date >= ats
     prev_sig_a_val = signal_history(sig_a.state; sig=sig_a)
@@ -79,7 +80,7 @@ function iscrossed(s, ai, ats, sig_a_name, sig_b_name, drc::Val)
         ismissingvalue(prev_sig_b_val)
         @debug "crossed: signal missing" ai sig_a sig_b
         return false
-    elseif sig_a.date < ats - tf_a || sig_b.date < ats - tf_b
+    elseif sig_a.date < available(tf_a, ats) || sig_b.date < available(tf_b, ats)
         @warn "crossed: stale signal" sig_a_name sig_b_name
         return false
     end
@@ -96,14 +97,15 @@ function iscrossed(s, ai, ats, sig_name, field_a, field_b, drc::Val)
     end
     current_val_a = getproperty(sig.state.value, field_a)
     current_val_b = getproperty(sig.state.value, field_b)
+    tf = signal_timeframe(s, sig_name)
 
     if ismissingvalue(current_val_a) ||
         ismissingvalue(current_val_b) ||
         ismissingvalue(hist)
         @debug "crossed: signal field missing" ai sig_name field_a field_b
         return false
-    elseif sig.date < ats - signal_timeframe(s, sig_name)
-        @warn "crossed: stale signal" sig_name
+    elseif sig.date < available(tf, ats)
+        @warn "crossed: stale signal" sig_name sig.date ats signal_timeframe(s, sig_name)
         return false
     end
 
