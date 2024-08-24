@@ -271,7 +271,7 @@ function _positions_from_messages(w::Watcher)
         parse_func = exc.parsePositions
         vec = pyjlvalue(messages)
         if vec isa Vector
-            while !isempty(messages)
+            while !isempty(vec)
                 msg = popfirst!(vec)
                 pup = parse_func(msg)
                 _dopush!(w, pylist(pup))
