@@ -178,12 +178,12 @@ function getexchange!(
     @lget!(
         sandbox ? sb_exchanges : exchanges,
         x,
-        if x == Symbol() || x == Symbol("")
+        if x == Symbol()
             Exchange(pybuiltins.None)
         else
-            params = @something params PyDict("newUpdates" => true)
-            py = ccxt_exchange(x, params; kwargs...)
-            e = Exchange(py)
+            params = PyDict(@something params "newUpdates" => true).py
+            py = ccxt_exchange(x, params)
+            e = Exchange(py, params)
             sandbox && sandbox!(e; flag=true, remove_keys=false)
             setexchange!(e; markets)
         end,

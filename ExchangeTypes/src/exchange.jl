@@ -1,4 +1,4 @@
-using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr, pybuiltins
+using .Python: pyschedule, pytask, Python, pyisinstance, pygetattr, @pystr, pybuiltins, pydict
 using Ccxt: _issupported
 using Ccxt.Misc.Lang: @lget!
 using Base: with_logger, NullLogger
@@ -31,6 +31,7 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const types::Set{Symbol}
     const fees::Dict{Symbol,Union{Symbol,<:Number,<:AbstractDict}}
     const has::Dict{Symbol,Bool}
+    const params::Py
     precision::ExcPrecisionMode
     _trace::Any
 end
@@ -76,7 +77,7 @@ It sets a finalizer to close the exchange when garbage collected.
 
 Returns the new `Exchange` instance, or an empty one if `x` is None.
 """
-function Exchange(x::Py)
+function Exchange(x::Py, params=nothing)
     id = ExchangeID(x)
     isnone = pyisnone(x)
     name = isnone ? "" : pyconvert(String, pygetattr(x, "name"))
@@ -89,6 +90,7 @@ function Exchange(x::Py)
         Set{Symbol}(),
         Dict{Symbol,Union{Symbol,<:Number}}(),
         Dict{Symbol,Bool}(),
+        @something(params, pydict()),
         excTickSize,
         nothing,
     )
