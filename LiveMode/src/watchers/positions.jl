@@ -262,8 +262,29 @@ function Watchers._stop!(w::Watcher, ::CcxtPositionsVal)
     end
     nothing
 end
+
+function _positions_from_messages(w::Watcher)
+    exc = w.exc
+    messages = pygetattr(exc, "_positions_messages", nothing)
+    if pyisjl(messages)
+        tasks = w[:process_tasks]
+        parse_func = exc.parsePositions
+        vec = pyjlvalue(messages)
+        if vec isa Vector
+            while !isempty(messages)
+                msg = popfirst!(vec)
+                pup = parse_func(msg)
+                _dopush!(w, pylist(pup))
+                push!(tasks, @async process!(w))
+            end
+            filter!(!istaskdone, tasks)
+        end
+    end
+end
+
 function Watchers._fetch!(w::Watcher, ::CcxtPositionsVal)
     try
+        _positions_from_messages(w)
         fetch_task = _positions_task(w)
         if !istaskrunning(fetch_task)
             _positions_task!(w)

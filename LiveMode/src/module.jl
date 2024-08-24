@@ -16,7 +16,7 @@ using .Executors.Instruments: cnum
 import .Executors: pong!
 import .Misc: start!, stop!
 using .Misc.DocStringExtensions
-using .Python: pyfetch_timeout
+using .Python: pyfetch_timeout, pygetattr, pyisjl, pyjlvalue
 using Watchers.WatchersImpls: maybe_backoff!
 
 include("utils.jl")
