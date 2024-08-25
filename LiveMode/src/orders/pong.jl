@@ -83,7 +83,7 @@ function pong!(
 )
     @timeout_start
     if !hasorders(s, ai, t) && !confirm
-        @debug "pong cancel orders: no local open orders" _module = LogCancelOrder
+        @debug "pong cancel orders: no local open orders" _module = LogCancelOrder ai t
         return true
     end
     watch_orders!(s, ai)
@@ -91,7 +91,7 @@ function pong!(
         success = waitfor_closed(s, ai, @timeout_now; t)
         if success
             if synced
-                @debug "pong cancel orders: syncing cash" side = orderside(t) _module =
+                @debug "pong cancel orders: syncing cash" ai t _module =
                     LogCancelOrder
                 live_sync_cash!(s, ai; waitfor=@timeout_now)
             end
@@ -100,10 +100,10 @@ function pong!(
                 LogCancelOrder
             live_sync_open_orders!(s, ai)
         end
-        @debug "pong cancel orders: " success side = orderside(t) _module = LogCancelOrder
+        @debug "pong cancel orders: " ai t success _module = LogCancelOrder
         success
     else
-        @debug "pong cancel orders: failed" side = orderside(t) _module = LogCancelOrder
+        @debug "pong cancel orders: failed" ai t success _module = LogCancelOrder
         false
     end
 end
