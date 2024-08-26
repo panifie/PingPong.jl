@@ -6,7 +6,9 @@ using .Misc: IsolatedMargin, CrossMargin, NoMargin
 const ot = OrderTypes
 
 _execfunc(f::Py, args...; kwargs...) = pyfetch(f, args...; kwargs...)
-_execfunc_timeout(f::Py, args...; timeout, kwargs...) = pyfetch_timeout(f, Returns(missing), timeout, args...; kwargs...)
+function _execfunc_timeout(f::Py, args...; timeout, kwargs...)
+    pyfetch_timeout(f, Returns(missing), timeout, args...; kwargs...)
+end
 # Native functions shouldn't require a timeout
 _execfunc(f::Function, args...; kwargs...) = f(args...; kwargs...)
 
@@ -38,7 +40,7 @@ get_float(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytofloat
 @doc "Get value of key as a boolean."
 get_bool(v::Union{Py,PyDict}, k) = get_py(v, k) |> pytruth
 
-_option_float(o::Union{Py,PyDict}, k; nonzero=false) =
+function _option_float(o::Union{Py,PyDict}, k; nonzero=false)
     let v = get_py(o, k)
         if pyisinstance(v, pybuiltins.float)
             ans = pytofloat(v)
@@ -48,6 +50,7 @@ _option_float(o::Union{Py,PyDict}, k; nonzero=false) =
             end
         end
     end
+end
 
 @doc """ Retrieves a float value from a Python response.
 
@@ -62,8 +65,11 @@ function get_float(resp::Union{Py,PyDict}, k, def, args...; ai)
         def
     else
         if !ismissing(def) &&
-           !isequal(ai, v, def, args...) &&
-           !(@something(ordertype_fromccxt(resp, exchangeid(ai)), ot.LimitOrderType) <: ot.MarketOrderType)
+            !isequal(ai, v, def, args...) &&
+            !(
+                @something(ordertype_fromccxt(resp, exchangeid(ai)), ot.LimitOrderType) <:
+                ot.MarketOrderType
+            )
             @warn "live: exchange order $k not matching request" ai v def
         end
         v
@@ -91,7 +97,9 @@ function pytodate(py::Union{Py,PyDict}, keys...)
         end
     end
 end
-pytodate(py::Union{Py,PyDict}, ::EIDType, args...; kwargs...) = pytodate(py, args...; kwargs...)
+function pytodate(py::Union{Py,PyDict}, ::EIDType, args...; kwargs...)
+    pytodate(py, args...; kwargs...)
+end
 @doc "Convert a Python object to a date, defaulting to `now()`."
 get_time(v::Union{Py,PyDict}, keys...) = @something pytodate(v, keys...) now()
 
@@ -216,20 +224,23 @@ end
 
 @doc "Tests if a ccxt order object is synced by comparing filled amount and trades."
 function isorder_synced(o, ai, resp::Union{Py,PyDict}, eid::EIDType=exchangeid(ai))
-    @debug "is order synced:" _module = LogSyncOrder filled_amount(o) resp_order_filled(resp, eid) resp_order_trades(resp, eid)
+    @debug "is order synced:" _module = LogSyncOrder filled_amount(o) resp_order_filled(
+        resp, eid
+    ) resp_order_trades(resp, eid)
     order_filled = resp_order_filled(resp, eid)
-    v = isequal(ai, filled_amount(o), order_filled, Val(:amount)) ||
+    v =
+        isequal(ai, filled_amount(o), order_filled, Val(:amount)) ||
         let ntrades = length(resp_order_trades(resp, eid))
-        order_trades = trades(o)
-        if ntrades > 0
-            ntrades == length(order_trades)
-        elseif length(order_trades) > 0
-            amt = sum(t.amount for t in order_trades)
-            isequal(ai, amt, order_filled, Val(:amount))
-        else
-            false
+            order_trades = trades(o)
+            if ntrades > 0
+                ntrades == length(order_trades)
+            elseif length(order_trades) > 0
+                amt = sum(t.amount for t in order_trades)
+                isequal(ai, amt, order_filled, Val(:amount))
+            else
+                false
+            end
         end
-    end
     @debug "is order synced:" _module = LogSyncOrder v
     return v
 end
@@ -251,7 +262,9 @@ function _ccxt_sidetype(
 end
 
 _ccxtisstatus(status::String, what) = pyeq(Bool, @pystr(status), @pystr(what))
-_ccxtisstatus(resp::Py, statuses::Vararg{String}) = any(x -> _ccxtisstatus(x, resp), statuses)
+function _ccxtisstatus(resp::Py, statuses::Vararg{String})
+    any(x -> _ccxtisstatus(x, resp), statuses)
+end
 function _ccxtisstatus(resp, status::String, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pystr(status))
 end
@@ -262,14 +275,9 @@ function _ccxtisclosed(resp, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pyconst("closed"))
 end
 
-@doc "The ccxt balance type to use depending on the strategy."
-_ccxtbalance_type(::NoMarginStrategy) = @pyconst("spot")
-_ccxtbalance_type(::MarginStrategy) = @pyconst("futures")
-
-
 # FIXME: this should be handled by a `ccxt_balancetype` function
-_balance_type(s::NoMarginStrategy) = :spot
-_balance_type(s::MarginStrategy) = :swap
+_balance_type(s::NoMarginStrategy) = attr(s, :balance_type, :spot)
+_balance_type(s::MarginStrategy) = attr(s, :balance_type, :swap)
 
 function _ccxt_balance_args(s, kwargs)
     params, rest = split_params(kwargs)
@@ -327,11 +335,14 @@ resp_order_status(resp, ::EIDType) = get_py(resp, "status")
 function resp_order_status(resp, eid::EIDType, ::Type{String})
     resp_order_status(resp, eid) |> pytostring
 end
-resp_order_loss_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopLossPrice", nonzero=true)
+resp_order_loss_price(resp, ::EIDType)::Option{DFT} =
+    _option_float(resp, "stopLossPrice"; nonzero=true)
 resp_order_profit_price(resp, ::EIDType)::Option{DFT} =
-    _option_float(resp, "takeProfitPrice", nonzero=true)
-resp_order_stop_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "stopPrice", nonzero=true)
-resp_order_trigger_price(resp, ::EIDType)::Option{DFT} = _option_float(resp, "triggerPrice", nonzero=true)
+    _option_float(resp, "takeProfitPrice"; nonzero=true)
+resp_order_stop_price(resp, ::EIDType)::Option{DFT} =
+    _option_float(resp, "stopPrice"; nonzero=true)
+resp_order_trigger_price(resp, ::EIDType)::Option{DFT} =
+    _option_float(resp, "triggerPrice"; nonzero=true)
 resp_order_info(resp, ::EIDType) = get_py(resp, "info")
 resp_order_reduceonly(resp, ::EIDType) = pytruth(get_py(resp, "reduceOnly"))
 
@@ -356,7 +367,7 @@ resp_position_markprice(resp, ::EIDType)::DFT = get_float(resp, Pos.markPrice)
 resp_position_hedged(resp, ::EIDType)::Bool = get_bool(resp, Pos.hedged)
 resp_position_timestamp(resp, ::EIDType)::DateTime = get_time(resp)
 resp_position_margin_mode(resp, ::EIDType) = get_py(resp, Pos.marginMode)
-resp_position_margin_mode(resp, eid::EIDType, ::Val{:parsed}) = begin
+function resp_position_margin_mode(resp, eid::EIDType, ::Val{:parsed})
     v = resp_position_margin_mode(resp, eid)
     if pyisnone(v)
         nothing
@@ -367,26 +378,25 @@ end
 
 resp_code(resp, ::EIDType) = get_py(resp, "code")
 resp_ticker_price(resp, ::EIDType, k) = get_py(resp, k)
-resp_event_type(resp, eid::EIDType)::Type{<:Union{ot.ExchangeEvent,ot.Order,ot.Trade}} = begin
-    if haskey(resp, @pyconst("clientOrderId"))
-        if iszero(resp_order_amount(resp, eid))
-            ot.ExchangeEvent{eid}
-        else
-            ot.Order
+resp_event_type(resp, eid::EIDType)::Type{<:Union{ot.ExchangeEvent,ot.Order,ot.Trade}} =
+    begin
+        if haskey(resp, @pyconst("clientOrderId"))
+            if iszero(resp_order_amount(resp, eid))
+                ot.ExchangeEvent{eid}
+            else
+                ot.Order
+            end
+        elseif haskey(resp, @pyconst("order"))
+            ot.Trade
+        elseif haskey(resp, @pyconst("contracts"))
+            ot.PositionEvent
+        elseif haskey(resp, @pyconst("total")) &&
+            haskey(resp, @pyconst("free")) &&
+            haskey(resp, @pyconst("used"))
+            ot.BalanceUpdated
+        elseif islist(resp) && !isempty(resp) && let v = first(resp)
+            pyisint(first(v)) && length(v) == 6
         end
-    elseif haskey(resp, @pyconst("order"))
-        ot.Trade
-    elseif haskey(resp, @pyconst("contracts"))
-        ot.PositionEvent
-    elseif haskey(resp, @pyconst("total")) &&
-           haskey(resp, @pyconst("free")) &&
-           haskey(resp, @pyconst("used"))
-        ot.BalanceUpdated
-    elseif islist(resp) &&
-           !isempty(resp) && let v = first(resp)
-               pyisint(first(v)) &&
-                   length(v) == 6
-           end
-        ot.OHLCVUpdated
+            ot.OHLCVUpdated
+        end
     end
-end

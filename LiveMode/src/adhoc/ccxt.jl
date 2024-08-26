@@ -1,6 +1,5 @@
 resp_code(resp, ::Type{ExchangeID{:bybit}}) = get_py(resp, nothing, "retCode", "ret_code")
 resp_code(resp, ::Type{ExchangeID{:deribit}}) = get_py(resp, nothing, "result")
-_ccxtbalance_type(::Strategy{X,N,ExchangeID{:bybit},<:WithMargin}) where {X<:ExecMode,N} = @pyconst("swap")
 
 # NOTE: only for isolated margin
 function resp_position_initial_margin(resp, ::Type{ExchangeID{:binanceusdm}})
@@ -20,4 +19,8 @@ function _ccxt_balance_args(::Strategy{<:ExecMode,ExchangeID{:binance}}, kwargs)
         end
     end
     (; params, rest)
+end
+
+function _balance_type(s::Strategy{X,N,ExchangeID{:phemex},<:WithMargin} where {X,N})
+    attr(s, :balance_type, :perpetual)
 end
