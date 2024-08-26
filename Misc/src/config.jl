@@ -93,9 +93,10 @@ $(TYPEDSIGNATURES)
 This function tries to open and parse a JSON file named after the exchange `name`, which should contain the API keys.
 
 """
-function exchange_keys(name; sandbox)::Dict{String,Any}
+function exchange_keys(name; sandbox, account="")::Dict{String,Any}
     names = ("apiKey", "secret", "password", "walletAddress", "privateKey")
-    exc_name = sandbox ? "$(name)_sandbox" : string(name)
+    name_account = isempty(account) ? name : "$(name)_$(account)"
+    exc_name = sandbox ? "$(name_account)_sandbox" : name_account
     ans = try
         local cfg
         open(keys_path(exc_name)) do f
@@ -126,6 +127,10 @@ $(FIELDS)
     mode::Option{ExecMode} = nothing
     "A symbol to instantiate an exchange (a raw ExchangeID symbol)"
     exchange::Symbol = Symbol()
+    "Different accounts have different api keys"
+    account::String = ""
+    "Parameters for exchange constructor"
+    params::NamedTuple = (;)
     "Exchange sandbox mode flag"
     sandbox::Bool = true
     "The quote currency for the strategy cash."

@@ -21,11 +21,11 @@ This function creates an AssetInstance using the provided strings for the asset 
 
 """
 function Instances.AssetInstance(
-    s::S, t::S, e::S, m::S; sandbox::Bool
+    s::S, t::S, e::S, m::S; sandbox::Bool, params=nothing, account=""
 ) where {S<:AbstractString}
     a = parse(AbstractAsset, s)
     tf = convert(TimeFrame, t)
-    exc = getexchange!(Symbol(e); sandbox)
+    exc = getexchange!(Symbol(e), params; sandbox, account)
     margin = if m == "isolated"
         Isolated()
     elseif m == "cross"
@@ -37,11 +37,11 @@ function Instances.AssetInstance(
     AssetInstance(a, data, exc, margin)
 end
 
-function Instances.AssetInstance{AA,EID,MM}(sym; sandbox) where {AA,EID,MM}
+function Instances.AssetInstance{AA,EID,MM}(sym; sandbox, params=nothing, account="") where {AA,EID,MM}
     AssetInstance(
         parse(AbstractAsset, sym);
         data=SortedDict{TimeFrame,DataFrame}(),
-        exc=getexchange!(EID(); sandbox),
+        exc=getexchange!(EID(), params; sandbox, account),
         margin=MM(),
     )
 end

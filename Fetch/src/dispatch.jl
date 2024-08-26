@@ -25,6 +25,7 @@ You can provide additional parameters using `kwargs`.
 function fetch_ohlcv(
     excs::Vector{Exchange},
     timeframe;
+    account="",
     sandbox=true,
     parallel=false,
     wait_task=false,
@@ -37,9 +38,9 @@ function fetch_ohlcv(
     parallel && _instantiate_workers(:PingPong; num=length(excs))
     # NOTE: The python classes have to be instantiated inside the worker processes
     if eltype(excs) === Symbol
-        e_pl = s -> (ex = getexchange!(s; sandbox); (ex, tickers(ex; as_vec=true)))
+        e_pl = s -> (ex = getexchange!(s; sandbox, account); (ex, tickers(ex; as_vec=true)))
     else
-        e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name)); sandbox), s[2])
+        e_pl = s -> (getexchange!(Symbol(lowercase(s[1].name)); sandbox, account), s[2])
     end
     t = @parallel parallel for s in excs
         ex, pl = e_pl(s)

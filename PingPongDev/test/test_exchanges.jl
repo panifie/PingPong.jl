@@ -6,7 +6,7 @@ _exchange() = begin
     empty!(Exchanges.sb_exchanges)
     e = getexchange!(EXCHANGE, markets=:yes, cache=false, sandbox=false)
     @test nameof(e) == EXCHANGE
-    @test EXCHANGE ∈ keys(ExchangeTypes.exchanges) || exc_sym ∈ keys(ExchangeTypes.sb_exchanges)
+    @test (EXCHANGE, "") ∈ keys(ExchangeTypes.exchanges) || (exc_sym, "") ∈ keys(ExchangeTypes.sb_exchanges)
     e
 end
 _exchange_pairs(exc) = begin

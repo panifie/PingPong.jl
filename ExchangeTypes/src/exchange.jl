@@ -26,6 +26,7 @@ mutable struct CcxtExchange{I<:ExchangeID} <: Exchange{I}
     const py::Py
     const id::I
     const name::String
+    const account::String
     const timeframes::OrderedSet{String}
     const markets::OptionsDict
     const types::Set{Symbol}
@@ -44,8 +45,10 @@ This function attempts to close the given exchange if it exists. It checks if th
 """
 function close_exc(exc::CcxtExchange)
     try
-        (haskey(exchanges, Symbol(exc.id)) || haskey(sb_exchanges, Symbol(exc.id))) &&
+        k = (Symbol(exc.id), account(exc))
+        if !haskey(exchanges, k) && !haskey(sb_exchanges, k)
             return nothing
+        end
         e = exc.py
         if !pyisnull(e) && pyhasattr(e, "close")
             co = e.close()
@@ -77,7 +80,7 @@ It sets a finalizer to close the exchange when garbage collected.
 
 Returns the new `Exchange` instance, or an empty one if `x` is None.
 """
-function Exchange(x::Py, params=nothing)
+function Exchange(x::Py, params=nothing, account="")
     id = ExchangeID(x)
     isnone = pyisnone(x)
     name = isnone ? "" : pyconvert(String, pygetattr(x, "name"))
@@ -85,6 +88,7 @@ function Exchange(x::Py, params=nothing)
         x,
         id,
         name,
+        account,
         OrderedSet{String}(),
         OptionsDict(),
         Set{Symbol}(),
@@ -179,6 +183,9 @@ _has_all(exc, what; kwargs...) = all((_has(exc, v; kwargs...)) for v in what)
 # NOTE: wrap the function here to quickly overlay methods
 has(exc, what::Tuple{Vararg{Symbol}}; kwargs...) = _has_all(exc, what; kwargs...)
 
+account(exc::Exchange) = getfield(exc, :account)
+params(exc::Exchange) = getfield(exc, :params)
+
 function _first(exc::Exchange, args::Symbol...)
     for name in args
         has(exc, name) && return getproperty(getfield(exc, :py), name)
@@ -192,22 +199,10 @@ $(TYPEDSIGNATURES)
 This function iterates through the provided Symbols and returns the value of the first property that exists in the Exchange object."""
 Base.first(exc::Exchange, args::Symbol...) = _first(exc, args...)
 
-@doc "Updates the global exchange `exc` variable."
-globalexchange!(new::Exchange) = begin
-    global exc
-    exc = new
-    exc
-end
-
-@doc "Global var implicit exchange instance.
-
-When working interactively, a global `exc` variable is available, updated through `globalexchange!`, which
-is used as the default for some functions when the exchange argument is omitted."
-exc = Exchange()
 @doc "Global var holding Exchange instances. Used as a cache."
-const exchanges = Dict{Symbol,Exchange}()
+const exchanges = Dict{Tuple{Symbol,String},Exchange}()
 @doc "Global var holding Sandbox Exchange instances. Used as a cache."
-const sb_exchanges = Dict{Symbol,Exchange}()
+const sb_exchanges = Dict{Tuple{Symbol,String},Exchange}()
 
 _closeall() = begin
     @sync begin

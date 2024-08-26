@@ -39,6 +39,8 @@ using ..CoinPaprika: CoinPaprika as cp
     last_processed
     issandbox
     process_tasks
+    excparams
+    excaccount
 end
 
 

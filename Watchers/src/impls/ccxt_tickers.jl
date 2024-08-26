@@ -60,6 +60,8 @@ function ccxt_tickers_watcher(
         attrs[:iswatch] = iswatch::Bool
     end
     attrs[:issandbox] = issandbox(exc)
+    attrs[:excparams] = params(exc)
+    attrs[:excaccount] = account(exc)
     _sym!(attrs, syms) # FIXME: this line should be removed
     _ids!(attrs, syms)
     _exc!(attrs, exc)
@@ -157,7 +159,9 @@ _func_args(exc, ids) =
 function _reset_tickers_func!(w::Watcher)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid; sandbox=attrs[:issandbox])
+    exc = getexchange!(
+        eid, attrs[:excparams]; sandbox=attrs[:issandbox], account=attrs[:excaccount]
+    )
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
     ids = _ids(w)

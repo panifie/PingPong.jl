@@ -16,8 +16,8 @@ export Exchange,
     exchangeid,
     exchanges,
     sb_exchanges,
-    globalexchange!,
     has,
+    account,
     eids
 
 function _doinit()

@@ -92,9 +92,9 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
 
     $(TYPEDSIGNATURES)
     """
-    function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v; sandbox=false)
+    function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v; sandbox=false, account="")
         lock(currency_lock) do
-            exc = getexchange!(Symbol(id); sandbox)
+            exc = getexchange!(Symbol(id); sandbox, account)
             c = cash_type(v)
             lpf = _lpf(exc, _cur(exc, nameof(c)))
             Instruments.cash!(c, toprecision(c.value, lpf.precision))

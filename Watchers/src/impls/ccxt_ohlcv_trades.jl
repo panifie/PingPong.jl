@@ -46,7 +46,7 @@ function ccxt_ohlcv_watcher(
     default_view=nothing,
     quiet=true,
     start=false,
-    iswatch=nothing
+    iswatch=nothing,
 )
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
@@ -59,6 +59,8 @@ function ccxt_ohlcv_watcher(
         attrs[:iswatch] = iswatch
     end
     attrs[:issandbox] = issandbox(exc)
+    attrs[:excparams] = params(exc)
+    attrs[:excaccount] = account(exc)
     watcher_type = Vector{CcxtTrade}
     wid = string(CcxtOHLCVVal.parameters[1], "-", hash((exc.id, attrs[:issandbox], sym)))
     w = watcher(
@@ -128,7 +130,9 @@ function _start!(w::Watcher, ::CcxtOHLCVVal)
     attrs = w.attrs
     attrs[:backoff] = ms(0)
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid, sandbox=attrs[:issandbox])
+    exc = getexchange!(
+        eid, attrs[:excparams]; sandbox=attrs[:issandbox], account=attrs[:excaccount]
+    )
     _exc!(attrs, exc)
 
     # TODO: Make watcher multi symbol compatible
@@ -246,17 +250,20 @@ function _process!(w::Watcher, ::CcxtOHLCVVal)
     # On startup, the first trades that we receive are likely incomplete
     # So we have to discard them, and only consider trades after the first (normalized) timestamp
     # Practically, the `trades_to_ohlcv` function has to *trim_left* only once, at the beginning (for every sym).
-    temp = let temp = trades_to_ohlcv(_trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false)
-        isnothing(temp) && return nothing
-        ohlcv = cleanup_ohlcv_data(temp.ohlcv, _tfr(w))
-        (; ohlcv, temp.start, temp.stop)
-    end
+    temp =
+        let temp = trades_to_ohlcv(
+                _trades(w), _tfr(w); trim_left=@ispending(w), trim_right=false
+            )
+            isnothing(temp) && return nothing
+            ohlcv = cleanup_ohlcv_data(temp.ohlcv, _tfr(w))
+            (; ohlcv, temp.start, temp.stop)
+        end
     if isempty(w.view)
         appendmax!(w.view, temp.ohlcv, w.capacity.view)
     else
         _resolve(w, w.view, temp.ohlcv)
     end
-    keepat!(_trades(w), (temp.stop+1):lastindex(_trades(w)))
+    keepat!(_trades(w), (temp.stop + 1):lastindex(_trades(w)))
     _warmed!(w, _status(w))
     @debug "Latest candle for $(_sym(w)) is $(_lastdate(temp.ohlcv))"
 end

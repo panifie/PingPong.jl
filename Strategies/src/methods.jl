@@ -39,16 +39,17 @@ end
 instances(s::Strategy) = universe(s).data.instance
 # FIXME: this should return the Exchange, not the ExchangeID
 @doc "Strategy exchange."
-exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)); sandbox=s.sandbox)
+exchange(s::Strategy) = getexchange!(Symbol(exchangeid(s)); sandbox=s.sandbox, account=account(s))
 function exchangeid(
     ::Union{<:S,Type{<:S}} where {S<:Strategy{X,N,E,R,C} where {X,N,R,C}}
 ) where {E<:ExchangeID}
     E
 end
+Exchanges.account(s::Strategy) = getfield(getfield(s, :config), :account)
 Exchanges.accounts(s::Strategy) = Exchanges.accounts(exchange(s))
 Exchanges.current_account(s::Strategy) = Exchanges.current_account(exchange(s))
 function Exchanges.getexchange!(s::Type{<:Strategy})
-    getexchange!(Symbol(exchangeid(s)); sandbox=issandbox(s))
+    getexchange!(Symbol(exchangeid(s)); sandbox=issandbox(s), account=account(s))
 end
 Exchanges.issandbox(s::Strategy) = begin
     ans = s.sandbox

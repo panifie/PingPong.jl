@@ -118,6 +118,7 @@ It also sets the `verbose` property of the strategy to `false`.
 _strat_load_checks(s::Strategy, config::Config) = begin
     @assert marginmode(s) == config.margin
     @assert execmode(s) == config.mode
+    @assert account(s) == config.account
     s[:verbose] = false
     s
 end
@@ -153,7 +154,7 @@ Finally, it performs checks on the loaded strategy.
 """
 function bare_load(mod::Module, t::Type, config::Config)
     syms = invokelatest(mod.ping!, t, StrategyMarkets())
-    exc = Exchanges.getexchange!(config.exchange; sandbox=true)
+    exc = Exchanges.getexchange!(config.exchange; sandbox=true, config.account)
     uni = AssetCollection(syms; load_data=false, timeframe=mod.TF, exc, config.margin)
     s = Strategy(mod, config.mode, config.margin, mod.TF, exc, uni; config)
     _strat_load_checks(s, config)

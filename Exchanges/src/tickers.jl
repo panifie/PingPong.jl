@@ -141,7 +141,7 @@ const tickersLockDict = ConcurrentDict(Dict{String,ReentrantLock}())
 
 $(TYPEDSIGNATURES)
 "
-function market!(pair, exc::Exchange=exc)
+function market!(pair, exc::Exchange)
     @lget! marketsCache1Min pair exc.py.market(pair)
 end
 market!(a::AbstractAsset, args...) = market!(a.raw, args...)
@@ -351,7 +351,7 @@ end
 
 $(TYPEDSIGNATURES)
 """
-function is_pair_active(pair::AbstractString, exc::Exchange=exc)
+function is_pair_active(pair::AbstractString, exc::Exchange)
     @lget! activeCache1Min pair begin
         pyconvert(Bool, market!(pair, exc)["active"])
     end
@@ -372,7 +372,7 @@ $(TYPEDSIGNATURES)
 
 """
 function market_fees(
-    pair::AbstractString, exc::Exchange=exc; only_taker::Union{Bool,Nothing}=nothing
+    pair::AbstractString, exc::Exchange; only_taker::Union{Bool,Nothing}=nothing
 )
     m = exc.markets[pair]
     if isnothing(only_taker)

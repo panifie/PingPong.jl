@@ -24,6 +24,8 @@ function Strategies.Strategy(
     assets::Union{Dict,Iterable{String}};
     load_data=false,
     config::Config,
+    params=config.params,
+    account=config.account,
     mode=config.mode,
     margin=config.margin,
     sandbox=config.sandbox,
@@ -33,7 +35,7 @@ function Strategies.Strategy(
     setproperty!(config, :mode, mode)
     setproperty!(config, :margin, margin)
     setproperty!(config, :min_timeframe, timeframe)
-    exc = getexchange!(config.exchange; sandbox)
+    exc = getexchange!(config.exchange, params; sandbox, account)
     uni = if isempty(assets)
         AssetCollection()
     else

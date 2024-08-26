@@ -263,8 +263,12 @@ reset!(ac::AssetCollection) = begin
     ais = ac.data.instance
     foreach(eachindex(ais)) do idx
         ai = ais[idx]
-        eid = exchangeid(ai)
-        ais[idx] = similar(ai; exc=getexchange!(eid))
+        this_exc = exchange(ai)
+        eid = exchangeid(this_exc)
+        acc = account(this_exc)
+        params = this_exc.params
+        sandbox = issandbox(this_exc)
+        ais[idx] = similar(ai; exc=getexchange!(eid, params; sandbox, account=acc))
     end
 end
 

@@ -172,18 +172,18 @@ $(TYPEDSIGNATURES)
 It uses a WS instance if available, otherwise an async instance.
 """
 function getexchange!(
-    x::Symbol, params=nothing; sandbox=true, markets=:yes, kwargs...
+    x::Symbol, params=nothing; account="", sandbox=true, markets=:yes, kwargs...
 )
     @debug "exchanges: getexchange!" x @caller
     @lget!(
         sandbox ? sb_exchanges : exchanges,
-        x,
+        (x, account),
         if x == Symbol()
             Exchange(pybuiltins.None)
         else
             params = PyDict(@something params "newUpdates" => true).py
             py = ccxt_exchange(x, params)
-            e = Exchange(py, params)
+            e = Exchange(py, params, account)
             sandbox && sandbox!(e; flag=true, remove_keys=false)
             setexchange!(e; markets)
         end,
@@ -254,12 +254,6 @@ function _setfees!(fees, k, v)
     end
 end
 
-function setexchange!(x::Symbol, args...; kwargs...)
-    exc = getexchange!(x, args...; kwargs...)
-    setexchange!(exc, args...; kwargs...)
-    globalexchange!(exc)
-end
-
 @doc "Set the ccxt exchange `has` flags."
 function setflags!(exc::CcxtExchange)
     has = exc.has
@@ -272,13 +266,19 @@ setflags!(args...; kwargs...) = nothing
 @doc "When serializing an exchange, serialize only its id."
 function serialize(s::AbstractSerializer, exc::E) where {E<:Exchange}
     serialize_type(s, E, false)
-    serialize(s, (exc.id, issandbox(exc)))
+    serialize(s, (exc.id, issandbox(exc), account(exc), e.params))
+end
+
+@doc "When serializing an exchange, serialize only its id."
+function serialize(s::AbstractSerializer, exc::E) where {E<:CcxtExchange}
+    serialize_type(s, E, false)
+    serialize(s, (exc.id, issandbox(exc), account(exc), jlpyconvert(e.params)))
 end
 
 @doc "When deserializing an exchange, use the deserialized id to construct the exchange."
 deserialize(s::AbstractSerializer, ::Type{<:Exchange}) = begin
-    id, sandbox = deserialize(s)
-    getexchange!(id; sandbox)
+    id, sandbox, account, params = deserialize(s)
+    getexchange!(id, params; sandbox, account)
 end
 
 @doc "Check if exchange has tickers list.
@@ -420,7 +420,7 @@ The `price_ranges` function takes the following parameters:
 - `exc` (optional, default is global `exc`): an Exchange object to get the tickers data from.
 - `kwargs...`: a variable number of keyword arguments to pass to the price ranges calculation.
 """
-function price_ranges(pair::AbstractString, args...; exc=exc, kwargs...)
+function price_ranges(pair::AbstractString, args...; exc, kwargs...)
     type = markettype(exc)
     tkrs = @tickers! type true
     price_ranges(tkrs[pair]["last"], args...; kwargs...)
@@ -503,13 +503,13 @@ end
 
 $(TYPEDSIGNATURES)
 "
-function exckeys!(exc; sandbox=issandbox(exc))
+function exckeys!(exc; sandbox=issandbox(exc), acc=account(exc))
     eid = Symbol(exc.id)
-    exc_keys = exchange_keys(eid; sandbox)
+    exc_keys = exchange_keys(eid; sandbox, account=acc)
     # Check the exchange->futures mapping to re-use keys
     if isempty(exc_keys) && eid ∈ values(futures_exchange)
         id = argmax(x -> x[2] == eid, futures_exchange)
-        merge!(exc_keys, exchange_keys(id.first; sandbox))
+        merge!(exc_keys, exchange_keys(id.first; sandbox, account=acc))
     end
     if !isempty(exc_keys)
         @debug "Setting exchange keys..."
@@ -532,7 +532,7 @@ $(TYPEDSIGNATURES)
 - `remove_keys` (optional, default is true): a boolean indicating whether to remove the API keys while enabling sandbox mode.
 
 """
-function sandbox!(exc::Exchange=exc; flag=!issandbox(exc), remove_keys=true)
+function sandbox!(exc::Exchange; flag=!issandbox(exc), remove_keys=true)
     success = try
         exc.py.setSandboxMode(flag)
         true
@@ -552,7 +552,7 @@ function sandbox!(exc::Exchange=exc; flag=!issandbox(exc), remove_keys=true)
     end
 end
 @doc "Check if exchange is in sandbox mode."
-function issandbox(exc::Exchange=exc)
+function issandbox(exc::Exchange)
     "apiBackup" in exc.py.urls.keys()
 end
 
@@ -564,19 +564,19 @@ end
 @doc "Enable or disable rate limit.
 
 $(TYPEDSIGNATURES)"
-ratelimit!(exc::Exchange=exc, flag=true) = exc.py.enableRateLimit = flag
-ratelimit(exc::Exchange=exc) = pyconvert(DFT, exc.py.rateLimit)
-isratelimited(exc::Exchange=exc) = pyisTrue(exc.py.enableRateLimit)
-ratelimit_tokens(exc::Exchange=exc) = pyconvert(DFT, exc.py.rateLimitTokens)
+ratelimit!(exc::Exchange, flag=true) = exc.py.enableRateLimit = flag
+ratelimit(exc::Exchange) = pyconvert(DFT, exc.py.rateLimit)
+isratelimited(exc::Exchange) = pyisTrue(exc.py.enableRateLimit)
+ratelimit_tokens(exc::Exchange) = pyconvert(DFT, exc.py.rateLimitTokens)
 function ratelimit_njobs(exc::Exchange)
     round(Int, div(ratelimit(exc), ratelimit_tokens(exc)), RoundDown)
 end
 @doc "Set exchange timeout. (milliseconds)
 
 $(TYPEDSIGNATURES)"
-timeout!(exc::Exchange=exc, v=5000) = exc.py.timeout = v
+timeout!(exc::Exchange, v=5000) = exc.py.timeout = v
 @doc "Check that the exchange timeout is not too low wrt the interval."
-function check_timeout(exc::Exchange=exc, interval=Second(5))
+function check_timeout(exc::Exchange, interval=Second(5))
     @assert Bool(Millisecond(interval).value <= exc.timeout) "Interval ($interval) shouldn't be lower than the exchange set timeout ($(exc.timeout))"
 end
 gettimeout(exc::Exchange)::Millisecond = Millisecond(pyconvert(Int, exc.timeout))
@@ -596,7 +596,7 @@ Base.time(exc::Exchange) = dt(_fetchnoerr(exc.py.fetchTime, Float64))
 @doc "Returns the matching *futures* exchange instance, if it exists, or the input exchange otherwise."
 function futures(exc::Exchange)
     futures_sym = get(futures_exchange, exc.id, exc.id)
-    futures_sym != exc.id ? getexchange!(futures_sym; sandbox=issandbox(exc)) : exc
+    futures_sym != exc.id ? getexchange!(futures_sym; sandbox=issandbox(exc), account=account(exc)) : exc
 end
 
 const CCXT_REQUIRED_LOCAL4 = (

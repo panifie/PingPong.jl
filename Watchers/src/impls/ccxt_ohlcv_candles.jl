@@ -18,6 +18,8 @@ function ccxt_ohlcv_candles_watcher(
     a = Dict{Symbol,Any}()
     a[k"ids"] = [string(v) for v in syms]
     a[k"issandbox"] = issandbox(exc)
+    a[k"excparams"] = params(exc)
+    a[k"excaccount"] = account(exc)
     @setkey! a exc
     @setkey! a default_view
     @setkey! a timeframe
@@ -111,7 +113,9 @@ isemptish(v) = isnothing(v) || isempty(v)
 function _reset_candles_func!(w)
     attrs = w.attrs
     eid = exchangeid(_exc(w))
-    exc = getexchange!(eid; sandbox=attrs[k"issandbox"])
+    exc = getexchange!(
+        eid, attrs[k"excparams"]; sandbox=attrs[k"issandbox"], account=attrs[k"excaccount"]
+    )
     _exc!(attrs, exc)
     # don't pass empty args to imply all symbols
     ids = _check_ids(exc, _ids(w))

@@ -2,7 +2,7 @@
 
 Every trade, order, asset instance, and strategy is parameterized against an `ExchangeID`, which is a type constructed from the name (`Symbol`) of an exchange. Currently, the bot supports CCXT with exchanges subtypes of `CcxtExchange`.
 
-There is only one exchange instance (one sandbox and one non-sandbox) constructed per exchange, so calling [`PingPong.Engine.Exchanges.getexchange!`](@ref) will always return the same object for each exchange. The sandbox instance is generally a test-net with synthetic markets.
+There is only one exchange instance (one sandbox and one non-sandbox) constructed per exchange, so calling [`PingPong.Engine.Exchanges.getexchange!`](@ref) will always return the same object for each exchange (w.r.t. `sandbox` and `account` options). The sandbox instance is generally a test-net with synthetic markets. The account name indicates which api keys to use.
 
 We try to parse as much info from the (CCXT) exchange such that we can fill attributes such as:
 - Markets
