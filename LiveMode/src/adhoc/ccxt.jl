@@ -21,6 +21,6 @@ function _ccxt_balance_args(::Strategy{<:ExecMode,ExchangeID{:binance}}, kwargs)
     (; params, rest)
 end
 
-function _balance_type(s::Strategy{X,N,ExchangeID{:phemex},<:WithMargin} where {X,N})
+function balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:phemex},<:WithMargin} where {N})
     attr(s, :balance_type, :perpetual)
 end

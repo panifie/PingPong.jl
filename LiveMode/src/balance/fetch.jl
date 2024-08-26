@@ -16,7 +16,7 @@ $(TYPEDSIGNATURES)
 The function fetches the balance by calling the `_fetch_balance` function with the exchange associated with the live strategy and any additional arguments.
 The balance is fetched from the exchange's API.
 """
-function fetch_balance(s::LiveStrategy, args...; type=_balance_type(s), kwargs...)
+function fetch_balance(s::LiveStrategy, args...; type=balance_type(s), kwargs...)
     qc = nameof(s.cash)
     syms = st.assets(s)
     _fetch_balance(exchange(s), qc, syms, args...; type, kwargs...)

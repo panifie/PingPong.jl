@@ -1,13 +1,13 @@
 using .Lang: splitkws, @get
 
-function _balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N}
-    :unified
+function balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N}
+    attr(s, :balance_type, :unified)
 end
-_balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = :unified
-function _balance_type(
+balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},NoMargin}) where {N} = attr(s, :balance_type, :unified)
+function balance_type(
     s::Strategy{<:ExecMode,N,ExchangeID{:binanceusdm},<:WithMargin}
 ) where {N}
-    :future
+    attr(s, :balance_type, :future)
 end
 
 function _fetch_balance(
@@ -16,12 +16,12 @@ function _fetch_balance(
     syms,
     args...;
     timeout=gettimeout(exc),
-    type="unified",
+    type=:unified,
     params=pydict(),
     kwargs...,
 )
     # assume bybit UTA
-    params[@pyconst("type")] = "unified"
+    params[@pyconst("type")] = @pystr type lowercase(string(type))
     _execfunc_timeout(_exc_balance_func(exc), args...; timeout, params, kwargs...)
 end
 
@@ -36,7 +36,7 @@ function _fetch_balance(
     params=pydict(),
     kwargs...,
 )
-    params["type"] = @pystr type lowercase(string(type))
+    params[@pyconst("type")] = @pystr type lowercase(string(type))
     if type != :spot
         params["code"] = @pystr code uppercase(string(@something code qc))
     end

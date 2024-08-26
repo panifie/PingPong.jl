@@ -26,7 +26,7 @@ function ccxt_balance_watcher(
     exc = st.exchange(s)
     check_timeout(exc, interval)
     attrs = Dict{Symbol,Any}()
-    params["type"] = @pystr(lowercase(string(_balance_type(s))))
+    params["type"] = @pystr(lowercase(string(balance_type(s))))
     _exc!(attrs, exc)
     attrs[:strategy] = s
     attrs[:iswatch] = @lget! s.attrs :is_watch_balance has(exc, :watchBalance)

@@ -275,13 +275,12 @@ function _ccxtisclosed(resp, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pyconst("closed"))
 end
 
-# FIXME: this should be handled by a `ccxt_balancetype` function
-_balance_type(s::NoMarginStrategy) = attr(s, :balance_type, :spot)
-_balance_type(s::MarginStrategy) = attr(s, :balance_type, :swap)
+balance_type(s::NoMarginStrategy) = attr(s, :balance_type, :spot)
+balance_type(s::MarginStrategy) = attr(s, :balance_type, :swap)
 
 function _ccxt_balance_args(s, kwargs)
     params, rest = split_params(kwargs)
-    @lget! params "type" @pystr(_balance_type(s))
+    @lget! params "type" @pystr(balance_type(s))
     (; params, rest)
 end
 
