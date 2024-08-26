@@ -11,7 +11,7 @@ include("adhoc/leverage.jl")
 include("adhoc/constructors.jl")
 include("adhoc/tickers.jl")
 
-export exc, @exchange!, setexchange!, getexchange!, exckeys!
+export @exchange!, setexchange!, getexchange!, exckeys!
 export loadmarkets!, tickers, pairs
 export issandbox, ratelimit!, isratelimited, ispercentage
 export timestamp, timeout!, check_timeout

@@ -46,12 +46,12 @@ This function attempts to close the given exchange if it exists. It checks if th
 function close_exc(exc::CcxtExchange)
     try
         k = (Symbol(exc.id), account(exc))
-        if !haskey(exchanges, k) && !haskey(sb_exchanges, k)
+        if !haskey(exchanges, k) && !haskey(sb_exchanges, k) || pyisnull(e.py)
             return nothing
         end
-        e = exc.py
-        if !pyisnull(e) && pyhasattr(e, "close")
-            co = e.close()
+        close_func = pygetattr(e, "close", nothing)
+        if !isnothing(close_func)
+            co = close_func()
             if !pyisnull(co) && pyisinstance(co, Python.gpa.pycoro_type)
                 task = pytask(co)
                 # block during precomp

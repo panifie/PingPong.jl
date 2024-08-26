@@ -137,9 +137,6 @@ resetenv!() = begin
     finally
         Python.py_start_loop()
     end
-    if !istaskrunning(Python.GC_TASK[])
-        Python.pygctask!()
-    end
     exs.ExchangeTypes._closeall()
     Watchers._closeall()
     for pull_name in Python.HANDLERS
@@ -149,7 +146,6 @@ resetenv!() = begin
             Python.gpa.globs[string("handler_flag", n)] = true
         end
     end
-    Python.pygctask!()
 end
 
 togglewatch!(s, enable=true) = begin

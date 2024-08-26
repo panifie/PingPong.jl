@@ -35,7 +35,9 @@ Finally, it creates a simulated market order using the `create_sim_market_order`
 function create_paper_market_order(s, t, ai; amount, date, price, kwargs...)
     if volumecap!(s, ai; amount)
     else
-        @debug "paper market order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(s, ai)
+        @debug "paper market order: overcapacity" ai = raw(ai) amount liq = _paper_liquidity(
+            s, ai
+        )
         return nothing
     end
     obside = orderbook_side(ai, t)
@@ -79,7 +81,13 @@ It then invokes the `aftertrade!` function with the given strategy, asset, and o
 Finally, it updates the position with the trade.
 
 """
-function aftertrade!(s::MarginStrategy{Paper}, ai::A, o::O, t=nothing) where {A,O}
+function aftertrade!(
+    s::MarginStrategy{Paper}, ai, o::O, t=nothing
+) where {O<:Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder}}
     @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
-    invoke(aftertrade!, Tuple{Strategy,A,O}, s, ai, o, t)
+    invoke(aftertrade!, Tuple{Strategy,AssetInstance,<:O,typeof(t)}, s, ai, o, t)
+end
+
+function aftertrade!(s::MarginStrategy{Paper}, ai, o::O, t=nothing) where {O<:AnyLimitOrder}
+    invoke(aftertrade!, Tuple{Strategy,AssetInstance,O,typeof(t)}, s, ai, o, t)
 end

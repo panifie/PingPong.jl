@@ -7,7 +7,7 @@ using Pbar.Term: RGB, tprint
 using ExchangeTypes
 using Data: Data, DataFrame, eventtrace
 @reexport using ExchangeTypes
-using ExchangeTypes: OptionsDict, exc, CcxtExchange, Python
+using ExchangeTypes: OptionsDict, CcxtExchange, Python
 using ExchangeTypes.Ccxt: Ccxt, ccxt_exchange, choosefunc
 import .Ccxt: issupported
 using .Python: pyfetch, @pystr

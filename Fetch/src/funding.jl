@@ -4,7 +4,6 @@ using .Misc: DFT, FUNDING_PERIOD
 using .Misc.TimeToLive
 using .Misc.Lang: @lget!, @debug_backtrace
 using .Instruments.Derivatives
-using Exchanges: exc
 using .Python: PyDict
 using Processing: _fill_missing_candles
 using Processing.Data: Not, select!

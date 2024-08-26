@@ -5,7 +5,7 @@ using .Instances: value
 using .Instances.Data: DataFrame, Not, save_data, load_data, nrow, todata, tobytes
 using .Instances.Data: zinstance, Zarr as za
 using .Instances.Data.Zarr: getattrs, writeattrs, writemetadata
-using .Instances.Exchanges: exc, sb_exchanges
+using .Instances.Exchanges: sb_exchanges
 using .st: Strategy, Sim, SimStrategy, WarmupPeriod
 using SimMode.Misc: DFT
 using SimMode.Lang: Option, splitkws, @debug_backtrace

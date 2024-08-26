@@ -8,7 +8,7 @@ using .ect.Strategies
 using .Strategies.coll
 using .Strategies.Instances
 using .Instances.Exchanges: Exchanges, market_fees, market_limits, market_precision
-using .Exchanges: getexchange!, exc
+using .Exchanges: getexchange!
 using .Exchanges.Data
 import .Data: stub!
 using .Data: load, zi, empty_ohlcv

@@ -519,7 +519,8 @@ function test_orders2()
                 unfillment,
                 iscommittable,
                 orderscount,
-                hascash
+                hascash,
+                cash!
         end
         @info "TEST: committment"
         s_nomg = backtest_strat(:Example)

@@ -1,6 +1,8 @@
 using Test
 
-test_exch() = Symbol(lowercase(setexchange!(EXCHANGE, sandbox=false).name)) == EXCHANGE
+test_exch() = let exc = getexchange!(EXCHANGE, sandbox=false)
+    Symbol(lowercase(exc.name)) == EXCHANGE
+end
 _exchange() = begin
     empty!(Exchanges.exchanges)
     empty!(Exchanges.sb_exchanges)
@@ -14,13 +16,13 @@ _exchange_pairs(exc) = begin
     @test length(marketsid(exc, "USDT", min_vol=10)) > 0
 end
 
-_exchange_sbox() = begin
-    @assert !issandbox()
-    sandbox!(flag=false)
-    @assert !issandbox()
-    sandbox!()
-    @assert issandbox()
-    ratelimit!()
+_exchange_sbox(exc) = begin
+    @assert !issandbox(exc)
+    sandbox!(exc, flag=false)
+    @assert !issandbox(exc)
+    sandbox!(exc)
+    @assert issandbox(exc)
+    ratelimit!(exc)
 end
 
 _exchanges_test_env() = begin
@@ -35,7 +37,7 @@ _do_test_exchanges() = begin
     @test test_exch()
     e = _exchange()
     _exchange_pairs(e)
-    @test _exchange_sbox()
+    @test _exchange_sbox(e)
 end
 
 test_exchanges() = begin

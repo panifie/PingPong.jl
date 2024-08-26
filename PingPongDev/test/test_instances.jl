@@ -27,7 +27,7 @@ end
 function test_asset_instance()
     @asset_constructor()
     @test ai.asset == a"BTC/USDT"
-    @test ai.data == SortedDict{TimeFrame,DataFrame}()
+    @test ai.data isa SortedDict{TimeFrame,DataFrame,Base.Order.ForwardOrdering}
     @test ai.history isa SortedArray{AnyTrade{typeof(a),typeof(eid)},1}
     @test isempty(ai.history)
     @test ai.lock isa ReentrantLock
@@ -480,7 +480,6 @@ function test_asset_instance_functions2()
     print(io, ai)
     @test String(take!(io)) == "BTC/USDT~[-0.2(μ)]{Binance}"
     show(io, "text/plain", ai)
-    @info String(take!(io))
     @test !isempty(String(take!(io)))
     show(io, ai)
     @test !isempty(String(take!(io)))

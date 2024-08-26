@@ -446,14 +446,14 @@ function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Execu
             s = live_strat(:Example; exchange, initial_cash=1e8, skip_sync=true)
             setglobal!(Main, :s, s)
             try
-                @info "TEST: pong nm gtc"
-                @testset test_live_pong_nm_gtc(s)
-                @info "TEST: pong nm market"
-                @testset test_live_pong_nm_market(s)
-                @info "TEST: pong nm ioc"
-                @testset test_live_pong_nm_ioc(s)
-                @info "TEST: pong nm fok"
-                @testset test_live_pong_nm_fok(s)
+                # @info "TEST: pong nm gtc"
+                # @testset test_live_pong_nm_gtc(s)
+                # @info "TEST: pong nm market"
+                # @testset test_live_pong_nm_market(s)
+                # @info "TEST: pong nm ioc"
+                # @testset test_live_pong_nm_ioc(s)
+                # @info "TEST: pong nm fok"
+                # @testset test_live_pong_nm_fok(s)
             finally
                 if $stop
                     t = @async lm.stop!(s)

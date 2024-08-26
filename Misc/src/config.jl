@@ -95,7 +95,7 @@ This function tries to open and parse a JSON file named after the exchange `name
 """
 function exchange_keys(name; sandbox, account="")::Dict{String,Any}
     names = ("apiKey", "secret", "password", "walletAddress", "privateKey")
-    name_account = isempty(account) ? name : "$(name)_$(account)"
+    name_account = isempty(account) ? string(name) : "$(name)_$(account)"
     exc_name = sandbox ? "$(name_account)_sandbox" : name_account
     ans = try
         local cfg

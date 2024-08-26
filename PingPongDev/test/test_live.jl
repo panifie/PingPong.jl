@@ -346,6 +346,8 @@ function test_live_pnl(s)
         pos = position(ai, p)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
+        st.default!(s, skip_sync=true)
+        lm.watch_positions!(s)
         empty!(lm.positions_watcher(s))
         # test if live_pnl returns the correct unrealized pnl from the live position
         update = lm.live_position(s, ai, p; force=true)

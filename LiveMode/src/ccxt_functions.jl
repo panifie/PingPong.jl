@@ -482,9 +482,9 @@ function ccxt_oc_orders_func!(a, exc; open=true)
         @assert !isnothing(orders_func) "`live_orders_func` must be set before `live_$(names.oc)_orders_func`"
         pred_func(o) = pyeq(Bool, resp_order_status(o, eid), @pyconst("open"))
         status_pred_func = open ? pred_func : !pred_func
-        this_func_fallback(ai; kwargs...) = begin
+        this_func_fallback(ai; ids=(), kwargs...) = begin
             out = pylist()
-            all_orders = orders_func(ai; kwargs...)
+            all_orders = orders_func(ai; ids, kwargs...)
             for o in all_orders
                 if status_pred_func(o)
                     out.append(o)

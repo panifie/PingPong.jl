@@ -179,8 +179,8 @@ end
 
 function test_bankruptcy_function()
     @position_constructor()
-    @test bankruptcy(100.0, 2.0) == 50.0
-    @test bankruptcy(pos, 100.0) == bankruptcy(100.0, leverage(pos))
+    @test bankruptcy(100.0, 2.0, Long()) == 50.0
+    @test bankruptcy(pos, 100.0) == bankruptcy(100.0, leverage(pos), Long())
 end
 
 function test_timestamp_function()

@@ -14,6 +14,7 @@ all_tests = [
     :markets,
     :collections,
     :orders,
+    :orders2,
     :positions,
     :instances,
     :strategies,

@@ -23,9 +23,9 @@ _test_ohlcv() = begin
     # until one succeeds
     for e in unique((EXCHANGE, EXCHANGE_MM, :kucoin, :phemex, :binance))
         @debug "TEST: test_ohlcv" exchange = e
-        let exc = setexchange!(e)
-            _test_ohlcv_exc(exc)
-        end
+        exc = getexchange!(e)
+        setexchange!(exc)
+        _test_ohlcv_exc(exc)
     end
 end
 
