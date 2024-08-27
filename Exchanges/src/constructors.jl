@@ -65,7 +65,7 @@ $(TYPEDSIGNATURES)
 
 """
 function isfileyounger(f::AbstractString, p::Period)
-    isfile(f) && dt(stat(f).mtime) < now() - p
+    isfile(f) && dt(stat(f).ctime) < now() - p
 end
 
 function _elconvert(v)
