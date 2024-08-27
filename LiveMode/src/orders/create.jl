@@ -144,8 +144,10 @@ function create_live_order(
         end
         o = create(; skipcommit)
         if isnothing(o) && synced
-            @warn "create order: can't construct (back-tracking)" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s)
             o = findorder(s, ai; resp, side)
+            if isnothing(o)
+                @warn "create order: can't construct (back-tracking)" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s) t
+            end
         end
         if isnothing(o)
             @debug "create order: retrying (no commits)" _module = LogCreateOrder ai = raw(ai) side = posside(t)

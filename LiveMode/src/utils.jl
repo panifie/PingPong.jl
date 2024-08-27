@@ -35,6 +35,7 @@ baremodule LogCreateOrder end
 baremodule LogCancelOrder end
 baremodule LogSendOrder end
 baremodule LogSyncOrder end
+baremodule LogSyncCash end
 baremodule LogWaitOrder end
 baremodule LogTasks end
 baremodule LogTasks2 end

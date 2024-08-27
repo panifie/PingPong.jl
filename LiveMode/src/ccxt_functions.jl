@@ -280,7 +280,8 @@ function ccxt_orders_func!(a, exc)
             out = pylist()
             sym = raw(ai)
             @sync for id in ids
-                @async let resp = _execfunc(fetch_single_func, id, sym; side, kwargs...)
+                # NOTE: don't pass `side` when passing `id`
+                @async let resp = _execfunc(fetch_single_func, id, sym; kwargs...)
                     if !isemptish(resp)
                         out.append(resp)
                     end

@@ -62,7 +62,9 @@ function live_sync_strategy_cash!(
     # HACK: resync committed cash from all local orders
     _sync_comm_cash!(s)
 
+    @debug "strategy cash: event" _module = LogSyncCash
     event!(s, ot.BalanceUpdated(s, :strategy_balance_updated, s, bal))
+    @debug "strategy cash: synced" _module = LogSyncCash
     nothing
 end
 
@@ -86,6 +88,7 @@ function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
         ai_bal = @get bal ai BalanceSnapshot(ai)
         @async live_sync_cash!(s, ai; bal=ai_bal, loop_kwargs...)
     end
+    @debug "sync universe cash(nm): synced"
 end
 
 @doc """ Synchronizes the cash balance of a specific asset in a NoMarginStrategy universe.

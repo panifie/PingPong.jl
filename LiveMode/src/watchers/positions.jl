@@ -22,6 +22,11 @@ const PositionTuple = NamedTuple{
 }
 const PositionsDict2 = Dict{String,PositionTuple}
 
+_debug_getup(w, prop=:time) = get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
+function _debug_getval(w, k="datetime"; src=getup(:value))
+    get(get(src, 1, pydict()), k, nothing)
+end
+
 @doc """ Sets up a watcher for CCXT positions.
 
 $(TYPEDSIGNATURES)
@@ -143,21 +148,11 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 @error "positions watcher: unexpected value" exception = v
                 sleep(1)
             else
-                @ifdebug LogWatchPos begin
-                    function getup(prop=:time)
-                        get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
-                    end
-                    function getval(k="datetime"; src=getup(:value))
-                        get(get(src, 1, pydict()), k, nothing)
-                    end
-                end
-                @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = getup() new_time = getval(;
-                    src=v
-                ) n = length(getup(:value))
+                @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = _debug_getup(w) new_time = _debug_getval(w ;
+                    src=v) n = length(_debug_getup(w, :value)) _debug_getval(w, "symbol", src=v)
                 process_pos!(w, v)
-                @debug "positions watcher: PUSHED" _module = LogWatchPos getup(:time) getval(
-                    "contracts", src=v
-                )
+                @debug "positions watcher: PUSHED" _module = LogWatchPos _debug_getup(w, :time) _debug_getval(w,
+                    "contracts", src=v) _debug_getval(w, "symbol", src=v) _debug_getval(w, "datetime", src=v)
             end
             return true
         end
