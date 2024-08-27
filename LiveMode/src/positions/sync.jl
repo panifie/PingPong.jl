@@ -151,8 +151,10 @@ function _live_sync_position!(
     # Margin/hedged mode are immutable so just check for mismatch
     let mm = resp_position_margin_mode(resp, eid)
         if !pyisnone(mm) && pyne(Bool, mm, _ccxtmarginmode(pos))
-            @warn "sync pos: position margin mode mismatch" ai = raw(ai) loc = marginmode(pos) rem = mm
-            @assert marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "sync pos: failed to set margin mode on exchange"
+            @warn "sync pos: position margin mode mismatch (attempt switch..)" ai = raw(ai) loc = marginmode(pos) rem = mm
+            if !marginmode!(exchange(ai), _ccxtmarginmode(ai), raw(ai), hedged=ishedged(pos), lev=leverage(pos)) "sync pos: failed to set margin mode on exchange"
+                @warn "sync pos: mismatching margin mode will cause corrupted state"
+            end
         end
     end
 
