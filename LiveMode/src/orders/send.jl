@@ -68,10 +68,10 @@ function ensure_marginmode(s::LiveStrategy, ai)
 end
 
 function pygetorconvert!(params, k, v)
-    v = get(params, k, nothing)
-    if !isnothing(v)
-        if !(v isa Py)
-            params[k] = @py v
+    this_v = get(params, k, nothing)
+    if !isnothing(this_v)
+        if !(this_v isa Py)
+            params[k] = @py this_v
         end
     else
         params[k] = @py if v isa Type
