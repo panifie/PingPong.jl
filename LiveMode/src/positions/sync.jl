@@ -406,6 +406,16 @@ function live_sync_cash!(
     position(ai, bp)
 end
 
+function waitwatcherupdate(w)
+    while isempty(w.buffer) && w.last_fetch == DateTime(0)
+        @debug "sync uni cash: waiting for position data" _module = LogUniSync
+        if !wait(w, :process)
+            break
+        end
+    end
+    @debug "sync uni cash: position data ready" _module = LogUniSync
+end
+
 @doc """ Synchronizes the cash position for all assets in a live trading strategy.
 
 $(TYPEDSIGNATURES)
@@ -418,14 +428,7 @@ The synchronization process is performed concurrently for efficiency.
 """
 function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, force=false, kwargs...)
     if force # wait for position watcher
-        let w = positions_watcher(s)
-            while isempty(w.buffer)
-                @debug "sync uni cash: waiting for position data" _module = LogUniSync
-                if !wait(w, :process)
-                    break
-                end
-            end
-        end
+        waitwatcherupdate(positions_watcher(s))
     end
     long, short, _ = get_positions(s)
     default_date = now()
@@ -448,4 +451,5 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
             set_active_position!(ai; default_date)
         end
     end
+    @debug "sync universe cash: synced"
 end
