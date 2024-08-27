@@ -82,12 +82,12 @@ Finally, it updates the position with the trade.
 
 """
 function aftertrade!(
-    s::MarginStrategy{Paper}, ai, o::O, t=nothing
-) where {O<:Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder}}
+    s::MarginStrategy{Paper}, ai::A, o::O, t=nothing
+) where {A,O<:Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder}}
     @info "($(t.date), $(nameof(s))) $(nameof(ordertype(t))) $(nameof(orderside(t))) $(t.amount) of $(t.order.asset) at $(t.price)($(t.size) $(ai.asset.qc))"
-    invoke(aftertrade!, Tuple{Strategy,AssetInstance,<:O,typeof(t)}, s, ai, o, t)
+    invoke(aftertrade!, Tuple{Strategy,A,<:O,typeof(t)}, s, ai, o, t)
 end
 
-function aftertrade!(s::MarginStrategy{Paper}, ai, o::O, t=nothing) where {O<:AnyLimitOrder}
-    invoke(aftertrade!, Tuple{Strategy,AssetInstance,O,typeof(t)}, s, ai, o, t)
+function aftertrade!(s::MarginStrategy{Paper}, ai::A, o::O, t=nothing) where {A,O<:AnyLimitOrder}
+    invoke(aftertrade!, Tuple{Strategy,A,O,typeof(t)}, s, ai, o, t)
 end

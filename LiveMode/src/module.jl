@@ -5,7 +5,7 @@ using .Executors.Instances: Instances, Exchanges, Data, MarginInstance, NoMargin
 using .Instances
 using .Exchanges
 using .Exchanges: Python, gettimeout, resptobool
-using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy, throttle
+using .st: Strategy, MarginStrategy, NoMarginStrategy, LiveStrategy, ping!, RTStrategy, throttle, ExchangeAsset
 using PaperMode.OrderTypes
 using PaperMode.Misc
 using .Misc: Lang, LittleDict

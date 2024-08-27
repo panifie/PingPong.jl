@@ -30,7 +30,7 @@ $(TYPEDSIGNATURES)
 
 The function is used post-trade to clean up the strategy's order queue.
 """
-aftertrade!(s::Strategy, ai, o::AnyLimitOrder, t=nothing) = begin
+aftertrade!(s::Strategy, ai, o::Order, t=nothing) = begin
     if t isa Trade
         position!(s, ai, t)
     end

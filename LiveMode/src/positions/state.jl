@@ -9,9 +9,7 @@ Invoked after a trade event, it fetches the updated position data and syncs the 
 If the position update fails or is stale, warnings are logged.
 
 """
-function Executors.aftertrade!(
-    s::MarginStrategy{Live}, ai::A, o::O, t::T
-) where {A,O,T<:Trade}
+function live_aftertrade!(s::MarginStrategy{Live}, ai::A, o::O, t::T=nothing) where {A,O,T}
     @info "after trade:" t cash = cash(ai, posside(t)) nameof(s)
     try
         invoke(aftertrade!, Tuple{Strategy,A,O,T}, s, ai, o, t)
@@ -20,7 +18,8 @@ function Executors.aftertrade!(
         # are handled when a trade event would update the timestamp of an order
         # and a position
         since = t.date - Millisecond(1)
-        @debug "after trade: fetching position for updates $(raw(ai))" _module = LogCreateTrade id = t.order.id
+        @debug "after trade: fetching position for updates $(raw(ai))" _module =
+            LogCreateTrade id = t.order.id
         update = live_position(s, ai, posside(o); since, force=false)
         @ifdebug begin
             if isopen(position(ai, posside(o)))
@@ -30,7 +29,9 @@ function Executors.aftertrade!(
                     @error "after trade: entryprice below zero" entryprice(ai, o.price, o)
             end
             if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
-                @debug "after trade: position state closed" _module = LogCreateTrade ai = raw(ai) ep = ai.lastpos[].entryprice[] isdust = isdust(
+                @debug "after trade: position state closed" _module = LogCreateTrade ai = raw(
+                    ai
+                ) ep = ai.lastpos[].entryprice[] isdust = isdust(
                     ai, ai.lastpos[].entryprice[]
                 )
             end
@@ -64,6 +65,16 @@ function Executors.aftertrade!(
         @warn "after trade: failed" ai = raw(ai) s = nameof(s) exc = (exchange(ai))
     end
     t
+end
+
+function Executors.aftertrade!(
+    s::MarginStrategy{Live}, ai::A, o::O, t=nothing
+) where {A,O<:Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder}}
+    live_aftertrade!(s, ai, o, t)
+end
+
+function Executors.aftertrade!(s::MarginStrategy{Live}, ai, o::Order, t=nothing)
+    live_aftertrade!(s, ai, o, t)
 end
 
 @doc """ Logs a warning when a liquidation event is approaching in live mode
