@@ -10,7 +10,7 @@ using PaperMode.OrderTypes
 using PaperMode.Misc
 using .Misc: Lang, LittleDict
 using .Misc.TimeTicks
-using .Lang: @deassert, @caller, @ifdebug, @debug_backtrace, withoutkws
+using .Lang: @deassert, @caller, @ifdebug, @debug_backtrace, withoutkws, isowned
 using Base: with_logger
 using .Executors.Instruments: cnum
 import .Executors: pong!
