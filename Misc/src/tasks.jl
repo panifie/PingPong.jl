@@ -153,7 +153,7 @@ function waitforcond(cond::Function, time)
             slept[] += 100
         end
     catch
-        @debug_backtrace _module = LogWait
+        @debug_backtrace
         slept[] = timeout
     finally
         waiting[] = false
@@ -182,7 +182,7 @@ function waitforcond(cond, time)
         end
         safewait(cond)
     catch
-        @debug_backtrace _module = LogWait
+        @debug_backtrace
         slept[] = timeout
     finally
         waiting[] = false
