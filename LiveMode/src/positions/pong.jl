@@ -5,7 +5,7 @@ using .st: exchange
 using .Executors.Instances: raw
 using .OrderTypes: isimmediate
 using Watchers: fetch!
-import .Executors: pong!, aftertrade!
+import .Executors: pong!
 
 @doc """ Updates leverage or places an order in a live trading strategy.
 

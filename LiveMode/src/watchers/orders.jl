@@ -319,7 +319,7 @@ function update_order!(s, ai, eid; resp, state)
                 state.order
             ) id = state.order.id
             @lock ai if isopen(ai, state.order)
-                t = emulate_trade!(s, state.order, ai; state.average_price, resp)
+                t = tradeandsync!(s, state.order, ai; isemu=true, state.average_price, resp)
                 @debug "update ord: emulated trade" _module = LogWatchOrder trade = t id =
                     state.order.id
             end
@@ -355,17 +355,18 @@ function update_order!(s, ai, eid; resp, state)
                         state.order.id
                     waitfortrade(s, ai, state.order; waitfor=Second(1))
                     if length(order_trades) == trades_count
-                        @lock ai if isopen(ai, state.order)
+                        t = @lock ai if isopen(ai, state.order)
                             @warn "update ord: falling back to emulation." locked = islocked(
                                 ai
                             ) trades_count
                             @debug "update ord: emulating trade" _module = LogWatchOrder id =
                                 state.order.id
-                            t = emulate_trade!(
-                                s, state.order, ai; state.average_price, resp
+                            t = tradeandsync!(
+                                s, state.order, ai; isemu=true, state.average_price, resp
                             )
                             @debug "update ord: emulation done" _module = LogWatchOrder trade =
                                 t id = state.order.id
+                            t
                         end
                     end
                 end
@@ -579,7 +580,9 @@ This function checks if an order is open, validates the order details (type, sym
 If the filled amount has changed, it computes the new average price and checks if it's within the limits.
 It then emulates the trade and updates the order state.
 """
-function emulate_trade!(s::LiveStrategy, o, ai; resp, average_price=nothing, exec=true)
+function emulate_trade!(
+    s::LiveStrategy, o, ai; resp, average_price=nothing, exec=true
+)::Union{Trade,Missing,Nothing}
     eid = exchangeid(ai)
     if !isopen(ai, o) || _ccxtisstatus(resp_order_status(resp, eid), "canceled", "rejected")
         @debug "emu trade: closed/canceled order" _module = LogCreateTrade o.id

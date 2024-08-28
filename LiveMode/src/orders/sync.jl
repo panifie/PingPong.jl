@@ -142,7 +142,7 @@ Args:
     eid (String): The exchange ID.
     exec (bool): A boolean flag indicating whether to execute the orders during syncing.
 """
-function loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
+function sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
     @sync for (id, state) in ao
         if orderside(state.order) != side
             continue
@@ -275,11 +275,12 @@ function live_sync_open_orders!(
         )
     end
 
+    # FIXME: this check might not be needed anymore
     # Remove orders that are no longer live
     remove_live_orders(s, ai; overwrite, live_orders, side)
 
     # Process remaining orders
-    loop_orders_2!(s, ai; live_orders, ao, side, eid, exec)
+    sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
 
     # Verify that the number of orders matches the live orders set
     @deassert orderscount(s, ai, side) == length(live_orders)

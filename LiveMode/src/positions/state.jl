@@ -1,81 +1,65 @@
 import PaperMode.SimMode: liquidate!
 using .Instances: value
 
-@doc """ Executes post-trade updates for a given strategy, asset, order, and trade
+function _debug_aftertrade1(ai, o, t)
+    if isopen(position(ai, posside(o)))
+        liqprice(ai, o) >= 0 || @error "after trade: liqprice below zero" liqprice(ai, o)
+        entryprice(ai, o.price, o) >= 0 ||
+            @error "after trade: entryprice below zero" entryprice(ai, o.price, o)
+    end
+    if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
+        @debug "after trade: position state closed" _module = LogCreateTrade ai = raw(ai) ep = ai.lastpos[].entryprice[] isdust = isdust(
+            ai, ai.lastpos[].entryprice[]
+        )
+    end
+end
+function _debug_aftertrade2(ai, o, t)
+    if islong(o)
+        cash(ai, posside(o)) >= 0 || @error "after trade: cash for long should be positive."
+    else
+        cash(ai, posside(o)) <= 0 || @error "after trade: cash for short should be negative"
+    end
+end
+
+@doc """ Syncing happens after a trade event has been executed locally. 
 
 $(TYPEDSIGNATURES)
 
-Invoked after a trade event, it fetches the updated position data and syncs the local state.
-If the position update fails or is stale, warnings are logged.
-
+The asset lock is not held here, but by the watchers (except if `live_positions` issues a `fetch_positions` call)."
 """
-function live_aftertrade!(s::MarginStrategy{Live}, ai::A, o::O, t::T=nothing) where {A,O,T}
-    @info "after trade:" t cash = cash(ai, posside(t)) nameof(s)
-    try
-        invoke(aftertrade!, Tuple{Strategy,A,O,T}, s, ai, o, t)
-        # NOTE: shift by 1ms to allow for some margin of error
-        # ideally exchanges should be tested to see how usually timestamps
-        # are handled when a trade event would update the timestamp of an order
-        # and a position
-        since = t.date - Millisecond(1)
-        @debug "after trade: fetching position for updates $(raw(ai))" _module =
-            LogCreateTrade id = t.order.id
-        update = live_position(s, ai, posside(o); since, force=false)
-        @ifdebug begin
-            if isopen(position(ai, posside(o)))
-                liqprice(ai, o) >= 0 ||
-                    @error "after trade: liqprice below zero" liqprice(ai, o)
-                entryprice(ai, o.price, o) >= 0 ||
-                    @error "after trade: entryprice below zero" entryprice(ai, o.price, o)
-            end
-            if !isnothing(ai.lastpos[]) && isdust(ai, ai.lastpos[].entryprice[])
-                @debug "after trade: position state closed" _module = LogCreateTrade ai = raw(
-                    ai
-                ) ep = ai.lastpos[].entryprice[] isdust = isdust(
-                    ai, ai.lastpos[].entryprice[]
-                )
-            end
+function aftertrade_sync!(s::Strategy, ai::AssetInstance, o::Order, t::Trade)
+    # NOTE: shift by 1ms to allow for some margin of error
+    # ideally exchanges should be tested to see how usually timestamps
+    # are handled when a trade event would update the timestamp of an order
+    # and a position
+    since = t.date - Millisecond(1)
+    @debug "after trade: fetching position for updates $(raw(ai))" _module = LogCreateTrade isowned(
+        ai
+    ) id = t.order.id
+
+    update = live_position(s, ai, posside(o); since, force=false)
+    @ifdebug _debug_aftertrade1(ai, o, t)
+
+    if isnothing(update)
+        if !isdust(ai, t.price)
+            @warn "after trade: position sync failed, risk of corrupted state" ai side = posside(
+                o
+            ) o.id t.date cash(ai)
         end
-        if isnothing(update)
-            if !isdust(ai, t.price)
-                @warn "after trade: position sync failed, risk of corrupted state" ai side = posside(
-                    o
-                ) o.id t.date cash(ai)
-            end
-        elseif update.date >= since
-            @deassert islocked(ai)
-            @debug "after trade: syncing with position" _module = LogCreateTrade update.date update.closed[] contracts = resp_position_contracts(
-                update.resp, exchangeid(ai)
-            )
-            # NOTE: overwrite=true because the trade might have happened *after* a position
-            # had already been synced (read=true)
-            live_sync_position!(s, ai, o, update; overwrite=true)
-        else
-            @warn "after trade: stale position update" update.date since
-        end
-        @ifdebug if islong(o)
-            cash(ai, posside(o)) >= 0 ||
-                @error "after trade: cash for long should be positive."
-        else
-            cash(ai, posside(o)) <= 0 ||
-                @error "after trade: cash for short should be negative"
-        end
-    catch
-        @debug_backtrace LogCreateTrade
-        @warn "after trade: failed" ai = raw(ai) s = nameof(s) exc = (exchange(ai))
+    elseif update.date >= since
+        @debug "after trade: syncing with position" _module = LogCreateTrade update.date update.closed[] contracts = resp_position_contracts(
+            update.resp, exchangeid(ai)
+        )
+        # NOTE: overwrite=true because the trade might have happened *after* a position
+        # had already been synced (read=true)
+        live_sync_position!(s, ai, o, update; overwrite=true)
+    else
+        @warn "after trade: stale position update" update.date since
     end
-    t
+    @ifdebug _debug_aftertrade2(ai, o, t)
 end
 
-function Executors.aftertrade!(
-    s::MarginStrategy{Live}, ai::A, o::O, t=nothing
-) where {A,O<:Union{AnyFOKOrder,AnyIOCOrder,AnyMarketOrder}}
-    live_aftertrade!(s, ai, o, t)
-end
-
-function Executors.aftertrade!(s::MarginStrategy{Live}, ai, o::Order, t=nothing)
-    live_aftertrade!(s, ai, o, t)
-end
+aftertrade_sync!(s::Strategy, ai, o, t) = nothing
 
 @doc """ Logs a warning when a liquidation event is approaching in live mode
 

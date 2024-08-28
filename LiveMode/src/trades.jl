@@ -348,12 +348,14 @@ The function also checks if the price is greater than zero, issuing a warning an
 
 """
 function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
-    if !isapprox(actual_price, o.price; rtol) &&
-       !(o isa AnyMarketOrder)
-        @warn "create trade: trade price far off from order price" o.price exc_price = actual_price ai nameof(s)
+    if !isapprox(actual_price, o.price; rtol) && !(o isa AnyMarketOrder)
+        @warn "create trade: trade price far off from order price" o.price exc_price =
+            actual_price ai nameof(s)
         false
     elseif actual_price <= 0.0 || !isfinite(actual_price)
-        @warn "create trade: invalid price" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
+        @warn "create trade: invalid price" nameof(s) ai tradeid = resp_trade_id(
+            resp, exchangeid(ai)
+        )
         false
     else
         true
@@ -370,7 +372,9 @@ If it's not, it issues a warning and returns `false`.
 """
 function isorderamount(s, ai, actual_amount; resp)::Bool
     if actual_amount <= 0.0 || !isfinite(actual_amount)
-        @warn "create trade: invalid amount" nameof(s) ai tradeid = resp_trade_id(resp, exchangeid(ai))
+        @warn "create trade: invalid amount" nameof(s) ai tradeid = resp_trade_id(
+            resp, exchangeid(ai)
+        )
         false
     else
         true
@@ -407,8 +411,8 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
         return trade
     end
     if !isordertype(ai, o, resp, eid) ||
-       !isordersymbol(ai, o, resp, eid) ||
-       !isorderid(ai, o, resp, eid)
+        !isordersymbol(ai, o, resp, eid) ||
+        !isorderid(ai, o, resp, eid)
         return nothing
     end
     side = _ccxt_sidetype(resp, eid; o)
@@ -422,7 +426,8 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     end
     inlimits(actual_price, ai, :price)
     if actual_amount <= 0.0 || !isfinite(actual_amount)
-        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module = LogCreateTrade
+        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module =
+            LogCreateTrade
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = toprecision(net_cost / actual_price, ai.precision.amount)
         if !isorderamount(s, ai, actual_amount; resp)
@@ -442,6 +447,30 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     fees_quote, fees_base = _tradefees(resp, side, ai; actual_amount, net_cost)
     size = _addfees(net_cost, fees_quote, o)
 
-    @debug "Constructing trade" _module = LogCreateTrade cash = cash(ai, posside(o)) ai = raw(ai) s = nameof(s)
+    @debug "Constructing trade" _module = LogCreateTrade cash = cash(ai, posside(o)) ai = raw(
+        ai
+    ) s = nameof(s)
     @maketrade
+end
+
+function tradeandsync!(s::LiveStrategy, o, ai; isemu=false, kwargs...)
+    l = getfield(ai, :lock)
+    if !isowned(l)
+        @error "tradeandsync!: asset lock not held" isemu
+        error()
+    end
+    func = isemu ? emulate_trade! : trade!
+    t = func(s, o, ai; kwargs...)
+    if !isnothing(t)
+        @lock _internal_lock(ai) begin
+            unlock(l)
+            try
+                waitforsync(s, t)
+                aftertrade_sync!(s, ai, o, t)
+            finally
+                lock(l)
+            end
+        end
+    end
+    t
 end

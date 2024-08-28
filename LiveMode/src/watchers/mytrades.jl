@@ -356,7 +356,7 @@ function handle_trade!(s, ai, orders_byid, resp, sem)
                                     try
                                         @debug "handle trade: trade!" _module =
                                             LogWatchTrade
-                                        t = trade!(
+                                        t = tradeandsync!(
                                             s,
                                             state.order,
                                             ai;

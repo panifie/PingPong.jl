@@ -332,14 +332,12 @@ end
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
     @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai) islocked(ai) islocked(s) islocked(update.notify)
     # NOTE: Orders matters to avoid deadlocks
-    @lock ai begin
-        @lock update.notify begin
-            _live_sync_position!(s, ai, pos, update; kwargs...)
-            if isopen(ai) || hasorders(s, ai)
-                push!(s.holdings, ai)
-            else
-                delete!(s.holdings, ai)
-            end
+    @lock _external_lock(ai) @lock update.notify begin
+        _live_sync_position!(s, ai, pos, update; kwargs...)
+        if isopen(ai) || hasorders(s, ai)
+            push!(s.holdings, ai)
+        else
+            delete!(s.holdings, ai)
         end
     end
 end
@@ -401,7 +399,7 @@ function live_sync_cash!(
         live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
     else
         @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(ai) side
-        @lock ai reset!(ai, bp)
+        @lock _external_lock(ai) reset!(ai, bp)
     end
     position(ai, bp)
 end

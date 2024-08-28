@@ -17,6 +17,7 @@ using .Misc:
     @start_task,
     task_sem
 using .SimMode.Instances.Data: nrow
+using .SimMode.Instances: _internal_lock, _external_lock
 using .st: asset_bysym
 using Watchers: Watcher
 using Watchers.WatchersImpls: islist, isdict, _dopush!
@@ -782,4 +783,43 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     else
         return false
     end
+end
+
+function since_order_date(resp, o::Order)
+    eid = exchangeid(o)
+    @something resp_order_timestamp(resp, eid) let trades = trades(o)
+        if !isempty(trades)
+            last(trades).date
+        else
+            o.date
+        end
+    end
+end
+
+_waitcheck(tasks, w, since::DateTime) = !isempty(tasks) || lastdate(w) < since
+_waitcheck(tasks, w, since::Nothing) = !isempty(tasks)
+function waitforupdates(w::Watcher; since::Option{DateTime}=nothing, waitfor=Second(15))
+    @timeout_start
+    waitforcond(() -> hasattr(w, :process_tasks), @timeout_now)
+    tasks = w[:process_tasks]
+    filter!(!istaskdone, tasks)
+    while _waitcheck(tasks, w, since)
+        waitforcond(first(tasks), @timeout_now)
+        filter!(!istaskdone, tasks)
+        @timeout_now() <= Second(0) && break
+    end
+end
+
+function waitforsync(s::Strategy; since::Option{DateTime}=nothing, waitfor=Second(15))
+    @timeout_start
+    waitforupdates(positions_watcher(s); since, waitfor=@timeout_now)
+    waitforupdates(balance_watcher(s); since, waitfor=@timeout_now)
+end
+
+function waitforsync(s::Strategy, t::Trade; kwargs...)
+    waitforsync(s; since=t.date, kwargs...)
+end
+
+function waitforsync(s::Strategy, t; kwargs...)
+    waitforsync(s; kwargs...)
 end

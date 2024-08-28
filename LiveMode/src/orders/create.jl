@@ -168,7 +168,7 @@ function create_live_order(
             waitfortrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
         end
         if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
-            @lock ai emulate_trade!(s, o, ai; resp)
+            t = @lock ai tradeandsync!(s, o, ai; isemu=true, resp)
         end
     end
     event!(

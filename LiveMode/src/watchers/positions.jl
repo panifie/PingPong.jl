@@ -111,12 +111,11 @@ function _w_positions_func(s, interval; iswatch, kwargs)
         sizehint!(buf, buffer_size)
         function process_pos!(w, v)
             if !isnothing(v)
-                _dopush!(w, pylist(v))
+                if !isnothing(_dopush!(w, pylist(v)))
+                    push!(tasks, @async process!(w))
+                    filter!(!istaskdone, tasks)
+                end
             end
-            if !isempty(buf)
-                push!(tasks, @async process!(w))
-            end
-            filter!(!istaskdone, tasks)
         end
         function init_watch_func(w)
             let v = @lock w fetch_positions(s; timeout, params, rest...)
@@ -398,7 +397,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         @debug "watchers: position async" _module = LogWatchPosProcess islocked(ai) islocked(cond)
         # this ensure even if there are no updates we know
         # the date of the last fetch run
-        @async @lock ai @lock cond begin
+        @async @lock _external_lock(ai) @lock cond begin
             pup = if isnothing(pup_prev)
                 _posupdate(this_date, resp)
             elseif !is_stale
@@ -454,7 +453,7 @@ function _setposflags!(s, data_date, dict, side, processed_syms)
     n_closed = Ref(0)
     @sync for (sym, pup) in dict
         ai = asset_bysym(s, sym)
-        @async @lock ai @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
+        @async @lock _external_lock(ai) @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
             dict[sym] = _posupdate(pup, data_date, pup.resp)
             pup.closed[] = true
             n_closed[] += 1

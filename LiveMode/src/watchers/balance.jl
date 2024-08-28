@@ -72,12 +72,11 @@ function _w_balance_func(s, attrs)
         sizehint!(buf, buffer_size)
         function process_bal!(w, v)
             if !isnothing(v)
-                _dopush!(w, v; if_func=isdict)
+                if !isnothing(_dopush!(w, v; if_func=isdict))
+                    push!(tasks, @async process!(w))
+                    filter!(!istaskdone, tasks)
+                end
             end
-            if !isempty(buf)
-                push!(tasks, @async process!(w))
-            end
-            filter!(!istaskdone, tasks)
         end
         function init_watch_func(w)
             v = @lock w fetch_balance(s; timeout, params, rest...)
