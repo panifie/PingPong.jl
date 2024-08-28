@@ -13,6 +13,7 @@ import .Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using .Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision, ZERO
 using .Misc: Lang, TimeTicks, SortedArray
 using .Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
+using .Misc: setattr!, attr, attr!, attrs, hasattr
 using .Misc.DocStringExtensions
 import .Misc: approxzero, gtxzero, ltxzero, marginmode, load!
 using .TimeTicks
@@ -60,6 +61,8 @@ $(FIELDS)
 An `AssetInstance` holds all known state about an exchange asset like `BTC/USDT`.
 """
 struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractInstance{T,E}
+    "Genric dict for instance specific parameters."
+    attrs::Dict{Symbol,Any}
     "The identifier of the asset."
     asset::T
     "The OHLCV (Open, High, Low, Close, Volume) series for the asset."
@@ -110,6 +113,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
             @warn "Exchange uses fixed amount fees, fees calculation will not match!"
         end
         new{A,E,M}(
+            Dict{Symbol,Any}(),
             a,
             data,
             SortedArray(AnyTrade{A,E}[]; by=trade -> trade.date),
@@ -140,8 +144,8 @@ const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
 @doc "A type alias representing an asset instance with cross margin."
 const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
 @doc " Retrieve the margin mode of an `AssetInstance`. "
-marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}, args...; kwargs...) where {M<:WithMargin} = M()
-marginmode(::NoMarginInstance, args...; kwargs...) = NoMargin()
+marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M<:WithMargin} = M()
+marginmode(::NoMarginInstance) = NoMargin()
 
 @doc """ Generate positions for a specific margin mode.
 
@@ -180,7 +184,7 @@ function _hashtuple(ai::AssetInstance)
 end
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
-Base.propertynames(::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding)
+Base.propertynames(ai::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding, keys(attrs(ai))...)
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 function Base.lock(ai::AssetInstance)
     @debug "locking $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
@@ -200,6 +204,15 @@ Base.float(ai::MarginInstance) =
     let c = cash(ai)
         @something c.value 0.0
     end
+Base.getindex(ai::AssetInstance, k::Symbol) = attr(ai, k)
+Base.get(ai::AssetInstance, keys::Tuple{Vararg{Symbol}}) = attr(ai, keys...)
+Base.get(ai::AssetInstance, k, v) = attr(ai, k, v)
+Base.setindex!(ai::AssetInstance, v, k::Symbol) = attr!(ai, k, v)
+Base.setindex!(ai::AssetInstance, v, keys::Vararg{Symbol}) = setattr!(ai, v, keys...)
+Base.get!(ai::AssetInstance, k, v) = attr!(ai, k, v)
+Base.haskey(ai::AssetInstance, k::Symbol) = hasattr(ai, k)
+Base.keys(ai::AssetInstance) = keys(attrs(ai))
+Base.values(ai::AssetInstance) = values(attrs(ai))
 
 posside(::NoMarginInstance) = Long()
 @doc "Get the position side of an `AssetInstance`. "
@@ -279,9 +292,6 @@ This function returns the asset cash of a `MarginInstance` rounded according to 
 
 """
 function nondust(ai::MarginInstance, price::Number, p=posside(ai))
-    if isnothing(p)
-        return zero(price)
-    end
     pos = position(ai, p)
     if isnothing(pos)
         return zero(price)
@@ -439,10 +449,10 @@ $(TYPEDSIGNATURES)
 This function loads OHLCV (Open, High, Low, Close, Volume) data for a given `AssetInstance`. If `reset` is set to true, it will re-fetch the data even if it's already been loaded.
 
 """
-function load!(ai::AssetInstance; reset=true, zi=zi)
-    for (tf, df) in ai.data
+function load!(a::AssetInstance; reset=true, zi=zi)
+    for (tf, df) in a.data
         reset && empty!(df)
-        loaded = load(zi, ai.exchange.name, raw(ai), string(tf))
+        loaded = load(zi, a.exchange.name, a.raw, string(tf))
         append!(df, loaded)
     end
 end
@@ -455,8 +465,10 @@ Base.getproperty(ai::AssetInstance, f::Symbol) = begin
         ai.asset.qc
     elseif f == :funding
         metadata(ohlcv(ai), "funding")
-    else
+    elseif hasfield(AssetInstance, f)
         getfield(ai, f)
+    else
+        attr(ai, f)
     end
 end
 
@@ -525,7 +537,7 @@ This function retrieves the last available candle (Open, High, Low, Close, Volum
 
 """
 function Data.candlelast(ai::AssetInstance, tf::TimeFrame, date::DateTime)
-    Data.candlelast(ai.data[tf])
+    Data.candlelast(ai.data[tf], tf, date)
 end
 
 function Data.candlelast(ai::AssetInstance, date::DateTime)
@@ -881,7 +893,7 @@ $(TYPEDSIGNATURES)
 This function calculates the bankruptcy price, which is the price at which the asset position would be fully liquidated. It takes into account the current price of the asset and the position side (`Long` or `Short`).
 
 """
-function bankruptcy(ai, price, ps::ByPos{P}) where {P<:PositionSide}
+function bankruptcy(ai, price, ps::Type{P}) where {P<:PositionSide}
     bankruptcy(position(ai, ps), price)
 end
 function bankruptcy(ai, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
@@ -989,10 +1001,7 @@ This function calculates the profit and loss (PnL) for an asset position. It tak
 """
 function pnl(ai, ::ByPos{P}, price) where {P}
     pos = position(ai, P)
-    if isnothing(pos)
-        @error "instances: no position found" ai P
-        return 0.0
-    end
+    isnothing(pos) && return 0.0
     pnl(pos, price)
 end
 
