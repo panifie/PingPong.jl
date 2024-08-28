@@ -90,17 +90,18 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
     end
     w = positions_watcher(s)
     @debug "force fetch pos: checking" _module = LogPosForceFetch islocked(w) ai = raw(ai) f = @caller 7
+
     waslocked = islocked(w)
     last_time = lastdate(w)
     prev_pup = get_positions(s, ai, side)
-
     if waslocked
         @debug "force fetch pos: waiting notify" _module = LogPosForceFetch islocked(w) ai = raw(ai) isstopped(w)
         wait(w, s[:positions_ttl])
-        @debug "force fetch pos: checking if updated"
-        if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
-            return
-        end
+    end
+
+    @debug "force fetch pos: checking if updated"
+    if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
+        return
     end
 
     @debug "force fetch pos: locking" _module = LogPosForceFetch islocked(w) ai = raw(ai)
@@ -194,7 +195,7 @@ function live_position(
         pup = get_positions(s, ai, side)
         if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
             @error "live pos: last force fetch failed" ai date =
-                isnothing(pup) ? nothing : pup.date since force f = @caller 10
+                isnothing(pup) ? nothing : pup.date since force cash(ai, side) side f = @caller 10
             return nothing
         end
     end

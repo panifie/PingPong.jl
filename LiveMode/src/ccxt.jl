@@ -87,14 +87,13 @@ _tryasdate(py) = tryparse(DateTime, rstrip(string(py), 'Z'))
 pytodate(py::Union{Py,PyDict}) = pytodate(py, "lastUpdateTimestamp", "timestamp")
 @doc "Convert a Python object to a date."
 function pytodate(py::Union{Py,PyDict}, keys...)
-    let v = get_timestamp(py, keys)
-        if pyisinstance(v, pybuiltins.str)
-            _tryasdate(v)
-        elseif pyisinstance(v, pybuiltins.int)
-            pyconvert(Int, v) |> dt
-        elseif pyisinstance(v, pybuiltins.float)
-            pyconvert(DFT, v) |> dt
-        end
+    v = get_timestamp(py, keys)
+    if pyisinstance(v, pybuiltins.str)
+        _tryasdate(v)
+    elseif pyisinstance(v, pybuiltins.int)
+        pyconvert(Int, v) |> dt
+    elseif pyisinstance(v, pybuiltins.float)
+        pyconvert(DFT, v) |> dt
     end
 end
 function pytodate(py::Union{Py,PyDict}, ::EIDType, args...; kwargs...)

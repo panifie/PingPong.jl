@@ -107,14 +107,14 @@ Base.isempty(w::Watcher) = isempty(w.buffer)
 @doc "The length of the watcher buffer."
 Base.length(w::Watcher) = length(w.buffer)
 @doc "The date of the last update fetched by the watcher."
-lastdate(w::Watcher) =
-    let buf = buffer(w)
-        if isempty(buf)
-            typemin(DateTime)
-        else
-            last(buf).time
-        end
+function lastdate(w::Watcher)
+    buf = buffer(w)
+    if isempty(buf)
+        typemin(DateTime)
+    else
+        last(buf).time
     end
+end
 @doc """ Stops the watcher and optionally flushes the data.
 
 $(TYPEDSIGNATURES)

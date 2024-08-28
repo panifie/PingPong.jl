@@ -23,8 +23,8 @@ const PositionTuple = NamedTuple{
 const PositionsDict2 = Dict{String,PositionTuple}
 
 _debug_getup(w, prop=:time) = get(get(last(w.buffer, 1), 1, (;)), prop, nothing)
-function _debug_getval(w, k="datetime"; src=getup(:value))
-    get(get(src, 1, pydict()), k, nothing)
+function _debug_getval(w, k="datetime"; src=_debug_getup(w, :value))
+    get(@get(src, 1, pydict()), k, nothing)
 end
 
 @doc """ Sets up a watcher for CCXT positions.
@@ -149,10 +149,10 @@ function _w_positions_func(s, interval; iswatch, kwargs)
                 sleep(1)
             else
                 @debug "positions watcher: PUSHING" _module = LogWatchPos w_time = _debug_getup(w) new_time = _debug_getval(w ;
-                    src=v) n = length(_debug_getup(w, :value)) _debug_getval(w, "symbol", src=v)
+                    src=v) n = length(_debug_getup(w, :value)) _debug_getval(w, "symbol", src=v) length(w[:process_tasks])
                 process_pos!(w, v)
                 @debug "positions watcher: PUSHED" _module = LogWatchPos _debug_getup(w, :time) _debug_getval(w,
-                    "contracts", src=v) _debug_getval(w, "symbol", src=v) _debug_getval(w, "datetime", src=v)
+                    "contracts", src=v) _debug_getval(w, "symbol", src=v) _debug_getval(w, "datetime", src=v) length(w[:process_tasks])
             end
             return true
         end
@@ -359,7 +359,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     if iswatch && isempty(data)
         @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
             data
-        )
+        ) data
         _lastprocessed!(w, data_date)
         _lastcount!(w, data)
         return nothing
@@ -395,6 +395,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
             continue
         end
         is_stale = this_date == prev_date
+        @debug "watchers: position async" _module = LogWatchPosProcess islocked(ai) islocked(cond)
         # this ensure even if there are no updates we know
         # the date of the last fetch run
         @async @lock ai @lock cond begin

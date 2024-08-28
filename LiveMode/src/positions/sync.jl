@@ -122,7 +122,7 @@ function _live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite # resp f = @caller
+        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite update.closed[] # resp f = @caller
         if !overwrite
             return pos
         end
