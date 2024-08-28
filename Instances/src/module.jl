@@ -71,6 +71,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     history::SortedArray{AnyTrade{T,E},1}
     "A lock for synchronizing access to the asset instance."
     lock::ReentrantLock
+    _internal_lock::ReentrantLock
     "The amount of the asset currently held. This can be positive or negative (short)."
     cash::Option{CCash{E}{S1}} where {S1}
     "The amount of the asset currently committed for orders."
@@ -117,6 +118,7 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
             a,
             data,
             SortedArray(AnyTrade{A,E}[]; by=trade -> trade.date),
+            ReentrantLock(),
             ReentrantLock(),
             cash,
             comm,
@@ -176,6 +178,9 @@ function positions(M::Type{<:MarginMode}, a::AbstractAsset, limits::Limits, e::E
     end
 end
 
+_external_lock(ai::AssetInstance) = getfield(ai, :lock)
+_internal_lock(ai::AssetInstance) = getfield(ai, :_internal_lock)
+
 function _hashtuple(ai::AssetInstance)
     (
         Instruments._hashtuple(getfield(ai, :asset))...,
@@ -184,14 +189,24 @@ function _hashtuple(ai::AssetInstance)
 end
 Base.hash(ai::AssetInstance) = hash(_hashtuple(ai))
 Base.hash(ai::AssetInstance, h::UInt) = hash(_hashtuple(ai), h)
-Base.propertynames(ai::AssetInstance) = (fieldnames(AssetInstance)..., :ohlcv, :funding, keys(attrs(ai))...)
+function Base.propertynames(ai::AssetInstance)
+    (fieldnames(AssetInstance)..., :ohlcv, :funding, keys(attrs(ai))...)
+end
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 function Base.lock(ai::AssetInstance)
     @debug "locking $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
-    lock(getfield(ai, :lock))
+    l = getfield(ai, :lock)
+    @lock l nothing
+    @lock _internal_lock(ai) nothing
+    lock(l)
     @debug "locked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
 end
-Base.lock(f, ai::AssetInstance) = lock(f, getfield(ai, :lock))
+Base.lock(f, ai::AssetInstance) = begin
+    l = getfield(ai, :lock)
+    @lock l nothing
+    @lock _internal_lock(ai) nothing
+    lock(f, getfield(ai, :lock))
+end
 function Base.unlock(ai::AssetInstance)
     unlock(getfield(ai, :lock))
     @debug "unlocked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
