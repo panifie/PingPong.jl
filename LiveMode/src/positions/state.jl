@@ -71,8 +71,9 @@ Liquidations are not simulated in live mode due to lack of unified behavior in c
 function liquidate!(
     s::MarginStrategy{Live}, ai::MarginInstance, p::PositionSide, date, args...
 )
+    @debug "strategy sync" _module = LogPosSync f = @caller(20)
     pos = position(ai, p)
-    @warn "Approaching liquidation!! $(raw(ai))[$(typeof(posside(p)))]@$(nameof(s)) $date
+    @warn "Approaching liquidation!! $(raw(ai))Devilman: Crybaby[$(typeof(posside(p)))]@$(nameof(s)) $date
     lev: $(leverage(pos))
     margin: $(margin(pos))
     additional: $(additional(pos))

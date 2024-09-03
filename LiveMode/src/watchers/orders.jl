@@ -13,7 +13,7 @@ using .SimMode: @maketrade
 Initialize necessary tasks and variables for watching orders.
 """
 function initialize_watch_tasks!(s::LiveStrategy, ai)
-    orders_byid = active_orders(s, ai)
+    orders_byid = active_orders(ai)
     stop_delay = Ref(s.watch_idle_timeout)
     return orders_byid, stop_delay
 end
@@ -160,7 +160,7 @@ function monitor_stop_conditions!(s::LiveStrategy, ai, task, stop_delay, tasks)
         @istaskrunning() || break
         sleep(stop_delay[])
         stop_delay[] = Second(0)
-        @lock ai if orderscount(s, ai) == 0 && !isactive(s, ai)
+        @inlock ai if orderscount(s, ai) == 0 && !isactive(s, ai)
             task_local_storage(:running, false)
             try
                 @debug "Stopping orders watcher for $(raw(ai))@($(nameof(s)))" _module =
@@ -194,10 +194,10 @@ The function handles exceptions gracefully. If an exception occurs during the fe
 """
 function watch_orders!(s::LiveStrategy, ai; exc_kwargs=(;))
     @debug "watch orders: get task" ai islocked(s) _module = LogTasks2
-    tasks = asset_tasks(s, ai)
+    tasks = asset_tasks(ai)
     @debug "watch orders: locking" ai islocked(s) _module = LogTasks2
     @lock tasks.lock begin
-        @deassert tasks.byname === asset_tasks(s, ai).byname
+        @deassert tasks.byname === asset_tasks(ai).byname
         let task = asset_orders_task(tasks.byname)
             if istaskrunning(task)
                 @debug "watch orders: task running" ai islocked(s) _module = LogTasks2
@@ -227,7 +227,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the orders task for a given asset instance `ai` from the live strategy `s`. The orders task is responsible for watching and updating orders for the asset instance.
 
 """
-asset_orders_task(s, ai) = @something asset_task(s, ai, :orders_task) watch_orders!(s, ai)
+asset_orders_task(s, ai) = @something asset_task(ai, :orders_task) watch_orders!(s, ai)
 asset_orders_stop_task(tasks) = get(tasks, :orders_stop_task, nothing)
 @doc """ Retrieves the orders stop task for a given asset instance.
 
@@ -236,7 +236,7 @@ $(TYPEDSIGNATURES)
 This function retrieves the orders stop task for a given asset instance `ai` from the live strategy `s`. The orders stop task is responsible for stopping the watching and updating of orders for the asset instance.
 
 """
-asset_orders_stop_task(s, ai) = asset_orders_stop_task(asset_tasks(s, ai).byname)
+asset_orders_stop_task(s, ai) = asset_orders_stop_task(asset_tasks(ai).byname)
 
 @doc """ Generates a unique enough hash for an order. """
 function _order_kv_hash(resp, eid::EIDType)
@@ -303,9 +303,9 @@ If the order is filled or not open anymore, it finalizes the order, waits for tr
 If the order did not complete, it sends an error and cancels the order.
 """
 function update_order!(s, ai, eid; resp, state)
-    @debug "update ord: locking state" _module = LogWatchOrder id = state.order.id islocked(
-        ai
-    ) f = @caller 7
+    @debug "update ord: locking state" _module = LogWatchOrder id = state.order.id isownable(
+        ai.lock
+    ) isownable(state.lock) f = @caller()
     @lock state.lock begin
         @debug "update ord: locked" _module = LogWatchOrder id = state.order.id islocked(ai)
         this_hash = order_update_hash(resp, eid)
@@ -314,11 +314,12 @@ function update_order!(s, ai, eid; resp, state)
         state.update_hash[] = this_hash
         # only emulate trade if trade watcher task
         # is not running
-        if !hasmytrades(exchange(ai))
-            @debug "update ord: emulate trade" _module = LogWatchOrder ai = raw(ai) side = posside(
+        mytrades_flag = hasmytrades(exchange(ai))
+        if !mytrades_flag
+            @debug "update ord: emulate trade" _module = LogWatchOrder ai isownable(ai.lock) side = posside(
                 state.order
             ) id = state.order.id
-            @lock ai if isopen(ai, state.order)
+            @inlock ai if isopen(ai, state.order)
                 t = tradeandsync!(s, state.order, ai; isemu=true, state.average_price, resp)
                 @debug "update ord: emulated trade" _module = LogWatchOrder trade = t id =
                     state.order.id
@@ -347,15 +348,15 @@ function update_order!(s, ai, eid; resp, state)
                 resp, eid
             )
 
-            if hasmytrades(exchange(ai))
+            if mytrades_flag
                 trades_count = length(order_trades)
                 if (order_filled && trades_count == 0) ||
                     !isorder_synced(state.order, ai, resp)
                     @debug "update ord: waiting for trade events" _module = LogWatchOrder id =
                         state.order.id
-                    waitfortrade(s, ai, state.order; waitfor=Second(1))
+                    @unlock _external_lock(ai) state.lock waittrade(s, ai, state.order; waitfor=Second(1))
                     if length(order_trades) == trades_count
-                        t = @lock ai if isopen(ai, state.order)
+                        t = @inlock ai if isopen(ai, state.order)
                             @warn "update ord: falling back to emulation." locked = islocked(
                                 ai
                             ) trades_count
@@ -468,7 +469,7 @@ function re_activate_order!(s, ai, id; eid, resp)
             tag="reactivate",
         )
         if o isa Order
-            state = get_order_state(active_orders(s, ai), o.id; s, ai)
+            state = get_order_state(active_orders(ai), o.id; s, ai)
             if state isa LiveOrderState
                 update_order!(s, ai, eid; resp, state)
             else
@@ -504,7 +505,7 @@ function process_order!(s, ai, orders_byid, resp, sem)
         eid = exchangeid(ai)
         id = resp_order_id(resp, eid, String)
         @debug "handle ord: processing" id resp
-        @lock ai begin
+        @inlock ai begin
             if isprocessed_order(s, ai, id) || isprocessed_order_update(s, ai, resp)
                 return nothing
             end
@@ -654,7 +655,7 @@ function emulate_trade!(
     size = _addfees(net_cost, fees_quote, o)
     trade = @maketrade
     if exec
-        queue = asset_queue(s, ai)
+        queue = asset_queue(ai)
         try
             inc!(queue)
             trade!(
@@ -679,7 +680,7 @@ function emulate_trade!(
     end
 end
 
-function wait_for_task(s, ai; waitfor)
+function waitordertask(s, ai; waitfor)
     local aot
     slept = 0
     timeout = Millisecond(waitfor).value
@@ -702,25 +703,25 @@ This function waits for a specified amount of time or until an order event happe
 It keeps track of the number of orders and checks if any new order has been added during the wait time.
 If the task is not running, it stops waiting and returns the time spent waiting.
 """
-function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
-    aot_slept, aot = wait_for_task(s, ai; waitfor)
+function _unlocked_waitorder(s::LiveStrategy, ai; waitfor=Second(3))
+    aot_slept, aot = waitordertask(s, ai; waitfor)
     @debug "wait for order: any" _module = LogWaitOrder aot aot_slept
-    ismissing(aot) && return aot_slept
+    !(aot isa Task) && return aot_slept
     timeout = Millisecond(waitfor).value
     cond = aot.storage[:notify]
     prev_count = orderscount(s, ai)
     slept = aot_slept
-    @debug "wait for order: loop" _module = LogWaitOrder ai = raw(ai) waitfor
+    @debug "wait for order: loop" _module = LogWaitOrder ai waitfor
     while slept < timeout
         if istaskrunning(aot)
             slept += waitforcond(cond, timeout - slept)
-            orderscount(s, ai) != prev_count && begin
+            if orderscount(s, ai) != prev_count
                 @debug "wait for order: new event" _module = LogWaitOrder ai = raw(ai) slept
                 break
             end
         else
             @debug "wait for order: orders task is not running, restarting" _module =
-                LogWaitOrder ai = raw(ai)
+                LogWaitOrder ai
             aot = watch_orders!(s, ai)
             if !istaskrunning(aot)
                 @error "wait for order: failed to restart task"
@@ -729,6 +730,10 @@ function waitfororder(s::LiveStrategy, ai; waitfor=Second(3))
         end
     end
     slept
+end
+
+function waitorder(s::LiveStrategy, ai; waitfor=Second(3))
+    @unlock ai _unlocked_waitorder(s, ai; waitfor)
 end
 
 @doc """ Waits for a specific order to be processed.
@@ -741,11 +746,11 @@ If the order is found and tracked within the given timeframe, the function retur
 It tracks the time spent waiting and if the timeout is reached before the order is found, the function returns `false`.
 
 """
-function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
+function _unlocked_waitorder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     slept = 0
     timeout = Millisecond(waitfor).value
-    orders_byid = active_orders(s, ai)
-    if @lock ai !haskey(orders_byid, o.id)
+    orders_byid = active_orders(ai)
+    if @inlock ai !haskey(orders_byid, o.id)
         isproc = isprocessed_order(s, ai, o.id)
         @debug "Wait for order: inactive" _module = LogWaitOrder unfilled(o) filled_amount(
             o
@@ -754,8 +759,8 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     end
     @debug "Wait for order: start" _module = LogWaitOrder id = o.id timeout = timeout
     while slept < timeout
-        slept += let this_slept = waitfororder(s, ai; waitfor)
-            this_slept == 0 && return false
+        slept += let this_slept = waitorder(s, ai; waitfor)
+            this_slept == 0 && return !haskey(orders_byid, o.id) || !haskey(s, ai, o)
             this_slept
         end
         if !haskey(orders_byid, o.id)
@@ -768,10 +773,11 @@ function waitfororder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
             @debug "Wait for order: not found" _module = LogWaitOrder id = o.id
             return true
         end
-        if slept > timeout
-            @debug "Wait for order: timedout" _module = LogWaitOrder id = o.id timeout
-            return false
-        end
     end
+    @debug "Wait for order: timedout" _module = LogWaitOrder id = o.id timeout
     return false
+end
+
+function waitorder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
+    @unlock ai _unlocked_waitorder(s, ai, o; waitfor)
 end

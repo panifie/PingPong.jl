@@ -28,7 +28,7 @@ function Executors.pong!(
     atol=1e-1,
     force=false,
 )::Bool
-    if isopen(ai, pos) || hasorders(s, ai, pos)
+    @lock ai if isopen(ai, pos) || hasorders(s, ai, pos)
         @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
             ai
         ) s = nameof(s) n_orders = orderscount(s, ai) isopen(ai, pos)
@@ -46,7 +46,7 @@ function Executors.pong!(
             event!(ai, LeverageUpdated(:leverage_updated, s, this_pos; from_value=prev_lev))
             if synced
                 # wait for lev update from watcher
-                waitforpos(s, ai, pos; since)
+                live_position(s, ai, pos; since, synced=true, force)
                 isapprox(leverage(ai, pos), new_lev; atol)
             else
                 true
@@ -110,18 +110,20 @@ function Executors.pong!(
     synced=true,
     kwargs...,
 )
-    skipchecks || @isolated_position_check
-    @timeout_start
-    order_kwargs = withoutkws(:fees; kwargs)
-    trade = _live_limit_order(
-        s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
-    )
-    if synced && trade isa Trade
-        live_sync_position!(
-            s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
+    @lock ai begin
+        skipchecks || @isolated_position_check
+        @timeout_start
+        order_kwargs = withoutkws(:fees; kwargs)
+        trade = _live_limit_order(
+            s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
         )
+        if synced && trade isa Trade
+            live_sync_position!(
+                s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
+            )
+        end
+        trade
     end
-    trade
 end
 
 @doc """ Executes a market order in a live trading strategy.
@@ -143,20 +145,134 @@ function Executors.pong!(
     synced=true,
     kwargs...,
 )
-    skipchecks || @isolated_position_check
-    @timeout_start
-    order_kwargs = withoutkws(:fees; kwargs)
-    trade = _live_market_order(
-        s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
-    )
-    if synced && trade isa Trade
-        live_sync_position!(s, ai, posside(trade); since=trade.date, waitfor=@timeout_now)
+    @lock ai begin
+        skipchecks || @isolated_position_check
+        @timeout_start
+        order_kwargs = withoutkws(:fees; kwargs)
+        trade = _live_market_order(
+            s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
+        )
+        if synced && trade isa Trade
+            live_sync_position!(
+                s, ai, posside(trade); since=trade.date, waitfor=@timeout_now
+            )
+        end
+        trade
     end
-    trade
 end
 
 _close_order_bypos(::Short) = ShortMarketOrder{Buy}
 _close_order_bypos(::Long) = MarketOrder{Sell}
+
+function _posclose_cancel(s, ai, t, pside, waitfor)
+    if hasorders(s, ai, pside)
+        if !pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=true, waitfor)
+            @warn "pong pos close: failed to cancel orders" ai t
+        end
+    end
+end
+
+function _posclose_maybesync(s, ai, pside, waitfor)
+    update = live_position(s, ai, pside; since=timestamp(ai), waitfor)
+    if isnothing(update)
+        @warn "pong pos close: no position update (resetting)" ai side = P
+        if isopen(ai, pside)
+            reset!(ai, pside)
+        end
+        return (update, true)
+    end
+    # ensure the last update is read
+    if !(update.read[])
+        @warn "pong pos close: outdated position state (syncing)." amount = resp_position_contracts(
+            update.resp, exchangeid(ai)
+        )
+        live_sync_position!(s, ai, pside, update)
+    end
+    return (update, false)
+end
+
+function _posclose_waitsync(s, ai, pside, waitfor)
+    if !waitordclose(s, ai, waitfor)
+        @error "pong pos close: orders still pending" ai orderscount(s, ai) cash(ai) committed(
+            ai
+        )
+    end
+    # with no orders in flight the local state should be up to date
+    return if !isopen(ai, pside)
+        @warn "pong pos close: not open locally" ai pside
+        true
+    else
+        false
+    end
+end
+
+function _posclose_amount(s, ai, pside; kwargs)
+    _, this_kwargs = splitkws(:reduce_only, :tag; kwargs)
+    amount = cash(ai, pside) |> abs
+    @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
+    return amount, this_kwargs
+end
+
+function _posclose_trade(s, ai; t, pside, amount, waitfor, this_kwargs)
+    @timeout_start
+    close_trade = pong!(
+        s, ai, t; amount, reduce_only=true, tag="position_close", waitfor, this_kwargs...
+    )
+    if close_trade isa Trade
+        (close_trade.date, false)
+    elseif isnothing(close_trade)
+        # check sync again
+        pup = live_position(s, ai, pside; force=true, waitfor=@timeout_now)
+        (
+            DateTime(0),
+            if !isopen(ai, pside)
+                @deassert isnothing(pup) || pup.closed[]
+                true
+            else
+                @error "pong pos close: failed to reduce position to zero" ai pside t
+                false
+            end,
+        )
+    else
+        @warn "pong pos close: closing order delay" orders = collect(
+            values(s, ai, orderside(t))
+        ) ai t
+        (false, timestamp(ai) + Millisecond(1))
+    end
+end
+
+function _posclose_order(s, ai, pside, since, waitfor)
+    @timeout_start
+    if !waitposclose(s, ai, pside; waitfor=@timeout_now)
+        @debug "pong pos close: timedout" _module = LogPosClose pside ai = raw(ai)
+    end
+    live_sync_position!(s, ai, pside; since, overwrite=true, waitfor=@timeout_now)
+    if @inlock ai isopen(ai, pside)
+        pup = live_position(s, ai, pside; since, waitfor=@timeout_now)
+        @debug "pong pos close: still open (local) position" _module = LogPosClose since pside date = get(
+            pup, :date, nothing
+        )
+        false
+    else
+        true
+    end
+end
+
+function _posclose_lastcheck(s, ai, pside, t, since, waitfor)
+    @timeout_start
+    # trade still pending 
+    if @inlock ai isopen(ai, pside)
+        waitforsync(s, ai; since, waitfor=@timeout_now)
+        return if isopen(ai, pside)
+            @error "pong pos close: still open orders (not a market order?)" ai pside t
+            false
+        else
+            true
+        end
+    else
+        true
+    end
+end
 
 @doc """ Closes a leveraged position in a live trading strategy.
 
@@ -177,113 +293,42 @@ function pong!(
     waitfor=Second(15),
     kwargs...,
 ) where {P<:PositionSide}
-    pos = P()
-    @timeout_start
-    if hasorders(s, ai, P)
-        if !pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=true, waitfor=@timeout_now)
-            @warn "pong pos close: failed to cancel orders" ai t
-        end
-    end
-    update = live_position(s, ai, pos)
-    if isnothing(update)
-        @warn "pong pos close: no position update (resetting)" ai side = P
-        isopen(ai, P()) && reset!(ai, pos)
-        return true
-    end
-    if !(update.read[])
-        @warn "pong pos close: outdated position state (syncing)." amount = resp_position_contracts(
-            update.resp, exchangeid(ai)
-        )
-        live_sync_position!(s, ai, pos, update)
-    end
-    if !isopen(ai, pos)
-        @warn "pong pos close: not open locally" ai side = P
-        return true
-    end
-    if !waitfor_closed(s, ai, @timeout_now)
-        @error "pong pos close: orders still pending" ai orderscount(s, ai) cash(ai) committed(
-            ai
-        )
-    end
-    _, this_kwargs = splitkws(:reduce_only, :tag; kwargs)
-    amount = cash(ai, pos) |> abs
-    if iszero(amount)
-        # Position closed after last check
-        return true
-    end
-    @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
-    close_trade = pong!(
-        s,
-        ai,
-        t;
-        amount,
-        reduce_only=true,
-        tag="position_close",
-        waitfor=@timeout_now,
-        this_kwargs...,
-    )
-    since = if close_trade isa Trade
-        close_trade.date
-    elseif isnothing(close_trade)
-        # sync (of a previous closing order) might have happened during previous order attempt
-        if isopen(ai, pos)
-            @error "pong pos close: failed to reduce position to zero" ai P t
-            return false
-        else
+    @lock ai begin
+        pside = P()
+        @timeout_start
+
+        # cancel standing orders
+        _posclose_cancel(s, ai, t, pside, @timeout_now)
+        # give up if there is no remote position update
+        update, isclosed = _posclose_maybesync(s, ai, pside, @timeout_now)
+        if isclosed
             return true
         end
-    else
-        @warn "pong pos close: closing order delay" orders = collect(
-            values(s, ai, orderside(t))
-        ) ai t
-        timestamp(ai) + Millisecond(1)
-    end
-    if waitfor_closed(s, ai, @timeout_now)
-        if waitposclose(s, ai, P; waitfor=@timeout_now)
-        else
-            @debug "pong pos close: timedout" _module = LogPosClose pos = P ai = raw(ai)
+        # ensure no more orders are pending and return if pos is closed
+        if _posclose_waitsync(s, ai, pside, @timeout_now)
+            return true
         end
-        live_sync_position!(s, ai, P(); since, overwrite=true, waitfor=@timeout_now)
-        if @lock ai isopen(ai, pos)
-            @debug "pong pos close:" _module = LogPosClose timestamp(ai, pos) >= since timestamp(
-                ai, pos
-            ) == DateTime(
-                0
-            )
-            pup = live_position(s, ai, pos; since, waitfor=@timeout_now)
-            @debug "pong pos close: still open (local) position" _module = LogPosClose since position(
-                ai, pos
-            ) data = try
-                resp = first(fetch_positions(s, ai))
-                this_pup = live_position(s, ai, P(); since, waitfor=@timeout_now)
-                eid = exchangeid(ai)
-                (;
-                    prev_pup=if isnothing(pup)
-                        nothing
-                    else
-                        (; pup.date, pup.closed, pup.read)
-                    end,
-                    live_pos=(;
-                        timestamp=resp_position_timestamp(this_pup.resp, eid),
-                        amount=resp_position_contracts(this_pup.resp, eid),
-                    ),
-                    fetch_pos=(;
-                        timestamp=resp_position_timestamp(resp, eid),
-                        amount=resp_position_contracts(resp, eid),
-                    ),
-                )
-            catch
-            end
-            false
-        else
-            true
+        # if still open, close manually with a reduce only order
+        # get the amount necessary to close the position
+        amount, this_kwargs = _posclose_amount(s, ai, pside; kwargs)
+        if iszero(amount)
+            # Position closed after last check
+            return true
         end
-    else
-        if @lock ai isopen(ai, P())
-            @warn "pong pos close: still open orders" P cash(ai) ai = raw(ai)
-            false
+        since, isclosed = _posclose_trade(
+            s, ai; t, pside, amount, waitfor=@timeout_now(), this_kwargs
+        )
+        # another check for close in case of failing trade
+        if isclosed
+            return true
+        end
+        # trade exec success, wait for completion
+        if waitordclose(s, ai, @timeout_now)
+            # terminal check after closing trade
+            _posclose_order(s, ai, pside, since, @timeout_now)
         else
-            true
+            # closing trade still pending
+            _posclose_lastcheck(s, ai, pside, t, since, @timeout_now)
         end
     end
 end

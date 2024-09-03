@@ -175,9 +175,8 @@ function signals!(s::Strategy, ::Val{:warmup}; force=false, history=true)
     s[:signals] = signals_state!(s)
     # Fill fresh ohlcv data at startup
     if ispaper(s) || islive(s)
-        tasks = @lock s @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
         for ai in s.universe
-            this_asset = asset_tasks(s, ai; tasks).byname
+            this_asset = asset_tasks(ai).byname
             prev_task = get(this_asset, :signals, nothing)
             if !istaskrunning(prev_task)
                 this_asset[:signals] = @async foreach(s.signals_def.defs) do def

@@ -10,7 +10,7 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
     local o, order_trades
     # NOTE: necessary locks to prevent race conditions between balance/positions updates
     # and order creation
-    order_trades = @lock ai @lock s begin
+    order_trades = @inlock ai begin
         o = create_live_order(
             s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs, skipchecks
         )
@@ -23,9 +23,9 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
     end
     @timeout_start
     if !isempty(order_trades) ||
-       (waitfororder(s, ai, o; waitfor=@timeout_now) && !isempty(order_trades))
+       (waitorder(s, ai, o; waitfor=@timeout_now) && !isempty(order_trades))
         last(order_trades)
-    elseif waitfortrade(s, ai, o; waitfor=@timeout_now, force=synced)
+    elseif waittrade(s, ai, o; waitfor=@timeout_now, force=synced)
         last(order_trades)
     elseif !haskey(s, ai, o) && isempty(order_trades)
         @debug "market order: failed" _module = LogCreateOrder synced

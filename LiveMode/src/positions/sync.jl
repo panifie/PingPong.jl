@@ -47,8 +47,8 @@ function _live_sync_position!(
     forced_side=false,
     waitfor=Second(5),
 )
-    @debug "sync pos: checking queue" islocked(s) islocked(ai)
-    let queue = asset_queue(s, ai)
+    @debug "sync pos: checking queue" isownable(s.lock) isownable(ai.lock)
+    let queue = asset_queue(ai)
         if queue[] > 1
             @debug "sync pos: events queue is congested" _module = LogPosSync queue[]
             return nothing
@@ -122,7 +122,7 @@ function _live_sync_position!(
     end
 
     update.read[] && begin
-        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite update.closed[] # resp f = @caller
+        @debug "sync pos: update already read" _module = LogPosSync ai = raw(ai) pside overwrite update.closed[] resp_position_contracts(resp, eid)
         if !overwrite
             return pos
         end
@@ -132,7 +132,7 @@ function _live_sync_position!(
         if !isdust(ai, _ccxtposprice(ai, resp), pside) && isfinite(cash(pos))
             @warn "sync pos: cash expected to be (close to) zero, found" cash = cash(
                 ai, pside
-            ) cash(ai, pside).precision
+            ) cash(ai, pside).precision resp_position_contracts(resp, eid)
         end
         update.read[] = true
         reset!(pos) # if not full reset at least cash/committed
@@ -330,9 +330,9 @@ function _live_sync_position!(
 end
 
 function live_sync_position!(s::LiveStrategy, ai::MarginInstance, pos, update; kwargs...)
-    @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai) islocked(ai) islocked(s) islocked(update.notify)
+    @debug "sync pos: syncing update" _module = LogPosSync ai = raw(ai) isownable(ai.lock) isownable(s.lock) isownable(update.notify.lock)
     # NOTE: Orders matters to avoid deadlocks
-    @lock _external_lock(ai) @lock update.notify begin
+    @inlock ai @lock update.notify begin
         _live_sync_position!(s, ai, pos, update; kwargs...)
         if isopen(ai) || hasorders(s, ai)
             push!(s.holdings, ai)
@@ -399,16 +399,26 @@ function live_sync_cash!(
         live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
     else
         @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(ai) side
-        @lock _external_lock(ai) reset!(ai, bp)
+        @inlock ai reset!(ai, bp)
     end
     position(ai, bp)
 end
 
-function waitwatcherupdate(w)
+function waitwatcherupdate(w_func::Function)
+    w::Option{Watcher} = nothing
+    while isnothing(w)
+        w = try
+            w_func()
+        catch e
+            @error "sync unic cash" exception = e
+        end
+    end
     while isempty(w.buffer) && w.last_fetch == DateTime(0)
         @debug "sync uni cash: waiting for position data" _module = LogUniSync
         if !wait(w, :process)
             break
+        else
+            sleep(0.01)
         end
     end
     @debug "sync uni cash: position data ready" _module = LogUniSync
@@ -426,13 +436,14 @@ The synchronization process is performed concurrently for efficiency.
 """
 function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, force=false, kwargs...)
     if force # wait for position watcher
-        waitwatcherupdate(positions_watcher(s))
+        waitwatcherupdate(() -> watch_positions!(s))
+        waitwatcherupdate(() -> watch_balance!(s))
     end
     long, short, _ = get_positions(s)
     default_date = now()
     function dosync(ai, side, dict)
         pup = get(dict, raw(ai), nothing)
-        @debug "sync universe cash:" _module = LogUniSync ai = raw(ai) side isnothing(pup) overwrite force
+        @debug "sync universe cash:" _module = LogUniSync ai side isnothing(pup) overwrite force
         live_sync_cash!(s, ai, side; pup, overwrite, force, kwargs...)
     end
     @sync for ai in s.universe
@@ -449,5 +460,5 @@ function live_sync_universe_cash!(s::MarginStrategy{Live}; overwrite=false, forc
             set_active_position!(ai; default_date)
         end
     end
-    @debug "sync universe cash: synced"
+    @debug "sync universe cash: synced" _module = LogUniSync
 end

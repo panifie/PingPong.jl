@@ -110,8 +110,9 @@ function live_sync_cash!(
     drift=Millisecond(5),
     bal=live_balance(s, ai; since, waitfor, force),
     overwrite=false,
+    kwargs...
 )
-    @lock ai if bal isa BalanceSnapshot
+    @inlock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift
         if overwrite || bal.date != DateTime(0) || !isfinite(cash(ai))
             if isfinite(bal.free)

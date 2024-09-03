@@ -151,7 +151,7 @@ function sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
             @debug "sync orders: tracked local order was not open on exchange" _module =
                 LogSyncOrder id ai exchange(ai)
             @deassert LogSyncOrder id == state.order.id
-            @async @lock ai if isopen(ai, state.order) # need to sync trades
+            @async @inlock ai if isopen(ai, state.order) # need to sync trades
                 order_resp = try
                     resp = fetch_orders(s, ai; ids=(id,))
                     if islist(resp) && !isempty(resp)
@@ -219,7 +219,7 @@ function live_sync_open_orders!(
     raise=true,
 )
     # Get active orders for the given strategy and asset instance
-    ao = active_orders(s, ai)
+    ao = active_orders(ai)
     eid = exchangeid(ai)
 
     # Fetch open orders from the exchange
@@ -251,7 +251,7 @@ function live_sync_open_orders!(
     @debug "sync orders: syncing" _module = LogSyncOrder ai islocked(ai) length(open_orders)
 
     # Lock the asset instance to prevent concurrent modifications
-    @lock ai begin
+    @inlock ai begin
         default_pos = get_position_side(s, ai)
 
         # Reset cash state if overwrite is true
@@ -530,7 +530,7 @@ function check_orders_sync(s::LiveStrategy)
             @async for o in fetch_open_orders(s, ai)
                 push!(exc_ids, resp_order_id(o, eid, String))
             end
-            for id in keys(active_orders(s, ai))
+            for id in keys(active_orders(ai))
                 push!(tracked_ids, id)
             end
         end
@@ -588,7 +588,7 @@ function live_sync_closed_orders!(
     @debug "sync closed orders: iterating" _module = LogSyncOrder ai n_closed = length(
         closed_orders
     )
-    @lock ai begin
+    @inlock ai begin
         default_pos = get_position_side(s, ai)
         i = 1
         limit = attr(s, :sync_history_limit)

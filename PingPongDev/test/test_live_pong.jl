@@ -16,15 +16,22 @@ function _check_state(s, ai)
     _get(::Nothing, _, def) = def
     for side in (Long, Short)
         pside = posside(ai)
-        resps = (@something lm.fetch_positions(s, ai; side=pside, timeout=Second(10)) _get(lm.get_positions(s, ai, side), :resp, [])) |> PyList
-        @info "TEST: check state" typeof(resps)
-        idx = findfirst(resps) do resp
-            string(lm.resp_position_symbol(resp, eid)) == raw(ai) &&
-                string(lm.resp_position_side(resp, eid)) == lm._ccxtposside(side)
+        resps = @something lm.fetch_positions(s, ai; side=pside, timeout=Second(10)) _get(lm.get_positions(s, ai, side), :resp, missing)
+        if Python.pyisinstance(resps, pybuiltins.dict)
+            resps = [resps]
+        elseif Python.pyisinstance(resps, pybuiltins.list)
+            resps = PyList(resps)
         end
-        if !isnothing(idx)
-            @info "TEST: check state" side cash(ai)
-            @test abs(cash(ai, side)) == abs(lm.resp_position_contracts(resps[idx], eid))
+        if !ismissing(resps) && !isnothing(resps)
+            @info "TEST: check state" typeof(resps) length(resps) pytp = resps isa Py ? pytype(resps) : nothing
+            idx = findfirst(resps) do resp
+                string(lm.resp_position_symbol(resp, eid)) == raw(ai) &&
+                    string(lm.resp_position_side(resp, eid)) == lm._ccxtposside(side)
+            end
+            if !isnothing(idx)
+                @info "TEST: check state" side cash(ai)
+                @test abs(cash(ai, side)) == abs(lm.resp_position_contracts(resps[idx], eid))
+            end
         end
     end
     @info "TEST: check state" isnothing(pos) long = position(ai, Long).status[] short = position(ai, Short).status[] s[m"btc"]
@@ -51,7 +58,7 @@ function _reset_remote_pos(s, ai)
         end
     end
     @test !isopen(ai)
-    @test isempty(lm.active_orders(s, ai))
+    @test isempty(lm.active_orders(ai))
     @test ect.orderscount(s, ai) == 0
 end
 
@@ -72,12 +79,16 @@ end
 
 function test_live_pong_mg(s)
     ai = s[m"btc"]
-    amount = ai.limits.amount.min * 2
+    amount = 2ai.limits.amount.min
     eid = exchangeid(ai)
+    @info "TEST: strategy reset"
     reset!(s)
+
     waitfor = 2 * round(lm.throttle(s), Second)
     @test lm.hasattr(s, :trades_cache_ttl)
+    @info "TEST: strategy sync"
     lm.live_sync_strategy!(s, force=true)
+    @info "TEST: wait watchers"
     _waitwatchers(s)
     since = now()
     pos = position(ai)
@@ -86,12 +97,13 @@ function test_live_pong_mg(s)
     setglobal!(Main, :s, s)
 
     _reset_remote_pos(s, ai)
+    @info "TEST: live contracts"
     @test lm.live_contracts(s, ai, Short(), force=true) == 0
-    @info "TEST: " w = lm.positions_watcher(s)
+    @info "TEST: livecontracs2" w = lm.positions_watcher(s)
     @test lm.live_contracts(s, ai, Long(), force=true) == 0
     @test !isopen(ai)
 
-    @info "TEST: Short sell"
+    @info "TEST: Short sell" amount
     trade = ect.pong!(s, ai, ShortGTCOrder{Sell}; amount, price=lastprice(ai) - 100, skipchecks=true)
     @test !isnothing(trade)
     o = nothing
@@ -104,16 +116,22 @@ function test_live_pong_mg(s)
     else
         o = trade.order
     end
-    @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor) || @lock s @lock ai lm.isfilled(ai, o)
-    pup = lm.live_position(s, ai, force=true)
-    @info "TEST:" pup trade
-    @test lm.live_contracts(s, ai, force=true) < 0.0 || iszero(cash(ai))
+    @test lm.waitfortrade(s, ai, o; waitfor) || lm.waitfororder(s, ai, o; waitfor) || @lock ai lm.isfilled(ai, o)
+    @info "TEST:" trade cash(ai)
+    @test lm.live_contracts(s, ai, force=true) < 0.0 || @lock ai iszero(cash(ai))
+    pup = lm.live_position(s, ai)
+    @info "TEST: " pup
     @test !isnothing(position(ai))
     @test !isnothing(pup)
     @info "TEST: Position" date = isnothing(pup) ? nothing : pup.date lm.live_contracts(
         s, ai
     )
     @test inst.timestamp(ai) >= since
+    timeout = now() + Second(10)
+    while !ect.isfilled(ai, last(ect.trades(ai)).order) && now() < timeout
+        @info "TEST: waiting for fill"
+        sleep(1)
+    end
     @test cash(ai, Short()) == -amount == lm.live_contracts(s, ai, Short(), since=last(ai.history).date, force=true)
     @test iszero(cash(ai, Long()))
     @test isopen(ai, Short())
@@ -130,25 +148,31 @@ function test_live_pong_mg(s)
     since = now()
     price = lastprice(ai) + 100
     long_amount = min(s.cash * 0.3 / price, amount * price)
+    w = lm.positions_watcher(s)
+    n_trades = 0
     @sync begin
         for n in 0:2
             sleep_n = n
             @async let
                 sleep(sleep_n) # this avoid potential orders having same date on some exchanges
                 trade = ect.pong!(s, ai, GTCOrder{Buy}; amount=long_amount, price, waitfor)
-                if ismissing(trade)
-                    lm.waitfortrade(s, ai, first(values(s, ai, Buy)); waitfor=Second(10)) ||
-                        lm._force_fetchtrades(s, ai, first(values(s, ai, Buy)))
+                if !isnothing(trade)
+                    n_trades += 1
+                    if ismissing(trade)
+                        lm.waitfortrade(s, ai, first(values(s, ai, Buy)); waitfor=Second(10)) ||
+                            lm._force_fetchtrades(s, ai, first(values(s, ai, Buy)))
+                    end
                 end
             end
         end
     end
-    w = lm.positions_watcher(s)
+    @test n_trades > 0
     while lm.timestamp(ai, Long) < since
         @info "TEST: waiting for timestamp" isstarted(w) lm.timestamp(ai, Long) since
         @lock w nothing
         sleep(1)
     end
+    @info "TEST: timestamp updated" lm.timestamp(ai, Long)
     pos = position(ai)
     @test lm.islong(pos)
     @test !isnothing(pos)
@@ -164,7 +188,7 @@ function test_live_pong_mg(s)
     n_test_orders = length(lm.ordershistory(ai)) - orders_offset
     orders_amount = sum(o.amount for o in lm.ordershistory(ai)[orders_offset+1:end])
     contracts = lm.live_contracts(s, ai, force=true)
-    @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) contracts n_test_orders orders_offset since
+    @info "TEST: " lm.orderscount(s, ai) lm.ordershistory(ai) cash(ai) contracts n_test_orders orders_offset since lm.timestamp(ai) lm.get_positions(s, ai, posside(ai)).date
     @test cash(pos) == orders_amount == contracts
     pside = posside(ai)
     @info "TEST: Position Close (3rd)"
@@ -180,7 +204,7 @@ function test_live_pong_mg(s)
         lm.waitposclose(s, ai, this_side; waitfor)
     end
     @test !isopen(ai)
-    @test isempty(lm.active_orders(s, ai))
+    @test isempty(lm.active_orders(ai))
     @test ect.orderscount(s, ai) == 0
     @test lm.live_contracts(s, ai, force=true) == 0
 end
@@ -430,12 +454,17 @@ function test_live_pong(exchange=EXCHANGE, mm_exchange=EXCHANGE_MM; debug="Execu
             exchange = $(QuoteNode(exchange))
             mm_exchange = $(QuoteNode(mm_exchange))
             s = live_strat(:ExampleMargin; exchange=mm_exchange, initial_cash=1e8, skip_sync=true)
+            name = string(lm.exchange(s).id)
+            if startswith(name, "binance")
+                lm.exchange(s).py.timeout = 20000
+            end
             setglobal!(Main, :s, s)
             try
                 @info "TEST: pong mg"
                 @testset test_live_pong_mg(s)
                 return
             finally
+                setglobal!(Main, :w, lm.positions_watcher(s))
                 if $stop
                     t = @async lm.stop!(s)
                     if $sync

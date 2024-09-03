@@ -25,22 +25,9 @@ function Base.unlock(state::LiveOrderState)
     unlock(state.lock)
 end
 
-@doc """ Retrieves active orders for a live strategy.
-
-$(TYPEDSIGNATURES)
-
-Returns a dictionary of active orders for all asset instances in a live strategy.
-If no dictionary exists, a new one is created.
-
-"""
-function active_orders(s::LiveStrategy)
-    @lget! attrs(s) :live_active_orders Dict{AssetInstance,AssetOrdersDict}()
+function active_orders(ai)
+    @something get(ai, :live_active_orders, nothing) @inlock ai @lget! ai :live_active_orders AssetOrdersDict()
 end
-function active_orders(s::LiveStrategy, ai)
-    ords = active_orders(s)
-    @lget! ords ai AssetOrdersDict()
-end
-
 
 @doc """ Computes the average price of an order.
 
@@ -62,7 +49,6 @@ avgprice(o::Order) =
         end
         return val / amt
     end
-
 
 @doc "Stores and order id in the recently orders cache."
 record_order!(s::LiveStrategy, ai, id::String) =
@@ -87,7 +73,7 @@ The function ensures that the trade and orders watchers are running for the asse
 """
 function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     @debug "orders: set active" _module = LogWatchOrder o.id islocked(s) f = @caller
-    state = @lget! active_orders(s, ai) o.id (;
+    state = @lget! active_orders(ai) o.id (;
         order=o,
         lock=ReentrantLock(),
         trade_hashes=UInt64[],
@@ -102,9 +88,9 @@ end
 
 @doc "Remove order from the set of active orders."
 function clear_order!(s::LiveStrategy, ai, o::Order)
-    ao = active_orders(s, ai)
+    actord = active_orders(ai)
     @debug "orders: disactivating" _module = LogSyncOrder o.id
-    delete!(ao, o.id)
+    delete!(actord, o.id)
     record_order!(s, ai, o)
 end
 
@@ -119,8 +105,8 @@ Each order's id is printed along with its open status.
 function show_active_orders(s::LiveStrategy, ai)
     open_orders = fetch_open_orders(s, ai)
     open_ids = Set(resp_order_id.(open_orders))
-    active = active_orders(s, ai)
-    for id in keys(active)
+    actord = active_orders(ai)
+    for id in keys(actord)
         println(stdout, string(id, " open: ", id ∈ open_ids))
     end
     flush(stdout)
@@ -154,21 +140,20 @@ If the orders are not closed by the time the timeout is reached, it attempts to 
 If orders remain open after the sync attempt, it signals an error.
 
 """
-function waitfor_closed(
+function _unlocked_waitordclose(
     s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
 )::Bool
     try
-        active = active_orders(s, ai)
+        actord = active_orders(ai)
         slept = 0
         timeout = Millisecond(waitfor).value
         success = true
         @debug "wait ord close: waiting" _module = LogWaitOrder ai side = t
         while true
-            isactive(s, ai; active, side=t) || begin
+            if !isactive(s, ai; actord, side=t)
                 @debug "wait ord close: done" _module = LogWaitOrder ai
                 break
-            end
-            slept < timeout || begin
+            elseif slept >= timeout
                 success = false
                 @debug "wait ord close: timedout" _module = LogWaitOrder ai side = t waitfor f = @caller
                 if synced
@@ -177,7 +162,7 @@ function waitfor_closed(
                     success = if isactive(s, ai; side=t)
                         @error "wait ord close: orders still active" ai side = t n = orderscount(
                             s, ai, t
-                        ) length(active_orders(s, ai)) isactive(s, ai; side=t)
+                        ) length(active_orders(ai)) isactive(s, ai; side=t)
                         false
                     else
                         true
@@ -190,7 +175,9 @@ function waitfor_closed(
         end
         if success
             if orderscount(s, ai, t) > 0
-                @debug "wait ord close: syncing open orders! (2nd)" _module = LogWaitOrder ai orderscount(s, ai, t) f = @caller
+                @debug "wait ord close: syncing open orders! (2nd)" _module = LogWaitOrder ai orderscount(
+                    s, ai, t
+                ) f = @caller
                 live_sync_open_orders!(s, ai; side=t, overwrite=false, exec=true)
                 iszero(orderscount(s, ai, t))
             else
@@ -205,6 +192,12 @@ function waitfor_closed(
     end
 end
 
+function waitordclose(
+    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
+)::Bool
+    @unlock ai _unlocked_waitordclose(s, ai, waitfor; t, synced)
+end
+
 @doc """ Checks if there are active orders for a specific side.
 
 $(TYPEDSIGNATURES)
@@ -213,8 +206,8 @@ This function determines if there are active orders for a specific side (Buy/Sel
 for a given asset in a live strategy.
 
 """
-function isactive(s::LiveStrategy, ai; active=active_orders(s, ai), side=BuyOrSell)
-    for state in values(active)
+function isactive(s::LiveStrategy, ai; actord=active_orders(ai), side=BuyOrSell)
+    for state in values(actord)
         orderside(state.order) == side && return true
     end
     return false
@@ -227,9 +220,9 @@ $(TYPEDSIGNATURES)
 This function determines if a specific limit order is active for a given asset in a live strategy.
 """
 function isactive(
-    s::LiveStrategy, ai, o::AnyLimitOrder; pt=pricetime(o), active=active_orders(s, ai)
+    s::LiveStrategy, ai, o::AnyLimitOrder; pt=pricetime(o), actord=active_orders(ai)
 )
-    haskey(s, ai, pt, o) && haskey(active, o.id)
+    haskey(s, ai, pt, o) && haskey(actord, o.id)
 end
 
 @doc """ Checks if a specific order is active.
@@ -238,6 +231,6 @@ $(TYPEDSIGNATURES)
 
 This function determines if a specific order is active for a given asset in a live strategy.
 """
-function isactive(s::LiveStrategy, ai, o; active=active_orders(s, ai), kwargs...)
-    haskey(active, o.id)
+function isactive(s::LiveStrategy, ai, o; actord=active_orders(ai), kwargs...)
+    haskey(actord, o.id)
 end

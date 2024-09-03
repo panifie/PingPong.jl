@@ -151,7 +151,7 @@ function create_live_order(
         end
         if isnothing(o)
             @debug "create order: retrying (no commits)" _module = LogCreateOrder ai = raw(ai) side = posside(t)
-            o = @lock ai create(skipcommit=true)
+            o = @inlock ai create(skipcommit=true)
         end
         o
     end
@@ -165,10 +165,10 @@ function create_live_order(
         already_filled = resp_order_filled(resp, eid)
         if already_filled > 0.0 && isempty(trades(o))
             # wait for trades watcher
-            waitfortrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
+            waittrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
         end
         if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
-            t = @lock ai tradeandsync!(s, o, ai; isemu=true, resp)
+            t = @inlock ai tradeandsync!(s, o, ai; isemu=true, resp)
         end
     end
     event!(
@@ -203,7 +203,7 @@ function create_live_order(
     skipchecks=false,
     kwargs...,
 )
-    @debug "create order: " ai = raw(ai) t price amount @caller
+    @debug "create order: sending request" _module = LogCreateOrder ai t price amount @caller
     resp = live_send_order(
         s,
         ai,
@@ -214,5 +214,6 @@ function create_live_order(
         price,
         withoutkws(:date; kwargs=exc_kwargs)...,
     )
+    @debug "create order: after request" _module = LogCreateOrder ai t price amount @caller() resp
     create_live_order(s, resp, ai; amount, price, t, kwargs...)
 end

@@ -18,7 +18,7 @@ using .Misc:
     task_sem
 using .SimMode.Instances.Data: nrow
 using .SimMode.Instances: _internal_lock, _external_lock
-using .st: asset_bysym
+using .st: asset_bysym, symsdict
 using Watchers: Watcher
 using Watchers.WatchersImpls: islist, isdict, _dopush!
 import .Instances: timestamp
@@ -54,16 +54,49 @@ baremodule LogWatchPosProcess end
 baremodule LogWatchOHLCV end
 baremodule LogPush end
 baremodule LogWait end
+baremodule LogWaitUpdates end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
 baremodule LogTraceReplay end
+
+macro unlock(locker, unlocker, code)
+    ex = quote
+        l = $unlocker
+        owned = isowned(l)
+        c = owned && l.reentrancy_cnt > 0 ? ((l for _ in 1:(l.reentrancy_cnt))...,) : nothing
+        @lock $locker begin
+            owned && foreach(unlock, c)
+            try
+                $code
+            finally
+                owned && foreach(lock, c)
+            end
+        end
+    end
+    esc(ex)
+end
+
+macro unlock(ai, code)
+    ex = quote
+        this_ai = $ai
+        @unlock _internal_lock(this_ai) _external_lock(this_ai) $code
+    end
+    esc(ex)
+end
+
+macro inlock(ai, code)
+    ex = quote
+        @lock _external_lock($ai) $code
+    end
+    esc(ex)
+end
 
 @doc """ Starts a timeout.
 
 $(TYPEDSIGNATURES)
 
 This macro starts a timeout. If a `start` argument is provided, it sets the start time of the timeout to `start`. Otherwise, it sets the start time to the current time.
-
+See [`@timeout_now`](@ref), [`@istimeout`](@ref).
 """
 macro timeout_start(start=nothing)
     esc(:(timeout_date = @something $start now() + waitfor))
@@ -72,11 +105,22 @@ end
 
 $(TYPEDSIGNATURES)
 
-This macro retrieves the current time of the timeout. It's typically used to check the elapsed time since a timeout started.
-
+This macro checks the remaining time of the timeout.
+See [`@timeout_start`](@ref), [`@istimeout`](@ref).
 """
 macro timeout_now()
     esc(:(max(Millisecond(0), timeout_date - now())))
+end
+
+@doc """ Returns true if the timeout has expired.
+
+$(TYPEDSIGNATURES)
+
+This macro checks if the remaining time of the timeout is less than or equal to zero.
+See [`@timeout_start`](@ref), [`@timeout_now`](@ref).
+"""
+macro istimeout()
+    esc(:(@timeout_now() <= Second(0)))
 end
 
 ## TASKS
@@ -89,7 +133,7 @@ This function stops all tasks associated with an asset `ai` in the strategy `s`.
 
 """
 function stop_asset_tasks(s::RTStrategy, ai; reset=false)
-    tasks = asset_tasks(s, ai)
+    tasks = asset_tasks(ai)
     for (name, task) in tasks.byname
         stop_task(task)
     end
@@ -277,8 +321,8 @@ const StrategyTasks = NamedTuple{
 }
 
 @doc """ Retrieves the task associated with an order. """
-function order_task(s::RTStrategy, ai, k; tasks=nothing)
-    tup = asset_tasks(s, ai; tasks)
+function order_task(ai::AssetInstance, k)
+    tup = asset_tasks(ai)
     @lock tup.lock get(tup.byorder, k, nothing)
 end
 
@@ -289,22 +333,8 @@ $(TYPEDSIGNATURES)
 This function retrieves the task queue associated with an asset `ai` in the strategy `s`.
 
 """
-asset_queue(s::RTStrategy, ai; tasks=nothing) = begin
-    at = @something tasks asset_tasks(s, ai)
-    at.queue
-end
+asset_queue(ai::AssetInstance) = asset_tasks(ai).queue
 
-function _unsafe_asset_tasks(s::RTStrategy)
-    @lget! attrs(s) :live_asset_tasks Dict{AssetInstance,AssetTasks}()
-end
-@doc """ Retrieves tasks associated with all assets.
-
-$(TYPEDSIGNATURES)
-
-This function retrieves tasks associated with all assets in the strategy `s`. It returns a dictionary mapping asset identifiers to their respective tasks.
-
-"""
-asset_tasks(s::RTStrategy) = @lock s _unsafe_asset_tasks(s)
 @doc """ Retrieves tasks associated with a specific asset.
 
 $(TYPEDSIGNATURES)
@@ -312,21 +342,21 @@ $(TYPEDSIGNATURES)
 This function retrieves tasks associated with a specific asset `ai` in the strategy `s`. It returns a [`AssetTasks`](@ref) representing a collection of tasks associated with the asset.
 
 """
-function asset_tasks(s::RTStrategy, ai; tasks=nothing)
-    @lock s @lget! @something(tasks, _unsafe_asset_tasks(s)) ai (;
+function asset_tasks(ai::AssetInstance)
+    @something get(ai, :tasks, nothing) @inlock ai @lget! ai :tasks (;
         lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
 end
-function asset_task(s::RTStrategy, ai, k; tasks=nothing)
-    tup = @something tasks asset_tasks(s, ai; tasks)
+function asset_task(ai::AssetInstance, k)
+    tup = asset_tasks(ai)
     @lock tup.lock begin
         get(tup.byname, k, nothing)
     end
 end
 
-function _set_task!(s::RTStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol)
+function _set_task!(ai::AssetInstance, t::Task, k; kind::Symbol)
     if istaskrunning(t)
-        tasks = @something tasks asset_tasks(s, ai)
+        tasks = asset_tasks(ai)
         @lock tasks.lock begin
             inc!(tasks.queue)
             try
@@ -340,12 +370,12 @@ function _set_task!(s::RTStrategy, ai, t::Task, k, tasks=nothing; kind::Symbol)
     end
 end
 
-function set_asset_task!(s::RTStrategy, ai, t::Task, k; tasks=nothing)
-    _set_task!(s, ai, t, k, tasks; kind=:byname)
+function set_asset_task!(ai::AssetInstance, t::Task, k)
+    _set_task!(ai, t, k; kind=:byname)
 end
 
-function set_order_task!(s::RTStrategy, ai, t::Task, k; tasks=nothing)
-    _set_task!(s, ai, t, k, tasks; kind=:byorder)
+function set_order_task!(ai::AssetInstance, t::Task, k)
+    _set_task!(ai, t, k; kind=:byorder)
 end
 
 @doc """ Retrieves tasks associated with a strategy.
@@ -356,9 +386,9 @@ This function retrieves tasks associated with the strategy `s`. It returns a dic
 
 """
 function all_strategy_tasks(s::RTStrategy)
-    @lock s begin
-        @lget! attrs(s) :live_strategy_tasks Dict{String,StrategyTasks}()
-    end
+    @something attr(s, :live_strategy_tasks, nothing) @lock s @lget! attrs(s) :live_strategy_tasks Dict{
+        String,StrategyTasks
+    }()
 end
 @doc """ Retrieves tasks associated with a strategy for a specific account.
 
@@ -369,7 +399,9 @@ This function retrieves tasks associated with the strategy `s` for a specific `a
 """
 function strategy_tasks(s::RTStrategy, account=current_account(s))
     tasks = all_strategy_tasks(s)
-    @lock s @lget! tasks account (; lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict())
+    @something get(tasks, account, nothing) @lock s @lget! tasks account (;
+        lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict()
+    )
 end
 
 function set_strategy_task!(
@@ -529,7 +561,6 @@ function st.default!(s::LiveStrategy; skip_sync=nothing)
     # How long to cache fetch all orders/trades calls
     get!(a, :func_cache_ttl, Second(3))
 
-    asset_tasks(s)
     strategy_tasks(s)
     # functions that throw an error on first run are disabled (e.g. *Ws functions)
     a[:disabled_funcs] = Dict{Symbol,Bool}()
@@ -759,27 +790,20 @@ and returns `true` if the watcher has received an update since `last_time`.
 
 """
 function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
-    last_v = if isempty(buffer(w))
+    buf = buffer(w)
+    last_v = if isempty(buf)
         return false
     else
-        last(buffer(w))
+        last(buf)
     end
-    @debug "isupdated: " _module = LogTasks prev_v last_v
+    @debug "isupdated: " _module = LogWait isnothing(prev_v) isnothing(last_v)
     if !isempty(last_v.value) && last_v.time > last_time
         this_v = this_v_func()
         prev_nth = isnothing(prev_v)
         this_nth = isnothing(this_v)
-        return if (!this_nth && prev_nth) || (this_nth && !prev_nth)
-            true
-        elseif (!this_nth && !prev_nth) && _asdate(this_v.date) > _asdate(prev_v.date)
-            true
-        else
-            updated = isnothing(prev_v) || _asdate(this_v.date) > _asdate(prev_v.date)
-            if updated
-                process!(w)
-            end
-            updated
-        end
+        return ((!this_nth && prev_nth) || (this_nth && !prev_nth)) ||
+               ((!this_nth && !prev_nth) && _asdate(this_v.date) > _asdate(prev_v.date)) ||
+               (isnothing(prev_v) || _asdate(this_v.date) > _asdate(prev_v.date))
     else
         return false
     end
@@ -796,28 +820,63 @@ function since_order_date(resp, o::Order)
     end
 end
 
-_waitcheck(tasks, w, since::DateTime) = !isempty(tasks) || lastdate(w) < since
-_waitcheck(tasks, w, since::Nothing) = !isempty(tasks)
 function waitforupdates(w::Watcher; since::Option{DateTime}=nothing, waitfor=Second(15))
     @timeout_start
     waitforcond(() -> hasattr(w, :process_tasks), @timeout_now)
+    if @istimeout()
+        @debug "sync: watcher has not tasks" w.name isstarted(w)
+        return nothing
+    end
     tasks = w[:process_tasks]
     filter!(!istaskdone, tasks)
-    while _waitcheck(tasks, w, since)
-        waitforcond(first(tasks), @timeout_now)
-        filter!(!istaskdone, tasks)
-        @timeout_now() <= Second(0) && break
+    if isnothing(since)
+        since = typemin(DateTime)
     end
+    @debug "sync: waiting begin" _module = LogWaitUpdates since timeout = @timeout_now() f = @caller(20) length(
+        tasks
+    )
+    hastasks() = !isempty(tasks)
+    isstale() = lastdate(w) <= since
+    while !@istimeout()
+        if hastasks()
+            waitforcond(first(tasks).donenotify, @timeout_now)
+            filter!(!istaskdone, tasks)
+            if !hastasks() && !isstale()
+                break
+            end
+        elseif isstale()
+            safewait(w.beacon.process)
+        else
+            break
+        end
+    end
+    @debug "sync: waiting end" _module = LogWaitUpdates since timeout = @timeout_now() f = @caller(20)
 end
 
 function waitforsync(s::Strategy; since::Option{DateTime}=nothing, waitfor=Second(15))
+    @debug "sync: waiting begin" _module = LogWait since waitfor
     @timeout_start
     waitforupdates(positions_watcher(s); since, waitfor=@timeout_now)
     waitforupdates(balance_watcher(s); since, waitfor=@timeout_now)
+    @debug "sync: waited end" _module = LogWait since timeout = @timeout_now
 end
 
 function waitforsync(s::Strategy, t::Trade; kwargs...)
+    @debug "sync: waiting after trade" _module = LogWait t.order.asset t.date t.order islocked(
+        asset_bysym(s, raw(t.order.asset))
+    )
     waitforsync(s; since=t.date, kwargs...)
+    @debug "sync: waited after trade" _module = LogWait t.order.asset t.date t.order islocked(
+        asset_bysym(s, raw(t.order.asset))
+    )
+end
+
+function waitforsync(
+    s::Strategy, ai::AssetInstance; since=timestamp(ai), waitfor=Second(15)
+)
+    @debug "sync: waiting asset sync" _module = LogWait isownable(ai.lock) waitfor
+    @unlock ai waitforsync(s; since, waitfor)
+    @debug "sync: waited asset sync" _module = LogWait isownable(ai.lock) waitfor
 end
 
 function waitforsync(s::Strategy, t; kwargs...)

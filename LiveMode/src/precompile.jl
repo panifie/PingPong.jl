@@ -35,7 +35,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             @info "PRECOMP: stop" exchange margin
             stop!(s)
             # for ai in s.universe
-            #     tasks = asset_tasks(s, ai)
+            #     tasks = asset_tasks(ai)
             #     reset_asset_tasks!(task)
             # end
             @info "PRECOMP: stopped" exchange margin
@@ -60,7 +60,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
         @precomp @ignore begin
             stop!(s)
             for ai in s.universe
-                tasks = asset_tasks(s, ai)
+                tasks = asset_tasks(ai)
                 reset_asset_tasks!(task)
             end
             reset!(s)

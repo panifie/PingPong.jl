@@ -462,15 +462,8 @@ function tradeandsync!(s::LiveStrategy, o, ai; isemu=false, kwargs...)
     func = isemu ? emulate_trade! : trade!
     t = func(s, o, ai; kwargs...)
     if !isnothing(t)
-        @lock _internal_lock(ai) begin
-            unlock(l)
-            try
-                waitforsync(s, t)
-                aftertrade_sync!(s, ai, o, t)
-            finally
-                lock(l)
-            end
-        end
+        waitforsync(s, t)
+        aftertrade_sync!(s, ai, o, t)
     end
     t
 end

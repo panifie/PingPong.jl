@@ -259,6 +259,7 @@ macro acquire(cond, code)
 end
 
 isowned(l::ReentrantLock) = l.locked_by == current_task()
+isownable(l::ReentrantLock) = !islocked(l) || l.locked_by == current_task()
 
 @doc """Create an IOBuffer with the given initial value `v` and execute the code in `code` block.
 
@@ -629,4 +630,4 @@ export @kget!, @lget!
 export @passkwargs, passkwargs, filterkws, splitkws, withoutkws
 export @as, @sym_str, @caller, @except
 export @statickeys!, @add_statickeys!, @setkey!, @getkey, @getattr, @setattr, @key
-export Option, @asyncm, isowned, @ifdebug, @deassert, @argstovec, @debug_backtrace
+export Option, @asyncm, isowned, isownable, @ifdebug, @deassert, @argstovec, @debug_backtrace

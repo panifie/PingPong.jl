@@ -89,25 +89,32 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         @lock cache.lock empty!(cache.data)
     end
     w = positions_watcher(s)
-    @debug "force fetch pos: checking" _module = LogPosForceFetch islocked(w) ai = raw(ai) f = @caller 7
-
-    waslocked = islocked(w)
     last_time = lastdate(w)
     prev_pup = get_positions(s, ai, side)
-    if waslocked
-        @debug "force fetch pos: waiting notify" _module = LogPosForceFetch islocked(w) ai = raw(ai) isstopped(w)
-        wait(w, s[:positions_ttl])
+
+    function skip_if_updated(waitfor=@timeout_now)
+        @debug "force fetch pos: checking if updated" _module = LogPosForceFetch ai islocked(
+            w
+        )
+        if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
+            @debug "force fetch pos: updated" _module = LogPosForceFetch ai islocked(w)
+            waitforsync(s, ai; waitfor)
+            true
+        else
+            false
+        end
     end
 
-    @debug "force fetch pos: checking if updated"
-    if _isupdated(w, prev_pup, last_time; this_v_func=() -> get_positions(s, ai, side))
-        return
-    end
+    @debug "force fetch pos: waiting" _module = LogPosForceFetch ai islocked(w) f = @caller 10
+    waitforsync(s, ai; waitfor=@timeout_now)
+    skip_if_updated() && return nothing
 
-    @debug "force fetch pos: locking" _module = LogPosForceFetch islocked(w) ai = raw(ai)
+    @debug "force fetch pos: locking" _module = LogPosForceFetch ai islocked(w)
     resp = @lock w begin
+        skip_if_updated() && return nothing
         timeout = @timeout_now()
         if timeout > Second(0)
+            @debug "force fetch pos: fetching" _module = LogPosForceFetch ai timeout
             # NOTE: don't pass neighter the instance nor the side, always fetch all positions
             # otherwise it breaks watcher updates processing
             let resp = fetch_positions(s; timeout, fallback_kwargs...)
@@ -116,18 +123,21 @@ function _force_fetchpos(s, ai, side; waitfor=s[:positions_base_timeout][], fall
         end
     end
     if !isnothing(resp)
-        @debug "force fetch pos:" _module = LogPosForceFetch amount = try
-            resp_position_contracts(first(resp), exchangeid(ai))
+        @debug "force fetch pos:" _module = LogPosForceFetch ai amount = try
+            isempty(resp) ? nothing : resp_position_contracts(first(resp))
         catch
-        end
-        pushnew!(w, resp)
-        process!(w, fetched=true)
-        @debug "force fetch pos: processing" _module = LogPosForceFetch
+            @debug_backtrace LogPosForceFetch
+        end exchangeid(ai)
+        push!(w.buf_process, (resp, true))
+        notify(w.buf_notify)
+        @debug "force fetch pos: processing" _module = LogPosForceFetch ai
+        skip_if_updated() && return nothing
+        waitforsync(s, ai; waitfor=@timeout_now)
     end
-    @debug "force fetch pos: done" _module = LogPosForceFetch
+    @debug "force fetch pos: done" _module = LogPosForceFetch ai lastdate(w)
 end
 
-_isstale(ai, pup, side, since) =
+function _isstale(ai, pup, side, since)
     if isnothing(pup)
         true
     elseif isnothing(since)
@@ -136,6 +146,7 @@ _isstale(ai, pup, side, since) =
         time = @something(pytodate(pup.resp, exchangeid(ai)), timestamp(ai, side))
         time < since
     end
+end
 
 @doc """ Retrieves the current position for a specific asset and side.
 
@@ -156,50 +167,86 @@ function live_position(
     force=false,
     synced=true,
     waitfor=Second(10),
-    drift=Millisecond(5)
+    drift=Millisecond(5),
 )
     @timeout_start
-    pup = get_positions(s, ai, side)::Option{PositionTuple}
-    last_ff = DateTime(0)
+    getpos(waitfor=@timeout_now)::Option{PositionTuple} = get_positions(s, ai, side)
+    waitw(waitfor=@timeout_now) = waitforsync(s, ai; since, waitfor)
+    forcepos() = _force_fetchpos(s, ai, side; waitfor, fallback_kwargs)
 
-    if force
-        @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
-            positions_watcher(s)
-        ) maxlog = 1
-    end
-    w = positions_watcher(s)
-    @debug "live pos: locking w" _module = LogPosFetch
-    wlocked = islocked(w)
-    if synced && wlocked
-        @debug "live pos: waiting for fetch notify" _module = LogPosFetch ai = raw(ai) isrunning(s) isstarted(w) f = @caller
-        wait(w)
-    end
-    @debug "live pos: after notify" _module = LogPosFetch wlocked force _isstale(ai, pup, side, since)
-    if (force && !wlocked) ||
-       (isempty(buffer(w)) &&
-        _isstale(ai, pup, side, since))
-        @debug "live pos: force syncing" _module = LogPosFetch
-        _force_fetchpos(s, ai, side; waitfor=@timeout_now(), fallback_kwargs)
-        last_ff = now()
-        pup = get_positions(s, ai, side)
-    end
-    if (force && wlocked) ||
-       !(isnothing(since) || isnothing(pup))
-        @debug "live pos: force waiting" _module = LogPosFetch ai = raw(ai) side since force
-        if !waitforpos(s, ai, side; since, force, waitfor=@timeout_now) &&
-           !force && now() > last_ff + drift # avoid force fetching again if we just ran force_fetch
-            # try one last time to force fetch
-            @debug "live pos: last force fetch" _module = LogPosFetch
-            _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
+    return if !isnothing(since)
+        function waitsincefunc(pup=get_positions(s, ai, side))
+            !isnothing(pup) && pup.date + drift >= since
         end
-        pup = get_positions(s, ai, side)
-        if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
-            @error "live pos: last force fetch failed" ai date =
-                isnothing(pup) ? nothing : pup.date since force cash(ai, side) side f = @caller 10
-            return nothing
+        @unlock ai waitforcond(waitsincefunc, @timeout_now())
+        if @istimeout()
+            @debug "live pos: since timeout" _module = LogPosFetch ai side since
+            if !waitsincefunc()
+                if force
+                    forcepos()
+                elseif synced
+                    waitw()
+                end
+            end
+            pup = getpos()
+            if pup.date >= since - drift
+                pup
+            end
+        else
+            getpos()
         end
+    elseif force
+        @debug "live pos: force fetching position" _module = LogPosFetch ai side
+        forcepos()
+        getpos()
+    elseif synced
+        waitw()
+        getpos()
     end
-    return pup
+
+    #################
+    # last_ff = DateTime(0)
+    # if force
+    #     @debug "live pos: force fetching position" _module = LogPosFetch watcher_locked = islocked(
+    #         positions_watcher(s)
+    #     )
+    # end
+    # w = positions_watcher(s)
+    # @debug "live pos: locking w" _module = LogPosFetch
+
+    # wlocked = islocked(w)
+    # if synced && wlocked
+    #     @debug "live pos: waiting for fetch notify" _module = LogPosFetch ai isrunning(s) isstarted(
+    #         w
+    #     ) f = @caller
+    #     wait(w, @timeout_now())
+    # end
+    # @debug "live pos: after notify" _module = LogPosFetch wlocked force _isstale(
+    #     ai, pup, side, since
+    # )
+    # if (force && !wlocked) || (isempty(buffer(w)) && _isstale(ai, pup, side, since))
+    #     @debug "live pos: force syncing" _module = LogPosFetch
+    #     _force_fetchpos(s, ai, side; waitfor=@timeout_now(), fallback_kwargs)
+    #     last_ff = now()
+    #     pup = get_positions(s, ai, side)
+    # end
+    # if (force && wlocked) || !(isnothing(since) || isnothing(pup))
+    #     @debug "live pos: force waiting" _module = LogPosFetch ai side since force
+    #     if !waitforpos(s, ai, side; since, force, waitfor=@timeout_now) &&
+    #         !force &&
+    #         now() > last_ff + drift # avoid force fetching again if we just ran force_fetch
+    #         # try one last time to force fetch
+    #         @debug "live pos: last force fetch" _module = LogPosFetch
+    #         _force_fetchpos(s, ai, side; waitfor=@timeout_now, fallback_kwargs)
+    #     end
+    #     pup = get_positions(s, ai, side)
+    #     if !isnothing(since) && (isnothing(pup) || pup.date < since - drift)
+    #         @error "live pos: last force fetch failed" ai date =
+    #             isnothing(pup) ? nothing : pup.date since force cash(ai, side) side f = @caller 10
+    #         return nothing
+    #     end
+    # end
+    # return pup
 end
 
 @doc """ Retrieves the current position update for a specific asset.
@@ -232,7 +279,8 @@ function live_contracts(s::LiveStrategy, ai, args...; kwargs...)
     watch_positions!(s)
     pup = _pup(s, ai, args...; kwargs...)
     if isnothing(pup) || pup.closed[]
-        @debug "live contracts: " _module = LogPosFetch isnothing(pup) closed = isnothing(pup) ? nothing : pup.closed[]
+        @debug "live contracts: " _module = LogPosFetch isnothing(pup) closed =
+            isnothing(pup) ? nothing : pup.closed[]
         0.0
     else
         amt = resp_position_contracts(pup.resp, exchangeid(ai)) |> abs
@@ -450,11 +498,14 @@ If the CCXT side is neither "short" nor "long", it infers the side from the posi
 If the side can't be parsed, a function `default_side_func` can be passed as argument that takes as input the response and returns a `PositionSide`.
 
 """
-function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; default_side_func=Returns(nothing))
+function posside_fromccxt(
+    update, eid::EIDType, p::Option{ByPos}=nothing; default_side_func=Returns(nothing)
+)
     ccxt_side = resp_position_side(update, eid)
     def_side = isnothing(p) ? Long() : posside(p) # NOTE: posside(...) can still be nothing
     if pyisnone(ccxt_side)
-        @debug "ccxt posside: side not provided, inferring from position state" _module = LogCcxtFuncs @caller
+        @debug "ccxt posside: side not provided, inferring from position state" _module =
+            LogCcxtFuncs @caller
         @something _ccxtpnlside(update, eid, def=def_side) default_side_func(update)
     else
         side_str = ccxt_side.lower()
@@ -463,11 +514,10 @@ function posside_fromccxt(update, eid::EIDType, p::Option{ByPos}=nothing; defaul
         elseif pyeq(Bool, side_str, @pyconst("long"))
             Long()
         else
-            @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" _module = LogCcxtFuncs side_str resp_position_contracts(
-                update, eid
-            ) f = @caller
+            @debug "ccxt posside: side flag not valid (non open pos?), inferring from position state" _module =
+                LogCcxtFuncs side_str resp_position_contracts(update, eid) f = @caller
             def_side = @something default_side_func(update) def_side
-            side::PositionSide = _ccxtpnlside(update, eid, def=def_side)
+            side::PositionSide = _ccxtpnlside(update, eid; def=def_side)
             @debug "ccxt posside: inferred" _module = LogCcxtFuncs def_side side
             side
         end
@@ -517,168 +567,96 @@ function _ccxt_isposclosed(pos::Py, eid::EIDType)
     c
 end
 
-@doc """ Waits for a position to reach a certain state.
+# @doc """ Waits for a position to close.
 
-$(TYPEDSIGNATURES)
+# $(TYPEDSIGNATURES)
 
-This function waits for a position to reach a certain state based on several parameters.
-- `bp`: The position side (default is the side of the asset).
-- `since`: The time from which to start waiting (optional).
-- `waitfor`: The time to wait for the position to reach the desired state (default is 5 seconds).
-- `force`: A boolean that determines whether to forcefully wait until the position is found (default is true).
-- `fallback_kwargs`: Additional keyword arguments (optional).
+# This function waits for a position to close based on several parameters.
+# - `bp`: The position side (default is the side of the asset).
+# - `waitfor`: The time to wait for the position to close (default is 5 seconds).
+# - `sync`: A boolean that determines whether to sync live positions (default is true).
 
-The function fetches the position and checks if it has reached the desired state.
-If it has not, it waits for a specified period and then checks again.
-This process is repeated until the position reaches the desired state, or the function times out.
-If the function times out, it returns `false`.
-If the position reaches the desired state within the time limit, the function returns `true`.
+# The function fetches the position status and checks if it's closed. If not, it waits for a specified period and checks again. This process is repeated until the position is closed, or the function times out.
 
-"""
-function waitforpos(
+# If the function times out, it returns `false`. If the position closes within the time limit, the function returns `true`.
+
+# """
+# function _unlocked_waitposclose(
+#     s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5), sync=true
+# )
+#     eid = exchangeid(ai)
+#     slept = 0
+#     since = now()
+#     timeout = Millisecond(waitfor).value
+#     update = get_positions(s, ai, bp)
+#     if isnothing(update)
+#         @debug "wait pos close: no position found open" _module = LogPosWait update
+#         return true
+#     end
+#     last_sync = false
+#     while true
+#         if update.closed[] ||
+#             iszero(resp_position_contracts(update.resp, eid)) ||
+#             isempty(resp_position_side(update.resp, eid))
+#             update.read[] || live_sync_position!(s, ai, bp, update)
+#             @deassert !isopen(ai, bp)
+#             return true
+#         elseif slept >= timeout
+#             if last_sync || !sync
+#                 @debug "wait pos close: timedout" _module = LogPosWait ai bp last_sync f = @caller(
+#                     5
+#                 )
+#                 return false
+#             else
+#                 @deassert sync
+#                 update = live_position(s, ai, bp; since)
+#                 if isnothing(update)
+#                     @debug "wait pos close: no position found open" _module = LogPosWait update
+#                     return true
+#                 end
+#                 @debug "wait pos close: last sync" _module = LogPosWait ai bp date =
+#                     isnothing(update) ? nothing : update.date closed =
+#                     isnothing(update) ? nothing : update.closed[] amount =
+#                     isnothing(update) ? nothing : resp_position_contracts(update.resp, eid)
+#                 last_sync = true
+#                 continue
+#             end
+#         end
+#         slept += waitforcond(update.notify, timeout - slept)
+#         update = get_positions(s, ai, bp)
+#         @debug "wait pos close: waiting" _module = LogPosWait ai side = posside(bp) closed = update.closed[] contracts = resp_position_contracts(
+#             update.resp, eid
+#         ) slept timeout
+#     end
+# end
+
+# function waitposclose(
+#     s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5), sync=true
+# )
+#     @unlock ai _unlocked_waitposclose(s, ai, bp; waitfor, sync)
+# end
+
+function waitposclose(
     s::LiveStrategy,
     ai,
-    bp::ByPos=posside(s, ai);
-    since::Option{DateTime}=nothing,
+    bp::ByPos=posside(ai);
     waitfor=Second(5),
-    force=true,
-    fallback_kwargs=(),
+    since=nothing,
+    synced=true,
+    force=false,
 )
-    pos = position(ai, bp)
-    eid = exchangeid(ai)
-    timeout = Millisecond(waitfor).value
-    slept = 0
-    minsleep = Millisecond(max(Second(1), waitfor))
-    pup = get_positions(s, ai, bp)
-    if isnothing(pup) && force
-        while true
-            pup = get_positions(s, ai, bp)
-            isnothing(pup) || break
-            if slept > timeout
-                @debug "wait for pos: timedout (position not found)" _module = LogPosWait ai = raw(ai) side = bp f = @caller
+    @timeout_start
+    isclosed() = !isopen(ai, bp)
+    while true
+        pup = live_position(s, ai, bp; since, synced, force, waitfor=@timeout_now())
+        if !isnothing(pup)
+            if isclosed()
+                return true
+            elseif @istimeout()
                 return false
             end
-            sleep(minsleep)
-            slept += minsleep.value
-            _force_fetchpos(s, ai, bp; fallback_kwargs)
+        elseif @istimeout()
+            return isclosed()
         end
-    end
-    prev_timestamp = pup.date
-    @debug "wait for pos" _module = LogPosWait prev_timestamp since resp_position_contracts(pup.resp, eid) f = @caller
-    prev_since = @something since typemin(DateTime)
-    if prev_timestamp >= prev_since
-        return true
-    end
-    this_timestamp = prev_timestamp - Millisecond(1)
-    prev_closed = isnothing(pup) || pup.closed[]
-    @debug "wait for pos: waiting" _module = LogPosWait side = bp timeout = timeout read = pup.read[] prev_closed
-
-    while true
-        slept += waitforcond(pup.notify, timeout - slept)
-        @debug "wait for pos: waited" _module = LogPosWait slept
-        this_timestamp = pup.date
-        if this_timestamp >= prev_timestamp >= prev_since
-            @debug "wait for pos: up to date " _module = LogPosWait prev_timestamp this_timestamp resp_position_contracts(
-                pup.resp, eid
-            ) pup.closed[]
-            return true
-        else
-            this_closed = pup.closed[]
-            if this_closed && this_closed != prev_closed
-                @debug "wait for pos: closed" _module = LogPosWait
-                return true # Position was closed but timestamp wasn't updated
-            else
-                prev_closed = this_closed
-            end
-            @debug "wait for pos:" _module = LogPosWait time_left = Millisecond(timeout - slept) prev_timestamp current_timestamp =
-                pup.date side = posside(bp) ai = raw(ai)
-        end
-        if slept > timeout
-            @debug "wait for pos: timedout" _module = LogPosWait ai = raw(ai) side = bp f = @caller
-            return false
-        end
-    end
-end
-
-@doc """ Waits for a local position to reach a certain state.
-
-$(TYPEDSIGNATURES)
-
-This function waits for a local position to reach a certain state based on several parameters.
-The function fetches the position's timestamp and checks if it has changed.
-If it has not, it waits for a specified period and then checks again.
-This process is repeated until the timestamp changes, or the function times out.
-
-"""
-function waitforpos(s::LiveStrategy, ai, bp::ByPos, ::Val{:local}; waitfor=Second(5))
-    pos = position(ai, bp)
-    eid = exchangeid(ai)
-    this_timestmap = prev_timestamp = timestamp(pos)
-    slept = 0
-    timeout = Millisecond(waitfor).value
-    while slept < timeout
-        this_timestamp = timestamp(pos)
-        this_timestamp != prev_timestamp && break
-    end
-end
-
-@doc """ Waits for a position to close.
-
-$(TYPEDSIGNATURES)
-
-This function waits for a position to close based on several parameters.
-- `bp`: The position side (default is the side of the asset).
-- `waitfor`: The time to wait for the position to close (default is 5 seconds).
-- `sync`: A boolean that determines whether to sync live positions (default is true).
-
-The function fetches the position status and checks if it's closed. If not, it waits for a specified period and checks again. This process is repeated until the position is closed, or the function times out.
-
-If the function times out, it returns `false`. If the position closes within the time limit, the function returns `true`.
-
-"""
-function waitposclose(
-    s::LiveStrategy, ai, bp::ByPos=posside(ai); waitfor=Second(5), sync=true
-)
-    eid = exchangeid(ai)
-    slept = 0
-    since = now()
-    timeout = Millisecond(waitfor).value
-    update = get_positions(s, ai, bp)
-    if isnothing(update)
-        @debug "wait pos close: no position found open" _module = LogPosWait update
-        return true
-    end
-    last_sync = false
-    while true
-        if update.closed[] ||
-           iszero(resp_position_contracts(update.resp, eid)) ||
-           isempty(resp_position_side(update.resp, eid))
-            update.read[] || live_sync_position!(s, ai, bp, update)
-            @deassert !isopen(ai, bp)
-            return true
-        elseif slept >= timeout
-            if last_sync || !sync
-                @debug "wait pos close: timedout" _module = LogPosWait ai = raw(ai) bp last_sync f = @caller(5)
-                return false
-            else
-                @deassert sync
-                update = live_position(s, ai, bp; since)
-                if isnothing(update)
-                    @debug "wait pos close: no position found open" _module = LogPosWait update
-                    return true
-                end
-                @debug "wait pos close: last sync" _module = LogPosWait ai = raw(ai) bp date =
-                    isnothing(update) ? nothing : update.date closed =
-                    isnothing(update) ? nothing : update.closed[] amount =
-                    isnothing(update) ? nothing : resp_position_contracts(update.resp, eid)
-                last_sync = true
-                continue
-            end
-        end
-        slept += waitforcond(update.notify, timeout - slept)
-        update = get_positions(s, ai, bp)
-        @debug "wait pos close: waiting" _module = LogPosWait ai = raw(ai) side = posside(bp) closed = update.closed[] contracts = resp_position_contracts(
-            update.resp, eid
-        ) slept timeout
     end
 end

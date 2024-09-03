@@ -56,7 +56,7 @@ function pong!(
         s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
     )
     if synced && trade isa Trade
-        waitfororder(s, ai, trade.order; waitfor=@timeout_now)
+        waitorder(s, ai, trade.order; waitfor=@timeout_now)
         live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
     end
     trade
@@ -88,7 +88,7 @@ function pong!(
     end
     watch_orders!(s, ai)
     if live_cancel(s, ai; ids, side=t, confirm)::Bool
-        success = waitfor_closed(s, ai, @timeout_now; t)
+        success = waitordclose(s, ai, @timeout_now; t)
         if success
             if synced
                 @debug "pong cancel orders: syncing cash" ai t _module =

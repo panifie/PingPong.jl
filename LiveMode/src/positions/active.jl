@@ -25,8 +25,7 @@ function set_active_position!(
     else
         Short()
     end
-    ai.lastpos[] = if isnothing(active_side)
-    else
+    ai.lastpos[] = if !isnothing(active_side)
         position(ai, active_side)
     end
 end

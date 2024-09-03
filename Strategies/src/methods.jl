@@ -8,6 +8,8 @@ using .Misc: attr, setattr!
 import .Misc: marginmode
 using .OrderTypes: IncreaseTrade, ReduceTrade, SellTrade, ShortBuyTrade
 
+baremodule LogStrategyLock end
+
 const _STR_SYMBOLS_CACHE = Dict{String,Symbol}()
 const _SYM_SYMBOLS_CACHE = Dict{Symbol,Symbol}()
 
@@ -279,18 +281,18 @@ Base.getindex(s::Strategy, k::MatchString) = getindex(s.universe, k)
 Base.getindex(s::Strategy, k) = attr(s, k)
 Base.setindex!(s::Strategy, v, k...) = setattr!(s, v, k...)
 Base.lock(s::Strategy) = begin
-    @debug "strategy: locking" @caller
+    @debug "strategy: locking" _module = LogStrategyLock @caller
     lock(getfield(s, :lock))
-    @debug "strategy: locked" @caller
+    @debug "strategy: locked" _module = LogStrategyLock @caller
 end
 Base.lock(f, s::Strategy) = begin
-    @debug "strategy: locking" @caller
+    @debug "strategy: locking" _module = LogStrategyLock @caller
     lock(f, getfield(s, :lock))
-    @debug "strategy: locked" @caller
+    @debug "strategy: locked" _module = LogStrategyLock @caller
 end
 Base.unlock(s::Strategy) = begin
     unlock(getfield(s, :lock))
-    @debug "strategy: unlocked" @caller
+    @debug "strategy: unlocked" _module = LogStrategyLock @caller
 end
 Base.islocked(s::Strategy) = islocked(getfield(s, :lock))
 Base.float(s::Strategy) = cash(s).value
@@ -316,6 +318,10 @@ function Base.similar(s::Strategy; mode=s.mode, timeframe=s.timeframe, exc=excha
     )
 end
 
+function symsdict(s::Strategy)
+    @lock s @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
+end
+
 @doc """
 Retrieves an asset instance by symbol.
 
@@ -324,14 +330,13 @@ $(TYPEDSIGNATURES)
 This function retrieves an asset instance by symbol `sym` from a strategy `s`. It first checks if the asset instance is already cached in the strategy's attributes. If not, it retrieves the asset instance from the strategy's universe. If the asset instance is not found, it returns `nothing`.
 
 """
-function asset_bysym(s::Strategy, sym)
+function asset_bysym(s::Strategy, sym, dict_bysim=symsdict(s))
     k = string(sym)
-    dict_bysim = @lock s @lget! attrs(s) :assets_bysym Dict{String,Option{AssetInstance}}()
     ai = get(dict_bysim, k, nothing)
     if isnothing(ai)
         ai = s[MatchString(k)]
         if ai isa AssetInstance
-            @lock s dict_bysim[k] = ai
+            dict_bysim[k] = ai
         end
     else
         ai

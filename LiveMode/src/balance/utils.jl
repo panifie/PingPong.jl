@@ -13,13 +13,13 @@ mutable struct BalanceSnapshot{T<:AbstractFloat}
     free::T
     used::T
     BalanceSnapshot{T}(args...) where {T} = new{T}(args...)
-    BalanceSnapshot(; total=0.0,
-        free=0.0,
-        used=0.0,
-        currency=Symbol(),
-        date=DateTime(0)) = new{DFT}(Symbol(currency), date, total, free, used)
-    BalanceSnapshot(sym) = BalanceSnapshot(currency=Symbol(sym))
-    BalanceSnapshot(sym::Symbol) = BalanceSnapshot(currency=sym)
+    function BalanceSnapshot(;
+        total=0.0, free=0.0, used=0.0, currency=Symbol(), date=DateTime(0)
+    )
+        new{DFT}(Symbol(currency), date, total, free, used)
+    end
+    BalanceSnapshot(sym) = BalanceSnapshot(; currency=Symbol(sym))
+    BalanceSnapshot(sym::Symbol) = BalanceSnapshot(; currency=sym)
     BalanceSnapshot(ai::AssetInstance) = BalanceSnapshot(bc(ai))
 end
 
@@ -29,7 +29,11 @@ Base.zero(snap::BalanceSnapshot{T}) where {T} = BalanceSnapshot(snap.currency)
 mutable struct BalanceDict{T}
     date::DateTime
     const assets::Dict{Symbol,BalanceSnapshot{T}}
-    BalanceDict{T}(date=DateTime(0), assets=Dict{Symbol,BalanceSnapshot{T}}()) where {T} = new{T}(date, assets)
+    function BalanceDict{T}(
+        date=DateTime(0), assets=Dict{Symbol,BalanceSnapshot{T}}()
+    ) where {T}
+        new{T}(date, assets)
+    end
     BalanceDict(args...) = BalanceDict{DFT}(args...)
 end
 
@@ -53,7 +57,9 @@ Base.keys(bal::BalanceDict) = keys(bal.assets)
 Base.values(bal::BalanceDict) = values(bal.assets)
 Base.pairs(bal::BalanceDict) = pairs(bal.assets)
 Base.iterate(bal::BalanceDict, args...; kwargs...) = iterate(bal.assets, args...; kwargs...)
-Base.get(bal::BalanceDict, ai::AssetInstance, args...; kwargs...) = get(bal.assets, bc(ai), args...; kwargs...)
+function Base.get(bal::BalanceDict, ai::AssetInstance, args...; kwargs...)
+    get(bal.assets, bc(ai), args...; kwargs...)
+end
 Base.get(bal::BalanceDict, args...; kwargs...) = get(bal.assets, args...; kwargs...)
 reset!(bal::BalanceDict{T}) where {T} = begin
     for snap in values(bal.assets)
@@ -62,8 +68,10 @@ reset!(bal::BalanceDict{T}) where {T} = begin
     bal.date = DateTime(0)
     bal
 end
-Base.similar(bal::BalanceDict{T}) where {T} = begin
-    BalanceDict{T}(DateTime(0), Dict{Symbol,BalanceSnapshot{T}}(zero(snap) for snap in bal.assets))
+function Base.similar(bal::BalanceDict{T}) where {T}
+    BalanceDict{T}(
+        DateTime(0), Dict{Symbol,BalanceSnapshot{T}}(zero(snap) for snap in bal.assets)
+    )
 end
 update!(bal::BalanceSnapshot, date; total, free, used) = begin
     bal.date = date
@@ -144,35 +152,41 @@ It locks the balance watcher `w` for the strategy, fetches the balance, and proc
 If the balance watcher is already locked, it returns `nothing`.
 The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
 """
-function _force_fetchbal(s; fallback_kwargs)
+function _force_fetchbal(s; fallback_kwargs, waitfor=Second(15))
+    @timeout_start
     w = balance_watcher(s)
-    @debug "force fetch bal: locking w" _module = LogBalance islocked(w) f = @caller
-    waslocked = islocked(w)
     last_time = lastdate(w)
     prev_bal = get_balance(s)
 
-    if waslocked
-        @debug "force fetch bal: waiting for fetch notify" _module = LogBalance
-        wait(w, s[:balance_ttl])
-        @debug "force fetch bal: checking if updated" _module = LogBalance
+    function skip_if_updated()
+        @debug "force fetch bal: checking if updated" _module = LogBalance islocked(w) f = @caller
         if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
-            @debug "force fetch bal: waited" _module = LogBalance
-            return
+            @debug "force fetch bal: updated" _module = LogBalance islocked(w)
+            waitforupdates(w; waitfor=@timeout_now)
+            true
+        else
+            false
         end
     end
+
+    waitforupdates(w; waitfor=@timeout_now)
+    skip_if_updated() && return nothing
+
     resp, time = @lock w begin
+        skip_if_updated() && return nothing
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
         resp = fetch_balance(s; params, rest...)
         _handle_bal_resp(resp), time
     end
     if !isnothing(resp)
-        @assert resp isa Py
-        pushnew!(w, resp, time)
-        process!(w)
+        push!(w.buf_process, resp)
+        notify(w.buf_notify)
         @debug "force fetch bal: processing" _module = LogBalance
+        skip_if_updated() && return nothing
+        waitforupdates(w; waitfor=@timeout_now)
     end
-    @debug "force fetch bal: done" _module = LogBalance
+    @debug "force fetch bal: done" _module = LogBalance lastdate(w)
 end
 
 @doc """ Waits for a balance update.
@@ -184,7 +198,7 @@ It checks the balance at intervals specified by `waitfor` until the balance is u
 If the balance is not found and `force` is `true`, it forces a balance fetch operation.
 The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
 """
-function waitforbal(
+function _unlocked_waitforbal(
     s::LiveStrategy,
     ai,
     args...;
@@ -240,6 +254,12 @@ function waitforbal(
     end
 end
 
+function waitforbal(s::LiveStrategy, ai, args...; kwargs...)
+    @unlock ai _unlocked_waitforbal(
+        s, ai, args...; kwargs...
+    )
+end
+
 @doc """ Retrieves the live balance for a strategy.
 
 $(TYPEDSIGNATURES)
@@ -260,19 +280,19 @@ function live_balance(
     type=nothing,
     full=false,
 )::Union{BalanceDict,BalanceSnapshot,Nothing}
+    @timeout_start
     watch_balance!(s)
     ai_arg = full ? () : (ai,)
     bal = get_balance(s, ai_arg...)
     w = balance_watcher(s)
     wlocked = islocked(w)
     if ((force && !wlocked) || isempty(buffer(w))) &&
-       (isnothing(bal) || (!isnothing(since) && bal.date < since))
+        (isnothing(bal) || (!isnothing(since) && bal.date < since))
         _force_fetchbal(s; fallback_kwargs)
         bal = get_balance(s, ai_arg..., type)
     end
-    if (force && wlocked) ||
-       !(isnothing(since) || isnothing(bal))
-        if waitforbal(s, ai; since, force, waitfor, fallback_kwargs)
+    if (force && wlocked) || !(isnothing(since) || isnothing(bal))
+        if waitforbal(s, ai; since, force, waitfor=@timeout_now(), fallback_kwargs)
         else
             @debug "live bal: last force fetch"
             _force_fetchbal(s; fallback_kwargs)
@@ -314,7 +334,10 @@ It sums up the value of all assets in the universe of the strategy, using either
 The function accepts a `price_func` parameter to determine the price of each asset.
 """
 function st.current_total(
-    s::LiveStrategy{N,<:ExchangeID,<:WithMargin}; price_func=lastprice, local_bal=false, bal::BalanceDict=get_balance(s)
+    s::LiveStrategy{N,<:ExchangeID,<:WithMargin};
+    price_func=lastprice,
+    local_bal=false,
+    bal::BalanceDict=get_balance(s),
 ) where {N}
     tot = Ref(zero(DFT))
     s_tot = if local_bal
@@ -351,7 +374,9 @@ function st.current_total(
             if isfinite(v)
                 tot[] += v
             else
-                @warn "strategy cash: not finite asset cash" ai = raw(ai) long = cash(ai, Long) short = cash(ai, Short)
+                @warn "strategy cash: not finite asset cash" ai = raw(ai) long = cash(
+                    ai, Long
+                ) short = cash(ai, Short)
             end
         end
     end
@@ -367,7 +392,10 @@ The balance can be either local or fetched depending on the `local_bal` paramete
 The `price_func` parameter is used to determine the price of each asset.
 """
 function st.current_total(
-    s::LiveStrategy{N,<:ExchangeID,NoMargin}; price_func=lastprice, local_bal=false, bal::BalanceDict=get_balance(s)
+    s::LiveStrategy{N,<:ExchangeID,NoMargin};
+    price_func=lastprice,
+    local_bal=false,
+    bal::BalanceDict=get_balance(s),
 ) where {N}
     tot = if local_bal
         cash(s).value
@@ -378,7 +406,7 @@ function st.current_total(
         @warn "strategy cash: not finite"
         tot = zero(tot)
     end
-    wprice_func(ai) =
+    function wprice_func(ai)
         try
             price_func(ai)
         catch
@@ -386,6 +414,7 @@ function st.current_total(
             @debug_backtrace
             zero(tot[])
         end
+    end
     @sync for ai in s.universe
         @async let v = if local_bal
                 cash(ai).value
