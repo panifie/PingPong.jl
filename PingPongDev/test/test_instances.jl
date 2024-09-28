@@ -101,10 +101,12 @@ function test_propertynames_function()
 
     @test propertynames(ai) == (fieldnames(AssetInstance)..., :ohlcv, :funding)
     @test fieldnames(AssetInstance) == (
+        :attrs,
         :asset,
         :data,
         :history,
         :lock,
+        :_internal_lock,
         :cash,
         :cash_committed,
         :exchange,
@@ -189,7 +191,7 @@ function test_marginmode_function()
     @test marginmode(ai) == typeof(ai).parameters[3]()
     @test marginmode(ai, Long()) == typeof(ai).parameters[3]()
     @test marginmode(ai, Short()) == typeof(ai).parameters[3]()
-    @asset_constructor(d"BTC/USDT:USDT", Isolated)
+    ai = @asset_constructor(d"BTC/USDT:USDT", Isolated)
     @test marginmode(ai, Long()) == marginmode(position(ai, Long()))
     @test marginmode(ai, Short()) == marginmode(position(ai, Short()))
 end
@@ -280,7 +282,7 @@ function test_bankruptcy_function()
 end
 
 function test_asset_instance_functions1()
-    @asset_constructor()
+    ai = @asset_constructor()
 
     # Test asset, raw, ohlcv, ohlcv_dict, bc, qc functions
     @test asset(ai) == ai.asset
@@ -337,8 +339,8 @@ function test_asset_instance_functions1()
     @test_throws MethodError pnl(ai, Short(), 100.0)
 
     # Test pnlpct functions
-    @test_throws MethodError pnlpct(ai, Long(), 100.0)
-    @test_throws MethodError pnlpct(ai, Short(), 100.0)
+    @test_throws MethodError inst.pnlpct(ai, Long(), 100.0)
+    @test_throws MethodError inst.pnlpct(ai, Short(), 100.0)
 
     # Test lastprice functions
     price = 100.0
@@ -469,7 +471,7 @@ function test_asset_instance_functions2()
     ai.data[tf"1m"] = df
     @test candlelast(ai, first(keys(ai.data)), DateTime(2020, 1, 1)) ==
         da.Candle(last(ai.data[first(keys(ai.data))])...)
-    @test candlelast(ai, DateTime(2020, 1, 1)) == da.Candle(last(ai.data[first(keys(ai.data))])...)
+    @test candlelast(ai) == da.Candle(last(ai.data[first(keys(ai.data))])...)
 
     # Test Order function
     @test_throws UndefKeywordError Order(ai, MarketOrder{Buy})
@@ -503,7 +505,10 @@ function test_instances()
             CrossHedged,
             IsolatedHedged,
             trades,
-            freecash
+            freecash,
+            entryprice!
+        using .Instruments
+        using .Instruments: cash!
         using .inst.Data: DataFrame, candlelast
         using .im
         using .ect: SanitizeOff

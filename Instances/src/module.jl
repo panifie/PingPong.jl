@@ -146,8 +146,8 @@ const HedgedInstance{M<:Union{IsolatedHedged,CrossHedged}} = AssetInstance{
 @doc "A type alias representing an asset instance with cross margin."
 const CrossInstance{M<:CrossMargin} = AssetInstance{<:AbstractAsset,<:ExchangeID,M}
 @doc " Retrieve the margin mode of an `AssetInstance`. "
-marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}) where {M<:WithMargin} = M()
-marginmode(::NoMarginInstance) = NoMargin()
+marginmode(::AssetInstance{<:AbstractAsset,<:ExchangeID,M}, args...) where {M<:WithMargin} = M()
+marginmode(::NoMarginInstance, args...) = NoMargin()
 
 @doc """ Generate positions for a specific margin mode.
 
@@ -459,10 +459,10 @@ $(TYPEDSIGNATURES)
 This function loads OHLCV (Open, High, Low, Close, Volume) data for a given `AssetInstance`. If `reset` is set to true, it will re-fetch the data even if it's already been loaded.
 
 """
-function load!(a::AssetInstance; reset=true, zi=zi)
-    for (tf, df) in a.data
+function load!(ai::AssetInstance; reset=true, zi=zi)
+    for (tf, df) in ai.data
         reset && empty!(df)
-        loaded = load(zi, a.exchange.name, a.raw, string(tf))
+        loaded = load(zi, ai.exchange.name, raw(ai), string(tf))
         append!(df, loaded)
     end
 end
@@ -546,13 +546,8 @@ $(TYPEDSIGNATURES)
 This function retrieves the last available candle (Open, High, Low, Close, Volume data for a specific time period) from the `AssetInstance` that is strictly lower than the date adjusted by the `TimeFrame` `tf`.
 
 """
-function Data.candlelast(ai::AssetInstance, tf::TimeFrame, date::DateTime)
-    Data.candlelast(ai.data[tf], tf, date)
-end
-
-function Data.candlelast(ai::AssetInstance, date::DateTime)
-    tf = first(keys(ai.data))
-    Data.candlelast(ai, tf, date)
+function Data.candlelast(ai::AssetInstance, tf::TimeFrame=first(keys(ohlcv_dict(ai))), args...)
+    Data.candlelast(ai.data[tf])
 end
 
 function OrderTypes.Order(ai::AssetInstance, type; kwargs...)
@@ -903,7 +898,7 @@ $(TYPEDSIGNATURES)
 This function calculates the bankruptcy price, which is the price at which the asset position would be fully liquidated. It takes into account the current price of the asset and the position side (`Long` or `Short`).
 
 """
-function bankruptcy(ai, price, ps::Type{P}) where {P<:PositionSide}
+function bankruptcy(ai, price, ps::ByPos{P}) where {P<:PositionSide}
     bankruptcy(position(ai, ps), price)
 end
 function bankruptcy(ai, o::Order{T,A,E,P}) where {T,A,E,P<:PositionSide}
