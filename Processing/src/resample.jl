@@ -133,14 +133,13 @@ function resample(pair::PairData, to_tf)
 end
 
 @doc "$(TYPEDSIGNATURES). See [`resample`](@ref)."
-function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false)
+function resample(mkts::AbstractDict{String,PairData}, timeframe; progress=false, lk = ReentrantLock())
     rs = Dict{String,PairData}()
     progress && @pbar! mkts "Instruments"
     try
-        lock = ReentrantLock()
         Threads.@threads for (name, pair_data) in collect(mkts)
             v = PairData(name, timeframe, resample(pair_data, timeframe), nothing)
-            @lock lock rs[name] = v
+            @lock lk rs[name] = v
             progress && @pbupdate!
         end
     finally

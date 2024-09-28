@@ -1,4 +1,5 @@
 using .Lang: @debug_backtrace, safenotify, safewait
+using Base: AbstractLock
 
 @doc """ Check if a task is running.
 
@@ -57,7 +58,7 @@ function kill_task(t)
     istaskdone(t)
 end
 
-function Base.unlock(l::ReentrantLock, ::Val{:force})
+function Base.unlock(l::AbstractLock, ::Val{:force})
     if islocked(l)
         t = l.locked_by
         if istaskrunning(t)

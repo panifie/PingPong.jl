@@ -280,9 +280,6 @@ balance_type(s::MarginStrategy) = attr(s, :balance_type, :swap)
 function _ccxt_balance_args(s, kwargs)
     params, rest = split_params(kwargs)
     @lget! params "type" @pystr(balance_type(s))
-    if s.qc == :USDT
-        params["settle"] = @pyconst("USDT")
-    end
     (; params, rest)
 end
 

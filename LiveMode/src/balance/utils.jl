@@ -162,14 +162,14 @@ function _force_fetchbal(s; fallback_kwargs, waitfor=Second(15))
         @debug "force fetch bal: checking if updated" _module = LogBalance islocked(w) f = @caller
         if _isupdated(w, prev_bal, last_time; this_v_func=() -> get_balance(s))
             @debug "force fetch bal: updated" _module = LogBalance islocked(w)
-            waitforupdates(w; waitfor=@timeout_now)
+            waitsync(s; waitfor=@timeout_now)
             true
         else
             false
         end
     end
 
-    waitforupdates(w; waitfor=@timeout_now)
+    waitsync(s; waitfor=@timeout_now)
     skip_if_updated() && return nothing
 
     resp, time = @lock w begin
@@ -184,80 +184,9 @@ function _force_fetchbal(s; fallback_kwargs, waitfor=Second(15))
         notify(w.buf_notify)
         @debug "force fetch bal: processing" _module = LogBalance
         skip_if_updated() && return nothing
-        waitforupdates(w; waitfor=@timeout_now)
+        waitsync(s; waitfor=@timeout_now)
     end
     @debug "force fetch bal: done" _module = LogBalance lastdate(w)
-end
-
-@doc """ Waits for a balance update.
-
-$(TYPEDSIGNATURES)
-
-The function `waitforbal` waits for a balance update for a given strategy `s` and asset `ai`.
-It checks the balance at intervals specified by `waitfor` until the balance is updated or a timeout occurs.
-If the balance is not found and `force` is `true`, it forces a balance fetch operation.
-The function accepts additional parameters `fallback_kwargs` for the balance fetch operation.
-"""
-function _unlocked_waitforbal(
-    s::LiveStrategy,
-    ai,
-    args...;
-    force=false,
-    since=nothing,
-    waitfor=Second(5),
-    fallback_kwargs=(),
-)
-    timeout = Millisecond(waitfor).value
-    slept = 0
-    bal = get_balance(s)
-    if isnothing(bal) && force
-        slept = waitforcond(waitfor) do
-            _force_fetchbal(s; fallback_kwargs)
-            isnothing(get_balance(s, ai))
-        end
-        if slept >= timeout
-            @debug "wait bal: timeout (balance not found)" _module = LogBalance ai = raw(ai) f = @caller
-            return false
-        end
-        bal = get_balance(s)
-    end
-
-    prev_timestamp = @something bal.date DateTime(0)
-    prev_since = @something since typemin(DateTime)
-    @debug "wait bal" _module = LogBalance prev_timestamp since
-    if prev_timestamp >= prev_since
-        return true
-    end
-
-    this_timestamp = prev_timestamp - Millisecond(1)
-    w = balance_watcher(s)
-    cond = w.beacon.process
-    buf = buffer(w)
-    @debug "wait bal: waiting" _module = LogBalance timeout = timeout
-    while true
-        slept += waitforcond(cond, timeout - slept)
-        if length(buf) > 0
-            this_timestamp = last(buf).time
-        end
-        if this_timestamp >= prev_timestamp >= prev_since
-            @debug "wait bal: up to date " _module = LogBalance prev_timestamp this_timestamp
-            return true
-        else
-            @debug "wait bal:" _module = LogBalance time_left = Millisecond(timeout - slept) prev_timestamp ai = raw(
-                ai
-            )
-        end
-        if slept >= timeout
-            @debug "wait bal: timedout (balance not changed)" ai = raw(ai) f = @caller
-            return false
-        end
-    end
-end
-
-function waitforbal(s::LiveStrategy, ai, args...; kwargs...)
-    @unlock ai _unlocked_waitforbal(
-        s, ai, args...; kwargs...
-    )
 end
 
 @doc """ Retrieves the live balance for a strategy.
@@ -276,33 +205,52 @@ function live_balance(
     fallback_kwargs=(),
     since=nothing,
     force=false,
+    synced=false,
     waitfor=Second(5),
+    drift=Millisecond(5),
     type=nothing,
     full=false,
 )::Union{BalanceDict,BalanceSnapshot,Nothing}
     @timeout_start
     watch_balance!(s)
-    ai_arg = full ? () : (ai,)
-    bal = get_balance(s, ai_arg...)
-    w = balance_watcher(s)
-    wlocked = islocked(w)
-    if ((force && !wlocked) || isempty(buffer(w))) &&
-        (isnothing(bal) || (!isnothing(since) && bal.date < since))
-        _force_fetchbal(s; fallback_kwargs)
-        bal = get_balance(s, ai_arg..., type)
-    end
-    if (force && wlocked) || !(isnothing(since) || isnothing(bal))
-        if waitforbal(s, ai; since, force, waitfor=@timeout_now(), fallback_kwargs)
+    bal_args = full ? () : (ai, type)
+    getbal() = get_balance(s, bal_args...)
+    waitw(waitfor=@timeout_now) = waitsync(@something(ai, s); since, waitfor)
+    forcebal() = _force_fetchbal(s; fallback_kwargs)
+
+    return if !isnothing(since)
+        function waitsincefunc(bal=getbal())
+            !isnothing(bal) && bal.date + drift >= since
+        end
+        waitforcond(waitsincefunc, @timeout_now())
+        if @istimeout()
+            @debug "live bal: since timeout" _module = LogBalance since waitfor
+            if !waitsincefunc()
+                if force
+                    forcebal()
+                    waitw()
+                elseif synced
+                    waitw()
+                end
+            end
+            bal = getbal()
+            if waitsincefunc(bal)
+                bal
+            end
         else
-            @debug "live bal: last force fetch"
-            _force_fetchbal(s; fallback_kwargs)
+            getbal()
         end
-        bal = get_balance(s, ai_arg..., type)
-        if isnothing(bal) || (!isnothing(since) && bal.date < since)
-            @warn "live bal: no newer update" date = isnothing(bal) ? nothing : bal.date since f = @caller
-        end
+    elseif force
+        @debug "live bal: force fetching balance" _module = LogBalance ai
+        forcebal()
+        waitw()
+        getbal()
+    elseif synced
+        waitw()
+        getbal()
+    else
+        getbal()
     end
-    bal
 end
 
 @doc """ Retrieves a specific kind of live balance.

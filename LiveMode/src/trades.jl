@@ -17,7 +17,7 @@ function _check_and_filter(resp; ai, since, kind="")
         if isnothing(since)
             resp
         else
-            filter(t -> _timestamp(t, exchangeid(ai)) >= since, resp)
+            filter(t -> trade_timestamp(t, exchangeid(ai)) >= since, resp)
         end
     elseif pyisinstance(resp, pybuiltins.list)
         if isnothing(since)
@@ -25,7 +25,7 @@ function _check_and_filter(resp; ai, since, kind="")
         else
             out = pylist()
             for t in resp
-                _timestamp(t, exchangeid(ai)) >= since && out.append(t)
+                trade_timestamp(t, exchangeid(ai)) >= since && out.append(t)
             end
             out
         end
@@ -35,7 +35,7 @@ function _check_and_filter(resp; ai, since, kind="")
     end
 end
 
-function _timestamp(v, eid::EIDType)
+function trade_timestamp(v, eid::EIDType)
     pyconvert(Int, resp_trade_timestamp(v, eid)) |> TimeTicks.dtstamp
 end
 
@@ -413,24 +413,28 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     if !isordertype(ai, o, resp, eid) ||
         !isordersymbol(ai, o, resp, eid) ||
         !isorderid(ai, o, resp, eid)
+        @debug "maketrade: failed" _module = LogCreateTrade ai isordertype(ai, o, resp, eid) isordersymbol(ai, o, resp, eid) isorderid(ai, o, resp, eid)
         return nothing
     end
     side = _ccxt_sidetype(resp, eid; o)
     if !isorderside(side, o)
+        @debug "maketrade: wrong side" _module = LogCreateTrade ai side o
         return nothing
     end
     actual_amount = resp_trade_amount(resp, eid)
     actual_price = resp_trade_price(resp, eid)
     if !isorderprice(s, ai, actual_price, o; resp)
+        @debug "maketrade: wrong price" _module = LogCreateTrade ai o actual_price
         return nothing
     end
     inlimits(actual_price, ai, :price)
     if actual_amount <= 0.0 || !isfinite(actual_amount)
-        @debug "Amount value absent from trade or wrong ($actual_amount)), using cost." _module =
-            LogCreateTrade
+        @debug "make trade: amount value absent from trade or wrong ($actual_amount)), using cost." _module =
+            LogCreateTrade ai actual_amount resp
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = toprecision(net_cost / actual_price, ai.precision.amount)
         if !isorderamount(s, ai, actual_amount; resp)
+        @debug "make trade: wrong amount" _module = LogCreateTrade ai actual_amount
             return nothing
         end
     else
@@ -451,19 +455,4 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
         ai
     ) s = nameof(s)
     @maketrade
-end
-
-function tradeandsync!(s::LiveStrategy, o, ai; isemu=false, kwargs...)
-    l = getfield(ai, :lock)
-    if !isowned(l)
-        @error "tradeandsync!: asset lock not held" isemu
-        error()
-    end
-    func = isemu ? emulate_trade! : trade!
-    t = func(s, o, ai; kwargs...)
-    if !isnothing(t)
-        waitforsync(s, t)
-        aftertrade_sync!(s, ai, o, t)
-    end
-    t
 end

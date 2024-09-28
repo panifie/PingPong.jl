@@ -16,20 +16,69 @@ using .Executors:
 using .st: Strategy, SimStrategy, asset_bysym
 using PaperMode.SimMode.Executors: _update_from_trade!
 
-@doc """ Synchronizes a live trading strategy.
+function live_sync_universe_cash!(s::LiveStrategy, args...; kwargs...)
+    _live_sync_universe_cash!(s, args...; kwargs...)
+end
 
-$(TYPEDSIGNATURES)
+function live_sync_strategy_cash!(
+    s::LiveStrategy, args...; waitfor=Second(5), bal=nothing, overwrite=false, kwargs...
+)
+    if isnothing(bal)
+        bal = live_balance(s; kwargs...)
+    end
+    func = () -> _live_sync_strategy_cash!(s, args...; overwrite, waitfor, bal)
+    sendrequest!(s, bal.date, func, waitfor + Second(1))
+end
 
-This function synchronizes both open orders and cash balances of the live strategy `s`.
-The synchronization is performed in parallel for cash balances of the strategy and its universe.
-The `overwrite` parameter controls whether to ignore the `read` state of an update.
+function live_sync_cash!(
+    s::MarginStrategy{Live},
+    ai,
+    pside=posside(ai);
+    waitfor=Second(5),
+    pup=nothing,
+    since=nothing,
+    force=false,
+    synced=true,
+    reset=true,
+    kwargs...,
+)
+    if isnothing(pup)
+        pup = live_position(s, ai, pside; since, force, synced, waitfor)
+    end
+    if pup isa PositionTuple
+        func =
+            () -> _live_sync_cash!(
+                s, ai, pside; waitfor, pup, since, force, synced, kwargs...
+            )
+        sendrequest!(ai, pup.date, func, ms(waitfor + Second(1)))
+    elseif isopen(ai, pside)
+        @warn "sync: no position structure" ai pside since force synced
+        if reset
+            @warn "sync: resetting asset" ai pside since force synced
+            reset!(ai, pside)
+        end
+    end
+end
 
-"""
-function live_sync_strategy!(s::LiveStrategy; overwrite=false, force=false)
-    live_sync_open_orders!(s; overwrite) # NOTE: before cash
-    @sync begin
-        @async live_sync_strategy_cash!(s; overwrite, force)
-        @async live_sync_universe_cash!(s; overwrite, force)
+function live_sync_cash!(
+    s::NoMarginStrategy{Live},
+    ai,
+    args...;
+    waitfor=Second(5),
+    bal=nothing,
+    since=nothing,
+    force=false,
+    synced=true,
+    kwargs...,
+)
+    if isnothing(bal)
+        bal = live_balance(s, ai; waitfor, since, force, synced)
+    end
+    if bal isa BalanceSnapshot
+        this_f = () -> _live_sync_cash!(s, ai, args...; waitfor, synced, force, kwargs...)
+        sendrequest!(ai, bal.date, this_f, ms(waitfor + Second(1)))
+    else
+        @warn "sync: no balance structure" ai since force synced
     end
 end
 

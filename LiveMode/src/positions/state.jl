@@ -34,8 +34,8 @@ function aftertrade_sync!(s::Strategy, ai::AssetInstance, o::Order, t::Trade)
     # and a position
     since = t.date - Millisecond(1)
     @debug "after trade: fetching position for updates $(raw(ai))" _module = LogCreateTrade isowned(
-        ai
-    ) id = t.order.id
+        ai.lock
+    ) isowned(_internal_lock(ai)) id = t.order.id
 
     update = live_position(s, ai, posside(o); since, force=false)
     @ifdebug _debug_aftertrade1(ai, o, t)
@@ -73,7 +73,7 @@ function liquidate!(
 )
     @debug "strategy sync" _module = LogPosSync f = @caller(20)
     pos = position(ai, p)
-    @warn "Approaching liquidation!! $(raw(ai))Devilman: Crybaby[$(typeof(posside(p)))]@$(nameof(s)) $date
+    @warn "Approaching liquidation!! $(raw(ai))[$(typeof(posside(p)))]@$(nameof(s)) $date
     lev: $(leverage(pos))
     margin: $(margin(pos))
     additional: $(additional(pos))

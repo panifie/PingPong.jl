@@ -3,6 +3,7 @@ using Logging: Logging, with_logger, NullLogger
 using PrecompileTools
 using DocStringExtensions
 using Preferences: Preferences
+using Base: AbstractLock
 
 const Option{T} = Union{Nothing,T} where {T}
 
@@ -258,8 +259,8 @@ macro acquire(cond, code)
     end
 end
 
-isowned(l::ReentrantLock) = l.locked_by == current_task()
-isownable(l::ReentrantLock) = !islocked(l) || l.locked_by == current_task()
+isowned(l::AbstractLock) = l.locked_by == current_task()
+isownable(l::AbstractLock) = !islocked(l) || l.locked_by == current_task()
 
 @doc """Create an IOBuffer with the given initial value `v` and execute the code in `code` block.
 

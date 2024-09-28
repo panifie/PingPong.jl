@@ -45,16 +45,16 @@ end
 
 
 """
-function ensure_marginmode(s::LiveStrategy, ai)
+function ensure_marginmode(s::LiveStrategy, ai::MarginInstance)
     exc = exchange(ai)
     mm = marginmode(ai)
-    last_mm = get(s[:live_margin_mode], ai, missing)
+    last_mm = get(ai, :live_margin_mode, missing)
     if ismissing(last_mm) || last_mm != mm
         @debug "margin mode: updating" mm last_mm exc = nameof(exc)
         hedged = ishedged(ai)
         remote_mode = Symbol(string(typeof(mm)))
         return if marginmode!(exc, remote_mode, raw(ai); hedged)
-            s[:live_margin_mode][ai] = mm
+            ai[:live_margin_mode] = mm
             event!(exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Long)))
             event!(
                 exc, MarginUpdated(Symbol(:margin_mode_set_, mm), s, position(ai, Short))
@@ -64,6 +64,10 @@ function ensure_marginmode(s::LiveStrategy, ai)
             false
         end
     end
+    true
+end
+
+function ensure_marginmode(s::LiveStrategy, ai)
     true
 end
 
@@ -93,10 +97,9 @@ It then sends the order to the exchange, retries if exceptions occur, and handle
 """
 function live_send_order(
     s::LiveStrategy,
-    ai,
-    t::Type{<:Order}=GTCOrder{Buy},
+    ai::AssetInstance,
+    t::ByPos=GTCOrder{Buy},
     args...;
-    retries=0,
     skipchecks=false,
     amount,
     price=lastprice(s, ai, t),
@@ -142,11 +145,13 @@ function live_send_order(
     exc = exchange(ai)
     side = _ccxtorderside(t)
     type = _ccxtordertype(exc, t)
-    tif = _ccxttif(exc, t)
-    tif_k = @pystr(time_in_force_key(exc))
-    tif_v = @pystr(time_in_force_value(exc, asset(ai), tif))
     params = PyDict{Py,Py}(@pystr(k) => pyconvert(Py, v) for (k, v) in kwargs)
-    pygetorconvert!(params, tif_k, tif_v)
+    tif = _ccxttif(exc, t)
+    if !isempty(tif)
+        tif_k = @pystr(time_in_force_key(exc))
+        tif_v = @pystr(time_in_force_value(exc, asset(ai), tif))
+        pygetorconvert!(params, tif_k, tif_v)
+    end
     function supportmsg(feat)
         @warn "send order: not supported" feat exc = nameof(exc)
     end
@@ -250,15 +255,23 @@ function live_send_order(
     watch_orders!(s, ai)
     watch_trades!(s, ai)
     @debug "send order: create" _module = LogSendOrder sym type price amount side params
-    resp = create_order(s, sym, args...; side, type, price, amount, params)
-    while resp isa Exception && retries > 0
-        retries -= 1
+    inc_pending_orders!(ai)
+    resp = nothing
+    try
+        Main.args = (sym, args...)
+        Main.kwargs = (; side, type, price, amount, params)
         resp = create_order(s, sym, args...; side, type, price, amount, params)
+    finally
+        return if isnothing(resp) || resp isa Exception
+            @warn "send order: failed" sym ai exception = resp args params
+            dec_pending_orders!(ai)
+            resp
+        elseif pyisnone(resp_order_id(resp, exchangeid(ai)))
+            dec_pending_orders!(ai)
+            nothing
+        else
+            resp
+        end
+        resp
     end
-    if resp isa PyException
-        @warn "send order: exception" sym ex = nameof(exchange(ai)) resp args params
-        return nothing
-    end
-    resp isa Exception || (pyisnone(resp_order_id(resp, exchangeid(ai))) && return nothing)
-    resp
 end

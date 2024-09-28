@@ -74,7 +74,7 @@ function live_cancel(s, ai; ids=(), side=BuyOrSell, confirm=false, since=nothing
     done
 end
 
-function cancel!(s::LiveStrategy, o::Order, ai; kwargs...)
+function cancel!(s::LiveStrategy, o::Order, ai; err, kwargs...)
     if isqueued(o, s, ai)
         decommit!(s, o, ai, true)
         delete!(s, ai, o)

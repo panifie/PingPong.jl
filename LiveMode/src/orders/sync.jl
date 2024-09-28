@@ -41,6 +41,7 @@ end
 function replay_open_orders!(
     s,
     ai;
+    waitfor,
     open_orders,
     exec,
     live_orders,
@@ -51,49 +52,62 @@ function replay_open_orders!(
     create_kwargs,
     overwrite,
 )
+    @timeout_start
+    ids = Set{String}()
+    events = get_events(ai)
     for resp in open_orders
         if resp_event_type(resp, eid) != ot.Order
             continue
         end
         id = resp_order_id(resp, eid, String)
-        o = (@something let state = get(ao, id, nothing)
-            if state isa LiveOrderState
-                state.order
-            end
-        end findorder(s, ai; id, side, resp) create_live_order(
-            s,
-            resp,
-            ai;
-            t=_ccxtposside(s, resp, eid; def=default_pos),
-            price=missing,
-            amount=missing,
-            synced=false,
-            skipcommit=(!overwrite),
-            withoutkws(:skipcommit; kwargs=create_kwargs)...,
-            tag="replay_open",
-        ) missing)::Union{Nothing,<:Order,Missing}
-        if ismissing(o)
+        if !(id isa String) || isempty(id)
             continue
-        elseif isfilled(ai, o)
-            trades_amount = _amount_from_trades(trades(o)) |> abs
-            if !isequal(ai, trades_amount, o.amount, Val(:amount))
-                @warn "sync orders: replaying filled order with no trades" _module =
-                    LogSyncOrder
-                replay_order!(s, o, ai; resp, exec=false)
+        end
+        push!(ids, id)
+        date = resp_order_timestamp(resp, eid)
+        function func()
+            o = (@something let state = get(ao, id, nothing)
+                if state isa LiveOrderState
+                    state.order
+                end
+            end findorder(s, ai; id, side, resp) create_live_order(
+                s,
+                resp,
+                ai;
+                t=_ccxtposside(s, resp, eid; def=default_pos),
+                price=missing,
+                amount=missing,
+                synced=false,
+                skipcommit=(!overwrite),
+                withoutkws(:skipcommit; kwargs=create_kwargs)...,
+                tag="replay_open",
+            ) missing)::Union{Nothing,<:Order,Missing}
+            if ismissing(o)
+                pop!(ids, id)
+                return nothing
+            elseif isfilled(ai, o)
+                trades_amount = _amount_from_trades(trades(o)) |> abs
+                if !isequal(ai, trades_amount, o.amount, Val(:amount))
+                    @warn "sync orders: replaying filled order with no trades" _module =
+                        LogSyncOrder
+                    replay_order!(s, o, ai; resp, exec=false)
+                else
+                    @debug "sync orders: removing filled active order" _module =
+                        LogSyncOrder o.id o.amount trades_amount ai s = nameof(s)
+                    clear_order!(s, ai, o)
+                end
             else
-                @debug "sync orders: removing filled active order" _module = LogSyncOrder o.id o.amount trades_amount ai s = nameof(
+                @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai s = nameof(
                     s
                 )
-                clear_order!(s, ai, o)
+                push!(live_orders, o.id)
+                replay_order!(s, o, ai; resp, exec)
             end
-        else
-            @debug "sync orders: setting active order" _module = LogSyncOrder o.id ai s = nameof(
-                s
-            )
-            push!(live_orders, o.id)
-            replay_order!(s, o, ai; resp, exec)
+            pop!(ids, id)
         end
+        sendrequest!(ai, date, func; events)
     end
+    waitforcond(() -> isempty(ids), @timeout_now())
 end
 
 @doc "Removes stale local orders"
@@ -148,10 +162,9 @@ function sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
             continue
         end
         if id ∉ live_orders
-            @debug "sync orders: tracked local order was not open on exchange" _module =
-                LogSyncOrder id ai exchange(ai)
+            @warn "sync orders: tracked local order was not open on exchange" ai id
             @deassert LogSyncOrder id == state.order.id
-            @async @inlock ai if isopen(ai, state.order) # need to sync trades
+            if isopen(ai, state.order) # need to sync trades
                 order_resp = try
                     resp = fetch_orders(s, ai; ids=(id,))
                     if islist(resp) && !isempty(resp)
@@ -182,15 +195,15 @@ function sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
     end
 end
 
-function overwrite_cash!(s, ai)
+function _overwrite_cash!(s, ai)
     @debug "sync orders: resyncing strategy balances." maxlog = 1 _module = LogSyncOrder
     if ai isa MarginInstance
-        live_sync_cash!(s, ai, Long(); overwrite=true)
-        live_sync_cash!(s, ai, Short(); overwrite=true)
+        _live_sync_cash!(s, ai, Long(); overwrite=true)
+        _live_sync_cash!(s, ai, Short(); overwrite=true)
     else
-        live_sync_cash!(s, ai; overwrite=true)
+        _live_sync_cash!(s, ai; overwrite=true)
     end
-    live_sync_strategy_cash!(s; overwrite=true)
+    _live_sync_strategy_cash!(s; overwrite=true)
 end
 
 _amount_from_trades(trades) = sum(t.amount for t in trades)
@@ -209,15 +222,17 @@ This function also handles checking and updating of cash commitments for the str
 - `side`: The side of the order (default is `BuyOrSell`).
 
 """
-function live_sync_open_orders!(
+function _live_sync_open_orders!(
     s::LiveStrategy,
     ai;
+    waitfor=Second(15),
     overwrite=false,
     exec=false,
     create_kwargs=(;),
     side=BuyOrSell,
     raise=true,
 )
+    @timeout_start
     # Get active orders for the given strategy and asset instance
     ao = active_orders(ai)
     eid = exchangeid(ai)
@@ -251,29 +266,28 @@ function live_sync_open_orders!(
     @debug "sync orders: syncing" _module = LogSyncOrder ai islocked(ai) length(open_orders)
 
     # Lock the asset instance to prevent concurrent modifications
-    @inlock ai begin
-        default_pos = get_position_side(s, ai)
+    default_pos = get_position_side(s, ai)
 
-        # Reset cash state if overwrite is true
-        if overwrite
-            maxout!(s, ai)
-        end
-
-        # Replay open orders and update local state
-        replay_open_orders!(
-            s,
-            ai;
-            open_orders,
-            exec,
-            live_orders,
-            eid,
-            ao,
-            side,
-            default_pos,
-            create_kwargs,
-            overwrite,
-        )
+    # Reset cash state if overwrite is true
+    if overwrite
+        maxout!(s, ai)
     end
+
+    # Replay open orders and update local state
+    replay_open_orders!(
+        s,
+        ai;
+        waitfor,
+        open_orders,
+        exec,
+        live_orders,
+        eid,
+        ao,
+        side,
+        default_pos,
+        create_kwargs,
+        overwrite,
+    )
 
     # FIXME: this check might not be needed anymore
     # Remove orders that are no longer live
@@ -301,7 +315,7 @@ function live_sync_open_orders!(
 
     # Overwrite cash state if specified
     if overwrite
-        overwrite_cash!(s, ai)
+        _overwrite_cash!(s, ai)
     end
 
     @debug "sync orders: done" _module = LogSyncOrder ai
@@ -338,7 +352,7 @@ function findorder(
         if t isa Integer
             return history[t].order
         else
-            @debug "find order: not found" _module = LogSyncOrder resp id t f = @caller
+            @debug "find order: not found" _module = LogEvents resp id t f = @caller
         end
     end
 end
@@ -498,19 +512,6 @@ function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
     aftertrade_nocommit!(s, ai, o, trade)
 end
 
-@doc """ Synchronizes open orders for all assets in a live strategy.
-
-$(TYPEDSIGNATURES)
-
-This function performs an asynchronous operation for each asset in the universe of the strategy to synchronize their open orders.
-
-"""
-function live_sync_open_orders!(s::LiveStrategy; kwargs...)
-    @sync for ai in s.universe
-        @async live_sync_open_orders!(s, ai; kwargs...)
-    end
-end
-
 @doc """ Checks synchronization of orders in a live strategy.
 
 $(TYPEDSIGNATURES)
@@ -570,8 +571,9 @@ Afterwards, the order is deleted from the active orders.
     (there is a constrained case that could be generally supported, when syncing the last trades up to the current state and knowing the current position state, the trades position state can be checked for correctness and flipped in case of wrong initial Long/Short guess)
 """
 function live_sync_closed_orders!(
-    s::LiveStrategy, ai; dowarn=true, create_kwargs=(;), side=BuyOrSell, kwargs...
+    s::LiveStrategy, ai; dowarn=true, create_kwargs=(;), side=BuyOrSell, waitfor=Minute(1), kwargs...
 )
+    @timeout_start
     if dowarn
         @warn "closed orders syncing doesn't support leverage and position side!"
     end
@@ -588,50 +590,59 @@ function live_sync_closed_orders!(
     @debug "sync closed orders: iterating" _module = LogSyncOrder ai n_closed = length(
         closed_orders
     )
-    @inlock ai begin
-        default_pos = get_position_side(s, ai)
-        i = 1
-        limit = attr(s, :sync_history_limit)
-        @sync for resp in closed_orders
-            if resp_event_type(resp, eid) != ot.Order
-                continue
-            end
-            if i > limit
-                break
-            end
-            i += 1
-            @async begin
-                id = resp_order_id(resp, eid, String)
-                o = (@something findorder(s, ai; resp, id, side) create_live_order(
-                    s,
-                    resp,
-                    ai;
-                    t=_ccxtposside(s, resp, eid; def=default_pos),
-                    price=missing,
-                    amount=missing,
-                    synced=false,
-                    skipcommit=true,
-                    activate=false,
-                    tag="replay_closed",
-                    order_kwargs...,
-                ) missing)::Union{Order,Missing}
-                if !ismissing(o)
-                    @deassert resp_order_status(resp, eid, String) ∈
-                        ("closed", "open", "canceled") resp_order_status(resp, eid, String)
-                    @ifdebug trades_count = length(ai.history)
-                    if isempty(trades(o))
-                        if isopen(ai, o)
-                            reset!(o, ai)
-                        end
-                        replay_order!(s, o, ai; resp, exec=false)
-                        @deassert length(ai.history) > trades_count
-                    end
-                    delete!(s, ai, o)
-                    @deassert !hasorders(s, ai, o.id)
-                end
-            end
+
+    default_pos = get_position_side(s, ai)
+    i = 1
+    limit = attr(s, :sync_history_limit)
+    events = get_events(ai)
+    ids = Set{String}()
+    for resp in closed_orders
+        if resp_event_type(resp, eid) != ot.Order
+            continue
         end
+        if i > limit
+            break
+        end
+        i += 1
+        id = resp_order_id(resp, eid, String)
+        if !(id isa String) || isempty(id)
+            continue
+        end
+        push!(ids, id)
+        date = resp_order_timestamp(resp, eid)
+        function func()
+            o = (@something findorder(s, ai; resp, id, side) _create_live_order(
+                s,
+                ai,
+                resp;
+                t=_ccxtposside(s, resp, eid; def=default_pos),
+                price=missing,
+                amount=missing,
+                synced=false,
+                skipcommit=true,
+                activate=false,
+                tag="replay_closed",
+                order_kwargs...,
+            ) missing)::Union{Order,Missing}
+            if !ismissing(o)
+                @deassert resp_order_status(resp, eid, String) ∈
+                    ("closed", "open", "canceled") resp_order_status(resp, eid, String)
+                @ifdebug trades_count = length(ai.history)
+                if isempty(trades(o))
+                    if isopen(ai, o)
+                        reset!(o, ai)
+                    end
+                    replay_order!(s, o, ai; resp, exec=false)
+                    @deassert length(ai.history) > trades_count
+                end
+                delete!(s, ai, o)
+                @deassert !hasorders(s, ai, o.id)
+            end
+            pop!(ids, id)
+        end
+        sendrequest!(ai, date, func; events)
     end
+    waitforcond(() -> isempty(ids), @timeout_now())
 end
 
 @doc """ Synchronizes closed orders for all assets in a live strategy.
@@ -642,7 +653,24 @@ This function performs an asynchronous operation for each asset in the universe 
 
 """
 function live_sync_closed_orders!(s::LiveStrategy; kwargs...)
-    @sync for ai in s.universe
+    @sync for ai in universe(s)
         @async live_sync_closed_orders!(s, ai; kwargs...)
+    end
+end
+
+function live_sync_open_orders!(s::LiveStrategy, ai; kwargs...)
+    @lock ai _live_sync_open_orders!(s, ai; kwargs...)
+end
+
+@doc """ Synchronizes open orders for all assets in a live strategy.
+
+$(TYPEDSIGNATURES)
+
+This function performs an asynchronous operation for each asset in the universe of the strategy to synchronize their open orders.
+
+"""
+function live_sync_open_orders!(s::LiveStrategy; kwargs...)
+    @sync for ai in universe(s)
+        @async live_sync_open_orders!(s, ai; kwargs...)
     end
 end

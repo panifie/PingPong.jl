@@ -792,3 +792,5 @@ function order_byid(s::Strategy, id::String)
         end
     end
 end
+
+isnocost(o::BySide) = ordertype(o) <: MarketOrderType

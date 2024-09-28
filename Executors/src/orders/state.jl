@@ -56,17 +56,20 @@ function basicorder(
         @debug "basic order: prices not monotonic" ai = raw(ai) loss price profit type
         return nothing
     end
-    is_reduce_only = type <: ReduceOnlyOrder
+    # don't check cost for market orders since they can go lower
+    ignore_cost = isnocost(type)
     # Allow reduce only orders below minimum cost
-    if !iscost(ai, amount, loss, price, profit) && !is_reduce_only
+    if !ignore_cost && !iscost(ai, amount, loss, price, profit)
         @debug "basic order: invalid cost" ai = raw(ai) amount loss price profit type
         return nothing
     end
-    @deassert if type <: IncreaseOrder
-        committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
-    else
-        abs(committed[]) >= ai.limits.amount.min || is_reduce_only
-    end "Order committment too low\n$(committed[]), $(ai.asset) $date"
+    if !ignore_cost
+        @deassert if type <: IncreaseOrder
+            committed[] * leverage(ai, positionside(type)) >= ai.limits.cost.min
+        else
+            abs(committed[]) >= ai.limits.amount.min || ignore_cost
+        end "Order committment too low\n$(committed[]), $(ai.asset) $date"
+    end
     unfilled = Ref(unfillment(type, amount))
     @deassert type <: AnyBuyOrder ? unfilled[] < 0.0 : unfilled[] > 0.0
     OrderTypes.Order(

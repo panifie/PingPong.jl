@@ -1,7 +1,7 @@
 using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
 
 @preset let
-    ENV["JULIA_DEBUG"] = "LiveMode" # "LogBalance,LogWatchBalance,LogWatchLocks,TraceWatchLocks"
+    # ENV["JULIA_DEBUG"] = "LiveMode" # "LogBalance,LogWatchBalance,LogWatchLocks,TraceWatchLocks"
     st.Instances.Exchanges.Python.py_start_loop()
     run_funcs(exchange, margin) = begin
         s = st.strategy(st.BareStrat; mode=Live(), exchange, margin)

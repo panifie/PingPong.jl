@@ -1,5 +1,14 @@
 using .Lang: splitkws, @get
 
+function _ccxt_balance_args(s::Strategy{<:ExecMode, N, ExchangeID{:phemex}}, kwargs) where {N}
+    params, rest = split_params(kwargs)
+    @lget! params "type" @pystr(balance_type(s))
+    if s.qc == :USDT
+        params["settle"] = @pyconst("USDT")
+    end
+    (; params, rest)
+end
+
 function balance_type(s::Strategy{<:ExecMode,N,ExchangeID{:bybit},<:WithMargin}) where {N}
     attr(s, :balance_type, :unified)
 end

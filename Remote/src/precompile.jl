@@ -2,7 +2,7 @@ using .Misc.Lang: @preset, @precomp, @ignore
 
 @preset let
     using Telegram.HTTP
-    ENV["JULIA_DEBUG"] = "Remote"
+    # ENV["JULIA_DEBUG"] = "Remote"
     function closeconn_layer(handler)
         return function (req; kw...)
             HTTP.setheader(req, "Connection" => "close")
@@ -42,7 +42,6 @@ using .Misc.Lang: @preset, @precomp, @ignore
         # get(cl, s; text, chat_id)
         tgstop!(s)
     end
-    ENV["JULIA_DEBUG"] = "Remote,LogTasks,Watchers"
     t = @async stop!(s)
     start = now()
     while !istaskdone(t)

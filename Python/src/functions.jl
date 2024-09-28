@@ -98,4 +98,9 @@ islist(v) = v isa AbstractVector || pyisinstance(v, pybuiltins.list)
 @doc "Test whether a Python object is a dictionary."
 isdict(v) = v isa AbstractDict || pyisinstance(v, pybuiltins.dict)
 
+# FIXME: piracy
+if !hasmethod(pop!, Tuple{PyDict, Py})
+    Base.pop!(dict::PyDict, k::Py) = dict.py.pop(k)
+end
+
 export @pystr, pytofloat, pyisnonzero, pydicthash, islist, isdict

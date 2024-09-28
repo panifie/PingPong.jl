@@ -86,7 +86,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
     "All the assets that the strategy knows about"
     universe::AssetCollection
     "A lock for thread safety"
-    lock::ReentrantLock
+    lock::SafeLock
     @doc """ Initializes a new `Strategy` object
 
     $(TYPEDSIGNATURES)
@@ -134,7 +134,7 @@ struct Strategy{X<:ExecMode,N,E<:ExchangeID,M<:MarginMode,C} <: AbstractStrategy
             sellorders,
             holdings,
             uni,
-            ReentrantLock(),
+            SafeLock(),
         )
     end
 end

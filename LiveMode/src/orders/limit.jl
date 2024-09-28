@@ -12,7 +12,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
     @debug "pong limit order: locking" _module = LogCreateOrder isownable(ai.lock) isownable(s.lock)
     # NOTE: necessary locks to prevent race conditions between balance/positions updates
     # and order creation
-    order_trades = @inlock ai begin
+    order_trades = begin
         o = create_live_order(s, ai; skipchecks, t, amount, price, exc_kwargs=kwargs)
         if !(o isa Order)
             return nothing

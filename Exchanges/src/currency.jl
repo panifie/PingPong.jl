@@ -93,7 +93,7 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
     $(TYPEDSIGNATURES)
     """
     function CurrencyCash(id::Type{<:ExchangeID}, cash_type::Type{<:Cash}, v; sandbox=false, account="")
-        lock(currency_lock) do
+        @lock currency_lock begin
             exc = getexchange!(Symbol(id); sandbox, account)
             c = cash_type(v)
             lpf = _lpf(exc, _cur(exc, nameof(c)))
@@ -102,7 +102,7 @@ struct CurrencyCash{C<:Cash,E<:ExchangeID} <: AbstractCash
         end
     end
     function CurrencyCash(exc::Exchange, sym, v=0.0)
-        lock(currency_lock) do
+        @lock currency_lock begin
             cur = _cur(exc, sym)
             pyisinstance(cur, pybuiltins.dict) ||
                 @debug "$sym not found on $(exc.name) (using defaults)"

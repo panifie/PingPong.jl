@@ -127,7 +127,7 @@ const Interval = NamedTuple{(:timeout, :fetch, :flush),NTuple{3,Millisecond}}
 @doc "The execution variables for the watcher"
 const Exec = NamedTuple{
     (:threads, :fetch_lock, :buffer_lock, :errors),
-    Tuple{Bool,ReentrantLock,ReentrantLock,CircularBuffer{Tuple{Any,Vector}}},
+    Tuple{Bool,SafeLock,SafeLock,CircularBuffer{Tuple{Any,Vector}}},
 }
 @doc "The capacity parameters for the watcher"
 const Capacity = NamedTuple{(:buffer, :view),Tuple{Int,Int}}
@@ -215,7 +215,7 @@ function _watcher(
             flush=Threads.Condition(),
         ),
         _exec=Exec((
-            threads, ReentrantLock(), ReentrantLock(), CircularBuffer{Tuple{Any,Vector}}(10)
+            threads, SafeLock(), SafeLock(), CircularBuffer{Tuple{Any,Vector}}(10)
         )),
         _val=val,
         attrs,

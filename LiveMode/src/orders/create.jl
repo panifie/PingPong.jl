@@ -11,6 +11,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
     oid = resp_order_id(resp, eid, String)
     hasid = !isempty(oid)
 
+    @debug "create order: isopen" _module = LogCreateOrder isopen hasfill oid hasid
     if !isopen && !hasfill && !hasid
         @warn "create order: refusing" ai oid isopen hasfill hasid
         return false
@@ -20,7 +21,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
             if isprocessed_order(s, ai, oid)
                 fetched_resp = fetch_orders(s, ai; ids=(oid,))
                 if isemptish(resp)
-                    @debug "create order: order not found on exchange (canceled?)" ai oid hasfill hasid fetched_resp
+                    @debug "create order: order not found on exchange (canceled?)" _module = LogCreateOrder ai oid hasfill hasid fetched_resp
                     return false
                 else
                     resp = first(fetched_resp)
@@ -52,10 +53,10 @@ It verifies the response from the exchange and constructs the order with the pro
 If the order fails to construct and is marked as synced, it attempts to synchronize the strategy and universe cash, and then retries order creation.
 Finally, if the order is marked as active, the function sets it as the active order.
 """
-function create_live_order(
+function _create_live_order(
     s::LiveStrategy,
-    resp,
-    ai::AssetInstance;
+    ai::AssetInstance,
+    resp;
     t,
     price,
     amount,
@@ -126,7 +127,7 @@ function create_live_order(
         function create(; skipcommit)
             @debug "create order: local" _module = LogCreateOrder ai id amount date type price leverage(
                 ai
-            ) loss profit
+            ) loss profit @caller(20)
             f(
                 s,
                 type,
@@ -146,7 +147,9 @@ function create_live_order(
         if isnothing(o) && synced
             o = findorder(s, ai; resp, side)
             if isnothing(o)
-                @warn "create order: can't construct (back-tracking)" id = resp_order_id(resp, eid) ai = raw(ai) cash(ai) s = nameof(s) t
+                @warn "create order: can't construct (back-tracking)" id = resp_order_id(
+                    resp, eid
+                ) ai = raw(ai) cash(ai) s = nameof(s) t
             end
         end
         if isnothing(o)
@@ -160,15 +163,18 @@ function create_live_order(
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
-        set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
+        state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
         # Perform a trade if the order has been filled instantly
-        already_filled = resp_order_filled(resp, eid)
-        if already_filled > 0.0 && isempty(trades(o))
-            # wait for trades watcher
-            waittrade(s, ai, o; waitfor=s[:func_cache_ttl], force=synced)
+        function not_filled()
+            !isequal(ai, resp_order_filled(resp, eid), filled_amount(o), Val(:amount))
         end
-        if !isequal(ai, already_filled, filled_amount(o), Val(:amount))
-            t = @inlock ai tradeandsync!(s, o, ai; isemu=true, resp)
+        if not_filled()
+            @debug "create order: scheduling emulation" _module = LogCreateOrder resp_order_filled(resp, eid) filled_amount(o) not_filled()
+            func() =
+                if not_filled()
+                    t = @inlock ai emulate_trade!(s, o, ai; state.average_price, resp)
+                end
+            sendrequest!(ai, resp_order_timestamp(resp, eid), func)
         end
     end
     event!(
@@ -192,7 +198,7 @@ $(TYPEDSIGNATURES)
 This function sends a live order using the provided parameters and constructs it based on the response received.
 
 """
-function create_live_order(
+function _create_live_order(
     s::LiveStrategy,
     ai::AssetInstance,
     args...;
@@ -203,17 +209,34 @@ function create_live_order(
     skipchecks=false,
     kwargs...,
 )
-    @debug "create order: sending request" _module = LogCreateOrder ai t price amount @caller
-    resp = live_send_order(
-        s,
-        ai,
-        t,
-        args...;
-        skipchecks,
-        amount,
-        price,
-        withoutkws(:date; kwargs=exc_kwargs)...,
-    )
-    @debug "create order: after request" _module = LogCreateOrder ai t price amount @caller() resp
-    create_live_order(s, resp, ai; amount, price, t, kwargs...)
+    @debug "create order: sending request" _module = LogCreateOrder ai t price amount f = @caller
+    resp = try
+        live_send_order(
+            s,
+            ai,
+            t,
+            args...;
+            skipchecks,
+            amount,
+            price,
+            withoutkws(:date; kwargs=exc_kwargs)...,
+        )
+    catch
+        @debug_backtrace LogCreateOrder
+        @error "create order: send failed" ai t amount price
+        return nothing
+    end
+    if resp isa Exception
+        @error "create order: send failed" ai t amount price exception = resp
+    else
+        @debug "create order: after request" _module = LogCreateOrder ai t price amount f = @caller() resp
+        _create_live_order(s, ai, resp; amount, price, t, kwargs...)
+    end
+end
+
+function create_live_order(s, ai, args...; waitfor=Second(15), kwargs...)
+    ans = Ref{Union{Order,Nothing,Exception}}(nothing)
+    func() = (ans[] = (@inlock ai _create_live_order(s, ai, args...; kwargs...)))
+    sendrequest!(ai, now(), func, waitfor)
+    ans[]
 end

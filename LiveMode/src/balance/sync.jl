@@ -21,7 +21,9 @@ function _sync_comm_cash!(s)
         end
     end
     if !isapprox(s.cash_committed, comm; rtol=0.01)
-        @warn "strategy cash: cash committed unsynced" set = s.cash_committed actual = comm
+        @warn "strategy cash: cash committed unsynced" set = s.cash_committed actual = comm f = @caller(
+            10
+        )
         cash!(s.cash_committed, comm)
     end
 end
@@ -34,10 +36,12 @@ This function synchronizes the cash balance of a live strategy with the actual c
 It checks the total and used cash balances, and updates the strategy's cash and committed cash values accordingly.
 
 """
-function live_sync_strategy_cash!(
+function _live_sync_strategy_cash!(
     s::Strategy, kind=s.live_balance_kind; bal=nothing, overwrite=false, kwargs...
 )
-    bal = @something bal live_balance(s; kwargs...)
+    if isnothing(bal)
+        bal = live_balance(s; kwargs...)
+    end
     avl_cash = getproperty(bal, kind)
     bc = nameof(s.cash)
 
@@ -77,17 +81,30 @@ For each asset, it locks the asset and updates its cash and committed cash value
 If no balance information is found for an asset, its cash and committed cash values are set to zero.
 
 """
-function live_sync_universe_cash!(s::NoMarginStrategy{Live}; kwargs...)
+function _live_sync_universe_cash!(s::NoMarginStrategy{Live}; force=false, waitfor=Second(15), kwargs...)
+    @timeout_start
+    if force
+        waitwatcherupdate(() -> watch_balance!(s))
+    end
     bal = live_balance(s; full=true, withoutkws(:overwrite; kwargs)...)
     if isnothing(bal)
         @error "sync uni: failed, no balance" e = exchangeid(s)
         return nothing
     end
     loop_kwargs = filterkws(:fallback_kwargs; kwargs)
-    @sync for ai in s.universe
+    all_synced = Set(ai for ai in universe(s))
+    events = get_events(s)
+    for ai in s.universe
+        push!(all_synced, ai)
         ai_bal = @get bal ai BalanceSnapshot(ai)
-        @async live_sync_cash!(s, ai; bal=ai_bal, loop_kwargs...)
+        function func()
+            live_sync_cash!(s, ai; bal=ai_bal, loop_kwargs...)
+            # might not be present, don't use pop!
+            delete!(all_synced, ai)
+        end
+        sendrequest!(ai, bal.date, func; events)
     end
+    waitforcond(() -> isempty(all_synced), @timeout_now())
     @debug "sync universe cash(nm): synced"
 end
 
@@ -101,7 +118,7 @@ If no balance information is found for the asset, its cash and committed cash va
 `drift` is the margin of error for timestamps ([5 milliseconds]).
 
 """
-function live_sync_cash!(
+function _live_sync_cash!(
     s::NoMarginStrategy{Live},
     ai;
     since=nothing,
@@ -110,7 +127,7 @@ function live_sync_cash!(
     drift=Millisecond(5),
     bal=live_balance(s, ai; since, waitfor, force),
     overwrite=false,
-    kwargs...
+    kwargs...,
 )
     @inlock ai if bal isa BalanceSnapshot
         @assert isnothing(since) || bal.date >= since - drift

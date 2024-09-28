@@ -17,11 +17,11 @@ using .Misc:
     @start_task,
     task_sem
 using .SimMode.Instances.Data: nrow
-using .SimMode.Instances: _internal_lock, _external_lock
 using .st: asset_bysym, symsdict
 using Watchers: Watcher
 using Watchers.WatchersImpls: islist, isdict, _dopush!
 import .Instances: timestamp
+import .Data.DFUtils: lastdate
 
 # logmodules
 # TODO: replace these with LOGGING_GROUPS var and a LogginExtras early filter
@@ -58,35 +58,11 @@ baremodule LogWaitUpdates end
 baremodule LogWaitTrade end
 baremodule LogTradeFetch end
 baremodule LogTraceReplay end
-
-macro unlock(locker, unlocker, code)
-    ex = quote
-        l = $unlocker
-        owned = isowned(l)
-        c = owned && l.reentrancy_cnt > 0 ? ((l for _ in 1:(l.reentrancy_cnt))...,) : nothing
-        @lock $locker begin
-            owned && foreach(unlock, c)
-            try
-                $code
-            finally
-                owned && foreach(lock, c)
-            end
-        end
-    end
-    esc(ex)
-end
-
-macro unlock(ai, code)
-    ex = quote
-        this_ai = $ai
-        @unlock _internal_lock(this_ai) _external_lock(this_ai) $code
-    end
-    esc(ex)
-end
+baremodule LogEvents end
 
 macro inlock(ai, code)
     ex = quote
-        @lock _external_lock($ai) $code
+        @lock _internal_lock($ai) $code
     end
     esc(ex)
 end
@@ -294,6 +270,7 @@ function stop_all_tasks(s::RTStrategy; reset=true)
             end
         end
     end
+    stop_handlers!(s)
     @debug "strategy: stopped all tasks" _module = LogTasks s = nameof(s)
 end
 
@@ -308,17 +285,14 @@ const OrderTasksDict = Dict{Order,Task}
 - `queue`: currently unused
 """
 const AssetTasks = NamedTuple{
-    (:lock, :queue, :byname, :byorder),
-    Tuple{ReentrantLock,Ref{Int},TasksDict,OrderTasksDict},
+    (:lock, :queue, :byname, :byorder),Tuple{SafeLock,Ref{Int},TasksDict,OrderTasksDict}
 }
 @doc """ A dictionary of tasks associated with a `Strategy`.
 - `tasks`: tasks that are strategy wide
 - `queue`: currently unused
 - `lock`: is held when starting or stopping new tasks
 """
-const StrategyTasks = NamedTuple{
-    (:lock, :queue, :tasks),Tuple{ReentrantLock,Ref{Int},TasksDict}
-}
+const StrategyTasks = NamedTuple{(:lock, :queue, :tasks),Tuple{SafeLock,Ref{Int},TasksDict}}
 
 @doc """ Retrieves the task associated with an order. """
 function order_task(ai::AssetInstance, k)
@@ -344,7 +318,7 @@ This function retrieves tasks associated with a specific asset `ai` in the strat
 """
 function asset_tasks(ai::AssetInstance)
     @something get(ai, :tasks, nothing) @inlock ai @lget! ai :tasks (;
-        lock=ReentrantLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
+        lock=SafeLock(), queue=Ref(0), byname=TasksDict(), byorder=OrderTasksDict()
     )
 end
 function asset_task(ai::AssetInstance, k)
@@ -400,7 +374,7 @@ This function retrieves tasks associated with the strategy `s` for a specific `a
 function strategy_tasks(s::RTStrategy, account=current_account(s))
     tasks = all_strategy_tasks(s)
     @something get(tasks, account, nothing) @lock s @lget! tasks account (;
-        lock=ReentrantLock(), queue=Ref(0), tasks=TasksDict()
+        lock=SafeLock(), queue=Ref(0), tasks=TasksDict()
     )
 end
 
@@ -569,8 +543,6 @@ function st.default!(s::LiveStrategy; skip_sync=nothing)
     a[:live_force_watch] = false
     # The number of entries in watchers channels buffers
     a[:live_buffer_size] = 1000
-    # Dict indicating the latest (remotely) set margin mode for an asset
-    a[:live_margin_mode] = Dict{AssetInstance,Union{Missing,MarginMode}}()
     s isa MarginStrategy ? a[:positions_base_timeout] = Ref(Second(5)) : nothing
     # The balance to sync in live mode (total, free, used)
     a[:live_balance_kind] = s isa MarginStrategy ? :free : :total
@@ -595,7 +567,7 @@ function st.default!(s::LiveStrategy; skip_sync=nothing)
         if limit > 0
             live_sync_closed_orders!(s; limit)
         end
-        live_sync_start!(s; first_start=!haskey(a, :is_running))
+        # live_sync_start!(s; first_start=!haskey(a, :is_running))
     end
     a[:defaults_set] = true
 end
@@ -809,76 +781,16 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     end
 end
 
+function lastdate(o::Order)
+    this_tr = trades(o)
+    if !isempty(this_tr)
+        last(this_tr).date
+    else
+        o.date
+    end
+end
+
 function since_order_date(resp, o::Order)
     eid = exchangeid(o)
-    @something resp_order_timestamp(resp, eid) let trades = trades(o)
-        if !isempty(trades)
-            last(trades).date
-        else
-            o.date
-        end
-    end
-end
-
-function waitforupdates(w::Watcher; since::Option{DateTime}=nothing, waitfor=Second(15))
-    @timeout_start
-    waitforcond(() -> hasattr(w, :process_tasks), @timeout_now)
-    if @istimeout()
-        @debug "sync: watcher has not tasks" w.name isstarted(w)
-        return nothing
-    end
-    tasks = w[:process_tasks]
-    filter!(!istaskdone, tasks)
-    if isnothing(since)
-        since = typemin(DateTime)
-    end
-    @debug "sync: waiting begin" _module = LogWaitUpdates since timeout = @timeout_now() f = @caller(20) length(
-        tasks
-    )
-    hastasks() = !isempty(tasks)
-    isstale() = lastdate(w) <= since
-    while !@istimeout()
-        if hastasks()
-            waitforcond(first(tasks).donenotify, @timeout_now)
-            filter!(!istaskdone, tasks)
-            if !hastasks() && !isstale()
-                break
-            end
-        elseif isstale()
-            safewait(w.beacon.process)
-        else
-            break
-        end
-    end
-    @debug "sync: waiting end" _module = LogWaitUpdates since timeout = @timeout_now() f = @caller(20)
-end
-
-function waitforsync(s::Strategy; since::Option{DateTime}=nothing, waitfor=Second(15))
-    @debug "sync: waiting begin" _module = LogWait since waitfor
-    @timeout_start
-    waitforupdates(positions_watcher(s); since, waitfor=@timeout_now)
-    waitforupdates(balance_watcher(s); since, waitfor=@timeout_now)
-    @debug "sync: waited end" _module = LogWait since timeout = @timeout_now
-end
-
-function waitforsync(s::Strategy, t::Trade; kwargs...)
-    @debug "sync: waiting after trade" _module = LogWait t.order.asset t.date t.order islocked(
-        asset_bysym(s, raw(t.order.asset))
-    )
-    waitforsync(s; since=t.date, kwargs...)
-    @debug "sync: waited after trade" _module = LogWait t.order.asset t.date t.order islocked(
-        asset_bysym(s, raw(t.order.asset))
-    )
-end
-
-function waitforsync(
-    s::Strategy, ai::AssetInstance; since=timestamp(ai), waitfor=Second(15)
-)
-    @debug "sync: waiting asset sync" _module = LogWait isownable(ai.lock) waitfor
-    @unlock ai waitforsync(s; since, waitfor)
-    @debug "sync: waited asset sync" _module = LogWait isownable(ai.lock) waitfor
-end
-
-function waitforsync(s::Strategy, t; kwargs...)
-    waitforsync(s; kwargs...)
+    @something resp_order_timestamp(resp, eid) lastdate(o)
 end

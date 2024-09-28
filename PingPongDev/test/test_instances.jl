@@ -30,7 +30,7 @@ function test_asset_instance()
     @test ai.data isa SortedDict{TimeFrame,DataFrame,Base.Order.ForwardOrdering}
     @test ai.history isa SortedArray{AnyTrade{typeof(a),typeof(eid)},1}
     @test isempty(ai.history)
-    @test ai.lock isa ReentrantLock
+    @test ai.lock isa SafeLock
     @test ai.cash isa CCash{typeof(eid)}
     @test ai.cash_committed isa CCash{typeof(eid)}
     @test ai.exchange == getexchange!(:binance)

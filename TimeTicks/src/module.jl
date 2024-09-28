@@ -171,6 +171,7 @@ convert(::Type{<:AbstractString}, tf::TimeFrame) = @lget! tf_name_map tf.period 
 Base.string(tf::TimeFrame) = convert(String, tf)
 ms(tf::TimeFrame) = Millisecond(period(tf))
 ms(prd::Period) = Millisecond(prd)
+ms(prd::Dates.CompoundPeriod) = convert(Millisecond, prd)
 ms(v) = Millisecond(v)
 timeframe(s::AbstractString) = convert(TimeFrame, s)
 timeframe(n::AbstractFloat) = TimeFrame(Millisecond(n))

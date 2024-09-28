@@ -1,7 +1,7 @@
 using Exchanges
 using OrderTypes
 
-import Exchanges.ExchangeTypes: exchangeid, exchange, exc
+import Exchanges.ExchangeTypes: exchangeid, exchange
 using Exchanges: CurrencyCash, Data, TICKERS_CACHE10, markettype, @tickers!
 using OrderTypes: ByPos, AssetEvent, positionside, Instruments, ordertype
 using .Data: load, zi, empty_ohlcv, DataFrame, DataStructures
@@ -11,7 +11,7 @@ using .Data.DataFrames: metadata
 using .Instruments: Instruments, compactnum, AbstractAsset, Cash, add!, sub!, Misc
 import .Instruments: _hashtuple, cash!, cash, freecash, value, raw, bc, qc
 using .Misc: config, MarginMode, NoMargin, WithMargin, MM, DFT, toprecision, ZERO
-using .Misc: Lang, TimeTicks, SortedArray
+using .Misc: Lang, TimeTicks, SortedArray, SafeLock
 using .Misc: Isolated, Cross, Hedged, IsolatedHedged, CrossHedged, CrossMargin
 using .Misc: setattr!, attr, attr!, attrs, hasattr
 using .Misc.DocStringExtensions
@@ -70,8 +70,8 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
     "The trade history of the pair."
     history::SortedArray{AnyTrade{T,E},1}
     "A lock for synchronizing access to the asset instance."
-    lock::ReentrantLock
-    _internal_lock::ReentrantLock
+    lock::SafeLock
+    _internal_lock::SafeLock
     "The amount of the asset currently held. This can be positive or negative (short)."
     cash::Option{CCash{E}{S1}} where {S1}
     "The amount of the asset currently committed for orders."
@@ -118,8 +118,8 @@ struct AssetInstance{T<:AbstractAsset,E<:ExchangeID,M<:MarginMode} <: AbstractIn
             a,
             data,
             SortedArray(AnyTrade{A,E}[]; by=trade -> trade.date),
-            ReentrantLock(),
-            ReentrantLock(),
+            SafeLock(),
+            SafeLock(),
             cash,
             comm,
             e,
@@ -194,22 +194,17 @@ function Base.propertynames(ai::AssetInstance)
 end
 Base.Broadcast.broadcastable(s::AssetInstance) = Ref(s)
 function Base.lock(ai::AssetInstance)
-    @debug "locking $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
-    l = getfield(ai, :lock)
-    @lock l nothing
-    @lock _internal_lock(ai) nothing
-    lock(l)
-    @debug "locked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
+    @debug "instances: locking" _module = InstancesLock ai tid = Threads.threadid() f = @caller(10)
+    lock(getfield(ai, :lock))
+    @debug "instances: locked" _module = InstancesLock ai tid = Threads.threadid() f = @caller(10)
 end
 Base.lock(f, ai::AssetInstance) = begin
     l = getfield(ai, :lock)
-    @lock l nothing
-    @lock _internal_lock(ai) nothing
     lock(f, getfield(ai, :lock))
 end
 function Base.unlock(ai::AssetInstance)
     unlock(getfield(ai, :lock))
-    @debug "unlocked $(raw(ai))" _module = InstancesLock tid = Threads.threadid() f = @caller 14
+    @debug "instances: unlocked" _module = InstancesLock ai tid = Threads.threadid() f = @caller(10)
 end
 Base.islocked(ai::AssetInstance) = islocked(getfield(ai, :lock))
 @doc " Get the cash value of a `AssetInstance`. "

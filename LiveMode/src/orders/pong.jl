@@ -21,14 +21,16 @@ function pong!(
     kwargs...,
 )::Union{<:Trade,Nothing,Missing}
     @timeout_start
-    order_kwargs = withoutkws(:fees; kwargs)
-    trade = _live_limit_order(
-        s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
-    )
-    if synced && trade isa Trade
-        live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
+    @lock ai begin
+        order_kwargs = withoutkws(:fees; kwargs)
+        trade = _live_limit_order(
+            s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
+        )
+        if synced && trade isa Trade
+            live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
+        end
+        trade
     end
-    trade
 end
 
 @doc """ Places a market order and synchronizes the cash balance.
@@ -51,15 +53,17 @@ function pong!(
     kwargs...,
 )
     @timeout_start
-    order_kwargs = withoutkws(:fees; kwargs)
-    trade = _live_market_order(
-        s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
-    )
-    if synced && trade isa Trade
-        waitorder(s, ai, trade.order; waitfor=@timeout_now)
-        live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
+    @lock ai begin
+        order_kwargs = withoutkws(:fees; kwargs)
+        trade = _live_market_order(
+            s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
+        )
+        if synced && trade isa Trade
+            waitorder(s, ai, trade.order; waitfor=@timeout_now)
+            live_sync_cash!(s, ai; since=trade.date, waitfor=@timeout_now)
+        end
+        trade
     end
-    trade
 end
 
 @doc """ Cancels all live orders of a certain type and synchronizes the cash balance.
@@ -82,28 +86,30 @@ function pong!(
     ids=(),
 )
     @timeout_start
-    if !hasorders(s, ai, t) && !confirm
-        @debug "pong cancel orders: no local open orders" _module = LogCancelOrder ai t
-        return true
-    end
-    watch_orders!(s, ai)
-    if live_cancel(s, ai; ids, side=t, confirm)::Bool
-        success = waitordclose(s, ai, @timeout_now; t)
-        if success
-            if synced
-                @debug "pong cancel orders: syncing cash" ai t _module =
-                    LogCancelOrder
-                live_sync_cash!(s, ai; waitfor=@timeout_now)
-            end
-        else
-            @debug "pong cancel orders: failed syncing open orders" ai t _module =
-                LogCancelOrder
-            live_sync_open_orders!(s, ai)
+    @lock ai begin
+        if !hasorders(s, ai, t) && !confirm
+            @debug "pong cancel orders: no local open orders" _module = LogCancelOrder ai t
+            return true
         end
-        @debug "pong cancel orders: " ai t success _module = LogCancelOrder
-        success
-    else
-        @debug "pong cancel orders: failed" ai t success _module = LogCancelOrder
-        false
+        watch_orders!(s, ai)
+        if live_cancel(s, ai; ids, side=t, confirm)::Bool
+            success = waitordclose(s, ai, @timeout_now; t)
+            if success
+                if synced
+                    @debug "pong cancel orders: syncing cash" ai t _module =
+                        LogCancelOrder
+                    live_sync_cash!(s, ai; waitfor=@timeout_now)
+                end
+            else
+                @debug "pong cancel orders: failed syncing open orders" ai t _module =
+                    LogCancelOrder
+                live_sync_open_orders!(s, ai)
+            end
+            @debug "pong cancel orders: " ai t success _module = LogCancelOrder
+            success
+        else
+            @debug "pong cancel orders: failed" ai t success _module = LogCancelOrder
+            false
+        end
     end
 end

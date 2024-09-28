@@ -16,7 +16,7 @@ using .Instruments: Misc
 using .Misc: TimeTicks, Lang
 using .TimeTicks
 using .Misc: Iterable, swapkeys, MarginMode
-using .Lang: @lget!, MatchString
+using .Lang: @lget!, MatchString, Option
 using Base.Enums: namemap
 using .Misc: OrderedDict, OrderedCollections
 using .Misc.DocStringExtensions

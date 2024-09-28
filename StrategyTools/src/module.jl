@@ -12,7 +12,7 @@ using .egn.Instances: Instances as inst, ohlcv, ohlcv_dict, posside, collateral,
 using .egn.Strategies: strategy, Strategy, AssetInstance, SimStrategy, RTStrategy, marketsid
 using .egn.Strategies: freecash, current_total, volumeat, closeat
 using .egn.Executors: Context
-using .egn.LiveMode: AssetTasks, asset_tasks
+using .egn.LiveMode: asset_tasks
 using .egn.LiveMode.Watchers.Fetch: update_ohlcv!
 using .egn: ispaper, islive
 using Statistics: mean

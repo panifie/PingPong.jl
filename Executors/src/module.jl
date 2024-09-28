@@ -60,5 +60,5 @@ export WatchOHLCV, UpdateData, InitData
 export limitorder, marketorder
 export unfilled, committed, isfilled, islastfill, isfirstfill, trades, cost, feespaid
 export queue!, cancel!, commit!
-export orders, hasorders, hastrade, ordershistory, orderscount
+export orders, hasorders, hastrade, ordershistory, orderscount, isnocost
 export OrderIterator, trades, tradescount, closedorders

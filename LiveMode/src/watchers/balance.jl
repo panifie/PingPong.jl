@@ -70,13 +70,13 @@ function _w_balance_func(s, w, attrs)
     timeout = throttle(s)
     interval = attrs[:interval]
     params, rest = _ccxt_balance_args(s, attrs[:func_kwargs])
-    w[:process_tasks] = tasks = Task[]
     buffer_size = attr(s, :live_buffer_size, 1000)
     s[:balance_buffer] = w[:buf_process] = buf = Vector{Any}()
     # NOTE: this is NOT a Threads.Condition because we shouldn't yield inside the push function
     # (we can't lock (e.g. by using `safenotify`) must use plain `notify`)
     s[:balance_notify] = w[:buf_notify] = buf_notify = Condition()
     sizehint!(buf, buffer_size)
+    tasks = w[:process_tasks] = Vector{Task}()
     if attrs[:iswatch]
         init = Ref(true)
         function process_bal!(w, v)
@@ -104,15 +104,17 @@ function _w_balance_func(s, w, attrs)
             if init[]
                 init_watch_func(w)
             end
-            while isempty(buf)
+            while isempty(buf) && isstarted(w)
                 wait(buf_notify)
             end
-            v = popfirst!(buf)
-            if v isa Exception
-                @error "balance watcher: unexpected value" exception = v
-                sleep(1)
-            else
-                process_bal!(w, pydict(v))
+            if !isempty(buf)
+                v = popfirst!(buf)
+                if v isa Exception
+                    @error "balance watcher: unexpected value" exception = v
+                    sleep(1)
+                else
+                    process_bal!(w, pydict(v))
+                end
             end
         end
     else
@@ -162,6 +164,7 @@ function Watchers._stop!(w::Watcher, ::CcxtBalanceVal)
     if !isnothing(handler)
         stop_handler!(handler)
     end
+    notify(w.buf_notify)
     nothing
 end
 
@@ -195,14 +198,14 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
     data_date, data = last(w.buffer)
     baldict = w.view.assets
     if !isdict(data) || resp_event_type(data, eid) != ot.BalanceUpdated
-        @debug "watchers process: wrong data type" _module = LogWatchBalProcess data_date typeof(
+        @debug "balance watcher: wrong data type" _module = LogWatchBalProcess data_date typeof(
             data
         )
         _lastprocessed!(w, data_date)
         _lastcount!(w, ())
     end
     if data_date == _lastprocessed(w) && length(data) == _lastcount(w)
-        @debug "watchers process: already processed" _module = LogWatchBalProcess data_date
+        @debug "balance watcher: already processed" _module = LogWatchBalProcess data_date
         return nothing
     end
     date = @something pytodate(data, eid) now()
@@ -261,11 +264,14 @@ function Watchers._process!(w::Watcher, ::CcxtBalanceVal; fetched=false)
                 baldict[k] = BalanceSnapshot(; currency=sym, date, total, free, used)
             end
             if isqc
-                live_sync_strategy_cash!(s; bal)
+                s_events = get_events(s)
+                func = () -> _live_sync_strategy_cash!(s; bal)
+                sendrequest!(s, bal.date, func)
             elseif s isa NoMarginStrategy
                 ai = asset_bysym(s, sym, symsdict)
                 if !isnothing(ai)
-                    live_sync_cash!(s, ai; bal)
+                    func = () -> _live_sync_cash!(s, ai; bal)
+                    sendrequest!(ai, bal.date, func)
                 end
             end
         end
@@ -285,10 +291,14 @@ This function starts a watcher for balance in a live strategy `s`. The watcher c
 
 """
 function watch_balance!(s::LiveStrategy; interval=st.throttle(s), wait=false)
-    w = @lock s @lget! attrs(s) :live_balance_watcher ccxt_balance_watcher(s; interval)
-    just_started = @lock w if isstopped(w) && !attr(s, :stopped, false)
-        start!(w)
-        true
+    w = @lock s @lget! s :live_balance_watcher ccxt_balance_watcher(s; interval)
+    just_started = if isstopped(w) && !attr(s, :stopped, false)
+        @lock w if isstopped(w)
+            start!(w)
+            true
+        else
+            false
+        end
     else
         false
     end

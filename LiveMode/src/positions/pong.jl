@@ -118,6 +118,8 @@ function Executors.pong!(
             s, ai, t; skipchecks, amount, price, waitfor, synced, kwargs=order_kwargs
         )
         if synced && trade isa Trade
+            @debug "pong margin limit order: syncing" ai t
+            waitsync(ai; since=trade.date, waitfor=@timeout_now)
             live_sync_position!(
                 s, ai, posside(trade); force=true, since=trade.date, waitfor=@timeout_now
             )
@@ -153,6 +155,7 @@ function Executors.pong!(
             s, ai, t; skipchecks, amount, synced, waitfor, kwargs=order_kwargs
         )
         if synced && trade isa Trade
+            waitsync(ai, since=trade.date, waitfor=@timeout_now)
             live_sync_position!(
                 s, ai, posside(trade); since=trade.date, waitfor=@timeout_now
             )
@@ -165,6 +168,7 @@ _close_order_bypos(::Short) = ShortMarketOrder{Buy}
 _close_order_bypos(::Long) = MarketOrder{Sell}
 
 function _posclose_cancel(s, ai, t, pside, waitfor)
+    @debug "pong pos close: cancel orders" _module = LogPosClose ai pside
     if hasorders(s, ai, pside)
         if !pong!(s, ai, CancelOrders(); t=BuyOrSell, synced=true, waitfor)
             @warn "pong pos close: failed to cancel orders" ai t
@@ -173,9 +177,11 @@ function _posclose_cancel(s, ai, t, pside, waitfor)
 end
 
 function _posclose_maybesync(s, ai, pside, waitfor)
-    update = live_position(s, ai, pside; since=timestamp(ai), waitfor)
+    @debug "pong pos close: sync position" _module = LogPosClose ai pside
+    @timeout_start
+    update = live_position(s, ai, pside; since=timestamp(ai), waitfor=@timeout_now)
     if isnothing(update)
-        @warn "pong pos close: no position update (resetting)" ai side = P
+        @warn "pong pos close: no position update (resetting)" ai pside
         if isopen(ai, pside)
             reset!(ai, pside)
         end
@@ -186,12 +192,14 @@ function _posclose_maybesync(s, ai, pside, waitfor)
         @warn "pong pos close: outdated position state (syncing)." amount = resp_position_contracts(
             update.resp, exchangeid(ai)
         )
+        waitsync(ai; since=update.date, waitfor=@timeout_now)
         live_sync_position!(s, ai, pside, update)
     end
     return (update, false)
 end
 
 function _posclose_waitsync(s, ai, pside, waitfor)
+    @debug "pong pos close: wait for orders" _module = LogPosClose ai pside
     if !waitordclose(s, ai, waitfor)
         @error "pong pos close: orders still pending" ai orderscount(s, ai) cash(ai) committed(
             ai
@@ -209,11 +217,13 @@ end
 function _posclose_amount(s, ai, pside; kwargs)
     _, this_kwargs = splitkws(:reduce_only, :tag; kwargs)
     amount = cash(ai, pside) |> abs
+    @debug "pong pos close: get amount" _module = LogPosClose ai pside amount
     @deassert resp_position_contracts(live_position(s, ai).resp, exchangeid(ai)) == amount
     return amount, this_kwargs
 end
 
 function _posclose_trade(s, ai; t, pside, amount, waitfor, this_kwargs)
+    @debug "pong pos close: trade" _module = LogPosClose ai pside t
     @timeout_start
     close_trade = pong!(
         s, ai, t; amount, reduce_only=true, tag="position_close", waitfor, this_kwargs...
@@ -242,12 +252,14 @@ function _posclose_trade(s, ai; t, pside, amount, waitfor, this_kwargs)
 end
 
 function _posclose_order(s, ai, pside, since, waitfor)
+    @debug "pong pos close: order" _module = LogPosClose ai pside
     @timeout_start
-    if !waitposclose(s, ai, pside; waitfor=@timeout_now)
+    if !waitposclose(s, ai, pside; waitfor=@timeout_now, force=true)
         @debug "pong pos close: timedout" _module = LogPosClose pside ai = raw(ai)
     end
+    waitsync(ai; since, waitfor=@timeout_now)
     live_sync_position!(s, ai, pside; since, overwrite=true, waitfor=@timeout_now)
-    if @inlock ai isopen(ai, pside)
+    if @lock ai isopen(ai, pside)
         pup = live_position(s, ai, pside; since, waitfor=@timeout_now)
         @debug "pong pos close: still open (local) position" _module = LogPosClose since pside date = get(
             pup, :date, nothing
@@ -259,10 +271,12 @@ function _posclose_order(s, ai, pside, since, waitfor)
 end
 
 function _posclose_lastcheck(s, ai, pside, t, since, waitfor)
+    @debug "pong pos close: last check" _module = LogPosClose ai pside
     @timeout_start
     # trade still pending 
-    if @inlock ai isopen(ai, pside)
-        waitforsync(s, ai; since, waitfor=@timeout_now)
+    if @lock ai isopen(ai, pside)
+        waitsync(ai; since, waitfor=@timeout_now)
+        waitsync(s; since, waitfor=@timeout_now())
         return if isopen(ai, pside)
             @error "pong pos close: still open orders (not a market order?)" ai pside t
             false

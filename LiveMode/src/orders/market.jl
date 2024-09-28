@@ -10,7 +10,7 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
     local o, order_trades
     # NOTE: necessary locks to prevent race conditions between balance/positions updates
     # and order creation
-    order_trades = @inlock ai begin
+    order_trades = begin
         o = create_live_order(
             s, ai; t, amount, price=lastprice(ai, Val(:history)), exc_kwargs=kwargs, skipchecks
         )
@@ -18,7 +18,7 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
             return nothing
         end
         @deassert o isa AnyMarketOrder{orderside(t)} o
-        @debug "market order: created" _module = LogCreateOrder id = o.id hasorders(s, ai, o.id)
+        @debug "market order: created" _module = LogCreateOrder id = o.id o.amount t hasorders(s, ai, o.id) cash(ai)
         trades(o)
     end
     @timeout_start

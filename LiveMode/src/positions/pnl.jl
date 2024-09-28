@@ -15,6 +15,7 @@ function live_pnl(
     update::Option{PositionTuple}=nothing,
     synced=true,
     verbose=true,
+    waitfor=Second(5),
     kwargs...,
 )
     pside = posside(p)
@@ -42,6 +43,8 @@ function live_pnl(
                 sync = true
             end
             if synced || sync
+                @timeout_start
+                waitsync(ai; since=update.date, waitfor)
                 live_sync_position!(s, ai, pside, update; commits=false)
             end
             Instances.pnl(pos, _ccxtposprice(ai, lp))

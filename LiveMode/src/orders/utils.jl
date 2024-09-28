@@ -7,7 +7,7 @@ using LRUCache
 @doc "Represents the state of a live order comprising order details, a lock, trade hashes, an update hash, and average price."
 const LiveOrderState = NamedTuple{
     (:order, :lock, :trade_hashes, :update_hash, :average_price),
-    Tuple{Order,ReentrantLock,Vector{UInt64},Ref{UInt64},Ref{DFT}},
+    Tuple{Order,SafeLock,Vector{UInt64},Ref{UInt64},Ref{DFT}},
 }
 
 @doc "A dictionary mapping asset strings to their corresponding live order states."
@@ -62,6 +62,13 @@ isprocessed_order(s::LiveStrategy, ai, id::String) = id ∈ keys(recent_orders(s
 @doc "Tests if an order has been recently processed."
 isprocessed_order(s::LiveStrategy, ai, o::Order) = isprocessed_order(o.id)
 
+pending_orders(ai::AssetInstance) = @lget! ai :pending_orders 0
+inc_pending_orders!(ai::AssetInstance) = ai[:pending_orders] = pending_orders(ai) + 1
+dec_pending_orders!(ai::AssetInstance) = ai[:pending_orders] = pending_orders(ai) - 1
+pending_trades(ai::AssetInstance) = @lget! ai :pending_trades 0
+inc_pending_trades!(ai::AssetInstance) = ai[:pending_trades] = pending_trades(ai) + 1
+dec_pending_trades!(ai::AssetInstance) = ai[:pending_trades] = pending_trades(ai) - 1
+
 @doc """ Registers an active order in a live strategy.
 
 $(TYPEDSIGNATURES)
@@ -75,7 +82,7 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
     @debug "orders: set active" _module = LogWatchOrder o.id islocked(s) f = @caller
     state = @lget! active_orders(ai) o.id (;
         order=o,
-        lock=ReentrantLock(),
+        lock=SafeLock(),
         trade_hashes=UInt64[],
         update_hash=Ref{UInt64}(0),
         average_price=Ref(iszero(ap) ? avgprice(o) : ap),
@@ -140,7 +147,7 @@ If the orders are not closed by the time the timeout is reached, it attempts to 
 If orders remain open after the sync attempt, it signals an error.
 
 """
-function _unlocked_waitordclose(
+function waitordclose(
     s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
 )::Bool
     try
@@ -190,12 +197,6 @@ function _unlocked_waitordclose(
         @debug_backtrace LogWaitOrder
         false
     end
-end
-
-function waitordclose(
-    s::LiveStrategy, ai, waitfor=Second(5); t::Type{<:OrderSide}=BuyOrSell, synced=true
-)::Bool
-    @unlock ai _unlocked_waitordclose(s, ai, waitfor; t, synced)
 end
 
 @doc """ Checks if there are active orders for a specific side.

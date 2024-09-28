@@ -120,7 +120,7 @@ function _w_positions_func(s, w, interval; iswatch, kwargs)
         end
         function init_watch_func(w)
             let v = @lock w fetch_positions(s; timeout, params, rest...)
-                process_pos!(w, v, true)
+                process_pos!(w, v, false)
             end
             init[] = false
             errors = Ref(0)
@@ -194,9 +194,13 @@ This function starts the watcher for positions in a live strategy `s`. The watch
 """
 function watch_positions!(s::LiveStrategy; interval=st.throttle(s), wait=false)
     w = @lock s @lget! attrs(s) :live_positions_watcher ccxt_positions_watcher(s; interval)
-    just_started = @lock w if isstopped(w) && !attr(s, :stopped, false)
-        start!(w)
-        true
+    just_started = if isstopped(w) && !attr(s, :stopped, false)
+        @lock w if isstopped(w)
+            start!(w)
+            true
+        else
+            false
+        end
     else
         false
     end
@@ -227,20 +231,18 @@ end
 
 _positions_task!(w) = begin
     f = _tfunc(w)
-    w[:positions_task] = @async begin
-        while isstarted(w)
-            try
-                f(w)
-                safenotify(w.beacon.fetch)
-            catch e
-                if e isa InterruptException
-                    break
-                else
-                    @debug_backtrace LogWatchPos2
-                end
+    w[:positions_task] = (@async while isstarted(w)
+        try
+            f(w)
+            safenotify(w.beacon.fetch)
+        catch e
+            if e isa InterruptException
+                break
+            else
+                @debug_backtrace LogWatchPos2
             end
         end
-    end
+    end) |> errormonitor
 end
 
 _positions_task(w) = @lget! attrs(w) :positions_task _positions_task!(w)
@@ -255,6 +257,7 @@ function Watchers._start!(w::Watcher, ::CcxtPositionsVal)
     s = attrs[:strategy]
     w[:symsdict] = symsdict(s)
     w[:processed_syms] = Set{Tuple{String,PositionSide}}()
+    w[:process_tasks] = Task[]
     _exc!(attrs, exchange(s))
     _tfunc!(
         attrs,
@@ -267,6 +270,10 @@ function Watchers._stop!(w::Watcher, ::CcxtPositionsVal)
     handler = attr(w, :positions_handler, nothing)
     if !isnothing(handler)
         stop_handler!(handler)
+    end
+    pt = attr(w, :positions_task, nothing)
+    if istaskrunning(pt)
+        kill_task(pt)
     end
     nothing
 end
@@ -353,7 +360,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     eid = typeof(exchangeid(_exc(w)))
     data_date, data = last(w.buffer)
     if !islist(data)
-        @debug "watchers process: wrong data type" _module = LogWatchPosProcess data_date typeof(
+        @debug "watchers pos process: wrong data type" _module = LogWatchPosProcess data_date typeof(
             data
         )
         _lastprocessed!(w, data_date)
@@ -361,7 +368,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         return nothing
     end
     if data_date == _lastprocessed(w) && length(data) == _lastcount(w)
-        @debug "watchers process: already processed" _module = LogWatchPosProcess data_date
+        @debug "watchers pos process: already processed" _module = LogWatchPosProcess data_date
         return nothing
     end
     s = w[:strategy]
@@ -369,27 +376,30 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     short_dict = w.view.short
     last_dict = w.view.last
     processed_syms = empty!(w.processed_syms)
-    iswatch = w[:iswatch]
+    iswatchevent = w[:iswatch] && !fetched
     # In case of fetching we must still call `_setposflags!`
-    if iswatch && isempty(data)
-        @debug "watchers process: nothing to process" _module = LogWatchPosProcess typeof(
+    if iswatchevent && isempty(data)
+        @debug "watchers pos process: nothing to process" _module = LogWatchPosProcess typeof(
             data
         ) data
         _lastprocessed!(w, data_date)
         _lastcount!(w, data)
         return nothing
     end
-    @debug "watchers process: position" _module = LogWatchPosProcess
-    @sync for resp in data
+    @debug "watchers pos process: position" _module = LogWatchPosProcess
+    jobs = Ref(0)
+    jobs_count = 0
+    max_date = data_date + Millisecond(1)
+    for resp in data
         if !isdict(resp) || resp_event_type(resp, eid) != ot.PositionEvent
-            @debug "watchers process: not a position update" resp _module =
+            @debug "watchers pos process: not a position update" resp _module =
                 LogWatchPosProcess
             continue
         end
         sym = resp_position_symbol(resp, eid, String)
         ai = asset_bysym(s, sym, w.symsdict)
         if isnothing(ai)
-            @debug "watchers process: no matching asset for symbol" _module =
+            @debug "watchers pos process: no matching asset for symbol" _module =
                 LogWatchPosProcess sym
             continue
         end
@@ -398,80 +408,108 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         push!(processed_syms, (sym, side))
         side_dict = ifelse(islong(side), long_dict, short_dict)
         pup_prev = get(side_dict, sym, nothing)
-        prev_date, cond = if isnothing(pup_prev)
+        prev_date, pos_cond = if isnothing(pup_prev)
             DateTime(0), Threads.Condition()
         else
             pup_prev.date, pup_prev.notify
         end
         prev_side = get(last_dict, sym, side)
-        this_date = @something pytodate(resp, eid) data_date
+        this_date = let resp_date = pytodate(resp, eid)
+            resp_date == prev_date ? data_date : resp_date
+        end
+        if data_date <= prev_date
+            continue
+        else
+            @debug "watchers pos process: scheduling" _module = LogWatchPosProcess data_date prev_date
+        end
         if resp === get(@something(pup_prev, (;)), :resp, nothing)
-            @warn "watchers: received stale position update" sym side prev_side this_date prev_date resp_position_contracts(
+            @warn "watchers pos process: received stale position update" sym side prev_side this_date prev_date resp_position_contracts(
                 resp, eid
             ) resp_position_contracts(pup_prev.resp, eid)
             continue
         end
-        @debug "watchers: position async" _module = LogWatchPosProcess islocked(ai) islocked(
-            cond
-        ) isowned(ai.lock) code = islocked(ai) ? ai.lock.locked_by : nothing
+        @debug "watchers pos process: position async" _module = LogWatchPosProcess islocked(
+            ai
+        ) islocked(pos_cond)
+        jobs_count += 1
+        max_date = max(max_date, this_date)
         # this ensure even if there are no updates we know
         # the date of the last fetch run
-        @async @lock _external_lock(ai) begin
-            @debug "watchers: LOCKED EXTERNAL LOCK" _module = LogWatchPosProcess
-            @lock cond begin
-                pup = if isnothing(pup_prev)
-                    _posupdate(this_date, resp)
-                else
-                    _posupdate(pup_prev, this_date, resp)
-                end
-                @debug "watchers: position processing" _module = LogWatchPosProcess sym side
-                if !isnothing(pup)
-                    @debug "watchers: UNREAD" _module = LogWatchPosProcess contracts = resp_position_contracts(
-                        pup.resp, eid
-                    ) pup.date
-                    pup.read[] = false
-                    pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
-                    prev_side = get(last_dict, sym, side)
-                    mm = @something resp_position_margin_mode(resp, eid, Val(:parsed)) marginmode(
-                        w[:strategy]
-                    )
-                    # NOTE: In isolated margin, we assume that if the last update is of the opposite side
-                    # the other side has been closed
-                    if mm isa IsolatedMargin && prev_side != side && !isnothing(pup_prev)
-                        @deassert LogWatchPosProcess resp_position_side(
-                            pup_prev.resp, eid
-                        ) |> _ccxtposside == prev_side
-                        pup_prev.closed[] = true
-                        if iswatch && !fetched
-                            live_sync_cash!(s, ai, prev_side; pup=pup_prev)
+        pup = if isnothing(pup_prev)
+            _posupdate(this_date, resp)
+        else
+            _posupdate(pup_prev, this_date, resp)
+        end
+        func =
+            () -> try
+                @inlock ai begin
+                    @debug "watchers pos process: internal lock" _module = LogWatchPosProcess sym side
+                    @lock pos_cond begin
+                        @debug "watchers pos process: processing" _module = LogWatchPosProcess sym side
+                        if !isnothing(pup)
+                            @debug "watchers pos process: unread" _module = LogWatchPosProcess contracts = resp_position_contracts(
+                                pup.resp, eid
+                            ) pup.date
+                            pup.read[] = false
+                            pup.closed[] = iszero(resp_position_contracts(pup.resp, eid))
+                            prev_side = get(last_dict, sym, side)
+                            mm = @something resp_position_margin_mode(
+                                resp, eid, Val(:parsed)
+                            ) marginmode(w[:strategy])
+                            # NOTE: In isolated margin, we assume that if the last update is of the opposite side
+                            # the other side has been closed
+                            if mm isa IsolatedMargin &&
+                                prev_side != side &&
+                                !isnothing(pup_prev)
+                                @deassert LogWatchPosProcess resp_position_side(
+                                    pup_prev.resp, eid
+                                ) |> _ccxtposside == prev_side
+                                pup_prev.closed[] = true
+                                if iswatchevent
+                                    _live_sync_cash!(s, ai, prev_side; pup=pup_prev)
+                                end
+                            end
+                            last_dict[sym] = side
+                            side_dict[sym] = pup
+                            if iswatchevent
+                                @debug "watchers pos process: syncing" _module = LogWatchPosProcess contracts = resp_position_contracts(
+                                pup.resp, eid
+                            ) length(ai.events) timestamp(ai, side)
+                                _live_sync_cash!(s, ai, side; pup)
+                                @debug "watchers pos process: synced" _module = LogWatchPosProcess contracts = resp_position_contracts(
+                                    pup.resp, eid
+                                ) side cash(ai, side) timestamp(ai, side) pup.date iswatchevent fetched length(ai.events)
+                            end
+                            safenotify(pos_cond)
+                        else
+                            @debug "watchers pos process: pup is nothing" _module = LogWatchPosProcess pup_prev.date
                         end
                     end
-                    last_dict[sym] = side
-                    side_dict[sym] = pup
-                    if iswatch && !fetched
-                        live_sync_cash!(s, ai, side; pup)
-                    end
-                    @debug "watchers: SYNCED" _module = LogWatchPosProcess contracts = resp_position_contracts(
-                        pup.resp, eid
-                    ) cash(ai, side) timestamp(ai, side) pup.date
-                    safenotify(cond)
-                else
-                    @debug "watchers: pup is nothing" _module = LogWatchPosProcess pup_prev.date
                 end
+            finally
+                jobs[] = jobs[] + 1
             end
-        end
+        sendrequest!(ai, pup.date, func)
     end
     _lastprocessed!(w, data_date)
     _lastcount!(w, data)
-    if !iswatch || fetched
-        n_closed = _setposflags!(w, s, data_date, long_dict, Long(), processed_syms)
-        n_closed += _setposflags!(w, s, data_date, short_dict, Short(), processed_syms)
-        if !isempty(processed_syms) || n_closed > 0
-            @debug "watchers process: sync universe" fetched
-            live_sync_universe_cash!(s)
-        end
+    if !iswatchevent
+        t = @async begin
+            waitforcond(() -> jobs_count == jobs[], Minute(1))
+            if jobs_count == jobs[]
+                _setposflags!(w, s, max_date, long_dict, Long(), processed_syms)
+                _setposflags!(w, s, max_date, short_dict, Short(), processed_syms)
+                live_sync_universe_cash!(s)
+            else
+                @error "watchers pos process: positions update jobs timed out"
+            end
+        end |> errormonitor
+        tasks = w[:process_tasks]
+        push!(tasks, t)
+        filter!(!istaskdone, tasks)
+        sendrequest!(ai, pup.date, () -> wait(t))
     end
-    @debug "watchers process: done" _module = LogWatchPosProcess
+    @debug "watchers pos process: done" _module = LogWatchPosProcess data_date
 end
 
 @doc """ Updates position flags for a symbol in a dictionary.
@@ -481,20 +519,20 @@ $(TYPEDSIGNATURES)
 This function updates the position flags for a symbol in a dictionary when not using the `watch*` function. This is necessary in case the returned list of positions from the exchange does not include closed positions (that were previously open). When using `watch*` functions, it is expected that position close updates are received as new events.
 
 """
-function _setposflags!(w, s, data_date, dict, side, processed_syms)
-    n_closed = Ref(0)
+function _setposflags!(w, s, max_date, dict, side, processed_syms)
     @sync for (sym, pup) in dict
         ai = asset_bysym(s, sym, w.symsdict)
-        @debug "watchers position: pos flags locking" _module = LogWatchPosProcess isownable(ai.lock) isownable(pup.notify.lock)
-        @async @lock _external_lock(ai) @lock pup.notify if !pup.closed[] &&
-            (sym, side) ∉ processed_syms
-            @debug "watchers position: pos flags setting" _module = LogWatchPosProcess
-            dict[sym] = _posupdate(pup, data_date, pup.resp)
-            pup.closed[] = true
-            n_closed[] += 1
+        @debug "watchers pos process: pos flags locking" _module = LogWatchPosProcess isownable(
+            ai.lock
+        ) isownable(pup.notify.lock)
+        @async @lock pup.notify if !pup.closed[] && (sym, side) ∉ processed_syms
+            @debug "watchers pos process: pos flags setting" _module = LogWatchPosProcess
+            this_pup = dict[sym] = _posupdate(pup, max_date, pup.resp)
+            this_pup.closed[] = true
+            func = () -> _live_sync_cash!(s, ai, side; pup=this_pup)
+            sendrequest!(ai, date=max_date, func)
         end
     end
-    return n_closed[]
 end
 
 function _setunread!(w)
@@ -502,6 +540,8 @@ function _setunread!(w)
     map(v -> (v.read[] = false), values(data.long))
     map(v -> (v.read[] = false), values(data.short))
 end
+
+function handle_positions!(s, ai, orders_byid, resp, sem) end
 
 positions_watcher(s) = s[:live_positions_watcher]
 

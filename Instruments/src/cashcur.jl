@@ -147,8 +147,6 @@ function Base.isapprox(a::C, b::C; kwargs...) where {C<:AbstractCash}
     isapprox(value(a), value(b); atol=ATOL, kwargs...)
 end
 
-const mylock = Base.ReentrantLock()
-
 add!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] += v; c)
 sub!(c::Cash, v, args...; kwargs...) = (_fvalue(c)[] -= v; c)
 function atleast!(c::AbstractCash, v=zero(c), args...; atol=ATOL, dothrow=false, kwargs...)
