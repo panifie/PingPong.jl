@@ -98,7 +98,7 @@ It then sends the order to the exchange, retries if exceptions occur, and handle
 function live_send_order(
     s::LiveStrategy,
     ai::AssetInstance,
-    t::ByPos=GTCOrder{Buy},
+    t::Type{<:Order}=GTCOrder{Buy},
     args...;
     skipchecks=false,
     amount,

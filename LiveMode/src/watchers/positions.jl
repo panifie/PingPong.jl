@@ -413,14 +413,14 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         else
             pup_prev.date, pup_prev.notify
         end
-        prev_side = get(last_dict, sym, side)
-        this_date = let resp_date = pytodate(resp, eid)
-            resp_date == prev_date ? data_date : resp_date
-        end
         if data_date <= prev_date
             continue
         else
             @debug "watchers pos process: scheduling" _module = LogWatchPosProcess data_date prev_date
+        end
+        prev_side = get(last_dict, sym, side)
+        this_date = let resp_date = @something pytodate(resp, eid) DateTime(0)
+            resp_date == prev_date ? data_date : resp_date
         end
         if resp === get(@something(pup_prev, (;)), :resp, nothing)
             @warn "watchers pos process: received stale position update" sym side prev_side this_date prev_date resp_position_contracts(

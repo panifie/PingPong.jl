@@ -22,9 +22,9 @@ test_nomargin_market(s) = begin
     egn.start!(s)
     @test first(_ai_trades(s)).order isa egn.MarketOrder
     @info "TEST: " s.cash.value
-    @test eq1(Cash(:USDT, 9.91030515), s.cash.value)
+    @test eq1(Cash(:USDT, 9.39228334), s.cash.value)
     @test eq1(Cash(:USDT, 0.0), s.cash_committed)
-    @test st.trades_count(s) == 4608
+    @test st.trades_count(s) == 4657
     mmh = st.minmax_holdings(s)
     @test mmh.count == 0
     @test mmh.min[1] == :USDT

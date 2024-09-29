@@ -21,7 +21,8 @@ end
 function _sync_oppos!(s, ai, pside, update, forced_side; waitfor)
     eid = exchangeid(ai)
     @debug "sync pos: handling double position" _module = LogPosSync ai pside
-    wasopen = isopen(position(ai, pside))
+    pos = position(ai, pside)
+    wasopen = isopen(pos)
     oppos = opposite(pside)
     oppos_pos = position(ai, oppos)
 

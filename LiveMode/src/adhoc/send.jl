@@ -1,7 +1,7 @@
 
 function live_send_order(
     s::LiveStrategy{N,ExchangeID{:phemex}},
-    ai,
+    ai::AssetInstance,
     t::Type{<:Order},
     args...;
     amount,
