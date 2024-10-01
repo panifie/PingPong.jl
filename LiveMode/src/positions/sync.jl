@@ -23,53 +23,53 @@ function _sync_oppos!(s, ai, pside, update, forced_side; waitfor)
     @debug "sync pos: handling double position" _module = LogPosSync ai pside
     pos = position(ai, pside)
     wasopen = isopen(pos)
-    oppos = opposite(pside)
-    oppos_pos = position(ai, oppos)
+    oppside = opposite(pside)
+    oppos = position(ai, opside)
 
-    oppos_pup = live_position(s, ai, oppos; since=forced_side ? update.date : nothing)
+    oppos_pup = live_position(s, ai, opside; since=forced_side ? update.date : nothing)
     if !isnothing(oppos_pup)
         live_pos = oppos_pup.resp
         oppos_amount = resp_position_contracts(live_pos, eid)
         if !oppos_pup.closed[] && !oppos_pup.read[] && oppos_amount > 0.0
             if wasopen
-                @warn "sync pos: double position open in oneway mode." oppos cash(ai, oppos) ai nameof(
+                @warn "sync pos: double position open in oneway mode." opside cash(ai, opside) ai nameof(
                     s
                 ) f = @caller
             end
             if forced_side
-                pong!(s, ai, oppos, now(), PositionClose(); amount=oppos_amount, waitfor)
-                oppos_pos = position(ai, oppos)
-                if isopen(oppos_pos)
-                    @warn "sync pos: refusing sync since opposite side is still open" ai pside amount oppos oppos_amount
+                pong!(s, ai, opside, now(), PositionClose(); amount=oppos_amount, waitfor)
+                oppos = position(ai, opside)
+                if isopen(oppos)
+                    @warn "sync pos: refusing sync since opposite side is still open" ai pside amount opside oppos_amount
                     return pos
                 end
             elseif oppos_pup.date > update.date
-                @debug "sync pos: resetting this side since oppos is newer" _module =
-                    LogPosSync ai pside oppos amount oppos_amount
+                @debug "sync pos: resetting this side since opside is newer" _module =
+                    LogPosSync ai pside opside amount oppos_amount
                 update.closed[] = true
                 update.read[] = true
-                reset!(pos)
+                reset!(ai, pside)
                 timestamp!(pos, update.date)
                 event!(ai, PositionUpdated(:position_stale_closed, s, pos))
-                let func = () -> live_sync_position!(s, ai, oppos, oppos_pup)
+                let func = () -> live_sync_position!(s, ai, opside, oppos_pup)
                     sendrequest!(ai, oppos_pup.date, func)
                 end
                 return pos
             end
         end
-        if isopen(oppos_pos)
-            @debug "sync pos: resetting oppos pos" _module = LogPosSync ai oppos
-            reset!(oppos_pos)
+        if isopen(oppos)
+            @debug "sync pos: resetting opside pos" _module = LogPosSync ai opside
+            reset!(ai, oppside)
         end
         oppos_pup.closed[] = true
         oppos_pup.read[] = true
-        timestamp!(oppos_pos, oppos_pup.date)
+        timestamp!(oppos, oppos_pup.date)
     else
-        @debug "sync pos: resetting opposite position" _module = LogPosSync ai oppos
-        reset!(oppos_pos)
-        timestamp!(oppos_pos, update.date)
+        @debug "sync pos: resetting opposite position" _module = LogPosSync ai opside
+        reset!(ai, oppside)
+        timestamp!(oppos, update.date)
     end
-    event!(ai, PositionUpdated(:position_oppos_closed, s, oppos_pos))
+    event!(ai, PositionUpdated(:position_oppos_closed, s, oppos))
 end
 
 @doc """ Synchronizes the live position.
@@ -152,7 +152,7 @@ function _live_sync_position!(
             ) cash(ai, pside).precision resp_position_contracts(resp, eid)
         end
         update.read[] = true
-        reset!(pos) # if not full reset at least cash/committed
+        reset!(ai, pside) # if not full reset at least cash/committed
         timestamp!(pos, update.date)
         event!(ai, PositionUpdated(:position_updated_closed, s, pos))
         @debug "sync pos: closed flag set, reset" _module = LogPosSync ai pside
@@ -199,7 +199,7 @@ function _live_sync_position!(
     pos_price = _ccxtposprice(ai, resp)
     if isdust(ai, pos_price, pside)
         update.read[] = true
-        reset!(pos)
+        reset!(ai, pside)
         @debug "sync pos: amount is dust, reset" _module = LogPosSync ai pside isopen(ai, p) cash(
             ai, pside
         ) resp
