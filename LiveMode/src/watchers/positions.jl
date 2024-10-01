@@ -501,7 +501,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
                 _setposflags!(w, s, max_date, short_dict, Short(), processed_syms)
                 live_sync_universe_cash!(s)
             else
-                @error "watchers pos process: positions update jobs timed out"
+                @error "watchers pos process: positions update jobs timed out" jobs_count jobs[]
             end
         end |> errormonitor
         tasks = w[:process_tasks]
