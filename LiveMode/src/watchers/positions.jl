@@ -494,7 +494,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     _lastprocessed!(w, data_date)
     _lastcount!(w, data)
     if !iswatchevent
-        t = @async begin
+        t = (@async begin
             waitforcond(() -> jobs_count == jobs[], Minute(1))
             if jobs_count == jobs[]
                 _setposflags!(w, s, max_date, long_dict, Long(), processed_syms)
@@ -503,11 +503,11 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
             else
                 @error "watchers pos process: positions update jobs timed out" jobs_count jobs[]
             end
-        end |> errormonitor
+        end) |> errormonitor
         tasks = w[:process_tasks]
         push!(tasks, t)
         filter!(!istaskdone, tasks)
-        sendrequest!(ai, pup.date, () -> wait(t))
+        sendrequest!(s, pup.date, () -> wait(t))
     end
     @debug "watchers pos process: done" _module = LogWatchPosProcess data_date
 end
