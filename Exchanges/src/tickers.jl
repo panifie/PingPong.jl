@@ -72,6 +72,7 @@ $(TYPEDSIGNATURES)
 - `as_vec` (optional, default is false): return the pair list as a Vector instead of as a Dict.
 - `verbose` (optional, default is true): print detailed output about the operation.
 - `type` (optional, default is the result of `markettype(exc)`): the type of markets to fetch tickers for.
+- `cross_match` list of other exchanges where the filter pairs must also be present in
 
 """
 function tickers(
@@ -84,6 +85,7 @@ function tickers(
     as_vec=false,
     verbose=true,
     type=markettype(exc),
+    cross_match::Tuple{Vararg{Symbol}}=()
 ) # ::Union{Dict,Vector}
     # swap exchange in case of futures
     @tickers! type
@@ -97,8 +99,10 @@ function tickers(
     pushifquote(p, k, v, q) = isquote(quoteid(v), q) && pushas(p, k, v, nothing)
     addto = ifelse(isempty(quot), pushas, pushifquote)
     leverage_check = leverage_func(exc, with_leverage, verbose)
+    notinmarket(sym) = any(sym ∉ keys(getexchange!(e).markets) for e in cross_match)
     # TODO: all this checks should be decomposed into functions transducer style
     function skip_check(sym, spot, islev, mkt)
+        notinmarket(sym) ||
         (with_leverage == :no && islev) ||
             (with_leverage == :only && !islev) ||
             !leverage_check(spot) ||
