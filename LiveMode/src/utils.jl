@@ -567,7 +567,7 @@ function st.default!(s::LiveStrategy; skip_sync=nothing)
         if limit > 0
             live_sync_closed_orders!(s; limit)
         end
-        # live_sync_start!(s; first_start=!haskey(a, :is_running))
+        live_sync_start!(s; first_start=!haskey(a, :is_running))
     end
     a[:defaults_set] = true
 end
