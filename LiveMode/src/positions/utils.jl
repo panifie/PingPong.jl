@@ -559,7 +559,7 @@ end
 function waitposclose(
     s::LiveStrategy,
     ai,
-    bp::ByPos=posside(ai);
+    bp::ByPos=get_position_side(s, ai);
     waitfor=Second(5),
     since=nothing,
     synced=true,

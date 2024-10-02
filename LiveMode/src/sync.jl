@@ -33,7 +33,7 @@ end
 function live_sync_cash!(
     s::MarginStrategy{Live},
     ai,
-    pside=posside(ai);
+    pside=get_position_side(s, ai);
     waitfor=Second(5),
     pup=nothing,
     since=nothing,

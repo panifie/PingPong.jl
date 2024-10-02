@@ -421,19 +421,19 @@ function _live_sync_cash!(
     force=false,
     synced=true,
     overwrite=true,
-    side=posside(bp),
+    pside=posside(bp),
     pup=nothing,
     kwargs...,
 )
     @timeout_start
-    pup = @something pup live_position(s, ai, side; since, force, synced, waitfor) missing
+    pup = @something pup live_position(s, ai, pside; since, force, synced, waitfor) missing
     if pup isa PositionTuple
-        @assert isnothing(since) || (timestamp(ai, side) < since && pup.date >= since)
-        live_sync_position!(s, ai, side, pup; overwrite, kwargs...)
+        @assert isnothing(since) || (timestamp(ai, pside) < since && pup.date >= since)
+        live_sync_position!(s, ai, pside, pup; overwrite, kwargs...)
     else
         @debug "sync cash: resetting position cash (not found)" _module = LogUniSync ai = raw(
             ai
-        ) side
+        ) pside
         @inlock ai reset!(ai, bp)
     end
     position(ai, bp)
@@ -458,10 +458,10 @@ function _live_sync_universe_cash!(
     end
     long, short, _ = get_positions(s)
     default_date = now()
-    function dosync(ai, side, dict)
+    function dosync(ai, pside, dict)
         pup = get(dict, raw(ai), nothing)
-        @debug "sync universe cash:" _module = LogUniSync ai side isnothing(pup) overwrite force
-        live_sync_cash!(s, ai, side; pup, overwrite, waitfor, force, kwargs...)
+        @debug "sync universe cash:" _module = LogUniSync ai pside isnothing(pup) overwrite force
+        live_sync_cash!(s, ai, pside; pup, overwrite, waitfor, force, kwargs...)
     end
     @sync for ai in s.universe
         @async begin
