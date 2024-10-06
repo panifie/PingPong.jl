@@ -1,7 +1,7 @@
-# Analysis
+# StrategyStats
 Library for common strategy signals generation.
 
 ```@autodocs
-Modules = [Analysis, Analysis.Query]
+Modules = [StrategyStats, StrategyMt.Query]
 ```
 

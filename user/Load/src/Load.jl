@@ -5,7 +5,7 @@ using PrecompileTools
     using PingPong
     using Stubs
     using Scrapers
-    using Stats
+    using Metrics
 end
 
 end # module Load

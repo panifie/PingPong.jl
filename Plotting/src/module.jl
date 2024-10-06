@@ -1,7 +1,7 @@
 using Makie
 using Makie: parent_scene, shift_project, update_tooltip_alignment!, Figure
-using Stats
-using Stats: ect
+using Metrics
+using Metrics: ect
 using .ect.Misc
 using .Misc.TimeTicks
 using .Misc.Lang

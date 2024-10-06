@@ -212,8 +212,8 @@ function ping!(s::S, params, ::OptRun)
 end
 
 function ping!(s::S, ::OptScore)
-    [values(stats.multi(s, :drawdown; normalize=true))...]
-    # [values(stats.multi(s, :sortino, :sharpe; normalize=true))...]
+    [values(mt.multi(s, :drawdown; normalize=true))...]
+    # [values(mt.multi(s, :sortino, :sharpe; normalize=true))...]
 end
 weightsfunc(weights) = weights[1] * 0.8 + weights[2] * 0.2
 

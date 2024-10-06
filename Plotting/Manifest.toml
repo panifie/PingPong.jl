@@ -990,6 +990,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.2+1"
 
+[[deps.Metrics]]
+deps = ["Executors", "Pkg", "Simulations", "Stubs"]
+path = "../Metrics"
+uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+version = "0.1.0"
+
 [[deps.MicroMamba]]
 deps = ["Pkg", "Scratch", "micromamba_jll"]
 git-tree-sha1 = "011cab361eae7bcd7d278f0a7a00ff9c69000c51"
@@ -1258,7 +1264,7 @@ uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.2.0"
 
 [[deps.Python]]
-deps = ["Dates", "DocStringExtensions", "Lang", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
+deps = ["Dates", "DocStringExtensions", "Lang", "OpenSSL_jll", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]
 path = "../Python"
 uuid = "e8cdc95d-7257-4c38-ab0e-cc8a28c19776"
 version = "0.1.0"
@@ -1481,12 +1487,6 @@ version = "1.4.3"
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.10.0"
-
-[[deps.Stats]]
-deps = ["Executors", "Pkg", "Simulations", "Stubs"]
-path = "../Stats"
-uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
-version = "0.1.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]

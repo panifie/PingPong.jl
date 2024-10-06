@@ -55,15 +55,15 @@ get(ENV, "PINGPONG_DOCS_LOADED", "false") == "true" || begin
     use(:Instruments, "Instruments")
     use(:Exchanges, "Exchanges")
     use(:Plotting, "Plotting")
-    use(:Analysis, "Analysis"; activate=true)
     use(:Engine, "Engine")
     use(:Watchers, "Watchers")
     use(:Pbar, "Pbar")
-    use(:Stats, "Stats")
+    use(:Metrics, "Metrics")
     use(:Optimization, "Optimization")
     use(:Ccxt, "Ccxt")
     use(:Python, "Python")
     use(:StrategyTools, "StrategyTools")
+    use(:StrategyStats, "StrategyStats")
     using PingPong.Data.DataStructures
     @eval using Base: Timer
     ENV["LOADED"] = "true"
@@ -106,7 +106,7 @@ makedocs(;
                 "watchers/apis/coinmarketcap.md",
             ],
         ],
-        "Stats" => "stats.md",
+        "Metrics" => "metrics.md",
         "Optimization" => "optimization.md",
         "Plotting" => "plotting.md",
         "Misc" => [
@@ -140,9 +140,9 @@ makedocs(;
             "API/prices.md",
             "API/processing.md",
             "API/python.md",
-            "API/stats.md",
+            "API/metrics.md",
             "API/strategies.md",
-            "Analysis" => ["API/analysis/analysis.md"],
+            "StrategyStats" => ["API/strategystats/strategymt.md"],
         ],
     ],
     format=Documenter.HTML(;

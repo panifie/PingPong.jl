@@ -71,7 +71,7 @@ collect(dr::DateRange) = begin
     out
 end
 
-@doc "Stats the current date of the DateRange (defaults to `start` value.)"
+@doc "Starts the current date of the DateRange (defaults to `start` value.)"
 current!(dr::DateRange, d=dr.start) = dr.current_date[1] = d
 function Base.isequal(dr1::DateRange, dr2::DateRange)
     dr1.start === dr2.start && dr1.stop === dr2.stop

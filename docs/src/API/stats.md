@@ -1,6 +1,6 @@
-# Stats
+# Metrics
 
 ```@autodocs
-Modules = [Stats]
+Modules = [Metrics]
 ```
 

@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "249594e9780659c095ed8cd1eab9c8b32795dbbd"
+project_hash = "bcb18b50d9198e812ff36827e56de8e6c0e0929f"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -484,6 +484,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.2+1"
 
+[[deps.Metrics]]
+deps = ["Executors", "Pkg", "Simulations", "Stubs"]
+path = "../Metrics"
+uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+version = "0.1.0"
+
 [[deps.MicroMamba]]
 deps = ["Pkg", "Scratch", "micromamba_jll"]
 git-tree-sha1 = "011cab361eae7bcd7d278f0a7a00ff9c69000c51"
@@ -757,12 +763,6 @@ version = "1.10.0"
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.10.0"
-
-[[deps.Stats]]
-deps = ["Executors", "Pkg", "Simulations", "Stubs"]
-path = "../Stats"
-uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
-version = "0.1.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]

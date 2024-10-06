@@ -25,7 +25,7 @@ The bot has tools to download, clean and store data, that make use of popular ju
 
 It can:
 - track live data like tickers, trades, ohlcv, see [Watchers](watchers/watchers.md).
-- compute statistics about backtest runs, see [Stats](stats.md)
+- compute statistics about backtest runs, see [Metrics](metrics.md)
 - generate interactive and fully browsable plots for ohlcv data, indicators and backtesting runs, see [Plotting](plotting.md)
 - Optimize strategy parameters [Optimization](optimization.md)
 
@@ -121,11 +121,11 @@ The most relevant underlying PingPong modules.
 - [Plotting](./plotting.md): Output plots for ohlcv data, indicators, backtests, based on [Makie](https://github.com/MakieOrg/Makie.jl).
 - [Remote](./remote.md) Control the bot remotely.
 - [Data](./data.md): Loading and saving ohlcv data (and more), based Zarr.
-- [Stats](./stats.md): Statistics about backtests, and live operations.
+- [Metrics](./metrics.md): Statistics about backtests, and live operations.
 - [Processing](./API/processing.md): Data cleanup, normalization, resampling functions.
 - [Watchers](./watchers/watchers.md): Services for data pipelines, from sources to storage.
 - [Misc](./API/misc.md): Ancillary stuff, like configuration, and some UI bits.
-- [Analysis](./API/analysis/analysis.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
+- [StrategyStats](./API/strategystats/strategymt.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
 
 ## Infos
 

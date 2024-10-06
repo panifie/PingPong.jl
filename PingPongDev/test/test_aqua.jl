@@ -1,7 +1,7 @@
 using Test
 
 include("../../resolve.jl")
-function run_aqua_test(test_func; skip=[:Analysis, :Cli, :zarr, :test, :PingPongDev, :Plotting, :PingPongInteractive, :Temporal], skip2=[])
+function run_aqua_test(test_func; skip=[:StrategyStats, :Cli, :zarr, :test, :PingPongDev, :Plotting, :PingPongInteractive, :Temporal], skip2=[])
     prev = Base.active_project()
     append!(skip, skip2)
     try

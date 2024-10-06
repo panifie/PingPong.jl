@@ -3,7 +3,7 @@ using Pbar: pbar!, @withpbar!, @pbupdate!
 using SimMode.Instruments: compactnum as cnum, Instruments
 using SimMode.Lang.Logging: SimpleLogger, with_logger, current_logger
 using SimMode.Lang: splitkws
-using Stats.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
+using Metrics.Data: Cache as ca, nrow, groupby, combine, DataFrame, DATA_PATH
 using SimMode.Misc: attr
 using Random: shuffle!
 

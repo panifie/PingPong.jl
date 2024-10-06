@@ -82,7 +82,7 @@ jobs:
       if: always()
       uses: julia-actions/julia-processcoverage@v1
       with:
-        directories: Analysis/src,Ccxt/src,Collections/src,Data/src,Engine/src,ExchangeTypes/src,Exchanges/src,Executors/src,Fetch/src,Instances/src,Instruments/src,Lang/src,LiveMode/src,Misc/src,Optimization/src,OrderTypes/src,PaperMode/src,Pbar/src,PingPong/src,Plotting/src,Processing/src,Python/src,Remote/src,Scrapers/src,SimMode/src,Simulations/src,Stats/src,Strategies/src,Stubs/src,TimeTicks/src,Watchers/src
+        directories: StrategyStats/src,Ccxt/src,Collections/src,Data/src,Engine/src,ExchangeTypes/src,Exchanges/src,Executors/src,Fetch/src,Instances/src,Instruments/src,Lang/src,LiveMode/src,Misc/src,Optimization/src,OrderTypes/src,PaperMode/src,Pbar/src,PingPong/src,Plotting/src,Processing/src,Python/src,Remote/src,Scrapers/src,SimMode/src,Simulations/src,Stats/src,Strategies/src,Stubs/src,TimeTicks/src,Watchers/src
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       if: always()

@@ -1,6 +1,6 @@
 using .Lang: @preset, @precomp
 @preset let
-    using Stats.Stubs
+    using Metrics.Stubs
 
     st.Instances.Exchanges.Python.py_start_loop()
     s = Stubs.stub_strategy(; dostub=false)

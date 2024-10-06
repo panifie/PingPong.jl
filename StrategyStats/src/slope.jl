@@ -16,13 +16,13 @@ function slopefilter(
     pairs = tickers(exc, qc)
     pairs = load_ohlcv(zi, exc, pairs, timeframe)
     pred = x -> slopeangle(x; window)
-    filter(pred, pairs, minv, maxv)
+    filterminmax(pred, pairs, minv, maxv)
 end
 
 @doc "[`slopefilter`](@ref) over a dictionary."
 function slopefilter(pairs::AbstractDict; minv=10.0, maxv=90.0, window=20)
     pred = x -> slopeangle(x; window)
-    filter(pred, pairs, minv, maxv)
+    filterminmax(pred, pairs, minv, maxv)
 end
 
 slopeangle(data::AbstractDataFrame; kwargs...) = slopeangle(data.close; kwargs...)

@@ -1,8 +1,8 @@
 module CorrExt
-using Analysis
-using .Analysis.Misc: config
+using StrategyStats
+using .StrategyMt.Misc: config
 using StatsBase: corspearman, corkendall, corkendall!, mean
-using StatsModels: lag, lead
+using MetricsModels: lag, lead
 using EffectSizes: effectsize, CohenD, HedgeG, GlassΔ
 using CausalityTools: CausalityTools
 const ct = CausalityTools

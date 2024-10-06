@@ -9,7 +9,6 @@ using Logging: NullLogger, with_logger
 function _doinit()
 end
 
-# PIRACY
 @doc """Filters and sorts a list of pairs using a predicate function.
 
 $(TYPEDSIGNATURES)
@@ -17,7 +16,7 @@ $(TYPEDSIGNATURES)
 This function takes a list of pairs and a predicate function. It filters the list by applying the predicate function to each pair and keeping only those pairs for which the function returns a `Real` number. The function then sorts the filtered list based on the returned `Real` numbers.
 
 """
-function Base.filter(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
+function filterminmax(pred::Function, pairs::AbstractDict, min_v::Real, max_v::Real)
     flt = Tuple{AbstractFloat,PairData}[]
     for (_, p) in pairs
         v = pred(p.data)

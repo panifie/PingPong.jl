@@ -1,5 +1,5 @@
 using Random: seed!
-using Stats: trades_balance, expand
+using Metrics: trades_balance, expand
 using Base: remove_linenums!
 using Makie: point_in_triangle, point_in_quad_parameter
 

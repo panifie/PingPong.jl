@@ -1,4 +1,4 @@
-name = "Analysis"
+name = "StrategyStats"
 uuid = "d4fe19c2-883d-48d3-92d7-80b36677371b"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"

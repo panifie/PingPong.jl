@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "09a9495b48112f9a058da58582fe39a7484ab1eb"
+project_hash = "b02bae7fdde8fd4a55ee962362328b9950104051"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -1040,6 +1040,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.2+1"
 
+[[deps.Metrics]]
+deps = ["Executors", "Pkg", "Simulations", "Stubs"]
+path = "../Metrics"
+uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+version = "0.1.0"
+
 [[deps.MicroMamba]]
 deps = ["Pkg", "Scratch", "micromamba_jll"]
 git-tree-sha1 = "011cab361eae7bcd7d278f0a7a00ff9c69000c51"
@@ -1159,7 +1165,7 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
 
 [[deps.Optimization]]
-deps = ["BlackBoxOptim", "Pbar", "Pkg", "Printf", "REPL", "Random", "SimMode", "Stats"]
+deps = ["BlackBoxOptim", "Metrics", "Pbar", "Pkg", "Printf", "REPL", "Random", "SimMode"]
 path = "../Optimization"
 uuid = "01837fd2-c099-442f-ae89-75fa208aad36"
 version = "0.1.0"
@@ -1282,7 +1288,7 @@ uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.1"
 
 [[deps.Plotting]]
-deps = ["Makie", "Processing", "Random", "Stats"]
+deps = ["Makie", "Metrics", "Processing", "Random"]
 path = "../Plotting"
 uuid = "8ada5bfb-e60b-44be-8979-616e14670061"
 version = "0.1.0"
@@ -1593,12 +1599,6 @@ version = "1.4.3"
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 version = "1.10.0"
-
-[[deps.Stats]]
-deps = ["Executors", "Pkg", "Simulations", "Stubs"]
-path = "../Stats"
-uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
-version = "0.1.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]

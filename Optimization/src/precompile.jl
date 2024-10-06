@@ -1,5 +1,5 @@
 using SimMode.Misc.Lang: @precomp, @preset, @ignore
-using Stats: sharpe
+using Metrics: sharpe
 
 function _precomp_strat(mod=Optimization)
     @eval mod begin

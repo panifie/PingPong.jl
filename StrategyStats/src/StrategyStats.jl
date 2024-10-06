@@ -1,4 +1,4 @@
-module Analysis
+module StrategyStats
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin

@@ -55,8 +55,8 @@ CMD $JULIA_BIN -C $JULIA_CPU_TARGET
 FROM precomp-base as pingpong-precomp
 ENV JULIA_PROJECT=/pingpong/PingPong
 RUN $JULIA_CMD -e "import Pkg; Pkg.instantiate()"
-RUN $JULIA_CMD -e "using PingPong; using Stats"
-RUN $JULIA_CMD -e "using Stats"
+RUN $JULIA_CMD -e "using PingPong; using Metrics"
+RUN $JULIA_CMD -e "using Metrics"
 
 FROM pingpong-precomp as pingpong-precomp-interactive
 ENV JULIA_PROJECT=/pingpong/PingPongInteractive

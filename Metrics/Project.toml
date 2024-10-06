@@ -1,4 +1,4 @@
-name = "Stats"
+name = "Metrics"
 uuid = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 authors = ["untoreh <francesco.giannelli@yahoo.it>"]
 version = "0.1.0"

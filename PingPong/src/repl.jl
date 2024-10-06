@@ -4,7 +4,7 @@ macro in_repl()
     quote
         @eval begin
             Misc.clearpypath!()
-            an = Analysis
+            sst = StrategyStats
             using Plotting: plotone, @plotone
             using Misc: config, @margin!, @margin!!
         end
@@ -13,14 +13,14 @@ macro in_repl()
 end
 
 function analyze!()
-    @eval using Analysis, Plotting
+    @eval using StrategyStats, Plotting
 end
 
 function user!()
     @eval include(joinpath(@__DIR__, "user.jl"))
     @eval using Misc: config
     @eval export results, exc, config
-    @eval an = Analysis
+    @eval sst = StrategyStats
     nothing
 end
 
@@ -74,12 +74,12 @@ end
 
 @doc """ Activates and imports the `Plotting` module. """
 plots!() = _activate_and_import(:Plotting, :plo)
-@doc """ Imports the `Stats` module. """
-stats!() = module!(:Stats, :ss)
+@doc """ Imports the `Metrics` module. """
+metrics!() = module!(:Metrics, :ss)
 @doc """ Imports the `Engine` module. """
 engine!() = module!(:Engine, :egn)
-@doc """ Imports the `Analysis` module. """
-analysis!() = module!(:Analysis, :an)
+@doc """ Imports the `StrategyStats` module. """
+analysis!() = module!(:StrategyStats, :sst)
 @doc """ Imports the `Stubs` module. """
 stubs!() = module!(:Stubs, :stubs)
 @doc """ Activates and Imports the `Optimization` module. """
@@ -87,4 +87,4 @@ optim!() = _activate_and_import(:Optimization, :opt)
 @doc """ Activates and Imports the `PingPongInteractive` module. """
 interactive!() = _activate_and_import(:PingPongInteractive, :ppi)
 
-export plots!, optim!, stats!, engine!, analysis!, interactive!
+export plots!, optim!, metrics!, engine!, analysis!, interactive!

@@ -34,7 +34,7 @@ macro excfilter(exc_name)
             $bt.Exchanges.tickers($exc_name, config.qc)
         ))
         # apply the filter
-        flt = $bt.filter(pred, data, config.slope_min, config.slope_max)
+        flt = $bt.filterminmax(pred, data, config.slope_min, config.slope_max)
         # Calculate the price ranges for filtered pairs
         trg = DataFrame([
             (p[2].name, p[1], price_ranges(p[2].data.close[end])) for p in flt
@@ -62,7 +62,7 @@ function cbot(
     @assert :n ∉ fb_kwargs "Don't pass the n arg to `find_bottomed`."
     bottomed = []
     for r in n
-        append!(bottomed, keys(an.find_bottomed(mrkts; n=r, fb_kwargs...)))
+        append!(bottomed, keys(sst.find_bottomed(mrkts; n=r, fb_kwargs...)))
         length(bottomed) < min_n || break
     end
     mask = [p ∈ bottomed for p in hs.pair]
@@ -84,7 +84,7 @@ function cpek(
 )
     peaked = []
     for r in n
-        append!(peaked, keys(an.find_peaked(mrkts; n=r, fb_kwargs...)))
+        append!(peaked, keys(sst.find_peaked(mrkts; n=r, fb_kwargs...)))
         length(peaked) < min_n || break
     end
     mask = [p ∈ peaked for p in hs.pair]
@@ -123,7 +123,7 @@ $(TYPEDSIGNATURES)
 function last_day_roc(r, mrkts)
     roc = []
     for pair in r.pair
-        oneday = an.resample(mrkts[pair], "1d"; save=false)
+        oneday = sst.resample(mrkts[pair], "1d"; save=false)
         push!(roc, mrkts[pair].data.close[end] - oneday.close[end])
     end
     df = hcat(r, roc)
@@ -137,9 +137,9 @@ $(TYPEDSIGNATURES)
 """
 macro bbranges(pair, timeframe="8h")
     mrkts = esc(:mrkts)
-    !isdefined(an, :bbands!) && an.explore!()
+    !isdefined(sst, :bbsstds!) && sst.explore!()
     quote
-        df = bb = an.bbands(an.resample($mrkts[$pair], $timeframe))
+        df = bb = sst.bbsstds(sst.resample($mrkts[$pair], $timeframe))
         ranges = bb[end, :]
         DataFrame([name => bb[end, n] for (n, name) in enumerate((:low, :mid, :high))])
     end

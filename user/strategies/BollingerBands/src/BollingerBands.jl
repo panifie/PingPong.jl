@@ -113,7 +113,7 @@ end
 # function ping!(s::S, params, ::OptRun) end
 
 # function ping!(s::S, ::OptScore)::Vector
-#     [stats.sharpe(s)]
+#     [mt.sharpe(s)]
 # end
 
 end

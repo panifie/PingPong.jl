@@ -1,4 +1,4 @@
-module Stats
+module Metrics
 
 if get(ENV, "JULIA_NOPRECOMP", "") == "all"
     __init__() = begin
@@ -10,4 +10,4 @@ else
     include("precompile.jl")
 end
 
-end # module Stats
+end # module Metrics

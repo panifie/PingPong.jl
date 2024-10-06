@@ -7,7 +7,7 @@ The `PingPongDev` package assists developers by providing helper functions for w
 To skip precompilation for selected modules, set the `JULIA_NOPRECOMP` environment variable:
 
 ```julia
-ENV["JULIA_NOPRECOMP"] = (:PingPong, :Scrapers, :Engine, :Watchers, :Plotting, :Stats)
+ENV["JULIA_NOPRECOMP"] = (:PingPong, :Scrapers, :Engine, :Watchers, :Plotting, :Metrics)
 ```
 
 Alternatively, you can manage environment variables with `direnv` (refer to the `.envrc` in the repository). To disable precompilation entirely for certain packages, use `JULIA_NOPRECOMP=all`. This is recommended only when altering low-level components of the module stack. Remember to clear the compilation cache when changing precompilation settings:
@@ -52,7 +52,7 @@ Modules known for heavy invalidations:
 To reduce invalidations, include external modules in only one local package and then use that package as a dependency in other local packages. For instance, if `DataFrames` is a dependency of the local package `Data`, and you want to use `DataFrames` in the `Stats` package, do not add `DataFrames` to `Stats` dependencies. Instead, use `Data` and import `DataFrames` from there:
 
 ```julia
-module Stats
+module Metrics
 
 using Data.DataFrames
 

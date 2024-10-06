@@ -9,7 +9,7 @@ using Misc: @lev!, @margin!
 export @margin!, @lev!
 
 if !isdefined(@__MODULE__, :an)
-    const an = Analysis
+    const sst = StrategyStats
 end
 
 macro setup(exc)
