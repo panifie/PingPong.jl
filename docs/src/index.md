@@ -125,7 +125,7 @@ The most relevant underlying PingPong modules.
 - [Processing](./API/processing.md): Data cleanup, normalization, resampling functions.
 - [Watchers](./watchers/watchers.md): Services for data pipelines, from sources to storage.
 - [Misc](./API/misc.md): Ancillary stuff, like configuration, and some UI bits.
-- [StrategyStats](./API/strategystats/strategymt.md): The bulk of indicators evaluation, depends of a bunch of (heavy) julia libraries like `CausalityTools` and `Indicators`. Most of the package is implemented through _optional_ deps such that you only import what you need.
+- [StrategyTools](./API/strategytools.md) and [StrategyStats](./API/strategystats.md): Offer some utilities to build strategies (rely on additional dependencies)
 
 ## Infos
 

@@ -142,7 +142,8 @@ makedocs(;
             "API/python.md",
             "API/metrics.md",
             "API/strategies.md",
-            "StrategyStats" => ["API/strategystats/strategymt.md"],
+            "API/strategytools.md",
+            "API/strategystats.md",
         ],
     ],
     format=Documenter.HTML(;

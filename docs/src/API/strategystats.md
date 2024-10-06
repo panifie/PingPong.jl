@@ -2,6 +2,6 @@
 Library for common strategy signals generation.
 
 ```@autodocs
-Modules = [StrategyStats, StrategyMt.Query]
+Modules = [StrategyStats]
 ```
 

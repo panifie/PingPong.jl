@@ -43,4 +43,6 @@ fltsummary(flt::AbstractVector{PairData}) = [p.name for p in flt]
 include("explore.jl")
 include("queries.jl")
 
+using .Query
+
 export fltsummary
