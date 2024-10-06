@@ -1,0 +1,6 @@
+# Metrics
+
+```@autodocs
+Modules = [Metrics]
+```
+
