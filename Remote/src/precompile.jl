@@ -2,7 +2,7 @@ using .Misc.Lang: @preset, @precomp, @ignore
 
 @preset let
     using Telegram.HTTP
-    # ENV["JULIA_DEBUG"] = "Remote"
+    # ENV["JULIA_DEBUG"] = "Remote,LiveMode,LogWatchBalance"
     function closeconn_layer(handler)
         return function (req; kw...)
             HTTP.setheader(req, "Connection" => "close")
@@ -42,16 +42,25 @@ using .Misc.Lang: @preset, @precomp, @ignore
         # get(cl, s; text, chat_id)
         tgstop!(s)
     end
-    t = @async stop!(s)
-    start = now()
-    while !istaskdone(t)
-        sleep(0.1)
-        now() - start > Second(3) && break
-    end
     @debug "PRECOMP: remote 3"
+    function dostop()
+        t = @async stop!(s)
+        start = now()
+        while !istaskdone(t)
+            sleep(0.1)
+            now() - start > Second(3) && break
+        end
+        if !istaskdone(t)
+            @warn "failed to stop strategy during precompilation"
+        end
+    end
+    dostop()
+    @debug "PRECOMP: remote 4"
     empty!(TASK_STATE) # NOTE: Required to avod spurious errors
     HTTP.Connections.closeall()
     LiveMode.ExchangeTypes._closeall()
     Base.GC.gc(true) # trigger finalizer
     LiveMode.ExchangeTypes.Python.py_stop_loop()
+    @debug "PRECOMP: remote 5" # lm.positions_watcher(s) lm.balance_watcher(s)
+    dostop()
 end

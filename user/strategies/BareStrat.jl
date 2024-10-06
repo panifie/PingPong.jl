@@ -8,7 +8,7 @@ using .st.TimeTicks
 using .st: AssetCollection
 import .st: ping!
 using .st.Misc: Sim, NoMargin, Paper, pong!
-using .st.Instances: ByPos, BySide, Isolated, Long, Short, cash
+using .st.Instances: ByPos, BySide, Isolated, Long, Short, cash, posside, position
 using .st: Buy, Sell
 using .st.OrderTypes: MarketOrder, ShortMarketOrder
 
@@ -39,7 +39,7 @@ function ping!(s::T, ts::DateTime, ctx) where {T<:SC}
             if posside(ai) == pside
                 tp = ordertp(ai, oside, pside)
                 pong!(s, ai, tp; amount=float(ai) / 3, date)
-            else
+            elseif ismargin(s)
                 this_pos = position(ai)
                 this_side = posside(this_pos)
                 while isopen(this_pos)

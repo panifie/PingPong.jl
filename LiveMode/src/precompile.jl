@@ -40,23 +40,27 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             # end
             @info "PRECOMP: stopped" exchange margin
         end
+        # ENV["JULIA_DEBUG"]="PaperMode,LogTasks,LogBalance,LogWait,LogWatchBalance"
         ot = OrderTypes
-        @debug "PRECOMP: live mode pong" exchange margin
+        @info "PRECOMP: live mode pong" exchange margin islocked(s)
         try
             start!(s)
         catch e
             @error "PRECOMP: strategy start failed" exception = e
         end
+        @info "PRECOMP: compile pong" exchange margin
         SimMode.@compile_pong
         try
+            @info "PRECOMP: start sleep" exchange margin
             start!(s)
             while !isrunning(s)
+                @info "PRECOMP: sleep" exchange margin
                 sleep(0.1)
             end
         catch e
             @error "PRECOMP: strategy start failed" exception = e
         end
-        @debug "PRECOMP: live mode reset" exchange margin
+        @info "PRECOMP: live mode reset" exchange margin
         @precomp @ignore begin
             stop!(s)
             for ai in s.universe

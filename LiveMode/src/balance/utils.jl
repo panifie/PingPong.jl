@@ -165,6 +165,7 @@ function _force_fetchbal(s; fallback_kwargs, waitfor=Second(15))
             waitsync(s; waitfor=@timeout_now)
             true
         else
+            @debug "force fetch bal: not updated" _module = LogBalance islocked(w)
             false
         end
     end
@@ -172,10 +173,12 @@ function _force_fetchbal(s; fallback_kwargs, waitfor=Second(15))
     waitsync(s; waitfor=@timeout_now)
     skip_if_updated() && return nothing
 
+    @debug "force fetch bal: locking watcher" _module = LogBalance
     resp, time = @lock w begin
         skip_if_updated() && return nothing
         time = now()
         params, rest = _ccxt_balance_args(s, fallback_kwargs)
+        @debug "force fetch bal: fetching" _module = LogBalance
         resp = fetch_balance(s; params, rest...)
         _handle_bal_resp(resp), time
     end
@@ -298,6 +301,7 @@ function st.current_total(
         @warn "strategy cash: not finite value"
         s_tot = zero(s_tot)
     end
+    @debug "total: loop" _module = LogTasks
     @sync for ai in s.universe
         @async let v = if local_bal
                 current_price = try
@@ -328,6 +332,7 @@ function st.current_total(
             end
         end
     end
+    @debug "total: loop done" _module = LogTasks
     tot[] + s_tot
 end
 

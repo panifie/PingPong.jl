@@ -581,29 +581,39 @@ Syncs open orders, starts tracking balance and positions (for margin strategies)
 
 """
 function live_sync_start!(s::LiveStrategy; first_start)
+    @debug "live strat: sync start bal" _module = LogTasks
     watch_balance!(s)
     if s isa MarginStrategy
+        @debug "live strat: sync start pos" _module = LogTasks
         watch_positions!(s)
     end
     # we don't want to start the ohlcv watchers since the strategy
     # decides whether to use them or not, but if present, we need
     # to start them
+    @debug "live strat: sync start ohlcv" _module = LogTasks
     w = ohlcv_watchers(s)
     if w isa Watcher
         if !isstarted(w)
             start!(w)
         end
     elseif !isnothing(w) && valtype(w) <: Watcher
+        @debug "live strat: sync start ohlcv start" _module = LogTasks
         for ai_w in values(w)
             if !isstarted(ai_w)
                 start!(ai_w)
             end
         end
     end
+    # NOTE: this avoids some race condition if bal/pos watchers are not started
+    waitwatchers(s)
+    @debug "live strat: sync start sync cash" _module = LogTasks
     live_sync_strategy_cash!(s)
+    @debug "live strat: sync start sync uni" _module = LogTasks
     live_sync_universe_cash!(s)
     s.config.initial_cash = current_total(s)
+    @debug "live strat: sync start sync open orders" _module = LogTasks
     live_sync_open_orders!(s; overwrite=first_start)
+    @debug "live strat: sync start done" _module = LogTasks
 end
 
 @doc """ Creates exchange-specific closure functions for a live strategy.
@@ -770,13 +780,16 @@ function _isupdated(w::Watcher, prev_v, last_time; this_v_func)
     end
     @debug "isupdated: " _module = LogWait isnothing(prev_v) isnothing(last_v)
     if !isempty(last_v.value) && last_v.time > last_time
+        @debug "isupdated: v_func" _module = LogWait
         this_v = this_v_func()
+        @debug "isupdated: after v_func" _module = LogWait this_v_func
         prev_nth = isnothing(prev_v)
         this_nth = isnothing(this_v)
         return ((!this_nth && prev_nth) || (this_nth && !prev_nth)) ||
                ((!this_nth && !prev_nth) && _asdate(this_v.date) > _asdate(prev_v.date)) ||
                (isnothing(prev_v) || _asdate(this_v.date) > _asdate(prev_v.date))
     else
+        @debug "isupdated: not updated" _module = LogWait
         return false
     end
 end

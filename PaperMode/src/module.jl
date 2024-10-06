@@ -39,6 +39,7 @@ Generates a formatted string representing the configuration of a given strategy.
 $(TYPEDSIGNATURES)
 
 The function takes a strategy and a throttle as input and returns a string detailing the strategy's configuration including its name, mode, throttle, timeframes, cash, assets, and margin mode.
+NOTE: ensure this doesn't use the strategy lock.
 """
 function header(s::Strategy, throttle)
     """Starting strategy $(nameof(s)) in $(nameof(typeof(execmode(s)))) mode!
@@ -128,6 +129,7 @@ function start!(
     s[:stopped] = false
     @debug "start: locking"
     @lock s begin
+        @debug "start: locked"
         attrs = s.attrs
         first_start = !haskey(attrs, :is_running)
         # HACK: `default!` locks the strategy during syncing, so we unlock here to avoid deadlocks.
@@ -136,9 +138,11 @@ function start!(
         unlock(s)
         try
             if doreset
+                @debug "start: reset"
                 reset!(s)
             elseif first_start
                 # only set defaults on first run
+                @debug "start: defaults"
                 default!(s)
             end
         finally
@@ -159,11 +163,14 @@ function start!(
             end
             return t
         else
+            @debug "start: is_running set"
             s[:is_running][] = true
         end
         @deassert attr(s, :is_running)[]
 
+        @debug "start: header"
         startinfo = header(s, throttle)
+        @debug "start: unlocked"
     end
     logger = s[:logger]
     if foreground
