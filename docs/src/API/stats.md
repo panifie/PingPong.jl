@@ -1,6 +1,0 @@
-# Metrics
-
-```@autodocs
-Modules = [Metrics]
-```
-
