@@ -530,7 +530,7 @@ function _setposflags!(w, s, max_date, dict, side, processed_syms)
             this_pup = dict[sym] = _posupdate(pup, max_date, pup.resp)
             this_pup.closed[] = true
             func = () -> _live_sync_cash!(s, ai, side; pup=this_pup)
-            sendrequest!(ai, date=max_date, func)
+            sendrequest!(ai, max_date, func)
         end
     end
 end

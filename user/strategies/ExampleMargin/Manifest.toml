@@ -633,7 +633,7 @@ uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
 
 [[deps.Optimization]]
-deps = ["BlackBoxOptim", "Pbar", "Pkg", "Printf", "REPL", "Random", "SimMode", "Stats"]
+deps = ["BlackBoxOptim", "Pbar", "Pkg", "Printf", "REPL", "Random", "SimMode", "Metrics"]
 path = "../../../Optimization"
 uuid = "01837fd2-c099-442f-ae89-75fa208aad36"
 version = "0.1.0"

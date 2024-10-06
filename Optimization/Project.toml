@@ -11,7 +11,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SimMode = "70084082-5615-4098-a9f0-eda0197c0e82"
-Stats = "3fcce980-bff0-41b4-8aec-9cac67d74284"
+Metrics = "3fcce980-bff0-41b4-8aec-9cac67d74284"
 
 [weakdeps]
 BayesianOptimization = "4c6ed407-134f-591c-93fa-e0f7c164a0ec"
