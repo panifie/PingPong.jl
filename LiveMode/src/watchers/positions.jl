@@ -388,7 +388,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     end
     @debug "watchers pos process: position" _module = LogWatchPosProcess
     jobs = Ref(0)
-    jobs_running = Ref(0)
     jobs_count = 0
     max_date = data_date + Millisecond(1)
     for resp in data
@@ -432,7 +431,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         @debug "watchers pos process: position async" _module = LogWatchPosProcess islocked(
             ai
         ) islocked(pos_cond)
-        jobs_count += 1
         max_date = max(max_date, this_date)
         # this ensure even if there are no updates we know
         # the date of the last fetch run
@@ -443,7 +441,6 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         end
         func =
             () -> try
-                jobs_running[] = jobs_running[] + 1
                 @inlock ai begin
                     @debug "watchers pos process: internal lock" _module = LogWatchPosProcess sym side
                     @lock pos_cond begin
@@ -490,21 +487,21 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
                 end
             finally
                 jobs[] = jobs[] + 1
-                jobs_running[] = jobs_running[] - 1
             end
         sendrequest!(ai, pup.date, func)
+        jobs_count += 1
     end
     _lastprocessed!(w, data_date)
     _lastcount!(w, data)
     if !iswatchevent
         t = (@async begin
-            waitforcond(() -> jobs_count == jobs[], Second(15) * jobs_count)
+            waitforcond((() -> jobs_count == jobs[]), Second(15) * jobs_count)
             if jobs_count == jobs[]
                 _setposflags!(w, s, max_date, long_dict, Long(), processed_syms)
                 _setposflags!(w, s, max_date, short_dict, Short(), processed_syms)
                 live_sync_universe_cash!(s)
             else
-                @error "watchers pos process: positions update jobs timed out" jobs_count jobs[] jobs_running[]
+                @error "watchers pos process: positions update jobs timed out" jobs_count jobs[]
             end
         end) |> errormonitor
         tasks = w[:process_tasks]

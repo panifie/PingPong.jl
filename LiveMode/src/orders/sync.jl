@@ -70,7 +70,7 @@ function replay_open_orders!(
                 if state isa LiveOrderState
                     state.order
                 end
-            end findorder(s, ai; id, side, resp) create_live_order(
+            end findorder(s, ai; id, side, resp) _create_live_order(
                 s,
                 resp,
                 ai;
