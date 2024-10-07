@@ -507,7 +507,7 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
         tasks = w[:process_tasks]
         push!(tasks, t)
         filter!(!istaskdone, tasks)
-        sendrequest!(s, pup.date, () -> wait(t))
+        sendrequest!(s, max_date, () -> wait(t))
     end
     @debug "watchers pos process: done" _module = LogWatchPosProcess data_date
 end
