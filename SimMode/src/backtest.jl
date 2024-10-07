@@ -85,15 +85,15 @@ If `count` is greater than 0, it sets the start and end timestamps based on the 
 Otherwise, it sets the start and end timestamps based on the last timestamp in the strategy's universe.
 
 """
-function start!(s::Strategy{Sim}, count::Integer; kwargs...)
+function start!(s::Strategy{Sim}, count::Integer; tf=s.timeframe, kwargs...)
     if count > 0
         from = ohlcv(first(s.universe)).timestamp[begin]
-        to = from + s.timeframe.period * count
+        to = from + tf.period * count
     else
         to = ohlcv(last(s.universe)).timestamp[end]
-        from = to + s.timeframe.period * count
+        from = to + tf.period * count
     end
-    ctx = Context(Sim(), s.timeframe, from, to)
+    ctx = Context(Sim(), tf, from, to)
     start!(s, ctx; kwargs...)
 end
 
