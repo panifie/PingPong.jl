@@ -605,7 +605,10 @@ function live_sync_start!(s::LiveStrategy; first_start)
         end
     end
     # NOTE: this avoids some race condition if bal/pos watchers are not started
-    waitwatcherprocess(s)
+    @sync begin
+        @async waitwatcherprocess(balance_watcher(s))
+        @async waitwatcherprocess(positions_watcher(s))
+    end
     @debug "live strat: sync start sync cash" _module = LogTasks
     live_sync_strategy_cash!(s)
     @debug "live strat: sync start sync uni" _module = LogTasks
