@@ -17,7 +17,7 @@ function isopenorder(s, ai, resp, eid; fetched=false)
         return false
     else
         status = resp_order_status(resp, eid)
-        if !pytruth(status) && !fetched
+        if (!pytruth(status) && !fetched)
             if isprocessed_order(s, ai, oid)
                 fetched_resp = fetch_orders(s, ai; ids=(oid,))
                 if isemptish(resp)
@@ -149,7 +149,7 @@ function _create_live_order(
             if isnothing(o)
                 @warn "create order: can't construct (back-tracking)" id = resp_order_id(
                     resp, eid
-                ) ai = raw(ai) cash(ai) s = nameof(s) t
+                ) resp_order_status(resp, eid) ai = raw(ai) cash(ai) s = nameof(s) t
             end
         end
         if isnothing(o)
