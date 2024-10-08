@@ -72,8 +72,8 @@ function replay_open_orders!(
                 end
             end findorder(s, ai; id, side, resp) _create_live_order(
                 s,
-                resp,
-                ai;
+                ai,
+                resp;
                 t=_ccxtposside(s, resp, eid; def=default_pos),
                 price=missing,
                 amount=missing,
