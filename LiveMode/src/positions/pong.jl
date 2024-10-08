@@ -75,14 +75,18 @@ macro isolated_position_check()
             return nothing
         end
         side_dict = get_positions(s, opposite(p))
-        tup = get(side_dict, raw(ai), nothing)
-        if !isnothing(tup) &&
-            tup.date >= timestamp(ai, opposite(p)) &&
-            !tup.closed[] &&
-            _ccxt_isposopen(tup.resp, exchangeid(ai))
-            @warn "pong: double direction order in non hedged mode (from resp)" position(ai) order_type = t
-            @debug "pong: isolated check" _module = LogPos resp = tup.resp
-            return nothing
+        pup = get(side_dict, raw(ai), nothing)
+        if !isnothing(pup)
+            if !pup.read[]
+                waitsync(ai)
+            end
+            if pup.date >= timestamp(ai, opposite(p)) &&
+                !pup.closed[] &&
+                _ccxt_isposopen(pup.resp, exchangeid(ai))
+                @warn "pong: double direction order in non hedged mode (from resp)" position(ai) order_type = t
+                @debug "pong: isolated check" _module = LogPos resp = pup.resp
+                return nothing
+            end
         end
     end
     esc(ex)
