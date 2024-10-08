@@ -24,48 +24,48 @@ function _sync_oppos!(s, ai, pside, update, forced_side; waitfor)
     pos = position(ai, pside)
     wasopen = isopen(pos)
     oppside = opposite(pside)
-    oppos = position(ai, opside)
+    oppos = position(ai, oppside)
 
-    oppos_pup = live_position(s, ai, opside; since=forced_side ? update.date : nothing)
+    oppos_pup = live_position(s, ai, oppside; since=forced_side ? update.date : nothing)
     if !isnothing(oppos_pup)
         live_pos = oppos_pup.resp
         oppos_amount = resp_position_contracts(live_pos, eid)
         if !oppos_pup.closed[] && !oppos_pup.read[] && oppos_amount > 0.0
             if wasopen
-                @warn "sync pos: double position open in oneway mode." opside cash(ai, opside) ai nameof(
+                @warn "sync pos: double position open in oneway mode." oppside cash(ai, oppside) ai nameof(
                     s
                 ) f = @caller
             end
             if forced_side
-                pong!(s, ai, opside, now(), PositionClose(); amount=oppos_amount, waitfor)
-                oppos = position(ai, opside)
+                pong!(s, ai, oppside, now(), PositionClose(); amount=oppos_amount, waitfor)
+                oppos = position(ai, oppside)
                 if isopen(oppos)
-                    @warn "sync pos: refusing sync since opposite side is still open" ai pside amount opside oppos_amount
+                    @warn "sync pos: refusing sync since opposite side is still open" ai pside amount oppside oppos_amount
                     return pos
                 end
             elseif oppos_pup.date > update.date
-                @debug "sync pos: resetting this side since opside is newer" _module =
-                    LogPosSync ai pside opside amount oppos_amount
+                @debug "sync pos: resetting this side since oppside is newer" _module =
+                    LogPosSync ai pside oppside amount oppos_amount
                 update.closed[] = true
                 update.read[] = true
                 reset!(ai, pside)
                 timestamp!(pos, update.date)
                 event!(ai, PositionUpdated(:position_stale_closed, s, pos))
-                let func = () -> live_sync_position!(s, ai, opside, oppos_pup)
+                let func = () -> live_sync_position!(s, ai, oppside, oppos_pup)
                     sendrequest!(ai, oppos_pup.date, func)
                 end
                 return pos
             end
         end
         if isopen(oppos)
-            @debug "sync pos: resetting opside pos" _module = LogPosSync ai opside
+            @debug "sync pos: resetting oppside pos" _module = LogPosSync ai oppside
             reset!(ai, oppside)
         end
         oppos_pup.closed[] = true
         oppos_pup.read[] = true
         timestamp!(oppos, oppos_pup.date)
     else
-        @debug "sync pos: resetting opposite position" _module = LogPosSync ai opside
+        @debug "sync pos: resetting opposite position" _module = LogPosSync ai oppside
         reset!(ai, oppside)
         timestamp!(oppos, update.date)
     end
