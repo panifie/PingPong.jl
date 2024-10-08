@@ -21,6 +21,8 @@ julia --project=./PingPong
   
 - **Persistent Precompilation Skipping:** If a package consistently skips precompilation, check if `JULIA_NOPRECOMP` environment variable includes dependencies of the package.
 
+- **`_debug_` not found** happens when trying to precompile a strategy with debug enabled (`JULIA_DEBUG="all"`) while the module (`PingPong` or a submodule like `SimMode`) has been not precompiled with debug enabled.
+
 ## Python Module Discovery
 
 - **Missing Python Dependencies:** If Python reports missing modules, execute the following in the Julia REPL with the current repository activated:
