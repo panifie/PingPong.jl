@@ -84,7 +84,11 @@ function handle_events(obj, events=get_events(obj), cond=condition(obj))
         req = first(events)
         diff = req.date - now()
         if diff <= Second(0)
-            req.func()
+            try
+                req.func()
+            catch
+                @debug_backtrace LogEvents
+            end
             popfirst!(events)
             lasteventrun!(obj, req.date)
         else
