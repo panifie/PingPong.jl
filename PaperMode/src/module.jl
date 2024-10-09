@@ -229,16 +229,17 @@ This function stops the execution of a strategy and logs the mode and elapsed ti
 """
 function stop!(s::Strategy{<:Union{Paper,Live}})
     s[:stopped] = true
-    @debug "stop: locking"
+    @debug "stop: locking" islocked(s)
     @lock s begin
+        @debug "stop: locked"
         running = attr(s, :is_running, missing)
         task = attr(s, :run_task, missing)
         if running isa Ref{Bool}
             running[] = false
         end
-        if task isa Task
+        if istaskrunning(task)
             waitforcond(task.donenotify, throttle(s))
-            if !istaskdone(task)
+            if istaskrunning(task)
                 @warn "strategy: hanging task, killing"
                 Threads.@spawn kill_task(task)
             end

@@ -249,6 +249,7 @@ This function stops all tasks associated with strategy `s`. If the `reset` flag 
 
 """
 function stop_all_tasks(s::RTStrategy; reset=true)
+    @debug "strategy: stopping all tasks" _module = LogTasks s = nameof(s)
     # these are non blocking
     stop_watch_ohlcv!(s)
     stop_watch_positions!(s)

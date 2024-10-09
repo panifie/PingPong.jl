@@ -269,3 +269,11 @@ function waitwatcherprocess(w::Watcher; since=nothing, waitfor=Minute(1))
     end
     waitforcond(waitfunc, waitfor)
 end
+
+macro syncedlock(ai, code)
+    waitfor = esc(:waitfor)
+    quote
+        waitsync($ai, waitfor=$waitfor)
+        @lock $ai $code
+    end
+end

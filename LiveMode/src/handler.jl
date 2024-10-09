@@ -14,8 +14,12 @@ function sync_condition(s::LiveStrategy)
     @lget! s :sync_cond Threads.Condition()
 end
 
-function lasteventrun!(obj::Union{Strategy,AssetInstance}, date=DateTime(0))
-    @lget! obj :last_event_date date
+function lasteventrun!(obj::Union{Strategy,AssetInstance}, date::DateTime)
+    obj[:last_event_date] = date
+end
+
+function lasteventrun!(obj::Union{Strategy,AssetInstance})
+    @lget! obj :last_event_date DateTime(0)
 end
 
 const SyncRequest1 = NamedTuple{(:date, :func),Tuple{DateTime,<:Function}}
@@ -52,14 +56,18 @@ function notify_sync(s::LiveStrategy)
 end
 
 function sendrequest!(obj, date::DateTime, f::Function; events=get_events(obj))
-    get_handler!(obj)
-    func() = begin
-        f()
-        notify_sync(obj)
+    h = get_handler!(obj)
+    if istaskrunning(h)
+        func() = begin
+            f()
+            notify_sync(obj)
+        end
+        push!(events, (; date, func))
+        notify_request(obj)
+        nothing
+    else
+        @warn "events: request unscheduled, event handler not running" nameof(obj) date
     end
-    push!(events, (; date, func))
-    notify_request(obj)
-    nothing
 end
 
 function sendrequest!(
@@ -99,7 +107,7 @@ function handle_events(obj, events=get_events(obj), cond=condition(obj))
     end
 end
 
-get_handler!(obj) = @lget! attrs(obj) :event_handler _start_handler!(obj)
+get_handler!(obj) = @lget! attrs(obj) :event_handler @lock obj _start_handler!(obj)
 get_handler(obj) = attr(obj, :event_handler, nothing)
 
 # TODO: handlers should stop after a while (similar to watch_orders and watch_trades)
@@ -109,13 +117,14 @@ function _start_handler!(obj)
         events = get_events(obj)
         cond = condition(obj)
         obj[:event_handler] = @start_task IdDict() begin
+            handle_events(obj, events, cond)
             while @istaskrunning()
+                safewait(cond)
                 try
                     handle_events(obj, events, cond)
                 catch
                     @debug_backtrace LogEvents
                 end
-                safewait(cond)
             end
         end
     end
@@ -135,6 +144,7 @@ end
 function _stop_handler!(obj)
     t = get_handler(obj)
     if !isnothing(t)
+        waitsync(obj)
         stop_task(t)
         delete_handler!(obj)
         notify_request(obj)
