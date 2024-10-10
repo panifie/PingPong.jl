@@ -40,7 +40,7 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             # end
             @info "PRECOMP: stopped" exchange margin
         end
-        # ENV["JULIA_DEBUG"]="PaperMode,LogTasks,LogBalance,LogWait,LogWatchBalance,LogWait"
+        ENV["JULIA_DEBUG"]="PaperMode,LogTasks,LogBalance,LogWait,LogWatchBalance"
         ot = OrderTypes
         @info "PRECOMP: live mode pong" exchange margin islocked(s)
         try
@@ -69,7 +69,9 @@ using .Misc.Lang: Lang, @preset, @precomp, @m_str, @ignore
             end
             reset!(s)
         end
+        @debug "PRECOMP: last stop" exchange margin
         stop!(s)
+        @debug "PRECOMP: run done" exchange margin
     end
     try
         @sync begin

@@ -56,35 +56,43 @@ function notify_sync(s::LiveStrategy)
 end
 
 function sendrequest!(obj, date::DateTime, f::Function; events=get_events(obj))
-    h = get_handler!(obj)
-    if istaskrunning(h)
-        func() = begin
-            f()
-            notify_sync(obj)
+    if !get(obj, :stopping_handler, false)
+        h = get_handler!(obj)
+        if istaskrunning(h)
+            func() = begin
+                f()
+                notify_sync(obj)
+            end
+            push!(events, (; date, func))
+            notify_request(obj)
+            nothing
+        else
+            @warn "events: request unscheduled, event handler not running" typeof(obj) date
         end
-        push!(events, (; date, func))
-        notify_request(obj)
-        nothing
-    else
-        @warn "events: request unscheduled, event handler not running" typeof(obj) date
     end
 end
 
 function sendrequest!(
     obj, date::DateTime, f::Function, waitfor::Period; events=get_events(obj)
 )
-    get_handler!(obj)
-    done = Ref(false)
-    ans = Ref{Any}(nothing)
-    func() = begin
-        ans[] = f()
-        notify_sync(obj)
-        done[] = true
+    if !get(obj, :stopping_handler, false)
+        h = get_handler!(obj)
+        if istaskrunning(h)
+            done = Ref(false)
+            ans = Ref{Any}(nothing)
+            func() = begin
+                ans[] = f()
+                notify_sync(obj)
+                done[] = true
+            end
+            push!(events, (; date, func))
+            notify_request(obj)
+            waitforcond(() -> done[], waitfor)
+            ans[]
+        else
+            @warn "events: request unscheduled, event handler not running" typeof(obj) date
+        end
     end
-    push!(events, (; date, func))
-    notify_request(obj)
-    waitforcond(() -> done[], waitfor)
-    ans[]
 end
 
 function handle_events(obj, events=get_events(obj), cond=condition(obj))
@@ -144,11 +152,16 @@ end
 function _stop_handler!(obj)
     t = get_handler(obj)
     if !isnothing(t)
-        waitsync(obj)
-        stop_task(t)
-        delete_handler!(obj)
-        notify_request(obj)
-        notify_sync(obj)
+        try
+            obj[:stopping_handler] = true
+            waitsync(obj)
+            stop_task(t)
+            delete_handler!(obj)
+            notify_request(obj)
+            notify_sync(obj)
+        finally
+            obj[:stopping_handler] = false
+        end
     end
     t
 end
@@ -163,6 +176,7 @@ function stop_handlers!(s::LiveStrategy)
     for ai in universe(s)
         t = get_handler(ai)
         if istaskrunning(t)
+            notify_request(obj) # this solves some race conditions with `sendrequest!`
             wait(t)
         end
     end
