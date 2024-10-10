@@ -487,6 +487,47 @@ function test_asset_instance_functions2()
     @test !isempty(String(take!(io)))
 end
 
+function test_attr_functions()
+    @asset_constructor()
+
+    # Test attrs function
+    @test attrs(ai) isa Dict{Symbol,Any}
+    @test isempty(attrs(ai))
+
+    # Test attr function
+    setattr!(ai, 42, :test_key)
+    @test attr(ai, :test_key) == 42
+    @test attr(ai, :non_existent_key, "default") == "default"
+
+    # Test hasattr function
+    @test hasattr(ai, :test_key)
+    @test !hasattr(ai, :non_existent_key)
+    @test hasattr(ai, :test_key, :non_existent_key) == true
+    @test hasattr(ai, :non_existent_key1, :non_existent_key2) == false
+
+    # Test attr! function
+    @test attr!(ai, :new_key, "new_value") == "new_value"
+    @test attr(ai, :new_key) == "new_value"
+
+    # Test setattr! function
+    setattr!(ai, "updated_value", :test_key)
+    @test attr(ai, :test_key) == "updated_value"
+
+    # Test modifyattr! function
+    @test_throws MethodError modifyattr!(ai, 10, +, :test_key)
+
+    # Test multiple keys
+    # setattr!(ai, 100, :key1, :key2, :key3)
+    # @test attr(ai, :key1) == 100
+    # @test attr(ai, :key2) == 100
+    # @test attr(ai, :key3) == 100
+
+    # Test attrs function with multiple keys
+    # @test attrs(ai, :key1, :key2, :non_existent) == (100, 100, nothing)
+
+    println("All attr functions tests passed!")
+end
+
 function test_instances()
     @eval begin
         using PingPongDev
@@ -540,6 +581,7 @@ function test_instances()
             test_bankruptcy_function()
             test_asset_instance_functions1()
             test_asset_instance_functions2()
+            test_attr_functions()
         finally
             ENV["JULIA_TEST_FAILFAST"] = prev
         end
