@@ -163,6 +163,7 @@ function _create_live_order(
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
+        @debug "create order: activating order" _module = LogCreateOrder resp_order_status(resp, eid)
         state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
         # Perform a trade if the order has been filled instantly
         function not_filled()
