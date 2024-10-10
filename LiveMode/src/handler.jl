@@ -66,7 +66,7 @@ function sendrequest!(obj, date::DateTime, f::Function; events=get_events(obj))
         notify_request(obj)
         nothing
     else
-        @warn "events: request unscheduled, event handler not running" nameof(obj) date
+        @warn "events: request unscheduled, event handler not running" typeof(obj) date
     end
 end
 
