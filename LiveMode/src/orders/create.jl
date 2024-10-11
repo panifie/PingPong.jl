@@ -5,8 +5,8 @@ using .Executors.Instruments: AbstractAsset
 using .OrderTypes: ordertype, MarketOrderType, GTCOrderType, ForcedOrderType
 using .Lang: filterkws
 
-function isopenorder(s, ai, resp, eid; fetched=false)
-    isopen = _ccxtisopen(resp, eid)
+function isactive(s::Strategy, ai::AssetInstance, resp::Py, eid::EIDType; fetched=false)
+    isopen, status = _ccxtisopen(resp, eid)
     hasfill = resp_order_filled(resp, eid) > 0.0
     oid = resp_order_id(resp, eid, String)
     hasid = !isempty(oid)
@@ -14,34 +14,34 @@ function isopenorder(s, ai, resp, eid; fetched=false)
     @debug "create order: isopen" _module = LogCreateOrder isopen hasfill oid hasid
     if !isopen && !hasfill && !hasid
         @warn "create order: refusing" ai oid isopen hasfill hasid
-        return false
+        return false, resp
     else
         status = resp_order_status(resp, eid)
-        if (!pytruth(status) && !fetched)
+        if (!_ccxtisstatus(resp) && !fetched)
             if isprocessed_order(s, ai, oid)
                 fetched_resp = fetch_orders(s, ai; ids=(oid,))
-                if isemptish(resp)
-                    @debug "create order: order not found on exchange (canceled?)" _module = LogCreateOrder ai oid hasfill hasid fetched_resp
-                    return false
-                else
-                    resp = first(fetched_resp)
-                    return if resp_order_id(resp, eid) != oid
-                        @error "create order: wrong id" oid resp
-                        false
+                if hasels(fetched_resp)
+                    this_resp = first(fetched_resp)
+                    return if resp_order_id(this_resp, eid) != oid
+                        @error "create order: wrong id" oid this_resp
+                        false, this_resp
                     else
-                        isopenorder(s, ai, resp, eid; fetched=true)
+                        isactive(s, ai, this_resp, eid; fetched=true)
                     end
+                else
+                    @debug "create order: order not found on exchange (canceled?)" _module = LogCreateOrder ai oid hasfill hasid fetched_resp
+                    return false, resp
                 end
             else
                 @warn "create order: unknown status" ai oid hasfill hasid resp
-                return hasid
+                return hasid, resp
             end
-        elseif _ccxtisstatus(status, "canceled", "rejected") || fetched
+        elseif _ccxtisstatus(status, "canceled", "rejected", "expired") || fetched
             @warn "create order: $status" ai oid hasfill hasid
-            return false
+            return false, resp
         end
     end
-    return true
+    return true, resp
 end
 
 @doc """ Creates a live order.
@@ -77,7 +77,8 @@ function _create_live_order(
         side = @something _orderside(resp, eid) orderside(t)
         @debug "create order: parsing" _module = LogCreateOrder status filled =
             resp_order_filled(resp, eid) > 0.0 id = resp_order_id(resp, eid) side
-        if !isopenorder(s, ai, resp, eid)
+        isopen_flag, resp = isactive(s, ai, resp, eid)
+        if !isopen_flag
             return nothing
         end
         this_order_type(ot) = begin
@@ -163,7 +164,7 @@ function _create_live_order(
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
-        @debug "create order: activating order" _module = LogCreateOrder resp_order_status(resp, eid)
+        @debug "create order: activating order" _module = LogCreateOrder id resp_order_status(resp, eid)
         state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
         # Perform a trade if the order has been filled instantly
         function not_filled()

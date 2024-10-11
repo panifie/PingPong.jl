@@ -21,6 +21,8 @@ isemptish(v) =
     catch
         true
     end
+hasels(v::Py) = !pyisnone(v) && !isempty(v)
+hasels(v) = !isnothing(v) && !isempty(v)
 
 @doc """ Retrieves the trades for an order from a Python response.
 
