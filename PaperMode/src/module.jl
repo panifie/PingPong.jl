@@ -194,14 +194,42 @@ function strategy_logger!(s)
         dirname(file), splitext(basename(file))[1]
     end
     esc_logname = replace(logname, r"(.)" => s"\\\1")
-    rotate_logger = DatetimeRotatingFileLogger(
-        logdir,
-        string(esc_logname, "-", raw"YYYY-mm-dd.\l\o\g");
-        rotation_callback=_compressor,
-    )
-    ts_logger = timestamp_logger(rotate_logger)
-    min_level_logger = MinLevelLogger(ts_logger, s[:log_level])
-    s[:logger] = TeeLogger(global_logger(), min_level_logger)
+
+    all_levels = [Logging.Debug, Logging.Info, Logging.Warn, Logging.Error]
+
+    # Create a logger for each level
+    level_loggers = Dict{LogLevel, AbstractLogger}()
+    for level in all_levels
+        if level >= s[:log_level]
+            level_str = lowercase(string(level))
+            esc_level_str = replace(level_str, r"(.)" => s"\\\1")
+            rotate_logger = DatetimeRotatingFileLogger(
+                logdir,
+                string(esc_logname, "-", esc_level_str, "-", raw"YYYY-mm-dd.\l\o\g");
+                rotation_callback=_compressor,
+            )
+            ts_logger = timestamp_logger(rotate_logger)
+            level_loggers[level] = ts_logger
+        end
+    end
+
+    # Create a filtered logger for each level
+    filtered_loggers = []
+    for (level, logger) in level_loggers
+        filtered_logger = EarlyFilteredLogger(logger) do log_args
+            log_args.level == level
+        end
+        push!(filtered_loggers, filtered_logger)
+    end
+
+    # Combine all loggers
+    file_logger = TeeLogger(filtered_loggers...)
+
+    # Create a MinLevelLogger for the global logger (stdout)
+    min_level_global_logger = MinLevelLogger(global_logger(), s[:log_level])
+
+    # Combine file logger with the min-level global logger
+    s[:logger] = TeeLogger(min_level_global_logger, file_logger)
 end
 
 @doc """
