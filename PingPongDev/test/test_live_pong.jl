@@ -96,6 +96,15 @@ function test_live_pong_mg(s)
     @test lm.hasattr(s, :trades_cache_ttl)
     @info "TEST: strategy sync"
     _live_sync_strategy!(s)
+    lm.start_handlers!(s)
+    sleep(0)
+    let t = s.event_handler
+        @test istaskstarted(t) && !istaskdone(t)
+    end
+    for ai in s.universe
+        t = ai.event_handler
+        @test istaskstarted(t) && !istaskdone(t)
+    end
     @info "TEST: wait watchers"
     _waitwatchers(s)
     since = now()

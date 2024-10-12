@@ -6,7 +6,7 @@ using .OrderTypes: ordertype, MarketOrderType, GTCOrderType, ForcedOrderType
 using .Lang: filterkws
 
 function isactive(s::Strategy, ai::AssetInstance, resp::Py, eid::EIDType; fetched=false)
-    isopen, status = _ccxtisopen(resp, eid)
+    isopen, status = _ccxtisopen(resp, eid, Val(:status))
     hasfill = resp_order_filled(resp, eid) > 0.0
     oid = resp_order_id(resp, eid, String)
     hasid = !isempty(oid)
