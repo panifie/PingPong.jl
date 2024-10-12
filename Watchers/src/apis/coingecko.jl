@@ -1,7 +1,7 @@
 module CoinGecko
 using HTTP
 using URIs
-using Watchers
+using ..Watchers
 using LazyJSON
 using ..Lang: @kget!, Option
 using ..Misc

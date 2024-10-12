@@ -1,5 +1,5 @@
 module CoinMarketCap
-using Watchers
+using ..Watchers
 using HTTP
 using URIs
 using LazyJSON

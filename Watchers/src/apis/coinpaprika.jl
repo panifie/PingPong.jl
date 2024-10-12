@@ -1,5 +1,5 @@
 module CoinPaprika
-using Watchers
+using ..Watchers
 using HTTP
 using URIs
 using LazyJSON
