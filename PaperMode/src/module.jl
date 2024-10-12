@@ -122,7 +122,7 @@ $(TYPEDSIGNATURES)
 This function starts the execution of a strategy in either foreground or background mode. It sets up the necessary attributes, logs, and tasks for the strategy execution. If the strategy is already running, it throws an error.
 """
 function start!(
-    s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false
+    s::Strategy{<:Union{Paper,Live}}; throttle=throttle(s), doreset=false, foreground=false, with_stdout=true
 )
     ping!(s, StartStrategy())
     local startinfo
@@ -190,6 +190,7 @@ end
 
 _compressor(file) = run(`gzip $(file)`)
 function strategy_logger!(s)
+    with_stdout = attr!(s, :log_to_stdout, true)
     logdir, logname = let file = runlog(s)
         dirname(file), splitext(basename(file))[1]
     end
@@ -225,11 +226,14 @@ function strategy_logger!(s)
     # Combine all loggers
     file_logger = TeeLogger(filtered_loggers...)
 
-    # Create a MinLevelLogger for the global logger (stdout)
-    min_level_global_logger = MinLevelLogger(global_logger(), s[:log_level])
-
-    # Combine file logger with the min-level global logger
-    s[:logger] = TeeLogger(min_level_global_logger, file_logger)
+    s[:logger] = if with_stdout
+        # Create a MinLevelLogger for the global logger (stdout)
+        min_level_global_logger = MinLevelLogger(global_logger(), s[:log_level])
+        # Combine file logger with the min-level global logger
+        TeeLogger(min_level_global_logger, file_logger)
+    else
+        file_logger
+    end
 end
 
 @doc """

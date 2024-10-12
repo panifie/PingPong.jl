@@ -14,6 +14,7 @@ _simmode_defaults!(s, attrs) = begin
     attrs[:timeframe] = s.timeframe
     attrs[:throttle] = Second(5)
     attrs[:log_level] = Logging.Info
+    attrs[:log_to_stdout] = true
     attrs[:sim_update_mode] = UpdateOrders()
     attrs[:sim_base_slippage] = Val(:spread)
     attrs[:sim_market_slippage] = Val(:skew)
