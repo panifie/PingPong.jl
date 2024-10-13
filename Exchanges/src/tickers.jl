@@ -205,16 +205,16 @@ $(TYPEDSIGNATURES)
 """
 function lastprice(pair::AbstractString, exc::Exchange; kwargs...)
     tick = ticker!(pair, exc; kwargs...)
-    lastprice(exc, tick)
+    lastprice(exc, tick, pair)
 end
 
-function lastprice(exc::Exchange, tick)
+function lastprice(exc::Exchange, tick, pair="")
     if !pytruth(tick)
         sym = try
-            get(tick, "symbol", "")
+            @coalesce get(tick, "symbol", missing) pair
         catch
         end
-        @warn "exchanges: failed to fetch ticker" sym nameof(exc)
+        @warn "exchanges: failed to fetch ticker" pair nameof(exc)
         0.0
     else
         lp = tick["last"]
