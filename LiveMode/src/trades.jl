@@ -391,7 +391,7 @@ If it's not, it issues a warning.
 """
 function _warn_cash(s, ai, o; actual_amount)
     if !iscashenough(s, ai, actual_amount, o)
-        @warn "make trade: local cash not enough" cash(ai) o.id actual_amount
+        @warn "make trade: creating trade but local cash is not enough" cash(ai) o.id actual_amount
     end
 end
 
