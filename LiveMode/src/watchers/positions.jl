@@ -104,6 +104,7 @@ function _w_positions_func(s, w, interval; iswatch, kwargs)
     timeout = throttle(s)
     @lget! params "settle" guess_settle(s)
     w[:process_tasks] = tasks = Task[]
+    w[:errors_count] = errors = Ref(0)
     buffer_size = attr(s, :live_buffer_size, 1000)
     s[:positions_buffer] = w[:buf_process] = buf = Vector{Tuple{Any,Bool}}()
     s[:positions_notify] = w[:buf_notify] = buf_notify = Condition()
@@ -123,7 +124,6 @@ function _w_positions_func(s, w, interval; iswatch, kwargs)
                 process_pos!(w, v, false)
             end
             init[] = false
-            errors = Ref(0)
             f_push(v) = begin
                 push!(buf, (v, false))
                 notify(buf_notify)
@@ -140,6 +140,7 @@ function _w_positions_func(s, w, interval; iswatch, kwargs)
                 init_watch_func(w)
             end
             while isempty(buf)
+                !isstarted(w) && return
                 wait(buf_notify)
             end
             v, fetched = popfirst!(buf)
@@ -231,6 +232,7 @@ end
 
 _positions_task!(w) = begin
     f = _tfunc(w)
+    errors = w.errors_count
     w[:positions_task] = (@async while isstarted(w)
         try
             f(w)
@@ -239,6 +241,7 @@ _positions_task!(w) = begin
             if e isa InterruptException
                 break
             else
+                maybe_backoff!(errors, e)
                 @debug_backtrace LogWatchPos2
             end
         end

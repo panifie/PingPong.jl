@@ -115,6 +115,7 @@ function define_trades_loop_funct(s::LiveStrategy, ai, exc; exc_kwargs=(;))
             end
             notify = task_local_storage(:buf_notify)
             while isempty(this_buf)
+                !@istaskrunning() && return
                 wait(notify)
             end
             popfirst!(this_buf)
@@ -160,6 +161,7 @@ function manage_trade_updates!(s::LiveStrategy, ai, stop_delay, loop_func, iswat
     try
         while @istaskrunning()
             try
+                @debug "watchers trades: loop func" _module = LogWatchTrade
                 updates = loop_func()
                 send_trades!(
                     s,
@@ -457,6 +459,13 @@ function stop_watch_trades!(s::LiveStrategy, ai)
     if istaskrunning(t)
         stop_task(t)
         if !istaskdone(t)
+            sto = t.storage
+            if !isnothing(sto)
+                cond = get(sto, :buf_notify, nothing)
+                if cond isa Condition
+                    notify(cond)
+                end
+            end
             @async begin
                 waitforcond(() -> !istaskdone(t), @timeout_now())
                 if !istaskdone(t)

@@ -77,6 +77,7 @@ function _w_balance_func(s, w, attrs)
     s[:balance_notify] = w[:buf_notify] = buf_notify = Condition()
     sizehint!(buf, buffer_size)
     tasks = w[:process_tasks] = Vector{Task}()
+    errors = w[:errors_count] = Ref(0)
     if attrs[:iswatch]
         init = Ref(true)
         function process_bal!(w, v)
@@ -91,7 +92,6 @@ function _w_balance_func(s, w, attrs)
             v = @lock w fetch_balance(s; timeout, params, rest...)
             process_bal!(w, v)
             init[] = false
-            errors = Ref(0)
             f_push(v) = begin
                 push!(buf, v)
                 notify(buf_notify)
@@ -143,6 +143,7 @@ end
 
 _balance_task!(w) = begin
     f = _tfunc(w)
+    errors = w.errors_count
     w[:balance_task] = @async while isstarted(w)
         try
             f(w)
@@ -151,6 +152,7 @@ _balance_task!(w) = begin
             if e isa InterruptException
                 break
             else
+                maybe_backoff!(errors, e)
                 @debug_backtrace LogWatchBalance
             end
         end

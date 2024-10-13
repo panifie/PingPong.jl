@@ -56,6 +56,7 @@ function define_loop_funct(s::LiveStrategy, ai; exc_kwargs=(;))
                 end
             end
             while isempty(buf)
+                !@istaskrunning() && return
                 wait(task_local_storage(:buf_notify))
             end
             popfirst!(buf)
@@ -265,6 +266,13 @@ function stop_watch_orders!(s::LiveStrategy, ai)
     end
     for task in tasks
         if !istaskdone(task)
+            sto = t.storage
+            if !isnothing(sto)
+                cond = get(sto, :buf_notify, nothing)
+                if cond isa Condition
+                    notify(cond)
+                end
+            end
             @async begin
                 this_task = $task
                 waitforcond(() -> !istaskdone(this_task), @timeout_now())
