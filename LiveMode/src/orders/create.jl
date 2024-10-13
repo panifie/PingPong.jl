@@ -17,7 +17,7 @@ function isactive(s::Strategy, ai::AssetInstance, resp::Py, eid::EIDType; fetche
         return false, resp
     else
         status = resp_order_status(resp, eid)
-        if (!_ccxtisstatus(resp) && !fetched)
+        if (!_ccxtisstatus(resp, eid) && !fetched)
             if isprocessed_order(s, ai, oid)
                 fetched_resp = fetch_orders(s, ai; ids=(oid,))
                 if hasels(fetched_resp)
@@ -33,7 +33,7 @@ function isactive(s::Strategy, ai::AssetInstance, resp::Py, eid::EIDType; fetche
                     return false, resp
                 end
             else
-                @warn "create order: unknown status" ai oid hasfill hasid resp
+                @warn "create order: unknown status" ai oid hasfill hasid resp status _ccxtisstatus(resp)
                 return hasid, resp
             end
         elseif _ccxtisstatus(status, "canceled", "rejected", "expired") || fetched

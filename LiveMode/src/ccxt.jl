@@ -262,13 +262,18 @@ end
 
 _ccxtisstatus(status::String, what) = pyeq(Bool, @pystr(status), @pystr(what))
 function _ccxtisstatus(resp::Py, statuses::Vararg{String})
-    any(x -> _ccxtisstatus(x, resp), statuses)
+    this_statuses = if isempty(statuses)
+        ("open", "closed", "canceled", "rejected", "expired")
+    else
+        statuses
+    end
+    any(x -> _ccxtisstatus(x, resp), this_statuses)
 end
 function _ccxtisstatus(resp, status::String, eid::EIDType)
     pyeq(Bool, resp_order_status(resp, eid), @pystr(status))
 end
-function _ccxtisstatus(resp)
-    _ccxtisstatus(resp, "open", "closed", "canceled", "rejected", "expired")
+function _ccxtisstatus(resp, eid::EIDType)
+    _ccxtisstatus(resp_order_status(resp, eid))
 end
 @doc "Tests if a ccxt order object is open."
 _ccxtisopen(resp, eid::EIDType) = pyeq(Bool, resp_order_status(resp, eid), @pyconst("open"))
