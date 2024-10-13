@@ -176,7 +176,7 @@ function stop_handlers!(s::LiveStrategy)
     for ai in universe(s)
         t = get_handler(ai)
         if istaskrunning(t)
-            notify_request(obj) # this solves some race conditions with `sendrequest!`
+            notify_request(ai) # this solves some race conditions with `sendrequest!`
             wait(t)
         end
     end
