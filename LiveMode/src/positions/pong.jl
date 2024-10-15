@@ -183,7 +183,7 @@ end
 function _posclose_maybesync(s, ai, pside, waitfor)
     @debug "pong pos close: sync position" _module = LogPosClose ai pside
     @timeout_start
-    update = live_position(s, ai, pside; since=timestamp(ai), waitfor=@timeout_now)
+    update = live_position(s, ai, pside; since=timestamp(ai, pside), waitfor=@timeout_now)
     if isnothing(update)
         @warn "pong pos close: no position update (resetting)" ai pside
         if isopen(ai, pside)
@@ -251,7 +251,7 @@ function _posclose_trade(s, ai; t, pside, amount, waitfor, this_kwargs)
         @warn "pong pos close: closing order delay" orders = collect(
             values(s, ai, orderside(t))
         ) ai t
-        (false, timestamp(ai) + Millisecond(1))
+        (false, timestamp(ai, pside) + Millisecond(1))
     end
 end
 
