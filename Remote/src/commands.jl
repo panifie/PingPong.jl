@@ -2,7 +2,7 @@ using LiveMode.PaperMode: header
 using LiveMode.Dates: format
 using LiveMode.TimeTicks
 using LiveMode: trades, raw, posside
-using LiveMode.Instances: MarginInstance, NoMarginInstance, HedgedInstance
+using LiveMode.Instances: MarginInstance, NoMarginInstance, HedgedInstance, leverage
 using LiveMode.Instances: DataFrame, committed, cash
 using LiveMode.Instances.Data: Not
 using .Misc.Lang: MatchString
@@ -169,15 +169,25 @@ function _rolling(cl::TelegramClient, s; period, text, chat_id)
     io = IOBuffer()
     try
         cur = nameof(s.cash)
+        asset_data = []
         for ai in s.universe
             asset_trades = trades(ai)
             idx = findfirst(t -> t.date >= now() - period, asset_trades)
-            n_trades, balance = if idx isa Number
-                (length(asset_trades) - (length(asset_trades) - idx)),
-                sum(t.size for t in @view(asset_trades[idx:end]))
-            else
-                0, 0.0
+            if idx isa Number
+                n_trades = length(asset_trades) - (length(asset_trades) - idx)
+                balance = sum(t.size for t in @view(asset_trades[idx:end]))
+                volume = sum(abs(t.size) for t in @view(asset_trades[idx:end]))
+                if n_trades > 0
+                    push!(asset_data, (ai=ai, n_trades=n_trades, balance=balance, volume=volume))
+                end
             end
+        end
+
+        # Sort assets by volume in descending order
+        sort!(asset_data, by=x -> x.volume, rev=true)
+
+        for data in asset_data
+            ai, n_trades, balance, volume = data.ai, data.n_trades, data.balance, data.volume
             write(
                 io,
                 if balance > 0.0
@@ -199,7 +209,11 @@ function _rolling(cl::TelegramClient, s; period, text, chat_id)
                 cnum(balance),
                 " ",
                 cur,
-                ")",
+                ") ",
+                "volume: ",
+                cnum(volume),
+                " ",
+                cur,
                 "_",
                 "\n",
             )
@@ -241,19 +255,47 @@ function balance(cl::TelegramClient, s; text, chat_id, kwargs...)
     @sync for ai in s.universe
         @async prices[ai] = st.lastprice(ai)
     end
+    total_asset_size = 0.0
     for ai in s.universe
         amount = total_cash(ai)
-        size = amount * prices[ai]
-        push!(df, (; asset=first(raw(ai), 20), amount, size))
+        price = prices[ai]
+        size = amount * price
+        leverage_factor = if ai isa MarginInstance
+            max(abs(leverage(ai, Long())), abs(leverage(ai, Short())))
+        else
+            1.0
+        end
+        if amount != 0 || size != 0
+            asset_name = first(raw(ai), 20)
+            leveraged_asset_name = leverage_factor == 1.0 ? asset_name : "$(round(Int, leverage_factor))x$asset_name"
+            push!(df, (; asset=leveraged_asset_name, amount, size))
+        end
+        total_asset_size += size
     end
-    push!(
-        df,
-        (;
-            asset=first(string(nameof(cash(s))), 20),
-            amount=cash(s),
-            size=st.current_total(s; price_func=st.lastprice),
-        ),
-    )
+    
+    # Add cash balance
+    cash_amount = cash(s)
+    cash_size = cash_amount  # Cash size is the same as cash amount
+    if cash_amount != 0
+        push!(
+            df,
+            (;
+                asset=first(string(nameof(cash(s))), 20),
+                amount=cash_amount,
+                size=cash_size,
+            ),
+        )
+    end
+    
+    # Calculate total portfolio size
+    total_portfolio_size = total_asset_size + cash_size
+    
+    # Sort the DataFrame by size in descending order
+    sort!(df, :size, rev=true)
+    
+    # Add a total row
+    push!(df, (; asset="Total", amount=NaN, size=total_portfolio_size))
+
     io = IOBuffer()
     try
         write(io, "```")
@@ -346,7 +388,7 @@ function assets(cl::TelegramClient, s; text, chat_id, isinput, kwargs...)
             Base.close(io)
         end
     end
-    true
+    false
 end
 
 _issecret(v) = occursin(r"token|secret|pass|psw|key|auth|private"i, v)
