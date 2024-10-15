@@ -139,7 +139,7 @@ function tgtask(cl, s, running::Ref{Bool}, offset::Ref{Int})
             isnothing(chat_id) && return nothing
             from = get(message, :from, (;))
             msg_user = @coalesce get(from, :username, "") ""
-            if msg_user != user
+            if ismissing(user) || msg_user != user
                 sendMessage(
                     cl;
                     text="User $msg_user not allowed, please send the magic pass.",
@@ -159,7 +159,7 @@ function tgtask(cl, s, running::Ref{Bool}, offset::Ref{Int})
 
             if startswith(text, "/")
                 spl = split(text, "/")
-                cmd = Symbol(spl[2])
+                cmd = Symbol(replace(spl[2], r"@.*" => ""))
                 if isdefined(@__MODULE__, cmd)
                     try
                         @debug "tg: calling command" cmd
