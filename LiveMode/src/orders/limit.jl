@@ -33,7 +33,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
             last(order_trades)
         elseif haskey(s, ai, o)
             if synced
-                live_sync_open_orders!(s, ai, side=orderside(o))
+                live_sync_open_orders!(s, ai, side=orderside(o), exec=true)
                 if !isempty(order_trades)
                     last(order_trades)
                 elseif haskey(s, ai, o)
@@ -54,7 +54,7 @@ function _live_limit_order(s::LiveStrategy, ai, t; skipchecks=false, amount, pri
         last(order_trades)
     elseif haskey(s, ai, o)
         if synced
-            live_sync_open_orders!(s, ai, side=orderside(o))
+            live_sync_open_orders!(s, ai, side=orderside(o), exec=true)
             if !isempty(order_trades)
                 last(order_trades)
             elseif haskey(s, ai, o)

@@ -103,7 +103,7 @@ function pong!(
             else
                 @debug "pong cancel orders: failed syncing open orders" ai t _module =
                     LogCancelOrder
-                live_sync_open_orders!(s, ai)
+                live_sync_open_orders!(s, ai, exec=true)
             end
             @debug "pong cancel orders: " ai t success _module = LogCancelOrder
             success

@@ -1,4 +1,4 @@
-using .Executors: _cashfrom, hasorders, decommit!
+using .Executors: _cashfrom, hasorders, decommit!, aftertrade!
 
 maxout!(s::LiveStrategy) = begin
     # strategy
@@ -90,7 +90,8 @@ function replay_open_orders!(
                 if !isequal(ai, trades_amount, o.amount, Val(:amount))
                     @warn "sync orders: replaying filled order with no trades" _module =
                         LogSyncOrder
-                    replay_order!(s, o, ai; resp, exec=false)
+                    # we decommit when orders are already present (sync is called mid run)
+                    replay_order!(s, o, ai; resp, exec=false, decommit=!overwrite)
                 else
                     @debug "sync orders: removing filled active order" _module =
                         LogSyncOrder o.id o.amount trades_amount ai s = nameof(s)
@@ -101,7 +102,7 @@ function replay_open_orders!(
                     s
                 )
                 push!(live_orders, o.id)
-                replay_order!(s, o, ai; resp, exec)
+                replay_order!(s, o, ai; resp, exec, decommit=!overwrite)
             end
             pop!(ids, id)
         end
@@ -177,7 +178,7 @@ function sync_active_orders!(s, ai; live_orders, ao, side, eid, exec)
                 end
                 if isdict(order_resp)
                     @deassert LogSyncOrder resp_order_id(order_resp, eid, String) == id
-                    replay_order!(s, state.order, ai; resp=order_resp, exec)
+                    replay_order!(s, state.order, ai; resp=order_resp, exec, decommit=true)
                 elseif !iszero(filled_amount(state.order))
                     @error "sync orders: local order not found on exchange" id ai exchange(
                         ai
@@ -377,10 +378,9 @@ This function checks if the order has been filled, and if it hasn't, it resets t
 If the order is filled, the function fetches its trades from the order struct or an API call, validates the trades, and applies new trades if necessary.
 If there are no new trades, it emulates a trade.
 The flag 'exec' determines whether the trades are executed or simply made.
-The flag 'insert' determines whether the trades are inserted to the asset trades history or not.
-
+The 'decommit' flag controls whether the trades are added to the asset's trade history.
 """
-function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
+function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, decommit=false)
     eid = exchangeid(ai)
     @debug "replay order: activate" _module = LogSyncOrder id = o.id ai
     state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
@@ -433,7 +433,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
         @debug "replay order: emulating trade" _module = LogSyncOrder
         trade = emulate_trade!(s, o, ai; state.average_price, resp, exec)
         if !exec && !isnothing(trade)
-            apply_trade!(s, ai, o, trade; insert)
+            apply_trade!(s, ai, o, trade; decommit)
         end
     else
         @debug "replay order: replaying trades" _module = LogSyncOrder
@@ -453,7 +453,7 @@ function replay_order!(s::LiveStrategy, o, ai; resp, exec=false, insert=false)
             else
                 trade = maketrade(s, o, ai; resp=trade_resp)
                 @debug "replay order: applying new trade" _module = LogSyncOrder trade.order.id
-                apply_trade!(s, ai, o, trade; insert)
+                apply_trade!(s, ai, o, trade; decommit)
             end
         end
     end
@@ -490,18 +490,13 @@ aftertrade_nocommit!(_, _, o::AnyMarketOrder, args...) = nothing
 
 $(TYPEDSIGNATURES)
 
-This function fills the order with the trade and adds the trade to the asset's history or the trades of the order, depending on the 'insert' flag.
+This function fills the order with the trade and adds the trade to the asset's history or the trades of the order.
 After applying the trade, the function performs actions specified in 'aftertrade_nocommit!' function.
-The 'insert' flag determines whether the trade is inserted to the asset trades history at a specific index based on its date, or simply added to the end of the history.
 """
-function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
+function apply_trade!(s::LiveStrategy, ai, o, trade; decommit=false)
     isnothing(trade) && return nothing
     fill!(s, ai, o, trade)
-    if insert
-        push!(trades(ai), trade)
-    else
-        push!(ai.history, trade)
-    end
+    push!(ai.history, trade)
     @deassert trade.order == o
     @ifdebug let found = findorder(s, ai; id=o.id, side=orderside(o))
         if found != o
@@ -509,7 +504,11 @@ function apply_trade!(s::LiveStrategy, ai, o, trade; insert=false)
         end
     end
     push!(trades(o), trade)
-    aftertrade_nocommit!(s, ai, o, trade)
+    if decommit
+        aftertrade!(s, ai, o, trade)
+    else
+        aftertrade_nocommit!(s, ai, o, trade)
+    end
 end
 
 @doc """ Checks synchronization of orders in a live strategy.

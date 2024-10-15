@@ -85,7 +85,7 @@ function set_active_order!(s::LiveStrategy, ai, o; ap=avgprice(o))
         lock=SafeLock(),
         trade_hashes=UInt64[],
         update_hash=Ref{UInt64}(0),
-        average_price=Ref(iszero(ap) ? avgprice(o) : ap),
+        average_price=Ref(iszero(ap) ? avgprice(o) : ap)
     )
     watch_trades!(s, ai) # ensure trade watcher is running
     watch_orders!(s, ai) # ensure orders watcher is running
@@ -98,6 +98,8 @@ function clear_order!(s::LiveStrategy, ai, o::Order)
     actord = active_orders(ai)
     @debug "orders: disactivating" _module = LogSyncOrder o.id
     delete!(actord, o.id)
+    decommit!(s, o, ai)
+    delete!(s, ai, o)
     record_order!(s, ai, o)
 end
 
