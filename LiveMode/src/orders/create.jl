@@ -33,7 +33,7 @@ function isactive(s::Strategy, ai::AssetInstance, resp::Py, eid::EIDType; fetche
                     return false, resp
                 end
             else
-                @warn "create order: unknown status" ai oid hasfill hasid resp status _ccxtisstatus(resp)
+                @warn "create order: unknown status" ai oid hasfill hasid resp status
                 return hasid, resp
             end
         elseif _ccxtisstatus(status, "canceled", "rejected", "expired") || fetched
@@ -164,7 +164,7 @@ function _create_live_order(
         @debug "create order: failed sync response" _module = LogCreateOrder resp
         return nothing
     elseif activate
-        @debug "create order: activating order" _module = LogCreateOrder id resp_order_status(resp, eid)
+        @debug "create order: activating order" _module = LogCreateOrder id resp_order_status(resp, eid) resp_order_filled(resp, eid) resp_order_remaining(resp, eid) resp_order_type(resp, eid)
         state = set_active_order!(s, ai, o; ap=resp_order_average(resp, eid))
         # Perform a trade if the order has been filled instantly
         function not_filled()

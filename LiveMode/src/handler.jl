@@ -108,7 +108,7 @@ function handle_events(obj, events=get_events(obj), cond=condition(obj))
             popfirst!(events)
             lasteventrun!(obj, req.date)
         else
-            @debug "events: waiting for the future" _module = LogEvents
+            @debug "events: waiting for the future" _module = LogEvents req.date
             @async (sleep(abs(diff)); safenotify(cond))
             break
         end
