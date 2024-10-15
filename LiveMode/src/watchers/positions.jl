@@ -167,7 +167,7 @@ function _w_positions_func(s, w, interval; iswatch, kwargs)
             while !isempty(buf)
                 v, fetched = popfirst!(buf)
                 _dopush!(w, v)
-                push!(tasks, @async process!(w, fetched))
+                push!(tasks, @async process!(w; fetched))
             end
         end
         function fetch_positions_func(w)
