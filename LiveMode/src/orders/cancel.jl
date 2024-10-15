@@ -75,7 +75,7 @@ function live_cancel(s, ai; ids=(), side=BuyOrSell, confirm=false, since=nothing
 end
 
 function cancel!(s::LiveStrategy, o::Order, ai; err, kwargs...)
-    if isqueued(o, s, ai)
+    if isqueued(o, s, ai) || ordertype(o) <: MarketOrderType
         decommit!(s, o, ai, true)
         delete!(s, ai, o)
         st.ping!(s, o, err, ai)
