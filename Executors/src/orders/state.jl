@@ -498,12 +498,19 @@ function decommit!(s::Strategy, o::IncreaseOrder, ai, canceled=false)
     @ifdebug _check_committment(o)
     # NOTE: ignore negative values caused by slippage
     @deassert canceled || isdust(ai, o) o
-    subzero!(s.cash_committed, committed(o))
+    # NOTE: committed can be negative in case the predicted commit is below the executed size
+    subzero!(s.cash_committed, abs(committed(o)))
     @deassert gtxzero(ai, s.cash_committed, Val(:price)) s.cash_committed.value,
     s.cash.precision,
     o
     attr(o, :committed)[] = 0.0
 end
+
+# FIXME: order committment for reduce orders could also be negative IF the exchange
+# does fee exclusive trading (rare, never seen) and the fee is paid in base currency (so and so).
+# for long sells fee is usually paid in quote cur, for short buys it is possible
+# it could be paid in base cur.
+# Should we check the sign of `committed(o)` for long sells and short buys?
 
 @doc """Decommits a sell order from an asset instance.
 
