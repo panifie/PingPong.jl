@@ -16,6 +16,8 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         )
         if !(o isa Order)
             return nothing
+        else
+            hold!(s, ai, o)
         end
         @deassert o isa AnyMarketOrder{orderside(t)} o
         @debug "market order: created" _module = LogCreateOrder id = o.id o.amount t hasorders(s, ai, o.id) cash(ai)
@@ -27,16 +29,13 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
         last(order_trades)
     elseif waittrade(s, ai, o; waitfor=@timeout_now, force=synced)
         last(order_trades)
-    elseif !haskey(s, ai, o) && isempty(order_trades)
-        @debug "market order: failed" _module = LogCreateOrder synced
-        nothing
     elseif isempty(order_trades)
-        if haskey(s, ai, o)
+        if isactive(s, ai, o)
             if synced
-                live_sync_open_orders!(s, ai, side=orderside(o))
+                live_sync_open_orders!(s, ai, side=orderside(o), exec=true)
                 if !isempty(order_trades)
                     last(order_trades)
-                elseif haskey(s, ai, o)
+                elseif isactive(s, ai, o)
                     @debug "market order: no trades yet (synced)" _module = LogCreateOrder
                     missing
                 end
@@ -44,6 +43,9 @@ function _live_market_order(s, ai, t; skipchecks=false, amount, synced, waitfor,
                 @debug "market order: no trades yet" _module = LogCreateOrder
                 missing
             end
+        else
+            @debug "market order: failed" _module = LogCreateOrder synced
+            nothing
         end
     else
         last(order_trades)

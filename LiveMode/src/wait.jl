@@ -182,7 +182,11 @@ function waitorder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
     @debug "Wait for order: start" _module = LogWaitOrder id = o.id timeout = timeout
     while slept < timeout
         slept += let this_slept = waitorder(s, ai; waitfor)
-            this_slept == 0 && return !haskey(orders_byid, o.id) || !haskey(s, ai, o)
+            if this_slept == 0
+                return !haskey(orders_byid, o.id) ||
+                    ordertype(o) <: MarketOrderType ||
+                    !haskey(s, ai, o)
+            end
             this_slept
         end
         if !haskey(orders_byid, o.id)
@@ -191,7 +195,7 @@ function waitorder(s::LiveStrategy, ai, o::Order; waitfor=Second(3))
             end
             @debug "Wait for order: not tracked" _module = LogWaitOrder id = o.id
             return true
-        elseif !haskey(s, ai, o)
+        elseif !haskey(s, ai, o) || ordertype(o) <: MarketOrderType
             @debug "Wait for order: not found" _module = LogWaitOrder id = o.id
             return true
         end
