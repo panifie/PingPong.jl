@@ -296,3 +296,16 @@ function tgrun(
         end
     end
 end
+
+function _closeall()
+    for state in values(TASK_STATE)
+        if state isa TaskState && !istaskdone(state.task)
+            state.running[] = false
+            try
+                @async Base.throwto(state.task, InterruptException())
+                wait(state.task)
+            catch
+            end
+        end
+    end
+end
