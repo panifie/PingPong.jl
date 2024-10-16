@@ -127,7 +127,11 @@ function _start_handler!(obj)
         obj[:event_handler] = @start_task IdDict() begin
             handle_events(obj, events, cond)
             while @istaskrunning()
-                safewait(cond)
+                if obj[:stopping_handler]
+                    break
+                else
+                    safewait(cond)
+                end
                 try
                     handle_events(obj, events, cond)
                 catch
@@ -176,8 +180,13 @@ function stop_handlers!(s::LiveStrategy)
     for ai in universe(s)
         t = get_handler(ai)
         if istaskrunning(t)
-            notify_request(ai) # this solves some race conditions with `sendrequest!`
-            wait(t)
+            try
+                ai[:stopping_handler] = true
+                notify_request(ai) # this solves some race conditions with `sendrequest!`
+                wait(t)
+            finally
+                ai[:stopping_handler] = false
+            end
         end
     end
     @debug "handlers: handlers terminated" _module = LogEvents
