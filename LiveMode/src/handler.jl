@@ -125,6 +125,7 @@ function _start_handler!(obj)
         events = get_events(obj)
         cond = condition(obj)
         obj[:event_handler] = @start_task IdDict() begin
+            obj[:stopping_handler] = false
             handle_events(obj, events, cond)
             while @istaskrunning()
                 if obj[:stopping_handler]
