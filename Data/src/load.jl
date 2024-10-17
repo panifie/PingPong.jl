@@ -213,6 +213,7 @@ end
 
 @doc "An empty OHLCV dataframe."
 function empty_ohlcv()
+    @debug "data: empty ohlcv" @caller(20)
     DataFrame(
         [DateTime[], [Float64[] for _ in OHLCV_COLUMNS_TS]...],
         OHLCV_COLUMNS;
