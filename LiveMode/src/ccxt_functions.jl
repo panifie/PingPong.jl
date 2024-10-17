@@ -580,7 +580,9 @@ resp_to_vec(resp) =
     elseif resp isa Exception
         @debug "ccxt func error" exception = resp @caller
         []
-    else
+    elseif isdict(resp)
+        [resp]
+    elseif islist(resp)
         [resp...]
     end
 
