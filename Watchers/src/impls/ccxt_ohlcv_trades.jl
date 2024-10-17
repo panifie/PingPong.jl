@@ -13,8 +13,27 @@ const CcxtOHLCVVal = Val{:ccxt_ohlcv}
 Python.pyconvert(::Type{DateTime}, py::Py) = dt(pyconvert(Int, py))
 Python.pyconvert(::Type{TradeSide}, py::Py) = TradeSide(py)
 Python.pyconvert(::Type{TradeRole}, py::Py) = TradeRole(py)
+function Python.pyconvert(::Type{FeesType}, py::Py)
+    if isdict(py)
+        cost = get(py, "cost", pybuiltins.None)
+        if pyisnone(cost)
+            cost = nothing
+        end
+        currency = get(py, "currency", pybuiltins.None)
+        if pyisnone(currency)
+            currency = nothing
+        end
+        (; cost, currency)
+    elseif pyisnone(py)
+        nothing
+    elseif pyisinstance(py, pybuiltins.float)
+        pytofloat(py)
+    else
+        error("watchers: invalid fees type $py")
+    end
+end
 
-trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, v)
+trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, py, pyconvert, pyconvert)
 _trades(w::Watcher) = attr(w, :trades)
 _trades!(w) = setattr!(w, CcxtTrade[], :trades)
 _lastpushed(w) = attr(w, :last_pushed)
@@ -97,7 +116,11 @@ It also sets the watcher's status to pending and initializes the last fetched an
 function _init!(w::Watcher, ::CcxtOHLCVVal)
     def_view = let def_view = attr(w, :default_view, nothing)
         if isnothing(def_view)
-            empty_ohlcv()
+            sym = _sym(w)
+            kind = :trades
+            eid = exchangeid(_exc(w).id)
+            period = _tfr(w).period
+            cached_ohlcv!(eid, kind, period, sym)
         else
             delete!(w.attrs, :default_view)
             if def_view isa Function
@@ -189,6 +212,8 @@ function _parse_trades(w, pytrades)
         new_trades = [
             fromdict(CcxtTrade, String, py, pyconvert, pyconvert) for py in this_trades
         ]
+        Main.tr = new_trades
+        Main.wtr = _trades(w)
         append!(_trades(w), new_trades)
         last_date = last(new_trades).timestamp
         _lastpushed!(w, last_date)

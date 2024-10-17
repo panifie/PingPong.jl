@@ -534,7 +534,11 @@ function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_fu
         filter!(!istaskdone, tasks)
     end
     function init_watch_func(w)
-        let v = @lock w init_func()
+        let v = @lock w if wh.init
+            init_func()
+        else
+            return nothing
+        end
             process_val!(w, v)
         end
         wh.init = false
