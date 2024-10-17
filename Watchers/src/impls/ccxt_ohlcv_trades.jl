@@ -1,4 +1,4 @@
-using ..Data: Candle, empty_ohlcv
+using ..Data: Candle
 using ..Fetch.Exchanges
 using ..Misc: Iterable
 using ..Fetch.Processing.TradesOHLCV
@@ -74,6 +74,7 @@ function ccxt_ohlcv_watcher(
     _tfr!(attrs, timeframe)
     attrs[:default_view] = default_view
     attrs[:quiet] = quiet
+    attrs[k"ohlcv_method"] = :trades
     if !isnothing(iswatch)
         attrs[:iswatch] = iswatch
     end
@@ -117,10 +118,10 @@ function _init!(w::Watcher, ::CcxtOHLCVVal)
     def_view = let def_view = attr(w, :default_view, nothing)
         if isnothing(def_view)
             sym = _sym(w)
-            kind = :trades
+            met = :trades
             eid = exchangeid(_exc(w).id)
             period = _tfr(w).period
-            cached_ohlcv!(eid, kind, period, sym)
+            cached_ohlcv!(eid, met, period, sym)
         else
             delete!(w.attrs, :default_view)
             if def_view isa Function

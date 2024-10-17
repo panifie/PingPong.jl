@@ -97,7 +97,7 @@ $(TYPEDSIGNATURES)
 This function acquires or creates a data frame for the `ai` asset using the timeframe `tf`, then refreshes its OHLCV data by fetching new entries from the specified time onwards, based on the asset's symbol and exchange details. The update process may involve checking the existing data timestamps to avoid unnecessary data retrieval.
 """
 function update_data!(ai, tf)
-    df = @lget!(ai.data, tf, empty_ohlcv())
+    df = @lget!(ai.data, tf, empty_ohlcv(ai, tf))
     from = isempty(df) ? now() - Day(1) : nothing
     update_ohlcv!(df, ai.symbol, ai.exc, tf; from)
 end

@@ -1,4 +1,6 @@
-using Watchers.WatchersImpls: ccxt_ohlcv_watcher, ccxt_ohlcv_tickers_watcher, ccxt_ohlcv_candles_watcher
+using Watchers.WatchersImpls:
+    ccxt_ohlcv_watcher, ccxt_ohlcv_tickers_watcher, ccxt_ohlcv_candles_watcher
+import Watchers.WatchersImpls: cached_ohlcv!
 using .st: logpath
 using .Data: DataFrame, propagate_ohlcv!
 
@@ -11,13 +13,14 @@ It enters an infinite loop where it safely waits for a process in the watcher, t
 If the watcher is not stopped, it tries to propagate the OHLCV data.
 
 """
-propagate_loop(::RTStrategy, ai, w::Watcher) = begin
+propagate_loop(s::RTStrategy, ai, w::Watcher) = begin
     data = ai.data
     try
         while true
             safewait(w.beacon.process)
             try
                 propagate_ohlcv!(data)
+                cached_ohlcv!(ai, ohlcvmethod(s))
             catch exception
                 @debug "watchers: propagate loop" exception
             end
@@ -63,7 +66,7 @@ values: `tickers`, `trades`, `candles`
 
 """
 ohlcvmethod(s::Strategy) = s[:live_ohlcv_method]
-ohlcvmethod!(s::Strategy, k=:candles) = begin
+function ohlcvmethod!(s::Strategy, k=:candles)
     if k ∉ (:tickers, :candles, :trades)
         error("ohlcv methods supported are `tickers`, `candles` and `trades`")
     end
@@ -105,7 +108,10 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
             # being saved in the dict
             local w
             sym = raw(ai)
-            default_view = @lget! ai.data s.timeframe Data.empty_ohlcv()
+            eid = exchangeid(exc)
+            default_view = @lget! ai.data s.timeframe cached_ohlcv!(
+                eid, met, s.timeframe, sym
+            )
             prev_w = get(ow, ai, missing)
             if !ismissing(prev_w)
                 if isrunning(prev_w)
@@ -122,11 +128,16 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
             @async start_watcher(ai)
         end
     else
+        eid = exchangeid(s)
         default_view = Dict{String,DataFrame}(
-            raw(ai) => @lget!(ai.data, s.timeframe, empty_ohlcv()) for ai in s.universe
+            raw(ai) =>
+                @lget!(ai.data, s.timeframe, cached_ohlcv!(eid, met, s.timeframe, raw(ai)))
+            for ai in s.universe
         )
         buffer_capacity = attr(s, :live_buffer_capacity, 100)
-        view_capacity = attr(s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity)
+        view_capacity = attr(
+            s, :live_view_capacity, count(s.timeframe, tf"1d") + 1 + buffer_capacity
+        )
         n_jobs = attr(s, :live_ohlcv_jobs, 4)
         function propagate_callback(_, sym)
             @debug "watchers: propagating" _module = LogWatchOHLCV sym
@@ -150,7 +161,7 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
                 view_capacity,
                 n_jobs,
                 default_view,
-                callback=propagate_callback
+                callback=propagate_callback,
             )
         w[:quiet] = true
         w[:resync_noncontig] = true
@@ -191,6 +202,38 @@ function stop_watch_ohlcv!(s::RTStrategy)
     else
         error()
     end
+end
+
+function empty_ohlcv(s::Strategy, ai::AssetInstance)
+    cached_ohlcv!(exchangeid(s), ohlcvmethod(s), s.timeframe, raw(ai))
+end
+
+function empty_ohlcv(ai::AssetInstance, tf::TimeFrame; met=:candles)
+    cached_ohlcv!(exchangeid(ai), ohlcvmethod(s), s.timeframe, raw(ai))
+end
+
+@doc "Ensures dataframes in the strategy are present in the cache"
+function cached_ohlcv!(s::Strategy)
+    eid = exchangeid(s)
+    met = ohlcvmethod!(s)
+    for ai in universe(s)
+        sym = raw(ai)
+        for (tf, data) in ohlcv_dict(ai)
+            cached_ohlcv!(eid, met, period(tf), sym; def=data)
+        end
+    end
+end
+
+function cached_ohlcv!(ai::AssetInstance, met=:candles)
+    eid = exchangeid(ai)
+    sym = raw(ai)
+    for (tf, data) in ohlcv_dict(ai)
+        cached_ohlcv!(eid, met, period(tf), sym; def=data)
+    end
+end
+
+if cached_ohlcv! ∉ st.STRATEGY_LOAD_CALLBACKS.live
+    push!(st.STRATEGY_LOAD_CALLBACKS.live, cached_ohlcv!)
 end
 
 export ohlcvmethod!, ohlcvmethod

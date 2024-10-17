@@ -15,6 +15,7 @@ using ..Watchers: logerror
 @add_statickeys! begin
     exc
     status
+    ohlcv_method
 end
 
 @doc """
@@ -206,7 +207,7 @@ function _get_available(w, z, to)
     max_lookback = to - _tfr(w) * w.capacity.view
     isempty(z) && return nothing
     maxlen = min(w.capacity.view, size(z, 1))
-    available = @view(z[(end-maxlen+1):end, :])
+    available = @view(z[(end - maxlen + 1):end, :])
     return if dt(available[end, 1]) < max_lookback
         # data is too old, fetch just the latest candles,
         # and schedule a background task to fast forward saved data
@@ -522,9 +523,7 @@ function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_fu
     buffer = Vector{Any}()
     buffer_notify = Condition()
     sizehint!(buffer, buffer_size)
-    wh = WatcherHandler2(;
-        init_func, corogen_func, wrapper_func, buffer, buffer_notify
-    )
+    wh = WatcherHandler2(; init_func, corogen_func, wrapper_func, buffer, buffer_notify)
     tasks = wh.process_tasks
     function process_val!(w, v)
         if !isnothing(v)
@@ -535,10 +534,10 @@ function new_handler_task(w; init_func, corogen_func, wrapper_func=pylist, if_fu
     end
     function init_watch_func(w)
         let v = @lock w if wh.init
-            init_func()
-        else
-            return nothing
-        end
+                init_func()
+            else
+                return nothing
+            end
             process_val!(w, v)
         end
         wh.init = false

@@ -20,6 +20,7 @@ function ccxt_ohlcv_candles_watcher(
     a[k"issandbox"] = issandbox(exc)
     a[k"excparams"] = params(exc)
     a[k"excaccount"] = account(exc)
+    a[k"ohlcv_method"] = :candles
     @setkey! a exc
     @setkey! a default_view
     @setkey! a timeframe

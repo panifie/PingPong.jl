@@ -311,3 +311,4 @@ Base.display(w::Watcher) =
     catch
         close(buf)
     end
+Base.get(w::Watcher, k, def) = attr(w, k, def)

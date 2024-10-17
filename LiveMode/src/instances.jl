@@ -144,7 +144,7 @@ function update!(
     updates=updates_dict(s),
     tf=s.timeframe,
 )
-    ohlcv = @lget! ohlcv_dict(ai) tf Data.empty_ohlcv()
+    ohlcv = @lget! ohlcv_dict(ai) tf empty_ohlcv(s, ai)
     @debug "ohlcv update" _module = LogOHLCV objectid(ohlcv)
     last_update = @lget! updates cols typemin(DateTime)
     if !isempty(ohlcv)

@@ -1,6 +1,6 @@
 module WatchersImpls
 using LazyJSON
-using ..Lang: @lget!, @kget!, fromdict, Option
+using ..Lang: @lget!, @kget!, fromdict, Option, @k_str
 using ..Lang: @statickeys!, @setkey!
 using ..TimeTicks
 using ..Misc
@@ -43,8 +43,8 @@ using ..CoinPaprika: CoinPaprika as cp
     excaccount
 end
 
-
 include("utils.jl")
+include("caching.jl")
 include("cg_ticker.jl")
 include("cg_derivatives.jl")
 include("cp_markets.jl")

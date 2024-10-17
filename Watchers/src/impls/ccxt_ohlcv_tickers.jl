@@ -76,6 +76,7 @@ function ccxt_ohlcv_tickers_watcher(
     @setkey! a n_jobs
     @setkey! a callback
     @setkey! a diff_volume
+    a[k"ohlcv_method"] = :tickers
     a[k"minrows_warned"] = false
     a[k"tickers_ohlcv"] = true
     a[k"sem"] = Base.Semaphore(n_jobs)
@@ -260,7 +261,7 @@ It resets the temporary candlestick chart if the timestamp is newer than the cur
 function _update_sym_ohlcv(w, ticker, latest_timestamp, sym=ticker.symbol)
     @debug "ohlcv tickers watcher: update temp candle" _module = LogOHLCVTickers sym latest_timestamp now()
     state = w[k"symstates"][sym]::TickerWatcherSymbolState2
-    df = @lget! w.view sym empty_ohlcv()
+    df = @lget! w.view sym cached_ohlcv!(w, :tickers; sym=sym)
     price = getproperty(ticker, w[k"price_source"])
     temp_candle = state.temp
     isdiff = w[k"diff_volume"]
@@ -402,7 +403,7 @@ function _ensure_ohlcv!(w, sym)
     @debug "ohlcv tickers watcher: ensure" _module = LogOHLCVTickers sym
     tf = _tfr(w)
     min_rows = w.capacity.view - w.capacity.buffer
-    df = @lget! w.view sym empty_ohlcv()
+    df = @lget! w.view sym ohlcv_cached!(w; sym)
     if isempty(df)
         local this, from, to
         # fetch in excess

@@ -1,5 +1,6 @@
 import .Data: propagate_ohlcv!
 using .Data.DFUtils: copysubs!
+using .LiveMode: cached_ohlcv!
 
 @doc """[`Main.Engine.Instances.fill!`](@ref Main.Engine.Instances.fill!) all the instances with given timeframes data...
 
@@ -102,7 +103,7 @@ function _load_smallest!(i, tfs, from_data, from_tf, exc, force=false)
                     data = i.data[to_tf]
                     copysubs!(data, empty, empty!)
                 else
-                    i.data[to_tf] = empty_ohlcv()
+                    i.data[to_tf] = empty_ohlcv(i, to_tf)
                 end
             end
             return force
@@ -166,4 +167,8 @@ function propagate_ohlcv!(ai::AssetInstance)
     propagate_ohlcv!(ai.data, ai.asset.raw, ai.exchange)
 end
 
+propagate_ohlcv!(s::LiveStrategy) = begin
+    foreach(propagate_ohlcv!, universe(s))
+    cached_ohlcv!(s)
+end
 propagate_ohlcv!(s::Strategy) = foreach(propagate_ohlcv!, universe(s))
