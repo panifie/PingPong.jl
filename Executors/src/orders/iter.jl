@@ -53,7 +53,6 @@ $(TYPEDSIGNATURES)
 """
 Base.iterate(oi::OrderIterator, _) = _do_orders_iter(oi)
 Base.iterate(oi::OrderIterator) = _do_orders_iter(oi)
-Base.length(oi::OrderIterator) = sum((length(i) for i in oi.iters); init=0)
 
 @doc """
 Checks if the OrderIterator is empty.
@@ -75,9 +74,16 @@ Collects all elements of the OrderIterator into a Vector.
 $(TYPEDSIGNATURES)
 """
 function Base.collect(oi::OrderIterator)
-    let out = Vector{eltype(oi)}()
-        push!(out, (v for v in oi)...)
+    out = Vector{eltype(oi)}()
+    push!(out, (v for v in oi)...)
+end
+
+function Base.collect(goi::Base.Generator{OrderIterator})
+    out = Vector{promote_type((eltype(oi) for oi in goi)...)}()
+    for oi in goi
+        push!(out, oi...)
     end
+    out
 end
 
 @doc """

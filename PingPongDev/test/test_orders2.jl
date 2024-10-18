@@ -57,7 +57,7 @@ function test_buysell(s)
         push!(s, ai, sell_order)
 
         # Test orders function
-        @test length(orders(s, ai)) == 2
+        @test count(Returns(true), orders(s, ai)) == 2
         @test buyorders(s, ai) == s.buyorders[ai]
         @test sellorders(s, ai) == s.sellorders[ai]
         @test buy_order in values(buyorders(s, ai))
@@ -199,7 +199,7 @@ function test_orderiterator(s)
         # Test OrderIterator constructor
         @test length(oi.iters) == 2
         # Test Base.length
-        @test length(oi) == 4
+        # @test length(oi) == 4
 
         # Test Base.iterate
         result = iterate(oi)
@@ -238,7 +238,7 @@ function test_orderiterator(s)
 
         # Test with empty iterators
         empty_oi = OrderIterator(Iterators.Stateful([]), Iterators.Stateful([]))
-        @test length(empty_oi) == 0
+        @test count(Returns(true), empty_oi) == 0
         @test Base.isdone(empty_oi) == true
         @test collect(empty_oi) == []
         @test_throws ArgumentError last(empty_oi)

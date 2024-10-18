@@ -53,9 +53,5 @@ function pong!(
     t::Type{<:OrderSide}=BuyOrSell,
     kwargs...,
 )::Bool
-    ords = collect(values(s, ai, t))
-    if isempty(ords)
-        return true
-    end
-    all(cancel!(s, o, ai; err=OrderCanceled(o)) for o in ords)
+    all(cancel!(s, o, ai; err=OrderCanceled(o)) for o in values(s, ai, t))
 end
