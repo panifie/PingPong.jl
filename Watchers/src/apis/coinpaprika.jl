@@ -2,11 +2,12 @@ module CoinPaprika
 using ..Watchers
 using HTTP
 using URIs
-using LazyJSON
+using JSON3
 using ..Data: Candle
 using ..Misc: Config, config, queryfromstruct
 using ..Lang: Option, @kget!
 using ..TimeTicks
+using ..Watchers: jsontodict
 
 API_URL = "https://api.coinpaprika.com/"
 API_HEADERS = ["Accept-Encoding" => "deflate,gzip", "Accept" => "application/json"]
@@ -52,7 +53,7 @@ function get(path::T where {T}, query=nothing)
         query_stack[] = 0
     end
     @assert resp.status == 200
-    json = LazyJSON.value(resp.body)
+    json = JSON3.read(resp.body)
     json
 end
 
@@ -78,7 +79,7 @@ loadcoins!() = begin
         json = get(apiPaths.coins)
         _check_error(json)
         for coin in json
-            c = convert(Dict{String,Any}, coin)
+            c = jsontodict(coin)
             id = c["id"]
             coins_cache[id] = c
             ls = lowercase(c["symbol"])
@@ -124,7 +125,7 @@ coin_exchanges(id) = begin
     path = (apiPaths.coins, "/", id, "/exchanges")
     json = get(join(path))
     Dict(begin
-        itm = convert(Dict{String,Any}, item)
+        itm = jsontodict(item)
         itm["id"] => itm
     end for item in json)
 end
@@ -140,10 +141,10 @@ coin_markets(id) = begin
     json = get(join(path))
     data = Dict{String,Vector{Dict}}()
     for item in json
-        itm = convert(Dict{String,Any}, item)
+        itm = jsontodict(item)
         coin_id = itm["base_currency_id"]
         coin_id ∉ keys(data) && (data[coin_id] = Vector{Dict}())
-        push!(data[coin_id], convert(Dict{String,Any}, itm))
+        push!(data[coin_id], jsontodict(itm))
     end
     data
 end
@@ -168,10 +169,10 @@ end
 ticker_dict(json) = begin
     quotes = Dict{String,Float64}()
     for (k, v) in json["quotes"]["USD"]
-        if k == "ath_date"
-            quotes[k] = _parse_date(v)
+        if k == :ath_date
+            quotes[string(k)] = _parse_date(v)
         else
-            quotes[k] = v
+            quotes[string(k)] = v
         end
     end
     quotes["beta"] = json["beta_value"]

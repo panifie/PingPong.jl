@@ -44,7 +44,13 @@ _fetch!(w::Watcher, ::CgTickerVal) = begin
     order = Dict(value => index for (index, value) in enumerate(ids))
     ordered = sort(mkts, by=m -> order[m["id"]])
     if length(mkts) > 0
-        value = @parsedata CgTick ordered "id"
+        value = try
+            @parsedata CgTick ordered "id"
+        catch e
+            @error "cg_ticker: failed parsing" exception = e
+            rethrow(e)
+        end
+
         pushnew!(w, value)
         true
     else

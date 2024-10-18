@@ -10,6 +10,7 @@ using .Misc.TimeTicks
 using .Misc.Lang: Option, safewait, safenotify, @lget!, Lang
 using .Misc: after, truncate_file
 using Base.Threads: @spawn
+using JSON3
 
 @doc """ Attempts to fetch data for a watcher
 

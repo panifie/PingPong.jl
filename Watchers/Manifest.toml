@@ -2,7 +2,7 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "2a1599b0b3cea69b8765ac4d0dccc4b39395339c"
+project_hash = "a2c0211857d24465321e8938f2d8ec63a51a6cd0"
 
 [[deps.AWS]]
 deps = ["Base64", "Compat", "Dates", "Downloads", "GitHub", "HTTP", "IniFile", "JSON", "MbedTLS", "Mocking", "OrderedCollections", "Random", "SHA", "Sockets", "URIs", "UUIDs", "XMLDict"]
@@ -366,12 +366,6 @@ deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 version = "1.11.0"
 
-[[deps.LazyJSON]]
-deps = ["JSON", "OrderedCollections", "PropertyDicts"]
-git-tree-sha1 = "ce08411caa70e0c9e780f142f59debd89a971738"
-uuid = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
-version = "0.2.2"
-
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
@@ -613,11 +607,6 @@ deps = ["Logging", "SHA", "UUIDs"]
 git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
 uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
-
-[[deps.PropertyDicts]]
-git-tree-sha1 = "8cf3b5cea994cfa9f238e19c3946a39cf051896c"
-uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
-version = "0.1.2"
 
 [[deps.Python]]
 deps = ["Dates", "DocStringExtensions", "Lang", "OpenSSL_jll", "Pkg", "PrecompileTools", "PythonCall", "Reexport"]

@@ -11,6 +11,7 @@ using ..Lang: safenotify, safewait
 using ..Misc: rangeafter, rangebetween
 using ..Fetch.Processing: cleanup_ohlcv_data, iscomplete, isincomplete
 using ..Watchers: logerror
+using ..Watchers: JSON3
 
 @add_statickeys! begin
     exc
@@ -91,9 +92,9 @@ macro append_dict_data(dict, data, maxlen_var)
 end
 
 # FIXME
-Base.convert(::Type{Symbol}, s::LazyJSON.String) = Symbol(s)
-Base.convert(::Type{DateTime}, s::LazyJSON.String) = _parsedatez(s)
-Base.convert(::Type{DateTime}, s::LazyJSON.Number) = unix2datetime(s)
+Base.convert(::Type{Symbol}, s::JSON3.String) = Symbol(s)
+Base.convert(::Type{DateTime}, s::JSON3.String) = _parsedatez(s)
+Base.convert(::Type{DateTime}, s::JSON3.Number) = unix2datetime(s)
 Base.convert(::Type{String}, s::Symbol) = string(s)
 Base.convert(::Type{Symbol}, s::AbstractString) = Symbol(s)
 

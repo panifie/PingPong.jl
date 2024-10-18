@@ -6,5 +6,8 @@ version = "0.1.0"
 [deps]
 Fetch = "01b7c4b8-c42c-4ba7-97ce-8f8fab6ee59e"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-LazyJSON = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+
+[compat]
+JSON3 = "1.14.1"

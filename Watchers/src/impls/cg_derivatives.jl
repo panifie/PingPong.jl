@@ -37,7 +37,12 @@ function cg_derivatives_watcher(exc_name)
 end
 
 function _fetch!(w::Watcher, ::CgDerivativesVal)
-    mkts = cg.derivatives_from(attr(w, :exc))
+    mkts = try
+        cg.derivatives_from(attr(w, :exc))
+    catch e
+        @error "cg_derivatives: fetch" exception = e
+        rethrow(e)
+    end
     if length(mkts) > 0
         result = Dict{Derivative,CgSymDerivative}()
         for (k, m) in mkts

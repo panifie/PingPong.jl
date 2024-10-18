@@ -1,14 +1,15 @@
 module CoinGecko
 using HTTP
 using URIs
+using JSON3
 using ..Watchers
-using LazyJSON
 using ..Lang: @kget!, Option
 using ..Misc
 using ..Misc.TimeToLive
 using ..TimeTicks
 using ..TimeTicks: timestamp
 using ..Fetch.Instruments
+using ..Watchers: jsontodict
 using .Instruments.Derivatives
 
 const API_URL = "https://api.coingecko.com"
@@ -57,7 +58,8 @@ function get(path, query=nothing, inc=500)
         else
             @assert resp.status == 200 resp
         end
-        json = LazyJSON.value(resp.body)
+        setglobal!(Main, :v, resp.body)
+        json = JSON3.read(resp.body)
         return json
     else
         throw(resp)
@@ -77,7 +79,7 @@ function price(syms::AbstractVector, vs=[DEFAULT_CUR])
             "include_last_updated_at" => true,
         ),
     )
-    return convert(Dict{String,Dict{String,Any}}, json)
+    return jsontodict(json)
 end
 
 const currencies = Set{String}()
@@ -301,7 +303,7 @@ end
 function globaldata()
     data = get(ApiPaths.glob)["data"]
     return (;
-        volume=convert(Dict{String,Float64}, data["total_volume"]),
+        volume=jsontodict(data["total_volume"], to=Dict{String,Float64}),
         mcap_change_24h=Float64(data["market_cap_change_percentage_24h_usd"]),
         date=unix2datetime(data["updated_at"]),
     )
@@ -339,7 +341,7 @@ function derivatives()
         for d in json
             mkt = lowercase(replace(d["market"], r"[[:punct:]]" => "", r" " => "_"))
             mkt ∉ keys(data) && (data[mkt] = Dict{String,Any}[])
-            push!(data[mkt], convert(Dict{String,Any}, d))
+            push!(data[mkt], jsontodict(d))
         end
         data
     end
@@ -371,7 +373,7 @@ function derivatives_from(id)
     json = get(join(path), ("include_tickers" => "unexpired",))
     return Dict(
         begin
-            v = convert(Dict{String,Any}, t)
+            v = Dict{String,Any}(string(k) => v for (k, v) in t)
             perpetual(
                 convert(String, v["symbol"]),
                 convert(String, v["base"]),
@@ -400,7 +402,7 @@ function tickers_from(exc_id)
     path = (ApiPaths.exchanges, "/", exc_id)
     json = get(join(path))
     return Dict(
-        Asset(SubString(""), t["base"], t["target"]) => convert(Dict{String,Any}, t) for
+        Asset(SubString(""), t["base"], t["target"]) => jsontodict(t) for
         t in json["tickers"] if _is_valid(t)
     )
 end

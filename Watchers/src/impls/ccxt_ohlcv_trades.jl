@@ -33,7 +33,6 @@ function Python.pyconvert(::Type{FeesType}, py::Py)
     end
 end
 
-trades_fromdict(v, ::Val{CcxtTrade}) = fromdict(CcxtTrade, String, py, pyconvert, pyconvert)
 _trades(w::Watcher) = attr(w, :trades)
 _trades!(w) = setattr!(w, CcxtTrade[], :trades)
 _lastpushed(w) = attr(w, :last_pushed)

@@ -2,7 +2,7 @@ module CoinMarketCap
 using ..Watchers
 using HTTP
 using URIs
-using LazyJSON
+using JSON3
 using ..Misc: Config, config, queryfromstruct
 using ..Lang: Option
 
@@ -22,7 +22,6 @@ function setapikey!(from_env=false, config_path=joinpath(pwd(), "user", "secrets
         Base.get(ENV, "PINGPONG_CMC_APIKEY", "")
     else
         cfg = Config(:default, config_path)
-        @info cfg.attrs
         @assert API_KEY_CONFIG ∈ keys(cfg.attrs) "$API_KEY_CONFIG not found in secrets."
         cfg.attrs[API_KEY_CONFIG]
     end
@@ -48,7 +47,7 @@ check_error(json) =
     end
 
 function get(path::T where {T}, query=nothing)
-    json = LazyJSON.value(HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS).body)
+    json = JSON3.read(HTTP.get(absuri(path, API_URL); query, headers=API_HEADERS).body)
     check_error(json)
     json
 end
@@ -94,7 +93,11 @@ function listings(quot="USD", as_json=false; kwargs...)
     if as_json
         json
     else
-        convert(Vector{Dict{String,Any}}, json["data"])
+        out = Dict{String,Any}[]
+        for v in json["data"]
+            push!(out, Dict{String,Any}(string(k) => d for (k, d) in v))
+        end
+        out
     end
 end
 
@@ -111,7 +114,7 @@ end
 
 usdquote(entry) = entry["quote"]["USD"]
 usdquotes(entries) = usdquote.(entries)
-usdvol(entry::AbstractDict) = Float64(usdquote(entry)["volume_24h"])
+usdvol(entry::AbstractDict) = (@info(entry); Float64(usdquote(entry)["volume_24h"]))
 usdvol(data::AbstractVector) = usdvol.(data)
 usdprice(entry::AbstractDict) = Float64(usdquote(entry)["price"])
 usdprice(data::AbstractVector) = usdprice.(data)

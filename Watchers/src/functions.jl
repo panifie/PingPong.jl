@@ -312,3 +312,7 @@ Base.display(w::Watcher) =
         close(buf)
     end
 Base.get(w::Watcher, k, def) = attr(w, k, def)
+
+function jsontodict(json; to=Dict{String,Any})
+    to(convert(keytype(to), k) => convert(valtype(to), v) for (k, v) in json)
+end
