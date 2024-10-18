@@ -95,8 +95,6 @@ end
             for ai in s.universe
                 save_stubtrades(ai)
             end
-            # FIXME: on julia 1.10 an UndefVarError
-            # happen during deserialization of trades
             try
                 stub_strategy(; dostub=true)
             catch e

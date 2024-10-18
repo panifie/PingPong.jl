@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.10
+      JULIA_VERSION: 1.11
       JULIA_NOPRECOMP: "all"
     permissions: write-all
 

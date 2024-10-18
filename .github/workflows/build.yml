@@ -17,7 +17,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      JULIA_VERSION: 1.10
+      JULIA_VERSION: 1.11
     permissions: write-all
     timeout-minutes: 300
 

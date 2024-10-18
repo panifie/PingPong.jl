@@ -15,12 +15,13 @@ If the watcher is not stopped, it tries to propagate the OHLCV data.
 """
 propagate_loop(s::RTStrategy, ai, w::Watcher) = begin
     data = ai.data
+    met = ohlcvmethod(s)
     try
         while true
             safewait(w.beacon.process)
             try
                 propagate_ohlcv!(data)
-                cached_ohlcv!(ai, ohlcvmethod(s))
+                cached_ohlcv!(ai, met)
             catch exception
                 @debug "watchers: propagate loop" exception
             end
@@ -141,7 +142,9 @@ function watch_ohlcv!(s::RTStrategy; exc=exchange(s), kwargs...)
         n_jobs = attr(s, :live_ohlcv_jobs, 4)
         function propagate_callback(_, sym)
             @debug "watchers: propagating" _module = LogWatchOHLCV sym
-            asset_bysym(s, sym) |> ohlcv_dict |> propagate_ohlcv!
+            ai = asset_bysym(s, sym)
+            ohlcv_dict(ai) |> propagate_ohlcv!
+            cached_ohlcv!(ai, met)
         end
         watcher_func = if met == :tickers
             (exc; kwargs...) -> ccxt_ohlcv_tickers_watcher(exc; kwargs...)
@@ -225,8 +228,8 @@ function cached_ohlcv!(s::Strategy)
 end
 
 function cached_ohlcv!(ai::AssetInstance, met=:candles)
-    eid = exchangeid(ai)
-    sym = raw(ai)
+    eid = exchangeid(ai)()
+    sym = raw(ai) |> string
     for (tf, data) in ohlcv_dict(ai)
         cached_ohlcv!(eid, met, period(tf), sym; def=data)
     end

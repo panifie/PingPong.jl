@@ -258,7 +258,7 @@ end
 @doc "Close all watchers."
 _closeall() = begin
     asyncmap(close, values(WATCHERS))
-    empty!(OHLCV_CACHE)
+    empty!(WatchersImpls.OHLCV_CACHE)
 end
 atexit(_closeall)
 

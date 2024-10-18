@@ -1,4 +1,4 @@
-FROM julia:1.10 as base
+FROM julia:1.11 as base
 RUN mkdir /pingpong \
     && apt-get update \
     && apt-get -y install sudo direnv git \

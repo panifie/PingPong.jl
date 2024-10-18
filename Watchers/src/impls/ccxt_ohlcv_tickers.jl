@@ -137,7 +137,7 @@ It also initializes the symbols and checks for the watcher.
 
 """
 function _init!(w::Watcher, ::CcxtOHLCVTickerVal)
-    _view!(w, default_view(w, Dict{String,DataFrame}))
+    # _view!(w, default_view(w, Dict{String,DataFrame}))
     a = attrs(w)
     a[k"last_processed"] = typemax(DateTime)
     _checkson!(w)

@@ -57,6 +57,8 @@ using .Misc.Lang: @preset, @precomp, @ignore
     dostop()
     @debug "PRECOMP: remote 4"
     empty!(TASK_STATE) # NOTE: Required to avod spurious errors
+    empty!(CLIENTS) # NOTE: Required to avod spurious errors
+    empty!(RUNNING) # NOTE: Required to avod spurious errors
     HTTP.Connections.closeall()
     LiveMode.ExchangeTypes._closeall()
     Base.GC.gc(true) # trigger finalizer

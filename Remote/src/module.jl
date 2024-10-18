@@ -17,6 +17,8 @@ const CLIENTS = LittleDict{UInt64,Any}()
 const TASK_STATE = IdDict{Strategy,TaskState}()
 @doc "The timeout in seconds for the Telegram API requests."
 const TIMEOUT = Ref(20)
+@doc "Active clients"
+const RUNNING = LittleDict{TelegramClient, Task}()
 
 include("emojis.jl")
 include("commands.jl")
@@ -117,6 +119,17 @@ This function creates an asynchronous task that listens for incoming Telegram me
 """
 function tgtask(cl, s, running::Ref{Bool}, offset::Ref{Int})
     @async begin
+        let t = get(RUNNING, cl, nothing)
+            if t isa Task && !istaskdone(t)
+                @warn "remote: existing task for this telegram bot, stopping it"
+                prev_strat = t.storage[:strategy]
+                tgstop!(prev_strat)
+                wait(t)
+                @warn "remote: stopped previous task" prev_strat
+            end
+        end
+        task_local_storage(:strategy, s)
+        RUNNING[cl] = current_task()
         user = _getoption(s, :tgusername)
         if !(user isa String) || isempty(user)
             @warn "tg: no telegram user name set (bot will refuse to reply) \
@@ -209,6 +222,9 @@ function tgstart!(s::Strategy)
             offset = Ref(-1)
             (task=tgtask(cl, s, running, offset), offset, running)
         else
+            if !istaskdone(state.task)
+                tgstop!(s)
+            end
             (
                 task=tgtask(cl, s, state.running, state.offset),
                 offset=state.offset,
