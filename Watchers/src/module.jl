@@ -256,7 +256,10 @@ function watcher(T::Type, name::String, args...; kwargs...)
 end
 
 @doc "Close all watchers."
-_closeall() = asyncmap(close, values(WATCHERS))
+_closeall() = begin
+    asyncmap(close, values(WATCHERS))
+    empty!(OHLCV_CACHE)
+end
 atexit(_closeall)
 
 include("errors.jl")
