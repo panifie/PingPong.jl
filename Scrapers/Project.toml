@@ -12,3 +12,6 @@ Instruments = "36fdd1e0-de92-434c-a120-c8ed410c5e3c"
 Processing = "71db1b01-ba5b-4918-92ad-dd9436844736"
 URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
 ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
+
+[compat]
+ZipFile = "0.10.1"
