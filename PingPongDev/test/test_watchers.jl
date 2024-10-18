@@ -49,6 +49,7 @@ function _test_watchers_2()
     @test w.name == "cg_derivatives-16819285695551769070"
     wa.fetch!(w)
     if wi.cg.STATUS[] == 200
+        @test length(w.buffer) > 0
         @test last(w).value isa Dict{wi.Derivative,wi.CgSymDerivative}
         k = "cg_binance_futures_derivatives"
         delete!(Data.zi[].store, k)

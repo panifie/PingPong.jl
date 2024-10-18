@@ -14,7 +14,7 @@ function _test_tradesohlcv_1()
         end
     end
     trades = JSON.parsefile(joinpath(PROJECT_PATH, "test", "stubs", "trades.json"))
-    trades = wi.trades_fromdict.(trades, Val(wi.CcxtTrade))
+    trades = wi.fromdict.(CcxtTrade, String, trades)
     (df, _, _) = pro.TradesOHLCV.trades_to_ohlcv(trades, tf"1m")
     @views begin
         @test NamedTuple(df[1, :]) == (;

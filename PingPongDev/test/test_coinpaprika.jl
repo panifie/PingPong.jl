@@ -6,7 +6,7 @@ function test_coinpaprika()
             using .PingPong.Engine.LiveMode.Watchers.CoinPaprika
             using .PingPong.Engine.Instruments
             using .PingPong.Engine.TimeTicks
-            using .CoinPaprika.LazyJSON
+            using .CoinPaprika.JSON3
             using .PingPong.Engine.Data: Candle
             cpr = CoinPaprika
         end
@@ -29,7 +29,7 @@ end
 
 function test_twitter()
     tw = cpr.twitter("btc-bitcoin")
-    tw isa LazyJSON.Array && length(tw) > 25 && occursin("bitcoin", string(tw))
+    tw isa JSON3.Array && length(tw) > 25 && occursin("bitcoin", string(tw))
 end
 
 function test_ratelimit()

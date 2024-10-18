@@ -4,6 +4,8 @@ using PingPongDev.PingPong.Engine.TimeTicks
 using PingPongDev.PingPong.Engine.Exchanges.Python
 using PingPongDev.PingPong.Engine.Simulations.Random
 
+global s
+
 function test_sanitize(exc)
     s = "BTC/USDT:USDT"
     asset = parse(Derivative, s)

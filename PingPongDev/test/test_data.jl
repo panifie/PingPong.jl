@@ -3,6 +3,7 @@ using Test
 # include("env.jl")
 # btc = first(s.universe, a"BTC/USDT")
 #
+global z
 
 test_zarrinstance() = begin
     zi = Data.zinstance()
