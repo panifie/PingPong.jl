@@ -499,13 +499,12 @@ function Watchers._process!(w::Watcher, ::CcxtPositionsVal; fetched=false)
     if !iswatchevent
         t = (@async begin
             waitforcond((() -> jobs_count == jobs[]), Second(15) * jobs_count)
-            if jobs_count == jobs[]
-                _setposflags!(w, s, max_date, long_dict, Long(), processed_syms)
-                _setposflags!(w, s, max_date, short_dict, Short(), processed_syms)
-                live_sync_universe_cash!(s)
-            else
+            if jobs_count < jobs[]
                 @error "watchers pos process: positions update jobs timed out" jobs_count jobs[]
             end
+            _setposflags!(w, s, max_date, long_dict, Long(), processed_syms)
+            _setposflags!(w, s, max_date, short_dict, Short(), processed_syms)
+            live_sync_universe_cash!(s)
         end) |> errormonitor
         tasks = w[:process_tasks]
         push!(tasks, t)
