@@ -805,7 +805,7 @@ _history_timestamp(ai) =
         end
     end
 @doc "Get the timestamp of the last trade."
-timestamp(ai::NoMarginInstance) = _history_timestamp(ai)
+timestamp(ai::NoMarginInstance, _=nothing) = _history_timestamp(ai)
 timestamp(::MarginInstance, ::Nothing) = DateTime(0)
 function timestamp(ai::MarginInstance, ::ByPos{P}=posside(ai)) where {P}
     pos = position(ai, P())
