@@ -199,7 +199,8 @@ function send_trades!(
                 sleep(1)
             end
         end
-    else
+    elseif islist(updates)
+        @debug "watch trades: resp" _module = LogWatchTrade2 updates
         for resp in pylist(updates)
             date = resp_trade_timestamp(resp, exchangeid(ai), DateTime)
             func = () -> handle_trade!(s, ai, orders_byid, resp)
@@ -207,6 +208,12 @@ function send_trades!(
             safenotify(asset_cond)
             safenotify(strategy_cond)
         end
+    else
+        date = resp_trade_timestamp(updates, exchangeid(ai), DateTime)
+        func = () -> handle_trade!(s, ai, orders_byid, updates)
+        sendrequest!(ai, date, func; events)
+        safenotify(asset_cond)
+        safenotify(strategy_cond)
     end
 end
 
@@ -361,7 +368,7 @@ function handle_trade!(s, ai, orders_byid, resp)
                             )
                             t = begin
                                 @debug "handle trade: before trade exec" _module =
-                                    LogWatchTrade open = if ismissing(state)
+                                    LogWatchTrade ai open = if ismissing(state)
                                     missing
                                 else
                                     isopen(ai, state.order)
