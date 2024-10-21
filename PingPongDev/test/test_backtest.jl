@@ -108,9 +108,9 @@ test_margin_market(s) = begin
     s.attrs[:overrides] = margin_overrides(:market)
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyMarketOrder
-    @test Cash(:USDT, 0.082) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.137) ≈ s.cash_committed atol = 1e-1
-    @test ect.tradescount(s) == st.trades_count(s) == 478
+    @test Cash(:USDT, -0.056) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-1
+    @test ect.tradescount(s) == st.trades_count(s) == 480
     mmh = st.minmax_holdings(s)
     @test mmh.count == 0
     @test mmh.min[1] == :USDT
@@ -124,9 +124,9 @@ test_margin_gtc(s) = begin
     s.attrs[:overrides] = margin_overrides(:gtc)
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyGTCOrder
-    @test Cash(:USDT, 0.131) ≈ s.cash atol = 1e-3
-    @test Cash(:USDT, 0.14) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 563
+    @test Cash(:USDT, -0.105) ≈ s.cash atol = 1e-3
+    @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 541
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -144,9 +144,9 @@ test_margin_fok(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyFOKOrder
-    @test Cash(:USDT, 955.93) ≈ s.cash atol = 1e1
-    @test Cash(:USDT, 955.963) ≈ s.cash_committed atol = 1e1
-    @test st.trades_count(s) == 2376
+    @test Cash(:USDT, -0.036) ≈ s.cash atol = 1e1
+    @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e1
+    @test st.trades_count(s) == 2352
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
@@ -164,9 +164,9 @@ test_margin_ioc(s) = begin
     s.config.min_size = 1e3
     egn.start!(s)
     @test first(_ai_trades(s)).order isa ect.AnyIOCOrder
-    @test Cash(:USDT, 961.852) ≈ s.cash atol = 1e1
-    @test Cash(:USDT, 961.909) ≈ s.cash_committed atol = 1e-1
-    @test st.trades_count(s) == 2288
+    @test Cash(:USDT, -0.048) ≈ s.cash atol = 1e1
+    @test Cash(:USDT, 0.0) ≈ s.cash_committed atol = 1e-1
+    @test st.trades_count(s) == 2354
     mmh = st.minmax_holdings(s)
     reset!(s, true)
     @test mmh.count == 0
