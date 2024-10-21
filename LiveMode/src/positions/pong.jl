@@ -29,9 +29,7 @@ function Executors.pong!(
     force=false,
 )::Bool
     @lock ai if isopen(ai, pos) || hasorders(s, ai, pos)
-        @warn "pong leverage: can't update leverage when position is open or has pending orders" ai = raw(
-            ai
-        ) s = nameof(s) n_orders = orderscount(s, ai) isopen(ai, pos)
+        @warn "pong leverage: can't update leverage when position is open or has pending orders" ai s n_orders = orderscount(s, ai) isopen(ai, pos)
         false
     else
         new_lev = _lev_value(lev)
@@ -183,7 +181,7 @@ end
 function _posclose_maybesync(s, ai, pside, waitfor)
     @debug "pong pos close: sync position" _module = LogPosClose ai pside
     @timeout_start
-    update = live_position(s, ai, pside; since=timestamp(ai, pside), waitfor=@timeout_now)
+    update = live_position(s, ai, pside; since=timestamp(ai, pside) - Millisecond(1), waitfor=@timeout_now)
     if isnothing(update)
         @warn "pong pos close: no position update (resetting)" ai pside
         if isopen(ai, pside)
@@ -259,7 +257,7 @@ function _posclose_order(s, ai, pside, since, waitfor)
     @debug "pong pos close: order" _module = LogPosClose ai pside
     @timeout_start
     if !waitposclose(s, ai, pside; waitfor=@timeout_now, force=true)
-        @debug "pong pos close: timedout" _module = LogPosClose pside ai = raw(ai)
+        @debug "pong pos close: timedout" _module = LogPosClose pside ai
     end
     waitsync(ai; since, waitfor=@timeout_now)
     live_sync_position!(s, ai, pside; since, overwrite=true, waitfor=@timeout_now)
@@ -268,8 +266,10 @@ function _posclose_order(s, ai, pside, since, waitfor)
         @debug "pong pos close: still open (local) position" _module = LogPosClose since pside date = get(
             pup, :date, nothing
         )
+        ensure_marginmode(s, ai)
         false
     else
+        ensure_marginmode(s, ai)
         true
     end
 end
@@ -283,11 +283,14 @@ function _posclose_lastcheck(s, ai, pside, t, since, waitfor)
         waitsync(s; since, waitfor=@timeout_now())
         return if isopen(ai, pside)
             @error "pong pos close: still open orders (not a market order?)" ai pside t
+            ensure_marginmode(s, ai)
             false
         else
+            ensure_marginmode(s, ai)
             true
         end
     else
+        ensure_marginmode(s, ai)
         true
     end
 end
@@ -320,10 +323,12 @@ function pong!(
         # give up if there is no remote position update
         update, isclosed = _posclose_maybesync(s, ai, pside, @timeout_now)
         if isclosed
+            ensure_marginmode(s, ai)
             return true
         end
         # ensure no more orders are pending and return if pos is closed
         if _posclose_waitsync(s, ai, pside, @timeout_now)
+            ensure_marginmode(s, ai)
             return true
         end
         # if still open, close manually with a reduce only order
@@ -338,6 +343,7 @@ function pong!(
         )
         # another check for close in case of failing trade
         if isclosed
+            ensure_marginmode(s, ai)
             return true
         end
         # trade exec success, wait for completion
