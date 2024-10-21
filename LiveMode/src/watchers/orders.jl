@@ -639,9 +639,9 @@ function emulate_trade!(
             end
         end
     end
-    if !isorderprice(s, ai, actual_price, o; resp) || !inlimits(actual_price, ai, :price)
-        return nothing
-    end
+
+    isorderprice(s, ai, actual_price, o; resp)
+    inlimits(actual_price, ai, :price)
     if !ignore_cost &&
         (!inlimits(net_cost, ai, :cost) || !inlimits(actual_amount, ai, :amount))
         return nothing
