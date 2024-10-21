@@ -1,6 +1,6 @@
 using .PaperMode.Instances: amount_with_fees
 using Base: negate
-using .Executors: attr, committment, _check_unfillment, IncreaseLimitOrder
+using .Executors: attr, committment, _check_unfillment, IncreaseLimitOrder, strategycash!
 import Base: fill!
 
 # NOTE: unfilled is always negative
@@ -75,4 +75,14 @@ function fill!(
     @deassert gtxzero(ai, committed(o), Val(:price)) ||
         o isa AnyMarketOrder ||
         o isa IncreaseLimitOrder
+end
+
+function Instances.cash!(s::LiveStrategy, ai, t::Trade)
+    @debug "trades: cash before" _module = LogWatchTrade cash(s).value cash(ai, posside(t)).value timestamp(ai, posside(t)) t.date
+    if timestamp(ai, posside(t)) <= t.date
+        @debug "trades: cash updating" _module = LogWatchTrade
+        strategycash!(s, ai, t)
+        cash!(ai, t)
+        @debug "trades: cash after" _module = LogWatchTrade cash(s).value cash(ai, posside(t)).value timestamp(ai, posside(t))
+    end
 end
