@@ -451,12 +451,6 @@ deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 version = "1.11.0"
 
-[[deps.LazyJSON]]
-deps = ["JSON", "OrderedCollections", "PropertyDicts"]
-git-tree-sha1 = "ce08411caa70e0c9e780f142f59debd89a971738"
-uuid = "fc18253b-5e1b-504c-a4a2-9ece4944c004"
-version = "0.2.2"
-
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
@@ -757,11 +751,6 @@ deps = ["Logging", "SHA", "UUIDs"]
 git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
 uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 version = "0.1.4"
-
-[[deps.PropertyDicts]]
-git-tree-sha1 = "8cf3b5cea994cfa9f238e19c3946a39cf051896c"
-uuid = "f8a19df8-e894-5f55-a973-672c1158cbca"
-version = "0.1.2"
 
 [[deps.PtrArrays]]
 git-tree-sha1 = "77a42d78b6a92df47ab37e177b2deac405e1c88f"
@@ -1109,7 +1098,7 @@ uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
 version = "1.0.0"
 
 [[deps.Watchers]]
-deps = ["Fetch", "HTTP", "LazyJSON", "URIs"]
+deps = ["Fetch", "HTTP", "JSON3", "URIs"]
 path = "../../../Watchers"
 uuid = "4a3f9c16-ec8e-48c6-a58d-938fc30e2b4b"
 version = "0.1.0"
