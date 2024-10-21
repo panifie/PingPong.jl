@@ -155,7 +155,7 @@ function _live_sync_position!(
         reset!(ai, pside) # if not full reset at least cash/committed
         timestamp!(pos, update.date)
         event!(ai, PositionUpdated(:position_updated_closed, s, pos))
-        @debug "sync pos: closed flag set, reset" _module = LogPosSync ai pside
+        @debug "sync pos: closed flag set, reset" _module = LogPosSync ai pside pos
         return pos
     end
 

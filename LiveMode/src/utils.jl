@@ -37,6 +37,7 @@ baremodule LogCancelOrder end
 baremodule LogSendOrder end
 baremodule LogSyncOrder end
 baremodule LogSyncCash end
+baremodule LogState end
 baremodule LogWaitOrder end
 baremodule LogTasks end
 baremodule LogTasks2 end
@@ -48,6 +49,7 @@ baremodule LogWatchBalance end
 baremodule LogWatchBalProcess end
 baremodule LogWatchOrder end
 baremodule LogWatchTrade end
+baremodule LogWatchTrade2 end
 baremodule LogWatchPos end
 baremodule LogWatchPos2 end
 baremodule LogWatchPosProcess end
