@@ -338,6 +338,18 @@ function isorderside(side, o)::Bool
     end
 end
 
+function divergentprice(o::AnyMarketOrder, actual_price)
+    false
+end
+
+function divergentprice(o::AnyBuyOrder, actual_price; rtol=0.05)
+    !isapprox(actual_price, o.price; rtol) && actual_price > o.price
+end
+
+function divergentprice(o::AnySellOrder, actual_price; rtol=0.05)
+    !isapprox(actual_price, o.price; rtol) && actual_price < o.price
+end
+
 @doc """ Checks if the trade price is valid
 
 $(TYPEDSIGNATURES)
@@ -348,14 +360,14 @@ The function also checks if the price is greater than zero, issuing a warning an
 
 """
 function isorderprice(s, ai, actual_price, o; rtol=0.05, resp)::Bool
-    if !isapprox(actual_price, o.price; rtol) && !(o isa AnyMarketOrder)
+    if divergentprice(o, actual_price; rtol)
         @warn "create trade: trade price far off from order price" o.price exc_price =
-            actual_price ai nameof(s)
+            actual_price ai nameof(s) o o.id @caller(20)
         false
     elseif actual_price <= 0.0 || !isfinite(actual_price)
         @warn "create trade: invalid price" nameof(s) ai tradeid = resp_trade_id(
             resp, exchangeid(ai)
-        )
+        ) o
         false
     else
         true
@@ -423,18 +435,17 @@ function maketrade(s::LiveStrategy, o, ai; resp, trade::Option{Trade}=nothing, k
     end
     actual_amount = resp_trade_amount(resp, eid)
     actual_price = resp_trade_price(resp, eid)
-    if !isorderprice(s, ai, actual_price, o; resp)
-        @debug "maketrade: wrong price" _module = LogCreateTrade ai o actual_price
-        return nothing
-    end
+
+    isorderprice(s, ai, actual_price, o; resp)
     inlimits(actual_price, ai, :price)
+
     if actual_amount <= 0.0 || !isfinite(actual_amount)
         @debug "make trade: amount value absent from trade or wrong ($actual_amount)), using cost." _module =
             LogCreateTrade ai actual_amount resp
         net_cost = resp_trade_cost(resp, eid)
         actual_amount = toprecision(net_cost / actual_price, ai.precision.amount)
         if !isorderamount(s, ai, actual_amount; resp)
-        @debug "make trade: wrong amount" _module = LogCreateTrade ai actual_amount
+            @debug "make trade: wrong amount" _module = LogCreateTrade ai actual_amount
             return nothing
         end
     else
