@@ -9,7 +9,7 @@ _doinit() = begin
     HOOKS[:phemex] = [_override_phemex]
 end
 
-_authenticate!(exc::Exchange{ExchangeID{:phemex}}) = pyfetch(exc.authenticate)
+_authenticate!(exc::Exchange{ExchangeID{:phemex}}) = nothing # pyfetch(exc.authenticate)
 
 function _override_phemex(exc::Exchange{ExchangeID{:phemex}})
     code = """

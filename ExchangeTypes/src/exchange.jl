@@ -186,7 +186,7 @@ has(exc, what::Tuple{Vararg{Symbol}}; kwargs...) = _has_all(exc, what; kwargs...
 account(exc::Exchange) = getfield(exc, :account)
 params(exc::Exchange) = getfield(exc, :params)
 
-function _first(exc::Exchange, args::Symbol...)
+function _first(exc::Exchange, args::Vararg{Symbol})
     for name in args
         has(exc, name) && return getproperty(getfield(exc, :py), name)
     end
@@ -197,7 +197,7 @@ end
 $(TYPEDSIGNATURES)
 
 This function iterates through the provided Symbols and returns the value of the first property that exists in the Exchange object."""
-Base.first(exc::Exchange, args::Symbol...) = _first(exc, args...)
+Base.first(exc::Exchange, args::Vararg{Symbol}) = _first(exc, args...)
 
 @doc "Global var holding Exchange instances. Used as a cache."
 const exchanges = Dict{Tuple{Symbol,String},Exchange}()
