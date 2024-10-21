@@ -18,8 +18,8 @@ ttl_resp_dict(ttl::Period, kt=DateTime, vt=Vector{Any}) = safettl(kt, Union{Miss
 
 function _trades_resp_cache(a, ai)
     # every asset instance holds a mapping of timestamp (since) and relative vector of trades resps
-    cache = @lget! a :trades_cache Dict{AssetInstance,ttl_dict_type(a[:trades_cache_ttl])}()
-    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl])
+    cache = @lget! a :trades_cache Dict{AssetInstance,ttl_dict_type(a[:trades_cache_ttl], DateTime)}()
+    @lget! cache ai ttl_resp_dict(a[:trades_cache_ttl], DateTime)
 end
 
 @doc """Use `DateTime(0)` as key to fetch the *latest* response."""
@@ -31,8 +31,8 @@ function _order_trades_resp_cache(a, ai)
 end
 
 function _open_orders_resp_cache(a, ai)
-    cache = @lget! a :open_orders_cache Dict{AssetInstance,ttl_dict_type(a[:open_orders_ttl])}()
-    @lget! cache ai ttl_resp_dict(a[:open_orders_ttl])
+    cache = @lget! a :open_orders_cache Dict{AssetInstance,ttl_dict_type(a[:open_orders_ttl], DateTime)}()
+    @lget! cache ai ttl_resp_dict(a[:open_orders_ttl], DateTime)
 end
 
 function _closed_orders_resp_cache(a, ai)
@@ -78,7 +78,7 @@ function save_strategy_cache(s; inmemory=false, cache_path=nothing)
         end
     end
     if inmemory
-        Main.strategy_cache = cache
+        setglobal!(Main, :strategy_cache, cache)
     else
         Data.Cache.save_cache("strategy_cache", cache; cache_path)
     end
