@@ -64,7 +64,6 @@ function replay_open_orders!(
             continue
         end
         push!(ids, id)
-        date = resp_order_timestamp(resp, eid)
         function func()
             o = (@something let state = get(ao, id, nothing)
                 if state isa LiveOrderState
@@ -106,6 +105,7 @@ function replay_open_orders!(
             end
             pop!(ids, id)
         end
+        date = @something resp_order_timestamp(resp, eid) timestamp(ai)
         sendrequest!(ai, date, func; events)
     end
     waitforcond(() -> isempty(ids), @timeout_now())
