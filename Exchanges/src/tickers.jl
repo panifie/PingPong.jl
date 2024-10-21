@@ -172,12 +172,13 @@ function ticker!(
         return @get tickersCache10Sec pair pydict()
     else
         @lock l begin
+            fetch_func = first(exc, :fetchTicker)
             @lget! tickersCache10Sec pair begin
                 v = nothing::Option{Py}
                 tries = 0
                 while tries < 3
                     tries += 1
-                    def_func = pyisTrue(func == exc.fetchTicker) ? Returns(missing) : exc.fetchTicker
+                    def_func = pyisTrue(func == fetch_func) ? Returns(missing) : fetch_func
                     v = pyfetch_timeout(func, exc.fetchTicker, timeout, pair)
                     if v isa PyException
                         @error "Fetch ticker error: $v" offline = isoffline() func pair

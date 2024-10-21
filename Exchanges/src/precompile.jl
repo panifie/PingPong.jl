@@ -14,6 +14,7 @@ using .Misc: @skipoffline
     qc = "USDT"
     pair = "BTC/USDT"
     e = getexchange!(id; markets=:yes)
+    func = e.fetchTicker
     @precomp @skipoffline let
         futures(e)
         timestamp(e)
@@ -24,7 +25,7 @@ using .Misc: @skipoffline
         tickers(e, qc; min_vol=-1.0, with_leverage=:only, verbose=false)
         tickers(e, qc; min_vol=-1.0, with_leverage=:from)
         market!(pair, e)
-        ticker!(pair, e; func=e.fetchTicker)
+        ticker!(pair, e; func)
         is_pair_active(pair, e)
         market_precision(pair, e)
         market_limits(pair, e)

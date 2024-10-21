@@ -134,7 +134,9 @@ function Base.getproperty(e::E, k::Symbol) where {E<:Exchange}
         getfield(e, k)
     else
         !isempty(e) || throw("Can't access non instantiated exchange object.")
-        pygetattr(getfield(e, :py), @pystr(k))
+        pyk = @pystr(k)
+        pyv = getfield(e, :py)
+        pygetattr(pyv, pyk)
     end
 end
 function Base.propertynames(e::E) where {E<:Exchange}

@@ -274,6 +274,10 @@ function stop!(s::Strategy{<:Union{Paper,Live}})
             if istaskrunning(task)
                 @warn "strategy: hanging task, killing"
                 Threads.@spawn kill_task(task)
+                if istaskrunning(task)
+                    @warn "strategy: waiting for task to stop"
+                    waitforcond(task.donenotify, throttle(s))
+                end
             end
         end
     end
