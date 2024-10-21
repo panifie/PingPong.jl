@@ -28,6 +28,7 @@ $(TYPEDSIGNATURES)
 The function compares the absolute value of free cash in the strategy to the absolute value of the required cash for the order, which is the product of the amount and price.
 """
 function check_available_cash(s, ai, amount, price, o::Type{<:IncreaseOrder})
+    @debug "check avl cash: inc" _module = LogState freecash(s) amount leverage(ai, posside(o))  abs(amount) * price / abs(leverage(ai, posside(o)))
     abs(freecash(s)) >= abs(amount) * price / abs(leverage(ai, posside(o)))
 end
 
@@ -104,7 +105,7 @@ function live_send_order(
     amount,
     price=lastprice(s, ai, t),
     post_only=false,
-    reduce_only=t <: ReduceOnlyOrder,
+    reduce_only=false,
     stop_price=nothing,
     profit_price=nothing,
     stop_loss::Option{TriggerOrderTuple}=nothing,
@@ -137,8 +138,10 @@ function live_send_order(
         if !ensure_marginmode(s, ai)
             @warn "send order: margin mode mismatch" this_mm = marginmode(ai) exc = nameof(
                 exchange(ai)
-            )
-            return nothing
+            ) reduce_only
+            if !reduce_only
+                return nothing
+            end
         end
     end
     sym = raw(ai)
@@ -258,8 +261,6 @@ function live_send_order(
     inc_pending_orders!(ai)
     resp = nothing
     try
-        Main.args = (sym, args...)
-        Main.kwargs = (; side, type, price, amount, params)
         resp = create_order(s, sym, args...; side, type, price, amount, params)
     finally
         return if isnothing(resp) || resp isa Exception
@@ -272,6 +273,5 @@ function live_send_order(
         else
             resp
         end
-        resp
     end
 end
