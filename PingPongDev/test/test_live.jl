@@ -4,6 +4,8 @@ using Test
 using PingPongDev.PingPong.Engine.Exchanges: Exchanges as exs
 using PingPongDev.PingPong.Engine.Misc: MarginMode
 
+global ords, resps, body, s, args, kwargs, strategy_cache, disabled
+
 include("common.jl")
 
 patch_pf = @expr function Python.pyfetch(f::Py, args...; kwargs...)
@@ -349,6 +351,7 @@ function test_live_pnl(s)
         price = lp.get(lm.Pos.lastPrice) |> pytofloat
 
         st.default!(s, skip_sync=true)
+        lm.start_handlers!(s)
         lm.watch_positions!(s)
         empty!(lm.positions_watcher(s))
         # test if live_pnl returns the correct unrealized pnl from the live position
@@ -418,9 +421,9 @@ function test_live_my_trades(s)
             Python._pyfetch(f, args...; kwargs...)
         end
     end
-    @eval disabled = Ref{Any}()
+    @eval disabled = Ref{Any}(())
     patch2 = @expr function exs.ExchangeTypes.has(exc::exs.CcxtExchange, sym)
-        if sym in disabled
+        if sym in disabled[]
             false
         else
             exs.ExchangeTypes._has(exc, sym)
@@ -436,7 +439,7 @@ function test_live_my_trades(s)
             trades = lm.live_my_trades(s, ai; since)
             @test pyisinstance(trades, pybuiltins.list)
             @test length(trades) == 2
-            disabled[] = (:fetchMyTrades)
+            disabled[] = (:fetchMyTrades,)
             lm.set_exc_funcs!(s)
             @test_throws MethodError lm.live_my_trades(s, ai; since)
         end
@@ -478,7 +481,7 @@ function test_live_order_trades(s)
 end
 
 function test_live_openclosed_orders(s)
-    @eval disabled = Ref{Any}(())
+    disabled = @eval disabled = Ref{Any}(())
     patch1 = @expr function Python.pyfetch(f::Py, args...; kwargs...)
         if occursin("order", string(f.__name__))
             if :fallback in disabled[]
@@ -557,6 +560,7 @@ function _test_live(debug="LiveMode")
     end
     prev_debug = get(ENV, "JULIA_DEBUG", nothing)
     ENV["JULIA_DEBUG"] = debug
+    setglobal!(Main, :strategy_cash, nothing)
     try
         let cbs = st.STRATEGY_LOAD_CALLBACKS.live
             if lm.load_strategy_cache ∉ cbs
@@ -564,15 +568,20 @@ function _test_live(debug="LiveMode")
             end
         end
         @testset failfast = FAILFAST "live" begin
+            if isdefined(Main, :s)
+                lm.stop!(Main.s)
+            end
+            @eval disabled = Ref{Any}(())
             s = @pass [patch_pf, patch_pft] begin
                 live_strat(:ExampleMargin; exchange=EXCHANGE_MM, skip_sync=true)
             end
+            lm.start_handlers!(s)
             setglobal!(Main, :s, s)
             try
-                # @testset "live_fetch_orders" test_live_fetch_orders(s)
-                # @testset "live_fetch_positions" test_live_fetch_positions(s)
-                # @testset "live_cancel_orders" test_live_cancel_orders(s)
-                # @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
+                @testset "live_fetch_orders" test_live_fetch_orders(s)
+                @testset "live_fetch_positions" test_live_fetch_positions(s)
+                @testset "live_cancel_orders" test_live_cancel_orders(s)
+                @testset "live_cancel_all_orders" test_live_cancel_all_orders(s)
                 @testset "live_position" test_live_position(s)
                 @testset "live_position_sync" test_live_position_sync(s)
                 @testset "live_pnl" test_live_pnl(s)
@@ -581,7 +590,7 @@ function _test_live(debug="LiveMode")
                 @testset "live_order_trades" test_live_order_trades(s)
                 @testset "live_openclosed_order" test_live_openclosed_orders(s)
             finally
-                @async lm.stop_all_tasks(s)
+                @async lm.stop!(s)
                 lm.save_strategy_cache(s; inmemory=true)
             end
         end
