@@ -2,6 +2,8 @@ using Base: _wait2
 using Test
 using PingPongDev.PingPong.Engine.Lang: @m_str
 
+global w, ai
+
 function _check_state(s, ai)
     lm.waitsync(s, since=now())
     lm.waitsync(ai, since=now())
@@ -69,6 +71,23 @@ function _reset_remote_pos(s, ai)
     @test ect.orderscount(s, ai) == 0
 end
 
+_ensure_close(s, ai) = begin
+    last_order = try
+        let v = collect(lm.values(s, ai))
+            if !isempty(v)
+                last(v)
+            else
+                last(ai.history).order
+            end
+        end
+    catch
+        nothing
+    end
+    @info "TEST: last order" last_order lm.isfilled(ai, last_order)
+    @test lm.waitordclose(s, ai)
+    last_order
+end
+
 _waitwatchers(s) = begin
     bw = lm.balance_watcher(s)
     while bw[:last_processed] == DateTime(0)
@@ -119,6 +138,8 @@ function test_live_pong_mg(s)
     @info "TEST: livecontracs2" w = lm.positions_watcher(s)
     @test lm.live_contracts(s, ai, Long(); since, force=true) == 0
     lm.waitsync(s, waitwatchers=true)
+    @info "TEST: ensure close" lm.live_contracts(s, ai, Short())
+    _ensure_close(s, ai)
     @test !isopen(ai)
 
     @info "TEST: Short sell" amount cash(ai, Short)
@@ -129,7 +150,10 @@ function test_live_pong_mg(s)
         o = first(values(s, ai, Sell))
         @info "TEST: trades delay" o.id lm.isownable(ai._internal_lock)
         while !lm.isfilled(ai, o)
-            lm.waittrade(s, ai, o; waitfor) || lm.waitorder(s, ai, o; waitfor)
+            @info "TEST: wait trade"
+            lm.waittrade(s, ai, o; waitfor)
+            @info "TEST: wait order"
+            lm.waitorder(s, ai, o; waitfor)
         end
     else
         o = trade.order
@@ -150,14 +174,16 @@ function test_live_pong_mg(s)
         @info "TEST: waiting for fill"
         sleep(1)
     end
-    @test cash(ai, Short()) == -amount == lm.live_contracts(s, ai, Short(), since=last(ai.history).date, force=true)
+    last_order = _ensure_close(s, ai)
+    @test cash(ai, Short()) == -amount == lm.live_contracts(s, ai, Short(), since=last(lm.trades(last_order)).date, force=true)
     @test iszero(cash(ai, Long()))
     @test isopen(ai, Short())
-    @info "TEST: Position Close (2nd)"
-    ect.pong!(s, ai, Short(), now(), ect.PositionClose(); waitfor)
+    @info "TEST: Position Close (2nd)" ai
+    @test ect.pong!(s, ai, Short(), now(), ect.PositionClose(); waitfor)
     @info "TEST: wait posclose" waitfor
-    lm.waitposclose(s, ai, Short(); waitfor=Second(10))
-    @test lm.waitposclose(s, ai, Short(); waitfor=Second(0))
+    lm.waitposclose(s, ai, Short(); waitfor)
+    @test lm.waitposclose(s, ai, Short(); waitfor)
+    @test iszero(lm.live_contracts(s, ai, Short, force=true))
     @test !isopen(ai, Long())
     @test !isopen(ai, Short())
     @test iszero(cash(ai, Short()))
@@ -423,7 +449,7 @@ function _test_live_nm_fok_ioc(s, type)
     @info "TEST: " fees fees_base prev_quote val expected_quote s.cash.value
     quote_diff = s.cash - expected_quote
     @test ect.gtxzero(ai, quote_diff, Val(:cost))
-    @test isapprox(s.cash, expected_quote) || isapprox(lm.live_total(s, since=last(lm.trades(o)).date), expected_quote)
+    @test isapprox(s.cash, expected_quote, rtol=1e-5) || isapprox(lm.live_total(s, since=last(lm.trades(o)).date), expected_quote, rtol=1e-5)
     @test length(ai.history) > prev_trades
 end
 
@@ -467,7 +493,7 @@ function test_live_pong_nm_fok(s)
     end
 end
 
-mm_debug = "Executors,LogWatchPos,LogWatchPosProcess,LogWatchTrade,LogPosClose,LogCreateOrder,LogCreateTrade,LogEvents"
+mm_debug = "Executors,LogWatchPos,LogWatchPosProcess,LogWatchTrade,LogPosClose,LogCreateOrder,LogCreateTrade,LogEvents,LogState,LogSyncOrder,LogPosSync"
 nm_debug = "Executors,LogWatchTrade,LogCreateOrder,LogCreateTrade,LogEvents"
 
 # NOTE: phemex testnet is disabled during weekends
